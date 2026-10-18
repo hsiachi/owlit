@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background } from "../agents/background.ts"
 import { Core } from "../core.ts"
 import { TaskStore } from "../tasks/index.ts"
+import { until, testSearchPath } from "../test-util.ts"
 import { workspaceDataDir, type Workspace } from "../workspace/workspace.ts"
 import { cleanDigest } from "./library.ts"
 
@@ -22,7 +23,7 @@ async function setup() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-digest-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: path.join(base, "userData"), searchPath: testSearchPath })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -37,15 +38,23 @@ async function setup() {
     await call("library.add", { paper: { id, title: `Paper ${id}`, authors: ["A. Author"], ids: { doi: `10.1/${id}` } } })
     if (text) writeFileSync(path.join(root, "library/papers", id, "text.md"), "<!-- page 1 -->\n\nThe paper's text.\n")
   }
-  const digestDone = async (id: string) => {
-    for (let i = 0; i < 200; i++) {
-      const task = workspace.tasks.list().find((t) => t.kind === "paper.digest" && t.subject === id)
-      if (task && ["done", "failed", "cancelled"].includes(task.state)) return task
-      await new Promise((r) => setTimeout(r, 25))
-    }
-    throw new Error("no digest task finished")
+  const digestDone = (id: string) =>
+    until(
+      () => {
+        const task = workspace.tasks.list().find((t) => t.kind === "paper.digest" && t.subject === id)
+        return task && ["done", "failed", "cancelled"].includes(task.state) ? task : undefined
+      },
+      { what: `the digest of ${id}` },
+    )
+  const journal = () => readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+  // Opens the paper's page and waits for the digest rule to say, in the journal, why it writes nothing
+  const openedForNothing = async (id: string) => {
+    await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: id } })
+    const found = await until(() => journal().find((l) => l.kind === "evaluation" && l.rule === "digest.onOpen" && l.subject === id), { what: `digest.onOpen's decision on ${id}` })
+    expect(found.decision).toBe("none")
+    return found.reason as string
   }
-  return { root, call, workspace, addPaper, digestDone }
+  return { root, call, workspace, addPaper, digestDone, openedForNothing }
 }
 
 describe("digests", () => {
@@ -102,16 +111,15 @@ describe("digests", () => {
   })
 
   it("writes none for papers merely added, and replaces a note that is there only when asked", async () => {
-    const { root, call, workspace, addPaper, digestDone } = await setup()
+    const { root, call, workspace, addPaper, digestDone, openedForNothing } = await setup()
     for (let i = 0; i < 50; i++) await addPaper(`doi-10.1-bulk${i}`)
-    await new Promise((r) => setTimeout(r, 200))
-    expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
 
     const note = path.join(root, "library/papers/doi-10.1-bulk0/digest.md")
     writeFileSync(note, "# From pitta\n\nKept as it is.\n")
-    await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-bulk0" } })
+    // Asked for, the decision is made before the call returns
     await call("library.requestDigest", { id: "doi-10.1-bulk0" })
-    await new Promise((r) => setTimeout(r, 200))
+    // The rule's decision on opening the page comes after the adds' events: no digest for any of them by then
+    expect(await openedForNothing("doi-10.1-bulk0")).toBe("has a digest")
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
     expect(readFileSync(note, "utf8")).toBe("# From pitta\n\nKept as it is.\n")
     // Written another way than owlit writes notes now: the page offers to rewrite it
@@ -144,10 +152,12 @@ describe("digests", () => {
   })
 
   it("waits for a paper's text before writing, and skips papers with nothing to read", async () => {
-    const { root, call, workspace, addPaper } = await setup()
+    const { root, call, workspace, addPaper, openedForNothing } = await setup()
     await addPaper("doi-10.1-none", false)
     await call("library.requestDigest", { id: "doi-10.1-none" })
-    await new Promise((r) => setTimeout(r, 100))
+    // Its text is read first, and finds nothing
+    await until(() => workspace.tasks.list().some((t) => t.kind === "paper.text" && t.subject === "doi-10.1-none" && ["done", "failed", "cancelled"].includes(t.state)), { what: "the paper's text task" })
+    expect(await openedForNothing("doi-10.1-none")).toBe("nothing to read")
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
     expect(existsSync(path.join(root, "library/papers/doi-10.1-none/digest.md"))).toBe(false)
   })
@@ -172,7 +182,7 @@ describe("background runs at open", () => {
     })
     // A short folder: a Unix socket's path has to fit in about a hundred bytes
     const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
-    const core = new Core({ userDataDir, socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: [] } })
+    const core = new Core({ userDataDir, socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: [] }, searchPath: testSearchPath })
     cores.push(core)
     await core.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
     const workspace = (core as unknown as { workspace: Workspace }).workspace

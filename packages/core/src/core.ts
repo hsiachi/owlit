@@ -79,6 +79,9 @@ export interface CoreOptions {
   debug?: boolean
   // Base of the wait between tries of a failed request (default 1s); tests shorten it
   retryBaseMs?: number
+  // The PATH agents are looked up and started with (default: the login shell's); tests pass their own, so
+  // the developer's ~/.zshrc doesn't run inside them
+  searchPath?: () => Promise<string>
   // pdfium's wasm file, where the desktop app ships it beside main
   pdfiumWasm?: string
   // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
@@ -158,6 +161,7 @@ export class Core {
     const resolveProxy = options.host?.resolveProxy
     this.agents = new Agents({
       settings: this.settings,
+      searchPath: options.searchPath,
       proxyEnv: resolveProxy && !hasProxyEnv(process.env) ? () => systemProxyEnv(resolveProxy) : undefined,
       setup: options.node && options.npm ? { dir: path.join(options.userDataDir, "agents"), node: options.node, npm: options.npm, fetchJson: async (url) => JSON.parse(await this.http.text(url)) } : undefined,
       probeDir: path.join(options.userDataDir, "agents", "probe"),

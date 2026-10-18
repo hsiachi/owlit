@@ -4,6 +4,7 @@ import path from "node:path"
 import type { SessionUpdate } from "@owlit/protocol"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { testSearchPath } from "../test-util.ts"
 import type { Background } from "./background.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
@@ -18,7 +19,7 @@ async function setup() {
   const root = path.join(base, "ws")
   mkdirSync(root)
   writeFileSync(path.join(root, "story.md"), "# Story\n\nThe first claim.\n")
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: path.join(base, "userData"), searchPath: testSearchPath })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })

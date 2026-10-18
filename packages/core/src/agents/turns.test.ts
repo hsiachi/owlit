@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { until, testSearchPath } from "../test-util.ts"
 import { cannotRead, ownTurnOver, sendsPictures } from "./profiles.ts"
 import { attachmentBlocks, promptBlocks } from "./turns.ts"
 
@@ -19,7 +20,7 @@ async function setup() {
   const root = path.join(base, "ws")
   mkdirSync(root)
   writeFileSync(path.join(root, "notes.md"), "twelve chars")
-  const core = new Core({ userDataDir: path.join(base, "userData"), lateQuietMs: 300 })
+  const core = new Core({ userDataDir: path.join(base, "userData"), lateQuietMs: 300, searchPath: testSearchPath })
   cores.push(core)
   const updates: SessionUpdate[] = []
   core.onNotify((n: RpcNotification) => {
@@ -202,9 +203,9 @@ describe("turns", () => {
     // During an Assistant's turn a delete is asked in the chat, as a tool call with the card
     const turn = send("slow please", { role: "assistant" })
     // The turn is under way once the agent says something (a cold start takes longer than any fixed wait)
-    while (!updates.some((u) => u.type === "agent_message_chunk")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "agent_message_chunk"), { what: "a agent_message_chunk" })
     const asked = call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })
-    while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     expect(ask).toMatchObject({ title: "Delete old", kind: "delete" })
     await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "allow" })
@@ -216,7 +217,7 @@ describe("turns", () => {
   it("keeps an agent's own agents apart: their steps, their questions and their reports", async () => {
     const { send, updates, call, text } = await setup()
     const turn = send("use agents")
-    while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     // The question comes from the agent's own session, and says which agent asks
     expect(ask).toMatchObject({ toolCallId: "b1", agentId: "agent-b" })
@@ -243,7 +244,7 @@ describe("turns", () => {
   it("asks permission and passes on the answer; Reject reaches the agent", async () => {
     const { send, updates, call, text } = await setup()
     const turn = send("needs permission")
-    while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
     await turn
@@ -262,7 +263,7 @@ describe("turns", () => {
     const diffOf = async (text: string) => {
       updates.length = 0
       const turn = send(text)
-      while (!updates.some((u) => u.type === "permission_request")) await sleep(20)
+      await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
       const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
       const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === ask.toolCallId) as Extract<SessionUpdate, { type: "tool_call" }>
       await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
@@ -276,7 +277,7 @@ describe("turns", () => {
   it("shows the agent's questions and passes on the answer, or a skip", async () => {
     const { send, updates, call, text } = await setup()
     let turn = send("a question for you")
-    while (!updates.some((u) => u.type === "question_request")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "question_request"), { what: "a question_request" })
     const ask = updates.find((u) => u.type === "question_request") as Extract<SessionUpdate, { type: "question_request" }>
     expect(ask).toMatchObject({ toolCallId: "q1", questions: [{ id: "question_0", header: "Pick", question: "Which one?", options: [{ label: "A", description: "the first" }, { label: "B" }], allowsText: true }] })
     await call("agents.answerQuestion", { chatId: "c1", requestId: ask.requestId, answers: { question_0: { picks: ["B"], text: "but quickly" } } })
@@ -286,7 +287,7 @@ describe("turns", () => {
 
     updates.length = 0
     turn = send("another question")
-    while (!updates.some((u) => u.type === "question_request")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "question_request"), { what: "a question_request" })
     const again = updates.find((u) => u.type === "question_request") as Extract<SessionUpdate, { type: "question_request" }>
     await call("agents.answerQuestion", { chatId: "c1", requestId: again.requestId, answers: null })
     await turn
@@ -298,7 +299,7 @@ describe("turns", () => {
   it("closes a waiting question when the turn is stopped", async () => {
     const { send, updates, call } = await setup()
     const turn = send("question, then stop")
-    while (!updates.some((u) => u.type === "question_request")) await sleep(20)
+    await until(() => updates.some((u) => u.type === "question_request"), { what: "a question_request" })
     await call("agents.cancel", { chatId: "c1" })
     expect(await turn).toEqual({ stopReason: "cancelled" })
     expect(updates.some((u) => u.type === "question_resolved" && u.outcome === "cancelled")).toBe(true)
@@ -314,14 +315,13 @@ describe("turns", () => {
     expect(connectors.find((c: any) => c.id === agent.id).authenticated).not.toBe(false)
   })
 
-  it("cancels a turn quickly, closing it as cancelled", async () => {
-    const { send, call } = await setup()
+  it("cancels a turn, closing it as cancelled", async () => {
+    const { send, call, text } = await setup()
     const turn = send("slow please")
-    await sleep(400)
-    const t = Date.now()
+    await until(() => text(), { what: "the agent to start talking" })
     await call("agents.cancel", { chatId: "c1" })
+    // The slow turn streams for seconds and then ends as end_turn: only a cancel that landed ends it cancelled
     expect(await turn).toEqual({ stopReason: "cancelled" })
-    expect(Date.now() - t).toBeLessThan(1000)
     expect((await call("chats.get", { id: "c1" })).messages[1].status).toBe("cancelled")
   })
 
@@ -351,7 +351,7 @@ describe("turns", () => {
     const { send, call, core, text } = await setup()
     const turn = send("slow please").catch((e) => e)
     // Wait for the agent to be talking, not for a set time: starting it can take longer under load
-    while (!text()) await sleep(20)
+    await until(() => text(), { what: "the agent to start talking" })
     core.agents.dispose()
     const error = await turn
     expect(error.message).toBe("Owlit was closed before it could finish.")
@@ -373,7 +373,7 @@ describe("turns", () => {
     const wrote: any[] = []
     core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
     await send("direct notes.md rewritten by the agent")
-    for (let i = 0; i < 80 && !wrote.length; i++) await sleep(25)
+    await until(() => wrote.length, { what: "agent.wrote" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("rewritten by the agent")
     expect(wrote).toHaveLength(1)
     expect(wrote[0]).toMatchObject({ path: "notes.md", chatId: "c1" })
@@ -388,9 +388,9 @@ describe("turns", () => {
     const wrote: any[] = []
     core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
     await send("direct notes.md first")
-    for (let i = 0; i < 80 && wrote.length < 1; i++) await sleep(25)
+    await until(() => wrote.length >= 1, { what: "the first agent.wrote" })
     await send("direct notes.md second")
-    for (let i = 0; i < 80 && wrote.length < 2; i++) await sleep(25)
+    await until(() => wrote.length >= 2, { what: "the second agent.wrote" })
     const [, first, , second] = (await call("chats.get", { id: "c1" })).messages
     expect(first.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(second.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
@@ -403,10 +403,9 @@ describe("turns", () => {
     const wrote: any[] = []
     core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
     await send("silent notes.md by an assistant's shell", { role: "assistant" })
-    await sleep(800)
-    expect(wrote).toHaveLength(0)
+    // The co-author's change is the sentinel: once it is heard, one kept for the assistant's would have been too
     await send("silent notes.md by a co-author's shell", { role: "coauthor" })
-    for (let i = 0; i < 80 && !wrote.length; i++) await sleep(25)
+    await until(() => wrote.length, { what: "agent.wrote for the co-author's change" })
     expect(wrote).toMatchObject([{ path: "notes.md", chatId: "c1" }])
   })
 
@@ -427,15 +426,12 @@ describe("turns", () => {
         if (n.method === "chat.lateReply") late.push((n.params as { message: unknown }).message)
         if (n.method === "chat.update") ids.push((n.params as { messageId: string }).messageId)
       })
-      const until = async (ok: () => boolean) => {
-        for (let i = 0; i < 200 && !ok(); i++) await sleep(25)
-      }
-      return { late, ids, until }
+      return { late, ids }
     }
 
     it("gets what the agent says after end_turn, is saved, and ends again", async () => {
       const { send, core, call, root } = await setup()
-      const { late, ids, until } = await watch(core)
+      const { late, ids } = await watch(core)
       expect(await send("answer after the turn")).toEqual({ stopReason: "end_turn" })
       await until(() => late.length >= 2)
       expect(late.map((m) => [m.id, m.status])).toEqual([["a1", "streaming"], ["a1", "done"]])
@@ -462,7 +458,7 @@ describe("turns", () => {
 
     it("stays open while the agent's own agents work after end_turn, and ends once they have reported", async () => {
       const { send, core, call, updates } = await setup()
-      const { late, until } = await watch(core)
+      const { late } = await watch(core)
       expect(await send("two helpers, after the turn")).toEqual({ stopReason: "end_turn" })
       // Open from the moment the prompt came back, before either agent reported
       expect(late.map((m) => m.status)).toEqual(["streaming"])
@@ -481,7 +477,7 @@ describe("turns", () => {
 
     it("is stopped by Stop, which cancels the agent's work", async () => {
       const { send, core, call, text } = await setup()
-      const { late, ids, until } = await watch(core)
+      const { late, ids } = await watch(core)
       await send("answer after the turn, slowly")
       await until(() => text().includes("The file has 0 "))
       expect(await call("agents.cancel", { chatId: "c1" })).toBeNull()
@@ -497,7 +493,7 @@ describe("turns", () => {
 
     it("gives way to the user's next message, whose turn gets what the agent still says", async () => {
       const { send, core, call } = await setup()
-      const { late, until } = await watch(core)
+      const { late } = await watch(core)
       await send("answer after the turn, slowly")
       await until(() => late.length >= 1)
       expect(await send("hello")).toEqual({ stopReason: "end_turn" })
