@@ -7621,6 +7621,22 @@ msgstr ""
 msgid "{host} answered {status}."
 msgstr ""
 
+#: packages/core/src/rpc/errors.ts
+msgid "owlit isn't allowed to change {name}. It may be locked in Finder or kept from owlit by macOS."
+msgstr ""
+
+#: packages/core/src/rpc/errors.ts
+msgid "{name} is on a disk owlit can't write to."
+msgstr ""
+
+#: packages/core/src/rpc/errors.ts
+msgid "The disk is full, so {name} couldn't be saved."
+msgstr ""
+
+#: packages/core/src/rpc/errors.ts
+msgid "{name} is no longer there."
+msgstr ""
+
 #: packages/core/src/settings-rpc.ts
 msgid "That link doesn't show which proxy it went through."
 msgstr ""
@@ -7843,6 +7859,10 @@ msgstr ""
 
 #: packages/core/src/workspace/workspace.ts
 msgid "workspace.json in .owlit can't be read, so owlit leaves it alone."
+msgstr ""
+
+#: packages/core/src/workspace/workspace.ts
+msgid "owlit isn't allowed to open {absolute}. Allow it in System Settings › Privacy & Security › Files and Folders, then try again."
 msgstr ""
 
 #: packages/core/src/workspace/workspace.ts
