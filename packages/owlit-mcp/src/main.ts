@@ -32,6 +32,9 @@ async function main(workspace: string) {
   }
   const server = createServer({ workspace, socketDir, chatId: flag("chat") ?? process.env.OWLIT_CHAT_ID, run: flag("run"), instructions })
   await server.connect(new StdioServerTransport())
+  // The agent that started this is gone. The socket to owlit, once a tool used it, would keep the process
+  // alive on its own, authenticated, so leave
+  process.stdin.on("end", () => process.exit(0))
 }
 
 void main(workspace)
