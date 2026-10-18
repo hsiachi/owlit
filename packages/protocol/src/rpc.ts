@@ -14,7 +14,7 @@ import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
-import type { ExtensionView } from "./extension.ts"
+import type { ExtensionOpened, ExtensionView, ExtensionWait } from "./extension.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -76,6 +76,10 @@ export interface Methods {
   "extension.answer": { params: { id: string; allow: boolean }; result: null }
   // Takes back a browser's permission; its extension asks to connect again
   "extension.forget": { params: { id: string }; result: ExtensionView }
+  // A waiting line's one thing to do: the extension opens the sign-in, the check or its Allow page in its
+  // own browser; with no extension connected, owlit opens a sign-in or a check in the browser it was
+  // paired in
+  "extension.open": { params: { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
   "updates.get": { params: void; result: UpdatesView }
   "updates.check": { params: void; result: UpdateCheck }
   "updates.setAuto": { params: { auto: boolean }; result: UpdatesView }

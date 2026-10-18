@@ -16,6 +16,8 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - owlit no longer opens tabs in your browser, watches Downloads or runs a hidden browser: your browser's extension does that work, and a paper owlit can't get alone says so and offers the extension.
 - The owlit extension also comes as a Firefox add-on.
 - A paper whose PDF was deleted outside owlit says the PDF is gone, offers Look again, and is looked for at the next daily look.
+- A sign-in or a check a waiting line asks for opens in the browser where the owlit extension is, in the same profile, not in your default browser; Allow… opens the extension's own page to let it read that site.
+- The owlit extension stays with the owlit it was connected to: another owlit on this Mac (a preview) is named in its popup and gets nothing from it.
 
 ## 0.2.0
 

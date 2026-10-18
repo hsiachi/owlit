@@ -153,6 +153,11 @@ function Body({ state, busy, outcome, onConnect, onAct }: { state: PopupState; b
 
 function NotConnected({ connection, onConnect }: { connection: Exclude<Connection, { state: "connected" }>; onConnect: () => void }) {
   if (connection.state === "offline") return <Muted>{t`Open owlit to connect`}</Muted>
+  // A preview or a second owlit has the port: this browser stays connected to its own
+  if (connection.state === "elsewhere") {
+    const { name } = connection
+    return <Muted>{t`${name} answers here instead of your owlit. Quit it, and this browser goes on with your owlit.`}</Muted>
+  }
   if (connection.state === "pairing")
     return (
       <p className="flex items-center gap-2 text-muted-foreground">

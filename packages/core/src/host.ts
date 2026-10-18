@@ -21,6 +21,9 @@ export interface Host {
   languages?(): string[]
   // Opens a web page in the user's own browser
   openExternal?(url: string): Promise<void>
+  // Opens a web page in the browser of this name (as the extension names it: Chrome, Arc, Firefox), or in
+  // the default browser when its app isn't known
+  openInBrowser?(url: string, browser: string | undefined): Promise<void>
   // Owlit's own updates (the desktop app: electron-updater on GitHub Releases)
   updater?: UpdaterHost
 }

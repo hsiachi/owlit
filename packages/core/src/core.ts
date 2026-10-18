@@ -179,10 +179,12 @@ export class Core {
       ? new ExtensionServer(
           {
             version: this.version().version,
+            name: (options.extension === true ? undefined : options.extension.name) ?? "Owlit",
             settings: this.settings,
             workspace: () => (this.workspace ? { name: this.workspace.info.name, library: this.workspace.library } : null),
             hasWindow: () => this.ui.hasWindow(),
             changed: (view) => this.notifier.notify("extension.changed", view),
+            openInBrowser: options.host?.openInBrowser ?? (options.host?.openExternal && ((url) => options.host!.openExternal!(url))),
           },
           options.extension === true ? {} : options.extension,
         )
@@ -299,6 +301,10 @@ export class Core {
     this.router.register("extension.answer", z.object({ id: z.string().min(1), allow: z.boolean() }), async ({ id, allow }) => {
       await this.extension?.pairings.answer(id, allow)
       return null
+    })
+    this.router.register("extension.open", z.object({ kind: z.enum(["sign-in", "check", "permission"]), host: z.string().min(1).max(253) }), async ({ kind, host }) => {
+      if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
+      return this.extension.open(kind, host)
     })
     this.router.register("extension.forget", z.object({ id: z.string().min(1) }), async ({ id }) => {
       if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)

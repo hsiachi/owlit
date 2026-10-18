@@ -878,8 +878,10 @@ msgid "Error"
 msgstr "Error"
 
 #. button: let the owlit extension read this site, for the papers waiting there
+#. button: let the owlit extension read this site, for the papers waiting there
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
+#: apps/extension/src/allow/Allow.tsx
 #: apps/extension/src/popup/Popup.tsx
 msgid "Allow"
 msgstr "Allow"
@@ -2973,13 +2975,14 @@ msgid "Open it"
 msgstr "Open it"
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/allow/Allow.tsx
 msgid "Let the owlit extension read {host}"
 msgstr "Let the owlit extension read {host}"
 
-#. button: says how to open the owlit extension in the browser
+#. button: the owlit extension opens a page in the user's browser that asks to let it read this site
 #: app/src/features/extension/waits.ts
-msgid "Open the extension"
-msgstr "Open the extension"
+msgid "Allow…"
+msgstr "Allow…"
 
 #: app/src/features/extension/waits.ts
 msgid "Press owlit's button in your browser's toolbar, then Allow."
@@ -6661,6 +6664,22 @@ msgstr "Open Link in Browser"
 msgid "Copy Link"
 msgstr "Copy Link"
 
+#: apps/extension/src/allow/Allow.tsx
+msgid "owlit goes on at {host}. You can close this tab."
+msgstr "owlit goes on at {host}. You can close this tab."
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "owlit can't get these PDFs with your access until you allow it."
+msgstr "owlit can't get these PDFs with your access until you allow it."
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "Your browser didn't ask. Allow {host} for owlit in the browser's extension settings."
+msgstr "Your browser didn't ask. Allow {host} for owlit in the browser's extension settings."
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "{papers, plural, one {# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.} other {# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.}}"
+msgstr "{papers, plural, one {# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.} other {# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.}}"
+
 #: apps/extension/src/background/index.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "This page doesn't show a paper."
@@ -6723,6 +6742,10 @@ msgstr "Connected to owlit · {0}"
 #: apps/extension/src/popup/Popup.tsx
 msgid "Open owlit to connect"
 msgstr "Open owlit to connect"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{name} answers here instead of your owlit. Quit it, and this browser goes on with your owlit."
+msgstr "{name} answers here instead of your owlit. Quit it, and this browser goes on with your owlit."
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "Allow it in owlit…"

@@ -177,7 +177,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
           state === "for-sign-in" || state === "for-check" || state === "for-permission" ? (
             <>
               {siteWait ? (
-                <Button size="sm" onClick={() => actOnWait(siteWait)}>
+                <Button size="sm" onClick={() => void actOnWait(siteWait)}>
                   {waitWords(siteWait).action}
                 </Button>
               ) : (

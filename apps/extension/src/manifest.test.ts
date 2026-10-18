@@ -40,4 +40,10 @@ describe("manifest", () => {
     expect(required.length).toBeGreaterThan(0)
     expect(required.includes("none") && required.length > 1).toBe(false)
   })
+
+  it.each(TARGETS)("names the dev build apart, for %s", (target) => {
+    const m = manifest(target, { version: "1.2.3", publishers, dev: true })
+    expect(m.name).toBe("owlit (dev)")
+    if (target === "firefox") expect(m.browser_specific_settings?.gecko.id).not.toBe(GECKO_ID)
+  })
 })

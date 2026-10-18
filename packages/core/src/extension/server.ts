@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, RpcErrorCode, type ExtensionStatus, type ExtensionView, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OwlitIdentity, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
 import type { Library, PlacedBy } from "../library/library.ts"
@@ -32,17 +33,25 @@ export const RETRY_MS = 30_000
 
 export interface ExtensionHost {
   version: string
+  // This owlit's name as the menu bar says it: Owlit, or Owlit Dev (branch)
+  name: string
   settings: SettingsStore
   // The open workspace's name and library
   workspace: () => { name: string; library: Library } | null
   // An owlit window is open to ask the user in
   hasWindow: () => boolean
   changed: (view: ExtensionView) => void
+  // Opens a page in the named browser (a pairing's, "Chrome"), or the system's default one when owlit
+  // can't tell that browser's app
+  openInBrowser?: (url: string, browser: string | undefined) => Promise<void>
 }
 
 export interface ExtensionServerOptions {
-  // 0 lets the system pick (tests)
+  // EXTENSION_PORT for the installed owlit, EXTENSION_DEV_PORT for one run from a checkout; 0 lets the
+  // system pick (tests)
   port?: number
+  // ExtensionHost.name
+  name?: string
   retryMs?: number
   questionMs?: number
   holdMs?: number
@@ -82,6 +91,7 @@ export class ExtensionServer {
   private retry: ReturnType<typeof setTimeout> | undefined
   private stopped = false
   private readonly routes: Route[]
+  private identity: Promise<OwlitIdentity> | undefined
 
   constructor(host: ExtensionHost, options: ExtensionServerOptions = {}) {
     this.host = host
@@ -106,6 +116,38 @@ export class ExtensionServer {
 
   async view(): Promise<ExtensionView> {
     return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits: this.work.waits() }
+  }
+
+  // The id the user's extensions pair with: made once, kept in settings.json
+  owlit(): Promise<OwlitIdentity> {
+    this.identity ??= (async () => {
+      let id = (await this.host.settings.get()).owlitId
+      if (!id) {
+        id = randomUUID()
+        const made = id
+        await this.host.settings.update((s) => ({ ...s, owlitId: s.owlitId ?? made }))
+        id = (await this.host.settings.get()).owlitId!
+      }
+      return { id, name: this.host.name }
+    })()
+    return this.identity
+  }
+
+  // A waiting line's button (extension.open): the extension opens the page in its own browser, where the
+  // user's access is. With none connected, owlit opens a sign-in or a check itself, in the browser of the
+  // pairing that met it; being allowed to read a site can only be asked from inside the browser.
+  async open(kind: ExtensionWait["kind"], host: string): Promise<ExtensionOpened> {
+    const wait = this.work.waits().find((w) => w.kind === kind && w.host === host)
+    if (!wait) return { by: "none" }
+    const paired = (await this.host.settings.get()).extension?.paired ?? []
+    const browserOf = (id: string | undefined) => paired.find((p) => p.id === id)?.browser
+    const to = this.work.open(kind, host)
+    if (to) return { by: "extension", browser: browserOf(to) }
+    if (kind === "permission" || !this.host.openInBrowser) return { by: "none" }
+    // The browser that met it, else the one seen last
+    const browser = browserOf(this.work.pausedBy(host)) ?? [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]?.browser
+    await this.host.openInBrowser(wait.url, browser)
+    return { by: "browser", browser }
   }
 
   async start() {
@@ -167,10 +209,14 @@ export class ExtensionServer {
       raw.resume()
       return
     }
+    // Which owlit this is, to every extension, paired or not: one paired with another owlit (the
+    // installed one, while a preview has the port) tells it apart by this and keeps its pairing
+    const owlit = await this.owlit()
     const named = raw.headers[EXTENSION_HEADER]
     // The browser's Origin wins: an extension can name any origin in a header, never in its Origin
     const requester = origin ?? (typeof named === "string" && EXTENSION_ORIGIN.test(named) ? named : undefined)
-    const cors: Record<string, string> = origin ? { "access-control-allow-origin": origin, vary: "Origin" } : {}
+    const own: Record<string, string> = { [OWLIT_ID_HEADER]: owlit.id, [OWLIT_NAME_HEADER]: encodeURIComponent(owlit.name) }
+    const cors: Record<string, string> = origin ? { ...own, "access-control-allow-origin": origin, "access-control-expose-headers": `${OWLIT_ID_HEADER}, ${OWLIT_NAME_HEADER}`, vary: "Origin" } : own
     if (raw.method === "OPTIONS") {
       response.writeHead(204, {
         ...cors,
@@ -244,14 +290,17 @@ export class ExtensionServer {
         method: "GET",
         path: is("pair", null),
         open: true,
-        handle: async ({ parts, closed, requester }) => ({ body: (await this.pairings.wait(parts[1], this.options.holdMs, closed, requester)) satisfies PairAnswer }),
+        handle: async ({ parts, closed, requester }) => {
+          const answer = await this.pairings.wait(parts[1], this.options.holdMs, closed, requester)
+          return { body: (answer.state === "allowed" ? { ...answer, owlit: await this.owlit() } : answer) satisfies PairAnswer }
+        },
       },
       {
         method: "GET",
         path: is("status"),
         handle: async ({ pairing }) => {
           const workspace = this.host.workspace()
-          return { body: { version: this.host.version, workspace: workspace ? { name: workspace.name } : null, connectedAt: pairing!.pairedAt } satisfies ExtensionStatus }
+          return { body: { version: this.host.version, workspace: workspace ? { name: workspace.name } : null, connectedAt: pairing!.pairedAt, owlit: await this.owlit() } satisfies ExtensionStatus }
         },
       },
       {
@@ -292,9 +341,9 @@ export class ExtensionServer {
       {
         method: "GET",
         path: is("work"),
-        handle: async ({ closed }) => {
-          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed)
-          return { body: { work, waits: this.work.waitsForExtension() } satisfies WorkAnswer }
+        handle: async ({ closed, pairing }) => {
+          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
+          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id) } satisfies WorkAnswer }
         },
       },
       {

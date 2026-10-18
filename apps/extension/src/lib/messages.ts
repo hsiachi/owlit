@@ -5,11 +5,13 @@ import { ext } from "./browser.ts"
 // What the popup and the content script say to the background, and what it answers
 
 // unpaired: owlit is running, this browser isn't connected; pairing: owlit's window asks the user;
-// offline: owlit isn't running; connected: paired and running
+// offline: owlit isn't running; elsewhere: another owlit has the port (name: what it calls itself);
+// connected: paired and running
 export type Connection =
   | { state: "unpaired"; problem?: "refused" | "expired" | "no-window" }
   | { state: "pairing" }
   | { state: "offline"; paired: boolean }
+  | { state: "elsewhere"; name: string }
   | { state: "connected"; workspace: string | null }
 
 export interface PageState {

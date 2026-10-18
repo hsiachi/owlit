@@ -6,6 +6,7 @@ export const TARGETS: Target[] = ["chrome", "firefox"]
 
 // The add-on's id on addons.mozilla.org: fixed, so updates and the stored token follow the same add-on
 export const GECKO_ID = "extension@owlit.ink"
+export const GECKO_DEV_ID = "extension-dev@owlit.ink"
 // Firefox 140 (an ESR): the oldest that reads data_collection_permissions, which addons.mozilla.org
 // requires; it also has everything else used here (module event pages, optional_host_permissions,
 // storage.session, scripting)
@@ -36,10 +37,11 @@ export interface Manifest {
   }
 }
 
-export function manifest(target: Target, { version, publishers }: { version: string; publishers: string[] }): Manifest {
+// dev: the build for Owlit Dev (scripts/build.mjs --dev), named apart so the two can sit side by side
+export function manifest(target: Target, { version, publishers, dev = false }: { version: string; publishers: string[]; dev?: boolean }): Manifest {
   const shared = {
     manifest_version: 3 as const,
-    name: "owlit",
+    name: dev ? "owlit (dev)" : "owlit",
     version,
     description: "Add the paper of the page you're on to owlit, with its PDF, using your browser's access.",
     icons: ICONS,
@@ -59,7 +61,7 @@ export function manifest(target: Target, { version, publishers }: { version: str
     background: { scripts: ["background.js"], type: "module" },
     browser_specific_settings: {
       gecko: {
-        id: GECKO_ID,
+        id: dev ? GECKO_DEV_ID : GECKO_ID,
         strict_min_version: FIREFOX_MIN,
         // What leaves the browser, though only to owlit on this machine: the addresses of paper pages
         // (browsingActivity) and their details and PDFs (websiteContent)

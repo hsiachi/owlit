@@ -26,7 +26,7 @@ describe("sites the extension waits at", () => {
     const items = siteWaitItems([wait("check", true, 1), wait("permission", true)], () => {})
     expect(items.map((i) => [i.what, i.where, i.action?.label])).toEqual([
       ["Pass a check at tlink.lib.tsinghua.edu.cn", "· 1 paper", "Open it"],
-      ["Let the owlit extension read tlink.lib.tsinghua.edu.cn", "· 2 papers", "Open the extension"],
+      ["Let the owlit extension read tlink.lib.tsinghua.edu.cn", "· 2 papers", "Allow…"],
     ])
   })
 })

@@ -59,6 +59,9 @@ export interface AppSettings {
   activity: { enabled: boolean }
   appearance: AppearanceSettings
   profile: ProfileSettings
+  // This owlit's own id, made with its app data the first time it serves the extension. A clone of the
+  // data for a preview leaves it out, with the pairings, so the preview makes its own.
+  owlitId?: string
   // The browser extensions the user allowed to connect
   extension?: { paired: StoredPairing[] }
 }

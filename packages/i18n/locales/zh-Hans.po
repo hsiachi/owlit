@@ -878,8 +878,10 @@ msgid "Error"
 msgstr "出错"
 
 #. button: let the owlit extension read this site, for the papers waiting there
+#. button: let the owlit extension read this site, for the papers waiting there
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
+#: apps/extension/src/allow/Allow.tsx
 #: apps/extension/src/popup/Popup.tsx
 msgid "Allow"
 msgstr "允许"
@@ -2973,13 +2975,14 @@ msgid "Open it"
 msgstr "打开"
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/allow/Allow.tsx
 msgid "Let the owlit extension read {host}"
 msgstr "允许 owlit 扩展读取 {host}"
 
-#. button: says how to open the owlit extension in the browser
+#. button: the owlit extension opens a page in the user's browser that asks to let it read this site
 #: app/src/features/extension/waits.ts
-msgid "Open the extension"
-msgstr "打开扩展"
+msgid "Allow…"
+msgstr "允许…"
 
 #: app/src/features/extension/waits.ts
 msgid "Press owlit's button in your browser's toolbar, then Allow."
@@ -6661,6 +6664,22 @@ msgstr "在浏览器中打开链接"
 msgid "Copy Link"
 msgstr "拷贝链接"
 
+#: apps/extension/src/allow/Allow.tsx
+msgid "owlit goes on at {host}. You can close this tab."
+msgstr "owlit 会接着在 {host} 取 PDF。这个标签页可以关掉了。"
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "owlit can't get these PDFs with your access until you allow it."
+msgstr "允许之后，owlit 才能用你的访问权限取回这些 PDF。"
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "Your browser didn't ask. Allow {host} for owlit in the browser's extension settings."
+msgstr "浏览器没有弹出询问。请在浏览器的扩展设置里允许 owlit 读取 {host}。"
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "{papers, plural, one {# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.} other {# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.}}"
+msgstr "{papers, plural, other {文库里有 # 篇论文在那里等着取 PDF。扩展会用你的访问权限去取，只读 owlit 要的内容。}}"
+
 #: apps/extension/src/background/index.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "This page doesn't show a paper."
@@ -6723,6 +6742,10 @@ msgstr "已连接 owlit · {0}"
 #: apps/extension/src/popup/Popup.tsx
 msgid "Open owlit to connect"
 msgstr "打开 owlit 以连接"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{name} answers here instead of your owlit. Quit it, and this browser goes on with your owlit."
+msgstr "现在应答的是 {name}，不是你的 owlit。退出它，这个浏览器就会接着连你的 owlit。"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "Allow it in owlit…"

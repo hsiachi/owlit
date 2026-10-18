@@ -4,6 +4,8 @@ import { toast } from "sonner"
 import type { WaitingItem } from "@/app/waiting-on-you"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
 import { KIND_ICON } from "@/lib/kinds"
+import { isDesktop, rpc } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 
 // The sites where the extension in the user's browser waits for them: one line each, with one thing to
 // do, said the same on Home, atop the Library, on a paper's card and in a notification
@@ -36,22 +38,23 @@ export function waitWords(wait: ExtensionWait): WaitWords {
       return {
         what: t`Let the owlit extension read ${host}`,
         papers: plural(n, { one: "# paper", other: "# papers" }),
-        action: t({ message: "Open the extension", comment: "button: says how to open the owlit extension in the browser" }),
+        action: t({ message: "Allow…", comment: "button: the owlit extension opens a page in the user's browser that asks to let it read this site" }),
       }
   }
 }
 
-// The line's one thing to do. A sign-in or a check opens its page in the user's browser, where the
-// extension notices them getting through; an extension's popup can't be opened from outside the browser,
-// so for being allowed the line says where its button is.
-export function actOnWait(wait: ExtensionWait) {
-  if (wait.kind === "permission") {
-    const { host } = wait
-    toast(t`Press owlit's button in your browser's toolbar, then Allow.`, { description: t`The extension asks to read ${host} for the papers waiting there.` })
-    return
-  }
-  // The desktop app opens web links in the user's browser
-  window.open(wait.url, "_blank", "noreferrer")
+// The line's one thing to do, done in the browser the extension lives in, where the user's access is: the
+// extension opens the sign-in, the check or its own Allow page there. With no extension connected, owlit
+// opens a sign-in or a check in that browser itself; being allowed can only be asked from inside it, so
+// the line then says where the extension's button is.
+export async function actOnWait(wait: ExtensionWait) {
+  if (!isDesktop) return void window.open(wait.url, "_blank", "noreferrer")
+  const opened = await rpc.extension.open({ kind: wait.kind, host: wait.host }).catch(toastError)
+  if (opened?.by !== "none") return
+  const { host } = wait
+  if (wait.kind === "permission") toast(t`Press owlit's button in your browser's toolbar, then Allow.`, { description: t`The extension asks to read ${host} for the papers waiting there.` })
+  // The line went away meanwhile (the user got through), or owlit can't open pages here
+  else window.open(wait.url, "_blank", "noreferrer")
 }
 
 // A site the extension waits at, as a row: amber, among what waits on the user (Home's Waiting on you,
@@ -66,7 +69,7 @@ export function siteWaitItem(wait: ExtensionWait, showLibrary: () => void): Wait
     what: words.what,
     where: `· ${words.papers}`,
     open: { label: t({ message: "Show", comment: "verb: show the Library, where the papers wait" }), run: showLibrary },
-    action: { label: words.action, run: () => actOnWait(wait) },
+    action: { label: words.action, run: () => void actOnWait(wait) },
   }
 }
 

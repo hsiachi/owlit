@@ -5,13 +5,14 @@ import { plural, t } from "@lingui/core/macro"
 import { Core } from "@owlit/core"
 import { activateLocale } from "@owlit/i18n"
 import { CATALOGS } from "@owlit/i18n/catalogs"
-import { interfaceLocale, type AppearanceSettings, type BuildChannel, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
+import { EXTENSION_DEV_PORT, interfaceLocale, type AppearanceSettings, type BuildChannel, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, Notification, protocol, safeStorage, session, shell, type MenuItemConstructorOptions } from "electron"
 import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { hostFetch } from "./net-fetch.ts"
+import { openInBrowser } from "./open-in-browser.ts"
 import { attachTextMenu } from "./text-menu.ts"
 import { appBundle, cantReplaceItself, createUpdater, updateFeed } from "./updater.ts"
 
@@ -560,8 +561,13 @@ if (!app.requestSingleInstanceLock()) {
       debug: !app.isPackaged,
       // owlit-mcp and the CLI reach the open workspace here
       socket: true,
-      // owlit's browser extension reaches it on 127.0.0.1
-      extension: true,
+      // owlit's browser extension reaches it on 127.0.0.1. Owlit Dev (a run from a checkout) serves its own
+      // port, for the extension's dev build: on the installed owlit's, the extension in the user's browser
+      // would add papers to the preview's cloned workspace. OWLIT_EXTENSION_PORT picks another.
+      extension: {
+        port: app.isPackaged ? undefined : Number(process.env.OWLIT_EXTENSION_PORT) || EXTENSION_DEV_PORT,
+        name: process.env.OWLIT_DEV_NAME || app.name,
+      },
       // owlit-mcp, bundled beside main, run by Electron's own binary as plain Node
       mcp: { command: process.execPath, args: [path.join(__dirname, "owlit-mcp.cjs")], env: { ELECTRON_RUN_AS_NODE: "1" } },
       // The Owlit engine (Beta), owlit's own agent, run the same way
@@ -604,6 +610,10 @@ if (!app.requestSingleInstanceLock()) {
         openExternal: async (url) => {
           if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", url)
           else await shell.openExternal(url)
+        },
+        openInBrowser: async (url, browser) => {
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", browser, url)
+          else await openInBrowser(url, browser)
         },
         // Only a release has a feed to update from; core says why the others don't
         updater: build.channel === "release" ? createUpdater() : undefined,

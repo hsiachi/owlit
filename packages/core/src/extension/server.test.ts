@@ -22,7 +22,7 @@ afterEach(async () => {
 })
 
 // A core serving the extension on a free port, whose network serves recorded responses
-async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number } = {}) {
+async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: [string, string | undefined][] } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-extension-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
@@ -33,7 +33,7 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
     return typeof match[1] === "number" ? new Response("", { status: match[1] }) : new Response(match[1])
   }) as unknown as typeof globalThis.fetch
   const userDataDir = path.join(base, "userData")
-  const core = new Core({ userDataDir, host: { fetch }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
+  const core = new Core({ userDataDir, host: { fetch, openInBrowser: async (url, browser) => void options.opened?.push([url, browser]) }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
   cleanups.push(() => core.dispose())
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -133,6 +133,17 @@ describe("the extension's port", () => {
     const view = await call("extension.forget", { id: stored.extension.paired[0].id })
     expect(view.paired).toEqual([])
     expect((await request("/status", { token })).status).toBe(401)
+  })
+
+  it("says which owlit answers, to a paired extension and to one paired elsewhere", async () => {
+    const { request, pair } = await setup()
+    const stranger = await request("/status", { token: "paired-with-another-owlit" })
+    expect(stranger.status).toBe(401)
+    const id = stranger.headers.get("x-owlit-id")
+    expect(id).toMatch(/^[0-9a-f-]{36}$/)
+    expect(decodeURIComponent(stranger.headers.get("x-owlit-name")!)).toBe("Owlit")
+    const token = await pair()
+    expect((await request("/status", { token })).body.owlit).toEqual({ id, name: "Owlit" })
   })
 
   it("shows who is asking, and ties the token to that extension", async () => {
@@ -270,7 +281,7 @@ describe("the extension's port", () => {
       const token = await s.pair()
       s.putPaper(id, { title, ids: { doi: SAGE } })
       // Asking for work is what makes the extension connected
-      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [] })
+      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [] })
       return { ...s, token }
     }
 
@@ -300,11 +311,35 @@ describe("the extension's port", () => {
       const paper = await paperIn(call)
       expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { host: "sagepub.com", waits: "sign-in" } })
       // The extension knows where to watch for the user getting through
-      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ kind: "sign-in", host: "sagepub.com", papers: 1, proxied: false }] })
+      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ kind: "sign-in", host: "sagepub.com", papers: 1, proxied: false }], open: [] })
+      // The line's Sign in: the extension that met it opens the page, in its own browser
+      expect(await call("extension.open", { kind: "sign-in", host: "sagepub.com" })).toEqual({ by: "extension", browser: "Chrome" })
+      expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "sagepub.com", url: "https://journals.sagepub.com/action/showLogin" }])
+      // Handed over once
+      expect((await request("/work", { token })).body.open).toEqual([])
       expect((await request("/work/resume", { token, body: { host: "journals.sagepub.com" } })).body).toEqual({ resumed: true })
       expect((await call("extension.get")).waits).toEqual([])
       const again = (await request("/work", { token })).body.work
       expect(again).toMatchObject([{ paperId: id }])
+    })
+
+    it("opens a sign-in in the paired browser while no extension asks for work", async () => {
+      const opened: [string, string | undefined][] = []
+      const s = await setup({ holdMs: 20, opened })
+      const token = await s.pair("Arc")
+      s.putPaper(id, { title, ids: { doi: SAGE } })
+      await s.request("/work", { token })
+      await s.call("library.fetchPdf", { id })
+      const [item] = (await s.request("/work", { token })).body.work
+      await s.request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" } })
+      // The browser was closed a while ago: its extension asks for nothing
+      const now = Date.now()
+      vi.spyOn(Date, "now").mockReturnValue(now + 2 * 60_000)
+      expect(await s.call("extension.open", { kind: "sign-in", host: "sagepub.com" })).toEqual({ by: "browser", browser: "Arc" })
+      expect(opened).toEqual([["https://journals.sagepub.com/action/showLogin", "Arc"]])
+      // Being allowed to read a site can't be asked from outside the browser
+      expect(await s.call("extension.open", { kind: "permission", host: "sagepub.com" })).toEqual({ by: "none" })
+      vi.restoreAllMocks()
     })
 
     it("takes a site's waiting line away once its papers got their PDF another way or left", async () => {

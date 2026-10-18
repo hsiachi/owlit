@@ -3,7 +3,21 @@
 // 127.0.0.1 only, to browser extensions only, and only after the user allowed one in the window.
 
 // Fixed, so an extension finds owlit without being told where to look. Not 23119, Zotero's connector's.
+// Only the installed owlit serves it.
 export const EXTENSION_PORT = 21837
+// What an owlit run from a checkout (Owlit Dev) serves instead, for an extension built for it
+// (apps/extension's build:dev), so the extension in the user's browser never reaches a preview
+export const EXTENSION_DEV_PORT = 21838
+
+// Which owlit answers on the port: its id (AppSettings.owlitId) and its name as the menu bar says it
+// (Owlit, Owlit Dev (pdf-flow)). Sent on every answer to an extension, paired or not, in these headers:
+// an extension's pairing belongs to one owlit, and another one on the port is told apart by them.
+export interface OwlitIdentity {
+  id: string
+  name: string
+}
+export const OWLIT_ID_HEADER = "x-owlit-id"
+export const OWLIT_NAME_HEADER = "x-owlit-name"
 
 // A browser extension the user allowed, as settings.json keeps it: the token itself is never kept,
 // only its SHA-256 (hex)
@@ -95,7 +109,7 @@ export interface PairStarted {
 }
 // GET /pair/:pairing. Held open a while for an answer; "waiting" when none came yet, then asked again.
 // Refused (403) and expired (408) come as errors.
-export type PairAnswer = { state: "waiting" } | { state: "allowed"; token: string }
+export type PairAnswer = { state: "waiting" } | { state: "allowed"; token: string; owlit: OwlitIdentity }
 
 // GET /status
 export interface ExtensionStatus {
@@ -103,6 +117,7 @@ export interface ExtensionStatus {
   workspace: { name: string } | null
   // When this extension was allowed
   connectedAt: number
+  owlit: OwlitIdentity
 }
 
 // A paper as the extension shows it
@@ -150,6 +165,21 @@ export interface WorkItem {
 export interface WorkAnswer {
   work: WorkItem[]
   waits: { kind: ExtensionWait["kind"]; host: string; papers: number; proxied: boolean }[]
+  // Pages the user asked owlit to open for a site that waits on them: the extension opens each in its
+  // own browser, the one with the user's access. The answer comes at once when there is one.
+  open: OpenPage[]
+}
+
+// A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
+// extension's own page with one Allow button, for the papers waiting there.
+export type OpenPage = { kind: "sign-in" | "check"; host: string; url: string } | { kind: "permission"; host: string; papers: number }
+
+// extension.open: who opened the page for a site that waits on the user. extension: the extension, in
+// its browser; browser: owlit, in the browser the extension was paired in, since none is connected now;
+// none: nothing could (being allowed to read a site needs the extension).
+export interface ExtensionOpened {
+  by: "extension" | "browser" | "none"
+  browser?: string
 }
 
 // How a fetch ended without a PDF. The extension reports only this word, the host, the page's title and

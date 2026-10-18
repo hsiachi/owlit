@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionPairing, ExtensionView, PairAnswer, StoredPairing } from "@owlit/protocol"
+import type { ExtensionPairing, ExtensionView, StoredPairing } from "@owlit/protocol"
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto"
 import type { SettingsStore } from "../settings.ts"
 import { clean } from "../util.ts"
@@ -84,7 +84,8 @@ export class Pairings {
 
   // The answer once there is one, or "waiting" after holdMs; the token is handed over once, to the
   // extension that asked, and the pairing is kept then
-  async wait(id: string, holdMs: number, closed: AbortSignal, origin: string | undefined): Promise<PairAnswer> {
+  // The server adds which owlit allowed it
+  async wait(id: string, holdMs: number, closed: AbortSignal, origin: string | undefined): Promise<{ state: "waiting" } | { state: "allowed"; token: string }> {
     const question = this.questions.get(id)
     // Another extension that learnt the question's id is told nothing of it
     if (!question || question.origin !== origin) throw new HttpFailure(404, "not-found", t`owlit has no such question.`)

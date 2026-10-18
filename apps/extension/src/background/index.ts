@@ -1,10 +1,10 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionPaper, ExtensionStatus, PairAnswer, PairStarted, PaperAnswer, WorkAnswer } from "@owlit/protocol"
+import type { ExtensionPaper, ExtensionStatus, OpenPage, OwlitIdentity, PairAnswer, PairStarted, PaperAnswer, WorkAnswer } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { startI18n } from "../lib/i18n.ts"
 import { originsOf, type Answers, type Connection, type Outcome, type PageState, type PopupState, type Request } from "../lib/messages.ts"
-import { ask, OwlitError, Unreachable } from "../lib/owlit.ts"
+import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, notYetAllowed } from "../lib/permissions.ts"
 import { pdfTabKey, pdfTabWrite, refusedByOwlit, showsPdf, takesPdfTab } from "../lib/pdf-tab.ts"
@@ -29,10 +29,20 @@ const TAKEN = "#2f7a52"
 
 interface Local {
   token?: string
+  // The owlit that gave the token
+  owlit?: OwlitIdentity
   // "Take PDFs I open for papers in my Library"; unset is on
   takePdfs?: boolean
 }
-const local = () => ext.storage.local.get(["token", "takePdfs"]) as Promise<Local>
+const local = () => ext.storage.local.get(["token", "owlit", "takePdfs"]) as Promise<Local>
+// Forgotten by the owlit it was paired with
+const unpair = () => ext.storage.local.remove(["token", "owlit"])
+
+// Every request with the token goes to the owlit that gave it: another one on the port (a preview, a
+// second copy) is Elsewhere, and asked nothing
+async function ask<T>(route: string, init: AskInit = {}): Promise<T> {
+  return askAny<T>(route, init.token ? { ...init, owlit: (await local()).owlit?.id } : init)
+}
 const takePdfsOn = async () => (await local()).takePdfs !== false
 
 // ---- Being connected
@@ -45,14 +55,21 @@ async function connection(): Promise<Connection> {
   if (pairing) return { state: "pairing" }
   try {
     const status = await ask<ExtensionStatus>("/status", { token })
+    // Paired by an owlit that didn't say who it was: this one it is
+    if (status.owlit && !(await local()).owlit) await ext.storage.local.set({ owlit: status.owlit })
     void ext.alarms.clear(RECONNECT)
     keepAsking()
     return { state: "connected", workspace: status.workspace?.name ?? null }
   } catch (error) {
     if (error instanceof OwlitError && error.status === 401) {
       // Forgotten in owlit's Settings, or never paired
-      if (token) await ext.storage.local.remove("token")
+      if (token) await unpair()
       return problem ? { state: "unpaired", problem } : { state: "unpaired" }
+    }
+    if (error instanceof Elsewhere) {
+      // Looked at again until the owlit it belongs to has the port
+      void ext.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+      return { state: "elsewhere", name: error.owlitName }
     }
     if (!(error instanceof Unreachable)) throw error
     if (token) void ext.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
@@ -69,7 +86,7 @@ function pair(): Promise<Connection> {
       for (;;) {
         const answer = await ask<PairAnswer>(`/pair/${encodeURIComponent(started.pairing)}`)
         if (answer.state === "allowed") {
-          await ext.storage.local.set({ token: answer.token })
+          await ext.storage.local.set({ token: answer.token, owlit: answer.owlit })
           break
         }
         // A storage call between holds keeps Chrome from taking the worker for idle
@@ -311,18 +328,28 @@ function keepAsking() {
         // An extension call between holds also keeps Chrome from taking the worker for idle. Firefox may
         // still unload its event page between holds; the WORK alarm loads it and asks again
         await ext.storage.session.set({ [waitsKey]: answer.waits })
+        for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
         for (const item of answer.work) {
           void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, ask, token }).catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
     } catch (error) {
-      if (error instanceof OwlitError && error.status === 401) await ext.storage.local.remove("token")
-      else if (error instanceof Unreachable) void ext.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+      if (error instanceof OwlitError && error.status === 401) await unpair()
+      else if (error instanceof Unreachable || error instanceof Elsewhere) void ext.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
       else console.error("[owlit] asking owlit for work failed", error)
     } finally {
       asking = null
     }
   })()
+}
+
+// A page the user asked owlit for, from a waiting line in owlit's window: opened here, in the browser with
+// their access, and brought to the front. Being allowed to read a site is asked on the extension's own
+// page, since a permission can only be asked from a click in the extension.
+async function openPage(page: OpenPage) {
+  const url = page.kind === "permission" ? ext.runtime.getURL(`allow.html?${new URLSearchParams({ host: page.host, papers: String(page.papers) })}`) : page.url
+  const tab = await ext.tabs.create({ url, active: true })
+  if (tab.windowId !== undefined) await ext.windows.update(tab.windowId, { focused: true }).catch(() => undefined)
 }
 
 // The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab

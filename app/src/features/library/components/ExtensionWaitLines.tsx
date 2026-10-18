@@ -36,7 +36,7 @@ export function ExtensionWaitLines() {
         key={`${wait.kind}:${wait.host}`}
         mark={waitsOnYou(wait) ? <WaitingDot /> : null}
         actions={
-          <Button variant="text" size="inline" onClick={() => actOnWait(wait)}>
+          <Button variant="text" size="inline" onClick={() => void actOnWait(wait)}>
             {words.action}
           </Button>
         }

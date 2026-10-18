@@ -1,4 +1,4 @@
-import type { ExtensionWait, PdfState, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
+import type { ExtensionWait, OpenPage, PdfState, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
 import { siteOf } from "./route.ts"
@@ -53,13 +53,16 @@ interface Paused {
   url: string
   // When the newest try met it, for the next try (PAUSED_RETRY_MS)
   at: number
+  // The pairing whose fetch met it: its browser is the one where the user gets through
+  by?: string
 }
 
 interface Site {
   key: string
   proxied: boolean
   queue: Queued[]
-  inFlight?: { id: string; item: Queued; at: number }
+  // by: the pairing it was handed to
+  inFlight?: { id: string; item: Queued; at: number; by?: string }
   // When its last fetch ended, for the gap before the next
   endedAt?: number
   paused?: Paused
@@ -92,6 +95,10 @@ export class ExtensionWork implements ExtensionFetcher {
   // A work item's id → its site
   private readonly items = new Map<string, string>()
   private polledAt = Number.NEGATIVE_INFINITY
+  // When each pairing last asked for work
+  private readonly polled = new Map<string, number>()
+  // Pages to open, per pairing, until its next GET /work collects them
+  private readonly opens = new Map<string, OpenPage[]>()
   private readonly waiters = new Set<() => void>()
 
   constructor(host: WorkHost, options: WorkOptions = {}) {
@@ -101,6 +108,42 @@ export class ExtensionWork implements ExtensionFetcher {
 
   connected() {
     return Date.now() - this.polledAt < CONNECTED_MS
+  }
+
+  // The pairings asking for work now, the most recent first
+  connectedPairings(): string[] {
+    const now = Date.now()
+    return [...this.polled].filter(([, at]) => now - at < CONNECTED_MS).sort((a, b) => b[1] - a[1]).map(([by]) => by)
+  }
+
+  // The user asked to open what a waiting site needs: handed to the extension whose fetch met it, or,
+  // when that one isn't asking now, to the one that asked last. The pairing it went to; undefined when
+  // the site doesn't wait for that or no extension is connected.
+  open(kind: ExtensionWait["kind"], host: string): string | undefined {
+    const site = this.sites.get(host)
+    if (!site?.paused || site.paused.kind !== kind || !paused(site).length) return undefined
+    const connected = this.connectedPairings()
+    const by = site.paused.by && connected.includes(site.paused.by) ? site.paused.by : connected[0]
+    if (!by) return undefined
+    const page: OpenPage = kind === "permission" ? { kind, host, papers: paused(site).length } : { kind, host, url: site.paused.url }
+    // Pressed twice before the extension collected it: opened once
+    const pending = (this.opens.get(by) ?? []).filter((o) => o.host !== host)
+    this.opens.set(by, [...pending, page])
+    this.kick()
+    return by
+  }
+
+  // The pairing whose fetch met what this site waits for
+  pausedBy(host: string): string | undefined {
+    return this.sites.get(host)?.paused?.by
+  }
+
+  // The pages waiting for this pairing, handed over once
+  takeOpens(by: string | undefined): OpenPage[] {
+    if (!by) return []
+    const pages = this.opens.get(by) ?? []
+    this.opens.delete(by)
+    return pages
   }
 
   // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
@@ -149,20 +192,23 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
   // answer comes (settle) or IN_FLIGHT_MS pass.
-  async take(library: Library | null, holdMs: number, closed: AbortSignal): Promise<WorkItem[]> {
+  async take(library: Library | null, holdMs: number, closed: AbortSignal, by?: string): Promise<WorkItem[]> {
     // Away for longer than counts as connected, or never here: papers the plain routes missed meanwhile
     // went to no queue, and after a restart this one is empty, so the library fills it before anything
     // is due. Marked connected first, so what the library hands over is queued, not left with no PDF.
     const arrived = !this.connected() || library !== this.library
     this.polledAt = Date.now()
+    if (by) this.polled.set(by, this.polledAt)
     if (library !== this.library) this.own(library)
     if (arrived && library) this.host.connected(library)
     const until = Date.now() + holdMs
     for (;;) {
-      const due = this.due()
+      const due = this.due(by)
       const left = until - Date.now()
-      if (due.length || left <= 0 || closed.aborted) {
+      // A page to open ends the hold too: the user is waiting for it
+      if (due.length || left <= 0 || closed.aborted || (by && this.opens.get(by)?.length)) {
         this.polledAt = Date.now()
+        if (by) this.polled.set(by, this.polledAt)
         return due
       }
       await new Promise<void>((resolve) => {
@@ -193,7 +239,7 @@ export class ExtensionWork implements ExtensionFetcher {
     const site = key ? this.sites.get(key) : undefined
     if (!site?.inFlight || site.inFlight.id !== id || !this.library) return
     this.items.delete(id)
-    const { item } = site.inFlight
+    const { item, by } = site.inFlight
     site.inFlight = undefined
     site.endedAt = Date.now()
     const pause = ended && PAUSES[ended]
@@ -213,7 +259,7 @@ export class ExtensionWork implements ExtensionFetcher {
       site.queue.unshift(item)
       sortQueue(site)
       const url = (pause === "sign-in" && item.paper.signIn) || page.url || item.paper.url
-      site.paused = { kind: pause, url, at: site.endedAt }
+      site.paused = { kind: pause, url, at: site.endedAt, by }
       this.host.papers(this.library, ids(site))
       this.host.waits()
     } else if (site.paused) {
@@ -295,6 +341,7 @@ export class ExtensionWork implements ExtensionFetcher {
     this.sites.clear()
     this.lastEnded.clear()
     this.items.clear()
+    this.opens.clear()
     this.host.waits()
   }
 
@@ -308,7 +355,7 @@ export class ExtensionWork implements ExtensionFetcher {
     return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0, site.paused ? site.paused.at + PAUSED_RETRY_MS : 0)
   }
 
-  private due(): WorkItem[] {
+  private due(by: string | undefined): WorkItem[] {
     const now = Date.now()
     const out: WorkItem[] = []
     for (const site of this.sites.values()) {
@@ -322,7 +369,7 @@ export class ExtensionWork implements ExtensionFetcher {
       if (now < this.dueAt(site)) continue
       const item = site.queue.shift()!
       const id = randomUUID()
-      site.inFlight = { id, item, at: now }
+      site.inFlight = { id, item, at: now, by }
       this.items.set(id, site.key)
       const { paperId, url, pdfUrl, host, proxied } = item.paper
       out.push({ id, paperId, url, ...(pdfUrl ? { pdfUrl } : {}), host, proxied })
