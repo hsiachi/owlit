@@ -9,6 +9,15 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.
 - A comment Owlit held while you were typing lands in the workspace it was made in when you switch to another, never in a doc of the same name there.
+- The last words typed in a paper's note reach the disk when you quit, reload or open another workspace right after typing.
+- A paper or thread that changed while Owlit was opening your workspace shows its change, instead of how it was a moment before.
+- A workspace in a folder macOS keeps Owlit out of (such as Documents, after Don't Allow) says where to allow it, and stays in your recent workspaces; so does one on a drive that isn't plugged in.
+- After Owlit crashed or was force-quit, its workspace opens again instead of sometimes saying it is open in another Owlit.
+- Your API keys survive a Keychain prompt you deny, or a new build Keychain doesn't know yet: they show as not set and come back once Keychain lets Owlit read them.
+- An error Owlit didn't expect names the file and why (locked in Finder, disk full, read-only) where it can, and is in the diagnostics.
+- Clicking a file in Docs opens documents, pictures and media in their app; anything that could run, such as a .command file, is shown in Finder instead.
+- ⌘B is Bold again in docs, notes and the composer; it no longer hides the list panel. The window can't get narrow enough to lose the sidebar or Settings' sections.
+- ⌘K stays quick with a large library, showing the best 20 of each kind.
 
 ## 0.2.1
 
