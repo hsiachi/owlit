@@ -6,6 +6,7 @@ import type { Mentionable, SourceKind } from "@owlit/protocol"
 // The same items as @ in a doc: Library papers, workspace docs, threads
 import { docMentionItems } from "@/features/docs/lib/mentions"
 import { MentionList, type MentionListHandle, type MentionListProps } from "@/components/mention/mention-list"
+import { mentionAtEnd } from "@/components/mention/trigger"
 import { MentionChip } from "./MentionChip"
 
 export interface MentionAttrs {
@@ -40,6 +41,14 @@ export const WorkspaceMention = Mention.extend({
   suggestion: {
     char: "@",
     allowSpaces: false,
+    // The trigger docs use: Tiptap's own wants a space before "@", which Chinese never types
+    findSuggestionMatch: ({ $position }) => {
+      const text = $position.nodeBefore?.isText ? $position.nodeBefore.text : null
+      const m = text ? mentionAtEnd(text) : null
+      if (!m) return null
+      const from = $position.pos - m.length
+      return { range: { from, to: $position.pos }, query: m.query, text: text!.slice(-m.length) }
+    },
     items: ({ query }: { query: string }) => docMentionItems(query),
     render: () => {
       let component: ReactRenderer<MentionListHandle, MentionListProps> | null = null

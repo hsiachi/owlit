@@ -3,14 +3,13 @@ import { createRoot, type Root } from "react-dom/client"
 import { Prec, type Extension } from "@codemirror/state"
 import { EditorView, keymap, ViewPlugin, type ViewUpdate } from "@codemirror/view"
 import { MentionList, type MentionListHandle } from "@/components/mention/mention-list"
+import { mentionAtEnd } from "@/components/mention/trigger"
 import { filterMentions, type DocMention } from "../lib/mentions"
 import { mentionInsertion } from "../lib/mention-insert"
 
 // "@" opens the composer's own mention popup, so a mention is picked the same way everywhere. On pick the
 // typed "@query" becomes a Markdown link to the item's owlit:// address.
 
-// "@" at the start of a line or after a space or bracket, then a query without spaces
-const TRIGGER = /(?:^|[\s([])@([^\s@[\]()]{0,40})$/
 
 interface Open {
   from: number
@@ -49,12 +48,12 @@ export function mentionPopup(reachable: () => DocMention[]): Extension {
         const { state } = this.view
         const sel = state.selection.main
         const line = state.doc.lineAt(sel.head)
-        const m = sel.empty && this.view.hasFocus ? TRIGGER.exec(state.sliceDoc(line.from, sel.head)) : null
-        const from = m ? sel.head - m[1].length - 1 : -1
+        const m = sel.empty && this.view.hasFocus ? mentionAtEnd(state.sliceDoc(line.from, sel.head)) : null
+        const from = m ? sel.head - m.length : -1
         if (from !== this.dismissedAt) this.dismissedAt = -1
         if (!m || from === this.dismissedAt) return this.close()
         const all = this.open?.from === from ? this.open.all : reachable()
-        this.open = { from, to: sel.head, query: m[1], all, items: filterMentions(all, m[1]) }
+        this.open = { from, to: sel.head, query: m.query, all, items: filterMentions(all, m.query) }
         this.render()
         this.view.requestMeasure({
           read: (v) => v.coordsAtPos(from),
