@@ -2943,11 +2943,11 @@ msgid "Open owlit to allow it or not."
 msgstr ""
 
 #: app/src/features/extension/waits.ts
-msgid "Sign in at {host}"
+msgid "Sign in to your library"
 msgstr ""
 
 #: app/src/features/extension/waits.ts
-msgid "Sign in to your library"
+msgid "Sign in at {host}"
 msgstr ""
 
 #: app/src/features/extension/waits.ts
@@ -6795,6 +6795,10 @@ msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "This browser isn't connected to owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Something went wrong in the owlit extension. Close this and try again."
 msgstr ""
 
 #. placeholder {0}: paper.authors[0]

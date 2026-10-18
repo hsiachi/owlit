@@ -2943,12 +2943,12 @@ msgid "Open owlit to allow it or not."
 msgstr "Open owlit to allow it or not."
 
 #: app/src/features/extension/waits.ts
-msgid "Sign in at {host}"
-msgstr "Sign in at {host}"
-
-#: app/src/features/extension/waits.ts
 msgid "Sign in to your library"
 msgstr "Sign in to your library"
+
+#: app/src/features/extension/waits.ts
+msgid "Sign in at {host}"
+msgstr "Sign in at {host}"
 
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
@@ -6796,6 +6796,10 @@ msgstr "This isn't the paper's PDF"
 #: apps/extension/src/popup/Popup.tsx
 msgid "This browser isn't connected to owlit."
 msgstr "This browser isn't connected to owlit."
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Something went wrong in the owlit extension. Close this and try again."
+msgstr "Something went wrong in the owlit extension. Close this and try again."
 
 #. placeholder {0}: paper.authors[0]
 #: apps/share-web/src/App.tsx

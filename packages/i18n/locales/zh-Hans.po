@@ -2943,12 +2943,12 @@ msgid "Open owlit to allow it or not."
 msgstr "打开 owlit 决定是否允许。"
 
 #: app/src/features/extension/waits.ts
-msgid "Sign in at {host}"
-msgstr "在 {host} 登录"
-
-#: app/src/features/extension/waits.ts
 msgid "Sign in to your library"
 msgstr "登录你的图书馆"
+
+#: app/src/features/extension/waits.ts
+msgid "Sign in at {host}"
+msgstr "在 {host} 登录"
 
 #: app/src/features/extension/waits.ts
 msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
@@ -6796,6 +6796,10 @@ msgstr "这不是这篇论文的 PDF"
 #: apps/extension/src/popup/Popup.tsx
 msgid "This browser isn't connected to owlit."
 msgstr "这个浏览器还没有连接 owlit。"
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Something went wrong in the owlit extension. Close this and try again."
+msgstr "owlit 扩展出了点问题。关掉这里再试一次。"
 
 #. placeholder {0}: paper.authors[0]
 #: apps/share-web/src/App.tsx

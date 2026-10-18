@@ -18,8 +18,15 @@ export function Popup() {
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   // The browser wouldn't ask for the publishers' sites (permissions.ts)
   const [unasked, setUnasked] = useState(false)
+  // The background answered null: it failed on the way (its error is logged there). A state already
+  // shown stays.
+  const [broken, setBroken] = useState(false)
 
-  const refresh = useCallback(async (id: number) => setState(await send({ kind: "state", tabId: id })), [])
+  const refresh = useCallback(async (id: number) => {
+    const answer = await send({ kind: "state", tabId: id }).catch(() => null)
+    setBroken(!answer)
+    if (answer) setState(answer)
+  }, [])
 
   useEffect(() => {
     void ext.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
@@ -40,8 +47,8 @@ export function Popup() {
 
   const connect = async () => {
     setState((s) => s && { ...s, connection: { state: "pairing" } })
-    const connection = await send({ kind: "connect" })
-    setState((s) => s && { ...s, connection })
+    const connection = await send({ kind: "connect" }).catch(() => null)
+    setState((s) => s && { ...s, connection: connection ?? { state: "unpaired" } })
     if (tabId !== null) void refresh(tabId)
   }
 
@@ -59,7 +66,7 @@ export function Popup() {
     setBusy(true)
     setOutcome(null)
     try {
-      setOutcome(await send({ kind, tabId }))
+      setOutcome((await send({ kind, tabId }).catch(() => null)) ?? { kind: "failed", message: brokenText() })
       await refresh(tabId)
     } finally {
       setBusy(false)
@@ -103,7 +110,13 @@ export function Popup() {
           </Button>
         </section>
       ))}
-      {state ? <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(kind, page) => void act(kind, page)} /> : <Spinner className="text-muted-foreground" />}
+      {state ? (
+        <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(kind, page) => void act(kind, page)} />
+      ) : broken ? (
+        <Muted>{brokenText()}</Muted>
+      ) : (
+        <Spinner className="text-muted-foreground" />
+      )}
       {state?.connection.state === "connected" && (
         <label className="flex items-center justify-between gap-3 border-t pt-3 text-detail text-muted-foreground">
           {t`Take PDFs I open for papers in my Library`}
@@ -240,5 +253,7 @@ function Said({ outcome }: { outcome: Outcome }) {
     </p>
   )
 }
+
+const brokenText = () => t`Something went wrong in the owlit extension. Close this and try again.`
 
 const Muted = ({ children }: { children: React.ReactNode }) => <p className="text-detail text-muted-foreground">{children}</p>
