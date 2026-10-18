@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { OwlitError, Unreachable } from "./owlit.ts"
-import { contentTypeOf, pdfTabWrite, refusedByOwlit, takesPdfTab } from "./pdf-tab.ts"
+import { contentTypeOf, pdfTabWrite, refusedByOwlit, showsPdf, takesPdfTab } from "./pdf-tab.ts"
 
 const on = { connected: true, takePdfs: true, permitted: true }
 const pdf = { url: "https://dl.acm.org/doi/pdf/10.1145/3626772.3657891", contentType: "application/pdf" }
@@ -51,5 +51,17 @@ describe("refusedByOwlit", () => {
     expect(refusedByOwlit(new OwlitError(401, { reason: "not-paired" }))).toBe(false)
     expect(refusedByOwlit(new OwlitError(503, { reason: "no-workspace" }))).toBe(false)
     expect(refusedByOwlit(new Unreachable())).toBe(false)
+  })
+})
+
+describe("showsPdf", () => {
+  it("is the PDF kept for the tab, wherever the viewer scrolled", () => {
+    expect(showsPdf(pdf.url, pdf.url)).toBe(true)
+    expect(showsPdf(`${pdf.url}#page=3`, pdf.url)).toBe(true)
+  })
+
+  it("isn't a tab that went elsewhere, or one with nothing kept", () => {
+    expect(showsPdf("https://www.example.org/", pdf.url)).toBe(false)
+    expect(showsPdf(pdf.url, undefined)).toBe(false)
   })
 })

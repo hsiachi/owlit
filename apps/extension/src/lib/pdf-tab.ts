@@ -20,6 +20,10 @@ export function contentTypeOf(headers: { name: string; value?: string }[] | unde
 // each other's
 export const pdfTabKey = (tabId: number) => `pdfTab:${tabId}`
 
+// Whether a tab shows the PDF kept for it: its address, but for a #page= the viewer adds. A tab that
+// went on to a site the extension may not read has no response seen, so its key can name an older PDF.
+export const showsPdf = (tabUrl: string, pdfUrl: string | undefined) => !!pdfUrl && tabUrl.split("#")[0] === pdfUrl.split("#")[0]
+
 // What a tab's main-frame response does to its key: a PDF is kept by its address, anything else clears it
 export function pdfTabWrite(tabId: number, url: string, headers: { name: string; value?: string }[] | undefined): { set: Record<string, string> } | { remove: string } {
   const key = pdfTabKey(tabId)

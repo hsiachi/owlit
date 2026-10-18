@@ -7,7 +7,7 @@ import { originsOf, type Answers, type Connection, type Outcome, type PageState,
 import { ask, OwlitError, Unreachable } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, notYetAllowed } from "../lib/permissions.ts"
-import { pdfTabKey, pdfTabWrite, refusedByOwlit, takesPdfTab } from "../lib/pdf-tab.ts"
+import { pdfTabKey, pdfTabWrite, refusedByOwlit, showsPdf, takesPdfTab } from "../lib/pdf-tab.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
 
@@ -99,18 +99,25 @@ async function pageOf(tabId: number): Promise<Omit<PageState, "inLibrary"> | nul
   if (!tab?.url || !/^https?:/.test(tab.url)) return null
   const kept = (await ext.storage.session.get(pageKey(tabId)))[pageKey(tabId)] as Omit<PageState, "inLibrary"> | undefined
   if (kept?.url === tab.url) return kept
-  const host = new URL(tab.url).hostname
+  const url = tab.url
+  const host = new URL(url).hostname
+  // A PDF, named by its address
+  const pdfPage = (pdfTab: boolean) => {
+    const ids = idsInUrl(url)
+    return { url, host, pdfTab, paper: ids.doi || ids.arxiv ? { ...ids, authors: [] } : undefined }
+  }
+  // Asked before any script: a PDF viewer that lets one in shows no paper's head
+  if (showsPdf(url, await pdfTabOf(tabId))) return pdfPage(true)
   // A site the content script doesn't run on: the popup's click lent the extension this tab (activeTab)
   try {
     const [result] = await ext.scripting.executeScript({ target: { tabId }, func: () => document.head?.outerHTML ?? "" })
-    const page = { url: tab.url, host, pdfTab: false, paper: paperOfPage(String(result?.result ?? ""), tab.url) }
+    const page = { url, host, pdfTab: false, paper: paperOfPage(String(result?.result ?? ""), url) }
     await rememberPage(tabId, page)
     return page
   } catch {
-    // The browser's PDF viewer runs no script: a PDF named by its address
-    const ids = idsInUrl(tab.url)
-    const pdfTab = !!(await pdfTabOf(tabId)) || /\.pdf($|\?)|\/pdf\//i.test(new URL(tab.url).pathname)
-    return { url: tab.url, host, pdfTab, paper: ids.doi || ids.arxiv ? { ...ids, authors: [] } : undefined }
+    // The browser's PDF viewer runs no script. On a site the extension may not read no response was
+    // seen, and only the address says it is a PDF.
+    return pdfPage(/\.pdf($|\?)|\/pdf\//i.test(new URL(url).pathname))
   }
 }
 
