@@ -29,17 +29,20 @@ import type { Kind } from "@/lib/kinds"
 import { hasAllWords, queryWords } from "@/lib/words"
 import { closePalette, openPalette, usePaletteStore } from "./palette-store"
 
-// Before anything is typed, each group shows its most recent few
+// Before anything is typed, each group shows its most recent few; after, its best matches. cmdk mounts
+// and sorts every row it is given, which at a thousand papers costs about a second per key, so the
+// palette filters itself and hands cmdk only what it shows.
 const RECENT = 6
+const MATCHES = 20
 
 // Every word typed must appear somewhere in what an item is known by. Fuzzy matching across a
 // long value finds letters scattered over authors and venues, so it is not used. A match in the
-// title (passed as the first keyword) ranks above one in the details.
-function filter(value: string, search: string, keywords?: string[]): number {
+// title ranks above one in the details.
+function score(value: string, title: string, search: string): number {
   const words = queryWords(search)
   if (words.length === 0) return 1
   if (!hasAllWords(value, words)) return 0
-  return hasAllWords(keywords?.[0] ?? "", words) ? 1 : 0.5
+  return hasAllWords(title, words) ? 1 : 0.5
 }
 
 // ⌘K from anywhere: jump to a paper, a doc or a chat. The place you are in comes first.
@@ -143,7 +146,15 @@ function PaletteBody() {
   }
 
   const typing = query.trim() !== ""
-  const shown = <T,>(items: T[]) => (typing ? items : items.slice(0, RECENT))
+  // Title matches first, each kept in its group's order (most recent first)
+  const shown = <T extends Item>(items: T[]) => {
+    if (!typing) return items.slice(0, RECENT)
+    const scored = items.map((item) => ({ item, score: score(item.value, item.title, query) })).filter((s) => s.score > 0)
+    return scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, MATCHES)
+      .map((s) => s.item)
+  }
   const inChat = pathname.startsWith("/chat")
   const inDocs = pathname.startsWith("/docs")
   // The words around a text match, unless what was typed is already in the paper's details
@@ -179,16 +190,17 @@ function PaletteBody() {
       {inDocs && <CommandShortcut>{keysFor("new")}</CommandShortcut>}
     </CommandItem>
   )
-  const actions = (
+  const actionItems = (inDocs ? [newDocItem, newChat] : [newChat, newDocItem]).filter((item) => score(item.props.value, "", query) > 0)
+  const actions = actionItems.length > 0 && (
     <CommandGroup key="actions" heading={t`Actions`} className="p-0">
-      {inDocs ? [newDocItem, newChat] : [newChat, newDocItem]}
+      {actionItems}
     </CommandGroup>
   )
 
   return (
     // Overrides open up the stock palette: a plain, large input and roomy rows
     <Command
-      filter={filter}
+      shouldFilter={false}
       className={cn(
         "p-0",
         "**:data-[slot=command-input-wrapper]:border-b **:data-[slot=command-input-wrapper]:px-3 **:data-[slot=command-input-wrapper]:py-2",
@@ -227,7 +239,7 @@ function PaletteGroup({ heading, kind, to, items, go }: { heading: string; kind:
   return (
     <CommandGroup heading={heading} className="p-0">
       {items.map((item) => (
-        <CommandItem key={item.key} value={item.value} keywords={[item.title]} onSelect={() => go(`${to}/${item.id}`)} className={itemClass}>
+        <CommandItem key={item.key} value={item.value} onSelect={() => go(`${to}/${item.id}`)} className={itemClass}>
           <KindIcon kind={kind} />
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
             <span className="max-w-[70%] shrink-0 truncate">{item.title}</span>
