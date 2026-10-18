@@ -247,7 +247,7 @@ function MemoryRow() {
     <List>
       <Row
         name={t`Remember what I do in owlit`}
-        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work.`}
+        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look.`}
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>

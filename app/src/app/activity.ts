@@ -1,8 +1,8 @@
 // Reports what the user does to core as activity events (protocol's ActivityEvent): which paper or doc
 // is open, time spent reading it and on which pages, page turns, stars, status and tags, highlights,
 // note and doc edits, chats written in and left, the window going idle.
-// Core journals the coarse ones and hands all of them to live listeners. Nothing is sent without the
-// desktop app or while activity is turned off (settings.activity.enabled).
+// Core journals the coarse ones (unless settings.activity.enabled is off) and hands all of them to live
+// listeners, Owlit's rules among them. Nothing is sent without the desktop app.
 
 import type { ActivityEvent, ChatMessage, PaperMark, PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
@@ -12,7 +12,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { ReadingClock } from "@/app/reading-clock"
 import { routeSubject } from "@/app/route-subject"
 
@@ -26,25 +26,12 @@ const IDLE_AFTER = 30_000
 // Long enough for a dense page read without touching anything
 const STILL_AFTER = 5 * 60_000
 
-// null until core has said whether activity is on; events from that moment wait in `early`
-let enabled: boolean | null = null
-let early: ActivityEvent[] = []
-
 function send(event: ActivityEvent) {
   void rpc.activity.emit({ event }).catch((error) => console.warn("[owlit] activity not sent", error))
 }
 
 function emit(partial: Event) {
-  const event = { ...partial, at: Date.now() } as ActivityEvent
-  if (enabled === null) early.push(event)
-  else if (enabled) send(event)
-}
-
-function setEnabled(value: boolean) {
-  enabled = value
-  if (value) early.forEach(send)
-  else for (const flush of pending.values()) flush.cancel()
-  early = []
+  send({ ...partial, at: Date.now() } as ActivityEvent)
 }
 
 // ---- Edits: one event once typing pauses ----
@@ -179,9 +166,6 @@ let started = false
 export function startActivity(router: typeof appRouter) {
   if (!isDesktop || started) return
   started = true
-
-  void rpc.activity.status().then(({ enabled }) => setEnabled(enabled))
-  onNotify("activity.status", ({ enabled }) => setEnabled(enabled))
 
   const refresh = () => update(openFromRoute(router.state.location.pathname))
   router.subscribe(refresh)
