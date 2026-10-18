@@ -58,6 +58,8 @@ export const RpcErrorCode = {
   NoWorkspace: -32003,
   // A service owlit asks (OpenAlex, Semantic Scholar, a publisher) couldn't be reached or refused
   Unavailable: -32004,
+  // owlit isn't allowed to (macOS privacy settings, file permissions)
+  Forbidden: -32005,
 } as const
 
 // Every request core answers: method name ("<area>.<verb>") → params and result. Clients are typed

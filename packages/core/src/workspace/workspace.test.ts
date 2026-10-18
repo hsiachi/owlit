@@ -1,6 +1,6 @@
 import { RpcErrorCode, type RpcNotification } from "@owlit/protocol"
 import { spawn } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -145,6 +145,27 @@ describe("workspace.open", () => {
     })
     // The failed opens left the current workspace open
     expect(await call("workspace.current")).toEqual({ path: gone, name: "gone" })
+  })
+
+  it("says a folder owlit isn't allowed to read needs access, and keeps it in the recent list", async () => {
+    const { call, folder } = setup()
+    const parent = folder("guarded")
+    const ws = path.join(parent, "Research")
+    mkdirSync(ws)
+    await call("workspace.open", { path: ws })
+    await call("workspace.open", { path: folder("other") })
+    // A folder macOS's privacy settings keep from owlit fails its stat the same way
+    chmodSync(parent, 0)
+    try {
+      await expect(call("workspace.open", { path: ws })).rejects.toMatchObject({
+        code: RpcErrorCode.Forbidden,
+        message: expect.stringContaining("System Settings"),
+      })
+      const { recent } = await call("workspace.welcome")
+      expect(recent.find((r: { path: string }) => r.path === ws)).toMatchObject({ missing: false })
+    } finally {
+      chmodSync(parent, 0o755)
+    }
   })
 
   it("refuses a workspace another live process holds, and takes over a dead one's lock", async () => {

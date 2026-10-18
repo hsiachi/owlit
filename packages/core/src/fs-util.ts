@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto"
+import { statSync } from "node:fs"
 import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
@@ -29,6 +30,18 @@ export async function readJson<T>(file: string): Promise<T | undefined> {
 export const ATOMIC_TEMP = /\.[0-9a-f]{8}\.tmp$/
 
 export const exists = (file: string) => stat(file).then(() => true, () => false)
+
+// Whether nothing is at a path. Unlike !existsSync, a folder owlit may not look into (EPERM, from macOS
+// privacy settings) or a drive that isn't mounted yet is there.
+export function isMissing(file: string) {
+  try {
+    statSync(file)
+    return false
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    return (code === "ENOENT" || code === "ENOTDIR") && !file.startsWith("/Volumes/")
+  }
+}
 
 // For a .catch() where a file that isn't there is fine
 export function ignoreMissing(error: NodeJS.ErrnoException) {
