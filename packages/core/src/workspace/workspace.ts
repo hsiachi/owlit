@@ -76,6 +76,8 @@ export class Workspace {
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.versions = new Versions(path.join(root, OWLIT_DIR))
+    // Keep mine in a conflict: the other program's text stays in the doc's Versions
+    this.docs.overwriting = (rel, theirs, mine) => this.versions.saveFile(rel, theirs, mine, { by: "outside" })
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.versions, options.memoryChanged)
     this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })

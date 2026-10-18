@@ -13,7 +13,8 @@ import { displayName, type WorkspaceFile } from "../types"
 import { toastError, toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
-// The doc as it was before each change an agent made to it (and before each undo), newest first. Restore
+// The doc as it was before each change an agent made to it (and before each undo, and another program's
+// text the user wrote over with Keep mine), newest first. Restore
 // puts that text back even if the doc changed since; the toast offers Undo.
 export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFile; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [versions, setVersions] = useState<VersionInfo[] | null>(null)
@@ -48,7 +49,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
       <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeading
           title={t`Versions of ${name}`}
-          about={t`The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since.`}
+          about={t`The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since.`}
         />
         {versions && !versions.length && <p className="py-6 text-center text-sm text-muted-foreground">{t`Owlit hasn't changed this doc.`}</p>}
         {!!versions?.length && (
@@ -60,7 +61,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
               return (
                 <li key={v.id} className={cn("group/row flex h-11 items-center gap-3 pr-1 hover:bg-accent", rowClass)}>
                   <p className="flex min-w-0 flex-1 items-baseline gap-2">
-                    <span className="shrink-0 text-sm">{v.by === "undo" ? t`Before an undo` : t`Before Owlit's edit`}</span>
+                    <span className="shrink-0 text-sm">{v.by === "undo" ? t`Before an undo` : v.by === "outside" ? t`From another program` : t`Before Owlit's edit`}</span>
                     <span className="truncate text-xs text-muted-foreground">
                       {title ? t`${when} · from “${title}”` : v.chatId ? t`${when} · from a chat` : when}
                     </span>
