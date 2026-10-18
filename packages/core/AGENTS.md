@@ -13,6 +13,6 @@ The backend: plain Node, shared by the desktop app, the CLI and the MCP server.
   wall-clock limits; check order instead.
 - **A flaky test is usually a real race.** Reproduce it with forced delays before changing the test.
 - **Text for agents** (prompts, tool descriptions, `src/agents/rules.ts`) is English and never goes through
-  Lingui. Changing the rules text means bumping its version as `rules.ts` says.
+  Lingui. Changing the rules text means bumping its version; `rules.test.ts` fails until you do and says how.
 
 Run one file while working: `pnpm exec vitest run packages/core/src/<path>.test.ts`.

@@ -188,6 +188,8 @@ describe("keeping the library clean", () => {
     await call("library.add", { paper: paper("doi-10.9999-b"), addedBy: "agent", chatId: "c1" })
     await call("library.add", { paper: paper("doi-10.9999-c"), addedBy: "user" })
     await call("library.update", { id: "doi-10.9999-b", patch: { tags: ["keep"] } })
+    // A passage the agent marked itself doesn't make the paper the user's
+    await call("library.putHighlight", { highlight: { id: "h", paperId: "doi-10.9999-a", page: 0, rects: [], text: "t", color: "yellow", addedBy: "agent", createdAt: 1 } })
     expect(await call("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
     const done = await call("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
     expect(done.removed).toEqual(["doi-10.9999-a"])
@@ -348,6 +350,31 @@ describe("library on disk", () => {
     await call("library.update", { id: "doi-10.1145-3626772.3657891", patch: { title: record.title } })
     const state = JSON.parse(readFileSync(path.join(root, ".owlit/papers/doi-10.1145-3626772.3657891/state.json"), "utf8"))
     expect(state.overrides).toEqual({ year: null })
+  })
+
+  it("knows a paper by any id it went by: reads, threads and the user's corrections", async () => {
+    const { root, call, core } = await setup({})
+    const id = "doi-10.1145-9"
+    putPaper(root, { id, title: "Replay ratings", ids: { doi: "10.1145/9", arxiv: "2310.00001" }, year: 2023 })
+    writeFileSync(path.join(root, "library/papers", id, "text.md"), "<!-- page 1 -->\nReplay ratings run lower than live ones.\n")
+    // Folded into it from a copy a search had found
+    mkdirSync(path.join(root, ".owlit/papers"), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/papers/aliases.json"), JSON.stringify({ version: 1, aliases: { "s2-abc": id } }))
+    expect((await call("library.read", { id: "s2-abc", part: "text" })).text).toContain("Replay ratings run lower")
+    // A thread row named by the old id: its full-text answer is checked against the paper's text
+    const quote = "Replay ratings run lower than live ones."
+    const { id: thread } = await call("threads.write", {
+      asked: "Do replay ratings hold?",
+      title: "Replay",
+      rows: [{ id: "s2-abc", cells: { q: { text: "Lower.", depth: "full", passage: { quote, page: 1 } } } }],
+    })
+    const row = (await call("threads.get", { id: thread })).rows[0]
+    expect(row.cells.q).toMatchObject({ depth: "full", passage: { quote, page: 1 } })
+    const ws = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+    expect(await ws.threads.rowsOf(id)).toEqual([{ thread, row: "s2-abc", fromAbstract: false }])
+    // The user's correction is what the thread says the paper is
+    await call("library.update", { id, patch: { year: 2024 } })
+    expect((await call("threads.get", { id: thread })).rows[0].paper.year).toBe(2024)
   })
 
   it("moves a removed paper to the trash and Undo brings it back whole", async () => {

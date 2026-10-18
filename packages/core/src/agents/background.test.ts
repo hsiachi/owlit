@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import type { SessionUpdate } from "@owlit/protocol"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import type { Background } from "./background.ts"
@@ -9,6 +10,7 @@ const fake = path.join(import.meta.dirname, "fake-acp.ts")
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((c) => c.dispose()))
+  delete process.env.FAKE_ACP_AUTH
 })
 
 async function setup() {
@@ -57,5 +59,23 @@ describe("what Owlit may write without being asked", () => {
       ["c1", "owlit"],
       ["c3", "you"],
     ])
+  })
+})
+
+describe("a background run", () => {
+  it("answers with the agent's own words, its helpers' steps kept apart", async () => {
+    const { root, background, agent } = await setup()
+    const updates: SessionUpdate[] = []
+    const result = await background.run({ prompt: "with a helper", root, mcpServers: [], signal: new AbortController().signal, connectorId: agent, onUpdate: (u) => updates.push(u) })
+    expect(result.text).toBe("The answer.")
+    expect(updates).toContainEqual(expect.objectContaining({ type: "tool_call", toolCallId: "h1", agentId: "agent-h" }))
+    expect(updates).toContainEqual({ type: "agent_started", agentId: "agent-h", title: "Read the story" })
+    expect(updates.filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text)).toEqual(["The answer."])
+  })
+
+  it("fails in owlit's words when the agent isn't signed in", async () => {
+    const { root, background, agent } = await setup()
+    process.env.FAKE_ACP_AUTH = "required"
+    await expect(background.run({ prompt: "hello", root, mcpServers: [], signal: new AbortController().signal, connectorId: agent })).rejects.toThrow("Fake isn't signed in.")
   })
 })

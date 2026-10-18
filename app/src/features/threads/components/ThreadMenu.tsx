@@ -3,7 +3,7 @@ import type { Thread } from "@owlit/protocol"
 import { useMemo } from "react"
 import { useDocsStore } from "@/features/docs/store"
 import type { MenuGroups } from "@/components/action-menu"
-import { shown } from "../lib"
+import { shown, withLibraryFacts } from "../lib"
 import { deleteThread, editThread } from "../store"
 import { useThreadsUi } from "../ui-store"
 import { useNavigate } from "react-router-dom"
@@ -45,8 +45,8 @@ export function useThreadMenu(c: Thread | undefined, projects: string[], opts: {
       },
     ],
     [
-      { label: t`Export as a doc`, onSelect: () => exportAsDoc(shown(c), navigate) },
-      { label: t`Export as CSV`, onSelect: () => downloadCsv(shown(c)) },
+      { label: t`Export as a doc`, onSelect: () => exportAsDoc(withLibraryFacts(shown(c)), navigate) },
+      { label: t`Export as CSV`, onSelect: () => downloadCsv(withLibraryFacts(shown(c))) },
     ],
     [
       {

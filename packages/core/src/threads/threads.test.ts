@@ -432,6 +432,22 @@ describe("Threads, undo", () => {
 })
 
 describe("Threads.paperOf", () => {
+  it("knows a row by the paper it is, whatever id named it", async () => {
+    // The search named the paper by its arXiv id; the library keeps it under its DOI
+    const library: Record<string, string> = { "arxiv-2310.00001": "doi-10.1145-9", "doi-10.1145-9": "doi-10.1145-9" }
+    const { threads } = setup({
+      paper: async (id) => (id === "arxiv-2310.00001" ? { title: "Replay ratings", authors: ["Oh"], ids: { arxiv: "2310.00001" } } : papers[id]),
+      canonical: async (id) => library[id],
+    })
+    const { id } = await threads.write({ asked: "Do replay ratings hold?", title: "Replay", rows: [{ id: "arxiv-2310.00001", cells: { q: { text: "Lower.", depth: "abstract" } } }] })
+    expect(await threads.rowsOf("doi-10.1145-9")).toEqual([{ thread: id, row: "arxiv-2310.00001", fromAbstract: true }])
+    expect((await threads.paperOf("doi-10.1145-9"))?.title).toBe("Replay ratings")
+    // Named by its library id, the answer goes to the row there
+    await threads.write({ id, rows: [{ id: "doi-10.1145-9", cells: { q: { text: "Lower, by 0.6.", depth: "abstract" } } }] })
+    const c = await threads.get(id)
+    expect(c.rows.map((r) => [r.id, r.cells.q?.text])).toEqual([["arxiv-2310.00001", "Lower, by 0.6."]])
+  })
+
   it("finds a paper a thread keeps, whatever thread it is in", async () => {
     const { threads } = setup()
     await start(threads)

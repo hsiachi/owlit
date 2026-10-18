@@ -23,7 +23,7 @@ export interface RunWords {
 export interface RunSession {
   chatId: string
   update(update: SessionUpdate): void
-  finish(outcome: { status: "done" | "cancelled" | "error"; error?: string; connectorId?: string; model?: string }): Promise<void>
+  finish(outcome: { status: "done" | "cancelled" | "error"; error?: string; errorDetail?: string; connectorId?: string; model?: string }): Promise<void>
 }
 
 // The session of a task's run: the one the task already has (a retry), or a new one
@@ -52,10 +52,10 @@ export async function openRun(
       void chats.patchMessage(chatId, message).catch(() => undefined)
       notify.update(chatId, message.id, update)
     },
-    async finish({ status, error, connectorId, model }) {
+    async finish({ status, error, errorDetail, connectorId, model }) {
       // Steps stay; the answer, when it lives elsewhere, is said in a line
       const parts = status === "done" && words.result ? [...message.parts.filter((p) => p.type !== "text"), { type: "text" as const, text: words.result }] : message.parts
-      message = { ...message, parts, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(connectorId ? { connectorId } : {}), ...(model ? { modelId: model } : {}) }
+      message = { ...message, parts, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}), ...(connectorId ? { connectorId } : {}), ...(model ? { modelId: model } : {}) }
       await chats.patchMessage(chatId, message, true)
       await chats.update(chatId, { title: status === "done" ? words.done : words.doing, updatedAt: Date.now() })
       notify.created(await chats.get(chatId))

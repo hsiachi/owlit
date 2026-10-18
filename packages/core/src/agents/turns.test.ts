@@ -182,6 +182,15 @@ describe("turns", () => {
     expect(text()).toBe("you chose no")
   })
 
+  it("refuses a delete, a move or a take-back the chat's role doesn't allow, whoever calls", async () => {
+    const { call, root } = await setup()
+    await call("chats.update", { id: "c1", patch: { role: "reviewer" } })
+    await expect(call("agents.deleteDocs", { paths: ["notes.md"], chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await expect(call("agents.moveDoc", { path: "notes.md", to: "kept.md", chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await expect(call("library.removeByAgent", { ids: ["doi-10.1-x"], chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+  })
+
   it("decides consent for owlit's own tools by the chat's role, asking the user when the role says so", async () => {
     const { send, updates, call } = await setup()
     // Between turns the saved role decides, and nobody can be asked
@@ -451,12 +460,30 @@ describe("turns", () => {
       ])
     })
 
+    it("stays open while the agent's own agents work after end_turn, and ends once they have reported", async () => {
+      const { send, core, call, updates } = await setup()
+      const { late, until } = await watch(core)
+      expect(await send("two helpers, after the turn")).toEqual({ stopReason: "end_turn" })
+      // Open from the moment the prompt came back, before either agent reported
+      expect(late.map((m) => m.status)).toEqual(["streaming"])
+      await until(() => late.length >= 2)
+      expect(late.map((m) => m.status)).toEqual(["streaming", "done"])
+      expect(updates.some((u) => u.type === "agent_update" && u.status === "stopped")).toBe(false)
+      const reply = (await call("chats.get", { id: "c1" })).messages[1]
+      expect(reply.status).toBe("done")
+      expect(reply.parts).toMatchObject([
+        { type: "agent", agentId: "agent-x", status: "done" },
+        { type: "agent", agentId: "agent-y", status: "done" },
+        { type: "text", text: "The notes are read. " },
+        { type: "text", text: "The search is done." },
+      ])
+    })
+
     it("is stopped by Stop, which cancels the agent's work", async () => {
-      const { send, core, call } = await setup()
+      const { send, core, call, text } = await setup()
       const { late, ids, until } = await watch(core)
       await send("answer after the turn, slowly")
-      await until(() => late.length >= 1)
-      await sleep(250)
+      await until(() => text().includes("The file has 0 "))
       expect(await call("agents.cancel", { chatId: "c1" })).toBeNull()
       expect(late.map((m) => m.status)).toEqual(["streaming", "cancelled"])
       const heard = ids.length

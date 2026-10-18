@@ -2,10 +2,10 @@ import { RpcErrorCode, type RpcNotification } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { acquireLock, lockFileFor } from "./lock.ts"
-import { workspaceDataDir } from "./workspace.ts"
+import { workspaceDataDir, type Workspace } from "./workspace.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -98,6 +98,22 @@ describe("workspace.open", () => {
     await call("workspace.open", { path: a })
     await call("workspace.open", { path: b })
     expect(existsSync(lockFileFor(a))).toBe(false)
+    expect(existsSync(lockFileFor(b))).toBe(true)
+  })
+
+  it("opens the next workspace even when the last one fails to close", async () => {
+    const { core, call, folder } = setup()
+    const a = folder("a")
+    const b = folder("b")
+    await call("workspace.open", { path: a })
+    const old = (core as unknown as { workspace: Workspace }).workspace
+    const dispose = old.dispose.bind(old)
+    vi.spyOn(old, "dispose").mockImplementation(async () => {
+      await dispose()
+      throw new Error("The disk went away.")
+    })
+    await call("workspace.open", { path: b })
+    expect(await call("workspace.current")).toEqual({ path: b, name: "b" })
     expect(existsSync(lockFileFor(b))).toBe(true)
   })
 

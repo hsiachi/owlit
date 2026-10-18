@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type BuildInfo, type ChatMessage, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type BuildInfo, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -20,7 +20,7 @@ import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
-import { Background, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
+import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
 import { Initiative } from "./initiative/initiative.ts"
 import { exportArchive } from "./initiative/archive.ts"
@@ -552,12 +552,14 @@ export class Core {
       z.object({ chatId, action: z.enum(["delete", "move", "add_paper"]), title: z.string().min(1) }),
       ({ chatId, action, title }) => this.turns.consent(chatId, action, title),
     )
-    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1), chatId: chatId.optional() }), async ({ paths, chatId }) => ({
-      deleted: await this.fs.remove(paths, chatId),
-    }))
-    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1), chatId: chatId.optional() }), async ({ path: from, to, chatId }) => ({
-      path: await this.fs.move(from, to, chatId),
-    }))
+    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1), chatId: chatId.optional() }), async ({ paths, chatId }) => {
+      await this.consented(chatId, "delete", `Delete ${paths.map(nameOf).join(", ")}`)
+      return { deleted: await this.fs.remove(paths, chatId) }
+    })
+    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1), chatId: chatId.optional() }), async ({ path: from, to, chatId }) => {
+      await this.consented(chatId, "move", `Move ${nameOf(from)} to ${to}`)
+      return { path: await this.fs.move(from, to, chatId) }
+    })
     this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), ({ clientId, paths }) =>
       this.ui.setOpenDocs(clientId, paths),
     )
@@ -686,6 +688,8 @@ export class Core {
     this.router.register("library.remove", z.object({ ids: z.array(paperId) }), ({ ids }) => library().remove(ids))
     // An agent's own additions, from the chat that added them; each removal is a version the user can undo
     this.router.register("library.removeByAgent", z.object({ ids: z.array(z.string()), chatId: z.string().optional() }), async ({ ids, chatId }) => {
+      // Changing the library either way: the role that may add may take back
+      await this.consented(chatId, "add_paper", ids.length === 1 ? `Remove ${ids[0]} from the Library` : `Remove ${ids.length} papers from the Library`)
       const ws = this.requireWorkspace()
       const mine: string[] = []
       const refused: { id: string; why: string }[] = []
@@ -1085,7 +1089,9 @@ export class Core {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
                 // A chat's agent gathered papers into a thread: the chat shows it with Undo, as for any agent write
-                wrote: ({ id, ...change }) => this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change }),
+                wrote: ({ id, ...change }) => {
+                  if (this.workspace?.root === root) this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change })
+                },
               },
               memoryChanged: (lines) => {
                 if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
@@ -1159,13 +1165,7 @@ export class Core {
           throw error
         }
       }
-      if (this.workspace && this.workspace !== next) {
-        this.turns.reset()
-        this.ui.reset()
-        await this.workspace.dispose()
-        // The old workspace's last task changes go out before clients hear of the switch
-        this.taskChanges.flush()
-      }
+      if (this.workspace && this.workspace !== next) await this.stopWorkspace(this.workspace)
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
@@ -1200,6 +1200,15 @@ export class Core {
     if (!quiet) this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
   }
 
+  // Whether a chat's agent may make this change, by the chat's role, asked in the chat when the role says
+  // so; refused with what to tell the agent. A caller with no chat (an agent outside owlit) has its own
+  // permission prompt, which is the user's say.
+  private async consented(chatId: string | undefined, action: ConsentAction, title: string) {
+    if (!chatId) return
+    const { allowed, reason } = await this.turns.consent(chatId, action, title)
+    if (!allowed) throw new RpcFailure(RpcErrorCode.Conflict, `Not done: ${reason ?? "the user said no."}`)
+  }
+
   // A task's agent run, as a session the window can open from the row it works on: why it started, its
   // steps as they come, and how it ended
   private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
@@ -1207,7 +1216,9 @@ export class Core {
     if (ws?.root !== root) throw new Error("The workspace closed.")
     const words = await runWords(ws, ctx.task)
     const session = await openRun(ws.chats, ctx.task, words, {
-      update: (chatId, messageId, update) => this.notifier.notify("chat.update", { chatId, messageId, update }),
+      update: (chatId, messageId, update) => {
+        if (this.workspace === ws) this.notifier.notify("chat.update", { chatId, messageId, update })
+      },
       created: (chat) => {
         if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
       },
@@ -1218,7 +1229,8 @@ export class Core {
       await session.finish({ status: "done", connectorId: result.connectorId, model: result.model })
       return result
     } catch (error) {
-      await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...(ctx.signal.aborted ? {} : { error: messageOf(error) }) }).catch(() => undefined)
+      const failed = ctx.signal.aborted ? {} : { error: messageOf(error), ...(error instanceof BackgroundFailure && error.detail ? { errorDetail: error.detail } : {}) }
+      await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...failed }).catch(() => undefined)
       throw error
     }
   }
@@ -1228,18 +1240,44 @@ export class Core {
     clearInterval(this.hourly)
     await this.updates.dispose()
     this.initiative.dispose()
-    this.reviews.dispose()
     await this.switching
-    // Background work stops before the agents it runs on: a run cut off by its agent closing would count
-    // as a failed try, where one stopped by closing stays running, to run again next time
-    await this.workspace?.tasks.dispose()
-    this.agents.dispose()
-    await this.journal.dispose()
-    await this.socket?.close().catch(() => undefined)
-    this.socket = null
-    await this.extension?.close().catch(() => undefined)
-    await this.workspace?.dispose()
+    if (this.workspace) await this.stopWorkspace(this.workspace)
     this.workspace = null
+    // After the workspace's background tasks: a run cut off by its agent closing would count as a failed
+    // try, where one stopped by closing stays running, to run again next time
+    this.agents.dispose()
+    await this.extension?.close().catch(() => undefined)
+    this.reviews.dispose()
+    await this.journal.dispose()
+  }
+
+  // Everything that belongs to the open workspace stops here, in this order, whether owlit switches to
+  // another one or closes. Each step runs even if one before it failed: a switch still goes ahead, and
+  // the workspace's lock is still released. ws is still this.workspace throughout, so nothing that stops
+  // late can reach the next one.
+  private async stopWorkspace(ws: Workspace) {
+    const steps: [string, () => unknown][] = [
+      ["chat turns", () => this.turns.reset()],
+      ["the window's requests", () => this.ui.reset()],
+      // What Owlit's rules were settling or had put off was about this workspace
+      ["Owlit's rules", () => this.initiative.reset()],
+      // Before the agents they run on close (dispose closes them after this)
+      ["background tasks", () => ws.tasks.dispose()],
+      // After the tasks, whose runs may still add to what is held
+      ["Owlit's held comments", () => this.reviews.stop()],
+      // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
+      ["the socket", () => this.closeSocket()],
+      ["the journal", () => this.journal.flush()],
+      ["the workspace", () => ws.dispose()],
+    ]
+    for (const [what, step] of steps) {
+      try {
+        await step()
+      } catch (error) {
+        console.error(`[core] couldn't stop ${what} of ${ws.root}`, error)
+      }
+    }
+    // The old workspace's last task changes go out before clients hear of the switch
     this.taskChanges.flush()
   }
 
@@ -1263,11 +1301,16 @@ export class Core {
     ]
   }
 
-  // The socket of the workspace now open, in place of the last one's
+  private async closeSocket() {
+    const socket = this.socket
+    this.socket = null
+    await socket?.close()
+  }
+
+  // The socket of the workspace now open
   private async serveSocket(root: string) {
     if (!this.options.socket) return
-    await this.socket?.close().catch(() => undefined)
-    this.socket = null
+    await this.closeSocket().catch(() => undefined)
     try {
       this.socket = await SocketServer.start(root, this, this.options.socket === true ? undefined : this.options.socket.dir)
     } catch (error) {
@@ -1305,5 +1348,7 @@ export class Core {
     return { version: this.options.appVersion ?? CORE_VERSION, node: process.versions.node }
   }
 }
+
+const nameOf = (p: string) => p.split("/").filter(Boolean).pop() ?? p
 
 const toInfo = (folder: string): WorkspaceInfo => ({ path: folder, name: folder.slice(folder.lastIndexOf("/") + 1) })

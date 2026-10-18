@@ -136,13 +136,17 @@ describe("The night shift, through core", () => {
     expect((await evaluations("paper.landed")).map((e) => [e.decision, e.reason])).toEqual([["defer", "waiting for the user to be away"]])
     expect((await evaluations("paper.readInFull")).map((e) => [e.subject, e.decision])).toEqual([["doi-10.1-a", "defer"]])
     await emit({ kind: "idle", seconds: 30 })
-    for (let i = 0; i < 100 && !journal().some((l) => l.rule === "paper.landed" && l.decision === "job"); i++) await new Promise((r) => setTimeout(r, 25))
-    expect(journal().filter((l) => l.kind === "evaluation" && l.decision !== "defer").map((e) => [e.rule, e.subject, e.decision, e.reason ?? null])).toEqual(
-      expect.arrayContaining([
-        ["paper.landed", "doi-10.1-a", "job", null],
-        ["paper.landed", "doi-10.1-a", "none", "no threads to bring it to"],
-        ["paper.readInFull", "doi-10.1-a", "none", "nothing of Owlit's leans on it"],
-      ]),
+    // The two rules run apart once the user is away: wait for both, in whichever order they land
+    await vi.waitFor(
+      () =>
+        expect(journal().filter((l) => l.kind === "evaluation" && l.decision !== "defer").map((e) => [e.rule, e.subject, e.decision, e.reason ?? null])).toEqual(
+          expect.arrayContaining([
+            ["paper.landed", "doi-10.1-a", "job", null],
+            ["paper.landed", "doi-10.1-a", "none", "no threads to bring it to"],
+            ["paper.readInFull", "doi-10.1-a", "none", "nothing of Owlit's leans on it"],
+          ]),
+        ),
+      { timeout: 10_000 },
     )
   })
 })

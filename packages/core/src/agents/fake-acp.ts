@@ -238,6 +238,30 @@ class FakeAgent implements acp.Agent {
         await say("both agents are done")
         return { stopReason: "end_turn" }
       }
+      if (text.includes("with a helper")) {
+        const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
+        const step = (sessionId: string, update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId, update } as unknown as acp.SessionNotification)
+        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-h", name: "Read the story", task: "Read story.md", capabilities: {} })
+        await step("agent-h", { sessionUpdate: "tool_call", toolCallId: "h1", title: "Read story.md", kind: "read", status: "completed", rawInput: { file_path: "story.md" } })
+        await step("agent-h", { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "The helper's notes." } })
+        await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-h", state: "completed" })
+        await say("The answer.")
+        return { stopReason: "end_turn" }
+      }
+      if (text.includes("two helpers, after the turn")) {
+        const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
+        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-x", name: "Read the notes", task: "Read notes.md", capabilities: {} })
+        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-y", name: "Search the web", task: "Search", capabilities: {} })
+        // The first reports soon; the second only after a quiet spell longer than core waits for more
+        setTimeout(async () => {
+          await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-x", state: "completed" })
+          await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m1", content: { type: "text", text: "The notes are read. " } } })
+          await sleep(700)
+          await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-y", state: "completed" })
+          await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m2", content: { type: "text", text: "The search is done." } } })
+        }, 150)
+        return { stopReason: "end_turn" }
+      }
       if (text.includes("after the turn")) {
         const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
         await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-l", name: "Count the words", task: "wc -w notes.md", capabilities: {} })

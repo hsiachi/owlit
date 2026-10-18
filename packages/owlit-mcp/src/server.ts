@@ -99,8 +99,9 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return shown.map((p) => paperLine(p, extension)).join("\n") + more
     }
     case "library_get": {
-      const { papers, notes } = await owlit.rpc.library.list()
-      const paper = papers.find((p) => p.id === str("id"))
+      // Any id the paper goes by: a search's, or one it had before it moved or a copy was folded into it
+      const [[here], { papers, notes }] = await Promise.all([owlit.rpc.library.known({ inputs: [str("id")] }), owlit.rpc.library.list()])
+      const paper = papers.find((p) => p.id === (here ?? str("id")))
       if (!paper) {
         // A paper a search found: its whole abstract, which the search's line cuts short
         const found = await owlit.rpc.library.found({ id: str("id") })
@@ -198,9 +199,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_remove": {
       const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))]
       if (!ids.length) return "library_remove needs at least one id."
-      // Changing the library either way: the role that may add may take back
-      const refused = await consent(owlit, options, "add_paper", ids.length === 1 ? `Remove ${ids[0]} from the Library` : `Remove ${ids.length} papers from the Library`)
-      if (refused) return refused
+      // Core asks the chat's role (and the user) first
       const done = await owlit.rpc.library.removeByAgent({ ids, ...asker })
       return [...done.removed.map((id) => `Removed ${id}.`), ...done.refused.map((r) => `Kept ${r.id}: ${r.why}.`)].join("\n")
     }
@@ -227,14 +226,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "docs_delete": {
       const paths = (args.paths as string[]).filter(Boolean)
       if (!paths.length) return "Name at least one doc or folder to delete."
-      const refused = await consent(owlit, options, "delete", `Delete ${paths.map(nameOf).join(", ")}`)
-      if (refused) return refused
       const { deleted } = await owlit.rpc.agents.deleteDocs({ paths, ...asker })
       return `Deleted ${deleted.join(", ")}. They are in the Trash, and the user can undo it from the chat.`
     }
     case "docs_move": {
-      const refused = await consent(owlit, options, "move", `Move ${nameOf(str("path"))} to ${str("to")}`)
-      if (refused) return refused
       const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...asker })
       return `Moved ${str("path")} to ${moved.path}.`
     }
@@ -439,16 +434,15 @@ function threadText(stored: Thread) {
 }
 
 // The passage as it is in the doc, with a little text either side so it can be found again after edits
-// Asks owlit whether the chat's role lets the agent do this, asking the user in the chat when it says so.
-// Null to go ahead, or what to tell the agent. An agent outside owlit has no chat; its own permission
-// prompt for this tool is the user's say.
+// Asks owlit whether the chat's role lets the agent add papers, asking the user in the chat when it says
+// so: once for a whole library_add, which is one add per paper to core (the other changes core asks about
+// itself). Null to go ahead, or what to tell the agent. An agent outside owlit has no chat; its own
+// permission prompt for this tool is the user's say.
 async function consent(owlit: OwlitClient, options: OwlitMcpOptions, action: ConsentAction, title: string) {
   if (!options.chatId) return null
   const answer = await owlit.rpc.agents.consent({ chatId: options.chatId, action, title })
   return answer.allowed ? null : `Not done: ${answer.reason ?? "the user said no."}`
 }
-
-const nameOf = (p: string) => p.split("/").filter(Boolean).pop() ?? p
 
 function anchorOf(content: string, quote: string) {
   let at = content.indexOf(quote)

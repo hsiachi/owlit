@@ -154,4 +154,25 @@ describe("Review (Owlit looks at a doc you open that changed)", () => {
     await new Promise((r) => setTimeout(r, 50))
     expect(journal().filter((l) => l.kind.startsWith("feedback.")).map((l) => l.kind)).toEqual(["feedback.dialChanged", "feedback.reply", "feedback.dismiss"])
   })
+  it("lands what it held in the workspace it was made in when the user switches to another", { timeout: 20_000 }, async () => {
+    const { root, call, emit, reviewed } = await setup(async (_prompt, run, call) => {
+      // The user is typing in the doc while Owlit reads it
+      await call("activity.emit", { event: { kind: "doc.edited", at: Date.now(), path: "story.md" } })
+      await leave(call, run, "Replay ratings track the live ones.", "They drift apart after a week.")
+      return "Left 1 comment."
+    })
+    await emit({ kind: "doc.opened", path: "story.md" })
+    await reviewed()
+    expect(Object.values(await call("comments.all")).flat()).toEqual([])
+    // A copy of the workspace, with the same doc
+    const copy = path.join(path.dirname(root), "copy")
+    mkdirSync(copy)
+    writeFileSync(path.join(copy, "story.md"), STORY)
+    await call("workspace.open", { path: copy })
+    await emit({ kind: "doc.closed", path: "story.md" })
+    await new Promise((r) => setTimeout(r, 100))
+    expect(Object.values(await call("comments.all")).flat()).toEqual([])
+    await call("workspace.open", { path: root })
+    expect((Object.values(await call("comments.all")).flat() as any[]).map((c) => c.quote)).toEqual(["Replay ratings track the live ones."])
+  })
 })
