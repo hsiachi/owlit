@@ -6384,34 +6384,6 @@ msgid "Choose the folder Owlit works in. Your docs, library and notes live there
 msgstr ""
 
 #: apps/desktop/src/main.ts
-msgid "Import a pitta Library"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Choose the pitta library (the folder that holds papers/). It is only read."
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Import"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "{added, plural, one {# paper imported} other {# papers imported}}"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "{failedCount} couldn't be read:"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "The pitta library couldn't be imported"
-msgstr ""
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr ""
 
@@ -6465,10 +6437,6 @@ msgstr ""
 
 #: apps/desktop/src/main.ts
 msgid "Import Papers…"
-msgstr ""
-
-#: apps/desktop/src/main.ts
-msgid "Import a pitta Library…"
 msgstr ""
 
 #: apps/desktop/src/main.ts
@@ -7513,7 +7481,6 @@ msgid "That isn't a PDF."
 msgstr ""
 
 #: packages/core/src/library/bulk/imports.ts
-#: packages/core/src/library/library.ts
 msgid "owlit can't import here."
 msgstr ""
 
@@ -7583,10 +7550,6 @@ msgid "owlit couldn't look for a PDF."
 msgstr ""
 
 #: packages/core/src/library/library.ts
-msgid "The pitta library couldn't be read."
-msgstr ""
-
-#: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
 msgstr ""
 
@@ -7596,10 +7559,6 @@ msgstr ""
 
 #: packages/core/src/library/library.ts
 msgid "That file isn't a PDF."
-msgstr ""
-
-#: packages/core/src/library/pitta.ts
-msgid "There is no papers folder in {root}."
 msgstr ""
 
 #: packages/core/src/library/resolve.ts

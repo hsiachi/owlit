@@ -436,9 +436,6 @@ export interface Methods {
   "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
   // The paper's digests (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
-  // Brings a pitta library (the folder holding papers/) into the workspace, once; papers already
-  // here are skipped. Waits until it is done; progress shows as an import.pitta task.
-  "library.importPitta": { params: { root: string }; result: { added: number; skipped: number; failed: string[] } }
   // Brings in a library at once: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
   // export), a BibTeX file, or a folder of PDFs. Returns once it has started; the import.<source> task
   // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the
