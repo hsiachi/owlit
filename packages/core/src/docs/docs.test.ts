@@ -180,6 +180,23 @@ describe("folders, moves and deletes", () => {
     }
   })
 
+  it("refuses owlit's folders in another case, and links that lead out of Docs", async () => {
+    const { root, call } = await setup({ "library/papers/a/note.md": "mine" })
+    // macOS's file system takes Library for library
+    await expect(call("docs.write", { path: "Library/papers/a/note.md", content: "x", expectedModifiedAt: 0, force: true })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    await expect(call("docs.delete", { path: "Library" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    const outside = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-outside-")))
+    writeFileSync(path.join(outside, "config"), "secret")
+    symlinkSync(path.join(outside, "config"), path.join(root, "refs.md"))
+    symlinkSync(outside, path.join(root, "away"))
+    symlinkSync(path.join(root, "library"), path.join(root, "shelf"))
+    await expect(call("docs.read", { path: "refs.md" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    await expect(call("docs.create", { path: "away/new.md", content: "x" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    await expect(call("docs.read", { path: "shelf/papers/a/note.md" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    const { files } = await call("docs.list")
+    expect(files.map((f: any) => f.path)).not.toContain("refs.md")
+  })
+
   it("needs a workspace", async () => {
     const core = new Core({ userDataDir: mkdtempSync(path.join(tmpdir(), "owlit-none-")) })
     cores.push(core)

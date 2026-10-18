@@ -150,13 +150,17 @@ describe("agent fs", () => {
     expect(changes.flatMap((c) => c.deleted)).toEqual([{ id, path: "new/deeper/a.md" }])
   })
 
-  it("refuses paths outside the workspace and inside .owlit", async () => {
+  it("refuses paths outside the workspace and owlit's own, as written or through a link", async () => {
     const { core, root } = await setup()
     await expect(core.fs.read("/etc/passwd")).rejects.toThrow("outside the workspace")
     await expect(core.fs.read(path.join(root, "../../../etc/passwd"))).rejects.toThrow("outside the workspace")
-    await expect(core.fs.write(path.join(root, ".owlit/workspace.json"), "{}")).rejects.toThrow("inside .owlit")
-    // macOS takes .OWLIT for .owlit
-    await expect(core.fs.write(path.join(root, ".OWLIT/workspace.json"), "{}")).rejects.toThrow("inside .owlit")
+    await expect(core.fs.write(path.join(root, ".owlit/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
+    // macOS takes .OWLIT for .owlit and Library for library
+    await expect(core.fs.write(path.join(root, ".OWLIT/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.write(path.join(root, "Library/papers/x/paper.json"), "{}")).rejects.toThrow("owlit's, not a doc")
+    symlinkSync(path.join(root, ".owlit"), path.join(root, "state"))
+    await expect(core.fs.write(path.join(root, "state/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.remove(["state"])).rejects.toThrow("owlit's, not a doc")
     // A symlink in the folder doesn't lead outside it
     const outside = mkdtempSync(path.join(tmpdir(), "owlit-outside-"))
     writeFileSync(path.join(outside, "secret.txt"), "secret")
@@ -183,7 +187,7 @@ describe("agent fs", () => {
     expect(readFileSync(file, "utf8")).toBe("Mine. Long and repeated.")
     expect(of("library.noteChanged").at(-1)).toEqual({ paperId: id, note: expect.objectContaining({ content: "Mine. Long and repeated." }) })
     // The machine state inside .owlit/papers isn't writable
-    await expect(core.fs.write(path.join(root, `.owlit/papers/${id}/state.json`), "{}")).rejects.toThrow("inside .owlit")
+    await expect(core.fs.write(path.join(root, `.owlit/papers/${id}/state.json`), "{}")).rejects.toThrow("owlit's, not a doc")
   })
 
   it("keeps a note an agent wrote on disk itself as the agent's, while its tool call names the file", async () => {

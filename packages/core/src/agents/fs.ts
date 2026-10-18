@@ -65,8 +65,7 @@ export class AgentFs {
       this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
       return
     }
-    // By its first segment, whatever its case: macOS's file system takes .OWLIT for .owlit
-    if (rel.split("/")[0].toLowerCase() === ".owlit") throw new RpcFailure(RpcErrorCode.InvalidParams, "Agents can't write inside .owlit.", { path: rel })
+    if (ws.docs.isOwlits(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't write it.`, { path: rel })
     const holder = this.options.ui.holder(rel)
     const before = (await this.fromEditor(rel)) ?? (await ws.docs.readDisk(rel))
     const version = await ws.versions.saveFile(rel, before, content, { chatId })
@@ -129,9 +128,9 @@ export class AgentFs {
 
   // A workspace path an agent may delete or move: a doc or folder of the user's, not owlit's own
   private docPath(file: string) {
-    const rel = this.workspace().docs.resolve(file)
-    const top = rel.split("/")[0].toLowerCase()
-    if (top === ".owlit" || top === "library") throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't delete or move it.`, { path: rel })
+    const docs = this.workspace().docs
+    const rel = docs.resolve(file)
+    if (docs.isOwlits(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't delete or move it.`, { path: rel })
     return rel
   }
 
