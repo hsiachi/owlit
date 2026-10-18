@@ -378,6 +378,22 @@ describe("the extension's port", () => {
       vi.restoreAllMocks()
     })
 
+    it("never opens a page the extension names that isn't a web page", async () => {
+      const opened: Opened[] = []
+      const s = await setup({ holdMs: 20, opened })
+      const token = await s.pair("Arc")
+      s.putPaper(id, { title, ids: { doi: SAGE } })
+      await s.request("/work", { token })
+      await s.call("library.fetchPdf", { id })
+      const [item] = (await s.request("/work", { token })).body.work
+      await s.request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "file:///Users/x/Results.terminal" } })
+      const now = Date.now()
+      vi.spyOn(Date, "now").mockReturnValue(now + 2 * 60_000)
+      await s.call("extension.open", { kind: "sign-in", host: "sagepub.com" })
+      expect(opened.map(([url]) => url)).not.toContainEqual(expect.stringMatching(/^file:/))
+      vi.restoreAllMocks()
+    })
+
     it("takes a site's waiting line away once its papers got their PDF another way or left", async () => {
       const { call, request, token, putPaper, root } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }

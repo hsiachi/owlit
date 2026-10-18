@@ -293,7 +293,12 @@ export class ExtensionServer {
       ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "sign-in", "offline", "no-permission"]),
       host,
       title: z.string().max(500).optional(),
-      url: z.string().max(4096).optional(),
+      // Only a web page: the url may be opened in a browser later, and `open` would run a file: or app link
+      url: z
+        .string()
+        .max(4096)
+        .optional()
+        .transform((url) => (url && /^https?:\/\//i.test(url) ? url : undefined)),
     })
     return [
       {
