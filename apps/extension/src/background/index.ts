@@ -3,10 +3,10 @@ import type { ExtensionPaper, ExtensionStatus, OpenPage, OwlitIdentity, PairAnsw
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { startI18n } from "../lib/i18n.ts"
-import { originsOf, type Answers, type Connection, type Outcome, type PageState, type PopupState, type Request } from "../lib/messages.ts"
+import { type Answers, type Connection, type Outcome, type PageState, type PopupState, type Request } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
-import { hasKnownSites, notYetAllowed } from "../lib/permissions.ts"
+import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { pdfTabKey, pdfTabWrite, refusedByOwlit, showsPdf, takesPdfTab } from "../lib/pdf-tab.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
@@ -178,6 +178,10 @@ async function fetchPdf(url: string, cache: RequestCache = "default"): Promise<A
 
 const failed = (error: unknown): Outcome => {
   if (error instanceof Unreachable) return { kind: "offline" }
+  if (error instanceof Elsewhere) {
+    const name = error.owlitName
+    return { kind: "failed", message: t`${name} answers here instead of your owlit.` }
+  }
   if (error instanceof OwlitError) {
     if (error.reason === "no-workspace") return { kind: "no-workspace" }
     if (error.reason === "not-paired") return { kind: "unpaired" }
@@ -199,6 +203,9 @@ async function putPdf(id: string, url: string, token: string): Promise<"saved" |
     return "saved"
   } catch (error) {
     if (error instanceof OwlitError && error.reason === "not-this-paper") return "not-this-paper"
+    // owlit's own route placed it while this one was fetched (arXiv's, for a paper just added): the paper
+    // has its PDF all the same
+    if (error instanceof OwlitError && error.reason === "has-pdf") return "saved"
     throw error
   }
 }
@@ -474,7 +481,7 @@ const registered = () => void registerGranted().catch((error) => console.error("
 // popup never sends its own "allowed".
 async function resumePermitted() {
   for (const wait of (await waits()).filter((w) => w.kind === "permission")) {
-    if (await ext.permissions.contains({ origins: originsOf(wait.host) }).catch(() => false)) await resume(wait.host).catch(() => undefined)
+    if (await mayRead(ext.permissions, wait.host)) await resume(wait.host).catch(() => undefined)
   }
 }
 
@@ -514,7 +521,7 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       return null
     case "allowed":
       // Asked for in the popup (a permission can only be asked from a click); held, owlit goes on there
-      if (await ext.permissions.contains({ origins: originsOf(request.host) })) await resume(request.host).catch(() => undefined)
+      if (await mayRead(ext.permissions, request.host)) await resume(request.host).catch(() => undefined)
       return null
     case "page": {
       const tabId = sender.tab?.id

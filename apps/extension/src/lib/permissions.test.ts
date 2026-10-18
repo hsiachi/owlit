@@ -67,4 +67,9 @@ describe("the sites owlit's papers wait to be allowed on", () => {
     ]
     expect(await notYetAllowed(permissions, waits)).toEqual({ needed: [{ host: "example-press.org", papers: 1 }], allowed: ["sagepub.com"] })
   })
+
+  it("counts a proxy allowed over plain http as allowed", async () => {
+    const permissions = stub({ granted: ["http://ezproxy.example.edu/*", "http://*.ezproxy.example.edu/*"] })
+    expect(await notYetAllowed(permissions, [{ host: "ezproxy.example.edu", papers: 1 }])).toEqual({ needed: [], allowed: ["ezproxy.example.edu"] })
+  })
 })

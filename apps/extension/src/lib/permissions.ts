@@ -10,9 +10,18 @@ type Permissions = Pick<typeof chrome.permissions, "contains" | "request">
 // The extension's manifest (runtime.getManifest()), or what of it is read here
 type Manifest = chrome.runtime.Manifest | { host_permissions?: string[] }
 
-// A site's own addresses and every one under it: what the extension asks the user to let it read for
-// owlit's papers there
-export const originsOf = (host: string) => [`https://${host}/*`, `https://*.${host}/*`]
+// A site's own addresses and every one under it, over https and http: what the extension asks the user to
+// let it read for owlit's papers there. A library's EZproxy often answers on plain http
+// (http://ezproxy.example.edu:2048).
+const httpsOf = (host: string) => [`https://${host}/*`, `https://*.${host}/*`]
+const httpOf = (host: string) => [`http://${host}/*`, `http://*.${host}/*`]
+export const originsOf = (host: string) => [...httpsOf(host), ...httpOf(host)]
+
+// Allowed over either: a publisher the manifest lists is granted over https alone
+export async function mayRead(permissions: Pick<Permissions, "contains">, host: string): Promise<boolean> {
+  const has = (origins: string[]) => permissions.contains({ origins }).catch(() => false)
+  return (await has(httpsOf(host))) || has(httpOf(host))
+}
 
 // Of the sites owlit's papers wait to be allowed on, the ones still to allow, and the ones the extension
 // may read already (allowed since, in Settings or another popup), which owlit only has to be told of. The
@@ -21,7 +30,7 @@ export async function notYetAllowed<W extends { host: string }>(permissions: Pic
   const needed: W[] = []
   const allowed: string[] = []
   for (const wait of waits) {
-    if (await permissions.contains({ origins: originsOf(wait.host) }).catch(() => false)) allowed.push(wait.host)
+    if (await mayRead(permissions, wait.host)) allowed.push(wait.host)
     else needed.push(wait)
   }
   return { needed, allowed }

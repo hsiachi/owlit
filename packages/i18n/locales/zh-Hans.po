@@ -6681,6 +6681,10 @@ msgid "{papers, plural, one {# paper in your Library waits for its PDF there. Th
 msgstr "{papers, plural, other {文库里有 # 篇论文在那里等着取 PDF。扩展会用你的访问权限去取，只读 owlit 要的内容。}}"
 
 #: apps/extension/src/background/index.ts
+msgid "{name} answers here instead of your owlit."
+msgstr "现在应答的是 {name}，不是你的 owlit。"
+
+#: apps/extension/src/background/index.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "This page doesn't show a paper."
 msgstr "这个页面上没有论文。"

@@ -50,8 +50,9 @@ export function manifest(target: Target, { version, publishers, dev = false }: {
     permissions: ["storage", "activeTab", "scripting", "notifications", "webRequest", "alarms"],
     // owlit on this machine (any port: a match pattern takes none), and the publishers owlit knows
     host_permissions: ["http://127.0.0.1/*", ...publishers],
-    // Any other site, asked for one at a time from a click in the popup
-    optional_host_permissions: ["https://*/*"],
+    // Any other site, asked for one at a time from a click in the popup or on the Allow page
+    // http for a library proxy that answers on plain http (permissions.ts originsOf)
+    optional_host_permissions: ["https://*/*", "http://*/*"],
   }
   if (target === "chrome") return { ...shared, background: { service_worker: "background.js", type: "module" }, minimum_chrome_version: CHROME_MIN }
   return {

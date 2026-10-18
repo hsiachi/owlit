@@ -6681,6 +6681,10 @@ msgid "{papers, plural, one {# paper in your Library waits for its PDF there. Th
 msgstr "{papers, plural, one {# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.} other {# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.}}"
 
 #: apps/extension/src/background/index.ts
+msgid "{name} answers here instead of your owlit."
+msgstr "{name} answers here instead of your owlit."
+
+#: apps/extension/src/background/index.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "This page doesn't show a paper."
 msgstr "This page doesn't show a paper."

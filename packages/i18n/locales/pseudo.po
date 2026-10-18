@@ -6681,6 +6681,10 @@ msgid "{papers, plural, one {# paper in your Library waits for its PDF there. Th
 msgstr ""
 
 #: apps/extension/src/background/index.ts
+msgid "{name} answers here instead of your owlit."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "This page doesn't show a paper."
 msgstr ""

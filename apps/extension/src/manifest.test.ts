@@ -15,7 +15,7 @@ describe("manifest", () => {
     // Sites are host permissions, never API permissions, in manifest v3
     expect(m.permissions.every((p) => !p.includes("://"))).toBe(true)
     expect(m.host_permissions).toEqual(["http://127.0.0.1/*", ...publishers])
-    expect(m.optional_host_permissions).toEqual(["https://*/*"])
+    expect(m.optional_host_permissions).toEqual(["https://*/*", "http://*/*"])
     // A match pattern takes no port
     for (const origin of [...m.host_permissions, ...m.optional_host_permissions]) expect(origin).toMatch(/^https?:\/\/(\*|\*\.[^/:*]+|[^/:*]+)\/\*$/)
   })
