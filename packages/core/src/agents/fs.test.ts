@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
+import { eventually, until } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -65,7 +66,7 @@ describe("agent fs", () => {
   it("restores the version, unless the file changed since", async () => {
     const { core, root, call, journal } = await setup()
     await core.fs.write(path.join(root, "a.md"), "agent text")
-    const { versionId } = journal()[0] ?? (await new Promise((r) => setTimeout(r, 50)), journal()[0])
+    const { versionId } = await until(() => journal()[0], { what: "the write in the journal" })
     const undone = await call("versions.restore", { id: versionId })
     expect(undone).toMatchObject({ path: "a.md", kind: "file" })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
@@ -75,8 +76,7 @@ describe("agent fs", () => {
     await call("versions.restore", { id: redone.redoId })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
     await core.fs.write(path.join(root, "a.md"), "second")
-    await new Promise((r) => setTimeout(r, 50))
-    const second = journal().at(-1).versionId
+    const second = (await until(() => journal().filter((e) => e.kind === "agent.wrote")[1], { what: "the second write in the journal" })).versionId
     writeFileSync(path.join(root, "a.md"), "the user typed more")
     const error = await call("versions.restore", { id: second }).catch((e) => e)
     expect(error.message).toBe("a.md changed after the agent's edit, so owlit left it as it is.")
@@ -93,8 +93,8 @@ describe("agent fs", () => {
   it("undoes a file the agent created by moving it to the Trash", async () => {
     const { core, root, call, journal } = await setup()
     await core.fs.write(path.join(root, "notes/new.md"), "made by the agent")
-    await new Promise((r) => setTimeout(r, 50))
-    await call("versions.restore", { id: journal()[0].versionId })
+    const { versionId } = await until(() => journal()[0], { what: "the write in the journal" })
+    await call("versions.restore", { id: versionId })
     expect(existsSync(path.join(root, "notes/new.md"))).toBe(false)
   })
 
@@ -209,17 +209,18 @@ describe("agent fs", () => {
     )
     expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ content: "Mine." }) }])
     // Journaled just after windows hear of it
-    const entry = await vi.waitFor(() => {
-      const found = journal().find((e) => e.kind === "agent.wrote")
-      expect(found).toBeDefined()
-      return found
-    })
+    const entry = await until(() => journal().find((e) => e.kind === "agent.wrote"), { what: "agent.wrote in the journal" })
     expect(entry).toMatchObject({ path: rel, chatId: "chat-2" })
     expect(of("agent.wrote")).toEqual([{ path: rel, versionId: entry.versionId, chatId: "chat-2" }])
     await call("versions.restore", { id: entry.versionId })
     expect(readFileSync(path.join(root, rel), "utf8")).toBe("Mine. Long and repeated.")
-    // The undo is owlit's own write: not recorded again as the agent's
-    await new Promise((r) => setTimeout(r, 400))
-    expect(of("agent.wrote")).toHaveLength(1)
+    // The undo is owlit's own write: not recorded again as the agent's. An agent's write to another file,
+    // heard the same way after it, is the sentinel: once it is in, the undo's turn has passed.
+    ;(core as any).turns.claims.set("a.md", { chatId: "chat-3", until: Infinity })
+    await eventually(() => {
+      if (!of("agent.wrote").some((w) => w.path === "a.md")) writeFileSync(path.join(root, "a.md"), "the agent's sentinel")
+      expect(of("agent.wrote").map((w) => w.path)).toContain("a.md")
+    }, 5_000)
+    expect(of("agent.wrote").map((w) => w.path)).toEqual([rel, "a.md"])
   })
 })

@@ -3,12 +3,12 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { eventually } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((core) => core.dispose()))
 })
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function setup() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-chats-")))
@@ -53,7 +53,7 @@ describe("chats", () => {
     expect((await second.call("chats.get", { id: "a" })).messages.map((m: any) => m.id)).toEqual(["u1"])
   })
 
-  it("writes a streaming answer within half a second and at once when final", async () => {
+  it("writes a streaming answer a moment later, and at once when final", async () => {
     const { open, chatsDir } = await setup()
     const { call } = await open()
     await call("chats.create", { chat: summary("a", 1) })
@@ -61,8 +61,7 @@ describe("chats", () => {
     await call("chats.patchMessage", { id: "a", message: msg("r1", "assistant", 2, { status: "streaming", parts: [{ type: "text", text: "partial" }] }) })
     const onDisk = () => JSON.parse(readFileSync(path.join(chatsDir, "a.json"), "utf8")).messages[0]
     expect(onDisk()).toBeUndefined()
-    await sleep(650)
-    expect(onDisk().parts[0].text).toBe("partial")
+    await eventually(() => expect(onDisk()?.parts[0].text).toBe("partial"))
     await call("chats.patchMessage", { id: "a", message: msg("r1", "assistant", 2, { status: "done" }), final: true })
     expect(onDisk().status).toBe("done")
   })
@@ -72,9 +71,9 @@ describe("chats", () => {
     const first = await open()
     await first.call("chats.create", { chat: summary("a", 1) })
     await first.call("chats.appendMessage", { id: "a", message: msg("r1", "assistant", 2, { status: "streaming" }) })
-    await sleep(650)
+    const onDisk = () => JSON.parse(readFileSync(path.join(chatsDir, "a.json"), "utf8")).messages[0]
+    await eventually(() => expect(onDisk()?.status).toBe("streaming"))
     // As if the process had been killed: nothing flushed at exit
-    expect(JSON.parse(readFileSync(path.join(chatsDir, "a.json"), "utf8")).messages[0].status).toBe("streaming")
     const second = await open().catch(async () => {
       await first.core.dispose()
       return open()

@@ -5,6 +5,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { Http } from "../net/http.ts"
+import { eventually, until } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "fixtures", name), "utf8")
@@ -148,7 +149,7 @@ describe("keeping the library clean", () => {
   const workspaceOf = (core: Core) => (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
   // Papers written straight to disk reach the library's index a moment later
   const indexed = (call: (method: string, params?: unknown) => Promise<any>, inputs: string[]) =>
-    vi.waitUntil(async () => ((await call("library.known", { inputs })) as (string | null)[]).every(Boolean))
+    until(async () => ((await call("library.known", { inputs })) as (string | null)[]).every(Boolean), { what: "the papers in the library's index" })
 
   it("doesn't add a copy of a paper it has under a DOI, and keeps no version an agent could undo", async () => {
     const { root, call } = await setup({})
@@ -217,7 +218,7 @@ describe("keeping the library clean", () => {
     cores.push(again)
     await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
     const tasks = workspaceOf(again).tasks
-    const queued = await vi.waitUntil(() => tasks.list().find((t) => t.kind === "paper.metadata" && t.subject === "doi-10.1145-3626772.3657891"))
+    const queued = await until(() => tasks.list().find((t) => t.kind === "paper.metadata" && t.subject === "doi-10.1145-3626772.3657891"), { what: "the paper's lookup" })
     expect((await tasks.wait(queued.id)).state).toBe("done")
     expect(tasks.list().some((t) => t.kind === "paper.metadata" && (t.subject === "local-abc123" || t.subject === "doi-10.1145-1"))).toBe(false)
     const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
@@ -237,7 +238,7 @@ describe("keeping the library clean", () => {
     const again = new Core({ userDataDir: path.join(path.dirname(root), "userData"), host: { fetch }, retryBaseMs: 1 })
     cores.push(again)
     await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
-    await vi.waitFor(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+    await eventually(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
   })
 
   it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {
@@ -264,15 +265,16 @@ describe("keeping the library clean", () => {
     }
     const read = (paper: string) => JSON.parse(readFileSync(path.join(root, "library/papers", paper, "paper.json"), "utf8")) as PaperRecord
     const first = await open()
-    await vi.waitUntil(() => read(id).citationsAt)
+    await until(() => read(id).citationsAt, { what: "the recount" })
     expect(read(id)).toMatchObject({ citationCount: 31, fields: { citationCount: "openalex" } })
     expect(asked.some((u) => u.includes("10.1145%2F2") || u.includes("10.1145/2|"))).toBe(false)
     const { papers } = await first.handle({ jsonrpc: "2.0", id: 2, method: "library.list" }).then((r) => (r as { result: { papers: { id: string; citations?: unknown }[] } }).result)
     expect(papers.find((p) => p.id === id)?.citations).toMatchObject({ count: 31, source: "openalex" })
     await first.dispose()
     asked.length = 0
-    await open()
-    await new Promise((r) => setTimeout(r, 50))
+    const second = await open()
+    // Settles once the second open's recount has found it already ran today
+    await workspaceOf(second).library.citationsRecounted
     expect(asked.filter((u) => u.includes("api.openalex.org/works?"))).toEqual([])
   })
 })
@@ -445,16 +447,18 @@ describe("library on disk", () => {
     await call("library.add", { paper: { id: "arxiv-2403.17859", title: "Old", authors: [], ids: { arxiv: "2403.17859" } } })
     await call("library.remove", { ids: ["arxiv-2403.17859"] })
     await call("library.remove", { ids: [resolvedArxiv.id] })
-    await new Promise((r) => setTimeout(r, 5))
     await call("library.remove", { ids: ["arxiv-2408.00447"] })
-    // Removed long ago: kept in the trash, no longer offered
     const trash = path.join(root, ".owlit/trash")
+    // Removed a second before the next, as two removals in the same millisecond would have no order
+    const first = readdirSync(trash).find((name) => name.endsWith(`-paper-${resolvedArxiv.id}`))!
+    renameSync(path.join(trash, first), path.join(trash, `${Number.parseInt(first, 10) - 1000}-paper-${resolvedArxiv.id}`))
+    // Removed long ago: kept in the trash, no longer offered
     const old = readdirSync(trash).find((name) => name.endsWith("-paper-arxiv-2403.17859"))!
     renameSync(path.join(trash, old), path.join(trash, `${Date.now() - 31 * 86_400_000}-paper-arxiv-2403.17859`))
     const listed = await call("library.trash")
     expect(listed.map((p: { id: string }) => p.id)).toEqual(["arxiv-2408.00447", resolvedArxiv.id])
     expect(listed[1]).toMatchObject({ title: "Attention (my title)", authors: ["Ashish Vaswani"], year: 2017 })
-    expect(listed[1].removedAt).toBeLessThanOrEqual(listed[0].removedAt)
+    expect(listed[1].removedAt).toBeLessThan(listed[0].removedAt)
     await call("library.restore", { ids: [resolvedArxiv.id] })
     expect((await call("library.trash")).map((p: { id: string }) => p.id)).toEqual(["arxiv-2408.00447"])
   })
@@ -463,13 +467,16 @@ describe("library on disk", () => {
     const { root, core } = await setup({})
     const heard: any[] = []
     core.onNotify((n) => n.method === "library.changed" && heard.push(n.params))
-    // The system's watcher takes a moment to start after the workspace opens
-    await new Promise((r) => setTimeout(r, 300))
-    putPaper(root, { id: "arxiv-2408.00447", title: "Dropped in by the CLI", ids: { arxiv: "2408.00447" } })
-    const started = Date.now()
-    while (!heard.some((c) => c.papers.some((p: { id: string }) => p.id === "arxiv-2408.00447")) && Date.now() - started < 2000) {
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    // A watcher only just started can miss a write (FSEvents on macOS): the program writes again until core
+    // hears it, spaced beyond the library's 300 ms settle, which each write would push back
+    const isHeard = () => heard.some((c) => c.papers.some((p: { id: string }) => p.id === "arxiv-2408.00447"))
+    await vi.waitFor(
+      () => {
+        if (!isHeard()) putPaper(root, { id: "arxiv-2408.00447", title: "Dropped in by the CLI", ids: { arxiv: "2408.00447" } })
+        expect(isHeard()).toBe(true)
+      },
+      { timeout: 4_000, interval: 1_000 },
+    )
     const paper = heard.flatMap((c) => c.papers).find((p) => p.id === "arxiv-2408.00447")
     expect(paper).toMatchObject({ title: "Dropped in by the CLI", status: "unread", addedBy: "user" })
   })

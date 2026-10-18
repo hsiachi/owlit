@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { makePdf, paragraph } from "../../core/src/library/text/make-pdf.ts"
+import { until } from "../../core/src/test-util.ts"
 import { run } from "./cli.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
@@ -62,18 +63,17 @@ describe("owlit", () => {
     expect((await owlit(["add", "1706.03762"])).out).toBe("Already in the library: arxiv-1706.03762 · Attention Is All You Need\n")
 
     // Every task the addition queued finishes, and owlit tasks says so
-    for (;;) {
-      const tasks = JSON.parse((await owlit(["tasks", "--json"])).out) as { id: string; state: string }[]
-      const mine = tasks.filter((t) => result.tasks.includes(t.id))
-      if (mine.length === result.tasks.length && mine.every((t) => t.state === "done")) break
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    await until(
+      async () => {
+        const tasks = JSON.parse((await owlit(["tasks", "--json"])).out) as { id: string; state: string }[]
+        const mine = tasks.filter((t) => result.tasks.includes(t.id))
+        return mine.length === result.tasks.length && mine.every((t) => t.state === "done")
+      },
+      { what: "the addition's tasks to finish" },
+    )
     expect((await owlit(["tasks"])).out).toMatch(/^done\s+paper\.\w+\s+arxiv-1706\.03762/m)
 
-    for (;;) {
-      if ((await owlit(["read", "arxiv-1706.03762"])).code === 0) break
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    await until(async () => (await owlit(["read", "arxiv-1706.03762"])).code === 0, { what: "the paper's text to be readable" })
     expect((await owlit(["index", "rebuild"])).out).toBe("The search index is rebuilt: 1 paper, 0 docs, 0 chats.\n")
     expect((await owlit(["search", "dot-product"])).out).toMatch(/^arxiv-1706\.03762 · Attention Is All You Need\n/)
     const read = await owlit(["read", "arxiv-1706.03762", "--pages", "3-4"])

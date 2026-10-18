@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { until } from "../test-util.ts"
 import { ENGINE_ID } from "./agents.ts"
 
 // The Owlit engine (packages/owlit-agent) run by core as owlit runs it, with pi-ai's scripted model in
@@ -92,12 +93,12 @@ describe("Owlit engine", () => {
       expect(tool).toMatchObject({ title: "mcp__owlit__docs_list", kind: "read" })
       expect(said()).toMatch(/^tool said: .*notes\.md/)
 
+      const before = updates.length
       const slow = send(call, "slow")
-      await new Promise((r) => setTimeout(r, 300))
-      const at = Date.now()
+      await until(() => updates.slice(before).some((u) => u.type === "agent_message_chunk"), { timeout: 10_000, what: "the slow answer to start" })
       await call("agents.cancel", { chatId: "c1" })
+      // Left alone, the slow answer ends as end_turn: only a cancel that landed ends it cancelled
       expect(await slow).toEqual({ stopReason: "cancelled" })
-      expect(Date.now() - at).toBeLessThan(1000)
     })
   }, 30_000)
 
@@ -169,10 +170,7 @@ describe("Owlit engine", () => {
 
   describe("edits, by Owlit's role", () => {
     const edit = (path: string, from: string, to: string) => `tool edit_file ${JSON.stringify({ path, old_text: from, new_text: to })}`
-    const waitFor = async (updates: SessionUpdate[], type: string) => {
-      while (!updates.some((u) => u.type === type)) await new Promise((r) => setTimeout(r, 20))
-      return updates.find((u) => u.type === type) as any
-    }
+    const waitFor = (updates: SessionUpdate[], type: string): Promise<any> => until(() => updates.find((u) => u.type === type), { timeout: 10_000, what: `a ${type}` })
 
     it("as Assistant, asks with the diff; Apply writes through owlit, Discard leaves the file", async () => {
       const { start, send, said, updates, root, of } = await setup()

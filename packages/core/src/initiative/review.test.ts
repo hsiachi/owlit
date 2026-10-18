@@ -1,10 +1,11 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { McpServer } from "@agentclientprotocol/sdk"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
+import { eventually, until } from "../test-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { paragraphsOf } from "./review.ts"
 
@@ -43,14 +44,8 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
   await call("initiative.set", { patch: { mode: "onOpen" } })
   const workspace = (core as unknown as { workspace: Workspace }).workspace
   const emit = (event: Record<string, unknown>) => call("activity.emit", { event: { at: Date.now(), ...event } })
-  const reviewed = async () => {
-    for (let i = 0; i < 400; i++) {
-      const done = workspace.tasks.list().filter((t) => t.kind === "docs.review" && ["done", "failed", "cancelled"].includes(t.state))
-      if (done.length) return done[0]!
-      await new Promise((r) => setTimeout(r, 25))
-    }
-    throw new Error("no review finished")
-  }
+  const reviewed = () =>
+    until(() => workspace.tasks.list().find((t) => t.kind === "docs.review" && ["done", "failed", "cancelled"].includes(t.state)), { timeout: 10_000, what: "a review to finish" })
   const journal = () => readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
   return { root, call, emit, workspace, reviewed, prompts, journal }
 }
@@ -83,9 +78,15 @@ describe("Review (Owlit looks at a doc you open that changed)", () => {
 
     await emit({ kind: "doc.closed", path: "story.md" })
     await emit({ kind: "doc.opened", path: "story.md" })
-    await new Promise((r) => setTimeout(r, 3300))
+    // The second open is decided once the doc has settled: wait for that decision, not for the settle time
+    const evaluations = await until(
+      () => {
+        const found = journal().filter((l) => l.kind === "evaluation" && l.rule === "docs.reviewOnOpen")
+        return found.length >= 2 ? found : undefined
+      },
+      { timeout: 10_000, what: "the second open's evaluation" },
+    )
     expect(workspace.tasks.list().filter((t) => t.kind === "docs.review")).toHaveLength(1)
-    const evaluations = journal().filter((l) => l.kind === "evaluation" && l.rule === "docs.reviewOnOpen")
     expect(evaluations.map((e) => [e.decision, e.reason ?? null])).toEqual([
       ["job", null],
       ["none", "unchanged since Owlit looked"],
@@ -110,15 +111,14 @@ describe("Review (Owlit looks at a doc you open that changed)", () => {
     writeFileSync(path.join(root, "story.md"), `${STORY}\nA third claim, new today.\n`)
     await emit({ kind: "doc.closed", path: "story.md" })
     await emit({ kind: "doc.opened", path: "story.md" })
-    for (let i = 0; i < 400 && workspace.tasks.list().filter((t) => t.kind === "docs.review" && t.state === "done").length < 2; i++) await new Promise((r) => setTimeout(r, 25))
+    await until(() => workspace.tasks.list().filter((t) => t.kind === "docs.review" && t.state === "done").length === 2, { timeout: 10_000, what: "the second review" })
     expect(prompts[1]).toContain("changed since you last looked")
     expect(prompts[1]).toContain("A third claim, new today.")
     expect(prompts[1]).not.toContain("The second claim stands alone.")
     // Held: the user is typing in the doc
     expect(Object.values(await call("comments.all")).flat()).toEqual([])
     await emit({ kind: "doc.closed", path: "story.md" })
-    await new Promise((r) => setTimeout(r, 100))
-    expect((Object.values(await call("comments.all")).flat() as any[]).map((c) => c.quote)).toEqual(["A third claim, new today."])
+    await eventually(async () => expect((Object.values(await call("comments.all")).flat() as any[]).map((c) => c.quote)).toEqual(["A third claim, new today."]))
   })
 
   it("remembers a dismissed comment and tells the next review; answers a reply under its comment", { timeout: 20_000 }, async () => {
@@ -133,7 +133,7 @@ describe("Review (Owlit looks at a doc you open that changed)", () => {
 
     // A reply of the user's: Owlit answers in the comment, as a run they asked for
     await call("comments.put", { path: "story.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", by: "you", text: "Where does it say so?", at: Date.now() }] } })
-    for (let i = 0; i < 200 && !workspace.tasks.list().some((t) => t.kind === "docs.reply" && t.state === "done"); i++) await new Promise((r) => setTimeout(r, 25))
+    await until(() => workspace.tasks.list().some((t) => t.kind === "docs.reply" && t.state === "done"), { timeout: 10_000, what: "the reply" })
     const answered = (Object.values(await call("comments.all")).flat() as any[])[0]
     expect(answered.entries.map((e: any) => [e.by, e.text])).toEqual([
       ["owlit", "They drift apart after a week."],
@@ -147,12 +147,11 @@ describe("Review (Owlit looks at a doc you open that changed)", () => {
     writeFileSync(path.join(root, "story.md"), `${STORY}\nOne more line.\n`)
     await emit({ kind: "doc.closed", path: "story.md" })
     await emit({ kind: "doc.opened", path: "story.md" })
-    for (let i = 0; i < 400 && prompts.filter((p) => !p.includes("the user has replied")).length < 2; i++) await new Promise((r) => setTimeout(r, 25))
+    await until(() => prompts.filter((p) => !p.includes("the user has replied")).length >= 2, { timeout: 10_000, what: "the second review's prompt" })
     const second = prompts.filter((p) => !p.includes("the user has replied"))[1]!
     expect(second).toContain("The user dismissed these comments of yours")
     expect(second).toContain("They drift apart after a week.")
-    await new Promise((r) => setTimeout(r, 50))
-    expect(journal().filter((l) => l.kind.startsWith("feedback.")).map((l) => l.kind)).toEqual(["feedback.dialChanged", "feedback.reply", "feedback.dismiss"])
+    await eventually(() => expect(journal().filter((l) => l.kind.startsWith("feedback.")).map((l) => l.kind)).toEqual(["feedback.dialChanged", "feedback.reply", "feedback.dismiss"]))
   })
   it("lands what it held in the workspace it was made in when the user switches to another", { timeout: 20_000 }, async () => {
     const { root, call, emit, reviewed } = await setup(async (_prompt, run, call) => {
@@ -170,7 +169,9 @@ describe("Review (Owlit looks at a doc you open that changed)", () => {
     writeFileSync(path.join(copy, "story.md"), STORY)
     await call("workspace.open", { path: copy })
     await emit({ kind: "doc.closed", path: "story.md" })
-    await new Promise((r) => setTimeout(r, 100))
+    // Landed in the first workspace's files, so nothing more is coming for the copy
+    const landed = path.join(root, ".owlit/docs/comments/story.md.jsonl")
+    await until(() => existsSync(landed) && readFileSync(landed, "utf8").includes("Replay ratings track the live ones."), { what: "the held comment to land in the first workspace" })
     expect(Object.values(await call("comments.all")).flat()).toEqual([])
     await call("workspace.open", { path: root })
     expect((Object.values(await call("comments.all")).flat() as any[]).map((c) => c.quote)).toEqual(["Replay ratings track the live ones."])

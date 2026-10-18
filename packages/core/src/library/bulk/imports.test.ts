@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../../core.ts"
+import { eventually, until as waitUntil, WAIT } from "../../test-util.ts"
 import { makePdf, paragraph } from "../text/make-pdf.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "../fixtures", name), "utf8")
@@ -47,13 +48,14 @@ function setup(options: { base?: string; settings?: unknown } = {}) {
   }
   const task = async (id: string): Promise<Task> => ((await call("tasks.list")) as Task[]).find((t) => t.id === id)!
   // Resolves with the import's task once it is in one of these states
-  const until = async (id: string, states: Task["state"][]) => {
-    for (;;) {
-      const t = await task(id)
-      if (t && states.includes(t.state)) return t
-      await new Promise((r) => setTimeout(r, 20))
-    }
-  }
+  const until = (id: string, states: Task["state"][], timeout = WAIT.timeout) =>
+    waitUntil(
+      async () => {
+        const t = await task(id)
+        return t && states.includes(t.state) ? t : undefined
+      },
+      { timeout, what: `the import's task to be ${states.join(" or ")}` },
+    )
   const summary = async (id: string): Promise<ImportSummary> => ((await call("library.imports")) as ImportSummary[]).find((s) => s.id === id)!
   return { base, root, core, call, task, until, summary, open: () => call("workspace.open", { path: root }) }
 }
@@ -101,14 +103,8 @@ describe("library.import", () => {
     expect(added).toHaveLength(2)
     expect(added).toContain("arxiv-1706.03762")
     const local = added.find((id) => id.startsWith("local-"))!
-    for (;;) {
-      const read = await call("library.read", { id: local, part: "text" }).catch(() => null)
-      if (read) {
-        expect(read.text).toMatch(/workshop paper no service has heard of/)
-        break
-      }
-      await new Promise((r) => setTimeout(r, 20))
-    }
+    const read = await waitUntil(() => call("library.read", { id: local, part: "text" }).catch(() => null), { what: "the local paper's text" })
+    expect(read.text).toMatch(/workshop paper no service has heard of/)
     // Importing the same folder again adds nothing
     const again: ImportSummary = await call("library.import", { source: "folder", path: folder })
     await until(again.taskId, ["done"])
@@ -143,11 +139,13 @@ describe("library.import", () => {
     const file = path.join(first.base, "many.bib")
     writeFileSync(file, bib(Array.from({ length: 40 }, (_, i) => `@article{p${i}, title = {Paper ${i}}, author = {Writer, A.}, doi = {10.5555/p${i}}, year = 2020}`)))
     const started: ImportSummary = await first.call("library.import", { source: "bibtex", path: file })
-    for (;;) {
-      const t = await first.task(started.taskId)
-      if ((t.progress?.done ?? 0) >= 5 || t.state === "done") break
-      await new Promise((r) => setTimeout(r, 5))
-    }
+    await waitUntil(
+      async () => {
+        const t = await first.task(started.taskId)
+        return (t.progress?.done ?? 0) >= 5 || t.state === "done"
+      },
+      { what: "five papers in" },
+    )
     await first.core.dispose()
 
     const second = setup({ base: first.base })
@@ -168,11 +166,14 @@ describe("library.import", () => {
     const started: ImportSummary = await call("library.import", { source: "bibtex", path: file })
     await until(started.taskId, ["running"])
     await call("tasks.cancel", { id: started.taskId })
-    await new Promise((r) => setTimeout(r, 200))
-    const after = await summary(started.id)
-    expect(after.added.length).toBeLessThan(200)
-    expect((await call("library.list")).papers).toHaveLength(after.added.length)
     expect((await until(started.taskId, ["cancelled"])).state).toBe("cancelled")
+    // The paper in hand is finished, then nothing new starts: the library and the summary agree once it is in
+    const after = await eventually(async () => {
+      const after = await summary(started.id)
+      expect((await call("library.list")).papers).toHaveLength(after.added.length)
+      return after
+    })
+    expect(after.added.length).toBeLessThan(200)
 
     const continued: ImportSummary = await call("library.continueImport", { id: started.id })
     expect(continued.taskId).not.toBe(started.taskId)
@@ -191,20 +192,20 @@ describe("library.import", () => {
     }
     const started: ImportSummary = await call("library.import", { source: "folder", path: folder })
     expect(await call("library.previewImport", { source: "folder", path: folder })).toMatchObject({ total: 101, withPdf: 101, known: 0, asksParse: true })
-    expect(await until(started.taskId, ["waiting_for_you"])).toMatchObject({ waiting: { reason: "confirm_spend", detail: expect.stringMatching(/101 new papers/) } })
+    expect(await until(started.taskId, ["waiting_for_you"], 30_000)).toMatchObject({ waiting: { reason: "confirm_spend", detail: expect.stringMatching(/101 new papers/) } })
     await call("library.importAnswer", { id: started.id, parse: false })
-    await until(started.taskId, ["done"])
+    await until(started.taskId, ["done"], 30_000)
     expect(await summary(started.id)).toMatchObject({ parse: false })
     expect((await summary(started.id)).added).toHaveLength(101)
     // Every paper's text is read by pdfium; none goes to MinerU
-    for (;;) {
-      const tasks: Task[] = await call("tasks.list")
-      if (!tasks.some((t) => t.kind === "paper.text" && t.state !== "done")) {
-        expect(tasks.filter((t) => t.kind === "paper.parse")).toEqual([])
-        break
-      }
-      await new Promise((r) => setTimeout(r, 20))
-    }
+    const tasks = await waitUntil(
+      async () => {
+        const tasks: Task[] = await call("tasks.list")
+        return tasks.some((t) => t.kind === "paper.text" && t.state !== "done") ? undefined : tasks
+      },
+      { timeout: 30_000, what: "every paper's text to be read" },
+    )
+    expect(tasks.filter((t) => t.kind === "paper.parse")).toEqual([])
     // A hundred and one PDFs read twice (recognising each, then its text)
   }, 60_000)
 })

@@ -2,10 +2,11 @@ import type { PaperRecord } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { serveWorkspaceFile } from "../files/serve.ts"
 import { Http } from "../net/http.ts"
+import { eventually } from "../test-util.ts"
 import { isThisPaper, surelyOf } from "./pdf-identity.ts"
 import { lookDue } from "./acquisition.ts"
 import { downloadPdf, pdfInHtml, routesFor } from "./pdf.ts"
@@ -179,7 +180,7 @@ describe("paper.pdf", () => {
     await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } } })
     // The look after the add, whose retries are minutes apart: its first try is enough
     const file = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
-    await vi.waitFor(() => expect(existsSync(file)).toBe(true))
+    await eventually(() => expect(existsSync(file)).toBe(true))
     const paper = (await call("library.list")).papers[0]
     expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "owlit", ended: "offline" } })
     expect(paper.pdfState.nextLook).toBeUndefined()
@@ -214,7 +215,7 @@ describe("paper.pdf", () => {
     const paper = { id: "doi-10.9999-repo", title: "Lifelogging for memory support in everyday life", authors: [], ids: { doi: "10.9999/repo" } }
     await call("library.add", { paper })
     const looking = call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
-    await vi.waitFor(() => expect(asked).toBe(true))
+    await eventually(() => expect(asked).toBe(true))
     const mine = path.join(root, "..", "mine.pdf")
     writeFileSync(mine, PDF)
     await call("library.attachPdf", { id: paper.id, path: mine })

@@ -4,12 +4,15 @@ import { readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { until } from "../test-util.ts"
 import { defineTask, Scheduler, TaskFailure, TaskStore, TaskThrottle, type TaskDefinition } from "./index.ts"
 
 const dirs: string[] = []
 const schedulers: Scheduler[] = []
 
 afterEach(async () => {
+  // Before dispose, which waits on a real timer
+  vi.useRealTimers()
   await Promise.all(schedulers.splice(0).map((s) => s.dispose()))
   await Promise.all(dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })))
 })
@@ -95,14 +98,14 @@ describe("Scheduler", () => {
       },
     })
     const { scheduler } = await newScheduler([step])
-    scheduler.enqueue("fake.step", "first")
-    await tick(0)
-    scheduler.enqueue("fake.step", "background-1")
+    const first = scheduler.enqueue("fake.step", "first")
+    await until(() => scheduler.get(first.id)?.state === "running", { what: "the first step to start" })
+    const background = scheduler.enqueue("fake.step", "background-1")
     scheduler.enqueue("fake.step", "background-2", "asked")
     const urgent = scheduler.enqueue("fake.step", "urgent", "waiting")
     gate.resolve()
     await scheduler.wait(urgent.id)
-    await tick(5)
+    await scheduler.wait(background.id)
     expect(order).toEqual(["first", "urgent", "background-2", "background-1"])
   })
 
@@ -148,20 +151,22 @@ describe("Scheduler", () => {
         made.add(`text:${ctx.task.subject}`)
       },
     })
+    // Held until the step has been seen waiting on it
+    const pdfMay = deferred()
     const pdf = defineTask("fake.pdf", {
       lane: "network",
       async run(ctx) {
-        await tick(2)
+        await pdfMay.promise
         made.add(`pdf:${ctx.task.subject}`)
       },
     })
     const { scheduler } = await newScheduler([text, pdf])
     const task = scheduler.enqueue("fake.text", "paper", "asked")
-    await tick(0)
+    const blockedOn = await until(() => scheduler.get(task.id)?.blockedOn, { what: "the step to wait on its prerequisite" })
     expect(scheduler.get(task.id)).toMatchObject({ state: "queued" })
-    expect(scheduler.get(task.id)?.blockedOn).toBeDefined()
-    const prerequisite = scheduler.get(scheduler.get(task.id)!.blockedOn!)!
+    const prerequisite = scheduler.get(blockedOn)!
     expect(prerequisite).toMatchObject({ kind: "fake.pdf", subject: "paper", priority: "asked" })
+    pdfMay.resolve()
     const done = await scheduler.wait(task.id)
     expect(done).toMatchObject({ state: "done", attempts: 1 })
     expect(made.has("text:paper")).toBe(true)
@@ -241,8 +246,9 @@ describe("Scheduler", () => {
     })
     const { scheduler } = await newScheduler([batch, child])
     const parent = scheduler.enqueue("fake.batch", "import-1")
-    await tick(0)
-    const [one, two] = scheduler.list().filter((t) => t.kind === "fake.child")
+    const children = () => scheduler.list().filter((t) => t.kind === "fake.child")
+    await until(() => children().length === 2 && children().some((t) => t.state === "running"), { what: "the batch's tasks, one running" })
+    const [one, two] = children() as [Task, Task]
     expect(one).toMatchObject({ parent: parent.id })
     scheduler.cancel(parent.id)
     const running = one.state === "running" ? one : two
@@ -270,12 +276,15 @@ describe("Scheduler", () => {
   it("debounces: each call pushes a queued run back", async () => {
     const run = vi.fn()
     const { scheduler } = await newScheduler([defineTask("fake.debounced", { lane: "agent", run })])
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
     const first = scheduler.debounce("fake.debounced", "workspace", 30)
-    await tick(15)
+    await vi.advanceTimersByTimeAsync(15)
     const second = scheduler.debounce("fake.debounced", "workspace", 30)
     expect(second.id).toBe(first.id)
-    await tick(20)
+    // Past the first call's 30 ms, short of the second's
+    await vi.advanceTimersByTimeAsync(20)
     expect(run).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(10)
     await scheduler.wait(first.id)
     expect(run).toHaveBeenCalledTimes(1)
   })
@@ -367,7 +376,7 @@ describe("Scheduler", () => {
     })
     const { scheduler } = await newScheduler([work])
     const review = scheduler.enqueue("fake.agent", "review", "background")
-    await tick(5)
+    await until(() => scheduler.get(review.id)?.state === "running", { what: "the background run to start" })
     expect(scheduler.get(review.id)).toMatchObject({ state: "running", attempts: 1 })
     const asked = scheduler.enqueue("fake.agent", "digest", "asked")
     expect(await scheduler.wait(asked.id)).toMatchObject({ state: "done" })
@@ -380,9 +389,9 @@ describe("Scheduler", () => {
     const work = defineTask("fake.review", { lane: "agent", run: (ctx) => (++runs === 1 ? untilAborted(ctx.signal) : undefined) })
     const { scheduler } = await newScheduler([work])
     const review = scheduler.enqueue("fake.review", "a.md", "background")
-    await tick(5)
+    await until(() => scheduler.get(review.id)?.state === "running", { what: "the background run to start" })
     scheduler.yieldTo("agent", (task) => task.kind === "fake.review", 30)
-    await tick(5)
+    await until(() => scheduler.get(review.id)?.state === "queued", { what: "the run to step aside" })
     expect(scheduler.get(review.id)).toMatchObject({ state: "queued", attempts: 0, notBefore: expect.any(Number) })
     expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
   })
@@ -390,6 +399,7 @@ describe("Scheduler", () => {
 
 describe("TaskThrottle", () => {
   it("sends the first change at once and the latest at the end of the window", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
     const sent: Task[] = []
     const throttle = new TaskThrottle(20, (task) => sent.push(task))
     const base = { id: "t", kind: "k", subject: "s", lane: "cpu", priority: "background", attempts: 1, createdAt: 0 } as const
@@ -397,7 +407,9 @@ describe("TaskThrottle", () => {
     throttle.push({ ...base, state: "running", progress: { done: 2 } })
     throttle.push({ ...base, state: "done" })
     expect(sent.map((t) => t.state)).toEqual(["running"])
-    await tick(30)
+    vi.advanceTimersByTime(19)
+    expect(sent.map((t) => t.state)).toEqual(["running"])
+    vi.advanceTimersByTime(1)
     expect(sent.map((t) => t.state)).toEqual(["running", "done"])
   })
 })
