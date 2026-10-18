@@ -124,4 +124,19 @@ describe("chats", () => {
     const error = await call("workspace.setLayout", { patch: { x: 1 } }).catch((e) => e)
     expect(error.message).toContain("can't be read")
   })
+
+  it("lists a run that started before since and ended after it", async () => {
+    const { open } = await setup()
+    const { core, call } = await open()
+    // Only core starts runs: the RPC takes no startedBy
+    const run = { taskId: "t1", kind: "paper.digest", subject: "arxiv-1" }
+    await core["requireWorkspace"]().chats.create({ ...summary("r", 1), startedBy: "owlit", run })
+    await call("chats.appendMessage", { id: "r", message: msg("q", "user", 5) })
+    await call("chats.appendMessage", { id: "r", message: msg("a", "assistant", 10, { status: "streaming" }) })
+    // A newer chat, updated after since, comes first in the index
+    await call("chats.create", { chat: summary("c", 30) })
+    await call("chats.patchMessage", { id: "r", message: msg("a", "assistant", 10, { status: "done", finishedAt: 40 }), final: true })
+    expect((await call("chats.runs", { since: 20 })).map((r: any) => [r.id, r.ended, r.endedAt])).toEqual([["r", "done", 40]])
+    expect(await call("chats.runs", { since: 40 })).toEqual([])
+  })
 })
