@@ -1,4 +1,5 @@
 import { RpcErrorCode, type RpcNotification } from "@owlit/protocol"
+import { spawn } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -158,6 +159,19 @@ describe("workspace.open", () => {
     })
     writeFileSync(lock, JSON.stringify({ pid: 2 ** 22 + 7, workspace: ws, since: Date.now() }))
     await expect(call("workspace.open", { path: ws })).resolves.toMatchObject({ name: "shared" })
+  })
+
+  it("takes over a lock whose pid now belongs to a process that started after it", async () => {
+    const { call, folder } = setup()
+    const ws = folder("reused")
+    const since = Date.now() - 2000
+    const other = spawn("sleep", ["30"])
+    try {
+      writeFileSync(lockFileFor(ws), JSON.stringify({ pid: other.pid, workspace: ws, since }))
+      await expect(call("workspace.open", { path: ws })).resolves.toMatchObject({ name: "reused" })
+    } finally {
+      other.kill()
+    }
   })
 })
 
