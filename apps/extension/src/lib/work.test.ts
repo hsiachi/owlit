@@ -89,10 +89,24 @@ describe("fetching a paper for owlit", () => {
     expect(asked).toEqual([])
   })
 
-  it("says offline when nothing answers, and no copy when it is too slow", async () => {
+  it("says offline when nothing answers, and when it is too slow", async () => {
     expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
-    const never = { fetch: ((_: string, init: RequestInit) => new Promise((_, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))) as unknown as typeof fetch, permitted: async () => true, timeoutMs: 5 }
-    expect(await fetchFor(item(), never)).toMatchObject({ ended: "no-copy" })
+    const aborted = (init: RequestInit) => new Promise<never>((_, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))
+    const never = { fetch: ((_: string, init: RequestInit) => aborted(init)) as unknown as typeof fetch, permitted: async () => true, timeoutMs: 5 }
+    expect(await fetchFor(item(), never)).toMatchObject({ ended: "offline" })
+    // The headers came, the body is still arriving when the time is up: a slow proxy with a large PDF
+    const asked: string[] = []
+    const slowBody = {
+      fetch: (async (url: string, init: RequestInit) => {
+        asked.push(url)
+        return { ok: true, status: 200, type: "basic", url, headers: new Headers({ "content-type": "application/pdf" }), arrayBuffer: () => aborted(init) } as unknown as Response
+      }) as unknown as typeof fetch,
+      permitted: async () => true,
+      timeoutMs: 5,
+    }
+    expect(await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), slowBody)).toEqual({ ended: "offline", host: "journals.sagepub.com" })
+    // Not taken as a reason to try the article page after it
+    expect(asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1"])
   })
 
   it("says sign-in through the proxy, and no copy elsewhere, where a redirect leads to a site it may not read", async () => {

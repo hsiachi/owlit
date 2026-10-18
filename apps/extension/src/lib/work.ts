@@ -8,7 +8,8 @@ import { isCheck, titleOf, verdict, type Page } from "./verdict.ts"
 // the host, the page's title and where it ended; never the page's text. Pure but for what it is given,
 // so a test runs it on a stubbed fetch.
 
-// Each fetch gives up after this and counts as no copy. Chrome stops a service worker whose fetch takes
+// Each fetch gives up after this, reading the body included, and counts as offline: a slow network, which
+// owlit backs off from and tries again, not a finding that the site has no copy. Chrome stops a service worker whose fetch takes
 // longer than 30 s to start answering, so a fetch that slow ends when the worker does; owlit asks for it
 // again once its own wait for the answer runs out.
 export const FETCH_MS = 60_000
@@ -103,12 +104,12 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     // A check or a sign-in in front of the PDF is in front of the page too
     if (got.kind === "page" && stops(got.page)) return said(got.page)
     if (got.kind === "redirected" && item.proxied) return away
+    if (got.kind === "timeout") return { ended: "offline", host: hostOf(item.pdfUrl) }
   }
   const got = await get(item.url, deps, proxy)
   if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
   if (got.kind === "redirected") return away
-  if (got.kind === "offline") return { ended: "offline", host: hostOf(item.url) }
-  if (got.kind === "timeout") return { ended: "no-copy", host: hostOf(item.url) }
+  if (got.kind === "offline" || got.kind === "timeout") return { ended: "offline", host: hostOf(item.url) }
   const { page } = got
   const named = paperOfPage(page.html, page.url)?.pdfUrl ?? pdfLinkIn(page.html, page.url)
   if (named && !tried.has(named) && !isCheck(page) && (await deps.permitted(named))) {
@@ -116,6 +117,7 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (pdf.kind === "pdf") return { pdf: pdf.bytes, host: hostOf(pdf.url), url: pdf.url }
     if (pdf.kind === "page" && stops(pdf.page)) return said(pdf.page)
     if (pdf.kind === "redirected") return away
+    if (pdf.kind === "timeout") return { ended: "offline", host: hostOf(named) }
   }
   return said(page)
 }
