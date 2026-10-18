@@ -2625,7 +2625,7 @@ msgid "Versions of {name}"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
+msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -2634,6 +2634,10 @@ msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before an undo"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "From another program"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -2695,6 +2699,14 @@ msgstr ""
 
 #: app/src/features/docs/disk.ts
 msgid "Keep mine"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "Kept your version of {name}"
+msgstr ""
+
+#: app/src/features/docs/disk.ts
+msgid "The text from disk is in the doc's Versions."
 msgstr ""
 
 #: app/src/features/docs/editor/DocEditor.tsx
@@ -3273,6 +3285,10 @@ msgstr ""
 #: app/src/features/library/components/HighlightsList.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Select text in the PDF to highlight it."
+msgstr ""
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "This paper has no PDF yet. Highlights are made in the PDF."
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
@@ -5216,7 +5232,7 @@ msgid "Remember what I do in owlit"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
@@ -5584,6 +5600,10 @@ msgstr ""
 msgid "From the abstract"
 msgstr ""
 
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the title only"
+msgstr ""
+
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5618,6 +5638,11 @@ msgstr ""
 
 #: app/src/features/threads/components/CompareDialog.tsx
 msgid "Compare"
+msgstr ""
+
+#: app/src/features/threads/components/Memo.tsx
+#: app/src/features/threads/store.ts
+msgid "Removed from the thread"
 msgstr ""
 
 #: app/src/features/threads/components/Memo.tsx
@@ -6050,10 +6075,6 @@ msgstr ""
 
 #: app/src/features/threads/runs.ts
 msgid "Owlit gathers papers in the desktop app."
-msgstr ""
-
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
 msgstr ""
 
 #: app/src/features/threads/store.ts

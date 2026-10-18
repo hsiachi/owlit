@@ -9,6 +9,16 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.
 - A comment Owlit held while you were typing lands in the workspace it was made in when you switch to another, never in a doc of the same name there.
+- Keep mine, when a doc changed on disk while you edited it, keeps the other program's text: it is in the doc's Versions, as From another program.
+- Turning off Remember what I do in owlit stops the record of what you do, but no longer stops digests for papers you open or Owlit's look at docs you open.
+- Since you left lists Owlit's work that started before you left and finished after.
+- Choosing a language during the first launch keeps you on that step, and Settings opened before a workspace no longer shows an error.
+- A reply you typed on a comment is still there when its card opens again.
+- A link to a paper in a big thread opens its row even when its group is folded or shows only its first papers, and a paper you removed from a thread is struck through where its summary still names it.
+- Compare with a doc keeps sentences whole at "et al." and initials, and offers short Chinese sentences.
+- Previous and Next keep working under the Unread filter after the open paper turns Reading.
+- A thread's answer for a paper with no abstract says it came from the title only, and a paper with no PDF no longer offers to highlight in it.
+- @ opens right after Chinese text, and on a full-width ＠.
 
 ## 0.2.1
 
