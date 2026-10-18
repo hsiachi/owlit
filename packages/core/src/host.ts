@@ -1,3 +1,5 @@
+import type { BrowserApp } from "./extension/browser-app.ts"
+
 // What the machine offers core beyond plain Node. The desktop app passes Electron's versions; tests
 // and, later, the CLI pass their own or nothing.
 export interface Host {
@@ -21,9 +23,12 @@ export interface Host {
   languages?(): string[]
   // Opens a web page in the user's own browser
   openExternal?(url: string): Promise<void>
-  // Opens a web page in the browser of this name (as the extension names it: Chrome, Arc, Firefox), or in
-  // the default browser when its app isn't known
-  openInBrowser?(url: string, browser: string | undefined): Promise<void>
+  // Opens a web page in the browser an extension is in: its app by bundle id when known, else by the name
+  // the extension gave (Chrome, Firefox), else the default browser
+  openInBrowser?(url: string, browser: { app?: string; name?: string }): Promise<void>
+  // The browser app on the other end of a connection to the extension's port, by the port it came from
+  // (extension/browser-app.ts); undefined where the system can't tell
+  browserApp?(remotePort: number): Promise<BrowserApp | undefined>
   // Owlit's own updates (the desktop app: electron-updater on GitHub Releases)
   updater?: UpdaterHost
 }

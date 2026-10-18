@@ -23,7 +23,11 @@ export const OWLIT_NAME_HEADER = "x-owlit-name"
 // only its SHA-256 (hex)
 export interface StoredPairing {
   id: string
+  // As the user knows it: the app's own name when the system could tell (app), else what the extension said
   browser: string
+  // The bundle id of the app its requests came from (company.thebrowser.dia), where the system can tell
+  // (macOS): sign-ins open there
+  app?: string
   // The extension that asked (chrome-extension://<id>, moz-extension://<uuid>), from its requests' Origin
   // or, where the browser sends none, its x-owlit-extension header; absent when it gave neither. Its
   // token is taken only from the same one.

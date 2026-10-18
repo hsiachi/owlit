@@ -7,6 +7,7 @@ import type { Library, PlacedBy } from "../library/library.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { PDF_MAX_BYTES } from "../library/pdf.ts"
 import type { SettingsStore } from "../settings.ts"
+import type { BrowserApp } from "./browser-app.ts"
 import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send } from "./http.ts"
 import { HOLD_MS, Pairings } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
@@ -41,9 +42,11 @@ export interface ExtensionHost {
   // An owlit window is open to ask the user in
   hasWindow: () => boolean
   changed: (view: ExtensionView) => void
-  // Opens a page in the named browser (a pairing's, "Chrome"), or the system's default one when owlit
-  // can't tell that browser's app
-  openInBrowser?: (url: string, browser: string | undefined) => Promise<void>
+  // Opens a page in a pairing's browser: its app when known, else the one the extension named ("Chrome"),
+  // else the system's default
+  openInBrowser?: (url: string, browser: { app?: string; name?: string }) => Promise<void>
+  // The browser app holding the other end of a request's connection, by its port (Host.browserApp)
+  browserApp?: (remotePort: number) => Promise<BrowserApp | undefined>
 }
 
 export interface ExtensionServerOptions {
@@ -92,6 +95,8 @@ export class ExtensionServer {
   private stopped = false
   private readonly routes: Route[]
   private identity: Promise<OwlitIdentity> | undefined
+  // Pairings from before owlit could tell the browser's app, looked up once each
+  private appLooked = new Set<string>()
 
   constructor(host: ExtensionHost, options: ExtensionServerOptions = {}) {
     this.host = host
@@ -140,14 +145,14 @@ export class ExtensionServer {
     const wait = this.work.waits().find((w) => w.kind === kind && w.host === host)
     if (!wait) return { by: "none" }
     const paired = (await this.host.settings.get()).extension?.paired ?? []
-    const browserOf = (id: string | undefined) => paired.find((p) => p.id === id)?.browser
+    const pairingOf = (id: string | undefined) => paired.find((p) => p.id === id)
     const to = this.work.open(kind, host)
-    if (to) return { by: "extension", browser: browserOf(to) }
+    if (to) return { by: "extension", browser: pairingOf(to)?.browser }
     if (kind === "permission" || !this.host.openInBrowser) return { by: "none" }
     // The browser that met it, else the one seen last
-    const browser = browserOf(this.work.pausedBy(host)) ?? [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]?.browser
-    await this.host.openInBrowser(wait.url, browser)
-    return { by: "browser", browser }
+    const pairing = pairingOf(this.work.pausedBy(host)) ?? [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]
+    await this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser }))
+    return { by: "browser", browser: pairing?.browser }
   }
 
   async start() {
@@ -240,6 +245,11 @@ export class ExtensionServer {
         pairing = (token && (await this.pairings.byToken(token, requester))) || null
         if (!pairing) throw new HttpFailure(401, "not-paired", t`This browser isn't connected to owlit. Press Connect.`)
         void this.pairings.seen(pairing).catch((error) => console.error("[core] couldn't note the extension's visit", error))
+        if (!pairing.app && !this.appLooked.has(pairing.id)) {
+          this.appLooked.add(pairing.id)
+          const app = await this.appOf(raw)
+          if (app) await this.pairings.noteApp(pairing.id, app)
+        }
       }
       const answer = await route.handle({ method: raw.method ?? "GET", parts, query: url.searchParams, raw, closed: closed.signal, requester, pairing })
       send(response, answer.status ?? 200, answer.body, cors)
@@ -248,6 +258,17 @@ export class ExtensionServer {
       raw.resume()
       if (!response.headersSent) send(response, failure.status, { reason: failure.reason, message: failure.message, ...failure.extra }, cors)
     }
+  }
+
+  // The browser app that made this request, while its connection is open; undefined where the host
+  // can't tell
+  private async appOf(raw: IncomingMessage): Promise<BrowserApp | undefined> {
+    const port = raw.socket.remotePort
+    if (!port || !this.host.browserApp) return undefined
+    return this.host.browserApp(port).catch((error) => {
+      console.error("[core] couldn't tell which app the extension is in", error)
+      return undefined
+    })
   }
 
   // 127.0.0.1 or localhost at this port: a page that points its own name at 127.0.0.1 (DNS rebinding) is
@@ -283,7 +304,9 @@ export class ExtensionServer {
           const body = pair.safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           if (!this.host.hasWindow()) throw new HttpFailure(503, "no-window", t`Open the owlit window, then press Connect again.`)
-          return { status: 202, body: this.pairings.ask(body.data.browser, requester) satisfies PairStarted }
+          // The app the system says made the request is named over the one the extension says it is in
+          const app = await this.appOf(raw)
+          return { status: 202, body: this.pairings.ask(app?.name ?? body.data.browser, requester, app?.id) satisfies PairStarted }
         },
       },
       {

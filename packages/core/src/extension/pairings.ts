@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import type { ExtensionPairing, ExtensionView, StoredPairing } from "@owlit/protocol"
+import type { BrowserApp } from "./browser-app.ts"
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto"
 import type { SettingsStore } from "../settings.ts"
 import { clean } from "../util.ts"
@@ -18,6 +19,8 @@ const sha256 = (text: string) => createHash("sha256").update(text).digest("hex")
 interface Question {
   id: string
   browser: string
+  // The browser's bundle id, when the system could tell (StoredPairing.app)
+  app?: string
   // The extension that asked, shown with the question; only it may collect the answer
   origin?: string
   at: number
@@ -61,11 +64,12 @@ export class Pairings {
   }
 
   // An extension in this browser asks to connect: the question goes to the window
-  ask(browser: string, origin: string | undefined): { pairing: string; expiresIn: number } {
+  ask(browser: string, origin: string | undefined, app?: string): { pairing: string; expiresIn: number } {
     const id = randomUUID()
     const question: Question = {
       id,
       browser,
+      app,
       origin,
       at: Date.now(),
       waiters: new Set(),
@@ -123,7 +127,7 @@ export class Pairings {
     if (!question || question.answer || question.expired) return
     if (allow) {
       const token = randomBytes(32).toString("base64url")
-      const pairing: StoredPairing = clean({ id: randomUUID(), browser: question.browser, origin: question.origin, tokenSha256: sha256(token), pairedAt: Date.now() })
+      const pairing: StoredPairing = clean({ id: randomUUID(), browser: question.browser, app: question.app, origin: question.origin, tokenSha256: sha256(token), pairedAt: Date.now() })
       question.answer = { allowed: true, token, pairing }
     } else question.answer = { allowed: false }
     clearTimeout(question.timer)
@@ -134,6 +138,12 @@ export class Pairings {
 
   async forget(id: string) {
     await this.settings.update((s) => ({ ...s, extension: { paired: (s.extension?.paired ?? []).filter((p) => p.id !== id) } }))
+    this.changed()
+  }
+
+  // The browser app a pairing made before owlit could tell is in: its name replaces the extension's guess
+  async noteApp(id: string, app: BrowserApp) {
+    await this.settings.update((s) => ({ ...s, extension: { paired: (s.extension?.paired ?? []).map((p) => (p.id === id ? { ...p, app: app.id, browser: app.name } : p)) } }))
     this.changed()
   }
 

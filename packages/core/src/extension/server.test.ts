@@ -6,6 +6,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { makePdf, paragraph } from "../library/text/make-pdf.ts"
+import type { BrowserApp } from "./browser-app.ts"
 import type { ExtensionServer } from "./server.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "../library/fixtures", name), "utf8")
@@ -22,7 +23,9 @@ afterEach(async () => {
 })
 
 // A core serving the extension on a free port, whose network serves recorded responses
-async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: [string, string | undefined][] } = {}) {
+type Opened = [string, { app?: string; name?: string }]
+
+async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: Opened[]; browserApp?: (remotePort: number) => Promise<BrowserApp | undefined> } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-extension-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
@@ -33,7 +36,7 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
     return typeof match[1] === "number" ? new Response("", { status: match[1] }) : new Response(match[1])
   }) as unknown as typeof globalThis.fetch
   const userDataDir = path.join(base, "userData")
-  const core = new Core({ userDataDir, host: { fetch, openInBrowser: async (url, browser) => void options.opened?.push([url, browser]) }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
+  const core = new Core({ userDataDir, host: { fetch, openInBrowser: async (url, browser) => void options.opened?.push([url, browser]), browserApp: options.browserApp }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
   cleanups.push(() => core.dispose())
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -133,6 +136,39 @@ describe("the extension's port", () => {
     const view = await call("extension.forget", { id: stored.extension.paired[0].id })
     expect(view.paired).toEqual([])
     expect((await request("/status", { token })).status).toBe(401)
+  })
+
+  it("names the browser by the app its requests come from, over what the extension says", async () => {
+    const dia: BrowserApp = { id: "company.thebrowser.dia", name: "Dia" }
+    const ports: number[] = []
+    const { call, request, pair, server, userDataDir } = await setup({ browserApp: async (port) => (ports.push(port), dia) })
+    await call("ui.focus", { clientId: "window-1" })
+    await request("/pair", { body: { browser: "Chromium" } })
+    await vi.waitFor(async () => expect((await call("extension.get")).asking).toHaveLength(1))
+    // Asked by the port the request came from, not owlit's own
+    expect(ports).toHaveLength(1)
+    expect(ports[0]).toBeGreaterThan(0)
+    expect(ports[0]).not.toBe(server.port)
+    expect((await call("extension.get")).asking[0]).toMatchObject({ browser: "Dia" })
+    await call("extension.answer", { id: (await call("extension.get")).asking[0].id, allow: false })
+    await pair("Chromium")
+    const stored = JSON.parse(readFileSync(path.join(userDataDir, "settings.json"), "utf8"))
+    expect(stored.extension.paired).toEqual([expect.objectContaining({ browser: "Dia", app: "company.thebrowser.dia" })])
+  })
+
+  it("learns the app of a pairing made before owlit could tell, once", async () => {
+    let app: BrowserApp | undefined
+    let asked = 0
+    const { call, request, pair } = await setup({ browserApp: async () => (asked++, app) })
+    const token = await pair("Chromium")
+    expect((await call("extension.get")).paired).toEqual([expect.objectContaining({ browser: "Chromium" })])
+    // The system can tell now: the pairing's first request looks it up, and the next ones don't
+    app = { id: "company.thebrowser.dia", name: "Dia" }
+    asked = 0
+    await request("/status", { token })
+    await request("/status", { token })
+    expect(asked).toBe(1)
+    await vi.waitFor(async () => expect((await call("extension.get")).paired).toEqual([expect.objectContaining({ browser: "Dia" })]))
   })
 
   it("says which owlit answers, to a paired extension and to one paired elsewhere", async () => {
@@ -324,7 +360,7 @@ describe("the extension's port", () => {
     })
 
     it("opens a sign-in in the paired browser while no extension asks for work", async () => {
-      const opened: [string, string | undefined][] = []
+      const opened: Opened[] = []
       const s = await setup({ holdMs: 20, opened })
       const token = await s.pair("Arc")
       s.putPaper(id, { title, ids: { doi: SAGE } })
@@ -336,7 +372,7 @@ describe("the extension's port", () => {
       const now = Date.now()
       vi.spyOn(Date, "now").mockReturnValue(now + 2 * 60_000)
       expect(await s.call("extension.open", { kind: "sign-in", host: "sagepub.com" })).toEqual({ by: "browser", browser: "Arc" })
-      expect(opened).toEqual([["https://journals.sagepub.com/action/showLogin", "Arc"]])
+      expect(opened).toEqual([["https://journals.sagepub.com/action/showLogin", { name: "Arc" }]])
       // Being allowed to read a site can't be asked from outside the browser
       expect(await s.call("extension.open", { kind: "permission", host: "sagepub.com" })).toEqual({ by: "none" })
       vi.restoreAllMocks()
