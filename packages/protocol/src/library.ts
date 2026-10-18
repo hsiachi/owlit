@@ -27,6 +27,44 @@ export interface PaperPdf {
   // Where the window reads it: owlit-file://workspace/… in the desktop app, an object URL on mock data
   url: string
   pages?: number
+  // Who brought it, and when, from the paper's tries; absent for a PDF owlit has no record of
+  came?: { by: PdfTry["by"]; at: number }
+}
+
+// How one try at a paper's PDF ended. pdf: it came. no-copy: owlit's routes found no copy. no-access: the
+// publisher offered access instead of the PDF. not-offered: the library's proxy hasn't got the paper.
+// not-there: the publisher has no PDF at that address (a 404). check, sign-in: a page wanted a person.
+// offline: nothing could be reached. no-permission: the browser extension may not read the site until
+// the user allows it there (an optional host permission, asked for from the extension's own button).
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "no-permission"
+
+// One try, by owlit's own looks, the user (a file they dropped or chose) or the browser extension.
+// route is owlit's name for the way ("arxiv", "unpaywall/repository", "publisher:acm", "browser:acm");
+// host and title are the page it ended on.
+export interface PdfTry {
+  by: "owlit" | "you" | "extension"
+  ended: PdfEnded
+  at: number
+  host?: string
+  route?: string
+  title?: string
+}
+
+export interface PdfState {
+  // finding: owlit is at work, or waits for the network; no-pdf: every way was tried
+  state: "finding" | "no-pdf"
+  // Newest last
+  tried: PdfTry[]
+  // The try that says where the paper stands: the newest, except where owlit's own try says less than an
+  // earlier one (no open copy after a library that said no). Absent before any try. A PDF (ended "pdf")
+  // while finding: the paper had its file, and it was deleted outside owlit.
+  reason?: PdfTry
+  // When owlit's back-off look runs next; absent when it won't
+  nextLook?: number
+  // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
+  // held while the site waits for the user (waits: a sign-in, a check, the extension being allowed
+  // there). Kept in memory only, with the extension's queue.
+  extension?: { host: string; fetching?: boolean; waits?: "sign-in" | "check" | "permission"; proxied?: boolean }
 }
 
 export interface Paper {
@@ -47,38 +85,9 @@ export interface Paper {
   digestOutdated?: "format" | "language"
   // How well its text was read: full (MinerU) or basic (pdfium's text layer); absent before either
   text?: "full" | "basic"
-  // No PDF could be found: the routes tried ("arxiv", "publisher:acm", "unpaywall/repository", …), and
-  // whether the user's own browser is the way (browser): the publisher's page wanted a person (a check,
-  // a sign-in), or the publisher lets only that browser in (the ACM)
-  noPdf?: {
-    tried: string[]
-    at: number
-    needs?: "browser"
-    // What owlit opens in the user's browser for it: the PDF, which their browser saves by itself, or
-    // the article page, where they save it
-    browserOpens?: "pdf" | "page"
-    // Being got from the user's browser (library.getInBrowser): waiting its turn, opened there and
-    // waiting for the file, its article page opened there for them to save the PDF from, opened with
-    // nothing arriving, or the paper the run stopped on for the user. browser is that browser's name;
-    // why, what its tab showed when the run stopped (a sign-in, a check, a page still at the PDF, one
-    // owlit can't tell), with that page's title and host.
-    fromBrowser?: {
-      state: "queued" | "opened" | "page" | "missed" | "waiting"
-      browser?: string
-      why?: "sign-in" | "check" | "on-pdf" | "unknown"
-      page?: { title: string; host: string }
-    }
-    // The user's browser reached the publisher and it said no (refused: the library proxy said it
-    // hasn't got it; missing: the publisher has no PDF at that address), with the page it showed. Kept
-    // until a PDF comes or the paper is tried again.
-    // by "owlit": owlit's own browser found it, through the library's proxy, before the user's was sent.
-    noAccess?: { refused: boolean; missing?: boolean; host?: string; title?: string; at: number; by?: "owlit" }
-    // A PDF that arrived in Downloads (file name) owlit isn't sure is this paper's, for them to confirm
-    offered?: string
-    // When the user's browser was last sent for it, whatever came of that: a paper tried there once
-    // isn't offered among the ones that might come through it
-    sentAt?: number
-  }
+  // Present while the paper has no PDF: where getting it stands, as core keeps it (acquisition.json),
+  // read and shown as it is, never worked out again
+  pdfState?: PdfState
   addedAt: number
   // "agent" + unread is the Inbox view, once agents can add papers
   addedBy: "user" | "agent"

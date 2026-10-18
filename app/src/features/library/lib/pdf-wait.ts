@@ -1,48 +1,81 @@
-import type { Paper } from "@owlit/protocol"
+import { t } from "@lingui/core/macro"
+import type { ExtensionWait, Paper, PdfEnded, PdfTry } from "@owlit/protocol"
 
-// Where a paper without its PDF stands: the one reading of paper.noPdf that every place goes by, so they
-// never disagree. In the order the card tells them apart:
-// - offered: a file arrived in Downloads and owlit isn't sure it is this paper's; the user says
-// - run-stopped: the paper a run in the user's browser stopped on for them (a sign-in, a check)
-// - page: its article page is open in their browser for them to save the PDF from
-// - queued, opened: a run has it, waiting its turn or opened there with the file to come
-// - missed: their browser was sent for it and nothing came
-// - no-access: their browser reached the publisher (or the library's proxy) and was turned away
-// - missing: the publisher has no PDF at the address it went to
-// - browser: owlit couldn't get it alone and their browser is the way; not sent there yet
-// - not-found: owlit looked and found no copy
-// - not-yet: owlit hasn't looked
-// undefined once it has its PDF. A page or a stopped run counts whatever sent the paper there: a
-// publisher's hold, or the user picking their browser on a not-found card.
-export type PdfWait = "offered" | "run-stopped" | "page" | "queued" | "opened" | "missed" | "no-access" | "missing" | "browser" | "not-found" | "not-yet"
+// Where a paper without its PDF stands, read off what core keeps (paper.pdfState) and never worked out
+// again: its state, the ending of the try that says why, and where the extension has it.
+// Every place goes by this one reading, so the row, the No PDF groups, the card, Home and the rail agree.
+// - finding, offline: owlit is looking, or waits for the network
+// - for-sign-in, for-check, for-permission: still finding; the extension in the user's browser waits at
+//   the paper's site for one sign-in, one passed check, or being allowed to read it (a line per site,
+//   ExtensionView.waits, covers every such paper)
+// - not-found, no-access, not-offered, not-there: no PDF, for that reason. A check or a sign-in that
+//   stopped owlit itself (only older records have one) is not-found: it waits on nobody
+export type PdfWait =
+  | "finding"
+  | "offline"
+  | "for-sign-in"
+  | "for-check"
+  | "for-permission"
+  | "not-found"
+  | "no-access"
+  | "not-offered"
+  | "not-there"
 
-export function pdfWait(p: Paper): PdfWait | undefined {
-  if (p.pdf) return undefined
-  const n = p.noPdf
-  if (!n) return "not-yet"
-  if (n.offered) return "offered"
-  switch (n.fromBrowser?.state) {
-    case "waiting":
-      return "run-stopped"
-    case "page":
-    case "queued":
-    case "opened":
-      return n.fromBrowser.state
-  }
-  // Turned away outranks nothing coming: the publisher said why
-  if (n.noAccess) return n.noAccess.missing ? "missing" : "no-access"
-  if (n.fromBrowser?.state === "missed") return "missed"
-  return n.needs ? "browser" : "not-found"
+const BY_ENDED: Record<PdfEnded, PdfWait> = {
+  "no-copy": "not-found",
+  "no-access": "no-access",
+  "not-offered": "not-offered",
+  "not-there": "not-there",
+  check: "not-found",
+  "sign-in": "not-found",
+  // Not reasons for having no PDF; core never gives them as one
+  pdf: "not-found",
+  offline: "offline",
+  "no-permission": "for-permission",
 }
 
-// Something only the user can do now: the rail's dot, Home's rows and the row's Needs you. Once their
-// browser was turned away or nothing came of it, there is nothing for them to do now, so it leaves the
-// amber rung and its card's Try again is all that is left. A run at work needs nothing of them.
-export const waitsOnYou = (w: PdfWait | undefined) => w === "offered" || w === "run-stopped" || w === "page" || w === "browser"
+const BY_WAIT: Record<ExtensionWait["kind"], PdfWait> = { "sign-in": "for-sign-in", check: "for-check", permission: "for-permission" }
+const WAITED: Partial<Record<PdfEnded, ExtensionWait["kind"]>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
 
-// The Library's Needs you: what waits on the user, and a run's papers while it goes on, so they can be
-// watched leaving the list
-export const needsYou = (p: Paper) => {
-  const w = pdfWait(p)
-  return waitsOnYou(w) || w === "queued" || w === "opened"
+// What the extension's try waited for, when it stopped where only the user gets through
+export const waitedFor = (t: PdfTry | undefined) => (t?.by === "extension" ? WAITED[t.ended] : undefined)
+
+export function pdfWait(p: Pick<Paper, "pdf" | "pdfState">): PdfWait | undefined {
+  if (p.pdf) return undefined
+  const s = p.pdfState
+  if (!s || s.state === "finding") {
+    // The extension's queue says where it is now (fetching again once the user got through); its last
+    // try says so after a restart, before the queue has it again
+    const waits = s?.extension ? s.extension.waits : waitedFor(s?.reason)
+    if (waits) return BY_WAIT[waits]
+    return s?.reason?.ended === "offline" ? "offline" : "finding"
+  }
+  return BY_ENDED[s.reason?.ended ?? "no-copy"]
+}
+
+// Whether a site the extension waits at is something only the user can do now, in what they started:
+// Home's Waiting on you, the rail's dot, the amber line atop the Library. It is grey until the user asked
+// for one of its papers (Find PDF, Look again). No paper waits on the user by itself: its row says
+// Finding, and the site's line covers it.
+export const waitsOnYou = (wait: ExtensionWait) => wait.askedFor
+
+// The one name of each state, said the same in the row, the No PDF group and the card's title
+export function pdfWord(w: PdfWait | undefined): string | undefined {
+  switch (w) {
+    case undefined:
+      return undefined
+    case "finding":
+    case "offline":
+    case "for-sign-in":
+    case "for-check":
+    case "for-permission":
+      return t({ message: "Finding", comment: "a paper whose PDF owlit is looking for" })
+    case "not-found":
+      return t({ message: "Not found", comment: "owlit looked for the paper's PDF and found no copy" })
+    case "no-access":
+    case "not-offered":
+      return t({ message: "No access", comment: "the user's library doesn't give them this paper" })
+    case "not-there":
+      return t({ message: "No PDF there", comment: "the publisher has no PDF of the paper" })
+  }
 }

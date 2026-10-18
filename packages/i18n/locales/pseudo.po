@@ -7,7 +7,7 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: pseudo\n"
 
-#. a place in the rail, then what waits there: Library · A paper needs you
+#. a place in the rail, then what waits there: Library · Sign in to your library
 #: app/src/app/AppSidebar.tsx
 msgid "{place} · {needsYou}"
 msgstr ""
@@ -113,8 +113,6 @@ msgstr ""
 #. verb: open the chat that waits
 #. verb: open the chat that waits
 #. verb: open the exported doc
-#. verb: open the paper that waits
-#. verb: open the paper that waits
 #. verb: open the saved doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/app/waiting-on-you.ts
@@ -461,59 +459,7 @@ msgid "Answer"
 msgstr ""
 
 #: app/src/app/waiting-on-you.ts
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Show browser"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "· getting PDFs, {done} of {total}"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "· {done} of {total}"
-msgstr ""
-
-#. placeholder {0}: waiting.length
-#: app/src/app/waiting-on-you.ts
-msgid "{0, plural, one {A paper waits for your browser} other {# papers wait for your browser}}"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "Show them"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "Get it"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "Get them"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "{n, plural, one {Save the PDF from the page open in {browser}} other {Save # PDFs from the pages open in {browser}}}"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "{n, plural, one {Save the PDF from the page open in your browser} other {Save # PDFs from the pages open in your browser}}"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "Downloaded PDFs to confirm"
-msgstr ""
-
-#. placeholder {0}: offered.length
-#: app/src/app/waiting-on-you.ts
-msgid "{0, plural, one {A downloaded PDF to confirm} other {# downloaded PDFs to confirm}}"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
 msgid "Owlit finished since you last looked"
-msgstr ""
-
-#: app/src/app/waiting-on-you.ts
-msgid "for {names}"
 msgstr ""
 
 #. a menu's name, then what is chosen in it
@@ -916,7 +862,6 @@ msgid "Messages"
 msgstr ""
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
-#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Not signed in"
 msgstr ""
 
@@ -932,7 +877,12 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
+#. button: let the owlit extension read this site, for the papers waiting there
+#. button: let the owlit extension read this site, for the papers waiting there
 #: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/extension/PairDialog.tsx
+#: apps/extension/src/allow/Allow.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "Allow"
 msgstr ""
 
@@ -941,6 +891,7 @@ msgid "Always allow"
 msgstr ""
 
 #: app/src/features/chat/components/WaitingDock.tsx
+#: app/src/features/extension/PairDialog.tsx
 msgid "Don't allow"
 msgstr ""
 
@@ -1047,9 +998,11 @@ msgstr ""
 
 #. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
+#. verb: show the Library, where the papers wait
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/chat/components/messages/agents.tsx
+#: app/src/features/extension/waits.ts
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Show"
 msgstr ""
@@ -1151,6 +1104,7 @@ msgstr ""
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
+#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr ""
 
@@ -1212,12 +1166,10 @@ msgid "Add from {place}"
 msgstr ""
 
 #. stop Owlit's work on a thread
-#. stop getting PDFs from the browser
 #. stop one of Owlit's background runs
 #. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/library/from-browser.ts
 #: app/src/features/runs/components.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
@@ -1255,7 +1207,6 @@ msgstr ""
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/FromBrowserLine.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
 msgstr ""
@@ -2974,6 +2925,93 @@ msgstr ""
 msgid "{stem} copy"
 msgstr ""
 
+#. placeholder {0}: asking.browser
+#: app/src/features/extension/PairDialog.tsx
+#: app/src/features/extension/store.ts
+msgid "An extension in {0} wants to connect to owlit."
+msgstr ""
+
+#: app/src/features/extension/PairDialog.tsx
+msgid "It didn't say which extension it is."
+msgstr ""
+
+#. placeholder {0}: asking.browser
+#: app/src/features/extension/PairDialog.tsx
+msgid "It can add the papers you open in {0} to your Library and give owlit their PDFs."
+msgstr ""
+
+#: app/src/features/extension/store.ts
+msgid "Open owlit to allow it or not."
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "Sign in to your library"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "Sign in at {host}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
+msgstr ""
+
+#. button: opens the sign-in page (the library's, or the site's) in the user's browser
+#: app/src/features/extension/waits.ts
+msgid "Sign in"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "Pass a check at {host}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#. button: opens the site's page with the check in the user's browser
+#: app/src/features/extension/waits.ts
+msgid "Open it"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+#: apps/extension/src/allow/Allow.tsx
+msgid "Let the owlit extension read {host}"
+msgstr ""
+
+#. button: the owlit extension opens a page in the user's browser that asks to let it read this site
+#: app/src/features/extension/waits.ts
+msgid "Allow…"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "Press owlit's button in your browser's toolbar, then Allow."
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "The extension asks to read {host} for the papers waiting there."
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
+msgstr ""
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
+msgstr ""
+
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Recent"
@@ -3082,6 +3120,11 @@ msgstr ""
 msgid "{what}: {label}"
 msgstr ""
 
+#. Home's group of sites where the owlit extension waits for the user
+#: app/src/features/home/WaitingOnYou.tsx
+msgid "PDFs through your browser"
+msgstr ""
+
 #. placeholder {0}: papers.length
 #: app/src/features/library/actions.ts
 msgid "{0, plural, one {# citation copied} other {# citations copied}}"
@@ -3111,10 +3154,6 @@ msgstr ""
 
 #: app/src/features/library/actions.ts
 msgid "Highlight deleted"
-msgstr ""
-
-#: app/src/features/library/client.ts
-msgid "Your browser can get this PDF."
 msgstr ""
 
 #: app/src/features/library/components/AddCandidate.tsx
@@ -3220,94 +3259,6 @@ msgstr ""
 
 #: app/src/features/library/components/EditDetailsDialog.tsx
 msgid "Abstract"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Getting PDFs in your browser · {done} of {total}"
-msgstr ""
-
-#. placeholder {0}: waiting.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# paper waits for your browser} other {# papers wait for your browser}}"
-msgstr ""
-
-#. placeholder {0}: pages.length
-#. placeholder {0}: tally.pages.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# to save from its page} other {# to save from their pages}}"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "To save from their pages"
-msgstr ""
-
-#. placeholder {0}: waiting.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {Get it} other {Get them}}"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{total, plural, one {# paper without a PDF} other {# papers without a PDF}}"
-msgstr ""
-
-#. placeholder {0}: maybe.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# might come through your browser} other {# might come through your browser}}"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Might come through your browser"
-msgstr ""
-
-#. placeholder {0}: maybe.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {Try it in your browser} other {Try them in your browser}}"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Got {got} of {total} from {browser}"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Got {got} of {total} from your browser"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Got from your browser"
-msgstr ""
-
-#. group of papers the user's library doesn't give them
-#. the user's library doesn't give them this paper
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "No access"
-msgstr ""
-
-#. placeholder {0}: tally.noAccess.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# no access} other {# no access}}"
-msgstr ""
-
-#. group of papers the user's browser was sent for and no PDF arrived
-#. the user's browser was sent for the PDF and none arrived
-#: app/src/features/library/components/FromBrowserLine.tsx
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "Didn't come"
-msgstr ""
-
-#. placeholder {0}: tally.missed.length
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{0, plural, one {# didn't come} other {# didn't come}}"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "{browser}:"
-msgstr ""
-
-#: app/src/features/library/components/FromBrowserLine.tsx
-msgid "Your browser:"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
@@ -3653,20 +3604,8 @@ msgstr ""
 msgid "Read"
 msgstr ""
 
-#. a paper whose publisher wants the user to check or sign in
-#. filter chip: papers whose publisher wants the user to check or sign in
-#. group of papers without a PDF whose publisher wants the user
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-#: app/src/features/settings/SettingsDialog.tsx
-msgid "Needs you"
-msgstr ""
-
 #. filter chip: papers owlit has no PDF of
-#. owlit looked for the paper's PDF and found none
 #: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No PDF"
 msgstr ""
@@ -3709,13 +3648,6 @@ msgstr ""
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/digest-rows.tsx
 msgid "Digest stopped"
-msgstr ""
-
-#. group of papers whose publisher has no PDF of them
-#. the publisher has no PDF of the paper
-#: app/src/features/library/components/PaperList.tsx
-#: app/src/features/library/lib/filter.ts
-msgid "No PDF there"
 msgstr ""
 
 #: app/src/features/library/components/PaperList.tsx
@@ -3817,55 +3749,6 @@ msgstr ""
 msgid "Couldn't save the library."
 msgstr ""
 
-#: app/src/features/library/from-browser.ts
-msgid "Getting PDFs in your browser"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "Sign in to your library in {browser}"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "Sign in to your library in your browser"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "{browser} is showing a check"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "Your browser is showing a check"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "{browser} is on “{title}”"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "Your browser is on “{title}”"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "{browser} may be asking you something"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "Your browser may be asking you something"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "I've signed in"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgctxt "carry on getting PDFs from the browser"
-msgid "Continue"
-msgstr ""
-
-#: app/src/features/library/from-browser.ts
-msgid "Couldn't open your browser."
-msgstr ""
-
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr ""
@@ -3901,12 +3784,6 @@ msgstr ""
 
 #: app/src/features/library/lib/filter.ts
 msgid "Earlier"
-msgstr ""
-
-#. group of papers owlit looked for and found no PDF of
-#: app/src/features/library/lib/filter.ts
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
 msgstr ""
 
 #. Library papers no thread holds
@@ -3958,16 +3835,32 @@ msgstr ""
 msgid "Pink"
 msgstr ""
 
+#. a paper whose PDF owlit is looking for
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Finding"
+msgstr ""
+
+#. owlit looked for the paper's PDF and found no copy
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Not found"
+msgstr ""
+
+#. the user's library doesn't give them this paper
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No access"
+msgstr ""
+
+#. the publisher has no PDF of the paper
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No PDF there"
+msgstr ""
+
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
 msgstr ""
 
 #: app/src/features/library/mock-client.ts
 msgid "That does not look like a DOI, an arXiv id or a URL."
-msgstr ""
-
-#: app/src/features/library/mock-client.ts
-msgid "No open-access PDF was found for this paper."
 msgstr ""
 
 #: app/src/features/library/notes/NoteEditor.tsx
@@ -4188,7 +4081,43 @@ msgid "Page {number}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Looking for a PDF…"
+msgid "Finding a PDF…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}; now trying {site} through your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Now trying {site} through your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}; owlit will try {site} through your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit will try {site} through your browser."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The PDF is gone"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Its file was deleted or moved outside owlit. If you have it, drop it here."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}; now trying {now}."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Now trying {now}."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{tried}."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4196,91 +4125,87 @@ msgid "If you already have it, drop it here."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Is this the paper's PDF?"
+msgid "Waits for your library sign-in"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Drop a PDF here if you have it."
+msgid "{at} wants a sign-in · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF yet"
+msgid "One sign-in to your library covers every paper waiting for it."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Drop a PDF here, or let owlit look for an open-access copy."
+msgid "Waits for a sign-in at {site}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser can get this PDF"
+msgid "One sign-in there covers every paper waiting at {site}."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit can't get it by itself. It opens the paper's page in your browser: save the PDF there, and owlit takes it from Downloads."
+msgid "Waits for a check at {site}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit can't get it by itself. Your browser saves the PDF to Downloads, and owlit takes it from there."
+msgid "{at} asked for a check · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waiting its turn"
+msgid "One check passed there covers every paper waiting at {site}."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit opens papers in your browser one at a time, a few seconds apart."
+msgid "Waits for the extension to be allowed on {site}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting it from your browser…"
+msgid "The owlit extension may not read {site} yet · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{browser} saves it to Downloads, and owlit takes it from there."
+msgid "Once it may, owlit goes on with every paper waiting there."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser saves it to Downloads, and owlit takes it from there."
+msgid "Waiting for the network"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Save the PDF from the page in {browser}"
+msgid "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper's page is open in {browser}. Save its PDF there, and owlit takes it from Downloads."
+msgid "No PDF found"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Save the PDF from the page in your browser"
+msgid "{host} wanted a sign-in · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper's page is open in your browser. Save its PDF there, and owlit takes it from Downloads."
+msgid "{host} stopped owlit with a check · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting PDFs waits for you to sign in there. Once you have, owlit tries this paper again."
+msgid "The publisher wanted a sign-in · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting PDFs waits for you to pass the check there. Then owlit goes on."
+msgid "The publisher stopped owlit with a check · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Getting PDFs waits for you to look at the page there. Then owlit goes on."
+msgid "owlit knows of no open copy of this paper."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library doesn't offer this paper"
+msgid "{tried}. It has no DOI, so owlit could only look by its title."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Its proxy answered “{title}”."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Its proxy turned the paper away."
+msgid "It has no DOI, so owlit could only look by its title."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4288,19 +4213,19 @@ msgid "No access through your library"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Through your library, {host} offered access instead of the PDF. Your library may not subscribe to this journal."
+msgid "{host} offered access instead of the PDF · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Through your library, the publisher offered access instead of the PDF. Your library may not subscribe to this journal."
+msgid "The publisher offered access instead of the PDF · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your browser reached {host}, which showed its page instead of the PDF. Your library may not subscribe to this journal."
+msgid "Your library doesn't offer this paper"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher showed its page instead of the PDF. Your library may not subscribe to this journal."
+msgid "Your library's proxy doesn't have it · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4312,31 +4237,15 @@ msgid "The publisher has no PDF of this paper"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "It answered “{title}”. The paper may be kept somewhere else: drop its PDF here if you find it."
+msgid "It answered “{words}” · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The paper may be kept somewhere else: drop its PDF here if you find it."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Nothing came from your browser"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The page in {browser} may say you have no access to this paper, or {browser} may be asking you something: a check, a sign-in, or whether the site may download files."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The page may say you have no access to this paper, or your browser may be asking you something: a check, a sign-in, or whether the site may download files."
+msgid "It answered 404 · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "PDF attached"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Couldn't take that file."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4352,49 +4261,34 @@ msgid "Could not find a PDF."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{tried} Drop a PDF here if you have it."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{tried} It has no DOI, so owlit could only look by its title. Drop a PDF here if you have it."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{file} just arrived in your Downloads, and owlit can't tell whose it is."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Choose file"
 msgstr ""
 
-#. button: take the downloaded file as the paper's PDF
+#. button: owlit looks for the paper's PDF again, by its own routes
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Use it"
+msgid "Look again"
 msgstr ""
 
-#. button: the downloaded file is not the paper's PDF
+#. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Not this"
+msgid "Install the extension"
 msgstr ""
 
+#. button: opens the paper's page at its publisher in the user's browser
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Get it in your browser"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: apps/share-web/src/App.tsx
-msgid "Try again"
+msgid "Open the page"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Find PDF"
+msgid "owlit couldn't get this alone. With the owlit extension, your browser can use your library's access."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Or <0>get it in your browser</0>"
+msgid "owlit looks again on {nextDate}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit won't look again"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4402,11 +4296,11 @@ msgid "Your library may have it. <0>Set up library proxy</0>"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "the publisher"
+msgid "the library proxy"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "the library proxy"
+msgid "the publisher"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4418,11 +4312,11 @@ msgid "a search by its title"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit knows of no open copy of this paper."
+msgid "the ACL Anthology"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Tried {list}."
+msgid "Tried {list}"
 msgstr ""
 
 #. placeholder {0}: c.chatTitle
@@ -4517,17 +4411,15 @@ msgstr ""
 msgid "Where this paper was read"
 msgstr ""
 
-#: app/src/features/library/rpc-client.ts
-#: packages/core/src/library/library.ts
-msgid "owlit couldn't look for a PDF."
-msgstr ""
-
-#: app/src/features/library/rpc-client.ts
-msgid "No PDF found. Drop one here if you have it."
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Agent for Owlit"
 msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
-msgid "Agent for Owlit"
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+#: apps/share-web/src/App.tsx
+msgid "Try again"
 msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
@@ -4808,6 +4700,10 @@ msgid "This computer's settings for owlit."
 msgstr ""
 
 #: app/src/features/settings/SettingsDialog.tsx
+msgid "Needs you"
+msgstr ""
+
+#: app/src/features/settings/SettingsDialog.tsx
 msgid "About {sectionLabel}"
 msgstr ""
 
@@ -5013,6 +4909,46 @@ msgstr ""
 
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Opens your browser to sign in. Model requests use your ChatGPT plan."
+msgstr ""
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+#: app/src/features/settings/store.ts
+msgid "Browser extension"
+msgstr ""
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "The extension adds the paper of the page you're on to owlit and saves its PDF with your browser's access. A PDF you open for a paper in your Library without one comes to owlit by itself."
+msgstr ""
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Another Owlit is connected to the extension. This one takes over once that one quits."
+msgstr ""
+
+#. placeholder {0}: ago(p.lastSeenAt, { inSentence: true })
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Last seen {0}"
+msgstr ""
+
+#. placeholder {0}: shortDate(p.pairedAt)
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Allowed {0}"
+msgstr ""
+
+#. take back a browser's permission to connect to owlit
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Forget"
+msgstr ""
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Not connected"
+msgstr ""
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Install the owlit extension in Chrome, Edge, Brave, Arc or Firefox, then press Connect in it."
+msgstr ""
+
+#: app/src/features/settings/sections/ExtensionGroup.tsx
+msgid "Install…"
 msgstr ""
 
 #. placeholder {0}: lines.length
@@ -5345,27 +5281,19 @@ msgid "Open a paper from your library's website and copy the address from the br
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
+msgid "Couldn't open your browser."
+msgstr ""
+
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign-in"
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it."
+msgid "The owlit extension fetches PDFs through the proxy in your browser, signed in as you. Libraries sign you out after a while; owlit says so when a fetch finds the sign-in page."
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Waiting for the sign-in window…"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Signed in {when}"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in again…"
-msgstr ""
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in in the window that opened. It closes by itself once you're in."
+msgid "Sign in there; the extension will notice."
 msgstr ""
 
 #: app/src/features/settings/sections/PublisherApisGroup.tsx
@@ -6414,11 +6342,6 @@ msgstr ""
 msgid "Choose the folder owlit works in. Your files stay as they are; owlit keeps its own state in .owlit."
 msgstr ""
 
-#. title of the window that shows the library proxy's sign-in page
-#: apps/desktop/src/browser.ts
-msgid "Sign in to your library · This window closes by itself once you're in"
-msgstr ""
-
 #: apps/desktop/src/cli-tool.ts
 msgid "The owlit command is installed"
 msgstr ""
@@ -6739,6 +6662,170 @@ msgstr ""
 
 #: apps/desktop/src/text-menu.ts
 msgid "Copy Link"
+msgstr ""
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "owlit goes on at {host}. You can close this tab."
+msgstr ""
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "owlit can't get these PDFs with your access until you allow it."
+msgstr ""
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "Your browser didn't ask. Allow {host} for owlit in the browser's extension settings."
+msgstr ""
+
+#: apps/extension/src/allow/Allow.tsx
+msgid "{papers, plural, one {# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.} other {# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.}}"
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "{name} answers here instead of your owlit."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "This page doesn't show a paper."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "This page names no PDF."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "This paper isn't in your Library."
+msgstr ""
+
+#: apps/extension/src/background/index.ts
+msgid "owlit took this PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit needs to read {site} to get the PDF with your access."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Your browser didn't ask about {site}. Allow it for owlit in the browser's extension settings."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "The owlit extension may not read the publishers' sites yet, so it can't get their PDFs with your access."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Your browser didn't ask. Allow the sites for owlit in the browser's extension settings."
+msgstr ""
+
+#. button: let the owlit extension read every publisher site owlit knows, in one question
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow the publishers' sites"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{papers, plural, one {owlit needs {host} for # paper} other {owlit needs {host} for # papers}}"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Take PDFs I open for papers in my Library"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open a workspace in owlit"
+msgstr ""
+
+#. placeholder {0}: connection.workspace
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connected to owlit · {0}"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open owlit to connect"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{name} answers here instead of your owlit. Quit it, and this browser goes on with your owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow it in owlit…"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "You didn't allow it in owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Nobody answered in owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+#: packages/core/src/extension/server.ts
+msgid "Open the owlit window, then press Connect again."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add the paper of any page to owlit, with its PDF."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Connect to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit can't tell which paper this PDF is."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Add to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Save PDF to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "In your Library, without its PDF. This page names no PDF to save."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit with its PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added to owlit. owlit looks for its PDF."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; {host} gave no PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Added; the PDF there isn't this paper's"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "PDF saved to owlit"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "{host} gave no PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This isn't the paper's PDF"
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "This browser isn't connected to owlit."
+msgstr ""
+
+#: apps/extension/src/popup/Popup.tsx
+msgid "Something went wrong in the owlit extension. Close this and try again."
 msgstr ""
 
 #. placeholder {0}: paper.authors[0]
@@ -7277,6 +7364,10 @@ msgid "That isn't a file of this chat."
 msgstr ""
 
 #: packages/core/src/core.ts
+msgid "The browser extension needs the owlit desktop app."
+msgstr ""
+
+#: packages/core/src/core.ts
 msgid "This copy of owlit has no example workspace."
 msgstr ""
 
@@ -7345,6 +7436,82 @@ msgstr ""
 msgid "{name} changed on disk."
 msgstr ""
 
+#: packages/core/src/extension/http.ts
+#: packages/core/src/rpc/errors.ts
+msgid "Something went wrong inside owlit."
+msgstr ""
+
+#: packages/core/src/extension/http.ts
+msgid "That is too much to send to owlit."
+msgstr ""
+
+#: packages/core/src/extension/http.ts
+#: packages/core/src/extension/server.ts
+msgid "owlit couldn't read what the extension sent."
+msgstr ""
+
+#: packages/core/src/extension/http.ts
+msgid "That PDF is larger than owlit takes."
+msgstr ""
+
+#: packages/core/src/extension/pairings.ts
+msgid "owlit has no such question."
+msgstr ""
+
+#: packages/core/src/extension/pairings.ts
+msgid "You didn't allow this browser to connect to owlit."
+msgstr ""
+
+#: packages/core/src/extension/pairings.ts
+msgid "Nobody answered in owlit. Press Connect again."
+msgstr ""
+
+#: packages/core/src/extension/papers.ts
+msgid "This page doesn't say which paper it is."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "Only owlit's browser extension can connect here."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "owlit doesn't know that request."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "This browser isn't connected to owlit. Press Connect."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "Open a workspace in owlit."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+#: packages/core/src/library/library.ts
+msgid "That paper is not in the library."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+#: packages/core/src/library/library.ts
+msgid "This paper has its PDF already."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "This isn't the paper's PDF."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "owlit isn't waiting for that."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "This PDF isn't one your Library is missing."
+msgstr ""
+
+#: packages/core/src/extension/server.ts
+msgid "That isn't a PDF."
+msgstr ""
+
 #: packages/core/src/library/bulk/imports.ts
 #: packages/core/src/library/library.ts
 msgid "owlit can't import here."
@@ -7396,10 +7563,6 @@ msgid "There is no folder at {dir}."
 msgstr ""
 
 #: packages/core/src/library/library.ts
-msgid "That paper is not in the library."
-msgstr ""
-
-#: packages/core/src/library/library.ts
 msgid "No paper with this title was found."
 msgstr ""
 
@@ -7416,51 +7579,11 @@ msgid "owlit can't look for PDFs here."
 msgstr ""
 
 #: packages/core/src/library/library.ts
+msgid "owlit couldn't look for a PDF."
+msgstr ""
+
+#: packages/core/src/library/library.ts
 msgid "The pitta library couldn't be read."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Opening your browser needs the owlit desktop app."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Sign in to your library in {name}, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "{name} is showing a check. Pass it there, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "{name} is on “{title}” and saved nothing. Answer it there, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "{name} is on “{title}” ({host}). Look there, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Sign in to your library in your browser, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Your browser is showing a check. Pass it there, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Your browser is on “{title}” and saved nothing. Answer it there, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Your browser is on “{title}” ({host}). Look there, then continue."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "{name} may be asking you something: a check, a sign-in, or whether {site} may download files."
-msgstr ""
-
-#: packages/core/src/library/library.ts
-msgid "Your browser may be asking you something: a check, a sign-in, or whether {site} may download files."
 msgstr ""
 
 #: packages/core/src/library/library.ts
@@ -7537,10 +7660,6 @@ msgstr ""
 
 #: packages/core/src/net/http.ts
 msgid "{host} answered {status}."
-msgstr ""
-
-#: packages/core/src/rpc/errors.ts
-msgid "Something went wrong inside owlit."
 msgstr ""
 
 #: packages/core/src/settings-rpc.ts

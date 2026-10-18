@@ -211,7 +211,7 @@ describe("Scheduler", () => {
   it("gives the lane up while waiting for the user and continues after resume", async () => {
     const log: string[] = []
     const login = defineTask("fake.login", {
-      lane: "browser",
+      lane: "agent",
       async run(ctx) {
         log.push(`${ctx.task.subject} start`)
         if (ctx.task.subject === "a") await ctx.waitForUser("login", "Sign in to the library proxy.")

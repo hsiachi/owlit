@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import type { Paper } from "@owlit/protocol"
-import { countByFilter, groupPapers, mightComeThroughBrowser, needsYou, noPdfReason, visiblePapers } from "./filter"
+import type { PdfState, PdfTry } from "@owlit/protocol"
+import { countByFilter, groupPapers, visiblePapers } from "./filter"
+import { pdfWait } from "./pdf-wait"
 
 const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({
   id,
@@ -14,57 +16,50 @@ const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({
   tags: [],
   ...extra,
 })
-const noPdf = (extra: NonNullable<Paper["noPdf"]> extends infer T ? Partial<T> : never = {}) => ({ noPdf: { tried: ["arxiv"], at: 1, ...extra } })
+const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit"): PdfTry => ({ by, ended, at: 1 })
+// No PDF, for the reason of the last try given
+const noPdf = (tries: PdfTry[], extra: Partial<PdfState> = {}) => ({ pdfState: { state: "no-pdf" as const, tried: tries, reason: tries.at(-1), ...extra } })
 
 describe("papers without a PDF", () => {
+  const found = tryOf("no-copy")
   const library: Record<string, Paper> = {
     read: paper("read", { pdf: { pages: 1 } as Paper["pdf"] }),
-    looking: paper("looking"),
-    found: paper("found", noPdf()),
-    noDoi: paper("noDoi", { ids: {}, ...noPdf() }),
-    needs: paper("needs", noPdf({ needs: "browser" })),
-    refused: paper("refused", noPdf({ needs: "browser", noAccess: { refused: false, at: 1 } })),
-    missing: paper("missing", noPdf({ noAccess: { refused: false, missing: true, at: 1 } })),
-    missed: paper("missed", noPdf({ needs: "browser", fromBrowser: { state: "missed" } })),
-    sent: paper("sent", noPdf({ sentAt: 5 })),
-    onPage: paper("onPage", noPdf({ fromBrowser: { state: "page" } })),
+    looking: paper("looking", { pdfState: { state: "finding", tried: [] } }),
+    offline: paper("offline", { pdfState: { state: "finding", tried: [tryOf("offline")], reason: tryOf("offline") } }),
+    found: paper("found", noPdf([found])),
+    noDoi: paper("noDoi", { ids: {}, ...noPdf([found]) }),
+    check: paper("check", noPdf([found, tryOf("check")])),
+    signIn: paper("signIn", noPdf([found, tryOf("sign-in")])),
+    noAccess: paper("noAccess", noPdf([found, tryOf("no-access", "you")])),
+    notOffered: paper("notOffered", noPdf([found, tryOf("not-offered", "you")])),
+    notThere: paper("notThere", noPdf([found, tryOf("not-there")])),
   }
 
-  it("says why for every paper owlit looked for, and nothing for one with a PDF or still being looked for", () => {
-    expect(Object.fromEntries(Object.values(library).map((p) => [p.id, noPdfReason(p) ?? null]))).toEqual({
+  it("reads where each stands off its state and the ending of its reason", () => {
+    expect(Object.fromEntries(Object.values(library).map((p) => [p.id, pdfWait(p) ?? null]))).toEqual({
       read: null,
-      looking: null,
+      looking: "finding",
+      offline: "offline",
       found: "not-found",
       noDoi: "not-found",
-      needs: "needs",
-      refused: "no-access",
-      missing: "missing",
-      missed: "missed",
-      sent: "not-found",
-      onPage: "needs",
+      check: "not-found",
+      signIn: "not-found",
+      noAccess: "no-access",
+      notOffered: "not-offered",
+      notThere: "not-there",
     })
   })
 
-  it("offers the browser only for papers with a DOI it hasn't been sent for", () => {
-    expect(Object.values(library).filter(mightComeThroughBrowser).map((p) => p.id)).toEqual(["found"])
-  })
-
-  it("counts a page open for the user in Needs you, whoever sent it", () => {
-    expect(needsYou(library.onPage)).toBe(true)
-    expect(needsYou(library.found)).toBe(false)
-  })
-
-  it("lists them all under No PDF, Needs you ones included, grouped by why", () => {
-    expect(countByFilter(library)["no-pdf"]).toBe(8)
+  it("lists them all under No PDF, grouped by one name per state", () => {
+    expect(countByFilter(library)["no-pdf"]).toBe(9)
     const sort = { key: "addedAt" as const, desc: true }
     const visible = visiblePapers(library, { query: "", filter: "no-pdf", tags: [], sort })
     const groups = groupPapers(visible, sort, false, Date.now(), undefined, true)
     expect(groups.map((g) => [g.label, g.papers.map((p) => p.id).sort()])).toEqual([
-      ["Needs you", ["needs", "onPage"]],
-      ["No PDF found", ["found", "noDoi", "sent"]],
-      ["No access", ["refused"]],
-      ["No PDF there", ["missing"]],
-      ["Didn't come", ["missed"]],
+      ["Not found", ["check", "found", "noDoi", "signIn"]],
+      ["No access", ["noAccess", "notOffered"]],
+      ["No PDF there", ["notThere"]],
+      ["Finding", ["looking", "offline"]],
     ])
   })
 })

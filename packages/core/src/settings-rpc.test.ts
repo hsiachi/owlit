@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { Core } from "./core.ts"
-import type { BrowserHost, SecretBox } from "./host.ts"
+import type { SecretBox } from "./host.ts"
 
 // Stands in for the keychain: reversible, and plainly not the key
 const box: SecretBox = {
@@ -15,13 +15,13 @@ const box: SecretBox = {
   },
 }
 
-function setup(options: { fetch?: typeof fetch; browser?: BrowserHost; secrets?: SecretBox | null; languages?: string[] } = {}) {
+function setup(options: { fetch?: typeof fetch; openExternal?: (url: string) => Promise<void>; secrets?: SecretBox | null; languages?: string[] } = {}) {
   const userDataDir = mkdtempSync(path.join(tmpdir(), "owlit-settings-"))
   const make = () =>
     new Core({
       userDataDir,
       retryBaseMs: 1,
-      host: { fetch: options.fetch, browser: options.browser, secrets: options.secrets === null ? undefined : (options.secrets ?? box), languages: () => options.languages ?? [] },
+      host: { fetch: options.fetch, openExternal: options.openExternal, secrets: options.secrets === null ? undefined : (options.secrets ?? box), languages: () => options.languages ?? [] },
     })
   const core = make()
   const heard: RpcNotification[] = []
@@ -124,15 +124,13 @@ describe("settings", () => {
     expect((await call("settings.setProxy", {})).library).not.toHaveProperty("proxy")
   })
 
-  it("signs in through the browser window and remembers when; a new proxy forgets it", async () => {
+  it("opens the proxy's sign-in page in the user's own browser", async () => {
     const opened: string[] = []
-    const browser = { showLogin: async (url: string) => void opened.push(url), fetchPdf: async () => new Uint8Array() }
-    const { call } = setup({ browser })
+    const { call } = setup({ openExternal: async (url) => void opened.push(url) })
+    await expect(call("settings.proxySignIn")).rejects.toThrow("No library proxy is set up.")
     await call("settings.setProxy", { preset: "tsinghua" })
-    const view = await call("settings.proxySignIn")
-    expect(opened).toEqual(["https://tlink.lib.tsinghua.edu.cn"])
-    expect(view.library.proxySignedInAt).toBeGreaterThan(0)
-    expect((await call("settings.setProxy", { link: "https://ezproxy.example.edu/login?url=https://x.org" })).library).not.toHaveProperty("proxySignedInAt")
+    expect(await call("settings.proxySignIn")).toBeNull()
+    expect(opened).toEqual(["https://tlink.lib.tsinghua.edu.cn/go"])
   })
 
   it("tells a refused key from a service that couldn't be asked", async () => {

@@ -1,3 +1,4 @@
+import type { StoredPairing } from "./extension.ts"
 import type { InitiativeSettings } from "./initiative.ts"
 import type { HighlightColor } from "./library.ts"
 import type { InterfaceLanguage } from "./languages.ts"
@@ -58,6 +59,11 @@ export interface AppSettings {
   activity: { enabled: boolean }
   appearance: AppearanceSettings
   profile: ProfileSettings
+  // This owlit's own id, made with its app data the first time it serves the extension. A clone of the
+  // data for a preview leaves it out, with the pairings, so the preview makes its own.
+  owlitId?: string
+  // The browser extensions the user allowed to connect
+  extension?: { paired: StoredPairing[] }
 }
 
 // Who the user is, as far as owlit needs to know
@@ -103,8 +109,6 @@ export interface LibrarySettings {
   wileyTdmToken?: string
   // The library's proxy, through which publishers see the university's subscription
   proxy?: ProxySettings
-  // When the user last closed the proxy's sign-in window; nothing tells owlit when the login runs out
-  proxySignedInAt?: number
   // Digests: the language they are written in (default English), and whether every paper gets
   // one once its text is in (default: only papers the user opens or stars)
   digestLanguage?: string

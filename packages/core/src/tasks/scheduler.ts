@@ -4,7 +4,7 @@ import type { TaskStore } from "./store.ts"
 import { clean, messageOf } from "../util.ts"
 
 // How many tasks of each lane run at once. Hosts get their own limits in the HTTP client, inside network.
-export const LANE_LIMITS: Record<TaskLane, number> = { network: 3, browser: 1, cpu: 2, parse: 1, agent: 1, index: 1 }
+export const LANE_LIMITS: Record<TaskLane, number> = { network: 3, cpu: 2, parse: 1, agent: 1, index: 1 }
 
 // How many finished tasks list() still shows
 const KEEP_FINISHED = 200

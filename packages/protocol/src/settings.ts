@@ -14,8 +14,6 @@ export interface SettingsView {
   library: {
     contactEmail?: string
     proxy?: ProxySettings
-    // When the user last finished the library's sign-in window
-    proxySignedInAt?: number
     // A code from NOTE_LANGUAGES, or the user's words for another language; unset follows the system
     digestLanguage?: string
     // What unset gives: the interface language when one is chosen, otherwise the system's language, as

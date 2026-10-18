@@ -4,14 +4,12 @@ import { rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { Readable } from "node:stream"
 import { pipeline } from "node:stream/promises"
-import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { paperDir } from "./paths.ts"
 import { fill, publisherOf, type PublisherApi, type PublisherKeys } from "./publisher-table.ts"
-import { messageOf } from "../util.ts"
 
 // Where a paper's PDF can come from, tried in order until one gives a real PDF. Not finding one is a
-// fact about this machine and moment (acquisition.json says what was tried), not an error.
+// fact about this machine and moment (acquisition.ts keeps what was tried), not an error.
 
 // The largest PDF owlit keeps
 export const PDF_MAX_BYTES = 200 * 1024 * 1024
@@ -42,46 +40,6 @@ export function apiRoute(doi: string, keys: PublisherKeys): Route | undefined {
   const key = api && keys[api.key]
   if (!api || !key) return undefined
   return { kind: "api", name: `api:${publisher.name}`, url: api.url(doi), headers: { [api.header]: key }, ...(api.verify ? { verify: api.verify } : {}) }
-}
-
-export interface Attempt {
-  route: string
-  url: string
-  // HTTP status, or 0 when nothing answered
-  status?: number
-  error?: string
-  at: number
-}
-
-// library/papers/<id>/acquisition.json
-export interface Acquisition {
-  version: 1
-  result: "ok" | "no_pdf"
-  // The route that gave the PDF
-  route?: string
-  tried: Attempt[]
-  at: number
-  // Where a PDF found by hand goes
-  dropHere: string
-  // Of the PDF in place: the same file dropped again is recognised
-  sha256?: string
-  // The publisher's page wanted a person (a check, a sign-in), and the host whose page it was: the
-  // user's own browser is the way. refused: a check came back after the user passed it. browser: the
-  // publisher lets only the user's own browser in, which gets the PDF at url.
-  needs?: { reason: "challenge" | "login" | "refused" | "browser"; route: string; at: number; host?: string; url?: string }
-  // The user's own browser reached the publisher and was told no (refused: the library proxy hasn't got
-  // it), with the page it ended on; or it was sent and nothing came (missed). Kept across owlit's own
-  // looks and restarts, until a PDF comes or the user's browser is sent again and ends otherwise.
-  yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
-  // What owlit's own browser found on the publisher's page when it gave no PDF: an offer to buy, reached
-  // through the library's proxy (no-access), or a page that wasn't there (missing). Kept through the
-  // plain routes' looks, until owlit's browser looks again.
-  looked?: { outcome: "no-access" | "missing"; at: number; host?: string; title?: string }
-  // How many looks in a row found no PDF, for spacing out the daily look (library.retryMissingDaily)
-  looks?: number
-  // When the user's browser was last sent for it, and whether to an article page for them to save the
-  // PDF from: their Downloads is looked at from then, across restarts (library.resumeDownloads)
-  sentToBrowser?: { at: number; page: boolean }
 }
 
 // The routes for a paper, best first, without repeats. Landing pages and Unpaywall cost a request,
@@ -218,7 +176,6 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
     await response.body?.cancel().catch(() => {})
     const error = new HttpError(202, url, `${hostOf(response.url || url)} only lets browsers in.`)
     error.finalUrl = response.url || url
-    error.challenged = true
     throw error
   }
   if (!response.body) throw new NotAPdf(`${hostOf(url)} sent nothing.`)
@@ -302,13 +259,6 @@ export function pdfInHtml(html: string, page: string) {
   return undefined
 }
 
-export const acquisitionFile = (root: string, id: string) => path.join(paperDir(root, id), "acquisition.json")
-
-export const readAcquisition = (root: string, id: string) => readJson<Acquisition>(acquisitionFile(root, id)).catch(() => undefined)
-
-export const writeAcquisition = (root: string, id: string, acquisition: Acquisition) =>
-  writeJsonAtomic(acquisitionFile(root, id), acquisition, { parents: false })
-
 export const pdfFile = (root: string, id: string) => path.join(paperDir(root, id), "paper.pdf")
 
 export const hasPdfFile = (root: string, id: string) =>
@@ -316,10 +266,3 @@ export const hasPdfFile = (root: string, id: string) =>
     (info) => info.isFile() && info.size > 0,
     () => false,
   )
-
-// One line about an attempt that failed, as acquisition.json keeps it
-export function describeFailure(error: unknown): Pick<Attempt, "status" | "error"> {
-  if (error instanceof HttpError) return { status: error.status, error: error.message }
-  if (error instanceof NotAPdf) return { error: error.message }
-  return { error: messageOf(error) }
-}

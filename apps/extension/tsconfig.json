@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["chrome", "vite/client", "node"],
+    "jsx": "react-jsx",
+    "allowArbitraryExtensions": true,
+    // The popup is drawn with the app's own pieces (button, switch, cn), imported where they live
+    "paths": { "@/*": ["../../app/src/*"] }
+  },
+  "include": ["src", "scripts", "vite.config.ts", "vitest.config.ts"]
+}

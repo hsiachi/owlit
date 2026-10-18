@@ -15,6 +15,8 @@ import { startAppearance, storedAppearance } from "@/features/settings/appearanc
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
 import { startUpdates } from "@/features/updates/store"
+import { PairDialog } from "@/features/extension/PairDialog"
+import { startExtension } from "@/features/extension/store"
 import { startShares } from "@/features/docs/share/store"
 import { startImports } from "@/features/library/imports"
 import { applyLocale, i18n } from "@/lib/i18n"
@@ -34,6 +36,7 @@ startAppearance()
 applyLocale(bridge?.locale ?? interfaceLocale(storedAppearance().language, navigator.languages))
 startSettings()
 startUpdates()
+startExtension()
 
 // Listening to core: the open workspace, its background tasks, what it asks this window to do, and
 // what agents changed
@@ -64,6 +67,8 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <I18nProvider i18n={i18n}>
       <Routed />
+      {/* On every page, the welcome and the first launch too: pairing needs no workspace */}
+      <PairDialog />
     </I18nProvider>
   </StrictMode>,
 )

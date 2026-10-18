@@ -14,6 +14,7 @@ import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
+import type { ExtensionOpened, ExtensionView, ExtensionWait } from "./extension.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
@@ -69,6 +70,16 @@ export interface Methods {
   "core.diagnostics": { params: void; result: string }
   // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
   // itself, and the window having shown "Updated to"
+  // The browser extension: whether the port is open, which browsers are allowed, which are asking
+  "extension.get": { params: void; result: ExtensionView }
+  // The user's answer to an extension asking to connect (ExtensionView.asking)
+  "extension.answer": { params: { id: string; allow: boolean }; result: null }
+  // Takes back a browser's permission; its extension asks to connect again
+  "extension.forget": { params: { id: string }; result: ExtensionView }
+  // A waiting line's one thing to do: the extension opens the sign-in, the check or its Allow page in its
+  // own browser; with no extension connected, owlit opens a sign-in or a check in the browser it was
+  // paired in
+  "extension.open": { params: { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
   "updates.get": { params: void; result: UpdatesView }
   "updates.check": { params: void; result: UpdateCheck }
   "updates.setAuto": { params: { auto: boolean }; result: UpdatesView }
@@ -125,8 +136,8 @@ export interface Methods {
   // A known library, a link opened through one (proxyFromLink), or neither to turn the proxy off.
   // A link no proxy can be read from is refused.
   "settings.setProxy": { params: { preset?: ProxyPreset; link?: string }; result: SettingsView }
-  // Shows the proxy's sign-in in owlit's browser window; resolves once the user closes it
-  "settings.proxySignIn": { params: void; result: SettingsView }
+  // Opens the proxy's sign-in page in the user's own browser
+  "settings.proxySignIn": { params: void; result: null }
 
   // ---- Docs: the workspace's files. Every path is workspace-relative; library/ and dot-folders are
   // out of reach. Names a call asks for are made unique ("Name 2"), so results carry the real path.
@@ -450,26 +461,12 @@ export interface Methods {
   "library.wear": { params: { id: string }; result: PaperWear }
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
-  // paper comes back with pdf, or with noPdf saying what was tried.
+  // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
-  // Papers owlit couldn't get alone (noPdf), got from the user's own browser one at a time, behind
-  // owlit's window and a few seconds apart: first those whose PDF their browser saves by itself, taken
-  // from Downloads as each lands, then the article pages of the rest, for them to save the PDF from.
-  // Joins the run going on, or resumes it when it stopped for the user. Runs as the task
-  // papers.fromBrowser; the papers come back with noPdf.fromBrowser.
-  "library.getInBrowser": { params: { ids: string[] }; result: Paper[] }
-  // Brings the user's browser to the front, at the paper's tab when owlit opened one for it (or the tab
-  // the run is stopped on), where a page may be asking them something
-  "library.showBrowser": { params: { id?: string }; result: null }
-  // The user's answer about a downloaded PDF owlit offered (noPdf.offered): take it, or not
-  "library.takeDownload": { params: { id: string; take: boolean }; result: Paper }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md
   "library.setNote": { params: { paperId: string; content: string }; result: PaperNote }
-
-  // Development only: the hidden browser opens landing and fetches the PDF, with no task around it
-  "library.debugBrowserFetch": { params: { landing: string; pdf?: string; allowHosts: string[] }; result: { bytes: number; head: string } }
 
   // ---- Search: the workspace's index (papers with their full text, docs, chats, and what links where)
   // Every word must appear; title matches first; each group's best few. indexing: still reading the
@@ -511,6 +508,8 @@ export interface Notifications {
   "activity.status": { enabled: boolean }
   // Any setting changed, from any window or the app menu
   "settings.changed": SettingsView
+  // An extension asked to connect, was answered, connected or was forgotten; the port opened or was taken
+  "extension.changed": ExtensionView
   // Where an update stands changed: a check, a download, the switch
   "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
@@ -619,8 +618,8 @@ export interface OwlitBridge {
   // "Ask Owlit" was chosen in that menu
   onTextMenuAsk(listener: () => void): () => void
   // A system notification, shown only while no owlit window is in front; clicking it brings the window
-  // forward and calls onNotificationClick with its chatId
-  notify(notification: { title: string; body: string; chatId: string }): void
+  // forward and, for one about a chat, calls onNotificationClick with its chatId
+  notify(notification: { title: string; body: string; chatId?: string }): void
   // Quits and installs the downloaded update; asks first, in the system's dialog, while a chat is answering
   restartToUpdate(): Promise<void>
   onNotificationClick(listener: (chatId: string) => void): () => void

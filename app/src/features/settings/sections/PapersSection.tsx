@@ -1,3 +1,4 @@
+import { ExtensionGroup } from "./ExtensionGroup"
 import { ProxyGroup } from "./ProxyGroup"
 import { PublisherApisGroup } from "./PublisherApisGroup"
 import { ReadingGroup } from "./ReadingGroup"
@@ -10,6 +11,7 @@ export function PapersSection() {
     <>
       <SourcesGroup />
       <ProxyGroup />
+      <ExtensionGroup />
       <PublisherApisGroup />
       <ReadingGroup />
     </>

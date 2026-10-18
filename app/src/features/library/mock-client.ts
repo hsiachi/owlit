@@ -55,9 +55,11 @@ export class MockLibraryClient implements LibraryClient {
     return { url: URL.createObjectURL(file) }
   }
 
-  async fetchPdf(paper: Paper): Promise<Paper["pdf"]> {
+  // An arXiv paper's PDF; any other paper found nowhere, with the next look a day away
+  async fetchPdf(paper: Paper): Promise<Pick<Paper, "pdf" | "pdfState">> {
     await delay(800)
-    if (paper.ids.arxiv) return { url: `https://arxiv.org/pdf/${paper.ids.arxiv}` }
-    throw new Error(t`No open-access PDF was found for this paper.`)
+    if (paper.ids.arxiv) return { pdf: { url: `https://arxiv.org/pdf/${paper.ids.arxiv}` } }
+    const look = { by: "owlit" as const, ended: "no-copy" as const, at: Date.now(), route: "unpaywall/repository" }
+    return { pdfState: { state: "no-pdf", tried: [...(paper.pdfState?.tried ?? []), look], reason: look, nextLook: Date.now() + 24 * 60 * 60 * 1000 } }
   }
 }

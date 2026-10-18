@@ -1,12 +1,12 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { shortDate } from "@/lib/time"
 import { useState } from "react"
 import { PencilIcon } from "lucide-react"
 import { PROXY_PRESETS, proxyFromLink, type ProxyPreset, type ProxySettings } from "@owlit/protocol"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RpcError } from "@/lib/rpc"
+import { toastError } from "@/lib/toast"
 import { useFoldWhile } from "../form-state"
 import { Group, IconAction, List, Note, Picker, Row } from "../parts"
 import { setProxy, signInToProxy, useSettings } from "../store"
@@ -24,7 +24,6 @@ const describe = (proxy: ProxySettings) => {
 
 export function ProxyGroup() {
   const proxy = useSettings((s) => s.view?.library.proxy)
-  const signedInAt = useSettings((s) => s.view?.library.proxySignedInAt)
   // "Another library…" picked, link not given yet
   const [linkOpen, setLinkOpen] = useState(false)
   useFoldWhile(linkOpen && !!proxy, () => setLinkOpen(false))
@@ -67,7 +66,7 @@ export function ProxyGroup() {
               }
             />
           ))}
-        {proxy && !linkOpen && <SignIn signedInAt={signedInAt} />}
+        {proxy && !linkOpen && <SignIn />}
       </List>
     </Group>
   )
@@ -131,31 +130,29 @@ function LinkForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function SignIn({ signedInAt }: { signedInAt?: number }) {
-  const [busy, setBusy] = useState(false)
-  const when = signedInAt ? shortDate(signedInAt) : ""
+// The sign-in happens in the user's own browser, where the owlit extension fetches through the proxy:
+// owlit can't see it, so it only opens the page; the extension finds out by itself
+function SignIn() {
+  const [opened, setOpened] = useState(false)
   const signIn = async () => {
-    setBusy(true)
     try {
       await signInToProxy()
-    } finally {
-      setBusy(false)
+      setOpened(true)
+    } catch (e) {
+      toastError(e, t`Couldn't open your browser.`)
     }
   }
   return (
     <Row
       name={t`Sign-in`}
-      info={t`Owlit fetches PDFs through the proxy in its own browser window, signed in as you. Libraries sign you out after a while; sign in again when a fetch asks for it.`}
+      info={t`The owlit extension fetches PDFs through the proxy in your browser, signed in as you. Libraries sign you out after a while; owlit says so when a fetch finds the sign-in page.`}
       control={
-        <>
-          <span className="mr-1 text-detail text-muted-foreground">{busy ? t`Waiting for the sign-in window…` : signedInAt ? t`Signed in ${when}` : t`Not signed in`}</span>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void signIn()}>
-            {signedInAt ? t`Sign in again…` : t`Sign in…`}
-          </Button>
-        </>
+        <Button variant="outline" size="sm" onClick={() => void signIn()}>
+          {t`Sign in…`}
+        </Button>
       }
     >
-      {busy && <Note>{t`Sign in in the window that opened. It closes by itself once you're in.`}</Note>}
+      {opened && <Note>{t`Sign in there; the extension will notice.`}</Note>}
     </Row>
   )
 }

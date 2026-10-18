@@ -1,40 +1,43 @@
 import { describe, expect, it } from "vitest"
-import type { Paper } from "@owlit/protocol"
-import { needsYou, pdfWait, waitsOnYou } from "./pdf-wait"
+import type { PdfState, PdfTry } from "@owlit/protocol"
+import { pdfWait, pdfWord, waitsOnYou } from "./pdf-wait"
 
-const paper = (noPdf?: Paper["noPdf"], pdf = false) => ({ pdf, noPdf }) as unknown as Paper
-const looked = { tried: [], at: 1 }
+const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit"): PdfTry => ({ by, ended, at: 1 })
+const noPdf = (ended: PdfTry["ended"], extra: Partial<PdfState> = {}) => ({ pdfState: { state: "no-pdf" as const, tried: [tryOf(ended)], reason: tryOf(ended), ...extra } })
 
 describe("pdfWait", () => {
-  it("reads where a paper without its PDF stands", () => {
-    expect(pdfWait(paper(undefined, true))).toBeUndefined()
-    expect(pdfWait(paper())).toBe("not-yet")
-    expect(pdfWait(paper(looked))).toBe("not-found")
-    expect(pdfWait(paper({ ...looked, needs: "browser" }))).toBe("browser")
-    expect(pdfWait(paper({ ...looked, needs: "browser", noAccess: { refused: true, at: 1 } }))).toBe("no-access")
-    expect(pdfWait(paper({ ...looked, needs: "browser", noAccess: { refused: false, missing: true, at: 1 } }))).toBe("missing")
-    expect(pdfWait(paper({ ...looked, needs: "browser", fromBrowser: { state: "waiting" } }))).toBe("run-stopped")
-    expect(pdfWait(paper({ ...looked, needs: "browser", fromBrowser: { state: "missed" } }))).toBe("missed")
+  it("reads where a paper without its PDF stands, and nothing once it has it", () => {
+    expect(pdfWait({ pdf: { url: "x" }, pdfState: undefined })).toBeUndefined()
+    expect(pdfWait({ pdfState: { state: "finding", tried: [] } })).toBe("finding")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("offline")], reason: tryOf("offline") } })).toBe("offline")
+    expect(pdfWait(noPdf("no-copy"))).toBe("not-found")
+    expect(pdfWait(noPdf("not-offered"))).toBe("not-offered")
+    // A check or a sign-in that stopped owlit itself, in an older record: no PDF found, waiting on nobody
+    expect(pdfWait(noPdf("check"))).toBe("not-found")
+    expect(pdfWait(noPdf("sign-in"))).toBe("not-found")
   })
 
-  it("puts a file to confirm before the run's own state", () => {
-    expect(pdfWait(paper({ ...looked, offered: "x.pdf", fromBrowser: { state: "page" } }))).toBe("offered")
+  it("reads a paper the extension waits with as still finding, under its site's wait", () => {
+    const signIn = tryOf("sign-in", "extension")
+    // In the queue at a site that waits for the user
+    expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-copy")], reason: tryOf("no-copy"), extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" } } })).toBe("for-sign-in")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tandfonline.com", waits: "check" } } })).toBe("for-check")
+    // Fetched again once the user got through: finding, whatever its last try met
+    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tlink.lib.tsinghua.edu.cn" } } })).toBe("finding")
+    // After a restart, before the queue has it again, its last try says what it waits for
+    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn } })).toBe("for-sign-in")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-permission", "extension")], reason: tryOf("no-permission", "extension") } })).toBe("for-permission")
+    expect(pdfWord("for-sign-in")).toBe(pdfWord("finding"))
   })
 
-  it("counts a page open to save from whatever sent the paper there", () => {
-    const sentFromNotFound = paper({ ...looked, fromBrowser: { state: "page" } })
-    expect(waitsOnYou(pdfWait(sentFromNotFound))).toBe(true)
-    expect(needsYou(sentFromNotFound)).toBe(true)
+  it("waits on the user at a site only once they asked for one of its papers", () => {
+    const wait = { kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true }
+    expect(waitsOnYou({ ...wait, askedFor: false })).toBe(false)
+    expect(waitsOnYou({ ...wait, askedFor: true })).toBe(true)
   })
 
-  it("keeps a run's papers under Needs you while it works, without them waiting on the user", () => {
-    const queued = paper({ ...looked, needs: "browser", fromBrowser: { state: "queued" } })
-    expect(waitsOnYou(pdfWait(queued))).toBe(false)
-    expect(needsYou(queued)).toBe(true)
-  })
-
-  it("leaves what was tried and turned away to its card", () => {
-    expect(needsYou(paper({ ...looked, needs: "browser", fromBrowser: { state: "missed" } }))).toBe(false)
-    expect(needsYou(paper({ ...looked, needs: "browser", noAccess: { refused: true, at: 1 } }))).toBe(false)
+  it("gives the states that read alike one name", () => {
+    expect(pdfWord("no-access")).toBe(pdfWord("not-offered"))
+    expect(pdfWord("finding")).toBe(pdfWord("offline"))
   })
 })
