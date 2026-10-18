@@ -77,7 +77,7 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
             <NoteEditor paperId={paper.id} />
           </TabsContent>
           <TabsContent value="highlights">
-            <HighlightsList paperId={paper.id} onAddToNote={addToNote} />
+            <HighlightsList paperId={paper.id} hasPdf={!!paper.pdf} onAddToNote={addToNote} />
           </TabsContent>
           <TabsContent value="about">
             <About paper={paper} />

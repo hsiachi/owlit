@@ -32,7 +32,7 @@ const pageLabel = (page: number) => t`Page ${page}`
 
 // A paper's highlights in reading order, grouped by page. A click jumps the reader to the passage;
 // a highlight clicked in the PDF scrolls into view here.
-export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAddToNote: (h: Highlight) => void }) {
+export function HighlightsList({ paperId, hasPdf, onAddToNote }: { paperId: string; hasPdf: boolean; onAddToNote: (h: Highlight) => void }) {
   const highlights = usePaperHighlights(paperId)
   const pages = useMemo(() => {
     const groups = new Map<number, Highlight[]>()
@@ -41,7 +41,7 @@ export function HighlightsList({ paperId, onAddToNote }: { paperId: string; onAd
   }, [highlights])
 
   if (highlights.length === 0) {
-    return <p className="text-detail text-muted-foreground">{t`Select text in the PDF to highlight it.`}</p>
+    return <p className="text-detail text-muted-foreground">{hasPdf ? t`Select text in the PDF to highlight it.` : t`This paper has no PDF yet. Highlights are made in the PDF.`}</p>
   }
 
   return (
