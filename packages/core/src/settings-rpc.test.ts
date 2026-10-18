@@ -91,7 +91,7 @@ describe("settings", () => {
     expect(onDisk().library).not.toHaveProperty("s2ApiKey")
   })
 
-  it("reads a key written by hand and seals it on the next save; drops one it can't open", async () => {
+  it("reads a key written by hand and seals it on the next save; keeps one it can't open until replaced", async () => {
     const { userDataDir, make, onDisk } = setup()
     writeFileSync(path.join(userDataDir, "settings.json"), JSON.stringify({ parsing: { service: "cloud", token: "plain-token" }, library: { openalexApiKey: { sealed: "garbage" } } }))
     const core = make()
@@ -100,6 +100,10 @@ describe("settings", () => {
     expect(settings.library).not.toHaveProperty("openalexApiKey")
     await core.settings.update((s) => s)
     expect(onDisk().parsing.token).toEqual({ sealed: expect.any(String) })
+    expect(onDisk().library.openalexApiKey).toEqual({ sealed: "garbage" })
+    await core.settings.update((s) => ({ ...s, library: { ...s.library, openalexApiKey: "new-key" } }))
+    expect(onDisk().library.openalexApiKey).not.toEqual({ sealed: "garbage" })
+    expect((await make().settings.get()).library.openalexApiKey).toBe("new-key")
   })
 
   it("writes keys as they are when nothing can seal them", async () => {
