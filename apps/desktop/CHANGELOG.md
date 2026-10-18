@@ -2,6 +2,10 @@
 
 Each version's section goes, as it is, into the notes sent with its dmg (scripts/release-notes.mjs).
 
+## Unreleased
+
+- Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
+
 ## 0.2.1
 
 PDFs Owlit can't get alone now come through the owlit extension for your browser, using your library's access. Owlit no longer opens tabs in your browser, watches Downloads or runs a hidden browser.

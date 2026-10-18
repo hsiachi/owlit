@@ -2,7 +2,7 @@
 // that is owlit's own logic lives in @owlit/core.
 
 import { plural, t } from "@lingui/core/macro"
-import { Core } from "@owlit/core"
+import { browserAppOf, Core } from "@owlit/core"
 import { activateLocale } from "@owlit/i18n"
 import { CATALOGS } from "@owlit/i18n/catalogs"
 import { EXTENSION_DEV_PORT, interfaceLocale, type AppearanceSettings, type BuildChannel, type DocsChange, type Locale, type MenuCommand, type MethodName, type ParamsOf, type ResultOf, type RpcRequest, type SettingsView, type WorkspaceInfo } from "@owlit/protocol"
@@ -578,9 +578,10 @@ if (!app.requestSingleInstanceLock()) {
           else await shell.openExternal(url)
         },
         openInBrowser: async (url, browser) => {
-          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", browser, url)
+          if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", browser.app ?? browser.name, url)
           else await openInBrowser(url, browser)
         },
+        browserApp: browserAppOf,
         // Only a release has a feed to update from; core says why the others don't
         updater: build.channel === "release" ? createUpdater() : undefined,
       },

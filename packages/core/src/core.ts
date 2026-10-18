@@ -185,6 +185,7 @@ export class Core {
             hasWindow: () => this.ui.hasWindow(),
             changed: (view) => this.notifier.notify("extension.changed", view),
             openInBrowser: options.host?.openInBrowser ?? (options.host?.openExternal && ((url) => options.host!.openExternal!(url))),
+            browserApp: options.host?.browserApp,
           },
           options.extension === true ? {} : options.extension,
         )
