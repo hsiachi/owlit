@@ -1,3 +1,5 @@
+import { OwlitError } from "./owlit.ts"
+
 // Whether a tab that finished loading a PDF is taken for owlit without a click: the user's PDF of a
 // Library paper that lacks one comes to owlit by itself. Only when owlit is connected, the user left
 // "Take PDFs I open" on, and the PDF's site is one the extension may read (it is fetched again from the
@@ -23,3 +25,8 @@ export function pdfTabWrite(tabId: number, url: string, headers: { name: string;
   const key = pdfTabKey(tabId)
   return isPdfResponse(url, contentTypeOf(headers)) ? { set: { [key]: url } } : { remove: key }
 }
+
+// Whether owlit gave its answer for a PDF tab it was handed and refused it (not a Library paper's,
+// another paper's): such a PDF isn't sent again in this browser session. A lost pairing or a failing
+// owlit (no workspace open) gave none, and the next load tries again.
+export const refusedByOwlit = (error: unknown) => error instanceof OwlitError && error.status !== 401 && error.status < 500

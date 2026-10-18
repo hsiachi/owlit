@@ -7,7 +7,7 @@ import { originsOf, type Answers, type Connection, type Outcome, type PageState,
 import { ask, OwlitError, Unreachable } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, notYetAllowed } from "../lib/permissions.ts"
-import { pdfTabKey, pdfTabWrite, takesPdfTab } from "../lib/pdf-tab.ts"
+import { pdfTabKey, pdfTabWrite, refusedByOwlit, takesPdfTab } from "../lib/pdf-tab.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
 
@@ -240,25 +240,28 @@ async function takePdfTab(tabId: number, url: string) {
   const connected = !!token && (await connection()).state === "connected"
   const permitted = await ext.permissions.contains({ origins: [`${new URL(url).origin}/*`] })
   if (!takesPdfTab({ url, contentType: "application/pdf" }, { connected, takePdfs: await takePdfsOn(), permitted })) return
-  const taken = ((await ext.storage.session.get(takenKey))[takenKey] ?? []) as string[]
-  if (taken.includes(url)) return
-  await ext.storage.session.set({ [takenKey]: [...taken.slice(-200), url] })
+  const taken = async () => ((await ext.storage.session.get(takenKey))[takenKey] ?? []) as string[]
+  if ((await taken()).includes(url)) return
+  // Kept only once owlit has answered for it: a fetch that failed (a signed address that expired, a page
+  // that wasn't the PDF) or an owlit that went away is tried again at the next load
+  const answered = async () => ext.storage.session.set({ [takenKey]: [...(await taken()).slice(-200), url] })
   // From the cache: the tab has just loaded it
   const pdf = await fetchPdf(url, "force-cache")
   if (!pdf || !token) return
   try {
     const ids = idsInUrl(url)
     const named = ids.doi || ids.arxiv ? await lookUp({ url, paper: { ...ids, authors: [] } }, token) : null
-    if (named?.hasPdf) return
+    if (named?.hasPdf) return await answered()
     const { paper } = named
       ? await ask<PaperAnswer>(`/papers/${encodeURIComponent(named.id)}/pdf`, { method: "PUT", token, pdf })
       : await ask<PaperAnswer>("/pdfs", { method: "PUT", token, pdf })
+    await answered()
     // Chrome's PDF viewer runs no content script, so the page can't say it: the system and the badge do
     void ext.notifications.create(`taken:${tabId}:${Date.now()}`, { type: "basic", iconUrl: ext.runtime.getURL("icons/128.png"), title: t`owlit took this PDF`, message: paper.title }).catch(() => undefined)
     await setBadge(tabId, "✓", TAKEN)
   } catch (error) {
-    // Not a Library paper's, or another paper's: left alone
-    if (!(error instanceof OwlitError)) console.error("[owlit] couldn't hand a PDF to owlit", error)
+    if (refusedByOwlit(error)) await answered()
+    else if (!(error instanceof OwlitError) && !(error instanceof Unreachable)) console.error("[owlit] couldn't hand a PDF to owlit", error)
   }
 }
 
