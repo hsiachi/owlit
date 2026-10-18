@@ -163,7 +163,9 @@ function createWindow() {
     backgroundColor: frameColor(),
     width: 1280,
     height: 820,
-    minWidth: 720,
+    // Not narrower than the sidebar's mobile breakpoint (app/src/hooks/use-mobile.ts) and Settings' md: list,
+    // below which the rail and the section list leave the window
+    minWidth: 768,
     minHeight: 480,
     show: false,
     title: "Owlit",
