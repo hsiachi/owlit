@@ -6384,34 +6384,6 @@ msgid "Choose the folder Owlit works in. Your docs, library and notes live there
 msgstr "选择 Owlit 工作的文件夹。你的文档、文献库和笔记都存放在那里。"
 
 #: apps/desktop/src/main.ts
-msgid "Import a pitta Library"
-msgstr "导入 pitta 文献库"
-
-#: apps/desktop/src/main.ts
-msgid "Choose the pitta library (the folder that holds papers/). It is only read."
-msgstr "选择 pitta 文献库（包含 papers/ 的文件夹）。只会读取，不会改动。"
-
-#: apps/desktop/src/main.ts
-msgid "Import"
-msgstr "导入"
-
-#: apps/desktop/src/main.ts
-msgid "{added, plural, one {# paper imported} other {# papers imported}}"
-msgstr "{added, plural, other {已导入 # 篇论文}}"
-
-#: apps/desktop/src/main.ts
-msgid "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
-msgstr "{skipped, plural, other {# 篇已在文献库中。}}"
-
-#: apps/desktop/src/main.ts
-msgid "{failedCount} couldn't be read:"
-msgstr "{failedCount} 篇无法读取："
-
-#: apps/desktop/src/main.ts
-msgid "The pitta library couldn't be imported"
-msgstr "无法导入 pitta 文献库"
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr "设置…"
 
@@ -6466,10 +6438,6 @@ msgstr "清除菜单"
 #: apps/desktop/src/main.ts
 msgid "Import Papers…"
 msgstr "导入论文…"
-
-#: apps/desktop/src/main.ts
-msgid "Import a pitta Library…"
-msgstr "导入 pitta 文献库…"
 
 #: apps/desktop/src/main.ts
 msgid "Close Window"
@@ -7513,7 +7481,6 @@ msgid "That isn't a PDF."
 msgstr "这不是 PDF。"
 
 #: packages/core/src/library/bulk/imports.ts
-#: packages/core/src/library/library.ts
 msgid "owlit can't import here."
 msgstr "owlit 在这里无法导入。"
 
@@ -7583,10 +7550,6 @@ msgid "owlit couldn't look for a PDF."
 msgstr "owlit 无法查找 PDF。"
 
 #: packages/core/src/library/library.ts
-msgid "The pitta library couldn't be read."
-msgstr "无法读取 pitta 文献库。"
-
-#: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
 msgstr "无法连接任何 PDF 来源。"
 
@@ -7597,10 +7560,6 @@ msgstr "无法打开那个文件。"
 #: packages/core/src/library/library.ts
 msgid "That file isn't a PDF."
 msgstr "那个文件不是 PDF。"
-
-#: packages/core/src/library/pitta.ts
-msgid "There is no papers folder in {root}."
-msgstr "{root} 中没有 papers 文件夹。"
 
 #: packages/core/src/library/resolve.ts
 msgid "That doesn't look like a DOI, an arXiv id or a link to a paper."

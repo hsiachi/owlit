@@ -6384,34 +6384,6 @@ msgid "Choose the folder Owlit works in. Your docs, library and notes live there
 msgstr "Choose the folder Owlit works in. Your docs, library and notes live there."
 
 #: apps/desktop/src/main.ts
-msgid "Import a pitta Library"
-msgstr "Import a pitta Library"
-
-#: apps/desktop/src/main.ts
-msgid "Choose the pitta library (the folder that holds papers/). It is only read."
-msgstr "Choose the pitta library (the folder that holds papers/). It is only read."
-
-#: apps/desktop/src/main.ts
-msgid "Import"
-msgstr "Import"
-
-#: apps/desktop/src/main.ts
-msgid "{added, plural, one {# paper imported} other {# papers imported}}"
-msgstr "{added, plural, one {# paper imported} other {# papers imported}}"
-
-#: apps/desktop/src/main.ts
-msgid "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
-msgstr "{skipped, plural, one {# was already in the library.} other {# were already in the library.}}"
-
-#: apps/desktop/src/main.ts
-msgid "{failedCount} couldn't be read:"
-msgstr "{failedCount} couldn't be read:"
-
-#: apps/desktop/src/main.ts
-msgid "The pitta library couldn't be imported"
-msgstr "The pitta library couldn't be imported"
-
-#: apps/desktop/src/main.ts
 msgid "Settings…"
 msgstr "Settings…"
 
@@ -6466,10 +6438,6 @@ msgstr "Clear Menu"
 #: apps/desktop/src/main.ts
 msgid "Import Papers…"
 msgstr "Import Papers…"
-
-#: apps/desktop/src/main.ts
-msgid "Import a pitta Library…"
-msgstr "Import a pitta Library…"
 
 #: apps/desktop/src/main.ts
 msgid "Close Window"
@@ -7513,7 +7481,6 @@ msgid "That isn't a PDF."
 msgstr "That isn't a PDF."
 
 #: packages/core/src/library/bulk/imports.ts
-#: packages/core/src/library/library.ts
 msgid "owlit can't import here."
 msgstr "owlit can't import here."
 
@@ -7583,10 +7550,6 @@ msgid "owlit couldn't look for a PDF."
 msgstr "owlit couldn't look for a PDF."
 
 #: packages/core/src/library/library.ts
-msgid "The pitta library couldn't be read."
-msgstr "The pitta library couldn't be read."
-
-#: packages/core/src/library/library.ts
 msgid "Couldn't reach any source of PDFs."
 msgstr "Couldn't reach any source of PDFs."
 
@@ -7597,10 +7560,6 @@ msgstr "That file can't be opened."
 #: packages/core/src/library/library.ts
 msgid "That file isn't a PDF."
 msgstr "That file isn't a PDF."
-
-#: packages/core/src/library/pitta.ts
-msgid "There is no papers folder in {root}."
-msgstr "There is no papers folder in {root}."
 
 #: packages/core/src/library/resolve.ts
 msgid "That doesn't look like a DOI, an arXiv id or a link to a paper."

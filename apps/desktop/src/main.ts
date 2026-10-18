@@ -268,39 +268,6 @@ async function chooseWorkspace(core: Core) {
   if (!result.canceled && result.filePaths[0]) await openWorkspace(core, result.filePaths[0])
 }
 
-// Brings a pitta library into the open workspace, once; ~/.pitta is where pitta kept it
-async function importPitta(core: Core) {
-  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-  const options: Electron.OpenDialogOptions = {
-    title: t`Import a pitta Library`,
-    message: t`Choose the pitta library (the folder that holds papers/). It is only read.`,
-    buttonLabel: t`Import`,
-    defaultPath: path.join(app.getPath("home"), ".pitta"),
-    properties: ["openDirectory", "showHiddenFiles"],
-  }
-  const chosen = await (win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options))
-  if (chosen.canceled || !chosen.filePaths[0]) return
-  let message: string
-  let detail: string | undefined
-  try {
-    const { added, skipped, failed } = await call(core, "library.importPitta", { root: chosen.filePaths[0] })
-    message = plural(added, { one: "# paper imported", other: "# papers imported" })
-    const failedCount = failed.length
-    detail =
-      [
-        skipped && plural(skipped, { one: "# was already in the library.", other: "# were already in the library." }),
-        failedCount && `${t`${failedCount} couldn't be read:`}\n${failed.join("\n")}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n") || undefined
-  } catch (error) {
-    message = t`The pitta library couldn't be imported`
-    detail = error instanceof Error ? error.message : String(error)
-  }
-  const box: Electron.MessageBoxOptions = { message, detail, buttons: [t`OK`] }
-  await (win ? dialog.showMessageBox(win, box) : dialog.showMessageBox(box))
-}
-
 async function updateMenu(core: Core) {
   const recent = await call(core, "workspace.recent").catch(() => [])
   const recentItems: MenuItemConstructorOptions[] = recent.map((info) => ({
@@ -361,7 +328,6 @@ async function updateMenu(core: Core) {
         },
         { type: "separator" },
         { label: t`Import Papers…`, enabled: !!current, click: () => send("import") },
-        { label: t`Import a pitta Library…`, enabled: !!current, click: () => void importPitta(core) },
         // Elsewhere the convention is File › Settings
         ...(isMac ? [] : [{ type: "separator" as const }, settingsItem]),
         { type: "separator" },

@@ -35,7 +35,6 @@ Commands:
                            Better BibTeX .json), bibtex (a .bib file) or folder (its PDFs).
                            --tags makes Zotero collections tags; --parse / --no-parse answers
                            ahead whether MinerU reads every PDF of a big import
-  import-pitta <folder>    Bring in a pitta library
   index rebuild            Read the workspace again for search
   archive export <folder>  Everything Owlit did on its own here, as one archive in a new folder
                            outside the workspace (a continuo session archive); --since <date>
@@ -238,14 +237,6 @@ async function commands(command: string, args: string[], owlit: OwlitClient, { f
       if (summary.added.length) lines.push("PDFs and text arrive by themselves; owlit tasks shows how far they are.")
       print(lines.join("\n"), summary)
       return task?.state === "done" ? 0 : FAILED
-    }
-
-    case "import-pitta": {
-      need("the pitta library's folder (the one that holds papers/)")
-      const done = await owlit.rpc.library.importPitta({ root: path.resolve(io.cwd, args[0]) })
-      const failed = done.failed.length ? `\n${done.failed.length} couldn't be read:\n${done.failed.join("\n")}` : ""
-      print(`${done.added} added · ${done.skipped} already there${failed}`, done)
-      return done.failed.length ? FAILED : 0
     }
 
     case "index": {

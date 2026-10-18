@@ -112,88 +112,14 @@ export function lookDue(acquisition: Pick<Acquisition, "state" | "tried" | "look
   return next !== undefined && now >= next - 60 * 60 * 1000
 }
 
-// ---- The older file (version 1), read into tries once
-
-interface AttemptV1 {
-  route: string
-  url: string
-  // HTTP status, or 0 when nothing answered
-  status?: number
-  error?: string
-  at: number
-}
-
-export interface AcquisitionV1 {
-  version: 1
-  result: "ok" | "no_pdf"
-  route?: string
-  tried: AttemptV1[]
-  at: number
-  dropHere: string
-  sha256?: string
-  needs?: { reason: "challenge" | "login" | "refused" | "browser"; route: string; at: number; host?: string; url?: string }
-  yourBrowser?: { outcome: "no-access" | "refused" | "missing" | "missed"; at: number; host?: string; title?: string }
-  looked?: { outcome: "no-access" | "missing"; at: number; host?: string; title?: string }
-  looks?: number
-}
-
-// Routes a PDF the user placed came by in version 1
-const PLACED_BY_YOU = new Set(["dropped", "your-browser"])
-
-// A version 1 file in today's shape: each of its fields becomes one try. Its attempts are owlit's
-// routes finding no copy, or one offline try when none of them reached anything; what the publisher's
-// page wanted is a check or a sign-in; what the user's browser and owlit's were told keep their words,
-// and a PDF that never came from the user's browser is a try of theirs that found no copy.
-export function migrate(old: AcquisitionV1 | Acquisition): Acquisition {
-  if (old.version === 2) return old
-  const attempts = (old.tried ?? []).filter((a) => !a.error?.startsWith("Not tried"))
-  const placedRoute = old.result === "ok" ? old.route : undefined
-  const placed = placedRoute ? attempts.findLastIndex((a) => a.route === placedRoute) : -1
-  const failed = attempts.filter((_, i) => i !== placed)
-  const unreachable = (a: AttemptV1) => !a.status && /couldn't reach/i.test(a.error ?? "")
-  const tried: PdfTry[] = []
-  const hostOf = (url: string) => {
-    try {
-      return new URL(url).hostname || undefined
-    } catch {
-      return undefined
-    }
-  }
-  if (failed.length && failed.every(unreachable)) tried.push({ by: "owlit", ended: "offline", at: failed.at(-1)!.at })
-  else for (const a of failed) tried.push(clean({ by: "owlit", ended: "no-copy", at: a.at, route: a.route, host: hostOf(a.url) }))
-  if (old.needs) tried.push(clean({ by: "owlit", ended: old.needs.reason === "login" ? "sign-in" : "check", at: old.needs.at, route: old.needs.route, host: old.needs.host }))
-  if (old.looked) {
-    const ended = old.looked.outcome === "missing" ? "not-there" : "no-access"
-    tried.push(clean({ by: "owlit", ended, at: old.looked.at, host: old.looked.host, title: old.looked.title }))
-  }
-  if (old.yourBrowser) {
-    const ended = ({ "no-access": "no-access", refused: "not-offered", missing: "not-there", missed: "no-copy" } as const)[old.yourBrowser.outcome]
-    tried.push(clean({ by: "you", ended, at: old.yourBrowser.at, host: old.yourBrowser.host, title: old.yourBrowser.title }))
-  }
-  tried.sort((a, b) => a.at - b.at)
-  if (old.result === "ok") {
-    const a = placed >= 0 ? attempts[placed] : undefined
-    tried.push(clean({ by: PLACED_BY_YOU.has(placedRoute ?? "") ? "you" : "owlit", ended: "pdf", at: a?.at ?? old.at, route: placedRoute }))
-  } else if (!tried.length) tried.push({ by: "owlit", ended: "no-copy", at: old.at })
-  return clean({
-    version: 2 as const,
-    state: standing(tried).state,
-    tried: tried.slice(-MAX_TRIES),
-    dropHere: old.dropHere,
-    route: placedRoute,
-    sha256: old.result === "ok" ? old.sha256 : undefined,
-    looks: old.looks,
-  })
-}
-
 // ---- Reading and writing
 
 export const acquisitionFile = (root: string, id: string) => path.join(paperDir(root, id), "acquisition.json")
 
-// The paper's record in today's shape (a version 1 file is read into it), or undefined before owlit looked
+// The paper's record, or undefined before owlit looked
 export const readAcquisition = (root: string, id: string) =>
-  readJson<AcquisitionV1 | Acquisition>(acquisitionFile(root, id)).then(
-    (raw) => (raw && typeof raw === "object" && Array.isArray(raw.tried) ? migrate(raw) : undefined),
+  readJson<Acquisition>(acquisitionFile(root, id)).then(
+    (raw) => (raw && typeof raw === "object" && raw.version === 2 && Array.isArray(raw.tried) ? raw : undefined),
     () => undefined,
   )
 
@@ -273,18 +199,6 @@ export class Acquisitions {
       const previous = await this.read(id)
       if (previous) await write(this.root, id, this.next(id, previous, previous.tried, { sha256 }))
     })
-  }
-
-  // Every version 1 file written again in today's shape, so it is read into tries only once
-  async migrateAll(ids: string[]) {
-    for (const id of ids) {
-      await this.locked({}, async () => {
-        const raw = await readJson<{ version?: number }>(acquisitionFile(this.root, id)).catch(() => undefined)
-        if (raw?.version !== 1) return
-        const acquisition = await this.read(id)
-        if (acquisition) await write(this.root, id, acquisition)
-      })
-    }
   }
 
   // The one place a record is put together: the tries decide the state; what carries over from the

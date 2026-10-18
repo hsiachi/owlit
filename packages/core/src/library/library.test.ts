@@ -222,15 +222,11 @@ describe("keeping the library clean", () => {
     expect(record.checked).toBe(1)
   })
 
-  it("looks again at the next start for a paper whose look reached nothing, and writes an old acquisition.json in tries once", async () => {
+  it("looks again at the next start for a paper whose look reached nothing", async () => {
     const { root, core } = await setup({})
     putPaper(root, { id: "arxiv-1706.03762", title: "Attention", ids: { arxiv: "1706.03762" } })
     const offline = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
     writeFileSync(offline, JSON.stringify({ version: 2, state: "finding", tried: [{ by: "owlit", ended: "offline", at: Date.now() - 60_000 }], dropHere: "" }))
-    putPaper(root, { id: "doi-10.1145-1", title: "Paywalled", ids: { doi: "10.1145/1" } })
-    // Looked at a minute ago and turned away by the user's library: not due, but read into tries
-    const old = path.join(root, "library/papers/doi-10.1145-1/acquisition.json")
-    writeFileSync(old, JSON.stringify({ version: 1, result: "no_pdf", tried: [], at: Date.now() - 60_000, dropHere: "", yourBrowser: { outcome: "refused", at: Date.now() - 60_000 } }))
     await core.dispose()
     // The first open looked at an empty library today; these papers came after it
     const workspaces = path.join(path.dirname(root), "userData/workspaces")
@@ -240,7 +236,6 @@ describe("keeping the library clean", () => {
     cores.push(again)
     await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
     await vi.waitFor(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
-    await vi.waitFor(() => expect(JSON.parse(readFileSync(old, "utf8"))).toMatchObject({ version: 2, state: "no-pdf", tried: [{ by: "you", ended: "not-offered" }] }))
   })
 
   it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {

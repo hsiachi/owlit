@@ -44,7 +44,6 @@ import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, rec
 import { downloadPdf, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, registeredUrl, type Route, routesFor, unpaywallRoutes } from "./pdf.ts"
 import { Acquisitions, forExtension, lookDue, standing, type PdfTry } from "./acquisition.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
-import { importPittaPaper, LEGACY_TEXT_MARK, pittaPapers, type PittaPaper } from "./pitta.ts"
 import { Imports } from "./bulk/imports.ts"
 import { hasText, readText, writeText } from "./text/files.ts"
 import { extractText, pageSizes, readPdf, UnreadablePdf } from "./text/extract.ts"
@@ -191,8 +190,6 @@ export class Library {
   private readonly acquisitions: Acquisitions
   // Libraries brought in at once (Zotero, BibTeX, a folder of PDFs)
   readonly imports: Imports
-  // What each import.pitta run did, by task id
-  private pittaSummaries = new Map<string, { added: number; skipped: number; failed: string[] }>()
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
   private pdfHashes: Map<string, string> | undefined
   constructor(root: string, dataDir: string, services: LibraryServices) {
@@ -616,21 +613,12 @@ export class Library {
     return paper
   }
 
-  // How well the paper's text was read: full (MinerU, now or from pitta) or basic (pdfium only).
+  // How well the paper's text was read: full (MinerU) or basic (pdfium only).
   // Read from which files exist, not from text.json, which can be large.
   private async textQuality(id: string): Promise<Paper["text"]> {
     const dir = paperDir(this.root, id)
     if (await stat(path.join(dir, "text.pdfium.json")).then(() => true, () => false)) return "full"
-    const head = await open(path.join(dir, "text.md"), "r")
-      .then(async (handle) => {
-        const buffer = Buffer.alloc(LEGACY_TEXT_MARK.length)
-        await handle.read(buffer, 0, buffer.length, 0)
-        await handle.close()
-        return buffer.toString("utf8")
-      })
-      .catch(() => undefined)
-    if (head === undefined) return undefined
-    return head === LEGACY_TEXT_MARK ? "full" : "basic"
+    return (await exists(path.join(dir, "text.md"))) ? "basic" : undefined
   }
 
   private digestTask(agent: NonNullable<LibraryServices["agent"]>) {
@@ -712,15 +700,15 @@ export class Library {
   }
 
   // A digest is wanted (the paper was opened, starred, asked for by the user or an agent): queued
-  // when the paper has, or will have, text to read and has no note yet. A note already there, pitta's
-  // included, is written again only when the user asks (rewrite), never on owlit's own account.
+  // when the paper has, or will have, text to read and has no note yet. A note already there, one written
+  // another way included, is written again only when the user asks (rewrite), never on owlit's own account.
   async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
     if (await this.digestHeldBack(id, options.rewrite)) return
     const dir = paperDir(this.root, id)
     // Asked for on disk, beside the note: the task may run after a restart, and must still know
     if (options.rewrite && (await exists(path.join(dir, "digest.md")))) {
       await this.serial.run(async () => {
-        // A note with no record (pitta's) gets one that says no more than the file does
+        // A note with no record (written another way) gets one that says no more than the file does
         const record = (await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)) ?? {
           version: 1,
           by: "unknown",
@@ -778,17 +766,6 @@ export class Library {
   async digest(id: string): Promise<string | null> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
     return readFile(path.join(paperDir(this.root, id), "digest.md"), "utf8").catch(() => null)
-  }
-
-  // Brings a pitta library (~/.pitta) into the workspace once, as a task with progress; papers the
-  // library already has are left as they are
-  async importPitta(root: string): Promise<{ added: number; skipped: number; failed: string[] }> {
-    if (!this.scheduler?.knows("import.pitta")) throw new RpcFailure(RpcErrorCode.Unavailable, t`owlit can't import here.`)
-    const subject = path.resolve(root)
-    const task = await this.scheduler.run("import.pitta", subject, "asked")
-    const summary = this.pittaSummaries.get(task.id)
-    if (task.state !== "done" || !summary) throw new RpcFailure(RpcErrorCode.InvalidParams, task.error ?? t`The pitta library couldn't be read.`)
-    return summary
   }
 
   // Part of a paper as text for an agent: its full text (all of it, some pages, or one section), its
@@ -1125,7 +1102,6 @@ export class Library {
   // they predate the current round of checks (METADATA_CHECKS)
   private async catchUp() {
     const ids = await this.ids()
-    await this.acquisitions.migrateAll(ids)
     for (const id of ids) {
       if ((await hasPdfFile(this.root, id)) && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
       // Only details the services gave: a record written some other way (by hand, by another program)
@@ -1302,49 +1278,6 @@ export class Library {
           }
         },
       }),
-      defineTask("import.pitta", {
-        lane: "cpu",
-        retries: 0,
-        run: async (ctx) => {
-          let papers: PittaPaper[]
-          try {
-            papers = await pittaPapers(ctx.task.subject)
-          } catch (error) {
-            throw new TaskFailure(messageOf(error))
-          }
-          const summary = { added: 0, skipped: 0, failed: [] as string[] }
-          const added: string[] = []
-          for (const [i, paper] of papers.entries()) {
-            ctx.signal.throwIfAborted()
-            ctx.progress(i, papers.length, paper.id)
-            try {
-              const placed = await this.serial.run(async () => {
-                if (await readRecord(this.root, paper.id)) return false
-                const brought = await importPittaPaper(this.root, paper)
-                const record = (await readRecord(this.root, paper.id))!
-                if (await this.index.find(record.ids).then((other) => other && other !== paper.id)) {
-                  // Known under another id: keep the one the library has
-                  await rm(paperDir(this.root, paper.id), { recursive: true, force: true })
-                  return false
-                }
-                await writeState(this.root, paper.id, freshState("user", record.fetchedAt ?? Date.now()))
-                this.index.set(paper.id, record.ids, record.title)
-                if (brought.pdf) this.queue("paper.text", paper.id, "background")
-                return true
-              })
-              if (placed) {
-                summary.added++
-                added.push(paper.id)
-              } else summary.skipped++
-            } catch (error) {
-              summary.failed.push(`${paper.id}: ${messageOf(error)}`)
-            }
-          }
-          ctx.progress(papers.length, papers.length)
-          this.pittaSummaries.set(ctx.task.id, summary)
-          if (added.length) await this.announce(added)
-        },
-      }),
       // The PDF's text layer as text.json (lines and where they sit) and text.md. MinerU's text, once
       // there, is better and is left alone. A paper with no PDF has nothing to read.
       defineTask("paper.text", {
@@ -1371,17 +1304,15 @@ export class Library {
             if (error instanceof UnreadablePdf) throw new TaskFailure(error.message)
             throw error
           }
-          // A text.md brought from pitta is MinerU's: better than pdfium's, so only the coordinates are added
-          const legacy = (await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => "")).startsWith(LEGACY_TEXT_MARK)
           // Moved to a DOI or trashed while it was read: nothing is written, or queued, for the old id
           ctx.signal.throwIfAborted()
-          await writeText(this.root, id, text, { markdown: !legacy })
+          await writeText(this.root, id, text)
           this.queue("index.paper", id, "background")
           // An imported paper gets no digest of its own accord, and MinerU only if the import allowed it
           const imported = this.imports.imported(id)
           if (!imported && (await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
-          // A scan has no text at all until MinerU reads it. pitta's text.md is MinerU's already.
-          if (!legacy && imported?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
+          // A scan has no text at all until MinerU reads it
+          if (imported?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
       }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact
