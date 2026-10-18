@@ -436,8 +436,13 @@ export class Docs {
     })
   }
 
+  // A document opens in its app; anything else (a folder, which may be an .app, a .command, a .terminal) is
+  // shown in Finder instead, since agents can write files here and one click must not run one
   async open(rel: string) {
     await this.entry(rel)
+    // Judged by what a link leads to: notes.pdf -> Tool.app is an app
+    const target = await realpath(this.abs(rel))
+    if ((await stat(target)).isDirectory() || !OPENS.test(target)) return this.reveal(rel)
     if (!this.host.openPath) throw new RpcFailure(RpcErrorCode.InternalError, t`owlit can't open files in other apps here.`)
     await this.host.openPath(this.abs(rel))
     return null
@@ -765,6 +770,10 @@ const conflict = (data: DocConflict) => {
   const name = baseName(data.path)
   return new RpcFailure(RpcErrorCode.Conflict, data.content === null ? t`${name} is no longer on disk.` : t`${name} changed on disk.`, data)
 }
+
+// Files Docs opens in their own app: documents, pictures, sound and video. Not web pages, scripts or
+// anything macOS runs.
+const OPENS = /\.(pdf|txt|rtf|csv|tsv|json|ya?ml|toml|bib|ris|tex|docx?|xlsx?|pptx?|odt|ods|odp|pages|numbers|key|epub|png|jpe?g|gif|webp|heic|tiff?|bmp|mp3|m4a|wav|aiff?|mp4|m4v|mov)$/i
 
 // Files whose text is kept, so a change an agent makes to them on its own can be undone: Markdown, and
 // other small text files a researcher keeps (references, LaTeX, data)
