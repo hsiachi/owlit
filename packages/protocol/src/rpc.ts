@@ -607,6 +607,9 @@ export interface OwlitBridge {
   locale: Locale
   // A command from the app's own menu (Settings…, Help › Keyboard Shortcuts, Help › Ask Owlit How To…)
   onMenu(listener: (command: MenuCommand) => void): () => void
+  // Asked before the app opens another folder itself (File › Open, Open Recent): flush sends what the window
+  // still holds for the open workspace, which the open would drop
+  onBeforeSwitch(flush: () => Promise<unknown>): () => void
   // The system's folder picker; the chosen folder, or null when cancelled
   chooseFolder(options: { title: string; message?: string; buttonLabel?: string; defaultPath?: string }): Promise<string | null>
   // The system's file picker, showing only files with these extensions (without the dot); null when cancelled

@@ -245,8 +245,32 @@ function showWorkspace(win: BrowserWindow, info: WorkspaceInfo) {
   win.setRepresentedFilename(info.path)
 }
 
+// The open drops what the window still has queued for the workspace open now (a note's last words), so each
+// window is asked to send it first. Given 2 s, so a window that doesn't answer can't keep the folder shut.
+let switchId = 0
+function flushWindows() {
+  return Promise.all(
+    BrowserWindow.getAllWindows().map(
+      (win) =>
+        new Promise<void>((resolve) => {
+          const id = ++switchId
+          const finish = () => {
+            clearTimeout(timer)
+            ipcMain.off("before-switch-done", done)
+            resolve()
+          }
+          const done = (_event: Electron.IpcMainEvent, answered: number) => answered === id && finish()
+          const timer = setTimeout(finish, 2000)
+          ipcMain.on("before-switch-done", done)
+          win.webContents.send("before-switch", id)
+        }),
+    ),
+  )
+}
+
 async function openWorkspace(core: Core, folder: string) {
   try {
+    if (current) await flushWindows()
     await call(core, "workspace.open", { path: folder })
   } catch (error) {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

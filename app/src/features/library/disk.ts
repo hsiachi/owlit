@@ -3,7 +3,8 @@ import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
-import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { followCore } from "@/lib/follow-core"
+import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { useLibraryStore } from "./store"
 
@@ -23,7 +24,7 @@ const PATCHABLE = ["title", "authors", "year", "venue", "abstract", "kind", "ids
 
 // Removed in this window and not yet put back: a paper with one of these ids reappearing is an Undo
 const removedHere = new Set<string>()
-const resting = new Map<string, ReturnType<typeof setTimeout>>()
+const resting = new Map<string, { timer: ReturnType<typeof setTimeout>; op: () => Promise<unknown> }>()
 
 const queue = createWorkspaceQueue({
   onError: (error) => {
@@ -37,14 +38,21 @@ const enqueue = (op: () => Promise<unknown>, after?: () => void) => queue.enqueu
 
 // Later calls with the same key replace earlier ones until the key has rested for ms
 function afterRest(key: string, ms: number, op: () => Promise<unknown>) {
-  clearTimeout(resting.get(key))
-  resting.set(
-    key,
-    setTimeout(() => {
-      resting.delete(key)
-      enqueue(op)
-    }, ms),
-  )
+  clearTimeout(resting.get(key)?.timer)
+  resting.set(key, { timer: setTimeout(() => sendResting(key), ms), op })
+}
+
+function sendResting(key: string) {
+  const entry = resting.get(key)
+  if (!entry) return
+  clearTimeout(entry.timer)
+  resting.delete(key)
+  enqueue(entry.op)
+}
+
+// Sends every note and position still resting, without waiting for its rest
+const sendAllResting = () => {
+  for (const key of [...resting.keys()]) sendResting(key)
 }
 
 // Up while the store takes what core says, so the watcher below doesn't send it back
@@ -52,20 +60,26 @@ const coreFlag = createDiskFlag()
 export const isLibraryFromCore = coreFlag.isOn
 const takeFromCore = coreFlag.apply
 
-async function load() {
-  const sameWorkspace = queue.tracker()
-  const { papers, highlights, notes, aliases } = await rpc.library.list()
-  if (!sameWorkspace()) return
-  takeFromCore(() =>
-    useLibraryStore.setState({
-      papers: byId(papers),
-      aliases,
-      highlights: byId(highlights),
-      notes: Object.fromEntries(notes.map((n) => [n.paperId, n])),
-    }),
-  )
-  trashChanged()
-}
+// library.changed and noteChanged heard while the list is read are laid over it once it arrives
+const follow = followCore({
+  read: async () => {
+    const sameWorkspace = queue.tracker()
+    const listed = await rpc.library.list()
+    return sameWorkspace() ? listed : undefined
+  },
+  take: ({ papers, highlights, notes, aliases }) => {
+    takeFromCore(() =>
+      useLibraryStore.setState({
+        papers: byId(papers),
+        aliases,
+        highlights: byId(highlights),
+        notes: Object.fromEntries(notes.map((n) => [n.paperId, n])),
+      }),
+    )
+    trashChanged()
+  },
+})
+const load = follow.load
 
 async function reload() {
   try {
@@ -216,38 +230,50 @@ if (onDisk) {
     if (state.notes !== prev.notes) notesChanged(state.notes, prev.notes, state.papers)
   })
 
-  onNotify("library.changed", ({ papers, removed, renamed }) => {
-    // A paper moved to another id: its highlights and notes move with it, so read the library again
-    if (renamed && Object.keys(renamed).length) {
-      enqueue(load)
-      return
-    }
-    takeFromCore(() =>
-      useLibraryStore.setState((s) => {
-        const next = { ...s.papers }
-        for (const paper of papers) next[paper.id] = paper
-        for (const id of removed) delete next[id]
-        return { papers: next }
-      }),
-    )
-    if (removed.length) trashChanged()
-  })
+  onNotify("library.changed", ({ papers, removed, renamed }) =>
+    follow.hear(() => {
+      // A paper moved to another id: its highlights and notes move with it, so read the library again
+      if (renamed && Object.keys(renamed).length) {
+        enqueue(load)
+        return
+      }
+      takeFromCore(() =>
+        useLibraryStore.setState((s) => {
+          const next = { ...s.papers }
+          for (const paper of papers) next[paper.id] = paper
+          for (const id of removed) delete next[id]
+          return { papers: next }
+        }),
+      )
+      if (removed.length) trashChanged()
+    }),
+  )
 
   // A note an agent edited (or another program changed): taken as it is, and the open note editor takes
   // it in as one undoable change
-  onNotify("library.noteChanged", ({ paperId, note }) => {
-    takeFromCore(() =>
-      useLibraryStore.setState((s) => {
-        if (note) return { notes: { ...s.notes, [paperId]: note } }
-        const { [paperId]: _gone, ...rest } = s.notes
-        return { notes: rest }
-      }),
-    )
+  onNotify("library.noteChanged", ({ paperId, note }) =>
+    follow.hear(() =>
+      takeFromCore(() =>
+        useLibraryStore.setState((s) => {
+          if (note) return { notes: { ...s.notes, [paperId]: note } }
+          const { [paperId]: _gone, ...rest } = s.notes
+          return { notes: rest }
+        }),
+      ),
+    ),
+  )
+
+  // Closing or reloading the window: what rests goes now, since its timer won't fire
+  window.addEventListener("pagehide", sendAllResting)
+  // Opening another workspace drops the queue, so what rests or is queued goes to core first
+  beforeWorkspaceSwitch(() => {
+    sendAllResting()
+    return queue.settled()
   })
 
   onWorkspaceOpened(() => {
     queue.reset()
-    for (const timer of resting.values()) clearTimeout(timer)
+    for (const { timer } of resting.values()) clearTimeout(timer)
     resting.clear()
     removedHere.clear()
     takeFromCore(() => useLibraryStore.setState({ papers: {}, highlights: {}, notes: {} }))

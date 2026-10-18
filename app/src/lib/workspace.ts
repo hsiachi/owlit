@@ -32,6 +32,30 @@ export function onWorkspaceOpened(listener: Listener) {
   }
 }
 
+// Run before the window asks core to open another folder: each sends what it still holds back and
+// resolves once it has reached core. An open drops every store's queue, so anything left in one would
+// be lost.
+const flushers = new Set<() => Promise<unknown>>()
+
+export function beforeWorkspaceSwitch(flush: () => Promise<unknown>) {
+  flushers.add(flush)
+  return () => {
+    flushers.delete(flush)
+  }
+}
+
+const flushAll = () => Promise.all([...flushers].map((flush) => flush().catch(() => undefined)))
+
+// Runs open (workspace.open, create or createExample) once the open workspace's pending writes have
+// reached core
+export async function switchWorkspace<T>(open: () => Promise<T>): Promise<T> {
+  await flushAll()
+  return open()
+}
+
+// A switch from the app's File menu goes from main to core, which asks here first
+bridge?.onBeforeSwitch(flushAll)
+
 function opened(workspace: WorkspaceInfo) {
   if (useWorkspace.getState().current?.path === workspace.path) return
   useWorkspace.setState({ current: workspace })

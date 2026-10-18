@@ -26,7 +26,7 @@ import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { useControlsRoom } from "@/lib/window-frame"
-import { pickParent, pickWorkspaceFolder, tilde } from "@/lib/workspace"
+import { pickParent, pickWorkspaceFolder, switchWorkspace, tilde } from "@/lib/workspace"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 
 // The first launch: a welcome, four steps that show what owlit does (each a small demo in a small owlit
@@ -351,19 +351,19 @@ function Start() {
   const example = () =>
     run(async () => {
       const cancelTour = tourWhenExampleOpens()
-      await rpc.workspace.createExample().catch((error: unknown) => {
+      await switchWorkspace(() => rpc.workspace.createExample()).catch((error: unknown) => {
         cancelTour()
         throw error
       })
     })
-  const fresh = () => info && run(() => rpc.workspace.create({ parent, name: info.suggestion.name }))
+  const fresh = () => info && run(() => switchWorkspace(() => rpc.workspace.create({ parent, name: info.suggestion.name })))
   const chooseParent = async () => {
     const folder = await pickParent(parent)
     if (folder) setParent(folder)
   }
   const open = async () => {
     const folder = await pickWorkspaceFolder()
-    if (folder) run(() => rpc.workspace.open({ path: folder }))
+    if (folder) run(() => switchWorkspace(() => rpc.workspace.open({ path: folder })))
   }
 
   return (

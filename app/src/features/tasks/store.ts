@@ -4,6 +4,7 @@
 
 import { isTaskFinished, TASK_PRIORITIES, type Task } from "@owlit/protocol"
 import { create } from "zustand"
+import { followCore } from "@/lib/follow-core"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 
@@ -52,28 +53,18 @@ export const resumeTask = (id: string) => rpc.tasks.resume({ id })
 
 export function startTasks() {
   if (!isDesktop) return
-  // Changes heard while the list is loading are newer than the list
-  let heard: Map<string, Task> | null = null
+  // Changes heard while the list is loading are newer than the list, so they are laid over it
+  const follow = followCore({
+    read: () => rpc.tasks.list(),
+    take: (listed) => useTasksStore.setState({ byId: Object.fromEntries(listed.map((task) => [task.id, task])) }),
+  })
 
   const load = async () => {
-    heard = new Map()
     useTasksStore.setState({ byId: {} })
-    try {
-      const listed = await rpc.tasks.list()
-      const byId: Record<string, Task> = Object.fromEntries(listed.map((task) => [task.id, task]))
-      for (const [id, task] of heard) byId[id] = task
-      useTasksStore.setState({ byId })
-    } catch (error) {
-      console.warn("[owlit] couldn't list tasks", error)
-    } finally {
-      heard = null
-    }
+    await follow.load().catch((error: unknown) => console.warn("[owlit] couldn't list tasks", error))
   }
 
-  onNotify("tasks.changed", ({ task }) => {
-    heard?.set(task.id, task)
-    useTasksStore.setState((state) => ({ byId: { ...state.byId, [task.id]: task } }))
-  })
+  onNotify("tasks.changed", ({ task }) => follow.hear(() => useTasksStore.setState((state) => ({ byId: { ...state.byId, [task.id]: task } }))))
   onWorkspaceOpened(() => void load())
   // The workspace may have opened before this started
   if (useWorkspace.getState().current) void load()
