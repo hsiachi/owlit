@@ -2,22 +2,29 @@
 
 Each version's section goes, as it is, into the notes sent with its dmg (scripts/release-notes.mjs).
 
-## Unreleased
+## 0.2.1
 
-- Chats and threads no longer show an empty ring before their titles when nothing is happening.
-- A starred paper's star is filled in black (white in dark mode) instead of yellow, so it never reads as waiting or a comment.
+PDFs Owlit can't get alone now come through the owlit extension for your browser, using your library's access. Owlit no longer opens tabs in your browser, watches Downloads or runs a hidden browser.
+
+The owlit extension
+- Add to owlit from any paper's page, and Save PDF to owlit for a paper that lacks one, with your browser's access to journals; a PDF you open for such a paper comes to Owlit by itself. The first time, Owlit asks you to allow it. Settings › Papers › Browser extension.
+- With the extension connected, PDFs a publisher only gives your browser come in by themselves, a few at a time; no tab opens. A paper Owlit can't get alone says so and offers the extension.
+- When your library or a publisher wants you to sign in again, or a site wants a check, one line on Home and atop the Library says so, with one button: one sign-in covers every paper waiting on it, and Owlit goes on by itself afterwards (it also tries again every 15 minutes). It turns amber, with a notification, only for a paper you asked for, and goes away once those papers have their PDF another way.
+- That sign-in or check opens in the browser and profile where the extension is, not in your default browser; Allow… opens the extension's own page to let it read that site.
+- Since you left says how many PDFs came through your browser while you were away.
+- The extension stays with the Owlit it was connected to: another Owlit on this Mac (a preview) is named in its popup and gets nothing from it.
+- It also comes as a Firefox add-on.
+
+Papers without a PDF
 - A paper without a PDF is called the same thing in its row, the No PDF filter and its page (Finding, Not found, No access, No PDF there), and its page says what was tried, when, and when Owlit looks again. The Needs you filter is gone; a paper a publisher's check stopped is no longer amber.
 - A paper Owlit couldn't look for because the network was down is looked for again at the next start, instead of waiting for Find PDF.
+- A paper whose PDF was deleted outside Owlit says the PDF is gone, offers Look again, and is looked for at the next daily look.
 - A PDF you drop while Owlit is downloading another copy is never lost.
-- An owlit extension for your browser: Add to owlit from any paper's page, Save PDF to owlit for a paper that lacks one, with your browser's access to journals; and a PDF you open for such a paper comes to owlit by itself. The first time, Owlit asks you to allow it. Settings › Papers › Browser extension.
-- With the extension connected, PDFs a publisher only gives your browser come in by themselves, a few at a time, using your library's access; no tab opens.
-- When your library or a publisher wants you to sign in again, or a site wants a check, one line on Home and atop the Library says so, with one button: one sign-in covers every paper waiting on it, and Owlit goes on by itself afterwards (it also tries again every 15 minutes). It turns amber, with a notification, only for a paper you asked for, and goes away once those papers have their PDF another way.
-- Since you left says how many PDFs came through your browser while you were away.
-- owlit no longer opens tabs in your browser, watches Downloads or runs a hidden browser: your browser's extension does that work, and a paper owlit can't get alone says so and offers the extension.
-- The owlit extension also comes as a Firefox add-on.
-- A paper whose PDF was deleted outside owlit says the PDF is gone, offers Look again, and is looked for at the next daily look.
-- A sign-in or a check a waiting line asks for opens in the browser where the owlit extension is, in the same profile, not in your default browser; Allow… opens the extension's own page to let it read that site.
-- The owlit extension stays with the owlit it was connected to: another owlit on this Mac (a preview) is named in its popup and gets nothing from it.
+- What was tried for each paper's PDF is written in a new shape the first time 0.2.1 opens a workspace; 0.2.0 can't read it after that.
+
+Also
+- Chats and threads no longer show an empty ring before their titles when nothing is happening.
+- A starred paper's star is filled in black (white in dark mode) instead of yellow, so it never reads as waiting or a comment.
 
 ## 0.2.0
 
