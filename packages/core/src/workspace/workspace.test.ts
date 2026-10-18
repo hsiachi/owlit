@@ -161,8 +161,8 @@ describe("workspace.open", () => {
         code: RpcErrorCode.Forbidden,
         message: expect.stringContaining("System Settings"),
       })
-      const { recent } = await call("workspace.welcome")
-      expect(recent.find((r: { path: string }) => r.path === ws)).toMatchObject({ missing: false })
+      const { recent } = (await call("workspace.welcome")) as { recent: { path: string; missing: boolean }[] }
+      expect(recent.find((r) => r.path === ws)).toMatchObject({ missing: false })
     } finally {
       chmodSync(parent, 0o755)
     }

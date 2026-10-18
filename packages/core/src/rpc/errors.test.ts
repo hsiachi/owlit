@@ -9,10 +9,10 @@ afterEach(() => {
 
 const failing = (error: unknown) => {
   const router = new Router()
-  router.register("docs.write", z.object({}), async () => {
+  router.register("docs.read", z.object({ path: z.string() }), async () => {
     throw error
   })
-  return router.handle({ jsonrpc: "2.0", id: 1, method: "docs.write", params: {} })
+  return router.handle({ jsonrpc: "2.0", id: 1, method: "docs.read", params: { path: "writing/draft.md" } })
 }
 
 const errnoError = (code: string, file: string) => Object.assign(new Error(`${code}: operation failed, rename '${file}'`), { code, path: file })
@@ -25,7 +25,7 @@ describe("errors a handler didn't expect", () => {
     const full = await failing(errnoError("ENOSPC", "/ws/writing/draft.md"))
     expect(full).toMatchObject({ error: { message: "The disk is full, so draft.md couldn't be saved." } })
     expect(logged).toHaveBeenCalledTimes(2)
-    expect(String(logged.mock.calls[0][0])).toContain("docs.write")
+    expect(String(logged.mock.calls[0][0])).toContain("docs.read")
   })
 
   it("keep the general sentence for anything else, with the cause in detail and the log", async () => {
