@@ -119,6 +119,8 @@ async function lookUp(page: { url: string; paper?: PagePaper }, token: string) {
   if (page.paper?.doi) query.set("doi", page.paper.doi)
   if (page.paper?.arxiv) query.set("arxiv", page.paper.arxiv)
   query.set("url", page.url)
+  // What finds a page that names no id again
+  if (page.paper?.title) query.set("title", page.paper.title.slice(0, 1000))
   return (await ask<{ paper: ExtensionPaper | null }>(`/papers?${query}`, { token })).paper
 }
 

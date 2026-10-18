@@ -258,7 +258,7 @@ export class ExtensionServer {
         method: "GET",
         path: is("papers"),
         handle: async ({ query }) => {
-          const page = { doi: query.get("doi") ?? undefined, arxiv: query.get("arxiv") ?? undefined, url: query.get("url") ?? undefined }
+          const page = { doi: query.get("doi") ?? undefined, arxiv: query.get("arxiv") ?? undefined, url: query.get("url") ?? undefined, title: query.get("title") ?? undefined }
           const paper = await findPaper(this.library(), page)
           return { body: { paper: paper ? shown(paper) : null } }
         },

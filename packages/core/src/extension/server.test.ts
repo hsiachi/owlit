@@ -203,6 +203,22 @@ describe("the extension's port", () => {
     expect((await request("/papers", { token, body: { url: "https://example.org/nothing" } })).body).toMatchObject({ reason: "bad-request" })
   })
 
+  it("finds a paper from a page that names no id by its address, or by its title", async () => {
+    const { request, pair, putPaper } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
+    const token = await pair()
+    putPaper("doi-10.1000-margins.7", { title: "Notes Toward a Theory of Margins", ids: { doi: "10.1000/margins.7" } })
+    const url = "https://journals.example.org/article/view/412"
+    const added = await request("/papers", { token, body: { url, title: "A Paper Its Journal Gives No Identifier" } })
+    expect(added.status).toBe(201)
+    const found = await request(`/papers?${new URLSearchParams({ url })}`, { token })
+    expect(found.body.paper).toMatchObject({ id: added.body.paper.id })
+    const byTitle = await request(`/papers?${new URLSearchParams({ url: "https://mirror.example.org/margins", title: "Notes toward a theory of margins" })}`, { token })
+    expect(byTitle.body.paper).toMatchObject({ id: "doi-10.1000-margins.7" })
+    // A page naming another DOI isn't taken for a paper with the same title
+    const other = await request(`/papers?${new URLSearchParams({ doi: "10.1000/other.1", title: "Notes Toward a Theory of Margins" })}`, { token })
+    expect(other.body.paper).toBeNull()
+  })
+
   it("takes a paper's PDF from the extension as the extension's try", async () => {
     const { request, pair, putPaper, root } = await setup()
     const token = await pair()

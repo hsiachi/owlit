@@ -24,14 +24,28 @@ export function idsOfPage(page: { doi?: string; arxiv?: string; url?: string }):
   return ids
 }
 
-export async function findPaper(library: Library, page: { doi?: string; arxiv?: string; url?: string }): Promise<Paper | undefined> {
+// The id of a paper added from a page that resolved to nothing: its address, or else its title, hashed
+const localIdOf = (page: { url?: string; title?: string }) => {
+  const key = page.url ?? page.title?.trim()
+  return key ? `local-${createHash("sha256").update(key).digest("hex").slice(0, 12)}` : undefined
+}
+
+// The Library's paper for a page: by the ids it names; for a page that names none, the one added from
+// this address, or one with its title
+export async function findPaper(library: Library, page: { doi?: string; arxiv?: string; url?: string; title?: string }): Promise<Paper | undefined> {
   const ids = idsOfPage(page)
   const inputs = [ids.doi && `doi:${ids.doi}`, ids.arxiv && `arXiv:${ids.arxiv}`].filter((v): v is string => !!v)
   for (const id of await library.known(inputs)) {
     const paper = id ? await library.get(id) : undefined
     if (paper) return paper
   }
-  return undefined
+  if (inputs.length) return undefined
+  const local = localIdOf(page)
+  const added = local ? await library.get(local) : undefined
+  if (added) return added
+  const title = page.title?.trim()
+  const twin = title ? await library.index.twin(title, {}) : undefined
+  return twin ? library.get(twin) : undefined
 }
 
 export const addBody = z.object({
@@ -65,7 +79,7 @@ export async function addPaper(library: Library, body: AddPaperBody): Promise<{ 
   const title = body.title?.trim()
   if (!title) throw new HttpFailure(400, "bad-request", t`This page doesn't say which paper it is.`)
   const own = { ...ids, ...(body.url && !ids.doi && !ids.arxiv ? { url: body.url } : {}) }
-  const id = paperIdOf(own) ?? `local-${createHash("sha256").update(body.url ?? title).digest("hex").slice(0, 12)}`
+  const id = paperIdOf(own) ?? localIdOf({ url: body.url, title })!
   return library.addNew(clean({ id, title, authors: body.authors ?? [], ids: own, year: body.year, venue: body.venue?.trim() || undefined }), "user")
 }
 
