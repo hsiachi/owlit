@@ -1,6 +1,6 @@
 import type { TaskLane, Thread, ThreadColumn } from "@owlit/protocol"
 import { DIGEST_FORMAT, digestPrompt } from "../library/digest/prompt.ts"
-import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt, relatePrompt, rereadPrompt, type GatherSize } from "../threads/prompts.ts"
+import { checkPrompt, fillPrompt, gatherPrompt, morePrompt, readPrompt, rereadPrompt, type GatherSize } from "../threads/prompts.ts"
 
 // Every kind of work Owlit does in a background session has one shape: what it is told (instructions,
 // with a format version so a change of wording is visible in what it wrote), the owlit tools it may use
@@ -31,27 +31,34 @@ export const digestSkill = defineSkill<DigestInput>({ id: "paper.digest", format
 
 // Thread work: everything it does goes through thread_write, so the thread shows it with Owlit's dots
 const SEARCH = /^(library_(search|related|journal)|thread_write)$/
-export const gatherSkill = defineSkill<{ thread: Thread; size: GatherSize }>({
+export const gatherSkill = defineSkill<{ thread: Thread; size: GatherSize; withText: string[] }>({
   id: "threads.gather",
-  format: 1,
+  format: 2,
   lane: "agent",
   tools: SEARCH,
   writes: ["thread"],
-  instructions: ({ thread, size }) => gatherPrompt(thread, size),
+  instructions: ({ thread, size, withText }) => gatherPrompt(thread, size, withText),
 })
-export const moreSkill = defineSkill<{ thread: Thread }>({ id: "threads.more", format: 1, lane: "agent", tools: SEARCH, writes: ["thread"], instructions: ({ thread }) => morePrompt(thread) })
-export const fillSkill = defineSkill<{ thread: Thread; column: ThreadColumn }>({
+export const moreSkill = defineSkill<{ thread: Thread; withText: string[] }>({
+  id: "threads.more",
+  format: 2,
+  lane: "agent",
+  tools: SEARCH,
+  writes: ["thread"],
+  instructions: ({ thread, withText }) => morePrompt(thread, withText),
+})
+export const fillSkill = defineSkill<{ thread: Thread; column: ThreadColumn; withText: string[] }>({
   id: "threads.fill",
-  format: 1,
+  format: 2,
   lane: "agent",
   tools: /^thread_write$/,
   writes: ["thread"],
-  instructions: ({ thread, column }) => fillPrompt(thread, column),
+  instructions: ({ thread, column, withText }) => fillPrompt(thread, column, withText),
 })
 // Reading in full means the paper is used: it joins the library
 export const readSkill = defineSkill<{ thread: Thread }>({
   id: "threads.read",
-  format: 1,
+  format: 2,
   lane: "agent",
   tools: /^(library_add|thread_write)$/,
   writes: ["thread", "paper"],
@@ -74,14 +81,4 @@ export const rereadSkill = defineSkill<{ thread: Thread; paperId: string }>({
   tools: /^thread_write$/,
   writes: ["thread"],
   instructions: ({ thread, paperId }) => rereadPrompt(thread, paperId),
-})
-
-// A paper that landed in the library from outside: gathered into the threads whose question it answers
-export const relateSkill = defineSkill<{ threads: readonly Thread[]; paperId: string }>({
-  id: "paper.relate",
-  format: 1,
-  lane: "agent",
-  tools: /^thread_write$/,
-  writes: ["thread"],
-  instructions: ({ threads, paperId }) => relatePrompt(threads, paperId),
 })

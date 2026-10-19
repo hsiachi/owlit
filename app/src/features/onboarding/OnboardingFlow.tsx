@@ -200,7 +200,7 @@ function lesson(step: StepId): Lesson | null {
         title: t`Read closely.`,
         body: (
           <Trans>
-            Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <b>Owlit writes a digest</b> of each paper you open.
+            Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <b>digest</b> of any paper.
           </Trans>
         ),
         place: "library",

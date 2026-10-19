@@ -1,4 +1,4 @@
-import type { ActivityEvent, InitiativeSettings, Task } from "@owlit/protocol"
+import type { ActivityEvent, Task } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -10,7 +10,7 @@ import type { Workspace } from "../workspace/workspace.ts"
 import { exportArchive, readArchive, type ArchiveEvent, type Envelope } from "./archive.ts"
 import { Initiative } from "./initiative.ts"
 import { differences, ManualClock, replay } from "./replay.ts"
-import { defineRule, reviewOnOpen, RULES, type World } from "./rules.ts"
+import { defineRule, paperRead, RULES, type World } from "./rules.ts"
 import { ME, MY_OWLIT } from "../test-util.ts"
 
 const T0 = Date.parse("2026-10-16T09:00:00Z")
@@ -18,7 +18,7 @@ const MIN = 60_000
 
 // A workspace session wired as core wires it (the bus feeds the journal and the rules; the rules' looks,
 // decisions and stars go to the journal), on a manual clock, with a workspace that changes as Owlit's
-// runs finish: a digest gets written, a doc gets looked at
+// runs finish: a digest gets written, a thread's row gets answered again
 async function session() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-replay-test-")))
   const root = path.join(base, "ws")
@@ -26,21 +26,21 @@ async function session() {
   const journalFile = path.join(root, ".owlit", "journal.jsonl")
   const tasksLog = path.join(base, "data", "tasks", "log.jsonl")
   const clock = new ManualClock(T0)
-  const settings: InitiativeSettings = { mode: "off", dailyCap: 20 }
 
   const digests = new Set<string>()
-  const mtimes = new Map<string, number>([["notes.md", T0 - 3_600_000], ["drafts/idea.md", T0 - 7_200_000]])
-  const looked = new Map<string, number>()
   let checked = T0 - 2 * 86_400_000
+  let rereadFrom = "abstract"
   const world: World = {
     digestHeldBack: async (id) => (digests.has(id) ? "has a digest" : id === "p2" ? "nothing to read" : null),
     watched: async () => [{ id: "th1", due: clock.now() - checked >= 86_400_000 }],
-    doc: async (p) => (mtimes.has(p) ? { out: false, ...(looked.has(p) ? { looked: looked.get(p) } : {}) } : null),
-    mtime: async (p) => mtimes.get(p) ?? null,
-    threads: async () => 0,
-    rowsOf: async () => [],
-    leaning: async () => [],
-    lastScan: async () => null,
+    rowsOf: async (id) =>
+      id === "p1"
+        ? [
+            { thread: "th1", row: "r1", fromAbstract: rereadFrom === "abstract" },
+            { thread: "th2", row: "r2", fromAbstract: false },
+          ]
+        : [],
+    leaning: async (id) => (id === "p1" ? ["notes.md#c1"] : []),
   }
 
   const tasks = new Map<string, Task>()
@@ -54,7 +54,6 @@ async function session() {
   const ws = {
     root,
     owlitPath: (...parts: string[]) => path.join(root, ".owlit", ...parts),
-    initiative: async () => settings,
     tasks: {
       enqueue: (kind: string, subject: string, priority: Task["priority"]) => {
         const task = { id: `t${++n}`, kind, subject, priority, lane: "agent", state: "queued", attempts: 0, createdAt: clock.now() } as Task
@@ -71,19 +70,17 @@ async function session() {
   bus.subscribe((event) => initiative.observe(event))
 
   const until = async (at: number) => {
-    do await initiative.idle()
-    while (clock.fireNext(at))
-    clock.at = Math.max(clock.at, at)
     await initiative.idle()
+    clock.at = Math.max(clock.at, at)
   }
   const at = (minutes: number) => T0 + minutes * MIN
   const user = async (minutes: number, event: Omit<ActivityEvent, "at">) => {
     await until(at(minutes))
     bus.publish({ ...event, at: clock.now() } as ActivityEvent)
   }
-  const core = async (minutes: number, kind: "workspace.opened" | "clock.hour" | "paper.starred", paperId?: string) => {
+  const core = async (minutes: number, kind: "workspace.opened" | "clock.hour" | "paper.starred" | "paper.read", paperId?: string) => {
     await until(at(minutes))
-    initiative.observe(kind === "paper.starred" ? { kind, at: clock.now(), paperId: paperId! } : { kind, at: clock.now() })
+    initiative.observe(kind === "paper.starred" || kind === "paper.read" ? { kind, at: clock.now(), paperId: paperId! } : { kind, at: clock.now() })
   }
   // A run of Owlit's starts and finishes, and the workspace shows it
   const run = async (minutes: number, subject: string, done: () => void) => {
@@ -98,42 +95,33 @@ async function session() {
   // Opening: the watched thread is due
   await core(0, "workspace.opened")
   await run(1, "th1", () => (checked = clock.now()))
-  // A paper opened gets its digest; starring it later finds it written; a paper with nothing to read
-  await user(2, { kind: "paper.opened", paperId: "p1" } as ActivityEvent)
+  // A starred paper gets its digest; starring it again finds it written; a paper with nothing to read
+  await core(2, "paper.starred", "p1")
   await run(3, "p1", () => digests.add("p1"))
   await core(4, "paper.starred", "p1")
   await core(5, "paper.starred", "p2")
-  await user(6, { kind: "paper.closed", paperId: "p1" } as ActivityEvent)
-  // The user turns the dial to When I open things
-  await until(at(7))
-  settings.mode = "onOpen"
-  journal.feedback({ kind: "feedback.dialChanged", at: clock.now(), subject: "workspace", detail: { from: "off", to: "onOpen" } })
-  // A doc opened and written in: Owlit waits until the user leaves it, then looks
-  await user(8, { kind: "doc.opened", path: "notes.md" } as ActivityEvent)
-  mtimes.set("notes.md", at(8) + 2000)
-  await user(8 + 1 / 60, { kind: "doc.edited", path: "notes.md" } as ActivityEvent)
-  await user(9, { kind: "doc.closed", path: "notes.md" } as ActivityEvent)
-  await run(10, "notes.md", () => looked.set("notes.md", mtimes.get("notes.md")!))
+  // Read in full: the row answered from its abstract is answered again, the comment citing it looked at
+  await user(6, { kind: "paper.opened", paperId: "p1" } as ActivityEvent)
+  await user(7, { kind: "paper.closed", paperId: "p1" } as ActivityEvent)
+  await core(8, "paper.read", "p1")
+  await run(9, "th1:r1", () => (rereadFrom = "full"))
+  await run(10, "notes.md#c1|p1", () => {})
   journal.feedback({ kind: "feedback.seen", at: clock.now() + 1, subject: "notes.md", detail: { comment: "c1" } })
   await until(at(11))
   journal.feedback({ kind: "feedback.dismiss", at: clock.now(), subject: "notes.md", detail: { comment: "c1" } })
-  // Opened again unchanged; a draft never looked at; something that isn't a Markdown doc
-  await user(12, { kind: "doc.opened", path: "notes.md" } as ActivityEvent)
-  await user(13, { kind: "doc.opened", path: "drafts/idea.md" } as ActivityEvent)
-  await user(14, { kind: "doc.opened", path: "figure.png" } as ActivityEvent)
   await user(20, { kind: "idle", seconds: 60 } as ActivityEvent)
   // The hour's look finds nothing due; a day later the thread is due again
   await core(60, "clock.hour")
   await core(60 * 25, "clock.hour")
   await until(at(60 * 25 + 1))
   await Promise.all([journal.flush(), logging])
-  return { base, root, journalFile, tasksLog, settings }
+  return { base, root, journalFile, tasksLog }
 }
 
 async function exported() {
   const s = await session()
   const to = path.join(s.base, "archive")
-  const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, settings: s.settings, recording: true, version: "test", now: Date.now() })
+  const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, recording: true, version: "test", now: Date.now() })
   return { ...s, to, summary, archive: await readArchive(to) }
 }
 
@@ -147,16 +135,16 @@ describe("archive export and replay", () => {
     const lines = readFileSync(path.join(to, "events.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { archiveSequence: number; recordedAt: string; event: Envelope })
     expect(summary).toMatchObject({ to, events: lines.length, from: T0 })
     expect(manifest).toMatchObject({ schema: "continuo.session-archive", version: 1, status: "completed", application: { name: "owlit" }, durableWatermark: lines.length })
-    expect(manifest.safeConfig.owlit).toMatchObject({ format: 1, recording: true, initiative: { mode: "off", dailyCap: 20 } })
+    expect(manifest.safeConfig.owlit).toMatchObject({ format: 1, recording: true })
     expect(manifest.safeConfig.owlit.workspace).toMatch(/^[0-9a-f]{16}$/)
     expect(JSON.stringify(manifest)).not.toContain(path.basename(path.dirname(to)))
     // continuo's archive records around continuo's event envelopes, and the folders its tools expect
     expect(lines.map((l) => l.archiveSequence)).toEqual(lines.map((_, i) => i + 1))
-    expect(lines[0]).toMatchObject({ archiveSequence: 1, recordedAt: new Date(T0).toISOString(), event: { schemaVersion: 1, id: "e1", sessionId: manifest.sessionId, sequence: 1, source: { kind: "adapter", id: "owlit-core" }, type: "workspace.opened" } })
+    expect(lines[0]).toMatchObject({ archiveSequence: 1, recordedAt: new Date(T0).toISOString(), event: { schemaVersion: 1, id: "e1", sessionId: manifest.sessionId, sequence: 1, source: { kind: "adapter", id: "owlit-core" } } })
     expect(readdirSync(to).sort()).toEqual(["audio", "events.jsonl", "manifest.json", "observations.jsonl"])
 
     const types = new Set(events.map((e) => e.type))
-    for (const t of ["evaluation", "rule.looked", "feedback.dialChanged", "feedback.seen", "feedback.dismiss", "run.queued", "run.running", "run.done", "workspace.opened", "clock.hour", "paper.starred", "doc.closed", "idle"]) expect(types).toContain(t)
+    for (const t of ["evaluation", "rule.looked", "feedback.seen", "feedback.dismiss", "run.queued", "run.running", "run.done", "workspace.opened", "clock.hour", "paper.starred", "paper.read", "paper.closed", "idle"]) expect(types).toContain(t)
     // The opening is put in from the decision that heard it; the quiet hourly look left nothing
     expect(events.filter((e) => e.type === "clock.hour")).toHaveLength(1)
 
@@ -165,8 +153,7 @@ describe("archive export and replay", () => {
     for (const e of events.filter((e) => e.type === "evaluation")) expect(causeOf(e)).toMatchObject({ type: e.payload.cause, at: e.payload.causeAt })
     for (const e of events.filter((e) => e.type === "run.queued")) expect(causeOf(e)).toMatchObject({ type: "evaluation", payload: { taskId: e.payload.taskId } })
     for (const e of events.filter((e) => e.type === "run.done")) expect(causeOf(e)).toMatchObject({ type: "run.running", payload: { taskId: e.payload.taskId } })
-    expect(causeOf(events.find((e) => e.type === "feedback.dismiss")!)).toMatchObject({ type: "run.done", payload: { subject: "notes.md" } })
-    expect(events.find((e) => e.type === "doc.edited")).toMatchObject({ actor: ME, class: "interaction" })
+    expect(events.find((e) => e.type === "paper.closed")).toMatchObject({ actor: ME, class: "interaction" })
     expect(events.find((e) => e.type === "idle")).toMatchObject({ class: "observation" })
     expect(events.find((e) => e.type === "evaluation")).toMatchObject({ actor: MY_OWLIT, class: "internal" })
   })
@@ -176,13 +163,12 @@ describe("archive export and replay", () => {
     const envelopes = readFileSync(path.join(to, "events.jsonl"), "utf8").trim().split("\n").map((l) => (JSON.parse(l) as { event: Envelope }).event)
     const byId = new Map(envelopes.map((e) => [e.id, e]))
     // continuo's validateInput, as of its 67d880c: a project type is a.b outside its reserved roots;
-    // feedback carries only targetId and detail, the dial only from, to and detail
-    const reserved = ["session", "window", "job", "feedback", "participant", "silence", "timer", "config", "evaluation", "task", "action", "agent", "runtime", "transcript", "speech", "artifact", "presentation", "surface", "transport"]
+    // feedback carries only targetId and detail
+    const reserved = ["session", "window", "job", "feedback", "participant", "silence", "timer", "config", "evaluation", "task", "action", "agent", "runtime", "transcript", "speech", "artifact", "presentation", "surface"]
     const inputs = envelopes.filter((e) => e.source.kind === "adapter")
     expect(inputs.length).toBeGreaterThan(0)
     for (const e of inputs) {
-      if (e.type === "feedback.dial.changed") expect(Object.keys(e.payload).every((k) => ["from", "to", "detail"].includes(k))).toBe(true)
-      else if (e.type.startsWith("feedback.")) expect(Object.keys(e.payload).every((k) => ["targetId", "detail"].includes(k))).toBe(true)
+      if (e.type.startsWith("feedback.")) expect(Object.keys(e.payload).every((k) => ["targetId", "detail"].includes(k))).toBe(true)
       else {
         expect(e.type).toMatch(/^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/)
         expect(reserved).not.toContain(e.type.split(".")[0])
@@ -194,7 +180,7 @@ describe("archive export and replay", () => {
     const decided = envelopes.filter((e) => e.type === "evaluation.decided")
     expect(decided.length).toBeGreaterThan(0)
     for (const d of decided) expect(byId.get(started.get(d.taskId)!.causationId!)?.source.kind).toBe("adapter")
-    expect(new Set(decided.map((d) => d.payload.kind))).toEqual(new Set(["work", "no-action", "defer"]))
+    expect(new Set(decided.map((d) => d.payload.kind))).toEqual(new Set(["work", "no-action"]))
     // A run is the job of the task that queued it
     for (const j of envelopes.filter((e) => e.type === "job.queued")) expect(decided.find((d) => (d.payload.workIds as string[]).includes(j.payload.jobId as string))?.taskId).toBe(j.taskId)
   })
@@ -204,14 +190,12 @@ describe("archive export and replay", () => {
     const { recorded, replayed, unanswered } = await replay(archive)
     expect(recorded).toEqual([
       decision("threads.checkWatched", "th1", "job", undefined, "workspace.opened"),
-      decision("digest.onOpen", "p1", "job", undefined, "paper.opened"),
+      decision("digest.onStar", "p1", "job", undefined, "paper.starred"),
       decision("digest.onStar", "p1", "none", "has a digest", "paper.starred"),
       decision("digest.onStar", "p2", "none", "nothing to read", "paper.starred"),
-      decision("docs.reviewOnOpen", "notes.md", "defer", "the user is writing in it", "doc.opened"),
-      decision("docs.reviewOnOpen", "notes.md", "job", undefined, "doc.opened"),
-      decision("docs.reviewOnOpen", "notes.md", "none", "unchanged since Owlit looked", "doc.opened"),
-      decision("docs.reviewOnOpen", "drafts/idea.md", "job", undefined, "doc.opened"),
-      decision("docs.reviewOnOpen", "figure.png", "none", "not a Markdown doc", "doc.opened"),
+      decision("paper.readInFull", "th1:r1", "job", undefined, "paper.read"),
+      decision("paper.readInFull", "th2:r2", "none", "answered from the full text already", "paper.read"),
+      decision("paper.readInFull", "notes.md#c1|p1", "job", undefined, "paper.read"),
       decision("threads.checkWatched", "th1", "job", undefined, "clock.hour"),
     ])
     expect(replayed).toEqual(recorded)
@@ -220,35 +204,39 @@ describe("archive export and replay", () => {
 
   it("shows a changed rule's decisions differing only where it changed", async () => {
     const { archive } = await exported()
-    // Review leaves drafts alone
-    const sparing = defineRule({ ...reviewOnOpen, when: async (e, ctx) => {
-        const { path } = e as { path: string }
-        return path.startsWith("drafts/") ? [{ subject: path, none: "a draft" }] : reviewOnOpen.when(e as never, ctx)
-      },
+    // A reading leaves threads alone and only looks at comments again
+    const sparing = defineRule({
+      ...paperRead,
+      when: async (e, ctx) => (await paperRead.when(e as never, ctx)).filter((o) => !("job" in o) || o.job.kind !== "threads.reread"),
     })
-    const { recorded, replayed, unanswered } = await replay(archive, RULES.map((r) => (r === reviewOnOpen ? sparing : r)))
+    const { recorded, replayed, unanswered } = await replay(archive, RULES.map((r) => (r === paperRead ? sparing : r)))
     expect(differences(recorded, replayed)).toEqual([
-      { at: 7, recorded: decision("docs.reviewOnOpen", "drafts/idea.md", "job", undefined, "doc.opened"), replayed: decision("docs.reviewOnOpen", "drafts/idea.md", "none", "a draft", "doc.opened") },
+      { at: 4, recorded: decision("paper.readInFull", "th1:r1", "job", undefined, "paper.read"), replayed: decision("paper.readInFull", "th2:r2", "none", "answered from the full text already", "paper.read") },
+      { at: 5, recorded: decision("paper.readInFull", "th2:r2", "none", "answered from the full text already", "paper.read"), replayed: decision("paper.readInFull", "notes.md#c1|p1", "job", undefined, "paper.read") },
+      { at: 6, recorded: decision("paper.readInFull", "notes.md#c1|p1", "job", undefined, "paper.read"), replayed: decision("threads.checkWatched", "th1", "job", undefined, "clock.hour") },
+      { at: 7, recorded: decision("threads.checkWatched", "th1", "job", undefined, "clock.hour"), replayed: undefined },
     ])
     expect(unanswered).toEqual([])
   })
 
   it("says so when a changed rule asks something the archive has no answer for", async () => {
     const { archive } = await exported()
-    const curious = defineRule({ ...reviewOnOpen, when: async (e, ctx) => {
-        const { path } = e as { path: string }
-        return [{ subject: path, none: (await ctx.world.digestHeldBack(path)) ?? "?" }]
+    const curious = defineRule({
+      ...paperRead,
+      when: async (e, ctx) => {
+        const { paperId } = e as { paperId: string }
+        return [{ subject: paperId, none: (await ctx.world.digestHeldBack(paperId)) ?? "?" }]
       },
     })
-    const { replayed, unanswered } = await replay(archive, RULES.map((r) => (r === reviewOnOpen ? curious : r)))
-    expect(replayed.some((d) => d.rule === "docs.reviewOnOpen")).toBe(false)
-    expect(unanswered[0]).toMatch(/^docs\.reviewOnOpen asked digestHeldBack\(notes\.md\) on doc\.opened at /)
+    const { replayed, unanswered } = await replay(archive, RULES.map((r) => (r === paperRead ? curious : r)))
+    expect(replayed.some((d) => d.rule === "paper.readInFull")).toBe(false)
+    expect(unanswered[0]).toMatch(/^paper\.readInFull asked digestHeldBack\(p1\) on paper\.read at /)
   })
 
   it("exports an empty archive that says why while activity recording is off", async () => {
     const s = await session()
     const to = path.join(s.base, "off")
-    const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, settings: s.settings, recording: false, version: "test", now: T0 })
+    const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, recording: false, version: "test", now: T0 })
     expect(summary).toEqual({ to, events: 0, note: "Activity recording is off, so there is nothing to export." })
     expect(readFileSync(path.join(to, "events.jsonl"), "utf8")).toBe("")
     const { manifest, events } = await readArchive(to)
@@ -258,21 +246,19 @@ describe("archive export and replay", () => {
 
   it("keeps a since: only what came after, numbered from 1 again", async () => {
     const s = await session()
-    const since = T0 + 11.5 * MIN
+    const since = T0 + 6.5 * MIN
     const to = path.join(s.base, "since")
-    await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, since, settings: s.settings, recording: true, version: "test", now: Date.now() })
+    await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, since, recording: true, version: "test", now: Date.now() })
     const { events, manifest } = await readArchive(to)
-    expect(events[0]).toMatchObject({ seq: 1, type: "doc.opened" })
+    expect(events[0]).toMatchObject({ seq: 1, type: "paper.closed" })
     expect(events.every((e) => e.at >= since)).toBe(true)
-    // The dial moved before: it starts where it is now
-    expect(manifest.safeConfig.owlit.initiative.mode).toBe("onOpen")
     const { recorded, replayed } = await replay({ events, manifest })
     expect(replayed).toEqual(recorded)
   })
 
   it("won't write into the workspace, or over a folder that has something in it", async () => {
     const s = await session()
-    const options = { root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, owlit: MY_OWLIT, settings: s.settings, recording: true, version: "test", now: T0 }
+    const options = { root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, owlit: MY_OWLIT, recording: true, version: "test", now: T0 }
     await expect(exportArchive({ ...options, to: path.join(s.root, "archive") })).rejects.toThrow("outside the workspace")
     await expect(exportArchive({ ...options, to: path.join(s.base, "data") })).rejects.toThrow("isn't empty")
   })

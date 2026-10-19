@@ -19,7 +19,6 @@ export interface SettingsView {
     // What unset gives: the interface language when one is chosen, otherwise the system's language, as
     // the note language it means
     digestLanguageSystem: string
-    digestEveryPaper?: boolean
   }
   parsing: { service?: "cloud" | "self-hosted"; url?: string; auto: boolean }
   // The last four characters of each key that is set
@@ -37,7 +36,7 @@ export interface SettingsView {
 export interface SettingsPatch {
   appearance?: Partial<AppearanceSettings>
   profile?: { name?: string | null }
-  library?: { contactEmail?: string | null; digestLanguage?: string | null; digestEveryPaper?: boolean }
+  library?: { contactEmail?: string | null; digestLanguage?: string | null }
   parsing?: { service?: "cloud" | "self-hosted" | null; url?: string | null; auto?: boolean }
   backgroundAgent?: string | null
   // One agent's background model; null goes back to the agent's default
@@ -54,10 +53,11 @@ export interface SettingsCheck {
 
 export type SettingsCheckTarget = SecretName | "mineruServer"
 
-// Libraries owlit knows how to reach. Others are set up from a link opened through them.
+// Libraries owlit knows how to reach. Others are set up from a link opened through them. signIn is the
+// library's own sign-in page where its proxy path alone isn't one: tlink answers a bare /go with a 500.
 export const PROXY_PRESETS = {
-  tsinghua: { name: "Tsinghua University", proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go", preset: "tsinghua" } },
-} as const satisfies Record<string, { name: string; proxy: ProxySettings }>
+  tsinghua: { name: "Tsinghua University", signIn: "https://tlink.lib.tsinghua.edu.cn/gologin", proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go", preset: "tsinghua" } },
+} as const satisfies Record<string, { name: string; signIn?: string; proxy: ProxySettings }>
 
 export type ProxyPreset = keyof typeof PROXY_PRESETS
 

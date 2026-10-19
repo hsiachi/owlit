@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import type { Paper, PaperFigure } from "@owlit/protocol"
+import type { DigestSource, Paper, PaperFigure } from "@owlit/protocol"
+import { reportPaperEnd } from "@/app/activity"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
@@ -11,25 +12,29 @@ import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
 import { markSeen } from "@/app/seen"
+import { digestSourceNotes } from "../../lib/digest-source"
+import { toast } from "sonner"
 import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useWritingDigest, waitForDigest } from "../../digests"
+import { useLibraryStore } from "../../store"
 
-// Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: most of the time
-// it is all the paper needs, so it reads like any other page, in the reading column. Its figures show
-// where the digest puts them, and every page it points at (p. 7) can be glanced at and gone to. A
-// selected passage can be asked about, as in the PDF; it can't be highlighted, since a rewrite would
-// leave a highlight on words that are gone: highlights belong on the paper.
+// Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: a form of the paper that
+// is easier to take in, so it reads like any other page, in the reading column, and reopens where it was
+// left. Owlit writes one only when asked, and this is where to ask. Its figures show where the digest
+// puts them, and every page it points at (p. 7) can be glanced at and gone to. A selected passage can be
+// asked about, as in the PDF; it can't be highlighted, since a rewrite would leave a highlight on words
+// that are gone: highlights belong on the paper.
 
 export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page: number) => void }) {
   const writing = useWritingDigest(paper.id)
   const failed = useDigestFailed(paper.id)
-  const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[] } | null>(null)
+  const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[]; source: DigestSource } | null>(null)
 
   // Read again whenever the digest may have changed: written, rewritten, or gone
   useEffect(() => {
     if (!paper.hasDigest || writing) return
     let live = true
-    Promise.all([rpc.library.digest({ id: paper.id }), rpc.library.figures({ id: paper.id }).catch(() => [])])
-      .then(([text, figures]) => live && setDigest({ paperId: paper.id, text, figures }))
+    Promise.all([rpc.library.digest({ id: paper.id }), rpc.library.figures({ id: paper.id }).catch(() => []), rpc.library.digestSource({ id: paper.id }).catch(() => ({}))])
+      .then(([text, figures, source]) => live && setDigest({ paperId: paper.id, text, figures, source }))
       .catch(() => undefined)
     return () => {
       live = false
@@ -67,18 +72,23 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
           </>
         ) : failed ? (
           <Stopped paper={paper} />
+        ) : paper.hasDigest ? (
+          <Spinner />
         ) : (
-          paper.hasDigest && <Spinner />
+          <Offer paper={paper} />
         )}
       </Column>
     )
   }
   const when = paper.digestAt ? ago(paper.digestAt, { inSentence: true }) : null
+  // What it was written from, when that limits it
+  const from = digest ? digestSourceNotes(digest.source, paper.pdf?.pages) : []
   return (
-    <Column paperId={paper.id}>
+    <Column paperId={paper.id} remembers>
       <p className="text-detail text-muted-foreground">
         {writing ? <span className="shimmer">{t`Owlit is reading this paper again…`}</span> : when ? t`Digest · Owlit, ${when}` : t`Digest · Owlit`}
       </p>
+      {from.length > 0 && <p className="text-detail text-muted-foreground">{from.join(" · ")}</p>}
       {failed && !writing ? <Stopped paper={paper} again /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown
         text={withoutTitle(text)}
@@ -112,9 +122,36 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
 
 // The reading column. A selected passage offers "Ask Owlit" above it, as a note's does (under it on the
 // first lines, where above would leave the view), and on the right-click menu; not while the mouse is
-// still choosing.
-function Column({ paperId, children }: { paperId: string; children: ReactNode }) {
+// still choosing. With a digest in it (remembers), it reopens where the digest was left and keeps track
+// of where that is, as the PDF reader does (reader/position.ts).
+function Column({ paperId, remembers, children }: { paperId: string; remembers?: boolean; children: ReactNode }) {
   const scroller = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = scroller.current
+    if (!el || !remembers) return
+    el.scrollTop = useLibraryStore.getState().papers[paperId]?.digestPosition?.y ?? 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // Its end in view is part of reading it to the end (core counts it with the time on the digest)
+    let ended = false
+    const atEnd = () => {
+      if (ended || el.scrollTop + el.clientHeight < el.scrollHeight - END_SLACK_PX) return
+      ended = true
+      reportPaperEnd(paperId, "digest")
+    }
+    const onScroll = () => {
+      atEnd()
+      clearTimeout(timer)
+      timer = setTimeout(() => useLibraryStore.getState().setDigestPosition(paperId, { y: Math.round(el.scrollTop) }), POSITION_REST_MS)
+    }
+    el.addEventListener("scroll", onScroll, { passive: true })
+    // A digest short enough to fit is at its end as it opens
+    const fits = setTimeout(atEnd, POSITION_REST_MS)
+    return () => {
+      el.removeEventListener("scroll", onScroll)
+      clearTimeout(timer)
+      clearTimeout(fits)
+    }
+  }, [paperId, remembers])
   const page = useRef<HTMLDivElement>(null)
   const article = useRef<HTMLElement>(null)
   // What the menu's button runs: set by the effect, which knows the selection
@@ -174,6 +211,28 @@ function Column({ paperId, children }: { paperId: string; children: ReactNode })
 
 // How long a digest is on screen before it counts as seen
 const SEEN_AFTER_MS = 1000
+// A scroll that has stopped this long is where the digest was left
+const POSITION_REST_MS = 400
+// The column's bottom padding and a line's leeway: the last lines are in view this close to the bottom
+const END_SLACK_PX = 96
+
+// No digest yet: Owlit writes one when asked, and the ask is here, where the digest will be
+function Offer({ paper }: { paper: Paper }) {
+  const ask = () => {
+    // Asked for, the digest that comes is news
+    markSeen({ kind: "digest", paper: paper.id })
+    waitForDigest(paper.id)
+    void rpc.library.requestDigest({ id: paper.id, rewrite: false }).catch(() => toast.error(t`Couldn't ask for a digest.`))
+  }
+  return (
+    <>
+      <p className="text-detail text-muted-foreground">{t`No digest yet. Owlit writes one when you ask.`}</p>
+      <Button variant="outline" size="sm" className="mt-3" onClick={ask}>
+        {t`Write a digest`}
+      </Button>
+    </>
+  )
+}
 
 // The last run broke: said in words, with Retry. Again when it was a rewrite and the old digest stays.
 function Stopped({ paper, again }: { paper: Paper; again?: boolean }) {

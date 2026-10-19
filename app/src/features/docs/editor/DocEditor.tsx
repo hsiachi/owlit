@@ -17,6 +17,7 @@ import { useLibraryStore } from "@/features/library/store"
 import { freshDocIds, useDocsStore } from "../store"
 import { type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
+import { DocCitationHover } from "./citation-hover"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
@@ -75,8 +76,16 @@ const SAVE_DELAY = 300
 // mix keeps its "\r"s as characters in the text, so they are written back exactly where they were.
 const usesCrlf = (text: string) => text.includes("\r\n") && !/(^|[^\r])\n|\r(?!\n)/.test(text)
 
-// Where each doc was left, for this session: a doc reopens with the cursor where it was
+// Where each doc was left, for this session: a doc reopens with the cursor where it was, scrolled as it
+// was (Back from a paper a citation opened lands on the citation, not on the cursor)
 const lastSelection = new Map<string, EditorSelection>()
+const lastScroll = new Map<string, number>()
+
+// What scrolls the doc: the page around the editor, which grows with its text
+function scrollerOf(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) if (/(auto|scroll)/.test(getComputedStyle(p).overflowY)) return p
+  return null
+}
 
 export function DocEditor({ file }: { file: WorkspaceFile }) {
   const host = useRef<HTMLDivElement>(null)
@@ -145,7 +154,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
                 if (s.papers !== prev.papers) changed()
               }),
             wikilink: wikilinkRoute,
-            onOpenMention: (uri) => openMention(uri, (to) => navigateRef.current(to)),
+            // A citation's sentence goes with it, so the paper opens with it ringed
+            onOpenMention: (uri, quote) => openMention(uri, (to) => navigateRef.current(to), window.location.pathname, quote),
             onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup(() => allDocMentions(id)),
@@ -181,11 +191,18 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     const diskText = () => (crlf ? view.state.doc.toString().replace(/\n/g, "\r\n") : view.state.doc.toString())
     seen = followChangedSince(view, () => useDocsStore.getState().files[id]?.path, diskText)
 
-    // A new doc starts with the cursor in it; a doc opened again picks up where it was left
+    // A new doc starts with the cursor in it; a doc opened again picks up where it was left: scrolled as it
+    // was when that is known, else with the cursor in the middle
+    const scroller = scrollerOf(view.dom)
+    const scrolled = lastScroll.get(id)
     if (!content || saved) {
       view.focus()
-      if (saved) view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: "center" }) })
+      if (saved && (scrolled === undefined || !scroller)) view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: "center" }) })
     }
+    // After the first layout, when the doc is as tall as it was
+    if (scroller && scrolled !== undefined) requestAnimationFrame(() => scroller.scrollTo({ top: scrolled }))
+    const keepScroll = () => lastScroll.set(id, scroller!.scrollTop)
+    scroller?.addEventListener("scroll", keepScroll, { passive: true })
 
     // Agent writes to this doc go through the editor; edits the agent proposes for it are drawn in place
     const unregister = registerEditor(id, view)
@@ -259,6 +276,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     window.addEventListener("beforeunload", flush)
     return () => {
       window.removeEventListener("beforeunload", flush)
+      scroller?.removeEventListener("scroll", keepScroll)
       unregisterAsk()
       flush()
       unsubscribe()
@@ -286,5 +304,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id])
 
-  return <div ref={host} className="min-h-full" />
+  return (
+    <>
+      <div ref={host} className="min-h-full" />
+      <DocCitationHover host={host} />
+    </>
+  )
 }

@@ -56,9 +56,7 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
       },
       { timeout: 10_000, what: `${kind} to finish` },
     )
-  const journal = () => readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
-  const emit = (event: Record<string, unknown>) => call("activity.emit", { event: { at: Date.now(), ...event } })
-  return { root, call, workspace, prompts, done, emit, journal }
+  return { root, call, workspace, prompts, done }
 }
 
 // What owlit-mcp's docs_add_comment sends core, with Owlit's own word as a second entry
@@ -116,31 +114,6 @@ describe("Go through", () => {
     await call("docs.goThrough", { path: "Meetings/P5 周会 2026-10-15.md" })
     expect(await done("meetings.goThrough")).toMatchObject({ state: "failed" })
     expect(Object.values(await call("comments.all")).flat()).toEqual([])
-  })
-
-  it("goes through what appears in Meetings by itself while the user is away, once", { timeout: 30_000 }, async () => {
-    const { root, call, emit, workspace, done, journal } = await setup(async () => READING)
-    await call("initiative.set", { patch: { mode: "away" } })
-    await emit({ kind: "idle", seconds: 60 })
-    // The watcher may miss a write right after it starts: the other program writes again until it is heard
-    const appeared = (subject: string) => journal().some((l) => l.kind === "docs.appeared" && l.path === subject)
-    await vi.waitFor(
-      () => {
-        if (!appeared("Meetings/Reviews round 1.md")) writeFileSync(path.join(root, "Meetings/Reviews round 1.md"), "R1.1 The sample is small.\n")
-        expect(appeared("Meetings/Reviews round 1.md")).toBe(true)
-      },
-      { timeout: 4_000, interval: 500 },
-    )
-    await done("meetings.goThrough")
-    expect(workspace.tasks.list().find((t) => t.kind === "meetings.goThrough")).toMatchObject({ subject: "Meetings/Reviews round 1.md", priority: "background" })
-    expect(readFileSync(path.join(root, "Meetings/Reviews round 1 · reading.md"), "utf8")).toContain("## The material")
-    // The record it wrote is Owlit's own and doesn't start another (the rule says so in the journal); the
-    // material isn't gone through twice
-    await until(
-      () => journal().some((l) => l.kind === "evaluation" && l.rule === "meetings.goThrough" && l.subject === "Meetings/Reviews round 1 · reading.md" && l.decision === "none" && l.reason === "a record of Owlit's"),
-      { what: "the record's evaluation" },
-    )
-    expect(workspace.tasks.list().filter((t) => t.kind === "meetings.goThrough")).toHaveLength(1)
   })
 
   it("asks only for text", async () => {

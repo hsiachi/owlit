@@ -18,6 +18,7 @@ export const activityEvent: z.ZodType<ActivityEvent> = z.discriminatedUnion("kin
   z.object({ kind: z.literal("paper.page"), at, paperId: id, page }),
   z.object({ kind: z.literal("paper.focus"), at, paperId: id, view: z.enum(["digest", "pdf"]), seconds }),
   z.object({ kind: z.literal("paper.dwell"), at, paperId: id, page, seconds }),
+  z.object({ kind: z.literal("paper.end"), at, paperId: id, view: z.enum(["digest", "pdf"]) }),
   z.object({ kind: z.literal("paper.marked"), at, paperId: id, mark }),
   z.object({ kind: z.literal("highlight.added"), at, paperId: id, highlightId: id }),
   z.object({ kind: z.literal("highlight.removed"), at, paperId: id, highlightId: id }),

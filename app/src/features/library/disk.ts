@@ -2,7 +2,7 @@ import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owl
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
-import { toastError } from "@/lib/toast"
+import { toastError, toastUndo } from "@/lib/toast"
 import { followCore } from "@/lib/follow-core"
 import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
@@ -20,7 +20,7 @@ const onDisk = isDesktop
 const NOTE_REST_MS = 500
 const POSITION_REST_MS = 1000
 
-const PATCHABLE = ["title", "authors", "year", "venue", "abstract", "kind", "ids", "starred", "status", "tags", "position", "lastOpenedAt"] as const
+const PATCHABLE = ["title", "authors", "year", "venue", "abstract", "kind", "ids", "starred", "status", "tags", "position", "view", "digestPosition", "lastOpenedAt"] as const
 
 // Removed in this window and not yet put back: a paper with one of these ids reappearing is an Undo
 const removedHere = new Set<string>()
@@ -185,12 +185,14 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
     const patch: PaperPatch = {}
     for (const key of PATCHABLE) if (!same(paper[key], before[key])) (patch as Record<string, unknown>)[key] = paper[key]
     if (!Object.keys(patch).length) continue
-    // Scrolling moves the position many times a second; only where it comes to rest is kept
-    if (Object.keys(patch).length === 1 && patch.position) {
-      afterRest(`position:${paper.id}`, POSITION_REST_MS, async () => {
+    // Scrolling moves a position (in the PDF or the digest) many times a second; only where it comes to
+    // rest is kept
+    const only = Object.keys(patch).length === 1 ? Object.keys(patch)[0] : undefined
+    if (only === "position" || only === "digestPosition") {
+      afterRest(`${only}:${paper.id}`, POSITION_REST_MS, async () => {
         // A paper removed while its position rested has nothing to save it to
-        const position = useLibraryStore.getState().papers[paper.id]?.position
-        if (position) await rpc.library.update({ id: paper.id, patch: { position } })
+        const value = useLibraryStore.getState().papers[paper.id]?.[only]
+        if (value) await rpc.library.update({ id: paper.id, patch: { [only]: value } })
       })
     } else {
       enqueue(() => rpc.library.update({ id: paper.id, patch }))
@@ -259,6 +261,14 @@ if (onDisk) {
       if (removed.length) trashChanged()
     }),
   )
+
+  // Core set a paper Read because the person reached its end: said once, with Undo, since nobody chose it
+  onNotify("library.readToEnd", ({ paperId, from }) => {
+    const title = useLibraryStore.getState().papers[paperId]?.title
+    toastUndo(t({ message: "Marked as read", comment: "toast: owlit set a paper's status to Read because it was read to the end" }), () => useLibraryStore.getState().setStatus([paperId], from), {
+      description: title,
+    })
+  })
 
   // A note an agent edited (or another program changed): taken as it is, and the open note editor takes
   // it in as one undoable change

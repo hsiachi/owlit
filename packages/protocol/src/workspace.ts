@@ -1,5 +1,4 @@
 import type { StoredPairing } from "./extension.ts"
-import type { InitiativeSettings } from "./initiative.ts"
 import type { HighlightColor } from "./library.ts"
 import type { InterfaceLanguage } from "./languages.ts"
 
@@ -36,8 +35,6 @@ export interface WelcomeInfo {
 export interface WorkspaceSettings {
   version: 1
   layout: Record<string, unknown>
-  // How far Owlit goes here without being asked (Settings › Owlit › On its own); absent: the defaults
-  initiative?: Partial<InitiativeSettings>
 }
 
 // settings.json in the app data directory: this machine's settings
@@ -111,10 +108,8 @@ export interface LibrarySettings {
   wileyTdmToken?: string
   // The library's proxy, through which publishers see the university's subscription
   proxy?: ProxySettings
-  // Digests: the language they are written in (default English), and whether every paper gets
-  // one once its text is in (default: only papers the user opens or stars)
+  // The language digests are written in (default English)
   digestLanguage?: string
-  digestEveryPaper?: boolean
 }
 
 // login-url: <base><path>?url=<target> (EZproxy's /login, Tsinghua's tlink /go); host-rewrite:

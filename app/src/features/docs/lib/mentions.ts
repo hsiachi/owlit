@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useThreadsStore } from "@/features/threads/store"
 import { threadHolding, shown } from "@/features/threads/lib"
-import { type Mentionable, type Paper, paperUri, parseOwlitUri, type Thread, threadUri } from "@owlit/protocol"
+import { isOwlit, type Mentionable, type Paper, paperUri, parseOwlitUri, type Thread, threadUri } from "@owlit/protocol"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
@@ -87,12 +87,13 @@ function paperOf(id: string, papers = useLibraryStore.getState().papers, aliases
   return paperById(papers, aliases, id)
 }
 
-// A paper mention whose paper is still Unread in the Library: nobody has read in it but Owlit, so it is
-// drawn lighter until the person does (lib/reading.ts turns it Reading). A paper outside the library has
-// no state here and is drawn as usual.
+// A paper mention whose paper Owlit added and the person hasn't opened (still Unread): drawn lighter until
+// they do (lib/reading.ts turns it Reading). A paper the person imported or added themselves is theirs and
+// drawn as usual, read here or not (they may have read it years ago); so is one outside the library.
 export function paperUnread(uri: string, papers = useLibraryStore.getState().papers, aliases = useLibraryStore.getState().aliases): boolean {
   const u = parseOwlitUri(uri)
-  return u?.kind === "paper" && paperOf(u.id, papers, aliases)?.status === "unread"
+  const paper = u?.kind === "paper" ? paperOf(u.id, papers, aliases) : undefined
+  return !!paper?.addedBy && isOwlit(paper.addedBy) && paper.status === "unread"
 }
 
 // The same, kept current as the paper is read

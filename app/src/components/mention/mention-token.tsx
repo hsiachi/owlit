@@ -5,27 +5,25 @@ import { cn } from "@/lib/utils"
 // One look for a mentioned workspace item wherever it appears. In the editor it carries a faint fill so
 // it reads as one unit you can delete; in text it is plain coloured words that fill only on hover, and a
 // button when it opens something. Inline-flex keeps the text baseline (an overflow-hidden inline-block
-// would sit on its bottom edge). A paper nobody but Owlit has read yet is a step lighter (unread).
+// would sit on its bottom edge). A paper Owlit added that the person hasn't opened is a step lighter (unread).
 export function MentionToken({
   label,
   variant = "inline",
   className,
   title,
   unread,
-  quote,
   onClick,
 }: {
   label: React.ReactNode
   variant?: "field" | "inline"
   className?: string
-  title?: string
+  // null: no hover text of its own, as a citation's card says it all
+  title?: string | null
   unread?: boolean
-  // The sentence of the paper a citation rests on, shown under the title on hover
-  quote?: string
   onClick?: () => void
 }) {
-  if (unread) title = title ? `${title} · ${t`Unread`}` : t`Unread`
-  if (quote) title = `${title ?? ""}\n“${quote}”`.trim()
+  if (unread && title !== null) title = title ? `${title} · ${unreadHint()}` : unreadHint()
+  const hover = title ?? undefined
   const look = cn(
     "inline-flex max-w-80 items-baseline rounded-[0.3em] px-[0.2em] align-baseline transition-colors",
     unread ? "text-mention-unread" : "text-mention",
@@ -35,12 +33,12 @@ export function MentionToken({
   const text = <span className="min-w-0 truncate">{label}</span>
   if (!onClick)
     return (
-      <span title={title} className={look}>
+      <span title={hover} className={look}>
         {text}
       </span>
     )
   return (
-    <button type="button" title={title} onClick={onClick} className={cn(look, "cursor-pointer outline-none focus-key:bg-mention/10")}>
+    <button type="button" title={hover} onClick={onClick} className={cn(look, "cursor-pointer outline-none focus-key:bg-mention/10")}>
       {text}
     </button>
   )
@@ -51,3 +49,6 @@ export function MentionLink({ label, to, title, className }: { label: React.Reac
   const navigate = useNavigate()
   return <MentionToken label={label} title={title} className={className} onClick={to ? () => navigate(to) : undefined} />
 }
+
+// What the lighter mention means, on hover
+export const unreadHint = () => t({ message: "Added by Owlit, not opened yet", comment: "hover on a mention of a paper Owlit added to the library that the person hasn't opened" })

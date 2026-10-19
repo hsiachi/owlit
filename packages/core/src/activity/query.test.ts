@@ -58,10 +58,19 @@ describe("answerActivity", () => {
       pages: { 3: 30, 4: 20 },
       highlights: 1,
       starred: true,
-      read: true,
+      trace: { state: "looked", pdfSeconds: 60, digestSeconds: 30, pages: [3, 4] },
     })
     expect(items!.find((i) => i.kind === "doc")).toMatchObject({ opens: 1, edits: 3, agentEdits: 1 })
     expect(items!.find((i) => i.kind === "chat")).toMatchObject({ title: "About tools", sessions: 1 })
+  })
+
+  it("says how far the user got with a paper from its whole history and its status, whatever stretch is asked", () => {
+    const later = [...journal, user({ kind: "paper.marked", at: now - 1000, paperId: "p1", mark: { what: "tags", to: ["method"] } })]
+    const status = (id: string) => (id === "p2" ? ("read" as const) : "unread" as const)
+    const { items } = answerActivity(later, { mode: "recent", since: now - 2000 }, { now, names, status })
+    expect(items!.find((i) => i.kind === "paper" && i.id === "p1")).toMatchObject({ pdfSeconds: 0, trace: { state: "looked", pdfSeconds: 60, pages: [3, 4] } })
+    const p2 = answerActivity(journal, { mode: "of", paper: "p2" }, { now, names, status }).items!.find((i) => i.kind === "paper")
+    expect(p2).toMatchObject({ trace: { state: "read" } })
   })
 
   it("top: what took the user's time and hand, leaving out what was only opened", () => {
@@ -77,7 +86,7 @@ describe("answerActivity", () => {
   it("log: a visit to a paper is one line, a run of edits one line with a count, owlit's own state left out", () => {
     const { lines } = answerActivity(journal, { mode: "log", since: now - 3 * DAY }, ctx)
     expect(lines!.map((l) => [l.actor, l.what, l.paper?.id ?? l.doc ?? l.chat?.id, l.times ?? 1])).toEqual([
-      [ME, "read", "p1", 1],
+      [ME, "looked at", "p1", 1],
       [ME, "highlighted", "p1", 1],
       [ME, "starred", "p1", 1],
       [ME, "opened", "p2", 1],
@@ -103,7 +112,7 @@ describe("answerActivity", () => {
     const { items, lines } = answerActivity(moved, { mode: "of", paper: "p1" }, { now, names, alias: (id) => (id === "local-1" ? "p1" : id) })
     expect(items).toHaveLength(1)
     expect(items![0]).toMatchObject({ kind: "paper", id: "p1", pdfSeconds: 100 })
-    expect(lines!.map((l) => l.what)).toEqual(["read", "read", "highlighted", "starred"])
+    expect(lines!.map((l) => l.what)).toEqual(["looked at", "looked at", "highlighted", "starred"])
   })
 
   it("of: a doc's history has the user's edits and what agents changed", () => {

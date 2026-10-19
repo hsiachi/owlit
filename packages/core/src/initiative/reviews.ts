@@ -2,19 +2,18 @@ import { isMarkdown, isOpenComment, isOwlit, isPerson, paperUri, parentPath, typ
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { TYPING_MS, type Presence } from "./presence.ts"
-import { halfDoneSkill, paragraphsOf, recheckSkill, replySkill, reviewSkill } from "./review.ts"
-import { COMMENTING_RUNS, GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./runs.ts"
+import { recheckSkill, replySkill } from "./review.ts"
+import { COMMENTING_RUNS, GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN } from "./runs.ts"
 import { cleanReading, goThroughSkill, isChinese, MEETINGS, recordOf } from "./go-through.ts"
-import { foldable, halfDone, halfDoneSince, sectionsOf, WEEK_MS } from "./scan.ts"
 import { randomUUID } from "node:crypto"
 
-// Owlit's runs on the user's docs (rules.ts › docs.*): the tasks that read a changed doc, look over the
-// docs once a day, or look again at a comment, and where what they make lands. Two rules hold at every
+// Owlit's runs on the user's docs: the tasks that answer under one of its comments, look at a comment
+// again, or go through material against the docs, and where what they make lands. Two rules hold at every
 // step. Nothing it writes is the user's: only Owlit's own comments (core checks). And it never writes on
 // the page the user is writing in: a comment made while they type there is held, and lands when they
 // stop or leave, if the words it is about are still there (commit-or-abort); one whose words are gone is
-// dropped, and the drop is logged. What Owlit did on its own while the user was away waits further: for
-// as long as they are back in that doc at all.
+// dropped, and the drop is logged. What Owlit did on its own waits further: for as long as the user is in
+// that doc at all.
 
 export interface ReviewServices {
   workspace: () => Workspace | null
@@ -50,8 +49,8 @@ interface Held {
   pushed: boolean
 }
 
-// Runs started while the user was away, whose work waits while they are in the doc at all
-const PUSHED = new Set<string>([SETTLED_REVIEW_RUN, SCAN_RUN, RECHECK_RUN])
+// Runs nobody is waiting for, whose work waits while the user is in the doc at all
+const PUSHED = new Set<string>([RECHECK_RUN])
 // Never a run's tools: a run that may use only the read-only ones
 const NONE = /^$/
 
@@ -75,10 +74,7 @@ export class Reviews {
 
   tasks(): TaskDefinition[] {
     return [
-      defineTask(REVIEW_RUN, { lane: reviewSkill.lane, retries: 1, run: (ctx) => this.review(ctx) }),
-      defineTask(SETTLED_REVIEW_RUN, { lane: reviewSkill.lane, retries: 1, run: (ctx) => this.review(ctx) }),
       defineTask(REPLY_RUN, { lane: replySkill.lane, retries: 1, run: (ctx) => this.reply(ctx) }),
-      defineTask(SCAN_RUN, { lane: halfDoneSkill.lane, retries: 1, run: (ctx) => this.scan(ctx) }),
       defineTask(RECHECK_RUN, { lane: recheckSkill.lane, retries: 1, run: (ctx) => this.recheck(ctx) }),
       defineTask(GO_THROUGH_RUN, { lane: goThroughSkill.lane, retries: 1, run: (ctx) => this.goThrough(ctx) }),
     ]
@@ -229,77 +225,6 @@ export class Reviews {
     const chatId = ws.tasks.get(ctx.task.id)?.chatId
     const by = await ws.recorder.actorOf({ kind: "owlit" })
     await this.services.put(rel, { ...now, entries: [...now.entries, { id: randomUUID(), by, text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }] }, `${REPLY_RUN}:${ctx.task.id}`)
-  }
-
-  private async review(ctx: TaskContext) {
-    const ws = this.services.workspace()
-    if (!ws) throw new Error("No workspace is open.")
-    const rel = ctx.task.subject
-    if (!isMarkdown(rel)) return
-    const owlit = await ws.docs.owlitOf(rel)
-    if (owlit.out) return
-    const { content, modifiedAt } = await ws.docs.read(rel)
-    const paragraphs = paragraphsOf(content)
-    const seen = new Set(owlit.looked?.seen ?? [])
-    const changed = paragraphs.filter((p) => !seen.has(p.hash))
-    const look = async (count: number) => {
-      const state = await ws.docs.setLooked(rel, { at: this.now(), mtime: Math.round(modifiedAt), outcome: count ? "comments" : "nothing", count, seen: paragraphs.map((p) => p.hash) })
-      this.services.looked(rel, state)
-    }
-    // Only paragraphs taken away, or words moved: nothing new to read
-    if (!changed.length) return look(0)
-    const comments = await ws.docs.listComments(rel)
-    const owlits = comments.filter((c) => c.entries[0] && isOwlit(c.entries[0].by))
-    const otherDocs = (await ws.docs.list()).files.map((f) => f.path).filter((p) => p !== rel && isMarkdown(p))
-    const prompt = reviewSkill.instructions({
-      path: rel,
-      changed,
-      first: !owlit.looked?.seen,
-      otherDocs,
-      standing: owlits.filter(isOpenComment),
-      dismissed: owlits.filter((c) => c.dismissedAt),
-    })
-    const runId = `${ctx.task.kind}:${ctx.task.id}`
-    this.made.set(runId, 0)
-    try {
-      await this.services.agent(prompt, ctx, reviewSkill.tools!, runId)
-      await look(this.made.get(runId) ?? 0)
-    } finally {
-      this.made.delete(runId)
-    }
-  }
-
-  // The daily look over the docs (subject "workspace"): Owlit's comments left behind are folded away,
-  // and sections half done for a week get one comment each from a session that gathers what the
-  // threads, chats and library have for them. The doc the user is in is left for another day.
-  private async scan(ctx: TaskContext) {
-    const ws = this.services.workspace()
-    if (!ws) throw new Error("No workspace is open.")
-    const now = this.now()
-    // What the daily rule goes by (rules.ts › docs.dailyScan), set as the look starts
-    await ws.docs.setScannedAt(now)
-    const due: { path: string; heading: string; body: string }[] = []
-    for (const { path: rel } of (await ws.docs.list()).files) {
-      if (!isMarkdown(rel) || this.services.presence.inDoc(rel)) continue
-      const owlit = await ws.docs.owlitOf(rel).catch(() => null)
-      if (!owlit || owlit.out) continue
-      const content = await ws.docs.read(rel).then(
-        (r) => r.content,
-        () => null,
-      )
-      if (content === null) continue
-      const comments = await ws.docs.listComments(rel)
-      for (const c of foldable(comments, content, now)) await this.services.put(rel, { ...c, foldedAt: now }, `${SCAN_RUN}:${ctx.task.id}`, true)
-      const found = halfDone(sectionsOf(content))
-      const since = halfDoneSince(found, owlit.halfDone, now)
-      if (JSON.stringify(since) !== JSON.stringify(owlit.halfDone ?? {})) await ws.docs.setHalfDone(rel, since)
-      // Once per section: a comment of Owlit's on the heading, standing or put away, means it has spoken
-      const spoken = new Set(comments.filter((c) => c.entries[0] && isOwlit(c.entries[0].by)).map((c) => c.quote.trim()))
-      for (const s of found)
-        if (now - since[s.key]! >= WEEK_MS && !spoken.has(s.heading) && !spoken.has(s.title)) due.push({ path: rel, heading: s.heading, body: s.body })
-    }
-    if (!due.length) return
-    await this.services.agent(halfDoneSkill.instructions({ sections: due.slice(0, 5) }), ctx, halfDoneSkill.tools!, `${SCAN_RUN}:${ctx.task.id}`)
   }
 
   // One of Owlit's comments that leans on a paper the user has now read in full (subject

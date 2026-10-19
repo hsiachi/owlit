@@ -161,7 +161,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "docs_add_comment",
     description:
-      "Leave a comment on a passage of the user's doc, shown beside it, without changing the file. Use this for remarks, questions and suggestions instead of editing the doc. One comment per passage.",
+      "Leave a comment on a passage of the user's doc, shown beside it, without changing the file. Use this for remarks, questions and suggestions instead of editing the doc. One comment per passage. A claim about a paper cites it with the sentence it rests on as the link's title: [Author Year](owlit://library/<id>#p<page> \"sentence\").",
     inputSchema: {
       type: "object",
       properties: {
@@ -303,7 +303,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "activity_read",
     description:
-      "What the user did in owlit lately, as facts: which papers they read (how long, which pages, how often they came back, highlights, notes, stars and status), which docs they opened and edited, which chats they wrote in, and what agents changed. mode=recent: what they touched lately, newest first. mode=top: what they spent the most on. mode=of: the history of one paper (with the sentences Owlit's answers cited from it), doc or chat. mode=log: what happened in order, one line per visit to a paper. Says so when the user has turned recording off.",
+      "What the user did in owlit lately, as facts: which papers they spent time in (how long, which pages, how often they came back, highlights, notes, stars and status, and how far they got: read in full, looked at, or not opened here), which docs they opened and edited, which chats they wrote in, and what agents changed. mode=recent: what they touched lately, newest first. mode=top: what they spent the most on. mode=of: the history of one paper (with the sentences Owlit's answers cited from it), doc or chat. mode=log: what happened in order, one line per visit to a paper. Says so when the user has turned recording off.",
     inputSchema: {
       type: "object",
       properties: {

@@ -1,11 +1,11 @@
-import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
-import type { ArchiveSummary, InitiativeSettings } from "./initiative.ts"
+import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
+import type { ArchiveSummary } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Absence, Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
-import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
+import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -110,9 +110,6 @@ export interface Methods {
   "workspace.clearRecent": { params: void; result: null }
   // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
   // window's chat, …)
-  // How far Owlit goes in this workspace without being asked; set records feedback.dialChanged
-  "initiative.get": { params: void; result: InitiativeSettings }
-  "initiative.set": { params: { patch: Partial<InitiativeSettings> }; result: InitiativeSettings }
   // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
   "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
   // Everything Owlit did on its own here (what it heard, each decision, what you did with its work, its
@@ -169,11 +166,11 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit and a doc: kept out or let in, and its last look
+  // Owlit and a doc: kept out or let in, and what it went through there
   "docs.owlit": { params: { path: string }; result: DocOwlit }
   // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
-  // the user's docs: a record beside it, and the points as comments where they belong. Asked, at any
-  // position of the dial; the task that does it
+  // the user's docs: a record beside it, and the points as comments where they belong; the task that
+  // does it
   "docs.goThrough": { params: { path: string }; result: Task }
   "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
@@ -186,7 +183,7 @@ export interface Methods {
   "comments.all": { params: void; result: Record<string, DocComment[]> }
   // Starts a comment, or puts back one deleted
   // agent: the comment is an agent's (owlit-mcp), recorded in the change log so the window can offer Undo
-  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "docs.review:<task id>")
+  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "meetings.goThrough:<task id>")
   "comments.add": { params: { path: string; comment: CommentInput; agent?: { chatId?: string; run?: string; toolCallId?: string } }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
@@ -459,6 +456,8 @@ export interface Methods {
   "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
   // The paper's digests (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
+  // What the digest was written from (digest.json, the text's pages), for its header
+  "library.digestSource": { params: { id: string }; result: DigestSource }
   // Brings in a library at once: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
   // export), a BibTeX file, or a folder of PDFs. Returns once it has started; the import.<source> task
   // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the
@@ -479,7 +478,12 @@ export interface Methods {
   "library.dismissImport": { params: { id: string }; result: null }
   // The paper's full text, line by line with where each sits (text.json), or null before it is read
   "library.wear": { params: { id: string }; result: PaperWear }
+  // How far the user got with each paper, from the journal: for the status's hover
+  "library.trace": { params: { ids: string[] }; result: Record<string, ReadTrace> }
   "library.text": { params: { id: string }; result: PaperText | null }
+  // Where a citation's sentence is in the paper's text, word for word; null when it isn't there (or
+  // owlit has no text of the paper)
+  "library.findPassage": { params: { id: string; quote: string }; result: { page: number } | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
@@ -534,8 +538,6 @@ export interface Notifications {
   "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
-  // The dial moved, in any window
-  "initiative.changed": InitiativeSettings
   // Owlit was kept out of a doc or let in, or looked at it
   "docs.owlit": { path: string; state: DocOwlit }
   // An agent's state changed (it started, ended, crashed, was checked)
@@ -568,6 +570,9 @@ export interface Notifications {
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are
   "library.changed": LibraryChange
+  // Core set a paper Read because the user reached its end (the change itself comes as library.changed);
+  // from: its status before, for Undo
+  "library.readToEnd": { paperId: string; from: ReadStatus }
   // A paper's note changed outside the window (an agent's edit, another program); null when it was emptied
   "library.noteChanged": { paperId: string; note: PaperNote | null }
   // A thread changed (an agent wrote to it, the user changed it in another window, an undo); null:

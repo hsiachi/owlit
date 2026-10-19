@@ -1,4 +1,4 @@
-import { plural, t } from "@lingui/core/macro"
+import { t } from "@lingui/core/macro"
 import type { WorkspaceFile } from "@owlit/protocol"
 import { useEffect } from "react"
 import { markSeen } from "@/app/seen"
@@ -7,31 +7,28 @@ import { OwlitMark } from "@/components/owlit-mark"
 import { Tip } from "@/components/tip"
 import { Button } from "@/components/ui/button"
 import { isDesktop, rpc } from "@/lib/rpc"
-import { ago } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { useAgentWindow } from "@/features/agent/store"
 import { RunsHover } from "@/features/runs/components"
 import { openRun, useDoingLine, useOpenRuns } from "@/features/runs/hooks"
-import { useInitiativeSettings } from "@/features/settings/initiative"
 import { docKey } from "./comments/model"
 import { useDocOwlit, useNewOwlitComments } from "./owlit"
 import { useDocsUiStore } from "./ui-store"
 
 // The runs that work on a doc
-const DOC_RUNS = ["docs.review", "docs.reviewSettled", "meetings.goThrough"] as const
+const DOC_RUNS = ["meetings.goThrough"] as const
 
 // New comments count as seen once they have been on screen this long
 const SEEN_AFTER_MS = 3000
 
 // Owlit in a doc's header, beside its comments and Shared (DESIGN.md › Owlit's runs): it is a member of
-// the doc. Still while it isn't working here, its tooltip saying when it works here and what came of its
-// last look; breathing while a run works on the doc (hover: what it is doing, Stop; click: the run);
-// Owlit's dot once it left comments the user hasn't seen (click: the first of them). Kept out (the doc's
-// ⋯ menu), there is no chip at all.
+// the doc. Still while it isn't working here, its tooltip saying it works here only when asked; breathing
+// while a run works on the doc (hover: what it is doing, Stop; click: the run); Owlit's dot once it left
+// comments the user hasn't seen (click: the first of them). Kept out (the doc's ⋯ menu), there is no chip
+// at all.
 export function OwlitChip({ file }: { file: WorkspaceFile }) {
   const state = useDocOwlit(file.path)
   const runs = useOpenRuns(file.path, DOC_RUNS)
-  const { mode } = useInitiativeSettings()
   const fresh = useNewOwlitComments(file)
   const shown = useDocsUiStore((s) => s.commentsShown)
 
@@ -49,19 +46,9 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
   if (!isDesktop || !state || state.out) return null
   if (runs[0]) return <WorkingChip runs={runs} />
 
-  const looked = state.looked
-  const when = looked ? ago(looked.at, { inSentence: true }) : ""
-  const label =
-    mode === "off"
-      ? t`Owlit works here only when you ask`
-      : !looked
-        ? t`Owlit hasn’t looked at this doc yet`
-        : looked.count
-          ? plural(looked.count, { one: `Looked ${when} · left # comment`, other: `Looked ${when} · left # comments` })
-          : t`Looked ${when} · nothing to add`
   const first = fresh[0]
   return (
-    <Tip label={label}>
+    <Tip label={t`Owlit works here only when you ask`}>
       <Button
         variant="ghost"
         size="sm"

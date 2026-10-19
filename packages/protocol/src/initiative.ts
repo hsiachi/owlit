@@ -1,27 +1,9 @@
-// Owlit on its own: the dial that says how far it may go without being asked, and what it records about
-// each decision it takes and what the user does with its work. The policy itself is core's
-// (core/src/initiative/rules.ts); what is here is what the journal and the window share.
+// Owlit on its own: what it records about each decision it takes and what the user does with its work.
+// The policy itself is core's (core/src/initiative/rules.ts); what is here is what the journal and the
+// window share.
 
-// Settings › Owlit › On its own, per workspace (.owlit/workspace.json): off, Owlit only keeps up what it
-// already keeps (digests, watched threads); onOpen, it also looks at what the user opens; away, it also
-// works while the user is away
-export type InitiativeMode = "off" | "onOpen" | "away"
-
-export const INITIATIVE_MODES: readonly InitiativeMode[] = ["off", "onOpen", "away"]
-
-export interface InitiativeSettings {
-  mode: InitiativeMode
-  // The most runs Owlit starts on its own in a day; past it, a rule's decision is "none" (cap)
-  dailyCap: number
-}
-
-export const INITIATIVE_DEFAULTS: InitiativeSettings = { mode: "off", dailyCap: 20 }
-
-// Whether a rule that needs `needs` may run with the dial at `mode`
-export const dialAllows = (mode: InitiativeMode, needs: InitiativeMode) => INITIATIVE_MODES.indexOf(mode) >= INITIATIVE_MODES.indexOf(needs)
-
-// One decision of a rule, with or without an action: a run queued (job), nothing (none, and why), or
-// not now (defer: the user is on that page; it is looked at again later)
+// One decision of a rule, with or without an action: a run queued (job), or nothing (none, and why).
+// Journals written before the dial went also hold "defer" (not now: the user was on that page).
 export interface EvaluationRecord {
   kind: "evaluation"
   at: number
@@ -47,23 +29,17 @@ export type CoreEvent =
   | { kind: "workspace.opened"; at: number }
   // Once an hour while the workspace is open
   | { kind: "clock.hour"; at: number }
-  // A paper joined the library one at a time, not by an agent or a batch import: the user added it in
-  // the app (user), or another program put it in the library folder (outside: Finder, a sync)
-  | { kind: "paper.landed"; at: number; paperId: string; by: "user" | "outside" }
   // The user's reading of a paper reached the whole of it (core's reading.ts › readInFull), once per paper
   | { kind: "paper.read"; at: number; paperId: string }
-  // A file appeared in the workspace that neither core nor an agent wrote there (Finder, a sync):
-  // workspace-relative path
-  | { kind: "docs.appeared"; at: number; path: string }
 
 export type CoreKind = CoreEvent["kind"]
 
-export const CORE_KINDS: readonly CoreKind[] = ["paper.starred", "workspace.opened", "clock.hour", "paper.landed", "paper.read", "docs.appeared"]
+export const CORE_KINDS: readonly CoreKind[] = ["paper.starred", "workspace.opened", "clock.hour", "paper.read"]
 
 // The ones a replay can't tell from the decisions they led to (they name a paper or a doc), journaled as
 // Owlit's. The opening and the hourly tick carry nothing: an archive has them where a rule decided
 // something on them.
-export const JOURNALED_CORE_KINDS = ["paper.starred", "paper.landed", "paper.read", "docs.appeared"] as const satisfies readonly CoreKind[]
+export const JOURNALED_CORE_KINDS = ["paper.starred", "paper.read"] as const satisfies readonly CoreKind[]
 
 export type JournaledCoreEvent = Extract<CoreEvent, { kind: (typeof JOURNALED_CORE_KINDS)[number] }>
 
@@ -86,15 +62,15 @@ export interface LookedRecord {
   reads: RuleRead[]
 }
 
-// What the user did with Owlit's work, and the dial itself: the policy's labels
-export type FeedbackWhat = "seen" | "reply" | "apply" | "dismiss" | "undo" | "dialChanged"
+// What the user did with Owlit's work: the policy's labels
+export type FeedbackWhat = "seen" | "reply" | "apply" | "dismiss" | "undo"
 
 export interface FeedbackRecord {
   kind: `feedback.${FeedbackWhat}`
   at: number
-  // A doc path, a comment id, "workspace" for the dial
+  // A doc path, a comment id
   subject: string
-  // The comment it is about, the dial's old and new positions
+  // The comment it is about
   detail?: Record<string, string | number | boolean>
 }
 

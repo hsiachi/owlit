@@ -12,7 +12,7 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { installCliTool, writeCliScript } from "./cli-tool.ts"
 import { hostFetch } from "./net-fetch.ts"
-import { openInBrowser } from "./open-in-browser.ts"
+import { openInBrowser, showBrowser } from "./open-in-browser.ts"
 import { attachTextMenu } from "./text-menu.ts"
 import { appBundle, cantReplaceItself, createUpdater, updateFeed } from "./updater.ts"
 
@@ -606,6 +606,9 @@ if (!app.requestSingleInstanceLock()) {
         openInBrowser: async (url, browser) => {
           if (process.env.OWLIT_NO_EXTERNAL) console.log("[open-external]", browser.app ?? browser.name, url)
           else await openInBrowser(url, browser)
+        },
+        showBrowser: async (browser) => {
+          if (!process.env.OWLIT_NO_EXTERNAL) await showBrowser(browser)
         },
         browserApp: browserAppOf,
         // Only a release has a feed to update from; core says why the others don't

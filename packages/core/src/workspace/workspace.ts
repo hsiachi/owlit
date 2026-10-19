@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { INITIATIVE_DEFAULTS, RpcErrorCode, type InitiativeSettings, type MemoryLine, type Notifications, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { RpcErrorCode, type MemoryLine, type Notifications, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
@@ -128,11 +128,10 @@ export class Workspace {
       paper: (id) => this.library.snapshot(id),
       canonical: (id, ids) => this.library.canonical(id, ids),
       facts: (id, paper) => this.library.rowFacts(id, paper),
-      findPassage: async (id, quote) => {
-        const here = await this.library.canonical(id)
-        if (!here) return undefined
-        const text = await readFile(path.join(paperDir(root, here), "text.md"), "utf8").catch(() => null)
-        return text === null ? undefined : findQuote(text, quote)
+      findPassage: (id, quote) => this.findPassage(id, quote),
+      hasText: async (id, ids) => {
+        const here = await this.library.canonical(id, ids)
+        return !!here && (await stat(path.join(paperDir(root, here), "text.md")).then(() => true, () => false))
       },
       searches: (by, since) => this.library.searchesBy(by, since),
       ...options.threads,
@@ -163,6 +162,15 @@ export class Workspace {
         return { paper, digest, note }
       },
     })
+  }
+
+  // The 1-based page a quote is on in a paper's full text, by any id the paper goes by; null when it
+  // isn't there word for word, undefined when owlit has no text of the paper
+  async findPassage(id: string, quote: string): Promise<number | null | undefined> {
+    const here = await this.library.canonical(id)
+    if (!here) return undefined
+    const text = await readFile(path.join(paperDir(this.root, here), "text.md"), "utf8").catch(() => null)
+    return text === null ? undefined : findQuote(text, quote)
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists, adds the person to
@@ -224,22 +232,6 @@ export class Workspace {
     }
     await writeJsonAtomic(file, { ...stored, version: 1, layout })
     return layout
-  }
-
-  // How far Owlit goes here without being asked (Settings › Owlit › On its own): it is the user's leave to
-  // this workspace, so it lives with the workspace, not with this machine's settings
-  async initiative(): Promise<InitiativeSettings> {
-    const stored = await readJson<WorkspaceSettings>(this.owlitPath("workspace.json")).catch(() => undefined)
-    return { ...INITIATIVE_DEFAULTS, ...stored?.initiative }
-  }
-
-  async setInitiative(patch: Partial<InitiativeSettings>): Promise<InitiativeSettings> {
-    const file = this.owlitPath("workspace.json")
-    const stored = await readJson<WorkspaceSettings>(file).catch(() => null)
-    if (stored === null) throw new RpcFailure(RpcErrorCode.Conflict, t`workspace.json in .owlit can't be read, so owlit leaves it alone.`)
-    const initiative = { ...stored?.initiative, ...patch }
-    await writeJsonAtomic(file, { ...stored, version: 1, layout: stored?.layout ?? {}, initiative })
-    return { ...INITIATIVE_DEFAULTS, ...initiative }
   }
 
   async dispose() {

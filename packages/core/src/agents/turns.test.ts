@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { until, testSearchPath } from "../test-util.ts"
 import { cannotRead, ownTurnOver, sendsPictures } from "./profiles.ts"
+import { RULES_VERSION } from "./rules.ts"
 import { attachmentBlocks, promptBlocks } from "./turns.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
@@ -71,7 +72,7 @@ describe("turns", () => {
     // The preamble is the agent's, not the chat's
     const saved = await call("chats.get", { id: "c1" })
     expect(JSON.stringify(saved.messages)).not.toContain("owlit agent rules")
-    expect(await call("agents.rules")).toMatch(/^owlit agent rules, version 18/)
+    expect(await call("agents.rules")).toMatch(new RegExp(`^owlit agent rules, version ${RULES_VERSION}\n`))
   })
 
   it("tells a session owlit's memory when it is new to it, and again only when it changed", async () => {

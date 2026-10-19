@@ -8,7 +8,8 @@ import { useLibraryStore } from "../store"
 // read in it: 45 seconds on the paper with the window in view, a move past the page the reader opened on
 // (a scroll or a page change), or a highlight, a comment or a note of their own. A glance changes nothing
 // but the remembered position. In a blind test a paper opened for 10 seconds turned Reading and jumped
-// to the top of Up next, ahead of the paper the person was actually half-way through.
+// to the top of Up next, ahead of the paper the person was actually half-way through. Read comes from
+// core, when the person reaches the end (core's activity/reading.ts › readInFull).
 const READ_AFTER_MS = 45_000
 
 // The paper open now, and whether this visit has counted yet: it counts once

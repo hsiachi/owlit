@@ -540,7 +540,7 @@ function answerFor(text: string, mentions: Mentionable[]) {
 ## Summary
 
 - **Core idea.** ${text.length > 20 ? "The question centres on how the referenced work frames its main contribution and where it sits relative to prior methods." : "This is a mock answer so the interface has something to render."}
-- **Evidence.** The sources report consistent gains on the standard benchmarks, though evaluation setups differ enough that direct comparison needs care.
+- **Evidence.** The sources report consistent gains on the standard benchmarks, though evaluation setups differ enough that direct comparison needs care; retrieval itself helps most on knowledge-heavy tasks [Lewis et al. 2020](owlit://library/p4#p2 "We endow pre-trained, parametric-memory generation models with a non-parametric memory.").
 - **Open questions.** Scaling behaviour beyond the reported range and robustness under distribution shift are not addressed.
 
 \`\`\`python

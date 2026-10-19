@@ -1,4 +1,5 @@
 import type { ActorId } from "./changes.ts"
+import type { PaperView } from "./activity.ts"
 
 // Library domain types. A paper is one record: facts about it plus the user's judgement
 // (star, status, tags). Highlights and notes are separate records keyed by paper.
@@ -105,6 +106,15 @@ export interface Paper {
   lastOpenedAt?: number
   // Reading position, so a paper reopens where it was left
   position?: ReadingPosition
+  // The side of the paper last read (the digest or the PDF), so it reopens there; absent until chosen
+  view?: PaperView
+  // How far down the digest was read
+  digestPosition?: DigestPosition
+}
+
+export interface DigestPosition {
+  // Scroll offset in CSS pixels
+  y: number
 }
 
 // The top of what was on screen: a 1-based page and a distance from that page's top edge in
@@ -323,6 +333,8 @@ export interface PaperState {
   status: ReadStatus
   tags: string[]
   position?: ReadingPosition
+  view?: PaperView
+  digestPosition?: DigestPosition
   lastOpenedAt?: number
   // Fields the user corrected by hand; they win over paper.json and survive a metadata refresh
   overrides?: PaperOverrides
@@ -357,6 +369,17 @@ export interface TrashedPaper {
   year?: number
   venue?: string
   removedAt: number
+}
+
+// What a paper's digest was written from, for its header. pictures: how many of its figures the agent
+// saw (0: it read the text alone; absent on digests from before owlit counted them). textPages: the pages
+// owlit has the text of, set against the PDF's. cjkText: the paper is written in Chinese characters, kana
+// or hangul, for the digest's language to be set against.
+export interface DigestSource {
+  pictures?: number
+  language?: string
+  textPages?: number
+  cjkText?: boolean
 }
 
 // library/papers/<id>/text.json: the paper's full text with where each line sits, so a passage can be

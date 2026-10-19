@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import { itemId, type Paper, QUESTION_COLUMN, type Thread, type ThreadColumn, type ThreadRow, threadUri } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
+import { CitationHover } from "@/components/citation-card"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { Button } from "@/components/ui/button"
@@ -76,7 +77,7 @@ function AnswerRow({ thread, row, items, fresh, open }: { thread: Thread; row: T
             </>
           )}
         </span>
-        {!open && answer?.depth === "full" && answer.passage && <PageLink passage={answer.passage} library={library} />}
+        {!open && answer?.depth === "full" && answer.passage && <PageLink paperId={row.id} passage={answer.passage} library={library} />}
       </div>
       <Unfold open={open}>
         <RowPeek thread={thread} row={row} library={library} />
@@ -116,13 +117,16 @@ function GroupsMenu({ thread, row, grouping, here }: { thread: Thread; row: Thre
   )
 }
 
-// The page an answer rests on, which opens the paper at those words (a paper read in full is in the Library)
-function PageLink({ passage, library }: { passage: { quote: string; page: number }; library: Paper | undefined }) {
+// The page an answer rests on, which opens the paper at those words (a paper read in full is in the
+// Library); on hover, the citation's card checks the words against the paper
+function PageLink({ paperId, passage, library }: { paperId: string; passage: { quote: string; page: number }; library: Paper | undefined }) {
   const navigate = useNavigate()
   const page = passage.page
   return (
     <span className="shrink-0 text-detail">
-      <MentionToken label={t({ message: `p. ${page}`, comment: "a page of a paper" })} title={`“${passage.quote}”`} onClick={library ? () => navigate(passageRoute(library.id, passage)) : undefined} />
+      <CitationHover citation={{ paperId, page, quote: passage.quote, depth: "full" }}>
+        <MentionToken label={t({ message: `p. ${page}`, comment: "a page of a paper" })} title={null} onClick={library ? () => navigate(passageRoute(library.id, passage)) : undefined} />
+      </CitationHover>
     </span>
   )
 }
@@ -152,11 +156,11 @@ export function RowPeek({ thread, row, grouping, here, library, className }: { t
           {library ? t`In your Library` : t`Not in your Library`}
         </p>
         {answer && (
-          <p className="mt-2.5 text-sm leading-relaxed">
+          // An answer from the title only (the paper's record has no abstract) is thin: muted, and said so
+          <p className={cn("mt-2.5 text-sm leading-relaxed", answer.depth === "title" && "text-muted-foreground")}>
             {answer.text}
-            {/* A paper whose source gave no abstract was answered from its title: say so, not "abstract" */}
-            {answer.depth === "abstract" && (
-              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{facts.abstract ? t`From the abstract` : t`From the title only`}</span>
+            {answer.depth !== "full" && (
+              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{answer.depth === "title" ? t`From the title only` : t`From the abstract`}</span>
             )}
           </p>
         )}

@@ -1,8 +1,9 @@
 import katex from "katex"
+import { linkTitleText } from "@owlit/protocol"
 
 // Draws a line of Markdown inside a rendered block (a table cell): mentions, links, wikilinks, bold,
 // italics, code and math. Anything else stays as written.
-const TOKEN = /(\[[^\]]*\]\([^)\s]+\))|(\[\[[^\]]+\]\])|(\*\*[^*]+\*\*)|(`[^`]+`)|(\$[^$\s](?:[^$]*[^$\s])?\$)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
+const TOKEN = /(\[[^\]]*\]\([^)\s]+(?:\s+"(?:[^"\\]|\\.)*")?\))|(\[\[[^\]]+\]\])|(\*\*[^*]+\*\*)|(`[^`]+`)|(\$[^$\s](?:[^$]*[^$\s])?\$)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
 
 export function renderInline(text: string, into: HTMLElement) {
   let last = 0
@@ -11,11 +12,14 @@ export function renderInline(text: string, into: HTMLElement) {
     last = m.index + m[0].length
     const [whole, link, wiki, bold, code, math] = m
     if (link) {
-      const [, label, href] = /^\[([^\]]*)\]\(([^)]+)\)$/.exec(link) ?? []
+      const [, label, href, title] = /^\[([^\]]*)\]\(([^)\s]+)(?:\s+("(?:[^"\\]|\\.)*"))?\)$/.exec(link) ?? []
       const el = document.createElement(href?.startsWith("owlit://") ? "span" : "a")
       el.className = href?.startsWith("owlit://") ? "cm-mention" : "cm-link"
-      if (href?.startsWith("owlit://")) el.dataset.uri = href
-      else (el as HTMLAnchorElement).href = href ?? ""
+      if (href?.startsWith("owlit://")) {
+        el.dataset.uri = href
+        // A citation's sentence, for its card and its click, as the editor's own mentions carry it
+        if (title) el.dataset.quote = linkTitleText(title)
+      } else (el as HTMLAnchorElement).href = href ?? ""
       el.textContent = label ?? ""
       into.append(el)
     } else if (wiki) {

@@ -1,12 +1,12 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, isOwlit, isPerson, owlitOf, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, isOwlit, isPerson, owlitOf, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
-import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal } from "./activity/index.ts"
+import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
@@ -30,7 +30,7 @@ import { Initiative } from "./initiative/initiative.ts"
 import { exportArchive } from "./initiative/archive.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./initiative/reads.ts"
-import { GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./initiative/runs.ts"
+import { GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN } from "./initiative/runs.ts"
 import { MATERIAL } from "./initiative/go-through.ts"
 import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
@@ -118,7 +118,7 @@ export interface CoreOptions {
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
 // notifications. Constructing it touches nothing outside; start() is when it begins to talk.
 // Runs Owlit starts on its own, which step aside while the user waits on a chat's answer
-const OWN_RUNS = new Set<string>([REVIEW_RUN, SETTLED_REVIEW_RUN, SCAN_RUN, RECHECK_RUN, "threads.reread", "paper.relate"])
+const OWN_RUNS = new Set<string>([RECHECK_RUN, "threads.reread"])
 
 export class Core {
   readonly settings: SettingsStore
@@ -205,6 +205,7 @@ export class Core {
             hasWindow: () => this.ui.hasWindow(),
             changed: (view) => this.notifier.notify("extension.changed", view),
             openInBrowser: options.host?.openInBrowser ?? (options.host?.openExternal && ((url) => options.host!.openExternal!(url))),
+            showBrowser: options.host?.showBrowser,
             browserApp: options.host?.browserApp,
           },
           options.extension === true ? {} : options.extension,
@@ -284,30 +285,28 @@ export class Core {
     this.activity.subscribe((event) => {
       if (event.kind === "doc.closed" || event.kind === "doc.opened" || event.kind === "idle") void this.reviews.land()
     })
-    // A visit to a paper ended: if it made the paper read in full, the rules hear it once it is on disk
+    // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down
+    // from what the person set: Read is the top) and the rules hear it, once it is on disk
     this.activity.subscribe("paper.closed", (event) => {
       const ws = this.workspace
       if (!ws) return
       void this.journal
         .flush()
         .then(() => becameReadInFull(ws, event.paperId, event.at))
-        .then((full) => full && this.workspace === ws && this.initiative.observe({ kind: "paper.read", at: Date.now(), paperId: event.paperId }))
+        .then(async (full) => {
+          if (!full || this.workspace !== ws) return
+          const paper = await ws.library.get(event.paperId)
+          if (paper && paper.status !== "read") {
+            // The person's reading turned it Read: theirs, on its own (via auto), as opening it turns it Reading
+            const read = await this.updatePaper(paper.id, { status: "read" }, WINDOW, { via: "auto" })
+            if (this.workspace !== ws) return
+            this.notifier.notify("library.changed", { papers: [read], removed: [] })
+            this.notifier.notify("library.readToEnd", { paperId: read.id, from: paper.status })
+          }
+          this.initiative.observe({ kind: "paper.read", at: Date.now(), paperId: event.paperId })
+        })
         .catch((error) => console.error("[core] couldn't tell whether a paper was read in full", error))
     })
-
-    this.router.register("initiative.get", noParams, () => this.requireWorkspace().initiative())
-    this.router.register(
-      "initiative.set",
-      z.object({ patch: z.object({ mode: z.enum(["off", "onOpen", "away"]).optional(), dailyCap: z.number().int().min(0).max(500).optional() }) }),
-      async ({ patch }) => {
-        const ws = this.requireWorkspace()
-        const before = await ws.initiative()
-        const next = await ws.setInitiative(patch)
-        if (next.mode !== before.mode) this.journal.feedback({ kind: "feedback.dialChanged", at: Date.now(), subject: "workspace", detail: { from: before.mode, to: next.mode } })
-        this.notifier.notify("initiative.changed", next)
-        return next
-      },
-    )
 
     // Written where the user says, outside the workspace: handing it out is theirs to do
     this.router.register("archive.export", z.object({ to: z.string().min(1), since: z.number().nonnegative().optional() }), async ({ to, since }) => {
@@ -321,7 +320,6 @@ export class Core {
         owlit: owlitOf(await this.personAt(WINDOW)),
         to: path.resolve(ws.root, to),
         since,
-        settings: await ws.initiative(),
         recording: (await this.settings.get()).activity.enabled,
         version: this.version().version,
         now: Date.now(),
@@ -410,7 +408,8 @@ export class Core {
       const chatTitles = new Map(chats.map((c) => [c.id, c.title]))
       const alias = (id: string) => aliases[id] ?? id
       const changes = docChanges.filter((c) => isOwlit(c.actor)).reverse()
-      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias, changes })
+      const statuses = new Map(papers.map((p) => [p.id, p.status]))
+      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias, changes, status: (id) => statuses.get(id) })
       // A paper's history also says which of its sentences Owlit's answers rested on
       if (query.mode === "of" && query.paper) {
         const { cited } = await wearOf(query.paper, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases })
@@ -604,8 +603,8 @@ export class Core {
         assistantMessageId: z.string().min(1),
       }),
       async (req) => {
-        // The user is waiting on this answer: a review Owlit started on its own steps aside and runs
-        // again a minute later, so the chat isn't slowed or charged for it meanwhile
+        // The user is waiting on this answer: a run Owlit started on its own steps aside and runs again
+        // a minute later, so the chat isn't slowed or charged for it meanwhile
         this.workspace?.tasks.yieldTo("agent", (task) => OWN_RUNS.has(task.kind), 60_000)
         return { stopReason: await this.turns.prompt(req) }
       },
@@ -781,6 +780,8 @@ export class Core {
         status: z.enum(["unread", "reading", "read"]),
         tags: z.array(z.string()),
         position,
+        view: z.enum(["digest", "pdf"]),
+        digestPosition: z.object({ y: z.number() }),
         lastOpenedAt: z.number(),
       })
       .partial()
@@ -865,6 +866,7 @@ export class Core {
       return done
     })
     this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
+    this.router.register("library.digestSource", z.object({ id: paperId }), ({ id }) => library().digestSource(id))
     this.router.register("library.requestDigest", z.object({ id: paperId, rewrite: z.boolean().optional() }), async ({ id, rewrite }) => {
       await library().wantDigest(id, "asked", { rewrite })
       return null
@@ -930,10 +932,23 @@ export class Core {
       return null
     })
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
+    this.router.register("library.findPassage", z.object({ id: paperId, quote: z.string().min(1).max(4000) }), async ({ id, quote }) => {
+      const page = await this.requireWorkspace().findPassage(id, quote)
+      return typeof page === "number" ? { page } : null
+    })
     // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
     this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
       const ws = this.requireWorkspace()
       return wearOf(id, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
+    })
+    this.router.register("library.trace", z.object({ ids: z.array(paperId).max(500) }), async ({ ids }) => {
+      const ws = this.requireWorkspace()
+      await this.journal.flush()
+      const [aliases, entries] = await Promise.all([ws.library.aliases(), readJournal(ws.owlitPath("journal.jsonl")).catch(() => [])])
+      const readings = readingOf(entries, (id) => aliases[id] ?? id)
+      const out: Record<string, ReadTrace> = {}
+      for (const id of ids) out[id] = traceOf(readings.get(aliases[id] ?? id), (await ws.library.get(id))?.status)
+      return out
     })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>
@@ -1089,8 +1104,7 @@ export class Core {
       }
       return before
     })
-    // One of Owlit's comments the user doesn't want: put away for good, and remembered so Owlit doesn't
-    // say it again (the review reads the dismissed ones)
+    // One of Owlit's comments the user doesn't want: put away for good
     this.router.register("comments.dismiss", z.object({ path: rel, id: z.string() }), async ({ path, id }, caller) => {
       const comment = (await docs().listComments(path)).find((c) => c.id === id)
       if (!comment) throw new RpcFailure(RpcErrorCode.NotFound, t`That comment isn't there any more.`)
@@ -1207,9 +1221,6 @@ export class Core {
                 starred: (paperId) => {
                   if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.starred", at: Date.now(), paperId })
                 },
-                landed: (paperId, by) => {
-                  if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.landed", at: Date.now(), paperId, by })
-                },
                 agent: async (prompt, ctx, pictures) =>
                   this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers: this.mcpServers(root), signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
@@ -1260,10 +1271,6 @@ export class Core {
               },
             })
       if (this.workspace !== next) {
-        // What another program put in the workspace, for the rules (Meetings); an agent's own file isn't
-        next.docs.appeared = (rel) => {
-          if (this.workspace === next && !this.turns.claimOf(rel) && !this.turns.coauthorAtWork()) this.initiative.observe({ kind: "docs.appeared", at: Date.now(), path: rel })
-        }
         // Every change seen on disk is recorded, by whoever the evidence names
         next.docs.textChanged = (rel, before, after) =>
           next.recorder.doc(this.seenBy(rel), rel, before, after).catch((error) => console.error("[core] couldn't record a change made outside owlit", error))
@@ -1367,8 +1374,8 @@ export class Core {
   }
 
   // The window's change to a paper: one entry per field it changed (starred, status, tags, each
-  // correction as overrides.<field>), sharing one writeId; its reading position and when it was opened
-  // aren't changes worth keeping
+  // correction as overrides.<field>), sharing one writeId; where it was left (the reader's position, the
+  // side last read, the digest's scroll) and when it was opened aren't changes worth keeping
   private async updatePaper(id: string, patch: PaperPatch, caller: Caller, origin: Partial<ChangeOrigin> = {}) {
     const ws = this.requireWorkspace()
     const before = await ws.library.get(id)
@@ -1376,7 +1383,7 @@ export class Core {
     if (!before) return after
     const writeId = newWriteId()
     for (const field of Object.keys(patch) as (keyof PaperPatch)[]) {
-      if (field === "position" || field === "lastOpenedAt") continue
+      if (field === "position" || field === "view" || field === "digestPosition" || field === "lastOpenedAt") continue
       const was = before[field as keyof Paper]
       const now = after[field as keyof Paper]
       if (JSON.stringify(was) === JSON.stringify(now)) continue

@@ -2,7 +2,7 @@
 // import adds its papers one at a time and keeps what it did in <dataDir>/imports/<id>.json, so an
 // interrupted import carries on where it stopped. Cancelling stops before the next paper, never in the
 // middle of one. Only the adding happens here: metadata, PDFs and text follow as each paper's own
-// background tasks, and imported papers never get a digest.
+// background tasks.
 
 import { t } from "@lingui/core/macro"
 import { isTaskFinished, RpcErrorCode, type ImportPreview, type ImportSource, type ImportSummary, type Paper, type PaperIds, type ResolvedPaper, type Task } from "@owlit/protocol"

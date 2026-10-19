@@ -11,8 +11,8 @@ import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
 const papers: Record<string, ThreadPaper> = {
   "doi-10.1145-1": { title: "Replay or Live? Validity of Retrospective Ratings", authors: ["Fernández", "Oh"], ids: { doi: "10.1145/1" }, year: 2026 },
-  "doi-10.1145-2": { title: "Retrospective think-aloud with lifelog video", authors: ["Kelly"], ids: { doi: "10.1145/2" }, year: 2015 },
-  "doi-10.1145-3": { title: "Experience sampling versus retrospective recall", authors: ["van Berkel"], ids: { doi: "10.1145/3" }, year: 2017 },
+  "doi-10.1145-2": { title: "Retrospective think-aloud with lifelog video", authors: ["Kelly"], ids: { doi: "10.1145/2" }, year: 2015, abstract: "Wearers explained their own footage." },
+  "doi-10.1145-3": { title: "Experience sampling versus retrospective recall", authors: ["van Berkel"], ids: { doi: "10.1145/3" }, year: 2017, abstract: "Recall ran lower than sampling." },
 }
 
 function setup(services: ThreadsServices = {}) {
@@ -74,6 +74,15 @@ describe("Threads.write", () => {
     expect(wrote).toMatchObject([
       { change: { action: "create", target: { kind: "thread", path: out.id }, origin: { chatId: "chat-1" } }, label: "回放式标注作为研究方法", thread: { rows: ["doi-10.1145-1", "doi-10.1145-2"] } },
     ])
+  })
+
+  it("keeps an answer from the abstract of a paper with none as from its title", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Ratings ran lower.", depth: "abstract" } } }] }, agent)
+    const c = await threads.get(id)
+    expect(c.rows.find((r) => r.id === "doi-10.1145-1")!.cells.q).toMatchObject({ depth: "title" })
+    expect(c.rows.find((r) => r.id === "doi-10.1145-2")!.cells.q).toMatchObject({ depth: "abstract" })
   })
 
   it("refuses a paper it can't look up, and a new thread without its question or title", async () => {
@@ -519,7 +528,7 @@ describe("uniqueId", () => {
 })
 
 describe("Threads, Owlit's work in the background", () => {
-  function withRuns() {
+  function withRuns(services: ThreadsServices = {}) {
     const prompts: { prompt: string; allow: string }[] = []
     // What the run and a chat searched, as the Library logs it
     const searched: { by: string; at: number; query: string; source: string; results: string[] }[] = []
@@ -543,6 +552,7 @@ describe("Threads, Owlit's work in the background", () => {
           await ctx.threads.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", run }, agent)
         return { text: "Gathered one paper." }
       },
+      ...services,
     })
     const scheduler = new Scheduler({ store: new TaskStore(mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))), definitions: ctx.threads.tasks(), retryDelay: () => 5 })
     ctx.threads.attach(scheduler)
@@ -579,6 +589,15 @@ describe("Threads, Owlit's work in the background", () => {
     expect(now.rows.map((r) => r.id)).toEqual(["doi-10.1145-1"])
     expect(prompts[0]?.prompt).toMatch(/about ten papers/)
     expect(prompts[0]?.allow).toMatch(/library_\(search\|related\|journal\)/)
+  })
+
+  it("asks for answers from the full text from the start for the rows whose text owlit has", async () => {
+    const { threads, scheduler, prompts } = withRuns({ hasText: async (id) => id === "doi-10.1145-2" })
+    const { id } = await start(threads)
+    const column = (await threads.ask(id, "Method and sample", window)).columns.at(-1)!
+    await scheduler.wait((await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!.id)
+    expect(prompts[0]?.prompt).toMatch(/full text in the user's library: doi-10\.1145-2\. Answer them from it/)
+    expect(prompts[0]?.prompt).not.toMatch(/doi-10\.1145-1/)
   })
 
   it("adds a column and asks the agent to fill it, with only thread_write besides reading", async () => {

@@ -469,6 +469,68 @@ msgstr "Owlit finished since you last looked"
 msgid "{label}: {choice}"
 msgstr "{label}: {choice}"
 
+#. a paper's reading status
+#. reading status of a paper: finished reading (past participle)
+#. reading status of a paper: finished reading (past participle)
+#: app/src/components/citation-card.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read"
+msgstr "Read"
+
+#: app/src/components/citation-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Not in your Library"
+msgstr "Not in your Library"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the title only"
+msgstr "Owlit, from the title only"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the abstract"
+msgstr "Owlit, from the abstract"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the full text"
+msgstr "Owlit, from the full text"
+
+#: app/src/components/citation-card.tsx
+msgid "No abstract in owlit."
+msgstr "No abstract in owlit."
+
+#. a page of a paper
+#. a page of a paper
+#. a page of a paper
+#. a page of a paper
+#. chip: a passage quoted from this page of the paper
+#: app/src/components/citation-card.tsx
+#: app/src/features/agent/page-context.ts
+#: app/src/features/library/reader/WearStrip.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "p. {page}"
+msgstr "p. {page}"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit couldn't find this sentence in the paper"
+msgstr "Owlit couldn't find this sentence in the paper"
+
+#: app/src/components/citation-card.tsx
+msgid "The paper's text isn't in owlit"
+msgstr "The paper's text isn't in owlit"
+
+#: app/src/components/citation-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr "From the abstract"
+
+#. the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6
+#: app/src/components/citation-card.tsx
+msgid "You: {trace}"
+msgstr "You: {trace}"
+
 #. verb
 #. verb: copy the large files into the workspace
 #. verb: copy the sign-in command
@@ -538,14 +600,10 @@ msgstr "No matches"
 msgid "Show all {total}"
 msgstr "Show all {total}"
 
-#. reading status of a paper
-#. reading status of a paper
+#. hover on a mention of a paper Owlit added to the library that the person hasn't opened
 #: app/src/components/mention/mention-token.tsx
-#: app/src/features/docs/editor/live-preview.ts
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-msgid "Unread"
-msgstr "Unread"
+msgid "Added by Owlit, not opened yet"
+msgstr "Added by Owlit, not opened yet"
 
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
@@ -680,17 +738,6 @@ msgstr "Note"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr "Digest"
-
-#. a page of a paper
-#. a page of a paper
-#. a page of a paper
-#. chip: a passage quoted from this page of the paper
-#: app/src/features/agent/page-context.ts
-#: app/src/features/library/reader/WearStrip.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "p. {page}"
-msgstr "p. {page}"
 
 #. chip: a passage the user selected
 #: app/src/features/agent/page-context.ts
@@ -2342,19 +2389,6 @@ msgstr "In “{title}”: {error}"
 msgid "Owlit works here only when you ask"
 msgstr "Owlit works here only when you ask"
 
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Owlit hasn’t looked at this doc yet"
-msgstr "Owlit hasn’t looked at this doc yet"
-
-#. placeholder {0}: looked.count
-#: app/src/features/docs/OwlitChip.tsx
-msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
-msgstr "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
-
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Looked {when} · nothing to add"
-msgstr "Looked {when} · nothing to add"
-
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "Link copied"
@@ -3643,13 +3677,12 @@ msgstr "Reading"
 msgid "Starred"
 msgstr "Starred"
 
-#. reading status of a paper: finished reading (past participle)
-#. reading status of a paper: finished reading (past participle)
+#. reading status of a paper
+#. reading status of a paper
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/lib/status.ts
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Read"
-msgstr "Read"
+msgid "Unread"
+msgstr "Unread"
 
 #. filter chip: papers owlit has no PDF of
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -3724,14 +3757,16 @@ msgid "Couldn't refresh the details."
 msgstr "Couldn't refresh the details."
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Rewrite the digest"
-msgstr "Rewrite the digest"
-
-#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Write a digest"
 msgstr "Write a digest"
 
 #: app/src/features/library/components/PaperMenu.tsx
+msgid "Rewrite the digest"
+msgstr "Rewrite the digest"
+
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Couldn't ask for a digest."
 msgstr "Couldn't ask for a digest."
 
@@ -3800,6 +3835,11 @@ msgstr "Couldn't write the digest"
 msgid "Couldn't save the library."
 msgstr "Couldn't save the library."
 
+#. toast: owlit set a paper's status to Read because it was read to the end
+#: app/src/features/library/disk.ts
+msgid "Marked as read"
+msgstr "Marked as read"
+
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr "Only PDF files can be added this way."
@@ -3832,6 +3872,19 @@ msgstr "{unreadCount} couldn't be read"
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "{0, plural, one {Added # paper} other {Added # papers}}"
 msgstr "{0, plural, one {Added # paper} other {Added # papers}}"
+
+#: app/src/features/library/lib/digest-source.ts
+msgid "Read from the text only; figures not seen."
+msgstr "Read from the text only; figures not seen."
+
+#: app/src/features/library/lib/digest-source.ts
+msgid "Pages 1–{read} of {pdfPages}"
+msgstr "Pages 1–{read} of {pdfPages}"
+
+#. the language a digest is written in, e.g. In 简体中文
+#: app/src/features/library/lib/digest-source.ts
+msgid "In {language}"
+msgstr "In {language}"
 
 #: app/src/features/library/lib/filter.ts
 msgid "Earlier"
@@ -3905,6 +3958,49 @@ msgstr "No access"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
 msgstr "No PDF there"
+
+#. time spent in a paper, then the pages read, e.g. 12 min, pp. 1–6
+#: app/src/features/library/lib/trace.ts
+msgid "{time}, {pages}"
+msgstr "{time}, {pages}"
+
+#. time spent reading Owlit's digest of a paper, e.g. the digest, 3 min
+#: app/src/features/library/lib/trace.ts
+msgid "the digest, {time}"
+msgstr "the digest, {time}"
+
+#: app/src/features/library/lib/trace.ts
+msgid "Not opened here"
+msgstr "Not opened here"
+
+#. a paper's reading status, then how long it was read
+#: app/src/features/library/lib/trace.ts
+msgid "Read · {detail}"
+msgstr "Read · {detail}"
+
+#: app/src/features/library/lib/trace.ts
+msgid "under a minute"
+msgstr "under a minute"
+
+#: app/src/features/library/lib/trace.ts
+msgid "{minutes} min"
+msgstr "{minutes} min"
+
+#: app/src/features/library/lib/trace.ts
+msgid "{hours} h {rest} min"
+msgstr "{hours} h {rest} min"
+
+#: app/src/features/library/lib/trace.ts
+msgid "{hours} h"
+msgstr "{hours} h"
+
+#: app/src/features/library/lib/trace.ts
+msgid "p. {list}"
+msgstr "p. {list}"
+
+#: app/src/features/library/lib/trace.ts
+msgid "pp. {list}"
+msgstr "pp. {list}"
 
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
@@ -4094,6 +4190,10 @@ msgstr "Digest · Owlit, {when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper again…"
 msgstr "Owlit is reading this paper again…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "No digest yet. Owlit writes one when you ask."
+msgstr "No digest yet. Owlit writes one when you ask."
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit couldn't write this digest again."
@@ -4551,8 +4651,8 @@ msgid "Read closely."
 msgstr "Read closely."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
-msgstr "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <0>digest</0> of any paper."
+msgstr "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <0>digest</0> of any paper."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Write with your sources."
@@ -4667,10 +4767,13 @@ msgstr "you edited"
 
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. placeholder {0}: answer.passage.page
+#. placeholder {0}: cell.passage.page
 #. placeholder {0}: row.page
 #: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "p. {0}"
 
@@ -5082,14 +5185,6 @@ msgid "Keep"
 msgstr "Keep"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On its own"
-msgstr "On its own"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
-msgstr "Owlit comments on its own, never edits. Your docs change only when you ask."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 #: packages/core/src/agents/runs.ts
 msgid "Background work"
@@ -5118,35 +5213,6 @@ msgstr "Your name"
 msgid "What Owlit calls you"
 msgstr "What Owlit calls you"
 
-#. Owlit does nothing on its own beyond its upkeep
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Off"
-msgstr "Off"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When I open things"
-msgstr "When I open things"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also while I'm away"
-msgstr "Also while I'm away"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
-msgstr "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
-msgstr "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also looks while you're away, and leaves what it found for when you're back."
-msgstr "Also looks while you're away, and leaves what it found for when you're back."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit on its own"
-msgstr "Owlit on its own"
-
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
 msgstr "Automatic ({fallbackName})"
@@ -5174,18 +5240,6 @@ msgstr "A smaller one costs less. Digests come out best from the strongest: it c
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model for background work"
 msgstr "Model for background work"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Digests for every paper"
-msgstr "Digests for every paper"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Otherwise only for papers you open or star."
-msgstr "Otherwise only for papers you open or star."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On, a big import keeps the agent busy for a while."
-msgstr "On, a big import keeps the agent busy for a while."
 
 #. a language not in the list
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5496,6 +5550,10 @@ msgid "Read {read} of the {papers} papers in full; the rest are from their abstr
 msgstr "Read {read} of the {papers} papers in full; the rest are from their abstracts."
 
 #: app/src/features/threads/components/About.tsx
+msgid "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
+msgstr "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
+
+#: app/src/features/threads/components/About.tsx
 msgid "Owlit watches for new papers on this question."
 msgstr "Owlit watches for new papers on this question."
 
@@ -5627,14 +5685,6 @@ msgstr "Groups…"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Removed from {0}"
 msgstr "Removed from {0}"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Not in your Library"
-msgstr "Not in your Library"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
-msgstr "From the abstract"
 
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "From the title only"
@@ -5861,14 +5911,6 @@ msgstr "Paper actions"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "You edited this"
 msgstr "You edited this"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the full text"
-msgstr "Owlit, from the full text"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the abstract"
-msgstr "Owlit, from the abstract"
 
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -6134,12 +6176,12 @@ msgid "Owlit's digest"
 msgstr "Owlit's digest"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
-msgstr "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+msgid "Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs."
+msgstr "Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs."
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Try switching to the PDF…"
-msgstr "Try switching to the PDF…"
+msgid "Try opening the digest…"
+msgstr "Try opening the digest…"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Select to highlight or ask"
@@ -7133,10 +7175,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "You opened “{title}”, which has no digest yet."
-msgstr "You opened “{title}”, which has no digest yet."
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked for a digest of “{title}”."
 msgstr "You asked for a digest of “{title}”."
 
@@ -7151,42 +7189,6 @@ msgstr "Digest of “{title}”"
 #: packages/core/src/agents/runs.ts
 msgid "The digest is written:"
 msgstr "The digest is written:"
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading “{name}” since your last changes"
-msgstr "Reading “{name}” since your last changes"
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked at “{name}”"
-msgstr "Looked at “{name}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You opened “{name}”, which changed since Owlit last looked."
-msgstr "You opened “{name}”, which changed since Owlit last looked."
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading “{name}” after your edits"
-msgstr "Reading “{name}” after your edits"
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked at “{name}” after your edits"
-msgstr "Looked at “{name}” after your edits"
-
-#: packages/core/src/agents/runs.ts
-msgid "You stopped editing “{name}” a while ago, and you're away."
-msgstr "You stopped editing “{name}” a while ago, and you're away."
-
-#: packages/core/src/agents/runs.ts
-msgid "Looking over your docs"
-msgstr "Looking over your docs"
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked over your docs"
-msgstr "Looked over your docs"
-
-#: packages/core/src/agents/runs.ts
-msgid "A day has passed since Owlit last looked over your docs, and you're away."
-msgstr "A day has passed since Owlit last looked over your docs, and you're away."
 
 #: packages/core/src/agents/runs.ts
 msgid "a paper"
@@ -7205,32 +7207,16 @@ msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans
 msgstr "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
 
 #: packages/core/src/agents/runs.ts
-msgid "Seeing which threads “{title}” belongs in"
-msgstr "Seeing which threads “{title}” belongs in"
-
-#: packages/core/src/agents/runs.ts
-msgid "Saw which threads “{title}” belongs in"
-msgstr "Saw which threads “{title}” belongs in"
-
-#: packages/core/src/agents/runs.ts
-msgid "“{title}” came into your library."
-msgstr "“{title}” came into your library."
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr "You asked Owlit to go through “{name}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "“{name}” appeared in {folder}, and you're away."
-msgstr "“{name}” appeared in {folder}, and you're away."
-
-#: packages/core/src/agents/runs.ts
 msgid "Going through “{name}” against your docs"
 msgstr "Going through “{name}” against your docs"
 
 #: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
 msgstr "Went through “{name}”"
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to go through “{name}”."
+msgstr "You asked Owlit to go through “{name}”."
 
 #: packages/core/src/agents/runs.ts
 msgid "Answering your reply in “{name}”"

@@ -7,7 +7,7 @@ import type { LibraryClient } from "./client"
 import { MockLibraryClient } from "./mock-client"
 import { RpcLibraryClient } from "./rpc-client"
 import { seedPapers } from "./mocks/papers"
-import type { Highlight, HighlightColor, Paper, PaperNote, ReadingPosition, ReadStatus, ResolvedPaper } from "@owlit/protocol"
+import type { Highlight, HighlightColor, Paper, PaperNote, DigestPosition, PaperView, ReadingPosition, ReadStatus, ResolvedPaper } from "@owlit/protocol"
 import { normalizeTag } from "./lib/tags"
 
 export const libraryClient: LibraryClient = isDesktop ? new RpcLibraryClient() : new MockLibraryClient()
@@ -38,6 +38,9 @@ interface LibraryState {
   // by and moves unread → reading
   markReading: (id: string) => void
   setPosition: (id: string, position: ReadingPosition) => void
+  // The side of the paper being read (the digest or the PDF), kept so it reopens there
+  setView: (id: string, view: PaperView) => void
+  setDigestPosition: (id: string, position: DigestPosition) => void
 
   // chatId: the chat whose agent asked for the mark (ui.mark), so it shows as Owlit's and core signs it so
   addHighlight: (h: Omit<Highlight, "id" | "createdAt" | "addedBy">, chatId?: string) => Highlight
@@ -156,6 +159,10 @@ export const useLibraryStore = create<LibraryState>()(
 
       setPosition: (id, position) =>
         set((s) => patchPapers(s, [id], (p) => (p.position?.page === position.page && p.position.y === position.y ? undefined : { position }))),
+
+      setView: (id, view) => set((s) => patchPapers(s, [id], (p) => (p.view === view ? undefined : { view }))),
+
+      setDigestPosition: (id, position) => set((s) => patchPapers(s, [id], (p) => (p.digestPosition?.y === position.y ? undefined : { digestPosition: position }))),
 
       addHighlight: (h, chatId) => {
         const highlight: Highlight = { ...h, id: newId(), createdAt: Date.now(), addedBy: chatId ? myOwlit() : (me() ?? "other") }

@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import {
   DEFAULT_NOTE_LANGUAGE,
   RpcErrorCode,
+  type DigestSource,
   type ThreadPaper,
   type FoundPaper,
   type FoundPapers,
@@ -13,7 +14,6 @@ import {
   type Paper,
   type ActorId,
   isOwlit,
-  isPerson,
   type PaperNote,
   type PdfState,
   type PaperPatch,
@@ -81,8 +81,6 @@ const RESOLUTION_TTL_MS = 10 * 60_000
 const FOUND_TTL_MS = 12 * 3_600_000
 // How long changes under library/papers/ settle before they are read
 const SETTLE_MS = 300
-// More papers than this appearing at once from outside are a library brought in, not papers landing
-const LANDED_AT_ONCE = 5
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
 
@@ -115,11 +113,8 @@ export interface LibraryServices {
   imported?: (paper: Paper, importId: string) => void
   // The user starred a paper (not an agent, not an import)
   starred?: (id: string) => void
-  // A paper joined the library one at a time, not by an agent and not in a batch import: the user added
-  // it in the app, or another program put its folder in the library
-  landed?: (id: string, by: "user" | "outside") => void
   // A background agent run for a task: its session shows beside the paper (ctx.describe)
-  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
+  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string; pictures?: number }>
   // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // MinerU's settings, read at each use
@@ -380,7 +375,6 @@ export class Library {
       else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
       if (extra.pdf) await this.placePdf(id, extra.pdf, await sha256Of(extra.pdf), priority)
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
-      if (isPerson(by) && !extra.imported) this.services.landed?.(id, "user")
       return { paper: (await this.get(id))!, existed: false }
     })
   }
@@ -669,7 +663,7 @@ export class Library {
           .slice(0, MAX_PICTURES)
           .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
         const prompt = digestSkill.instructions({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
-        const { text: answer, connectorId, model } = await agent(prompt, ctx, pictures)
+        const { text: answer, connectorId, model, pictures: seen } = await agent(prompt, ctx, pictures)
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial.run(async () => {
@@ -678,7 +672,16 @@ export class Library {
           ctx.signal.throwIfAborted()
           // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
           if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
-          const kept: DigestRecord = { version: 1, format: DIGEST_FORMAT, by: connectorId, ...(model ? { model } : {}), language, ...(drifted(digest, language) ? { drift: true } : {}), at: Date.now() }
+          const kept: DigestRecord = {
+            version: 1,
+            format: DIGEST_FORMAT,
+            by: connectorId,
+            ...(model ? { model } : {}),
+            language,
+            ...(drifted(digest, language) ? { drift: true } : {}),
+            ...(seen !== undefined ? { pictures: seen } : {}),
+            at: Date.now(),
+          }
           await writeFileAtomic(path.join(dir, "digest.md"), digest, { parents: false })
           await writeJsonAtomic(path.join(dir, "digest.json"), kept, { parents: false })
         })
@@ -779,6 +782,24 @@ export class Library {
     if (record?.format !== DIGEST_FORMAT) return { ...state, digestOutdated: "format" }
     const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
     return record.language && record.language !== language ? { ...state, digestOutdated: "language" } : state
+  }
+
+  // What the paper's digest was written from, for its header: digest.json and the text's pages
+  async digestSource(id: string): Promise<DigestSource> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    const dir = paperDir(this.root, id)
+    const record = await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)
+    const text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
+    const pages = text?.match(/<!-- page \d+ -->/g)?.length
+    // Whether the paper is written in Chinese characters, kana or hangul, from the start of its text
+    const sample = text?.replace(/<!-- page \d+ -->/g, "").replace(/\s/g, "").slice(0, 4000) ?? ""
+    const cjk = sample.match(/[぀-ヿ㐀-鿿가-힯]/g)?.length ?? 0
+    return {
+      ...(record?.pictures !== undefined ? { pictures: record.pictures } : {}),
+      ...(record?.language ? { language: record.language } : {}),
+      ...(pages ? { textPages: pages } : {}),
+      ...(sample.length >= 200 ? { cjkText: cjk / sample.length > 0.2 } : {}),
+    }
   }
 
   // The paper's digests (digest.md), or null when it has none
@@ -1090,7 +1111,6 @@ export class Library {
       // An id the services couldn't be asked about (offline) gets its metadata later
       if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, priority)
       await this.placePdf(id, file, sha, priority)
-      if (!options.imported) this.services.landed?.(id, "user")
       return { paper: (await this.get(id))!, existed: false }
     })
   }
@@ -1350,11 +1370,8 @@ export class Library {
           ctx.signal.throwIfAborted()
           await writeText(this.root, id, text)
           this.queue("index.paper", id, "background")
-          // An imported paper gets no digest of its own accord, and MinerU only if the import allowed it
-          const imported = this.imports.imported(id)
-          if (!imported && (await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
-          // A scan has no text at all until MinerU reads it
-          if (imported?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
+          // A scan has no text at all until MinerU reads it, which an import may have declined
+          if (this.imports.imported(id)?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
       }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact
@@ -1644,18 +1661,11 @@ export class Library {
       // The system lost track: look at every folder, and at every paper that had one
       const all = ids.includes("*")
       if (all) ids = [...new Set([...(await this.ids()), ...this.index.ids()])]
-      const known = new Set(this.index.ids())
-      const arrived: string[] = []
       for (const id of ids) {
         const record = await readRecord(this.root, id)
         if (record) this.index.set(id, record.ids, record.title)
         else this.index.delete(id)
-        // Another program's paper: a folder owlit didn't write (the app indexes its own adds before the
-        // watcher hears them) and has no state for
-        if (record && !all && !known.has(id) && !(await readState(this.root, id))) arrived.push(id)
       }
-      // A few at a time are papers landing; many at once are a library brought in, which isn't
-      if (arrived.length <= LANDED_AT_ONCE) for (const id of arrived) this.services.landed?.(id, "outside")
       // Told from inside the lock, so a write queued behind this look (a restore, for Undo) can't land
       // between reading the folders and telling the window: "removed" would then arrive after the paper
       // was back, and the window would lose it again

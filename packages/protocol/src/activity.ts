@@ -23,6 +23,8 @@ export type ActivityEvent =
   // Time a page of the PDF spent at the top, once that stay reached 5 seconds; a long stay comes in
   // parts, settled with paper.focus
   | { kind: "paper.dwell"; at: number; paperId: string; page: number; seconds: number }
+  // The view was scrolled to its end (the digest's last lines came into view)
+  | { kind: "paper.end"; at: number; paperId: string; view: PaperView }
   | { kind: "paper.marked"; at: number; paperId: string; mark: PaperMark }
   | { kind: "highlight.added"; at: number; paperId: string; highlightId: string }
   | { kind: "highlight.removed"; at: number; paperId: string; highlightId: string }
@@ -51,6 +53,7 @@ export const JOURNALED_KINDS = [
   "paper.opened",
   "paper.focus",
   "paper.dwell",
+  "paper.end",
   "paper.marked",
   "doc.opened",
   "doc.edited",
@@ -104,7 +107,19 @@ export interface PaperActivity {
   starred?: boolean
   status?: ReadStatus
   tags?: string[]
-  read: boolean
+  // From the whole history, not only this stretch
+  trace: ReadTrace
+}
+
+// How far the user got with a paper: read (its status is Read: core sets it when they reach the end, or
+// they set it), looked at (opened here, not to the end), or none (never opened in owlit). The time and
+// pages are the whole journal's.
+export interface ReadTrace {
+  state: "read" | "looked" | "none"
+  pdfSeconds: number
+  digestSeconds: number
+  // 1-based pages of the PDF that stayed at the top
+  pages: number[]
 }
 
 export interface DocActivity {
@@ -135,7 +150,7 @@ export type ActivityItem = PaperActivity | DocActivity | ChatActivity
 export interface ActivityLine {
   at: number
   actor: ActorId
-  // e.g. "read" (a visit to a paper, with seconds and pages), "starred", "highlighted", "edited", "wrote"
+  // e.g. "looked at" (a visit to a paper, with seconds and pages), "starred", "highlighted", "edited", "wrote"
   what: string
   paper?: { id: string; title: string }
   doc?: string

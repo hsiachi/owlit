@@ -9,7 +9,21 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Since you left counts from when you left, also when owlit was closed, and names what changed: the papers added to each thread, the docs Owlit wrote or edited, the comments it left.
 - A doc shows a thin line beside the paragraphs Owlit or another program changed since you last looked, with who and when on hover.
 - The dots on threads, comments, chats and digests, and the result card under an answer with its Undo, survive a restart and agree across windows; a background run's changes can be undone from its chat.
+- Resting on a citation of a paper, in a chat, a doc, a comment or a thread's page, shows a card: the paper, the sentence the claim rests on, its page, what Owlit read, how far you read it, and "Owlit couldn't find this sentence in the paper" when it isn't there. A thread cell's popover is the same card with Rewrite under it.
+- Clicking a citation in a doc opens the paper with its sentence ringed, as chat citations do, and Back returns to the doc and to the thread page scrolled where you left them.
+- Owlit cites papers with the sentence it rests on in its comments, replies and Go through, as it does in chats, and a thread exported as a doc keeps each answer's sentence with its page.
+- A thread answers the papers whose text is already in your library from the full text from the start. An answer from a paper's title only (it has no abstract) is greyed in the row and the table, counted in About, and written "title only" in the CSV.
+- A digest's header says when it was read from the text without the figures, from fewer pages than the PDF has, or in another language than the paper's.
+- Owlit writes a digest only when you ask: from the paper's Digest side, its menu, a chat, or by starring it. Opening a paper no longer starts one, and the setting "Digests for every paper" is gone.
+- A paper opens on the side you last read of it, the digest or the PDF, each where you left it; a digest you asked for opens as soon as it is ready.
+- A paper turns Read by itself when you reach its end: most of its pages read in the PDF, or its digest scrolled to the end after two minutes on it. A toast offers Undo, and a status you set back stays. A paper without a PDF turns Reading too, from its digest or abstract.
+- Hovering a paper's status says how far you got, such as "12 min, pp. 1–6" or "the digest, 3 min", and agents asking what you read hear the same: read in full, looked at, or not opened here.
+- Only papers Owlit added and you haven't opened are named lighter in docs and chats; papers you imported look as usual.
+- Once you read a paper in full, Owlit answers its thread rows again from the full text and looks again at its comments that cite it, without a setting.
+- Owlit no longer looks at your docs or your library on its own: the "On its own" setting and what ran under it (comments on a doc you open or stop editing, the daily look over your docs, a digest and threads for a paper that landed, going through a Meetings folder) are gone for now. Go through still runs from a doc's menu.
 - Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
+- Sign in and Open on a waiting line bring the browser with the extension to the front, not only a new tab in it.
+- Signing in to Tsinghua's library opens tlink's sign-in page instead of a 500 error.
 - When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.

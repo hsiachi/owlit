@@ -70,39 +70,18 @@ const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i,
 export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
   if (task.kind === "paper.digest") {
     const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
-    const why =
-      task.priority === "waiting"
-        ? t`You opened “${title}”, which has no digest yet.`
-        : task.priority === "asked"
-          ? t`You asked for a digest of “${title}”.`
-          : t`“${title}” has no digest yet.`
+    const why = task.priority === "asked" ? t`You asked for a digest of “${title}”.` : t`“${title}” has no digest yet.`
     return { doing: t`Writing the digest of “${title}”`, done: t`Digest of “${title}”`, why, result: `${t`The digest is written:`} ${mentionLink(title, paperUri(task.subject))}` }
   }
-  if (task.kind === "docs.review") {
-    const name = docName(task.subject)
-    return { doing: t`Reading “${name}” since your last changes`, done: t`Looked at “${name}”`, why: t`You opened “${name}”, which changed since Owlit last looked.` }
-  }
-  if (task.kind === "docs.reviewSettled") {
-    const name = docName(task.subject)
-    return { doing: t`Reading “${name}” after your edits`, done: t`Looked at “${name}” after your edits`, why: t`You stopped editing “${name}” a while ago, and you're away.` }
-  }
-  if (task.kind === "docs.scan")
-    return { doing: t`Looking over your docs`, done: t`Looked over your docs`, why: t`A day has passed since Owlit last looked over your docs, and you're away.` }
   if (task.kind === "docs.recheck") {
     const bar = task.subject.lastIndexOf("|")
     const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#", bar)))
     const title = (await ws.library.get(task.subject.slice(bar + 1)).catch(() => undefined))?.title ?? t`a paper`
     return { doing: t`Checking a comment in “${name}” against “${title}”`, done: t`Checked a comment in “${name}” against “${title}”`, why: t`You read “${title}” in full, and Owlit's comment in “${name}” leans on it.` }
   }
-  if (task.kind === "paper.relate") {
-    const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
-    return { doing: t`Seeing which threads “${title}” belongs in`, done: t`Saw which threads “${title}” belongs in`, why: t`“${title}” came into your library.` }
-  }
   if (task.kind === "meetings.goThrough") {
     const name = docName(task.subject)
-    const folder = task.subject.includes("/") ? task.subject.slice(0, task.subject.lastIndexOf("/")) : ""
-    const why = task.priority !== "background" ? t`You asked Owlit to go through “${name}”.` : t`“${name}” appeared in ${folder}, and you're away.`
-    return { doing: t`Going through “${name}” against your docs`, done: t`Went through “${name}”`, why }
+    return { doing: t`Going through “${name}” against your docs`, done: t`Went through “${name}”`, why: t`You asked Owlit to go through “${name}”.` }
   }
   if (task.kind === "docs.reply") {
     const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))

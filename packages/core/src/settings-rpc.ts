@@ -59,7 +59,6 @@ export function settingsView(s: AppSettings, systemLanguages: readonly string[] 
       proxy: library.proxy,
       digestLanguage: library.digestLanguage ? normalizeNoteLanguage(library.digestLanguage) : undefined,
       digestLanguageSystem: defaultNoteLanguage(s, systemLanguages),
-      digestEveryPaper: library.digestEveryPaper,
     }),
     parsing: clean({ service: parsing.service, url: parsing.url, auto: parsing.auto ?? true }),
     secrets,
@@ -112,7 +111,6 @@ const patchSchema = z.object({
     .object({
       contactEmail: nullable(z.string().trim().max(320)),
       digestLanguage: nullable(z.string().trim().max(60)),
-      digestEveryPaper: z.boolean().optional(),
     })
     .optional(),
   parsing: z

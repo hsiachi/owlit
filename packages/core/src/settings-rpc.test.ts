@@ -136,7 +136,8 @@ describe("settings", () => {
     await expect(call("settings.proxySignIn")).rejects.toThrow("No library proxy is set up.")
     await call("settings.setProxy", { preset: "tsinghua" })
     expect(await call("settings.proxySignIn")).toBeNull()
-    expect(opened).toEqual(["https://tlink.lib.tsinghua.edu.cn/go"])
+    // tlink's own sign-in page: a bare /go is a 500 there
+    expect(opened).toEqual(["https://tlink.lib.tsinghua.edu.cn/gologin"])
   })
 
   it("tells a refused key from a service that couldn't be asked", async () => {

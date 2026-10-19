@@ -92,25 +92,10 @@ export type CommentInput = Omit<DocComment, "entries"> & { entries: (Omit<Commen
 export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && !c.foldedAt && c.entries.length > 0
 
 // What owlit keeps about Owlit and one of your docs (.owlit/docs/owlit.json, moving with the doc):
-// whether you keep Owlit out of it, and when Owlit last looked at it on its own
+// whether you keep Owlit out of it, and what it went through there
 export interface DocOwlit {
   // When you chose Keep Owlit out; absent while Owlit is let in (the default)
   out?: number
-  looked?: DocLook
-  // Sections Owlit's daily look found half done (an empty heading, a TODO), by a hash of the heading,
-  // with when it first found each so: one still half done a week later gets a comment, once
-  halfDone?: Record<string, number>
   // Material Owlit went through (a meeting's transcript, reviews): when, and the record it wrote
   wentThrough?: { at: number; record: string }
-}
-
-// Owlit's last look at a doc: when, the doc's modification time it read, and what came of it
-export interface DocLook {
-  at: number
-  mtime: number
-  outcome: "comments" | "nothing"
-  // How many comments it left
-  count: number
-  // The paragraphs it read, as short hashes: the next look reads only the ones not among them
-  seen?: string[]
 }
