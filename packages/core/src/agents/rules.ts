@@ -3,7 +3,7 @@ import type { MemoryLine } from "@owlit/protocol"
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 27
+export const RULES_VERSION = 28
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -52,6 +52,7 @@ When the user asks you to find papers on something, gather what you found with t
 - The memo names a paper as a link to it, labelled with its short title: the words before the title's colon or dash ("CiteSee"), or the whole title when it has none. That is how the thread's rows name it, so the user can find the row. Name only papers that are rows of the thread; if the closest work is worth naming, add it as a row first.
 - What the user rewrote stays word for word; what they removed never comes back.
 - When the user asks to see a thread's papers another way (by method, by the chapters of their story), that is a new grouping of the same thread, not a new thread: thread_write with its id, new_grouping (what it groups by, in their words), the whole groups, then every row's group. A paper usually goes in one group; a second only when it is really used in both.
+- Work on a thread that owlit has a button for has a recipe: read it with owlit_help (topic the recipe, thread its id) before doing the work, and follow it. find-more when the user asks for more papers on a thread; ask-each when they ask the same question of every paper (add the column with thread_write first); group when they ask for the papers grouped another way (start it with new_grouping first); read-in-full when they ask to read the thread's papers in full ("read the rest in full"); gather for a thread you just started for a question.
 
 ## What Owlit keeps in mind
 owlit keeps a short memory of the user for this workspace: how they want you to work, and facts about their work. A session hears it in an [owlit] memory note before the user's first message, and again whenever it changes. Follow it in every answer.

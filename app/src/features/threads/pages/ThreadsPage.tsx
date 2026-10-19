@@ -14,7 +14,7 @@ import { NoteDot, StoppedDot } from "@/components/marks"
 import { useTakeParam } from "@/hooks/use-take-param"
 import { shortDate } from "@/lib/time"
 import { useThreadMenu, useProjects } from "../components/ThreadMenu"
-import { gather, runWords, useThreadWork } from "../runs"
+import { gather, useThreadWork, workWords } from "../work"
 import { byProject } from "../lib"
 import { editThread, useThread, useThreadsStore, useSummaries } from "../store"
 import { useThreadsUi } from "../ui-store"
@@ -167,7 +167,7 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
         {/* The slot keeps titles in line; Owlit's dot fills it while something changed since the user looked.
             While Owlit works on the thread, the row's words say so and the slot stays empty. */}
         <span className="-ml-0.5 grid size-5 shrink-0 place-items-center">
-          {running ? null : work.broken ? (
+          {running ? null : work.failed ? (
             <StoppedDot label={t`Owlit stopped.`} />
           ) : (
             fresh && <NoteDot />
@@ -175,7 +175,7 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
         </span>
         <span className="shrink-0 truncate">{summary.title}</span>
         <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground">
-          {running ? <span className="shimmer">{runWords(running, thread)}</span> : size}
+          {running ? <span className="shimmer">{workWords(running, thread)}</span> : size}
         </span>
         <span className="shrink-0 pr-1.5 text-detail text-muted-foreground tabular-nums group-hover/row:hidden group-focus-key/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
           {shortDate(summary.updatedAt)}

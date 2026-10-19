@@ -245,7 +245,7 @@ export interface Chat {
   startedBy?: "owlit"
   // What a chat owlit started works on: the status line there reads its running turn by this
   about?: ChatAbout
-  // The scheduler task whose run this is, for a run of the agent lane (threads, Go through, a reply)
+  // The scheduler task whose run this is, for a run of the agent lane (Go through, a reply)
   run?: OwlitRun
   messages: ChatMessage[]
 }
@@ -254,6 +254,11 @@ export interface ChatAbout {
   kind: "paper" | "thread" | "doc" | "comment"
   // A paper's or thread's id, a doc's workspace path, a comment as <doc path>#<comment id>
   id: string
+  // The recipe the chat was started with (core's recipes/index.ts names them: "find-more", "ask-each"…),
+  // which the status line says in words; the thing it is about is kind and id alone (sameAbout)
+  recipe?: string
+  // The thread's column an ask-each or group recipe fills
+  column?: string
 }
 
 // A chat owlit started, as the thing it is about shows it: its last reply, streaming while its turn runs,
@@ -267,7 +272,7 @@ export interface StartedChat {
 // The background task an Owlit run is the session of
 export interface OwlitRun {
   taskId: string
-  // The task's kind and subject (threads.more on a thread id, meetings.goThrough on a doc's path)
+  // The task's kind and subject (meetings.goThrough on a doc's path)
   kind: string
   subject: string
 }

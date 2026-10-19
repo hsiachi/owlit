@@ -28,6 +28,7 @@ import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
+import { isRecipe } from "./recipes/index.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
 import { startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
@@ -302,7 +303,16 @@ export class Core {
     this.router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
     this.router.register("agents.rules", noParams, "read", () => AGENT_RULES)
-    this.router.register("agents.guide", z.object({ topic: z.string().optional() }), "read", ({ topic }) => guide(topic))
+    this.router.register(
+      "agents.guide",
+      z.object({ topic: z.string().optional(), thread: z.string().optional(), column: z.string().optional(), lookFor: z.string().optional() }), "read",
+      async ({ topic, thread, column, lookFor }) => {
+        const name = topic?.trim().toLowerCase() ?? ""
+        if (!isRecipe(name)) return guide(topic)
+        if (!thread) return `The recipe ${name} is written out for one thread: give thread, its id (thread_list has them).`
+        return this.requireWorkspace().threads.recipe(name, thread, { ...(column ? { column } : {}), ...(lookFor ? { lookFor } : {}) })
+      },
+    )
     this.router.register("core.version", noParams, "read", () => this.version())
     this.router.register("core.diagnostics", noParams, "read", () => this.diagnostics())
     this.router.register("extension.get", noParams, "read", async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [] })
@@ -528,6 +538,12 @@ export class Core {
     }) as unknown as z.ZodType<ChatMessage>
     this.router.register("chats.list", noParams, "read", () => chats().list())
     this.router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
+    this.router.register("chats.tryAgain", z.object({ chatId }), "admin", async ({ chatId }) => {
+      const ws = this.requireWorkspace()
+      const started = await tryAgain(this.turns, ws.chats, chatId)
+      await this.announceStarted(ws, started.chatId)
+      return { chatId: started.chatId }
+    })
     this.router.register("chats.get", z.object({ id: chatId }), "read", ({ id }) => chats().get(id))
     this.router.register("chats.create", z.object({ chat: summary }), "admin", ({ chat }) => chats().create(chat))
     this.router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), "admin", ({ id, patch }) =>
@@ -1261,16 +1277,12 @@ export class Core {
                 },
               },
               threads: {
-                agent: async (prompt, ctx, allow, run) => {
-                  // Without owlit's tools (no socket: it failed to open) the agent couldn't write the
-                  // thread at all. The run's tools sign its searches and writes, so About can show
-                  // them as one batch.
-                  const mcpServers = this.mcpServers(root, undefined, run)
-                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-                  return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
-                },
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
+                },
+                startChat: (start) => {
+                  if (this.workspace?.root !== root) throw new Error("The workspace closed.")
+                  return this.startFor(start)
                 },
               },
               profile: async () => (await this.settings.get()).profile,
@@ -1549,12 +1561,12 @@ export class Core {
     if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
   }
 
-  // A task's agent run (threads, Go through, a reply), kept as a session: why it started, its steps as
+  // A task's agent run (Go through, a reply), kept as a session: why it started, its steps as
   // they come, and how it ended
   private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
     const ws = this.workspace
     if (ws?.root !== root) throw new Error("The workspace closed.")
-    const words = await runWords(ws, ctx.task)
+    const words = runWords(ctx.task)
     const session = await openRun(ws.chats, ctx.task, words, (chat) => {
       if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
     })
@@ -1655,7 +1667,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.threads.tasks(), ...this.reviews.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...this.reviews.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   // The person at the window, whose seen marks these are: an agent or a program on the socket has none

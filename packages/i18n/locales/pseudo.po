@@ -2497,18 +2497,18 @@ msgstr ""
 msgid "Apply"
 msgstr ""
 
+#: app/src/features/chat/started.ts
+#: app/src/features/chat/store.ts
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr ""
+
 #: app/src/features/chat/status.ts
 msgid "Finished since you last looked"
 msgstr ""
 
 #: app/src/features/chat/status.ts
 msgid "Stopped with an error"
-msgstr ""
-
-#: app/src/features/chat/store.ts
-#: app/src/features/library/digests.ts
-#: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it finished."
 msgstr ""
 
 #: app/src/features/chat/use-notify.ts
@@ -5991,6 +5991,10 @@ msgid "{papers} so far"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{more, plural, one {and # more} other {and # more}}"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Owlit stopped."
 msgstr ""
@@ -6205,36 +6209,48 @@ msgstr ""
 msgid "Found nothing"
 msgstr ""
 
-#: app/src/features/threads/runs.ts
+#: app/src/features/threads/store.ts
+msgid "Thread deleted"
+msgstr ""
+
+#: app/src/features/threads/work.ts
 msgid "Gathering papers…"
 msgstr ""
 
-#: app/src/features/threads/runs.ts
+#: app/src/features/threads/work.ts
 msgid "Finding more papers…"
 msgstr ""
 
-#: app/src/features/threads/runs.ts
-msgid "Grouping the papers by “{question}”…"
-msgstr ""
-
-#: app/src/features/threads/runs.ts
+#: app/src/features/threads/work.ts
 msgid "Asking each paper “{question}”…"
 msgstr ""
 
-#: app/src/features/threads/runs.ts
+#: app/src/features/threads/work.ts
+msgid "Asking each paper…"
+msgstr ""
+
+#: app/src/features/threads/work.ts
+msgid "Grouping the papers by “{question}”…"
+msgstr ""
+
+#: app/src/features/threads/work.ts
+msgid "Grouping the papers…"
+msgstr ""
+
+#: app/src/features/threads/work.ts
 msgid "Reading papers in full…"
 msgstr ""
 
-#: app/src/features/threads/runs.ts
-msgid "Owlit works on threads in the desktop app."
+#: app/src/features/threads/work.ts
+msgid "Owlit is working on this thread…"
 msgstr ""
 
-#: app/src/features/threads/runs.ts
+#: app/src/features/threads/work.ts
 msgid "Owlit gathers papers in the desktop app."
 msgstr ""
 
-#: app/src/features/threads/store.ts
-msgid "Thread deleted"
+#: app/src/features/threads/work.ts
+msgid "Owlit works on threads in the desktop app."
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx
@@ -7281,43 +7297,6 @@ msgid "You replied to Owlit's comment in “{name}”."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "a thread"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Gathered papers for “{title}”"
-msgstr ""
-
-#. placeholder {0}: thread?.asked.text ?? title
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to gather papers: “{0}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked for more papers for “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked for more papers in “{title}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered “{question}” in “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked “{question}” of each paper in “{title}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Read the papers in “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to read the papers in “{title}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr ""
 
@@ -7939,6 +7918,10 @@ msgid "That thread isn't here any more."
 msgstr ""
 
 #: packages/core/src/threads/threads.ts
+msgid "Owlit can't work on threads here."
+msgstr ""
+
+#: packages/core/src/threads/threads.ts
 msgid "Say what to collect papers on."
 msgstr ""
 
@@ -7956,10 +7939,6 @@ msgstr ""
 
 #: packages/core/src/threads/threads.ts
 msgid "Pick at least one sentence to compare with."
-msgstr ""
-
-#: packages/core/src/threads/threads.ts
-msgid "Owlit can't work in the background here."
 msgstr ""
 
 #: packages/core/src/threads/threads.ts

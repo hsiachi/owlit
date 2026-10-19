@@ -220,23 +220,24 @@ export interface Methods {
   "threads.unsplit": { params: { id: string; chatId?: string }; result: Thread }
   // Owlit's work on the thread in batches, oldest first, for About
   "threads.about": { params: { id: string }; result: ThreadBatch[] }
-  // Owlit gathers papers for a question, in the background: the thread is there at once (empty,
-  // titled by the question until Owlit names it) and fills as the task runs
-  "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: Thread }
-  // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full, check
-  // for new papers now
+  // Each of Owlit's pieces of work on a thread is a chat owlit starts about it (Chat.about), whose id
+  // comes back; several run side by side.
+  // Owlit gathers papers for a question: the thread is there at once (empty, titled by the question until
+  // Owlit names it) and fills as the chat works
+  "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: { thread: Thread; chatId: string } }
+  // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full
   // more: what to look for this time (what), when it isn't the thread's question; read: the rows answered
   // from their abstracts whose paper has a PDF to read (the button says how many)
-  "threads.run": { params: { id: string; run: "more" | "read"; what?: string }; result: Task }
+  "threads.run": { params: { id: string; run: "more" | "read"; what?: string }; result: { chatId: string } }
   // A new column: a question Owlit answers for every paper
-  "threads.ask": { params: { id: string; question: string }; result: Thread }
+  "threads.ask": { params: { id: string; question: string }; result: { thread: Thread; chatId: string } }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
-  "threads.fill": { params: { id: string; column: string }; result: Task }
-  // Group another way: a new grouping, by what the user said to group by, which Owlit fills in the
-  // background (groups first, then each paper's)
-  "threads.group": { params: { id: string; question: string }; result: Thread }
+  "threads.fill": { params: { id: string; column: string }; result: { chatId: string } }
+  // Group another way: a new grouping, by what the user said to group by, which Owlit fills (groups
+  // first, then each paper's)
+  "threads.group": { params: { id: string; question: string }; result: { thread: Thread; chatId: string } }
   // A column that sets every paper against sentences the user picked from a doc of theirs
-  "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: Thread }
+  "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: { thread: Thread; chatId: string } }
   // Moves the thread to .owlit/trash/
   "threads.delete": { params: { id: string }; result: null }
   "threads.undelete": { params: { id: string }; result: Thread }
@@ -248,6 +249,8 @@ export interface Methods {
   "chats.get": { params: { id: string }; result: Chat }
   // The chats owlit started, the last one about each thing (of one kind, when given)
   "chats.startedFor": { params: { kind?: ChatAbout["kind"] }; result: StartedChat[] }
+  // Retry: another turn in a chat owlit started, which broke or was cut off
+  "chats.tryAgain": { params: { chatId: string }; result: { chatId: string } }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
@@ -281,7 +284,7 @@ export interface Methods {
   // What every agent owlit runs is told about owlit (owlit-mcp's instructions, a new session's preamble)
   "agents.rules": { params: void; result: string }
   // How to use owlit, for an agent asked about owlit itself: the list of topics, or one topic
-  "agents.guide": { params: { topic?: string }; result: string }
+  "agents.guide": { params: { topic?: string; thread?: string; column?: string; lookFor?: string }; result: string }
   // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
   "agents.check": { params: { id: string }; result: Connector }
   // Fetches owlit's own copy of the agent's adapter (or a newer one) into owlit's data folder; returns at

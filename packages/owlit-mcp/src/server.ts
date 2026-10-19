@@ -332,7 +332,12 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":
-      return owlit.rpc.agents.guide(optStr("topic") ? { topic: str("topic") } : {})
+      return owlit.rpc.agents.guide({
+        ...(optStr("topic") ? { topic: str("topic") } : {}),
+        ...(optStr("thread") ? { thread: str("thread") } : {}),
+        ...(optStr("column") ? { column: str("column") } : {}),
+        ...(optStr("look_for") ? { lookFor: str("look_for") } : {}),
+      })
     case "ui_open": {
       const { title } = await owlit.rpc.ui.open({ uri: str("uri"), ...asker })
       return `Showing ${title} in owlit.`

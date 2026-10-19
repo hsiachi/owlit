@@ -1,12 +1,12 @@
 import { t } from "@lingui/core/macro"
-import { applyUpdate, threadOfSubject, type Chat, type ChatMessage, type SessionUpdate, type Task } from "@owlit/protocol"
+import { applyUpdate, type Chat, type ChatMessage, type SessionUpdate, type Task } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import type { Chats } from "../chats/chats.ts"
-import type { Workspace } from "../workspace/workspace.ts"
 
-// A scheduler task's agent run (a thread's work, Go through, a reply under Owlit's comment) has a body: a
+// A scheduler task's agent run (Go through, a reply under Owlit's comment) has a body: a
 // session (a chat that no chat list shows) holding why it started, its steps and its result. A retry of
-// the same task adds to the same session. A digest is a chat owlit starts instead (chats.ts startFor).
+// the same task adds to the same session. A digest and a thread's work are chats owlit starts instead
+// (chats.ts startFor).
 
 export interface RunWords {
   // The session's title: what the run does, by name
@@ -60,7 +60,7 @@ export async function openRun(
 const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i, "")
 
 // The words of a run, from its task: what it is about, by name, and what the user asked
-export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
+export function runWords(task: Task): RunWords {
   if (task.kind === "meetings.goThrough") {
     const name = docName(task.subject)
     return { title: t`Went through “${name}”`, why: t`You asked Owlit to go through “${name}”.` }
@@ -68,22 +68,6 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
   if (task.kind === "docs.reply") {
     const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))
     return { title: t`Answered your reply in “${name}”`, why: t`You replied to Owlit's comment in “${name}”.` }
-  }
-  if (task.kind.startsWith("threads.")) {
-    const thread = await ws.threads.get(threadOfSubject(task.subject)).catch(() => undefined)
-    const title = thread?.title ?? t`a thread`
-    switch (task.kind) {
-      case "threads.gather":
-        return { title: t`Gathered papers for “${title}”`, why: t`You asked Owlit to gather papers: “${thread?.asked.text ?? title}”.` }
-      case "threads.more":
-        return { title: t`Looked for more papers for “${title}”`, why: t`You asked for more papers in “${title}”.` }
-      case "threads.fill": {
-        const question = thread?.columns.find((c) => c.id === task.subject.split(":")[1])?.question ?? ""
-        return { title: t`Answered “${question}” in “${title}”`, why: t`You asked “${question}” of each paper in “${title}”.` }
-      }
-      case "threads.read":
-        return { title: t`Read the papers in “${title}”`, why: t`You asked Owlit to read the papers in “${title}”.` }
-    }
   }
   return { title: t`Background work`, why: t`You asked Owlit for this.` }
 }

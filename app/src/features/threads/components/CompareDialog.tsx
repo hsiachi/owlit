@@ -9,7 +9,7 @@ import { displayName } from "@/features/docs/types"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
-import { desktopOnly } from "../runs"
+import { desktopOnly } from "../work"
 import { sentencesOf } from "../lib"
 import { put } from "../store"
 
@@ -43,7 +43,7 @@ export function CompareDialog({ threadId, open, onOpenChange }: { threadId: stri
       return close()
     }
     try {
-      put(await rpc.threads.compare({ id: threadId, doc, sentences: picked }))
+      put((await rpc.threads.compare({ id: threadId, doc, sentences: picked })).thread)
       close()
     } catch (error) {
       toastError(error)
