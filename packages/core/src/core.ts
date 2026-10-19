@@ -585,6 +585,9 @@ export class Core {
       },
     )
     this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), { touches: "structure", target: ({ paths }) => this.fs.target(paths) }, async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
+    // A doc of Owlit's own (a Go through's record): own, decided on whose the doc is (docTarget), so every
+    // role may write one and none may write the person's this way
+    this.router.register("agents.writeDoc", z.object({ path: z.string().min(1), content: z.string() }), { touches: "own", target: ({ path: file }) => this.docTarget(file) }, ({ path: file, content }, caller) => this.fs.writeOwn(file, content, caller))
     this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), { touches: "structure", target: ({ path: from, to }) => this.fs.target([from, to]) }, async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
     // What a window says of itself: which docs it holds open (Owlit's writes to them go through it), its
     // answers to core's requests, its focus. Changing nothing, they pass the policy as reads, so a program
@@ -1474,6 +1477,22 @@ export class Core {
     const theirs = papers.find((p) => !isOwlit(p.addedBy))
     const by = theirs?.addedBy ?? adders[0]
     return { what: theirs ? `paper ${theirs.id}` : "paper", ...(by ? { by } : {}), touchedBy }
+  }
+
+  // Whose a doc is, for an agent writing one of its own (agents.writeDoc): nobody's while it isn't there,
+  // so making it is the caller's; else whoever made it, as the change log says, and whoever changed it
+  // since. A doc the log has no record of making (made before the log, or outside owlit, or its entries
+  // since dropped) is the person's.
+  private async docTarget(file: string): Promise<Target> {
+    const ws = this.requireWorkspace()
+    const files = await this.fs.target([file])
+    const rel = files.files?.[0]
+    if (!rel || files.notDoc || (await this.fs.text(rel)) === null) return { ...files, what: "doc" }
+    const changes = (await ws.changes.list({ target: { kind: "doc", path: rel } })).reverse()
+    const made = changes.findLast((c) => c.action === "create")
+    const by = made?.actor ?? (await ws.recorder.actorOf(WINDOW))
+    const since = made ? changes.slice(changes.indexOf(made) + 1) : []
+    return { ...files, what: "doc", by, touchedBy: since.map((c) => c.actor) }
   }
 
   // Whose a memory line is: whoever kept it, as the change log says, and whoever changed it since. A line

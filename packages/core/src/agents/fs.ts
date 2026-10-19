@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type ActorId, type ChangeOrigin, type Role } from "@owlit/protocol"
+import { isMarkdown, RpcErrorCode, type ActorId, type ChangeOrigin, type Role } from "@owlit/protocol"
 import { newWriteId } from "../changes/record.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { UiBridge } from "../ui/bridge.ts"
@@ -122,6 +122,20 @@ export class AgentFs {
       if (applied) return
     }
     await this.workspace().docs.writeTold(rel, content)
+  }
+
+  // Writes a doc of the agent's own whole (owlit-mcp's docs_write), once the policy found it the caller's:
+  // a new Markdown file, or one only the caller has changed (core.ts docTarget). Recorded as the
+  // caller's write, so its chat offers Undo; a new doc's Undo takes it away.
+  async writeOwn(file: string, content: string, caller: Caller) {
+    const ws = this.workspace()
+    const rel = this.docPath(file)
+    if (!isMarkdown(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, "docs_write writes Markdown docs: give the path a .md name.", { path: rel })
+    const before = await this.text(rel)
+    const change = await ws.recorder.doc(caller, rel, before, content, {}, { quiet: true })
+    await this.place(rel, content, change.id)
+    ws.recorder.say(change)
+    return { path: rel, created: before === null }
   }
 
   // Deletes docs for an agent (owlit-mcp's docs_delete, once the chat's role allows it). Each file's text is

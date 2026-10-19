@@ -170,6 +170,27 @@ describe("the router's policy", () => {
     expect(await call("library.removeByAgent", { ids: ["doi-10.9-b"] }, mcp)).toEqual({ removed: ["doi-10.9-b"], refused: [] })
   })
 
+  it("lets every role write docs of Owlit's own, and none write the person's that way", async () => {
+    const { call, mcp } = await setup()
+    for (const role of ROLE_IDS) {
+      await call("chats.update", { id: "c1", patch: { role } })
+      const rel = `Meetings/${role} · reading.md`
+      expect(await call("agents.writeDoc", { path: rel, content: "# Reading\n" }, mcp), role).toEqual({ path: rel, created: true })
+      expect(await call("agents.writeDoc", { path: rel, content: "# Reading, again\n" }, mcp), role).toEqual({ path: rel, created: false })
+      const [made] = (await call("changes.list", { target: { kind: "doc", path: rel } })).reverse()
+      expect(made, role).toMatchObject({ actor: MY_OWLIT, action: "create", origin: { chatId: "c1" } })
+      // A doc the person had before the log knew it, and one of Owlit's they have since changed
+      await expect(call("agents.writeDoc", { path: "notes.md", content: "Mine now." }, mcp), role).rejects.toThrow("Not done: That doc is the user's, not Owlit's to change; name it in your answer and let them decide.")
+      const { modifiedAt } = await call("docs.read", { path: rel })
+      await call("docs.write", { path: rel, content: "# Reading, as I'd put it\n", expectedModifiedAt: modifiedAt })
+      await expect(call("agents.writeDoc", { path: rel, content: "# Back\n" }, mcp), role).rejects.toThrow(/^Not done: The user has changed that doc since/)
+      // Never owlit's own state, and only Markdown
+      await expect(call("agents.writeDoc", { path: ".owlit/x.md", content: "x" }, mcp), role).rejects.toThrow(/^Not done: That file isn't one of the user's docs/)
+      await expect(call("agents.writeDoc", { path: "data.csv", content: "x" }, mcp), role).rejects.toThrow(/Markdown/)
+    }
+    expect(await call("docs.read", { path: "notes.md" })).toMatchObject({ content: "The first claim.\n" })
+  })
+
   it("refuses a program with no chat everything but reads and Owlit's own things", async () => {
     const { call, paper } = await setup()
     const command: Caller = { kind: "socket" }

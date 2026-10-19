@@ -316,6 +316,9 @@ export interface Methods {
   // decides), keeping each file's text so the chat offers Undo
   "agents.deleteDocs": { params: { paths: string[]; chatId?: string; toolCallId?: string }; result: { deleted: string[] } }
   "agents.moveDoc": { params: { path: string; to: string; chatId?: string; toolCallId?: string }; result: { path: string } }
+  // Writes a doc of Owlit's own for an agent (owlit-mcp's docs_write): a new Markdown file, or one only
+  // Owlit has changed since it made it; recorded as the agent's, so the chat offers Undo
+  "agents.writeDoc": { params: { path: string; content: string; chatId?: string; toolCallId?: string }; result: { path: string; created: boolean } }
   // Stops the chat's running turn; questions it was waiting on close as cancelled
   "agents.cancel": { params: { chatId: string }; result: null }
   // The turns running or starting now, each with its reply as it stands: for a window that opens while

@@ -293,6 +293,20 @@ function TOOLS(): ToolSpec[] {
     },
   },
   {
+    name: "docs_write",
+    touches: "own",
+    description:
+      "Write a doc of your own, whole: a new Markdown file in the workspace (a reading, a record of work you were asked to keep), or one you wrote earlier that nobody else has changed since. Never for the user's docs: edit those with your file-editing tool, when your role lets you. The user sees it among their docs and can undo it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Workspace-relative path of a new doc, e.g. 'Meetings/Weekly · reading.md'" },
+        content: { type: "string", description: "The whole doc, Markdown" },
+      },
+      required: ["path", "content"],
+    },
+  },
+  {
     name: "docs_delete",
     touches: "structure",
     description:
