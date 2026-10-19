@@ -91,6 +91,9 @@ interface Turn {
   // Questions waiting for the user: answers by question id, null to skip, "cancel" when the turn stops
   questions: Map<string, (answers: Record<string, QuestionAnswer> | null | "cancel") => void>
   cancelled: boolean
+  // Resolves when the turn is cancelled, so a wait on the agent starting ends with it (startOrStop)
+  stopped: Promise<void>
+  stop: () => void
   // Set when owlit, not the person, stopped it (reset): the reply says so instead of "stopped"
   cutOff?: CutOff
   // Shows an update in the chat and saves it in the answer; set once the turn runs
@@ -136,7 +139,9 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, agentText: new Map() }
+    let stop = () => {}
+    const stopped = new Promise<void>((resolve) => (stop = resolve))
+    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, stopped, stop, agentText: new Map() }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -185,14 +190,12 @@ export class Turns {
     const t0 = Date.now()
     const log = (what: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[turn ${req.chatId.slice(0, 8)}] ${what} +${Date.now() - t0}ms`)
     try {
-      const fresh = await this.session(req, ws)
+      const fresh = await startOrStop(turn, this.session(req, ws))
       log(`session ${fresh.history === null ? "ready" : "new, with history"}`)
       live = fresh.live
       live.turn = turn
-      await this.configure(live, req, fresh.guard)
+      await startOrStop(turn, this.configure(live, req, fresh.guard))
       log("configured")
-      // Stopped while the agent was starting: it isn't asked at all
-      if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
       // owlit's rules and the role: in a new session's first prompt, unless the agent takes them itself
       const preamble = fresh.created && !fresh.rulesInSystemPrompt
       const userName = preamble ? await this.options.userName?.() : undefined
@@ -239,9 +242,11 @@ export class Turns {
     const turn = this.turns.get(chatId)
     if (!turn) return null
     turn.cancelled = true
+    // A turn still starting stops waiting for its agent at once (startOrStop)
+    turn.stop()
     // Questions still open are closed as cancelled, as ACP asks of a client that cancels
     this.closePermissions(turn)
-    // A turn still starting has no session yet: it sees `cancelled` before it asks the agent
+    // A turn still starting has no session yet: it never asks the agent
     for (const live of this.live.values()) {
       if (live.turn === turn) await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
     }
@@ -579,6 +584,16 @@ export class Turns {
     for (const [, p] of turn.permissions) p.resolve({ outcome: { outcome: "cancelled" } })
     for (const [, answer] of turn.questions) answer("cancel")
   }
+}
+
+// Starting the agent, opening the chat's session and setting its options can hang (an agent that never
+// answers initialize), and nothing in ACP can cancel them: a turn stopped meanwhile stops waiting at once
+// and never asks the agent. What the step does once it finishes is left to it (a session opened late is
+// kept for the next turn); its failure then is nobody's.
+async function startOrStop<T>(turn: Turn, step: Promise<T>): Promise<T> {
+  if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
+  step.catch(() => undefined)
+  return Promise.race([step, turn.stopped.then((): never => { throw new Error("Stopped before the agent was asked.") })])
 }
 
 // The SDK can settle a prompt before it has handed over the updates the agent sent just ahead of its

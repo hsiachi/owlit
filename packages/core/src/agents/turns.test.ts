@@ -402,6 +402,22 @@ describe("turns", () => {
     expect((await turn).message).toBe("Owlit was closed before it finished, when you opened another workspace.")
   })
 
+  it("stops a turn whose agent never finishes starting", async () => {
+    const { send, call } = await setup()
+    process.env.FAKE_ACP_HANG = "session"
+    try {
+      const turn = send("hello")
+      // The turn is there to stop as soon as it is asked for
+      await until(async () => (await call("agents.running")).length, { what: "the turn to start" })
+      await call("agents.cancel", { chatId: "c1" })
+      expect(await turn).toEqual({ stopReason: "cancelled" })
+      expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({ status: "cancelled" })
+      expect(await call("agents.running")).toEqual([])
+    } finally {
+      delete process.env.FAKE_ACP_HANG
+    }
+  })
+
   it("serves file reads inside the workspace and refuses the rest", async () => {
     const { send, text, updates } = await setup()
     await send("read notes.md")

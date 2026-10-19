@@ -16,6 +16,7 @@
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
+// FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
 // as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
 // FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back.
@@ -90,6 +91,7 @@ class FakeAgent implements acp.Agent {
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
     if (process.env.FAKE_ACP_AUTH === "required") throw acp.RequestError.authRequired()
+    if (process.env.FAKE_ACP_HANG === "session") await new Promise(() => {})
     const sessionId = randomUUID()
     const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [] }
     this.sessions.set(sessionId, session)
