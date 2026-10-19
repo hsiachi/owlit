@@ -5,6 +5,10 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 ## Unreleased
 
 - A digest you ask for starts at once, beside whatever else Owlit is doing, instead of waiting its turn behind a thread's work. The paper's page says "Owlit is reading this paper…" with Stop.
+- Asking for a digest of a paper whose text owlit hasn't read yet answers at once: the paper's page says "Owlit is getting the text…", then "Owlit is reading this paper…" once Owlit starts. If the text can't be read, the page says so with Retry.
+- Retry runs on the agent and model Settings › Owlit picks now. A digest's Retry after you changed its language writes it afresh in the new one.
+- Gather with no agent set up says so and leaves no empty thread behind.
+- Settings › Owlit's Background work is now Tasks you hand Owlit: the agent and model for digests, thread work, Go through and Owlit's answers under its comments.
 - A digest that couldn't be written says why on the paper's page ("Claude Code's usage limit is reached; it resets at 2:20", "Owlit was closed before it finished"), with Retry, and still says so after you restart owlit. Retry carries on where it stopped.
 - A thread's work (Gather, Find more papers, Ask each paper, Group another way, Read N in full) starts at once, and several can run together on one thread or on several. The thread says what each is doing ("Reading papers in full… and 1 more") with Stop.
 - Thread work that couldn't finish says why on the thread ("Claude Code's usage limit is reached; it resets at 2:20"), with a Retry that works and carries on where it stopped, still there after you restart owlit.

@@ -1,4 +1,4 @@
-import { itemId, placedKey, readInFull, shownThread, type Change, type ChatAbout, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
+import { itemId, placedKey, readInFull, RpcErrorCode, shownThread, type Change, type ChatAbout, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest"
 import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
 import { Seen } from "../changes/seen.ts"
+import { RpcFailure } from "../rpc/errors.ts"
 import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
 const papers: Record<string, ThreadPaper> = {
@@ -41,8 +42,8 @@ function setup(services: ThreadsServices = {}) {
 
 const ME = "p_1234abcd" as const
 
-// An agent on owlit's socket, working for a run (or the chat its write names)
-const agent = { kind: "socket" as const, run: "threads.more:t1" }
+// Owlit's agent, writing for the chat its write names when it names one
+const agent = { kind: "owlit" as const }
 const window = { kind: "window" as const }
 
 const start = (threads: Threads, extra: object = {}) =>
@@ -125,19 +126,18 @@ describe("Threads.write", () => {
     const { threads, changes } = setup()
     const { id } = await start(threads)
     const newest = async (paper: string) => (await changes.list({ target: { kind: "thread", path: id, part: itemId.cell(paper, "q") } }))[0]
-    // Read all in full: a background run rewrites the rows answered from their abstracts
-    const read = { kind: "socket" as const, run: "threads.read:t2" }
-    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover a third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }] }, read)
+    // Read all in full: Owlit rewrites the rows answered from their abstracts
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover a third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-2"))).toEqual({ was: "Own explanations recover more.", from: "abstract" })
     // A chat's write over an answer from the title only (the paper has no abstract) is the same entry
     await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }] }, agent)
     await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }], chatId: "chat-1" }, { kind: "socket", chatId: "chat-1" })
     expect(readInFull(await newest("doi-10.1145-1"))).toEqual({ was: "Lower.", from: "title" })
     // A rewrite that stays from the full text, or under the user's own words, isn't one
-    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }] }, read)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-1"))).toBeNull()
     await threads.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-2", "q"), text: "Mine." }, window)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Owlit's again.", depth: "full", passage: { quote: "again", page: 5 } } } }] }, read)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Owlit's again.", depth: "full", passage: { quote: "again", page: 5 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-2"))).toBeNull()
   })
 
@@ -581,6 +581,20 @@ describe("Threads, Owlit's work in chats it starts", () => {
     const chat = (chatId: string) => started.find((c) => c.chatId === chatId)!
     return { ...ctx, started, chat, searched }
   }
+
+  it("leaves no empty thread when Gather's chat can't start, and says why", async () => {
+    const noAgent = new RpcFailure(RpcErrorCode.Unavailable, "No agent is set up for Owlit to work with. Set one up in Settings › Agents.")
+    const checked = withChats({ canStartChat: async () => Promise.reject(noAgent) })
+    await expect(checked.threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)).rejects.toBe(noAgent)
+    expect(await checked.threads.list()).toEqual([])
+    expect(await checked.changes.list()).toEqual([])
+
+    // Known only when the chat starts: the thread made for it goes again
+    const late = withChats({ startChat: async () => Promise.reject(noAgent) })
+    await expect(late.threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)).rejects.toBe(noAgent)
+    expect(await late.threads.list()).toEqual([])
+    expect(late.events.at(-1)).toMatchObject({ gone: true })
+  })
 
   it("tells its batches apart for About: a started chat's writes are one batch named by its recipe, then a chat's later question", async () => {
     const { threads, chat, searched } = withChats()

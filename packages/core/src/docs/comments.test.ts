@@ -3,7 +3,8 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
-import { knownProfile, ME, until } from "../test-util.ts"
+import type { Caller } from "../rpc/index.ts"
+import { knownProfile, ME, MY_OWLIT, until } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -19,8 +20,9 @@ async function setup(files: Record<string, string>) {
   }
   const core = new Core({ userDataDir: knownProfile(path.join(base, "userData")) })
   cores.push(core)
-  const call = async (method: string, params?: unknown): Promise<any> => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  // The window by default; owlit-mcp on the socket for an agent's call
+  const call = async (method: string, params?: unknown, caller?: Caller): Promise<any> => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
@@ -125,5 +127,20 @@ describe("comments", () => {
     expect(entries[1].after).toMatchObject({ id: "r1", by: ME, text: "ok" })
     expect(entries[2]).toMatchObject({ before: { id: "n1" }, after: { id: "n1", resolvedAt: 3 } })
     expect(entries[2].after.entries).toBeUndefined()
+  })
+
+  it("signs an agent's comments as Owlit's whatever it says, and never lets one go over a comment that is there", async () => {
+    const { call } = await setup({ "a.md": "a the words b" })
+    const mcp: Caller = { kind: "socket", chatId: "chat-1" }
+    await call("comments.add", { path: "a.md", comment: { ...comment("c1"), entries: [{ ...comment("c1").entries[0], by: ME }] } }, mcp)
+    // The person's own comment, then an agent trying to write over it
+    await call("comments.add", { path: "a.md", comment: comment("c3") })
+    await expect(call("comments.add", { path: "a.md", comment: comment("c3") }, mcp)).rejects.toMatchObject({ message: "Not done: That comment is the user's, not Owlit's to change; name it in your answer and let them decide." })
+    // Nor over its own: a comment is added once
+    await expect(call("comments.add", { path: "a.md", comment: comment("c1") }, mcp)).rejects.toMatchObject({ message: "That comment is already there; an agent adds new ones." })
+    expect((await call("comments.all"))["a.md"].map((c: any) => [c.id, c.entries[0].by])).toEqual([
+      ["c1", MY_OWLIT],
+      ["c3", ME],
+    ])
   })
 })

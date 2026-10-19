@@ -87,7 +87,7 @@ function TextSnippet({ text, className }: { text: string; className?: string }) 
 }
 
 // Where the paper's digest stands, on the ladder of states: Owlit's dot once it is new since the user
-// looked, red when the run broke (the row says so in words too). One being written shows on the paper's
+// looked, red when its chat broke (the row says so in words too). One being written shows on the paper's
 // Digest side, not in the list.
 function DigestMark({ state }: { state: DigestState }) {
   if (state === "new") return <NoteDot label={t`New digest`} />

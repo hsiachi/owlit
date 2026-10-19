@@ -17,7 +17,7 @@ import { put } from "../store"
 const MOST = 12
 
 // Compare with a doc…: the user picks a doc of theirs, then the sentences to set every paper against.
-// The column is theirs; Owlit fills it in the background.
+// The column is theirs; Owlit fills it in a chat it starts for them.
 export function CompareDialog({ threadId, open, onOpenChange }: { threadId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const files = useDocsStore((s) => s.files)
   const docs = useMemo(

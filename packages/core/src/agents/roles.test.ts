@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { backgroundMeta, guardFor, processEnv } from "./profiles.ts"
+import { guardFor, processEnv } from "./profiles.ts"
 import type { Role } from "@owlit/protocol"
 import type { Target, Who } from "./policy.ts"
 import { answerFor } from "./roles.ts"
@@ -29,7 +29,7 @@ describe("roles", () => {
     expect((guardFor("claude-code", "assistant", ["/w"]).meta as any).claudeCode.options.sandbox.filesystem).toEqual({ denyWrite: ["/w"] })
   })
 
-  it("keeps Claude Code's reads inside the workspace in every role, with papers and owlit's state read through owlit's tools, and gives a background run a Reviewer's controls", () => {
+  it("keeps Claude Code's reads inside the workspace in every role, with papers and owlit's state read through owlit's tools", () => {
     const state = [".owlit/*.*", ".owlit/chats/*.json", ".owlit/docs/**", ".owlit/papers/**", ".owlit/seen/**", ".owlit/shares/**", ".owlit/threads/**", ".owlit/trash/**", ".owlit/versions/**"]
     const papers = ["library/*", "library/**/*.json", "library/**/*.pdf", "library/**/text.md", "library/**/digest.md", "library/**/figures/**", "library/**/sources/**"]
     for (const role of ["reviewer", "assistant", "coauthor"] as const) {
@@ -40,8 +40,6 @@ describe("roles", () => {
       expect(permissions.deny).not.toContain("Read(.owlit/**)")
       expect(permissions.deny).not.toContain("Read(library/**/note.md)")
     }
-    expect(backgroundMeta("claude-code", ["library_.*"], "/w")).toEqual(guardFor("claude-code", "reviewer", ["/w"]).meta)
-    expect(backgroundMeta("owlit-engine", ["library_.*"], "/w")).toEqual({ owlit: { role: "reviewer", background: { tools: ["library_.*"] } } })
   })
 
   it("keeps each agent's own memory off, whatever the role", () => {
@@ -80,7 +78,7 @@ describe("roles", () => {
   })
 
   it("answers an engine's request through the policy: a Reviewer's changes refused, an Assistant's edits landing, commands by the role, the rest the user's", () => {
-    const who = (role: Role, run?: string): Who => ({ caller: { kind: "owlit", ...(run ? { run } : { chatId: "c1" }) }, actor: "o_12345678", role })
+    const who = (role: Role): Who => ({ caller: { kind: "owlit", chatId: "c1" }, actor: "o_12345678", role })
     const doc: Target = { what: "file", files: ["notes.md"] }
     const refused = (answer: unknown) => typeof answer === "object"
     expect(refused(answerFor(who("reviewer"), "edit", doc))).toBe(true)
@@ -96,7 +94,5 @@ describe("roles", () => {
     expect(answerFor(who("assistant"), "edit", { what: "file", files: [] })).toBe("ask")
     // owlit's own state is no engine's to change, in any role
     expect(answerFor(who("coauthor"), "edit", { what: "file", files: [".owlit/x.json"], notDoc: true })).toEqual({ refuse: "That file isn't one of the user's docs." })
-    // A background run works with a Reviewer's role, and says it works on its own
-    expect(answerFor(who("reviewer", "digest:p1"), "edit", doc)).toEqual({ refuse: expect.stringMatching(/^Owlit works on its own here/) })
   })
 })

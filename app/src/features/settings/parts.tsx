@@ -60,7 +60,7 @@ export function Row({
   // The explanation, behind an info icon
   info?: string
   // What the choice depends on, in one short muted line under the name, only for a setting that can't be
-  // picked well without it (which agent does background work, how PDFs are read). Anything else goes
+  // picked well without it (which agent does the tasks you hand Owlit, how PDFs are read). Anything else goes
   // behind the info icon, so most rows stay one line.
   help?: string
   // What sits at the right of the row

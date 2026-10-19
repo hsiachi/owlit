@@ -36,7 +36,7 @@ export function ThreadsPage() {
   const recent = all[0]?.project ?? ""
   const project = picked ?? (projects.includes(recent) ? recent : "")
   // What is typed finds threads by title. Enter opens the first one found, the way a find field does;
-  // collecting papers is its own row under the list, since it starts Owlit on a search in the background.
+  // collecting papers is its own row under the list, since it starts Owlit on a search in a chat of its own.
   const words = queryWords(query)
   const summaries = words.length ? all.filter((c) => hasAllWords(c.title, words)) : all
   const groups = byProject(summaries)

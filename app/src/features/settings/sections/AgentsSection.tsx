@@ -24,7 +24,7 @@ export function AgentsSection() {
   const [adding, setAdding] = useState(false)
   useFoldWhile(adding, () => setAdding(false))
 
-  // Which agent does background work is chosen under Owlit, beside the digests it writes
+  // Which agent does the tasks you hand Owlit is chosen under Owlit, beside the digests it writes
   return (
     <>
       <Group>

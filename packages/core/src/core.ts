@@ -29,7 +29,7 @@ import { ExtensionServer, type ExtensionServerOptions } from "./extension/server
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { isRecipe, RECIPES } from "./recipes/index.ts"
-import { askAgain, startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
+import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
 import { MATERIAL } from "./recipes/go-through.ts"
 import { goThroughWork } from "./docs/go-through.ts"
@@ -43,6 +43,7 @@ import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { isMissing, sha1 } from "./fs-util.ts"
+import { messageOf } from "./util.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
@@ -138,7 +139,8 @@ export class Core {
   private switching: Promise<unknown> = Promise.resolve()
   // Opens under way; while any is, the window waits rather than showing the welcome page
   private opening = 0
-  // Digests asked for whose chat hasn't started yet (the paper's text is being read), by workspace and paper
+  // Digests asked for whose chat hasn't started yet (the paper's text may be read first), by workspace and
+  // paper: what asking answers meanwhile
   private digestAsks = new Map<string, Promise<DigestAsked>>()
   // Replies under Owlit's comments being answered, by workspace and comment: the last one's answer
   private replies = new Map<string, Promise<void>>()
@@ -233,7 +235,7 @@ export class Core {
       notify: (chatId, update, messageId) => this.notifier.notify("chat.update", { chatId, messageId, update }),
       ended: (chatId, message, about) => {
         this.notifier.notify("chat.ended", { chatId, messageId: message.id, message })
-        // A chat owlit started is followed where its work lands, by what it is about (chats.run)
+        // A chat owlit started is followed where its work lands, by what it is about (chats.turn)
         const ws = this.workspace
         if (about && ws) void this.announceStarted(ws, chatId)
       },
@@ -522,7 +524,7 @@ export class Core {
     this.router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
     this.router.register("chats.tryAgain", z.object({ chatId }), "admin", async ({ chatId }) => {
       const ws = this.requireWorkspace()
-      const started = await tryAgain(this.turns, ws.chats, chatId)
+      const started = await tryAgain(this.turns, ws.chats, chatId, await this.workAgent())
       await this.announceStarted(ws, started.chatId)
       return { chatId: started.chatId }
     })
@@ -677,11 +679,10 @@ export class Core {
       const ws = this.requireWorkspace()
       const me = await this.personAt(caller)
       const marks = await ws.seen.get(me, ["chats"])
-      const [changes, chatList, runs, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.chats.runs(), ws.library.list()])
-      // A chat owlit started about something is never news as a chat: its work is, where it lands
-      const summaries = [...chatList, ...runs.filter((c) => !c.about)]
+      // A chat owlit started is never news as a chat (chats.list leaves it out): its work is, where it lands
+      const [changes, chatList, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.library.list()])
       // Only the chats that moved after the person's mark on them can have a reply they haven't seen
-      const moved = summaries.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
+      const moved = chatList.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
       const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
       return ws.seen.unseen(me, { changes, chats, papers, since })
     })
@@ -1043,7 +1044,6 @@ export class Core {
         why: z.string().optional(),
         note: z.string().optional(),
         chatId: z.string().optional(),
-        run: z.string().optional(),
         docPath: z.string().optional(),
       }), "own",
       (params, caller) => threads().write(params, caller),
@@ -1088,7 +1088,7 @@ export class Core {
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }), "own",
       (params, caller) => threads().gather(params, caller),
     )
-    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, run, what }, caller) => threads().start(id, run, caller, what))
+    this.router.register("threads.start", z.object({ id: z.string().min(1), work: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, work, what }, caller) => threads().start(id, work, caller, what))
     this.router.register(
       "threads.compare",
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }), "own",
@@ -1267,6 +1267,7 @@ export class Core {
                   if (this.workspace?.root !== root) throw new Error("The workspace closed.")
                   return this.startFor(start)
                 },
+                canStartChat: () => this.workAgent(),
               },
               profile: async () => (await this.settings.get()).profile,
               changeAdded: (notification) => {
@@ -1349,7 +1350,7 @@ export class Core {
         const me = await this.personAt(WINDOW).catch(() => undefined)
         if (me) await next.seen.get(me, [])
       }
-      // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
+      // Its tasks start once it is the open workspace
       if (opened) await next.tasks.start()
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
@@ -1366,9 +1367,7 @@ export class Core {
   }
 
   // One of Owlit's comments, written as an agent's: recorded in the change log (Undo) and shown in the
-  // session's result card
-  // quiet: from a run Owlit made while the user was away, which says nothing when it lands (no toast);
-  // the comment and its change are kept the same
+  // chat's result card
   private async agentComment(path: string, comment: DocComment, caller: Caller) {
     const ws = this.requireWorkspace()
     await ws.docs.addComment(path, comment)
@@ -1503,8 +1502,11 @@ export class Core {
   }
 
   // Owlit writing a paper's digest: a chat about the paper, whose agent writes it with
-  // library_write_digest. A digest already being written (or asked for while the paper's text is read)
-  // is that one; after one that broke or was stopped, Retry is a new turn in its chat.
+  // library_write_digest. A digest already being written is that one. When the paper's text or figures
+  // have to be read first, this answers at once (gettingText) and the chat starts once they are; one
+  // that can't start then is told to every window (chats.notStarted). After one that broke or was
+  // stopped, Retry is a new turn in its chat, on the agent Settings picks now, when its recipe is the
+  // same; a recipe that changed since (another language, a newer way of writing) is a new chat.
   private async requestDigest(name: string, rewrite = false): Promise<DigestAsked> {
     const ws = this.requireWorkspace()
     const id = (await ws.library.canonical(name)) ?? name
@@ -1514,21 +1516,48 @@ export class Core {
     const key = `${ws.root}\0${id}`
     const asking = this.digestAsks.get(key)
     if (asking) return asking
-    const asked = (async (): Promise<DigestAsked> => {
-      const work = await ws.library.digestWork(id, rewrite)
-      if ("heldBack" in work) return work
-      const { title } = work
-      const last = await ws.chats.latestAbout(about)
-      const reply = last && (await ws.chats.get(last.id)).messages.at(-1)
-      const started =
-        reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming"
-          ? await tryAgain(this.turns, ws.chats, last!.id).then(async (s) => (await this.announceStarted(ws, s.chatId), s))
-          : await this.startFor({ about, title: t`Digest of “${title}”`, recipe: work.recipe, texts: [{ text: work.text, from: `The paper's full text, from library/papers/${id}/text.md,` }], pictures: work.pictures })
-      void started.done.then((stop) => this.digestEnded(ws, id, started, stop))
-      return { chatId: started.chatId }
-    })().finally(() => this.digestAsks.delete(key))
-    this.digestAsks.set(key, asked)
-    return asked
+    // Kept until the chat started or couldn't, so asking again meanwhile has the same answer
+    const answer = (async (): Promise<DigestAsked> => {
+      const ready = await ws.library.digestReady(id, rewrite)
+      if ("heldBack" in ready) return ready
+      const started = this.startDigest(ws, id, rewrite, ready.waits).finally(() => this.digestAsks.delete(key))
+      if (!ready.waits) return started
+      void started.catch((error: unknown) => {
+        if (this.workspace === ws) this.notifier.notify("chats.notStarted", { about, error: messageOf(error) })
+      })
+      return { gettingText: true }
+    })()
+    this.digestAsks.set(key, answer)
+    void answer.then(
+      (answered) => "heldBack" in answered && this.digestAsks.delete(key),
+      () => this.digestAsks.delete(key),
+    )
+    return answer
+  }
+
+  // The digest's chat, once the paper's text and figures are read. waits: they weren't yet; if reading
+  // them left nothing to read, that is a failure, since the asker was told the chat would start.
+  private async startDigest(ws: Workspace, id: string, rewrite: boolean, waits: boolean): Promise<DigestAsked> {
+    const about = { kind: "paper", id } as const
+    const work = await ws.library.digestWork(id, rewrite)
+    if ("heldBack" in work) {
+      if (waits && work.heldBack === "nothing-to-read") throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit couldn't get this paper's text to read.`, { id })
+      return work
+    }
+    const { title } = work
+    const texts = [{ text: work.text, from: `The paper's full text, from library/papers/${id}/text.md,` }]
+    const last = await ws.chats.latestAbout(about)
+    const chat = last && (await ws.chats.get(last.id))
+    const reply = chat?.messages.at(-1)
+    const broke = reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming"
+    const first = chat?.messages[0]?.parts[0]
+    const sameRecipe = first?.type === "text" && first.text === startedWith({ recipe: work.recipe, texts })
+    const started =
+      chat && broke && sameRecipe
+        ? await tryAgain(this.turns, ws.chats, chat.id, await this.workAgent()).then(async (s) => (await this.announceStarted(ws, s.chatId), s))
+        : await this.startFor({ about, title: t`Digest of “${title}”`, recipe: work.recipe, texts, pictures: work.pictures })
+    void started.done.then((stop) => this.digestEnded(ws, id, started, stop))
+    return { chatId: started.chatId }
   }
 
   // A digest's turn that finished without writing it says so on its reply, as a failure, with Retry
@@ -1569,7 +1598,7 @@ export class Core {
     const chat = await ws.chats.latestAbout(about)
     let started: Started
     if (chat) {
-      started = await askAgain(this.turns, ws.chats, chat.id, recipe)
+      started = await askAgain(this.turns, ws.chats, chat.id, recipe, await this.workAgent())
       await this.announceStarted(ws, started.chatId)
     } else {
       const name = path.split("/").pop()!.replace(/\.md$/i, "")
@@ -1604,7 +1633,7 @@ export class Core {
       const reply = last && (await ws.chats.get(last.id)).messages.at(-1)
       let started: Started
       if (reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming") {
-        started = await tryAgain(this.turns, ws.chats, last!.id)
+        started = await tryAgain(this.turns, ws.chats, last!.id, await this.workAgent())
         await this.announceStarted(ws, started.chatId)
       } else {
         const user = (await this.settings.get()).profile.name?.trim() || undefined
@@ -1652,20 +1681,17 @@ export class Core {
   }
 
   // A chat owlit starts for the person, on the agent and model Settings chooses for its work. Every window
-  // hears it begin (chats.run) and end (chats.run again, after chat.ended).
+  // hears it begin (chats.turn) and end (chats.turn again, after chat.ended).
   async startFor(start: Omit<StartFor, "connectorId" | "modelId">): Promise<Started> {
     const ws = this.requireWorkspace()
-    const { connectorId: chosen, models } = await this.backgroundAgent()
-    const connectorId = await this.agents.forWork(chosen)
-    const modelId = models?.[connectorId]
-    const started = await startFor(this.turns, ws.chats, { ...start, connectorId, ...(modelId ? { modelId } : {}) })
+    const started = await startFor(this.turns, ws.chats, { ...start, ...(await this.workAgent()) })
     await this.announceStarted(ws, started.chatId)
     return started
   }
 
   private async announceStarted(ws: Workspace, chatId: string) {
     const chat = await ws.chats.get(chatId).catch(() => null)
-    if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
+    if (chat && this.workspace === ws) this.notifier.notify("chats.turn", { chat })
   }
 
   async dispose() {
@@ -1674,8 +1700,8 @@ export class Core {
     await this.switching
     if (this.workspace) await this.stopWorkspace(this.workspace, "closed")
     this.workspace = null
-    // After the workspace's background tasks: a run cut off by its agent closing would count as a failed
-    // try, where one stopped by closing stays running, to run again next time
+    // After the workspace's turns and tasks: a turn cut off by its agent closing would end as the agent's
+    // failure, where one stopped by closing says owlit was closed
     this.agents.dispose()
     await this.extension?.close().catch(() => undefined)
     await this.journal.dispose()
@@ -1690,7 +1716,7 @@ export class Core {
       ["chat turns", () => this.turns.reset(why)],
       ["the window's requests", () => this.ui.reset()],
       // Before the agents they run on close (dispose closes them after this)
-      ["background tasks", () => ws.tasks.dispose()],
+      ["tasks", () => ws.tasks.dispose()],
       // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
       ["the socket", () => this.closeSocket()],
       ["the journal", () => this.journal.flush()],
@@ -1707,24 +1733,27 @@ export class Core {
     this.taskChanges.flush()
   }
 
-  // The agent (and its model) chosen for background work in Settings
-  private async backgroundAgent() {
+  // The agent (and its model) Settings chooses for the tasks the person hands Owlit, as it is now: the
+  // first that is set up when none is chosen
+  private async workAgent(): Promise<TurnAgent> {
     const { connectors } = await this.settings.get()
-    return { connectorId: connectors.background, models: connectors.backgroundModels }
+    const connectorId = await this.agents.forWork(connectors.background)
+    const modelId = connectors.backgroundModels?.[connectorId]
+    return { connectorId, ...(modelId ? { modelId } : {}) }
   }
 
-  // owlit-mcp for an agent session in this workspace (for one chat, or a run in the background). The
-  // secret in OWLIT_SESSION is what names the chat or run to core at auth (rpc/socket.ts); --chat and
-  // --run only tell owlit-mcp what to sign its searches and comments with.
-  mcpServers(root: string, chatId?: string, run?: string) {
+  // owlit-mcp for an agent session in this workspace, for one chat. The secret in OWLIT_SESSION is what
+  // names the chat to core at auth (rpc/socket.ts); --chat only tells owlit-mcp what to sign its searches
+  // and comments with.
+  mcpServers(root: string, chatId?: string) {
     const mcp = this.options.mcp
     if (!mcp || this.socket?.root !== root) return []
-    const session = this.socket.grant({ ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) })
+    const session = this.socket.grant(chatId ? { chatId } : {})
     return [
       {
         name: "owlit",
         command: mcp.command,
-        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : []), ...(run ? ["--run", run] : [])],
+        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : [])],
         env: [...Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })), { name: "OWLIT_SESSION", value: session }],
       },
     ]

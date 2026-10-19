@@ -1,5 +1,5 @@
 import type { Task } from "@owlit/protocol"
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, readdirSync, statSync } from "node:fs"
 import { readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -216,7 +216,7 @@ describe("Scheduler", () => {
   it("gives the lane up while waiting for the user and continues after resume", async () => {
     const log: string[] = []
     const login = defineTask("fake.login", {
-      lane: "agent",
+      lane: "index",
       async run(ctx) {
         log.push(`${ctx.task.subject} start`)
         if (ctx.task.subject === "a") await ctx.waitForUser("login", "Sign in to the library proxy.")
@@ -235,7 +235,7 @@ describe("Scheduler", () => {
 
   it("cancels a batch's unstarted tasks with it and lets running ones finish", async () => {
     const gate = deferred()
-    const child = defineTask("fake.child", { lane: "agent", run: () => gate.promise })
+    const child = defineTask("fake.child", { lane: "index", run: () => gate.promise })
     const batch = defineTask("fake.batch", {
       lane: "cpu",
       async run(ctx) {
@@ -275,7 +275,7 @@ describe("Scheduler", () => {
 
   it("debounces: each call pushes a queued run back", async () => {
     const run = vi.fn()
-    const { scheduler } = await newScheduler([defineTask("fake.debounced", { lane: "agent", run })])
+    const { scheduler } = await newScheduler([defineTask("fake.debounced", { lane: "index", run })])
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
     const first = scheduler.debounce("fake.debounced", "workspace", 30)
     await vi.advanceTimersByTimeAsync(15)
@@ -351,6 +351,31 @@ describe("Scheduler", () => {
     expect(ids).toEqual([running.id, queued.id].sort())
   })
 
+  it("keeps the log to the current file and the one before it, and recovers from both", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))
+    const store = new TaskStore(dir, { maxLogBytes: 2000 })
+    const task = (id: string, state: Task["state"]): Task => ({ id, kind: "fake.k", subject: id, lane: "cpu", priority: "asked", state, attempts: 0, createdAt: 1 })
+    store.record(task("early", "queued"))
+    await store.flush()
+    for (let i = 0; i < 60; i++) {
+      store.record(task(`t${i}`, "done"))
+      await store.flush()
+    }
+    store.record(task("late", "queued"))
+    await store.flush()
+    // Until the line for late is in the older file
+    for (let i = 0; !(await readFile(path.join(dir, "log.1.jsonl"), "utf8")).includes('"late"'); i++) {
+      store.record(task(`u${i}`, "done"))
+      await store.flush()
+    }
+    const files = readdirSync(dir).sort()
+    expect(files).toEqual(["log.1.jsonl", "log.jsonl"])
+    for (const file of files) expect(statSync(path.join(dir, file)).size).toBeLessThanOrEqual(2000)
+    // What the dropped files held is gone (early); without open.json the two files still say what is
+    // unfinished
+    expect((await store.load()).map((t) => t.id)).toEqual(["late"])
+  })
+
   it("fails tasks of a kind it no longer knows", async () => {
     const { scheduler, dir } = await newScheduler([defineTask("fake.old", { lane: "cpu", run: (ctx) => untilAborted(ctx.signal) })])
     const task = scheduler.enqueue("fake.old", "paper")
@@ -359,30 +384,6 @@ describe("Scheduler", () => {
     expect(again.get(task.id)).toMatchObject({ state: "failed", error: "owlit no longer knows how to do fake.old." })
   })
 
-  it("stops a background run for an asked one in the same lane, and runs it again after, not as a try", async () => {
-    const order: string[] = []
-    let firstRun = true
-    const work = defineTask("fake.agent", {
-      lane: "agent",
-      async run(ctx) {
-        order.push(`start ${ctx.task.subject}`)
-        if (ctx.task.subject === "review" && firstRun) {
-          firstRun = false
-          await untilAborted(ctx.signal)
-        }
-        await tick(5)
-        order.push(`end ${ctx.task.subject}`)
-      },
-    })
-    const { scheduler } = await newScheduler([work])
-    const review = scheduler.enqueue("fake.agent", "review", "background")
-    await until(() => scheduler.get(review.id)?.state === "running", { what: "the background run to start" })
-    expect(scheduler.get(review.id)).toMatchObject({ state: "running", attempts: 1 })
-    const asked = scheduler.enqueue("fake.agent", "digest", "asked")
-    expect(await scheduler.wait(asked.id)).toMatchObject({ state: "done" })
-    expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
-    expect(order).toEqual(["start review", "start digest", "end digest", "start review", "end review"])
-  })
 })
 
 describe("TaskThrottle", () => {

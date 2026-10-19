@@ -10,7 +10,7 @@ import { realpathSync } from "node:fs"
 import { OWLIT_DIR, OWLIT_FOLDERS } from "../workspace/paths.ts"
 import type { ProcessOptions } from "./process.ts"
 
-// The agent owlit picks when nothing else says which (background work, a first chat)
+// The agent owlit picks when nothing else says which (a chat owlit starts, a first chat)
 export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 
 // ---- Claude Code: what a session takes from the user's own setup ----
@@ -198,17 +198,6 @@ export function guardFor(connectorId: string, role: Role, roots: string[]): Guar
   return { modes: [] }
 }
 
-
-// ---- Background work ----
-
-// The session options for a background run: the Owlit engine calls owlit's tools itself rather than asking
-// for each, so it is told which it may offer the model (patterns over their names); Claude Code gets a
-// Reviewer's controls (its isolation, no edits, reads kept to the workspace and through owlit's tools)
-export function backgroundMeta(connectorId: string, tools: string[], root: string): Record<string, unknown> | undefined {
-  if (connectorId === ENGINE) return { owlit: { role: "reviewer", background: { tools } } }
-  if (connectorId === "claude-code") return guardFor(connectorId, "reviewer", roots(root)).meta
-  return sessionMeta(connectorId)
-}
 
 // The workspace as the agent may see it: as given and as the disk resolves it (/tmp is /private/tmp)
 export function roots(root: string) {

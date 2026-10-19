@@ -53,8 +53,8 @@ export class Chats {
     return (await this.all()).filter((c) => !c.startedBy)
   }
 
-  // The chats owlit started and the scheduler's runs, most recent first
-  async runs(): Promise<ChatSummary[]> {
+  // The chats owlit started, most recent first
+  async started(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !!c.startedBy)
   }
 
@@ -62,7 +62,7 @@ export class Chats {
   async startedFor(kind?: ChatAbout["kind"]): Promise<StartedChat[]> {
     const seen = new Set<string>()
     const out: StartedChat[] = []
-    for (const c of await this.runs()) {
+    for (const c of await this.started()) {
       if (!c.about || (kind && c.about.kind !== kind)) continue
       const key = `${c.about.kind}:${c.about.id}`
       if (seen.has(key)) continue
@@ -342,7 +342,7 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, about, run } = chat
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, about } = chat
   return {
     id,
     title,
@@ -354,7 +354,7 @@ function summaryOf(chat: Chat | ChatFile): ChatSummary {
     ...(role ? { role } : {}),
     effortId,
     ...(sessions ? { sessions } : {}),
-    ...(startedBy ? { startedBy, ...(about ? { about } : {}), ...(run ? { run } : {}) } : {}),
+    ...(startedBy ? { startedBy, ...(about ? { about } : {}) } : {}),
   }
 }
 
@@ -423,25 +423,37 @@ export async function startFor(turns: Turns, chats: Chats, start: StartFor): Pro
     attachments.push({ id: randomUUID(), name: picture.name, size: picture.data.length, mimeType: picture.mimeType, path: kept })
   }
   const texts = start.texts ?? []
-  const said = [start.recipe, ...texts.map((t) => `(${t.from} followed here.)`)].join("\n\n")
+  const said = startedWith(start)
   const sent = [start.recipe, ...texts.map((t) => t.text)].join("\n\n")
   return turn(turns, chatId, start.about, { text: said, sent, attachments, connectorId: start.connectorId, modelId: start.modelId })
+}
+
+// The first message of a chat startFor began, as the chat keeps it: the recipe, and where each text it
+// was sent came from. Two alike were started with the same recipe from the same sources.
+export function startedWith(start: Pick<StartFor, "recipe" | "texts">) {
+  return [start.recipe, ...(start.texts ?? []).map((t) => `(${t.from} followed here.)`)].join("\n\n")
 }
 
 // What Retry says: a new turn in the same chat, so the agent sees what it did before it broke
 export const TRY_AGAIN = "Try again."
 
-// Another turn in a chat owlit started, on its own agent and model (Retry)
-export function tryAgain(turns: Turns, chats: Chats, chatId: string): Promise<Started> {
-  return askAgain(turns, chats, chatId, TRY_AGAIN)
+// The agent and model a later turn runs on: Settings' choice at that moment, which may differ from the
+// chat's first turn (the turn then starts that agent's session with the conversation so far)
+export type TurnAgent = { connectorId: string; modelId?: string }
+
+// Another turn in a chat owlit started (Retry)
+export function tryAgain(turns: Turns, chats: Chats, chatId: string, agent?: TurnAgent): Promise<Started> {
+  return askAgain(turns, chats, chatId, TRY_AGAIN, agent)
 }
 
-// Another turn in a chat owlit started, on its own agent and model, asking it this (the person's next
-// reply under a comment, to the chat about that comment)
-export async function askAgain(turns: Turns, chats: Chats, chatId: string, text: string): Promise<Started> {
+// Another turn in a chat owlit started, asking it this (the person's next reply under a comment, to the
+// chat about that comment), on the agent given, else the chat's own
+export async function askAgain(turns: Turns, chats: Chats, chatId: string, text: string, agent?: TurnAgent): Promise<Started> {
   const chat = await chats.get(chatId)
   if (!chat.startedBy || !chat.about || !chat.connectorId) throw new RpcFailure(RpcErrorCode.InvalidParams, "That chat wasn't started by owlit for something.", { id: chatId })
-  return turn(turns, chatId, chat.about, { text, sent: text, attachments: [], connectorId: chat.connectorId, modelId: chat.modelId })
+  const on = agent ?? { connectorId: chat.connectorId, ...(chat.modelId ? { modelId: chat.modelId } : {}) }
+  if (on.connectorId !== chat.connectorId || on.modelId !== chat.modelId) await chats.update(chatId, { connectorId: on.connectorId, modelId: on.modelId })
+  return turn(turns, chatId, chat.about, { text, sent: text, attachments: [], connectorId: on.connectorId, modelId: on.modelId })
 }
 
 async function turn(turns: Turns, chatId: string, about: ChatAbout, ask: { text: string; sent: string; attachments: AttachmentFile[]; connectorId: string; modelId?: string }): Promise<Started> {

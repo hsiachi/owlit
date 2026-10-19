@@ -41,7 +41,7 @@ import { THREAD_RECIPES } from "../recipes/threads.ts"
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
 //
 //   thread.json   the thread, with what the user did to it in `overrides`
-//   history.jsonl     one line per agent write: which chat or run, which items, why, the searches it
+//   history.jsonl     one line per agent write: which chat, which items, why, the searches it
 //                     rests on (About)
 //
 // Owlit writes its own record without asking, but never over the user: a rewrite of theirs stays word for
@@ -50,7 +50,7 @@ import { THREAD_RECIPES } from "../recipes/threads.ts"
 // item on each side, so an undo puts back that item alone and leaves what was done to others since.
 
 export interface ThreadsServices {
-  // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
+  // The searches a chat (chat:<id>) made since a moment
   searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
   paper?: (id: string) => Promise<ThreadPaper | undefined>
@@ -68,6 +68,8 @@ export interface ThreadsServices {
   changed?: (id: string, thread: Thread | null) => void
   // Starts a chat owlit starts for the person (core.ts startFor), on the agent Settings picks for its work
   startChat?: (start: { about: ChatAbout; title: string; recipe: string }) => Promise<Started>
+  // Throws the sentence that says why a chat can't start now (no agent is set up)
+  canStartChat?: () => Promise<unknown>
   // What a chat owlit started works on, by the chat's id; undefined for a chat the person typed into
   chatAbout?: (chatId: string) => Promise<ChatAbout | undefined>
 }
@@ -75,21 +77,21 @@ export interface ThreadsServices {
 interface HistoryLine {
   at: number
   by: string
-  // The background run that wrote it, "<kind>:<task id>", in threads written before thread work was a chat
+  // On a line a scheduler task's agent wrote, that task as "<kind>:<task id>": its lines are one batch
   run?: string
   // The recipe of the chat owlit started that wrote it (recipes/threads.ts)
   recipe?: string
   why?: string
   items: string[]
   // Rows the write added, the question it was for when that was a later one, Owlit's note on what it
-  // couldn't reach, and the searches it rests on (made since the same chat's or run's last write)
+  // couldn't reach, and the searches it rests on (made since the same chat's last write)
   added?: string[]
   asked?: string
   note?: string
   searches?: { at: number; query: string; source: string; results: string[] }[]
 }
 
-// How far back a write looks for the searches it rests on, when nothing of the same chat or run came before
+// How far back a write looks for the searches it rests on, when nothing of the same chat came before
 const SEARCHES_SINCE_MS = 6 * 3_600_000
 // Writes of one chat this close together are one batch
 const BATCH_GAP_MS = 30 * 60_000
@@ -114,7 +116,7 @@ export class Threads {
   private readonly recorder: Recorder
   private readonly services: ThreadsServices
   private readonly serial = new Serial()
-  // When each chat's or run's searches were last given to a write
+  // When each chat's searches were last given to a write
   private attributed = new Map<string, number>()
 
   constructor(owlitDir: string, parts: { recorder: Recorder }, services: ThreadsServices = {}) {
@@ -224,28 +226,35 @@ export class Threads {
   }
 
   // Owlit gathers papers for a question: the thread is there at once, titled by the question until
-  // Owlit names it, and a chat about it fills it
+  // Owlit names it, and a chat about it fills it. A chat that can't start leaves no empty thread: that is
+  // known before the thread is made, and one that still fails to start takes it away again.
   async gather(input: { question: string; project?: string; size: ThreadSize }, caller: Caller): Promise<ThreadStarted> {
+    const question = input.question.trim()
+    if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
+    await this.services.canStartChat?.()
     const thread = await this.serial.run(async () => {
       const now = Date.now()
-      const question = input.question.trim()
-      if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
       const c: Thread = { ...(await this.blank({ asked: question, title: question, project: input.project ?? "" }, now)), size: input.size }
       await this.save(c)
       await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id } }, { quiet: true })
       this.services.changed?.(c.id, c)
       return c
     })
-    return { thread, chatId: await this.begin(thread, "gather") }
+    try {
+      return { thread, chatId: await this.begin(thread, "gather") }
+    } catch (error) {
+      await this.delete(thread.id, caller)
+      throw error
+    }
   }
 
   // more: with what to look for this time when it isn't the thread's question, kept on the thread as one
   // more question asked (About shows it) and told to the chat that does it
-  async start(id: string, run: "more" | "read", caller: Caller, what?: string): Promise<{ chatId: string }> {
+  async start(id: string, work: "more" | "read", caller: Caller, what?: string): Promise<{ chatId: string }> {
     const asked = what?.trim()
     const c = await this.serial.run(async () => {
       const c = await this.get(id)
-      if (run === "more" && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
+      if (work === "more" && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
         const before = structuredClone(c)
         c.alsoAsked = [...(c.alsoAsked ?? []), { text: asked, at: Date.now() }]
         c.updatedAt = Date.now()
@@ -255,7 +264,7 @@ export class Threads {
       }
       return c
     })
-    return { chatId: await this.begin(c, run === "more" ? "find-more" : "read-in-full", run === "more" && asked ? { lookFor: asked } : {}) }
+    return { chatId: await this.begin(c, work === "more" ? "find-more" : "read-in-full", work === "more" && asked ? { lookFor: asked } : {}) }
   }
 
   // A new column: one question for every paper, answered in a chat about the thread
@@ -585,7 +594,6 @@ export class Threads {
       await this.record(c.id, {
         at: now,
         by: input.chatId ? `chat:${input.chatId}` : "agent",
-        ...(input.run && !input.chatId ? { run: input.run } : {}),
         ...(recipe ? { recipe } : {}),
         ...(input.why ? { why: input.why } : {}),
         items: [...changed],
@@ -601,8 +609,7 @@ export class Threads {
       const entries = fresh
         ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })]
         : await this.recordItems(caller, existing!, c, [...changed], origin)
-      // Said once per write and only for a chat, which shows it under the answer; a run's write is shown
-      // with the run
+      // Said once per write and only for a chat, which shows it under the answer
       if (input.chatId && entries[0]) this.recorder.say(entries[0], { label: title, thread: { rows: added, updated, ...(asked ? { asked } : {}) } })
       return { id: c.id, title, added: added.length, updated, left, userKept }
     })
@@ -781,16 +788,15 @@ export class Threads {
 
   // ---- About: Owlit's work in batches ----
 
-  // The searches a write rests on: those its chat or run made since it last wrote (here or to another
-  // thread), or in the last hours when it hasn't
+  // The searches a write rests on: those its chat made since it last wrote (here or to another thread),
+  // or in the last hours when it hasn't
   private async searchesFor(id: string, input: ThreadWrite, now: number) {
-    const by = input.chatId ? `chat:${input.chatId}` : input.run ? `run:${input.run}` : undefined
+    const by = input.chatId ? `chat:${input.chatId}` : undefined
     if (!by || !this.services.searches) return []
     let since = this.attributed.get(by)
     if (since === undefined) {
-      // After a restart: the same run's or chat's last write here
-      const key = input.chatId ? `chat:${input.chatId}` : undefined
-      const last = (await this.history(id)).findLast((l) => (input.run ? l.run === input.run : l.by === key))
+      // After a restart: the same chat's last write here
+      const last = (await this.history(id)).findLast((l) => l.by === by)
       since = Math.max(last?.at ?? 0, now - SEARCHES_SINCE_MS)
     }
     this.attributed.set(by, now)
@@ -798,8 +804,8 @@ export class Threads {
   }
 
   // Owlit's writes in batches: a chat owlit started with a recipe is one however long it takes (Retry is
-  // a turn in the same chat), as a background run's was; a chat's writes close together are one. Threads
-  // from before runs were recorded group Owlit's writes the same way by time.
+  // a turn in the same chat), as a scheduler task's lines are; a chat's writes close together are one, and
+  // so are lines that name neither.
   async about(id: string): Promise<ThreadBatch[]> {
     const c = await this.get(id)
     const columns = new Map(c.columns.map((col) => [col.id, col]))

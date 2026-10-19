@@ -245,8 +245,6 @@ export interface Chat {
   startedBy?: "owlit"
   // What a chat owlit started works on: the status line there reads its running turn by this
   about?: ChatAbout
-  // The scheduler task whose run this is, for a run of the agent lane
-  run?: OwlitRun
   messages: ChatMessage[]
 }
 
@@ -267,14 +265,6 @@ export interface StartedChat {
   chatId: string
   about: ChatAbout
   reply?: ChatMessage
-}
-
-// The background task an Owlit run is the session of
-export interface OwlitRun {
-  taskId: string
-  // The task's kind and subject
-  kind: string
-  subject: string
 }
 
 // A chat without its messages, as the chat list shows it

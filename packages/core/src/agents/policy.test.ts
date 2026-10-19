@@ -12,7 +12,6 @@ const CLASSES: Touches[] = ["read", "own", "meta", "words", "structure", "admin"
 const ROLE_IDS: Role[] = ["reviewer", "assistant", "coauthor"]
 
 const inChat = (role: Role): Who => ({ caller: { kind: "socket", chatId: "c1" }, actor: MY_OWLIT, role })
-const inRun: Who = { caller: { kind: "socket", run: "threads.more:t1" }, actor: MY_OWLIT }
 const command: Who = { caller: { kind: "socket" }, actor: "other" }
 const window: Who = { caller: { kind: "window" }, actor: ME }
 
@@ -37,12 +36,9 @@ describe("decide", () => {
   })
 
   it("lets a caller with nobody to ask read and change only Owlit's own things", () => {
-    for (const who of [inRun, command]) {
-      expect(decide(who, "read", {})).toBe("allow")
-      expect(decide(who, "own", {})).toBe("allow")
-      for (const touches of ["meta", "words", "structure", "admin"] as const) expect(refused(decide(who, touches, {})), `${touches} for ${who.caller.kind}`).toBe(true)
-    }
-    expect(decide(inRun, "meta", {})).toEqual({ refuse: expect.stringMatching(/^Owlit works on its own here/) })
+    expect(decide(command, "read", {})).toBe("allow")
+    expect(decide(command, "own", {})).toBe("allow")
+    for (const touches of ["meta", "words", "structure", "admin"] as const) expect(refused(decide(command, touches, {})), touches).toBe(true)
     expect(decide(command, "words", {})).toEqual({ refuse: "From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app." })
   })
 

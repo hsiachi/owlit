@@ -10,8 +10,6 @@ import { ROLES, roleSummary, type Role } from "@owlit/protocol"
 
 export interface PromptContext {
   role: Role
-  // A background run: one prompt, no user to ask, the answer is the result
-  background: boolean
   // An agent the chat's agent handed one part of the work to (agents.ts)
   agent?: boolean
   workspace: string
@@ -67,11 +65,8 @@ When the work splits into parts that don't depend on each other (the lines of a 
 const AGENT = `# You are an agent
 Owlit handed you one part of a larger piece of work; the instructions are in the message. Do just that part with your tools. Nobody reads your messages until you finish and nobody can answer questions, so don't ask any. End with your report as your last message: what you found or did, with the citations and page links owlit's rules ask for, and what didn't work.`
 
-const BACKGROUND = `# This is background work
-Nobody is waiting on this answer and nobody can answer questions: do the task with what you have, and make your final message exactly the result asked for, with nothing before or after it.`
-
 export function systemPrompt(ctx: PromptContext) {
   const context = [`# Context`, `- The user's workspace: ${ctx.workspace}`, ...(ctx.userName ? [`- The user's name: ${ctx.userName}. Call them that when you address them.`] : []), `- Today: ${ctx.today}`].join("\n")
-  const situation = ctx.background ? [BACKGROUND] : ctx.agent ? [roleText(ctx.role), AGENT] : [roleText(ctx.role), AGENTS]
+  const situation = ctx.agent ? [roleText(ctx.role), AGENT] : [roleText(ctx.role), AGENTS]
   return [IDENTITY, HOW_TO_WORK, ...situation, context, ...(ctx.rules ? [`# owlit's rules\n\n${ctx.rules}`] : [])].join("\n\n")
 }

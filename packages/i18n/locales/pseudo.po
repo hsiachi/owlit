@@ -446,7 +446,7 @@ msgid "picked for chats"
 msgstr ""
 
 #: app/src/app/waiting-on-you.ts
-msgid "picked for background work"
+msgid "picked for tasks you hand Owlit"
 msgstr ""
 
 #: app/src/app/waiting-on-you.ts
@@ -4263,6 +4263,10 @@ msgid "Show more"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is getting the text…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper…"
 msgstr ""
 
@@ -4905,7 +4909,7 @@ msgid "Answered through {agentName}"
 msgstr ""
 
 #: app/src/features/settings/SettingsDialog.tsx
-msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
+msgid "What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with."
 msgstr ""
 
 #: app/src/features/settings/SettingsDialog.tsx
@@ -5197,7 +5201,7 @@ msgid "What Owlit keeps in mind"
 msgstr ""
 
 #: app/src/features/settings/sections/Memory.tsx
-msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too."
+msgid "Every chat in this workspace starts with this list, whichever agent runs it, the ones owlit starts for you too. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too."
 msgstr ""
 
 #. open the list of what Owlit keeps in mind
@@ -5260,8 +5264,7 @@ msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
-#: packages/core/src/agents/runs.ts
-msgid "Background work"
+msgid "Tasks you hand Owlit"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5270,7 +5273,7 @@ msgid "Privacy"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
+msgid "What owlit remembers stays on this Mac and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5296,11 +5299,11 @@ msgid "Automatic"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Writes digests and gathers papers into threads."
+msgid "Writes digests, works on threads, goes through docs and answers under its comments."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Agent for background work"
+msgid "Agent for tasks you hand Owlit"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5312,7 +5315,7 @@ msgid "A smaller one costs less. Digests come out best from the strongest: it ca
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Model for background work"
+msgid "Model for tasks you hand Owlit"
 msgstr ""
 
 #. a language not in the list
@@ -7297,10 +7300,6 @@ msgstr ""
 msgid "{name} exited with code {code}"
 msgstr ""
 
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit for this."
-msgstr ""
-
 #: packages/core/src/agents/setup.ts
 msgid "npm finished, but the adapter isn't there."
 msgstr ""
@@ -7510,6 +7509,10 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Owlit couldn't get this paper's text to read."
 msgstr ""
 
 #: packages/core/src/core.ts

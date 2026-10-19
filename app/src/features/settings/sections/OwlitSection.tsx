@@ -15,10 +15,10 @@ import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
 import { KeptInMindRow } from "./Memory"
 
-// What Owlit calls you, what it keeps in mind about you, the agent for its background work, and what it
+// What Owlit calls you, what it keeps in mind about you, the agent for the tasks you hand it, and what it
 // records of what you do. Owlit works only when you ask (a digest, a thread's papers, a Go through), so
 // there is no setting for work of its own.
-// The agent for background work sits here rather than under Agents: people come to change their digests,
+// The agent for those tasks sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
 export function OwlitSection() {
   // What Owlit keeps in mind belongs to a workspace: on the welcome page and in the first launch there is
@@ -35,10 +35,10 @@ export function OwlitSection() {
       <Group id="roles" label={t`What Owlit may do`} note={t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy.`}>
         <RoleLines role={DEFAULT_ROLE} className="mt-1 text-sm leading-6 text-foreground" />
       </Group>
-      <Group id="background" label={t`Background work`}>
-        <BackgroundWork />
+      <Group id="background" label={t`Tasks you hand Owlit`}>
+        <HandedTasks />
       </Group>
-      <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be.`}>
+      <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays on this Mac and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be.`}>
         <MemoryRow />
       </Group>
       {isDesktop && (
@@ -72,8 +72,9 @@ export function NameRow({ className }: { className?: string }) {
   )
 }
 
-// Work nobody is waiting on: digests, and gathering papers into threads
-function BackgroundWork() {
+// The tasks owlit starts a chat for when you press their button: a digest, a thread's work, a Go
+// through, an answer under Owlit's comment
+function HandedTasks() {
   const connectors = useChatStore((s) => s.connectors)
   const view = useSettings((s) => s.view)
   const ready = connectors.filter(isReady)
@@ -100,14 +101,14 @@ function BackgroundWork() {
     <List>
       <Row
         name={t`Agent`}
-        help={t`Writes digests and gathers papers into threads.`}
-        control={<Picker label={t`Agent for background work`} value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
+        help={t`Writes digests, works on threads, goes through docs and answers under its comments.`}
+        control={<Picker label={t`Agent for tasks you hand Owlit`} value={chosen} options={options} onChange={(id) => void updateSettings({ backgroundAgent: id || null })} />}
       />
       {agent && models.length > 1 && (
         <Row
           name={t`Model`}
           info={t`A smaller one costs less. Digests come out best from the strongest: it catches what a paper doesn't support.`}
-          control={<Picker label={t`Model for background work`} value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
+          control={<Picker label={t`Model for tasks you hand Owlit`} value={chosenModel} options={modelOptions} onChange={(model) => void updateSettings({ backgroundModel: { agent: agent.id, model: model === defaultModel?.id ? null : model } })} />}
         />
       )}
       <LanguageRow />

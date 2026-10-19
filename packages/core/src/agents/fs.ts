@@ -42,15 +42,15 @@ export class AgentFs {
     return { content: lines.slice(start, limit === undefined ? undefined : start + limit).join("\n") }
   }
 
-  // An agent's ACP write, for the chat it runs in, or a write of Owlit's own for a run ("<kind>:<task id>").
+  // An agent's ACP write, for the chat it runs in, or core's own write for no chat.
   // The chat's tool call that named the file says which call wrote it, and whether the user chose it (Apply).
-  async write(file: string, content: string, { chatId, run }: { chatId?: string; run?: string } = {}) {
+  async write(file: string, content: string, { chatId }: { chatId?: string } = {}) {
     log(`write ${file} (${content.length} characters)`)
     const ws = this.workspace()
-    const caller: Caller = { kind: "owlit", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+    const caller: Caller = { kind: "owlit", ...(chatId ? { chatId } : {}) }
     const target = await this.target([file])
-    // A chat's agent writes as its role lets it; core's own write for a run was decided by core, and
-    // only the target's limits hold for it
+    // A chat's agent writes as its role lets it; core's own write was decided by core, and only
+    // the target's limits hold for it
     const role = chatId ? await this.options.roleOf?.(chatId) : undefined
     const decision = chatId ? decide({ caller, actor: await this.actorOf(caller), ...(role ? { role } : {}) }, "words", target) : offLimits(target)
     if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, decision.refuse, { path: file })

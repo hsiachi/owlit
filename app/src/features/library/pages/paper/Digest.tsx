@@ -13,7 +13,7 @@ import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
 import { markSeen } from "@/app/seen"
 import { digestSourceNotes } from "../../lib/digest-source"
-import { askDigest, retryDigest, showingDigest, stopDigest, useDigestFailure, useWritingDigest, waitForDigest } from "../../digests"
+import { askDigest, retryDigest, showingDigest, stopDigest, useDigestFailure, useGettingText, useWritingDigest, waitForDigest } from "../../digests"
 import { useLibraryStore } from "../../store"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: a form of the paper that
@@ -25,6 +25,7 @@ import { useLibraryStore } from "../../store"
 
 export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page: number) => void }) {
   const writing = useWritingDigest(paper.id)
+  const gettingText = useGettingText(paper)
   const failed = useDigestFailure(paper.id)
   const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[]; source: DigestSource } | null>(null)
 
@@ -65,8 +66,8 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
         {writing ? (
           <>
             <p className="flex items-center gap-1.5 text-detail text-muted-foreground">
-              <span className="shimmer">{t`Owlit is reading this paper…`}</span>
-              <StopDigest paperId={paper.id} />
+              <span className="shimmer">{gettingText ? t`Owlit is getting the text…` : t`Owlit is reading this paper…`}</span>
+              {!gettingText && <StopDigest paperId={paper.id} />}
             </p>
             <p className="mt-1 text-detail text-muted-foreground">{t`You can keep reading. Owlit will let you know when it's ready.`}</p>
           </>
@@ -249,7 +250,8 @@ function StopDigest({ paperId }: { paperId: string }) {
 }
 
 // The last try broke: the sentence its reply ended with (kept by core, so after a restart too), with
-// Retry, a new turn in the same chat. Above the old digest when it was a rewrite.
+// Retry, a new turn in the same chat (a new chat when the language changed since). Above the old digest
+// when it was a rewrite.
 function Stopped({ paper, why }: { paper: Paper; why: string }) {
   return (
     <AskAgain

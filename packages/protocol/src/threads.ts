@@ -325,8 +325,6 @@ export interface ThreadWrite {
   // papers without an abstract), kept with the batch in About
   note?: string
   chatId?: string
-  // The background run writing, as "<kind>:<task id>": its searches and writes are one batch
-  run?: string
   // The agent's tool call making this write, when its engine names it
   toolCallId?: string
   docPath?: string

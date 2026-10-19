@@ -446,8 +446,8 @@ msgid "picked for chats"
 msgstr "用于对话"
 
 #: app/src/app/waiting-on-you.ts
-msgid "picked for background work"
-msgstr "用于后台任务"
+msgid "picked for tasks you hand Owlit"
+msgstr "用于交给 Owlit 的任务"
 
 #: app/src/app/waiting-on-you.ts
 msgid "Manage agents"
@@ -4263,6 +4263,10 @@ msgid "Show more"
 msgstr "显示更多"
 
 #: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is getting the text…"
+msgstr "Owlit 正在获取正文…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper…"
 msgstr "Owlit 正在阅读这篇论文…"
 
@@ -4905,8 +4909,8 @@ msgid "Answered through {agentName}"
 msgstr "通过 {agentName} 回答"
 
 #: app/src/features/settings/SettingsDialog.tsx
-msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
-msgstr "Owlit 怎么称呼你、没人等着时它做的工作，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
+msgid "What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with."
+msgstr "Owlit 怎么称呼你、你交给它的任务用哪个智能体，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them."
@@ -5197,8 +5201,8 @@ msgid "What Owlit keeps in mind"
 msgstr "Owlit 记着的事"
 
 #: app/src/features/settings/sections/Memory.tsx
-msgid "Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too."
-msgstr "这个工作区里的每个对话都从这份清单开始，不论用哪个 agent，后台工作也是。你告诉 Owlit 值得记住的事时，它会加进来，并在对话里说一声。清单存在这个文件夹的 .owlit/memory.md 里，你也可以直接编辑那个文件。"
+msgid "Every chat in this workspace starts with this list, whichever agent runs it, the ones owlit starts for you too. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too."
+msgstr "这个工作区里的每个对话都从这份清单开始，不论用哪个 agent，owlit 替你开始的对话也是。你告诉 Owlit 值得记住的事时，它会加进来，并在对话里说一声。清单存在这个文件夹的 .owlit/memory.md 里，你也可以直接编辑那个文件。"
 
 #. open the list of what Owlit keeps in mind
 #: app/src/features/settings/sections/Memory.tsx
@@ -5260,9 +5264,8 @@ msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
-#: packages/core/src/agents/runs.ts
-msgid "Background work"
-msgstr "后台任务"
+msgid "Tasks you hand Owlit"
+msgstr "交给 Owlit 的任务"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
@@ -5270,8 +5273,8 @@ msgid "Privacy"
 msgstr "隐私"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
-msgstr "owlit 记下的东西留在这个工作区里，除了交给智能体之外不会发往任何地方。智能体会读这个工作区里的文件、通过 owlit 读你的论文，以及在“记住我做了什么”开着时读你在 owlit 里做过的事；工作区文件夹之外的一概不读。Claude Code 由它的沙箱管住这一点；Codex 管不住。"
+msgid "What owlit remembers stays on this Mac and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
+msgstr "owlit 记下的东西留在这台 Mac 上，除了交给智能体之外不会发往任何地方。智能体会读这个工作区里的文件、通过 owlit 读你的论文，以及在“记住我做了什么”开着时读你在 owlit 里做过的事；工作区文件夹之外的一概不读。Claude Code 由它的沙箱管住这一点；Codex 管不住。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
@@ -5296,12 +5299,12 @@ msgid "Automatic"
 msgstr "自动"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Writes digests and gathers papers into threads."
-msgstr "写导读，并把论文归入脉络。"
+msgid "Writes digests, works on threads, goes through docs and answers under its comments."
+msgstr "写导读、处理脉络、过一遍文档，并在它的评论下回复。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Agent for background work"
-msgstr "后台任务使用的智能体"
+msgid "Agent for tasks you hand Owlit"
+msgstr "交给 Owlit 的任务使用的智能体"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model"
@@ -5312,8 +5315,8 @@ msgid "A smaller one costs less. Digests come out best from the strongest: it ca
 msgstr "小模型更省钱。最强的模型写出的导读最好：它能发现论文中缺乏依据的说法。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Model for background work"
-msgstr "后台任务使用的模型"
+msgid "Model for tasks you hand Owlit"
+msgstr "交给 Owlit 的任务使用的模型"
 
 #. a language not in the list
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -7297,10 +7300,6 @@ msgstr "{name} 已退出，代码 {code}。发送下一条消息时会重新启�
 msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit for this."
-msgstr "这是你请 Owlit 做的事。"
-
 #: packages/core/src/agents/setup.ts
 msgid "npm finished, but the adapter isn't there."
 msgstr "npm 跑完了，但适配器不在。"
@@ -7511,6 +7510,10 @@ msgstr "那条评论已经在了。"
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "那条评论已经不在了。"
+
+#: packages/core/src/core.ts
+msgid "Owlit couldn't get this paper's text to read."
+msgstr "Owlit 没能拿到这篇论文的正文。"
 
 #: packages/core/src/core.ts
 msgid "Digest of “{title}”"

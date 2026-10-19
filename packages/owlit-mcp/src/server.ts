@@ -33,8 +33,6 @@ export interface OwlitMcpOptions {
   workspace: string
   // The chat this agent is answering in, when owlit started it for one
   chatId?: string
-  // The background run it works for ("<kind>:<task id>"), which signs its searches and thread writes
-  run?: string
   // Where the socket is when not in the temp folder (tests)
   socketDir?: string
   // Told to the agent when it connects; owlit's rules for agents
@@ -45,20 +43,20 @@ export interface OwlitMcpOptions {
 const FALLBACK_INSTRUCTIONS =
   "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and the comments on them (comments_*), their chats (chats_*) and threads (thread_*). Cite papers as [Author Year](owlit://library/<id>)."
 
-// Started for no chat and no run, owlit-mcp serves an agent outside owlit (the `owlit mcp` command), which
+// Started for no chat, owlit-mcp serves an agent outside owlit (the `owlit mcp` command), which
 // core lets read and refuses every change (agents/policy.ts); the rules that follow are written for Owlit
 // inside the app, so this goes first
 export const OUTSIDE_INSTRUCTIONS =
   "You are reading the user's owlit workspace from outside owlit. Through these tools you can read their papers, docs, comments, chats and threads, but you can't change anything in it from here: when a change would help, say what it is, and the user makes it in the owlit app or asks Owlit there. The rules below are written for Owlit inside the app; what they say about reading and citing applies to you, what they say about changing things doesn't."
 
 export function createServer(options: OwlitMcpOptions) {
-  const outside = !options.chatId && !options.run
+  const outside = !options.chatId
   const instructions = options.instructions ?? FALLBACK_INSTRUCTIONS
   const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: outside ? `${OUTSIDE_INSTRUCTIONS}\n\n${instructions}` : instructions })
   let client: Promise<OwlitClient> | null = null
   // Connected on first use, and again after owlit closed and opened again
   const owlit = async () => {
-    client ??= connect(options.workspace, { dir: options.socketDir, as: { ...(options.chatId ? { chatId: options.chatId } : {}), ...(options.run ? { run: options.run } : {}) } }).catch((error) => {
+    client ??= connect(options.workspace, { dir: options.socketDir, as: options.chatId ? { chatId: options.chatId } : {} }).catch((error) => {
       client = null
       throw error
     })
@@ -252,6 +250,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const id = str("id")
       const asked = await owlit.rpc.library.requestDigest({ id })
       if ("chatId" in asked) return `Owlit is writing a digest for ${id}; it appears on the paper's page when done.`
+      if ("gettingText" in asked) return `owlit is reading the text of ${id} first; then Owlit writes its digest, which appears on the paper's page when done.`
       if (asked.heldBack === "has-digest") return `${id} has a digest already; read it with library_read part=digest.`
       return `No digest: the paper has no PDF or text in owlit.`
     }
@@ -377,7 +376,6 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
       const done = await owlit.rpc.threads.write({
         ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
-        ...(options.run && !options.chatId ? { run: options.run } : {}),
         ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
         ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
         ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
@@ -679,4 +677,4 @@ const text = (body: string): CallToolResult => ({ content: [{ type: "text", text
 const failure = (message: string): CallToolResult => ({ content: [{ type: "text", text: message }], isError: true })
 
 // Who a search is by, so a thread's About can tell its batches apart
-const searcher = (options: OwlitMcpOptions) => (options.chatId ? `chat:${options.chatId}` : options.run ? `run:${options.run}` : "agent")
+const searcher = (options: OwlitMcpOptions) => (options.chatId ? `chat:${options.chatId}` : "agent")

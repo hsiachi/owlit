@@ -5,8 +5,8 @@ import type { Caller } from "../rpc/router.ts"
 // with its own tools (agents/roles.ts answerFor): whether this caller may make a call that touches this
 // class, on this target. The person at the window is never policed. A chat's agent gets
 // the role's answer from protocol's ROLE_TABLE, where propose lands like allow (the change log marks it
-// and offers Undo; nothing here waits on the person); a caller with no chat (a background run, the CLI,
-// an agent outside owlit) has nobody behind it, so only read and own go through. own is decided on the
+// and offers Undo; nothing here waits on the person); a caller with no chat (the CLI, an agent outside
+// owlit) has nobody behind it, so only read and own go through. own is decided on the
 // target: a thing is Owlit's while Owlit made it and nobody else has touched it since.
 // That holds for a doc as well: one Owlit writes with owlit's docs_write (a Go through's record) is its
 // own in every role, Reviewer included, until someone else changes it, and no role writes the person's
@@ -50,7 +50,6 @@ export type Decision = "allow" | { refuse: string }
 // Said to the agent, word for word, as the tool's answer (core puts "Not done: " before it)
 const REVIEWER = "Owlit works as Reviewer in this chat and changes nothing of the user's. Describe the change in your answer instead; if the user wants it made, they can choose Assistant or Co-author in the composer."
 const ADMIN = "owlit's workspace, settings, chats, sharing and agents are the user's alone; Owlit's tools can't change them."
-const RUN = "Owlit works on its own here, with nobody to ask, and changes nothing of the user's."
 // Said to the owlit command, and to an agent outside owlit using owlit-mcp (as its instructions say)
 const COMMAND = "From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app."
 const NOT_A_DOC = "That file isn't one of the user's docs."
@@ -63,14 +62,14 @@ export function decide(who: Who, touches: Touches, target: Target = {}): Decisio
   if (limits !== "allow") return limits
   if (touches === "own") return own(who.actor, target)
   if (touches === "admin") return { refuse: ADMIN }
-  if (!who.role) return { refuse: noRole(who) }
+  if (!who.role) return { refuse: COMMAND }
   if (ROLE_TABLE[touches][who.role] === "refuse") return { refuse: refusedAs(who) }
   return "allow"
 }
 
 // What no caller but the person may do to a target, whatever its role or its class: change a file that
-// isn't the user's doc, or change or comment on a doc they keep Owlit out of. Core's own writes for a
-// run (Owlit's record of a Go through) answer to this alone.
+// isn't the user's doc, or change or comment on a doc they keep Owlit out of. Core's own writes, made
+// for no chat, answer to this alone.
 export function offLimits(target: Target): Decision {
   if (target.notDoc) return { refuse: NOT_A_DOC }
   if (target.out) return { refuse: KEPT_OUT }
@@ -81,17 +80,11 @@ export function offLimits(target: Target): Decision {
 // names no target owlit could check, so the role is all there is to go on.
 export function decideCommand(who: Who): Decision {
   if (who.caller.kind === "window") return "allow"
-  if (!who.role) return { refuse: noRole(who) }
+  if (!who.role) return { refuse: COMMAND }
   return RUNS_COMMANDS[who.role] ? "allow" : { refuse: refusedAs(who) }
 }
 
-const runOf = (caller: Caller) => (caller.kind === "socket" || caller.kind === "owlit" ? caller.run : undefined)
-
-const noRole = (who: Who) => (runOf(who.caller) ? RUN : COMMAND)
-
-// A run works with a Reviewer's role, and says it works on its own
 function refusedAs(who: Who) {
-  if (runOf(who.caller)) return RUN
   if (who.role === "reviewer") return REVIEWER
   const name = ROLES.find((r) => r.id === who.role)?.name ?? who.role
   return `Owlit works as ${name} in this chat, which doesn't let it do that. Describe the change in your answer instead.`
