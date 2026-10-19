@@ -63,7 +63,7 @@ describe("activity_read's answer", () => {
       {
         recording: true,
         items: [{ kind: "paper", id: "p1", title: "Paper One", first: now, last: now, visits: 1, pdfSeconds: 0, digestSeconds: 200, pages: {}, highlights: 0, noted: false, read: true }],
-        lines: [{ at: now, actor: "user", what: "read", paper: { id: "p1", title: "Paper One" }, seconds: 200, detail: "the digest only" }],
+        lines: [{ at: now, actor: "p_1234abcd", what: "read", paper: { id: "p1", title: "Paper One" }, seconds: 200, detail: "the digest only" }],
         cited: [{ quote: "A sentence.", page: 4, chatId: "c1", chatTitle: "Why", at: now }],
       },
       { mode: "of", paper: "p1" },

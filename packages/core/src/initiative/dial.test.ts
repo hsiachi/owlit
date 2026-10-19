@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
-import { until } from "../test-util.ts"
+import { knownProfile, ME, MY_OWLIT, until } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -14,7 +14,7 @@ async function setup() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-dial-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: knownProfile(path.join(base, "userData")) })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -47,8 +47,8 @@ describe("the dial (Settings › Owlit › On its own)", () => {
     // A move after it is the sentinel: once that is journaled, a line for the non-move would be too
     await call("initiative.set", { patch: { mode: "away" } })
     expect(await journal((l) => l.detail?.to === "away")).toEqual([
-      { kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "off", to: "onOpen" }, actor: "user" },
-      { kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "onOpen", to: "away" }, actor: "user" },
+      { kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "off", to: "onOpen" }, actor: ME },
+      { kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "onOpen", to: "away" }, actor: ME },
     ])
     await expect(call("initiative.set", { patch: { mode: "always" } })).rejects.toThrow()
   })
@@ -61,7 +61,7 @@ describe("the dial (Settings › Owlit › On its own)", () => {
     await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-x" } })
     const lines = await journal((l) => l.kind === "evaluation" && l.rule === "digest.onOpen")
     expect(lines.filter((l: { kind: string }) => l.kind === "evaluation")).toEqual([
-      expect.objectContaining({ rule: "digest.onStar", subject: "doi-10.1-x", decision: "none", reason: "nothing to read", cause: "paper.starred", actor: "owlit" }),
+      expect.objectContaining({ rule: "digest.onStar", subject: "doi-10.1-x", decision: "none", reason: "nothing to read", cause: "paper.starred", actor: MY_OWLIT }),
       expect.objectContaining({ rule: "digest.onOpen", subject: "doi-10.1-x", decision: "none", reason: "nothing to read", cause: "paper.opened" }),
     ])
   })

@@ -1,4 +1,4 @@
-import { CORE_KINDS, JOURNALED_CORE_KINDS, type ArchiveSummary, type Change, type InitiativeSettings, type JournalEntry, type Task } from "@owlit/protocol"
+import { CORE_KINDS, JOURNALED_CORE_KINDS, type ActorId, type ArchiveSummary, type Change, type InitiativeSettings, type JournalEntry, type OwlitId, type Task } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -26,7 +26,7 @@ export interface ArchiveEvent {
   // A journal line's kind ("doc.opened", "evaluation", "rule.looked", "feedback.dismiss", "clock.hour"),
   // or run.<state> for a run's task changing state (run.queued, run.running, run.waiting, run.done, …)
   type: string
-  actor: "user" | "agent" | "owlit"
+  actor: ActorId
   // continuo's classes: what a person did, what was noticed (about them, or by core), Owlit's own
   // bookkeeping
   class: "interaction" | "observation" | "internal"
@@ -71,6 +71,8 @@ export interface ExportOptions {
   tasksLog: string
   // Owlit's changes to docs from the change log, oldest first: each is an agent.wrote event
   changes?: Change[]
+  // The Owlit whose runs these are, and who heard what core saw
+  owlit: OwlitId
   to: string
   since?: number
   settings: InitiativeSettings
@@ -138,11 +140,11 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
     if (at < since) continue
     const { id: taskId, kind, subject, chatId, doing, error, waiting } = task
     const payload = { taskId, kind, subject, ...(chatId ? { chatId } : {}), ...(doing ? { doing } : {}), ...(error ? { error } : {}), ...(waiting ? { waiting: waiting.reason } : {}) }
-    runs.push({ at, type: `run.${task.state === "waiting_for_you" ? "waiting" : task.state}`, actor: "owlit", payload })
+    runs.push({ at, type: `run.${task.state === "waiting_for_you" ? "waiting" : task.state}`, actor: o.owlit, payload })
   }
 
   for (const c of o.changes ?? []) {
-    if (c.at >= since) runs.push({ at: c.at, type: "agent.wrote", actor: "agent", payload: { path: c.target.path, changeId: c.id, ...(c.origin.chatId ? { chatId: c.origin.chatId } : {}) } })
+    if (c.at >= since) runs.push({ at: c.at, type: "agent.wrote", actor: c.actor, payload: { path: c.target.path, changeId: c.id, ...(c.origin.chatId ? { chatId: c.origin.chatId } : {}) } })
   }
   runs.sort((a, b) => a.at - b.at)
 
@@ -155,7 +157,7 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
     const p = payload as { cause?: string; causeAt?: number }
     if ((kind === "evaluation" || kind === "rule.looked") && p.causeAt !== undefined && UNJOURNALED.has(p.cause!) && !seen.has(`${p.cause}\u0000${p.causeAt}`)) {
       seen.add(`${p.cause}\u0000${p.causeAt}`)
-      heard.push({ at: p.causeAt, type: p.cause!, actor: "owlit", payload: {} })
+      heard.push({ at: p.causeAt, type: p.cause!, actor: o.owlit, payload: {} })
     }
     heard.push({ at, type: kind, actor, payload })
   }

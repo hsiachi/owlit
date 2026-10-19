@@ -1,4 +1,4 @@
-import type { JournalEntry } from "@owlit/protocol"
+import { isPerson, type JournalEntry } from "@owlit/protocol"
 import { readJsonl } from "../fs-util.ts"
 
 // What the person has done with each paper, summed from the journal. The journal keeps raw events,
@@ -43,7 +43,7 @@ export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: stri
     return p
   }
   for (const e of entries) {
-    if (e.actor !== "user") continue
+    if (!isPerson(e.actor)) continue
     switch (e.kind) {
       case "paper.opened":
         paper(e.paperId, e.at).opened++
@@ -97,7 +97,7 @@ export function readInFull(reading: Pick<PaperReading, "pages" | "pdfSeconds"> |
 // Whether the visit to a paper that ended at `closedAt` is the one that made it read in full: it is now,
 // and wasn't before that visit began. A paper becomes read in full once.
 export function fullReadAt(entries: readonly JournalEntry[], paperId: string, closedAt: number, pageCount: number | null, alias?: (id: string) => string) {
-  const opened = entries.findLast((e) => e.actor === "user" && e.kind === "paper.opened" && (alias?.(e.paperId) ?? e.paperId) === paperId && e.at <= closedAt)?.at
+  const opened = entries.findLast((e) => isPerson(e.actor) && e.kind === "paper.opened" && (alias?.(e.paperId) ?? e.paperId) === paperId && e.at <= closedAt)?.at
   if (opened === undefined) return false
   const before = readingOf(
     entries.filter((e) => e.at < opened),

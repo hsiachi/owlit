@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, isOwlit, isPerson, owlitOf, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -166,6 +166,7 @@ export class Core {
     this.journal = new Journal(
       this.activity,
       () => this.workspace?.owlitPath("journal.jsonl") ?? null,
+      async () => `p_${(await this.settings.get()).profile.id!}`,
       () => this.settings.peek()?.activity.enabled ?? true,
     )
     const resolveProxy = options.host?.resolveProxy
@@ -317,6 +318,7 @@ export class Core {
         journal: ws.owlitPath("journal.jsonl"),
         tasksLog: path.join(ws.dataDir, "tasks", "log.jsonl"),
         changes: (await ws.changes.list({ target: { kind: "doc" } })).filter((c) => isOwlit(c.actor)).reverse(),
+        owlit: owlitOf(await this.personAt(WINDOW)),
         to: path.resolve(ws.root, to),
         since,
         settings: await ws.initiative(),

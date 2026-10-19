@@ -11,6 +11,7 @@ import { exportArchive, readArchive, type ArchiveEvent, type Envelope } from "./
 import { Initiative } from "./initiative.ts"
 import { differences, ManualClock, replay } from "./replay.ts"
 import { defineRule, reviewOnOpen, RULES, type World } from "./rules.ts"
+import { ME, MY_OWLIT } from "../test-util.ts"
 
 const T0 = Date.parse("2026-10-16T09:00:00Z")
 const MIN = 60_000
@@ -65,7 +66,7 @@ async function session() {
   } as unknown as Workspace
 
   const bus = new ActivityBus()
-  const journal = new Journal(bus, () => journalFile)
+  const journal = new Journal(bus, () => journalFile, async () => ME)
   const initiative = new Initiative({ workspace: () => ws, record: (e) => journal.evaluation(e), trace: (e) => journal.trace(e), rules: RULES, clock, world: () => world })
   bus.subscribe((event) => initiative.observe(event))
 
@@ -132,7 +133,7 @@ async function session() {
 async function exported() {
   const s = await session()
   const to = path.join(s.base, "archive")
-  const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, settings: s.settings, recording: true, version: "test", now: Date.now() })
+  const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, settings: s.settings, recording: true, version: "test", now: Date.now() })
   return { ...s, to, summary, archive: await readArchive(to) }
 }
 
@@ -165,9 +166,9 @@ describe("archive export and replay", () => {
     for (const e of events.filter((e) => e.type === "run.queued")) expect(causeOf(e)).toMatchObject({ type: "evaluation", payload: { taskId: e.payload.taskId } })
     for (const e of events.filter((e) => e.type === "run.done")) expect(causeOf(e)).toMatchObject({ type: "run.running", payload: { taskId: e.payload.taskId } })
     expect(causeOf(events.find((e) => e.type === "feedback.dismiss")!)).toMatchObject({ type: "run.done", payload: { subject: "notes.md" } })
-    expect(events.find((e) => e.type === "doc.edited")).toMatchObject({ actor: "user", class: "interaction" })
+    expect(events.find((e) => e.type === "doc.edited")).toMatchObject({ actor: ME, class: "interaction" })
     expect(events.find((e) => e.type === "idle")).toMatchObject({ class: "observation" })
-    expect(events.find((e) => e.type === "evaluation")).toMatchObject({ actor: "owlit", class: "internal" })
+    expect(events.find((e) => e.type === "evaluation")).toMatchObject({ actor: MY_OWLIT, class: "internal" })
   })
 
   it("writes inputs continuo accepts, and every decision traceable to the input it heard", async () => {
@@ -247,7 +248,7 @@ describe("archive export and replay", () => {
   it("exports an empty archive that says why while activity recording is off", async () => {
     const s = await session()
     const to = path.join(s.base, "off")
-    const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, settings: s.settings, recording: false, version: "test", now: T0 })
+    const summary = await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, settings: s.settings, recording: false, version: "test", now: T0 })
     expect(summary).toEqual({ to, events: 0, note: "Activity recording is off, so there is nothing to export." })
     expect(readFileSync(path.join(to, "events.jsonl"), "utf8")).toBe("")
     const { manifest, events } = await readArchive(to)
@@ -259,7 +260,7 @@ describe("archive export and replay", () => {
     const s = await session()
     const since = T0 + 11.5 * MIN
     const to = path.join(s.base, "since")
-    await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, since, settings: s.settings, recording: true, version: "test", now: Date.now() })
+    await exportArchive({ root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, to, owlit: MY_OWLIT, since, settings: s.settings, recording: true, version: "test", now: Date.now() })
     const { events, manifest } = await readArchive(to)
     expect(events[0]).toMatchObject({ seq: 1, type: "doc.opened" })
     expect(events.every((e) => e.at >= since)).toBe(true)
@@ -271,7 +272,7 @@ describe("archive export and replay", () => {
 
   it("won't write into the workspace, or over a folder that has something in it", async () => {
     const s = await session()
-    const options = { root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, settings: s.settings, recording: true, version: "test", now: T0 }
+    const options = { root: s.root, journal: s.journalFile, tasksLog: s.tasksLog, owlit: MY_OWLIT, settings: s.settings, recording: true, version: "test", now: T0 }
     await expect(exportArchive({ ...options, to: path.join(s.root, "archive") })).rejects.toThrow("outside the workspace")
     await expect(exportArchive({ ...options, to: path.join(s.base, "data") })).rejects.toThrow("isn't empty")
   })

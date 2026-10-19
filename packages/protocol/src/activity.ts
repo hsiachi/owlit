@@ -1,3 +1,4 @@
+import type { ActorId, OwlitId, PersonId } from "./changes.ts"
 import type { EvaluationRecord, FeedbackRecord, JournaledCoreEvent, LookedRecord } from "./initiative.ts"
 import type { ReadStatus } from "./library.ts"
 
@@ -64,13 +65,14 @@ export const JOURNALED_KINDS = [
 
 // A line of .owlit/journal.jsonl: who did what, when. Owlit's own decisions (each rule's evaluation, with
 // or without an action) and what the user did with its work are there too, so its initiative can be
-// looked back on and replayed.
+// looked back on and replayed. The window's events are the person's; what core heard, looked at and
+// decided is that person's Owlit's.
 export type JournalEntry =
-  | (ActivityEvent & { actor: "user" })
-  | (EvaluationRecord & { actor: "owlit" })
-  | (LookedRecord & { actor: "owlit" })
-  | (JournaledCoreEvent & { actor: "owlit" })
-  | (FeedbackRecord & { actor: "user" })
+  | (ActivityEvent & { actor: PersonId })
+  | (EvaluationRecord & { actor: OwlitId })
+  | (LookedRecord & { actor: OwlitId })
+  | (JournaledCoreEvent & { actor: OwlitId })
+  | (FeedbackRecord & { actor: PersonId })
 
 // ---- What an agent may ask about the user's activity (activity.query, owlit-mcp's activity_read) ----
 // Facts, never scores: how long, which pages, how often. Single actions aren't interpreted.
@@ -82,7 +84,7 @@ export type ActivityQuery =
   | { mode: "top"; since?: number; limit?: number }
   // The history of one paper, doc or chat
   | { mode: "of"; paper?: string; doc?: string; chat?: string }
-  // What happened, in order: a visit to a paper is one line
+  // What happened, in order: a visit to a paper is one line. actor is activity_read's word, not an id
   | { mode: "log"; since?: number; until?: number; actor?: "user" | "agent"; limit?: number }
 
 export interface PaperActivity {
@@ -132,7 +134,7 @@ export type ActivityItem = PaperActivity | DocActivity | ChatActivity
 // One line of the log
 export interface ActivityLine {
   at: number
-  actor: "user" | "agent"
+  actor: ActorId
   // e.g. "read" (a visit to a paper, with seconds and pages), "starred", "highlighted", "edited", "wrote"
   what: string
   paper?: { id: string; title: string }

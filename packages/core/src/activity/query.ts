@@ -1,4 +1,4 @@
-import type { ActivityAnswer, ActivityItem, ActivityLine, ActivityQuery, Change, ChatActivity, DocActivity, JournalEntry, PaperActivity } from "@owlit/protocol"
+import { isOwlit, isPerson, type ActivityAnswer, type ActivityItem, type ActivityLine, type ActivityQuery, type Change, type ChatActivity, type DocActivity, type JournalEntry, type ActorId, type OwlitId, type PaperActivity } from "@owlit/protocol"
 import { readingOf } from "./reading.ts"
 
 // What an agent may learn of what the user did (activity_read), summed from the journal. It answers with
@@ -28,7 +28,7 @@ interface Context {
 }
 
 // Owlit's change to a doc, read among the journal's lines
-type Entry = JournalEntry | { kind: "owlit.changed"; actor: "agent"; at: number; path: string; chatId?: string }
+type Entry = JournalEntry | { kind: "owlit.changed"; actor: OwlitId; at: number; path: string; chatId?: string }
 
 export function answerActivity(journal: JournalEntry[], query: ActivityQuery, ctx: Context): Omit<ActivityAnswer, "recording" | "cited"> {
   const alias = ctx.alias ?? ((id: string) => id)
@@ -45,7 +45,8 @@ export function answerActivity(journal: JournalEntry[], query: ActivityQuery, ct
   const within = entries.filter((e) => e.at >= since && e.at <= until)
   const limit = Math.min(query.limit ?? LIMIT[query.mode], MAX_LINES)
   if (query.mode === "log") {
-    const lines = linesOf(within, ctx.names, alias).filter((l) => !query.actor || l.actor === query.actor)
+    const by = query.actor === "user" ? isPerson : query.actor === "agent" ? isOwlit : () => true
+    const lines = linesOf(within, ctx.names, alias).filter((l) => by(l.actor))
     return { since, lines: lines.slice(-limit), ...(lines.length > limit ? { more: true } : {}) }
   }
   const items = itemsOf(within, ctx.names, alias)
@@ -55,7 +56,7 @@ export function answerActivity(journal: JournalEntry[], query: ActivityQuery, ct
 
 // The journal with Owlit's changes put in by time, each before journal lines of the same moment
 function merge(journal: JournalEntry[], changes: Change[]): Entry[] {
-  const owlit: Entry[] = changes.map((c) => ({ kind: "owlit.changed", actor: "agent", at: c.at, path: c.target.path, ...(c.origin.chatId ? { chatId: c.origin.chatId } : {}) }))
+  const owlit: Entry[] = changes.filter((c) => isOwlit(c.actor)).map((c) => ({ kind: "owlit.changed", actor: c.actor as OwlitId, at: c.at, path: c.target.path, ...(c.origin.chatId ? { chatId: c.origin.chatId } : {}) }))
   const out: Entry[] = []
   for (let i = 0, j = 0; i < journal.length || j < owlit.length; ) {
     if (j < owlit.length && (i >= journal.length || owlit[j].at <= journal[i].at)) out.push(owlit[j++])
@@ -78,7 +79,7 @@ function itemsOf(entries: Entry[], names: Names, alias: (id: string) => string):
   const items: ActivityItem[] = []
   const marks = new Map<string, Pick<PaperActivity, "starred" | "status" | "tags">>()
   for (const e of entries) {
-    if (e.actor !== "user" || e.kind !== "paper.marked") continue
+    if (!isPerson(e.actor) || e.kind !== "paper.marked") continue
     const m = marks.get(alias(e.paperId)) ?? {}
     if (e.mark.what === "starred") m.starred = e.mark.to
     else if (e.mark.what === "status") m.status = e.mark.to
@@ -130,10 +131,10 @@ function linesOf(entries: Entry[], names: Names, alias: (id: string) => string):
   const lines: ActivityLine[] = []
   const paper = (id: string) => ({ id: alias(id), title: names.paper(alias(id)) ?? alias(id) })
   const chat = (id: string) => ({ id, title: names.chat(id) ?? id })
-  const visits = new Map<string, { at: number; seconds: number; digest: number; pages: Set<number> }>()
-  const visit = (id: string, at: number) => {
+  const visits = new Map<string, { at: number; actor: ActorId; seconds: number; digest: number; pages: Set<number> }>()
+  const visit = (id: string, at: number, actor: ActorId) => {
     let v = visits.get(id)
-    if (!v) visits.set(id, (v = { at, seconds: 0, digest: 0, pages: new Set() }))
+    if (!v) visits.set(id, (v = { at, actor, seconds: 0, digest: 0, pages: new Set() }))
     return v
   }
   const endVisit = (id: string) => {
@@ -143,7 +144,7 @@ function linesOf(entries: Entry[], names: Names, alias: (id: string) => string):
     const seconds = v.seconds + v.digest
     lines.push({
       at: v.at,
-      actor: "user",
+      actor: v.actor,
       what: seconds ? "read" : "opened",
       paper: paper(id),
       ...(seconds ? { seconds } : {}),
@@ -160,49 +161,49 @@ function linesOf(entries: Entry[], names: Names, alias: (id: string) => string):
     lines.push(line)
   }
   for (const e of entries) {
-    if (e.actor === "agent") {
-      if (!isOwlitState(e.path)) push({ at: e.at, actor: "agent", what: "changed", doc: e.path, ...(e.chatId ? { chat: chat(e.chatId) } : {}) })
+    if (e.kind === "owlit.changed") {
+      if (!isOwlitState(e.path)) push({ at: e.at, actor: e.actor, what: "changed", doc: e.path, ...(e.chatId ? { chat: chat(e.chatId) } : {}) })
       continue
     }
     switch (e.kind) {
       case "paper.opened":
         endVisit(alias(e.paperId))
-        visit(alias(e.paperId), e.at)
+        visit(alias(e.paperId), e.at, e.actor)
         break
       case "paper.focus": {
-        const v = visit(alias(e.paperId), e.at - e.seconds * 1000)
+        const v = visit(alias(e.paperId), e.at - e.seconds * 1000, e.actor)
         if (e.view === "pdf") v.seconds += e.seconds
         else v.digest += e.seconds
         break
       }
       case "paper.dwell":
-        visit(alias(e.paperId), e.at).pages.add(e.page)
+        visit(alias(e.paperId), e.at, e.actor).pages.add(e.page)
         break
       case "paper.closed":
         // A closing with no opening before it (a journal from before openings were kept) is still a visit
-        visit(alias(e.paperId), e.at)
+        visit(alias(e.paperId), e.at, e.actor)
         endVisit(alias(e.paperId))
         break
       case "highlight.added":
-        push({ at: e.at, actor: "user", what: "highlighted", paper: paper(e.paperId) })
+        push({ at: e.at, actor: e.actor, what: "highlighted", paper: paper(e.paperId) })
         break
       case "note.edited":
-        push({ at: e.at, actor: "user", what: "wrote in the note on", paper: paper(e.paperId) })
+        push({ at: e.at, actor: e.actor, what: "wrote in the note on", paper: paper(e.paperId) })
         break
       case "paper.marked": {
         const m = e.mark
         const what = m.what === "starred" ? (m.to ? "starred" : "unstarred") : m.what === "status" ? "set the status of" : "tagged"
-        push({ at: e.at, actor: "user", what, paper: paper(e.paperId), ...(m.what === "status" ? { detail: m.to } : m.what === "tags" ? { detail: m.to.join(", ") || "no tags" } : {}) })
+        push({ at: e.at, actor: e.actor, what, paper: paper(e.paperId), ...(m.what === "status" ? { detail: m.to } : m.what === "tags" ? { detail: m.to.join(", ") || "no tags" } : {}) })
         break
       }
       case "doc.opened":
-        push({ at: e.at, actor: "user", what: "opened", doc: e.path })
+        push({ at: e.at, actor: e.actor, what: "opened", doc: e.path })
         break
       case "doc.edited":
-        push({ at: e.at, actor: "user", what: "edited", doc: e.path })
+        push({ at: e.at, actor: e.actor, what: "edited", doc: e.path })
         break
       case "chat.ended":
-        push({ at: e.at, actor: "user", what: "wrote in the chat", chat: chat(e.chatId) })
+        push({ at: e.at, actor: e.actor, what: "wrote in the chat", chat: chat(e.chatId) })
         break
     }
   }

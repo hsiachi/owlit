@@ -12,6 +12,7 @@ import { ManualClock } from "./manual-clock.ts"
 import { Presence } from "./presence.ts"
 import { ManualClock as ReplayClock, replay } from "./replay.ts"
 import { dailyScan, paperLanded, paperRead, reviewSettled, type Rule, type World } from "./rules.ts"
+import { ME, MY_OWLIT } from "../test-util.ts"
 
 // The night shift's rules on a workspace of a doc, a thread and a comment, with the clock moved by hand
 
@@ -236,7 +237,7 @@ describe("The night shift, replayed", () => {
     let n = 0
     const ws = { root, owlitPath: (...p: string[]) => path.join(root, ".owlit", ...p), initiative: async () => settings, tasks: { enqueue: () => ({ id: `t${++n}` }) as Task } } as unknown as Workspace
     const bus = new ActivityBus()
-    const journal = new Journal(bus, () => journalFile)
+    const journal = new Journal(bus, () => journalFile, async () => ME)
     const initiative = new Initiative({ workspace: () => ws, record: (e) => journal.evaluation(e), trace: (e) => journal.trace(e), clock, world: () => world })
     bus.subscribe((event) => initiative.observe(event))
     const until = async (t: number) => {
@@ -267,7 +268,7 @@ describe("The night shift, replayed", () => {
     const to = path.join(base, "archive")
     const tasksLog = path.join(base, "tasks.jsonl")
     writeFileSync(tasksLog, "")
-    await exportArchive({ root, journal: journalFile, tasksLog, to, settings, recording: true, version: "test", now: Date.now() })
+    await exportArchive({ root, journal: journalFile, tasksLog, to, owlit: MY_OWLIT, settings, recording: true, version: "test", now: Date.now() })
     const { recorded, replayed, unanswered } = await replay(await readArchive(to))
     expect(recorded.map((d) => [d.rule, d.subject, d.decision, d.reason ?? null])).toEqual([
       ["docs.reviewOnOpen", "story.md", "job", null],

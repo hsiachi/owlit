@@ -5,15 +5,16 @@ import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { answerActivity, MAX_LINES } from "./query.ts"
+import { ME, MY_OWLIT } from "../test-util.ts"
 
 const MIN = 60_000
 const DAY = 86_400_000
 const now = 1_790_000_000_000
-const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: "user" })
+const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: ME })
 const owlitChange = (at: number, path: string, chatId?: string): Change => ({
   id: `${at}-${path}`,
   at,
-  actor: "o_1234abcd",
+  actor: MY_OWLIT,
   action: "update",
   target: { kind: "doc", path },
   origin: { via: "tool", ...(chatId ? { chatId } : {}) },
@@ -76,14 +77,14 @@ describe("answerActivity", () => {
   it("log: a visit to a paper is one line, a run of edits one line with a count, owlit's own state left out", () => {
     const { lines } = answerActivity(journal, { mode: "log", since: now - 3 * DAY }, ctx)
     expect(lines!.map((l) => [l.actor, l.what, l.paper?.id ?? l.doc ?? l.chat?.id, l.times ?? 1])).toEqual([
-      ["user", "read", "p1", 1],
-      ["user", "highlighted", "p1", 1],
-      ["user", "starred", "p1", 1],
-      ["user", "opened", "p2", 1],
-      ["user", "opened", "notes/a.md", 1],
-      ["user", "edited", "notes/a.md", 3],
-      ["agent", "changed", "notes/a.md", 1],
-      ["user", "wrote in the chat", "c1", 1],
+      [ME, "read", "p1", 1],
+      [ME, "highlighted", "p1", 1],
+      [ME, "starred", "p1", 1],
+      [ME, "opened", "p2", 1],
+      [ME, "opened", "notes/a.md", 1],
+      [ME, "edited", "notes/a.md", 3],
+      [MY_OWLIT, "changed", "notes/a.md", 1],
+      [ME, "wrote in the chat", "c1", 1],
     ])
     expect(lines![0]).toMatchObject({ seconds: 90, pages: [3, 4], detail: "30 s of it on the digest" })
     expect(answerActivity(journal, { mode: "log", since: now - 3 * DAY, actor: "agent" }, ctx).lines!.map((l) => l.what)).toEqual(["changed"])
@@ -108,7 +109,7 @@ describe("answerActivity", () => {
   it("of: a doc's history has the user's edits and what agents changed", () => {
     const { items, lines } = answerActivity(journal, { mode: "of", doc: "notes/a.md" }, ctx)
     expect(items).toEqual([expect.objectContaining({ kind: "doc", edits: 3, agentEdits: 1 })])
-    expect(lines!.map((l) => `${l.actor} ${l.what}`)).toEqual(["user opened", "user edited", "agent changed"])
+    expect(lines!.map((l) => `${l.actor} ${l.what}`)).toEqual([`${ME} opened`, `${ME} edited`, `${MY_OWLIT} changed`])
   })
 
   it("answers with nothing when nothing was recorded", () => {
