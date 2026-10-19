@@ -7269,6 +7269,7 @@ msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
 
 #: packages/core/src/agents/runs.ts
+#: packages/core/src/core.ts
 msgid "Digest of “{title}”"
 msgstr "Digest of “{title}”"
 
@@ -7547,6 +7548,10 @@ msgstr "That comment is already there."
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "That comment isn't there any more."
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing the digest."
+msgstr "Owlit finished without writing the digest."
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

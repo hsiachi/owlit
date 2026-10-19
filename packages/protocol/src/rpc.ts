@@ -445,7 +445,10 @@ export interface Methods {
   // library_request_digest); nothing when the paper has nothing to read. rewrite: the user asks for the
   // note there to be written again (a newer way of writing, another language); without it a paper that
   // has one is left as it is.
-  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: null }
+  // Starts Owlit writing a paper's digest in a chat about the paper (Chat.about), once the paper's text is
+  // read: the chat's id (one already writing it, when there is), or why none is written. rewrite: replace
+  // the digest the paper has.
+  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: { chatId: string } | { heldBack: "has-digest" | "nothing-to-read" } }
   // An agent's digest of a paper (library_write_digest): what goes under its Summary and its Details;
   // owlit adds the title and the headings, and replaces a digest already there
   "library.writeDigest": { params: { id: string; summary: string; details: string; chatId?: string; toolCallId?: string }; result: { id: string } }

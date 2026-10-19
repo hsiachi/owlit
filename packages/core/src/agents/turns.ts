@@ -170,7 +170,7 @@ export class Turns {
   }
 
   // How many pictures a chat's turns sent its agent as images since owlit started: none when the agent
-  // doesn't take them; undefined when no turn of it sent attachments
+  // doesn't take them; undefined for a typed chat none of whose turns sent attachments
   picturesSent(chatId: string): number | undefined {
     return this.pictures.get(chatId)
   }
@@ -241,7 +241,7 @@ export class Turns {
       const role = live.told !== turn.role && !fresh.rulesInSystemPrompt ? roleNote(turn.role) : undefined
       const pictures = sendsPictures(req.connectorId, await live.proc.initialized(), req.modelId)
       const attached = await attachmentBlocks(req.input.attachments, ws.root, pictures)
-      if (req.input.attachments.length) this.pictures.set(req.chatId, (this.pictures.get(req.chatId) ?? 0) + attached.filter((b) => b.type === "image").length)
+      if (req.input.attachments.length || turn.about) this.pictures.set(req.chatId, (this.pictures.get(req.chatId) ?? 0) + attached.filter((b) => b.type === "image").length)
       // Owlit's memory: in full when the session hasn't heard it, again whenever it changed since
       const lines = (await this.options.memory?.().catch(() => [])) ?? []
       const heard = JSON.stringify(lines.map((l) => [l.id, l.kind, l.text]))

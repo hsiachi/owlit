@@ -7269,6 +7269,7 @@ msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/runs.ts
+#: packages/core/src/core.ts
 msgid "Digest of “{title}”"
 msgstr "“{title}”的导读"
 
@@ -7547,6 +7548,10 @@ msgstr "那条评论已经在了。"
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "那条评论已经不在了。"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing the digest."
+msgstr "Owlit 结束了，但没有写出导读。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

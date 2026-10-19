@@ -246,13 +246,14 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       await owlit.rpc.library.removeHighlight({ paperId: str("id"), id: found.id, ...writer })
       return `Removed the highlight on p. ${found.page + 1} of ${str("id")}.`
     }
-    // Every note comes from the same background run, so all of them are written one way, in the
-    // user's language, with the paper's figures; a chat's agent asks rather than writes its own
+    // Every digest is written the same way, in a chat of its own about the paper, in the user's language
+    // and with the paper's figures; a chat's agent asks for one rather than writing its own
     case "library_request_digest": {
       const id = str("id")
-      if (await owlit.rpc.library.digest({ id })) return `${id} has a digest already; read it with library_read part=digest.`
-      await owlit.rpc.library.requestDigest({ id })
-      return `Owlit is writing a digest for ${id}; it appears on the paper's page when done.`
+      const asked = await owlit.rpc.library.requestDigest({ id })
+      if ("chatId" in asked) return `Owlit is writing a digest for ${id}; it appears on the paper's page when done.`
+      if (asked.heldBack === "has-digest") return `${id} has a digest already; read it with library_read part=digest.`
+      return `No digest: the paper has no PDF or text in owlit.`
     }
     case "library_write_digest": {
       const done = await owlit.rpc.library.writeDigest({ id: str("id"), summary: str("summary"), details: str("details"), ...writer })

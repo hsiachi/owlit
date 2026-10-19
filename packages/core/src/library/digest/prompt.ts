@@ -26,8 +26,6 @@ export interface DigestRecord {
   // digests from before it was counted
   pictures?: number
   at: number
-  // The user asked for the note to be written again; set until the new one is written
-  rewriteAsked?: number
 }
 
 // The full text given in the prompt; past it the agent reads on with library_read. pitta gave 400k;
@@ -49,6 +47,8 @@ function languageRule(language: string) {
   return `${name}. The prose, the ### headings and every explanatory sentence are in ${name}. Technical terms, method names, dataset names, measures and proper nouns stay exactly as the paper writes them, untranslated.`
 }
 
+// The recipe, and the paper's text that follows it: the chat that writes the digest keeps the recipe,
+// and only where the text came from
 export function digestPrompt(input: { id: string; record: PaperRecord; text: string; language: string; figures: FigureRecord[]; pictures: boolean }) {
   const { id, record, text, language, figures } = input
   const cut = text.length > DIGEST_TEXT_LIMIT
@@ -64,29 +64,24 @@ export function digestPrompt(input: { id: string; record: PaperRecord; text: str
   const figureList = figures.length
     ? [
         "",
-        "---",
-        "",
         "Figures and tables (id, page, caption):",
         ...figures.map((f) => `- ${f.id} (p. ${f.page + 1}): ${f.caption.slice(0, 300)}`),
-        ...(input.pictures ? ["", "Their pictures follow the text, each after its id. Look at the ones a finding may rest on before you write about them."] : []),
+        ...(input.pictures ? ["", "Their pictures are attached, each file named by its id. Look at the ones a finding may rest on before you write about them."] : []),
       ]
     : []
-  return [
+  const recipe = [
     instructions,
     "",
     `The paper is ${id} in the user's library. Write the note with library_write_digest, id ${id}: summary is everything under "## Summary" and details everything under "## Details", each without its heading; owlit adds the title "# ${record.title}" and the two headings. Then say in one short sentence that it is written. Don't add anything to the library and don't change anything else.`,
     "",
-    "Here is the full text of the paper, as parsed from its PDF.",
-    "",
     `Title: ${record.title}`,
     `Authors: ${record.authors.join(", ") || "unknown"}`,
     `Published: ${record.year ?? "unknown"}`,
-    "",
-    "---",
-    "",
-    cut ? `(The text is long: this is its first part. Read the rest with library_read, id ${id}, where the note needs it.)\n\n${body}` : body,
     ...figureList,
+    "",
+    "The full text of the paper, as parsed from its PDF, follows.",
   ].join("\n")
+  return { recipe, text: cut ? `(The text is long: this is its first part. Read the rest with library_read, id ${id}, where the note needs it.)\n\n${body}` : body }
 }
 
 // Whether a part of the note left the language asked for: a ## or ### section of some length with

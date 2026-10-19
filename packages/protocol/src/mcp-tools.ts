@@ -183,7 +183,7 @@ function TOOLS(): ToolSpec[] {
     name: "library_request_digest",
     touches: "own",
     description:
-      "Have Owlit write a digest for a paper (one you just added, say): it reads the full text and its figures in the background, in the user's language, and the digest appears on the paper's page. Nothing happens when the paper already has one. Read one with library_read part=digest.",
+      "Have Owlit write a digest for a paper (one you just added, say): it reads the full text and its figures on its own, beside your chat, in the user's language, and the digest appears on the paper's page. Nothing happens when the paper already has one, or has no PDF or text to read. Read one with library_read part=digest.",
     inputSchema: {
       type: "object",
       properties: { id },
