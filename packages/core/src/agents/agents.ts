@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import type * as acp from "@agentclientprotocol/sdk"
-import { RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignIn, type SignInMethod } from "@owlit/protocol"
+import { FIRST_CHOICE_AGENT, RpcErrorCode, type Connector, type ConnectorStatus, type ProbedConnector, type SignIn, type SignInMethod } from "@owlit/protocol"
 import { spawn, type ChildProcess } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import { mkdir } from "node:fs/promises"
@@ -174,6 +174,16 @@ export class Agents {
   async list(): Promise<Connector[]> {
     const defs = await this.defs()
     return Promise.all(defs.map((d) => this.connectorOf(d)))
+  }
+
+  // The agent for work owlit starts: the one chosen in Settings, else the first that is installed and
+  // signed in, owlit's first choice first
+  async forWork(chosen?: string): Promise<string> {
+    if (chosen) return chosen
+    const ready = (await this.list()).filter((c) => c.status === "available" || c.status === "connected")
+    const pick = ready.find((c) => c.id === FIRST_CHOICE_AGENT) ?? ready[0]
+    if (!pick) throw new RpcFailure(RpcErrorCode.Unavailable, t`No agent is set up for Owlit to work with. Set one up in Settings › Agents.`)
+    return pick.id
   }
 
   async add(name: string, command: string): Promise<Connector> {

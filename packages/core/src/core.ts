@@ -30,6 +30,7 @@ import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
+import { startFor, type StartFor, type Started } from "./chats/chats.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
 import { GO_THROUGH_RUN, REPLY_RUN } from "./initiative/runs.ts"
@@ -227,7 +228,12 @@ export class Core {
       fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update, messageId) => this.notifier.notify("chat.update", { chatId, messageId, update }),
-      ended: (chatId, message) => this.notifier.notify("chat.ended", { chatId, messageId: message.id, message }),
+      ended: (chatId, message, about) => {
+        this.notifier.notify("chat.ended", { chatId, messageId: message.id, message })
+        // A chat owlit started is followed where its work lands, by what it is about (chats.run)
+        const ws = this.workspace
+        if (about && ws) void this.announceStarted(ws, chatId)
+      },
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],
@@ -666,7 +672,8 @@ export class Core {
       const me = await this.personAt(caller)
       const marks = await ws.seen.get(me, ["chats"])
       const [changes, chatList, runs, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.chats.runs(), ws.library.list()])
-      const summaries = [...chatList, ...runs]
+      // A chat owlit started about something is never news as a chat: its work is, where it lands
+      const summaries = [...chatList, ...runs.filter((c) => !c.about)]
       // Only the chats that moved after the person's mark on them can have a reply they haven't seen
       const moved = summaries.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
       const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
@@ -1451,6 +1458,23 @@ export class Core {
     const by = made?.actor ?? (line.chatId ? undefined : await ws.recorder.actorOf(WINDOW))
     const since = made ? changes.slice(changes.indexOf(made) + 1) : changes
     return { what: "memory line", ...(by ? { by } : {}), touchedBy: since.map((c) => c.actor) }
+  }
+
+  // A chat owlit starts for the person, on the agent and model Settings chooses for its work. Every window
+  // hears it begin (chats.run) and end (chats.run again, after chat.ended).
+  async startFor(start: Omit<StartFor, "connectorId" | "modelId">): Promise<Started> {
+    const ws = this.requireWorkspace()
+    const { connectorId: chosen, models } = await this.backgroundAgent()
+    const connectorId = await this.agents.forWork(chosen)
+    const modelId = models?.[connectorId]
+    const started = await startFor(this.turns, ws.chats, { ...start, connectorId, ...(modelId ? { modelId } : {}) })
+    await this.announceStarted(ws, started.chatId)
+    return started
+  }
+
+  private async announceStarted(ws: Workspace, chatId: string) {
+    const chat = await ws.chats.get(chatId).catch(() => null)
+    if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
   }
 
   // A task's agent run, kept as a session: why it started, its steps as they come, and how it ended

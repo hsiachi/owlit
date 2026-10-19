@@ -1,12 +1,11 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { MemoryLine, SessionUpdate } from "@owlit/protocol"
-import { RpcErrorCode, withoutAgentError } from "@owlit/protocol"
-import { RpcFailure } from "../rpc/index.ts"
+import { withoutAgentError } from "@owlit/protocol"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { Who } from "./policy.ts"
 import { flatValues } from "./process.ts"
-import { backgroundMeta, bareToolTitle, FIRST_CHOICE, guardFor, isOwlitCall, roots, sendsPictures } from "./profiles.ts"
+import { backgroundMeta, bareToolTitle, guardFor, isOwlitCall, roots, sendsPictures } from "./profiles.ts"
 import { answerFor, takesRules } from "./roles.ts"
 import { memoryNote, preamble } from "./rules.ts"
 import { failureOf } from "./failure.ts"
@@ -78,7 +77,7 @@ export class Background {
   }
 
   async run(run: BackgroundRun): Promise<BackgroundResult> {
-    const connectorId = run.connectorId ?? (await this.pickConnector())
+    const connectorId = await this.agents.forWork(run.connectorId)
     // The answer so far: when the agent fails, its last words may be its own account of the error
     let answer = ""
     try {
@@ -194,14 +193,6 @@ export class Background {
     return answerFor(who, toKind(call.kind), await this.fs.target(paths))
   }
 
-  // The first agent that is installed and signed in, owlit's first choice first
-  private async pickConnector() {
-    const all = await this.agents.list()
-    const ready = all.filter((c) => c.status === "available" || c.status === "connected")
-    const chosen = ready.find((c) => c.id === FIRST_CHOICE) ?? ready[0]
-    if (!chosen) throw new RpcFailure(RpcErrorCode.Unavailable, "No agent is set up to work in the background.")
-    return chosen.id
-  }
 }
 
 // The model set on the session if the agent still offers it (true); otherwise its default stays

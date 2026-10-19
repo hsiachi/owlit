@@ -17,6 +17,8 @@
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
+//   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
+//                      session owlit gave its owlit server, and says back the result
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
 // FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
@@ -25,8 +27,11 @@
 // FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back.
 
 import * as acp from "@agentclientprotocol/sdk"
-import { randomUUID } from "node:crypto"
-import { existsSync, writeFileSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import net from "node:net"
+import { tmpdir } from "node:os"
+import path from "node:path"
 import { Readable, Writable } from "node:stream"
 
 if (process.argv.includes("--login")) {
@@ -49,6 +54,44 @@ interface Session {
   turn: AbortController | null
   config: Record<string, string>
   history: string[]
+  // owlit's own tools, as owlit handed them to the session (its owlit-mcp server)
+  owlit?: acp.McpServer
+}
+
+// One call to core over the workspace's socket, as owlit-mcp makes it (client/src/index.ts): the pointer
+// file beside the socket names it and its token, and the session secret names the chat. A test passes
+// the socket's folder as "--socket-dir" among the server's args.
+async function callOwlit(server: acp.McpServer, method: string, params: unknown): Promise<unknown> {
+  const args = "args" in server ? server.args : []
+  const workspace = args[args.indexOf("--workspace") + 1]!
+  const dir = args.includes("--socket-dir") ? args[args.indexOf("--socket-dir") + 1]! : tmpdir()
+  const session = ("env" in server ? server.env : []).find((e) => e.name === "OWLIT_SESSION")?.value
+  const hash = createHash("sha1").update(workspace.normalize("NFC")).digest("hex").slice(0, 12)
+  const pointer = JSON.parse(readFileSync(path.join(dir, `owlit-${hash}.json`), "utf8")) as { socket: string; token: string }
+  const socket = net.connect(pointer.socket)
+  socket.setEncoding("utf8")
+  const replies: ((message: { result?: unknown; error?: { message: string } }) => void)[] = []
+  let buffer = ""
+  socket.on("data", (chunk: string) => {
+    buffer += chunk
+    for (let at = buffer.indexOf("\n"); at >= 0; at = buffer.indexOf("\n")) {
+      const line = buffer.slice(0, at)
+      buffer = buffer.slice(at + 1)
+      if (line.trim()) replies.shift()?.(JSON.parse(line))
+    }
+  })
+  let id = 0
+  const send = (method: string, params: unknown) =>
+    new Promise<unknown>((resolve, reject) => {
+      replies.push((m) => (m.error ? reject(new Error(m.error.message)) : resolve(m.result)))
+      socket.write(JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }) + "\n")
+    })
+  try {
+    await send("auth", { token: pointer.token, ...(session ? { session } : {}) })
+    return await send(method, params)
+  } finally {
+    socket.end()
+  }
 }
 
 // FAKE_ACP_MODES="read-only,agent": the modes offered instead of ask and auto, starting in the last, as
@@ -96,7 +139,7 @@ class FakeAgent implements acp.Agent {
     if (process.env.FAKE_ACP_AUTH === "required") throw acp.RequestError.authRequired()
     if (process.env.FAKE_ACP_HANG === "session") await new Promise(() => {})
     const sessionId = randomUUID()
-    const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [] }
+    const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [], owlit: params.mcpServers.find((m) => m.name === "owlit") }
     this.sessions.set(sessionId, session)
     return { sessionId, configOptions: config(session) }
   }
@@ -104,6 +147,7 @@ class FakeAgent implements acp.Agent {
   async loadSession(params: acp.LoadSessionRequest): Promise<acp.LoadSessionResponse> {
     const session = this.sessions.get(params.sessionId)
     if (!session) throw acp.RequestError.resourceNotFound(params.sessionId)
+    session.owlit = params.mcpServers.find((m) => m.name === "owlit") ?? session.owlit
     for (const text of session.history) {
       await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "user_message_chunk", content: { type: "text", text } } })
     }
@@ -178,6 +222,15 @@ class FakeAgent implements acp.Agent {
             (figure ? `![Figure](${figure})\n\n` : "") +
             "## Details\n\n### What it measured\nHow it goes about it, in a sentence long enough to count.\n\n### The boundary of the conclusion\nWhat it leaves open.\n```",
         )
+        return { stopReason: "end_turn" }
+      }
+      const call = /^call ([\w.]+) (\{.*\})$/s.exec(text)
+      if (call) {
+        if (!session.owlit) {
+          await say("no owlit tools")
+          return { stopReason: "end_turn" }
+        }
+        await say(`called: ${JSON.stringify(await callOwlit(session.owlit, call[1]!, JSON.parse(call[2]!)))}`)
         return { stopReason: "end_turn" }
       }
       if (text.includes("memory?")) {
