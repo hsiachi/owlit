@@ -6,7 +6,6 @@ import {
   type ChangeOrigin,
   GROUPING_COLUMN,
   groupingView,
-  threadOfSubject,
   itemId,
   QUESTION_COLUMN,
   RpcErrorCode,
@@ -36,8 +35,6 @@ import type { Started } from "../chats/chats.ts"
 import { newWriteId, type RecordInput, type Recorder } from "../changes/record.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
-import { defineTask, TaskFailure, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
-import { fillSkill, gatherSkill, moreSkill, readSkill, type Skill } from "../initiative/skills.ts"
 import { sameJson, Serial } from "../util.ts"
 import { THREAD_RECIPES } from "../recipes/threads.ts"
 
@@ -53,11 +50,6 @@ import { THREAD_RECIPES } from "../recipes/threads.ts"
 // item on each side, so an undo puts back that item alone and leaves what was done to others since.
 
 export interface ThreadsServices {
-  // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
-  // is a line on what it did
-  // A background agent run for a task (ctx: its signal, and its session shown beside the thread);
-  // run signs its searches and writes
-  agent?: (prompt: string, ctx: TaskContext, allow: RegExp, run: string) => Promise<{ text: string }>
   // The searches a chat (chat:<id>) or a background run (run:<kind>:<task>) made since a moment
   searches?: (by: string, since: number) => Promise<{ at: number; query: string; source: string; results: string[] }[]>
   // What a paper is, by its id: the Library's record, or what a recent search found
@@ -116,9 +108,6 @@ type ThreadRecipe = keyof typeof THREAD_RECIPES
 
 const FILE = "thread.json"
 
-// A skill that may use only owlit's read-only tools
-const NO_TOOLS = /^$/
-
 export class Threads {
   private readonly dir: string
   private readonly trashDir: string
@@ -174,44 +163,11 @@ export class Threads {
     return undefined
   }
 
-  // What the next Find more papers run on each thread looks for, when it isn't the question
-  private readonly lookFor = new Map<string, string>()
+  // ---- Owlit's work on a thread: a chat owlit starts about it ----
 
-  // ---- Owlit's work in the background ----
-
-  // The task kinds, when there is an agent to run them
-  tasks(): TaskDefinition[] {
-    const agent = this.services.agent
-    if (!agent) return []
-    // A task per skill (initiative/skills.ts): the skill says what the session is told and which tools it gets
-    const run = <I>(skill: Skill<I>, input: (c: Thread, subject: string) => I | Promise<I>) =>
-      defineTask(skill.id, {
-        lane: skill.lane,
-        retries: 1,
-        run: async (ctx) => {
-          const c = await this.load(threadOfSubject(ctx.task.subject))
-          if (!c) throw new TaskFailure("The thread is gone.")
-          ctx.progress(0, undefined, skill.id)
-          // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
-          const done = await agent(skill.instructions(await input(c, ctx.task.subject)), ctx, skill.tools ?? NO_TOOLS, `${skill.id}:${ctx.task.id}`)
-          if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${skill.id} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
-        },
-      })
-    return [
-      run(gatherSkill, async (thread) => ({ thread, withText: await this.withText(thread) })),
-      run(moreSkill, async (thread) => ({ thread, withText: await this.withText(thread), ...(this.lookFor.get(thread.id) ? { lookFor: this.lookFor.get(thread.id) } : {}) })),
-      run(fillSkill, async (thread, subject) => {
-        const column = thread.columns.find((col) => col.id === subject.split(":")[1])
-        if (!column) throw new TaskFailure("The column is gone.")
-        return { thread, column, withText: await this.withText(thread) }
-      }),
-      run(readSkill, async (thread) => ({ thread, toRead: await this.toRead(thread) })),
-    ]
-  }
-
-  // The rows a Read in full run reads: answered from their abstracts or titles, with a PDF to be had (a
-  // free one the search found, or the paper's text in the library already). The thread's button counts
-  // the same rows (app/src/features/threads/components/Work.tsx), so it says what the run will do.
+  // The rows Read in full reads: answered from their abstracts or titles, with a PDF to be had (a free
+  // one the search found, or the paper's text in the library already). The thread's button counts the
+  // same rows (app/src/features/threads/components/Work.tsx), so it says what the chat will do.
   async toRead(c: Thread): Promise<string[]> {
     const rows = c.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
     const hasText = this.services.hasText

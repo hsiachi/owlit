@@ -1277,14 +1277,6 @@ export class Core {
                 },
               },
               threads: {
-                agent: async (prompt, ctx, allow, run) => {
-                  // Without owlit's tools (no socket: it failed to open) the agent couldn't write the
-                  // thread at all. The run's tools sign its searches and writes, so About can show
-                  // them as one batch.
-                  const mcpServers = this.mcpServers(root, undefined, run)
-                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-                  return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow })
-                },
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
@@ -1569,12 +1561,12 @@ export class Core {
     if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
   }
 
-  // A task's agent run (threads, Go through, a reply), kept as a session: why it started, its steps as
+  // A task's agent run (Go through, a reply), kept as a session: why it started, its steps as
   // they come, and how it ended
   private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
     const ws = this.workspace
     if (ws?.root !== root) throw new Error("The workspace closed.")
-    const words = await runWords(ws, ctx.task)
+    const words = runWords(ctx.task)
     const session = await openRun(ws.chats, ctx.task, words, (chat) => {
       if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
     })
@@ -1675,7 +1667,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.threads.tasks(), ...this.reviews.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...this.reviews.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   // The person at the window, whose seen marks these are: an agent or a program on the socket has none

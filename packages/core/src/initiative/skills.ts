@@ -1,5 +1,4 @@
-import type { TaskLane, Thread, ThreadColumn } from "@owlit/protocol"
-import { THREAD_RECIPES } from "../recipes/threads.ts"
+import type { TaskLane } from "@owlit/protocol"
 
 // Every kind of work Owlit does in a background session has one shape: what it is told (instructions,
 // with a format version so a change of wording is visible in what it wrote), the owlit tools it may use
@@ -22,39 +21,3 @@ export interface Skill<I> {
 }
 
 export const defineSkill = <I>(skill: Skill<I>): Skill<I> => skill
-
-// Thread work: everything it does goes through thread_write, so the thread shows it with Owlit's dots
-const SEARCH = /^(library_(search|related|journal)|thread_write)$/
-export const gatherSkill = defineSkill<{ thread: Thread; withText: string[] }>({
-  id: "threads.gather",
-  format: 2,
-  lane: "agent",
-  tools: SEARCH,
-  writes: ["thread"],
-  instructions: ({ thread, withText }) => THREAD_RECIPES.gather.text({ thread, withText, toRead: [] }),
-})
-export const moreSkill = defineSkill<{ thread: Thread; withText: string[]; lookFor?: string }>({
-  id: "threads.more",
-  format: 3,
-  lane: "agent",
-  tools: SEARCH,
-  writes: ["thread"],
-  instructions: ({ thread, withText, lookFor }) => THREAD_RECIPES["find-more"].text({ thread, withText, toRead: [], lookFor }),
-})
-export const fillSkill = defineSkill<{ thread: Thread; column: ThreadColumn; withText: string[] }>({
-  id: "threads.fill",
-  format: 2,
-  lane: "agent",
-  tools: /^thread_write$/,
-  writes: ["thread"],
-  instructions: ({ thread, column, withText }) => THREAD_RECIPES["ask-each"].text({ thread, withText, toRead: [], column }),
-})
-// Reading in full means the paper is used: it joins the library
-export const readSkill = defineSkill<{ thread: Thread; toRead: string[] }>({
-  id: "threads.read",
-  format: 3,
-  lane: "agent",
-  tools: /^(library_add|thread_write)$/,
-  writes: ["thread", "paper"],
-  instructions: ({ thread, toRead }) => THREAD_RECIPES["read-in-full"].text({ thread, withText: [], toRead }),
-})

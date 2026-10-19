@@ -153,12 +153,6 @@ export interface Thread {
 
 export type ThreadSize = "few" | "many"
 
-// Work Owlit does on a thread in the background, as task kinds; the task's subject is the
-// thread's id, or "<id>:<column>" for filling a column
-export const THREAD_RUNS = ["threads.gather", "threads.more", "threads.fill", "threads.read"] as const
-export type ThreadRun = (typeof THREAD_RUNS)[number]
-export const threadOfSubject = (subject: string) => subject.split(":")[0]!
-
 export const itemId = {
   title: () => "title",
   memo: (id: string) => `memo:${id}`,

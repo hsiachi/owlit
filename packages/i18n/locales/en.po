@@ -7297,43 +7297,6 @@ msgid "You replied to Owlit's comment in “{name}”."
 msgstr "You replied to Owlit's comment in “{name}”."
 
 #: packages/core/src/agents/runs.ts
-msgid "a thread"
-msgstr "a thread"
-
-#: packages/core/src/agents/runs.ts
-msgid "Gathered papers for “{title}”"
-msgstr "Gathered papers for “{title}”"
-
-#. placeholder {0}: thread?.asked.text ?? title
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to gather papers: “{0}”."
-msgstr "You asked Owlit to gather papers: “{0}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked for more papers for “{title}”"
-msgstr "Looked for more papers for “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked for more papers in “{title}”."
-msgstr "You asked for more papers in “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered “{question}” in “{title}”"
-msgstr "Answered “{question}” in “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked “{question}” of each paper in “{title}”."
-msgstr "You asked “{question}” of each paper in “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Read the papers in “{title}”"
-msgstr "Read the papers in “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to read the papers in “{title}”."
-msgstr "You asked Owlit to read the papers in “{title}”."
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr "You asked Owlit for this."
 
