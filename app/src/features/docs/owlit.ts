@@ -2,13 +2,15 @@
 // and Owlit's last look. Read when a doc's header shows, kept current by docs.owlit.
 
 import { t } from "@lingui/core/macro"
-import { isOpenComment, isOwlit, type DocComment, type DocOwlit } from "@owlit/protocol"
+import { isOpenComment, isOwlit, type DocOwlit } from "@owlit/protocol"
 import { useEffect } from "react"
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { useShallow } from "zustand/react/shallow"
+import { unseenComments, useSeen } from "@/app/seen"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { onWorkspaceOpened } from "@/lib/workspace"
+import { useDocsStore } from "./store"
 
 interface DocOwlitState {
   byPath: Record<string, DocOwlit>
@@ -28,20 +30,17 @@ export function useDocOwlit(path: string): DocOwlit | undefined {
   return state
 }
 
-// When the user last saw each doc's comments from Owlit, by path: newer ones carry Owlit's dot on the
-// chip and the doc's row until they have been on screen a moment. A doc never opened here counts from
-// when this window first kept these (since), so comments from before then aren't news. Kept per window,
-// as the digests' marks are.
-export const useOwlitSeen = create<{ seen: Record<string, number>; since: number; markSeen: (path: string) => void }>()(
-  persist((set) => ({ seen: {}, since: Date.now(), markSeen: (path) => set((s) => ({ seen: { ...s.seen, [path]: Date.now() } })) }), { name: "owlit-doc-comments-seen" }),
-)
-
-// When the user last saw a doc's comments from Owlit
-export const useOwlitSeenAt = (path: string) => useOwlitSeen((s) => s.seen[path] ?? s.since)
-
-// Owlit's open comments on a doc that came after the user last saw its comments, oldest first
-export function newOwlitComments(comments: DocComment[] | undefined, seenAt: number | undefined) {
-  return (comments ?? []).filter((c) => isOpenComment(c) && !!c.entries[0] && isOwlit(c.entries[0].by) && c.createdAt > (seenAt ?? 0)).sort((a, b) => a.createdAt - b.createdAt)
+// Owlit's open comments on a doc that came after the user last saw its comments, oldest first: they carry
+// Owlit's dot on the chip and the doc's row until they have been on screen a moment
+export function useNewOwlitComments(file: { id: string; path: string } | undefined) {
+  const unseen = useSeen(useShallow((s) => (file ? unseenComments(s.unseen, file.path) : [])))
+  return useDocsStore(
+    useShallow((s) =>
+      (file ? (s.comments[file.id] ?? []) : [])
+        .filter((c) => isOpenComment(c) && !!c.entries[0] && isOwlit(c.entries[0].by) && unseen.includes(c.id))
+        .sort((a, b) => a.createdAt - b.createdAt),
+    ),
+  )
 }
 
 // Owlit goes through this doc as material from people (a meeting's transcript, reviews) against the

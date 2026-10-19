@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import type { WorkspaceFile } from "@owlit/protocol"
 import { useEffect } from "react"
-import { useShallow } from "zustand/react/shallow"
+import { markSeen } from "@/app/seen"
 import { NoteDot } from "@/components/marks"
 import { OwlitMark } from "@/components/owlit-mark"
 import { Tip } from "@/components/tip"
@@ -14,8 +14,7 @@ import { RunsHover } from "@/features/runs/components"
 import { openRun, useDoingLine, useOpenRuns } from "@/features/runs/hooks"
 import { useInitiativeSettings } from "@/features/settings/initiative"
 import { docKey } from "./comments/model"
-import { newOwlitComments, useDocOwlit, useOwlitSeen, useOwlitSeenAt } from "./owlit"
-import { useDocsStore } from "./store"
+import { useDocOwlit, useNewOwlitComments } from "./owlit"
 import { useDocsUiStore } from "./ui-store"
 
 // The runs that work on a doc
@@ -33,8 +32,7 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
   const state = useDocOwlit(file.path)
   const runs = useOpenRuns(file.path, DOC_RUNS)
   const { mode } = useInitiativeSettings()
-  const seenAt = useOwlitSeenAt(file.path)
-  const fresh = useDocsStore(useShallow((s) => newOwlitComments(s.comments[file.id], seenAt)))
+  const fresh = useNewOwlitComments(file)
   const shown = useDocsUiStore((s) => s.commentsShown)
 
   // Comments on screen a moment are seen: the dot goes, and Owlit hears they were
@@ -42,7 +40,7 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
   useEffect(() => {
     if (!count || !shown) return
     const timer = setTimeout(() => {
-      useOwlitSeen.getState().markSeen(file.path)
+      markSeen({ kind: "comments", path: file.path })
       void rpc.initiative.feedback({ what: "seen", subject: file.path, detail: { comments: count } }).catch(() => undefined)
     }, SEEN_AFTER_MS)
     return () => clearTimeout(timer)

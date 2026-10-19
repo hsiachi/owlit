@@ -2733,6 +2733,7 @@ msgstr "已应用修改"
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
+#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3090,20 +3091,6 @@ msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
 
-#. placeholder {0}: view.rows.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {New thread · # paper} other {New thread · # papers}}"
-msgstr "{0, plural, other {新脉络 · # 篇论文}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {# new paper} other {# new papers}}"
-msgstr "{added, plural, other {新增 # 篇论文}}"
-
-#. a thread Owlit changed without adding papers
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Changed"
-msgstr "有改动"
-
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left at {left}"
 msgstr "你 {left}离开后"
@@ -3117,8 +3104,55 @@ msgid "Finished {when}"
 msgstr "{when}完成"
 
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
-msgstr "{added, plural, other {Owlit 向你的文献库添加了 # 篇论文}}"
+msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
+msgstr "{more, plural, other {{shownNames}等另外 # 篇}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "New thread: {title}"
+msgstr "新脉络：{title}"
+
+#. placeholder {0}: line.added.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
+msgstr "{0, plural, other {{title} 新增 # 篇论文}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{title} changed"
+msgstr "{title} 有改动"
+
+#. placeholder {0}: titles.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
+msgstr "{0, plural, other {文献库新增 # 篇论文}}"
+
+#. placeholder {0}: line.count
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
+msgstr "{0, plural, other {{who} 在 {name} 留了 # 条评论}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was made outside owlit"
+msgstr "{name} 在 owlit 之外新建"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} wrote {name}"
+msgstr "{who} 写了 {name}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was removed outside owlit"
+msgstr "{name} 在 owlit 之外被删除"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} removed {name}"
+msgstr "{who} 删除了 {name}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was changed outside owlit"
+msgstr "{name} 在 owlit 之外被改动"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} edited {name}"
+msgstr "{who} 编辑了 {name}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"

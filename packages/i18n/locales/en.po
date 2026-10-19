@@ -2733,6 +2733,7 @@ msgstr "Edit applied"
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
+#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3090,20 +3091,6 @@ msgstr "This folder is your workspace. Papers, notes and chats you add live in i
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 
-#. placeholder {0}: view.rows.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {New thread · # paper} other {New thread · # papers}}"
-msgstr "{0, plural, one {New thread · # paper} other {New thread · # papers}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {# new paper} other {# new papers}}"
-msgstr "{added, plural, one {# new paper} other {# new papers}}"
-
-#. a thread Owlit changed without adding papers
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Changed"
-msgstr "Changed"
-
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left at {left}"
 msgstr "Since you left at {left}"
@@ -3117,8 +3104,55 @@ msgid "Finished {when}"
 msgstr "Finished {when}"
 
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
-msgstr "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
+msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
+msgstr "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "New thread: {title}"
+msgstr "New thread: {title}"
+
+#. placeholder {0}: line.added.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
+msgstr "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{title} changed"
+msgstr "{title} changed"
+
+#. placeholder {0}: titles.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
+msgstr "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
+
+#. placeholder {0}: line.count
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
+msgstr "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was made outside owlit"
+msgstr "{name} was made outside owlit"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} wrote {name}"
+msgstr "{who} wrote {name}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was removed outside owlit"
+msgstr "{name} was removed outside owlit"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} removed {name}"
+msgstr "{who} removed {name}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was changed outside owlit"
+msgstr "{name} was changed outside owlit"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} edited {name}"
+msgstr "{who} edited {name}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"

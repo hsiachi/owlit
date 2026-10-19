@@ -5,12 +5,12 @@ import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/app/router"
 import { startActivity } from "@/app/activity"
+import { startSeen } from "@/app/seen"
 import { startAgentChanges } from "@/app/agent-changes"
 import { startMenu } from "@/app/menu"
 import { startModality } from "@/app/modality"
 import { startTextMenu } from "@/app/text-menu"
 import { startUiHandlers } from "@/app/ui-handlers"
-import { startTrail } from "@/features/home/trail"
 import { startAppearance, storedAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
@@ -52,7 +52,7 @@ startModality()
 onNotify("core.hello", ({ version, node }) => console.info(`[owlit] core ${version} ready (Node ${node})`))
 
 startActivity(router)
-startTrail()
+startSeen()
 startUiHandlers(router)
 startMenu(router)
 startTextMenu()

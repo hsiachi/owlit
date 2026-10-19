@@ -17,8 +17,8 @@ import { useNewDigest } from "@/features/library/digests"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
-import { AWAY_FOR, SinceYouLeft } from "./SinceYouLeft"
-import { useTrail, workspaceKey } from "./trail"
+import { SinceYouLeft } from "./SinceYouLeft"
+import { useSeen } from "@/app/seen"
 import { ago } from "@/lib/time"
 import { type Place, usePlaces } from "./where"
 
@@ -30,14 +30,12 @@ const RECENT = 8
 export function HomePage() {
   const places = usePlaces()
   const workspace = useWorkspace((s) => s.current)
-  const awayFrom = useTrail((s) => s.awayFrom[workspaceKey()])
   const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files)))
   const [lead, ...rest] = places
-  const [openedAt] = useState(() => Date.now())
-  const since = awayFrom && openedAt - awayFrom >= AWAY_FOR ? awayFrom : null
-  // Short of that, the last time the user was away in this launch: Owlit's runs meanwhile are still said
-  const lastAway = useTrail((s) => s.lastAway)
-  const runsFrom = since ?? lastAway?.from ?? null
+  // Since the user left, as core heard it: three days or more say everything; a shorter stretch, the last
+  // one, still says Owlit's runs meanwhile
+  const since = useSeen((s) => s.long?.from ?? null)
+  const runsFrom = useSeen((s) => s.long?.from ?? s.away?.from ?? null)
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col" {...dropProps}>

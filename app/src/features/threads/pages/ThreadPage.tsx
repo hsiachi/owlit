@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { QUESTION_COLUMN } from "@owlit/protocol"
+import { itemId, QUESTION_COLUMN } from "@owlit/protocol"
 import { ThreadTable } from "../components/ThreadTable"
-import { useEffect, useLayoutEffect, useState } from "react"
+import { useEffect, useLayoutEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { NotFound, PageHeader, PageTitle } from "@/components/page"
@@ -15,11 +15,10 @@ import { useThreadMenu, useProjects } from "../components/ThreadMenu"
 import { Memo } from "../components/Memo"
 import { shown as shownOf } from "../lib"
 import { editThread, useThread, useThreadsStore } from "../store"
+import { SEEN_AFTER_MS, useVisitDots } from "../seen"
+import { markSeen } from "@/app/seen"
 import { useThreadsUi } from "../ui-store"
 import { scrollMotion } from "@/lib/utils"
-
-// After this long on the page, what Owlit changed counts as seen; its dots stay for this visit
-const SEEN_AFTER_MS = 1500
 
 // One visit per thread: going from one to another (a group made its own, Undo, a link) starts at the
 // top with that thread's own idea of what changed since the user looked
@@ -35,8 +34,8 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const groups = useThreadMenu(thread, useProjects(), { afterDelete: () => navigate("/threads") })
   const renaming = useThreadsUi((s) => s.renaming === threadId)
   const set = useThreadsUi((s) => s.set)
-  // When the user last looked before this visit: what changed since carries the dot until they leave
-  const [seenBefore, setSeenBefore] = useState<number | null>(null)
+  // What changed since the user last looked carries the dot until they leave
+  const fresh = useVisitDots(threadId)
   const id = thread?.id
   // A row left open from before closes. A layout effect, so it comes before the link's paper is taken below
   // (layout effects run in order, and before plain ones).
@@ -53,10 +52,14 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
     },
     { enabled: !!id },
   )
+  // A moment on the page is a look at the thread as a whole, and at its title and memo at the top; its rows
+  // are seen one by one as they come on screen (useSeenOnScreen)
   useEffect(() => {
     if (!id) return
-    setSeenBefore(useThreadsStore.getState().threads[id]?.seenAt ?? 0)
-    const timer = setTimeout(() => void editThread(id, { op: "seen" }), SEEN_AFTER_MS)
+    const timer = setTimeout(() => {
+      const c = useThreadsStore.getState().threads[id]
+      if (c) markSeen({ kind: "thread", id, items: [itemId.title(), ...c.memo.map((s) => itemId.memo(s.id))] })
+    }, SEEN_AFTER_MS)
     return () => clearTimeout(timer)
   }, [id])
 
@@ -65,7 +68,6 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
     return <NotFound title={t`This thread is gone`} detail={t`It may have been deleted.`} back={{ label: t`Back to Threads`, to: "/threads" }} />
   }
   const shown = shownOf(thread)
-  const since = seenBefore ?? thread.seenAt
   // A question asked of every paper, or Owlit's groups, make it a table; a hidden grouping without groups
   // doesn't
   const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && (!c.hidden || (c.kind === "grouping" && !!c.groups?.length)))
@@ -103,15 +105,15 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
               <PageTitle className="text-balance">{shown.title}</PageTitle>
             )}
             <WorkLine thread={thread} />
-            <Memo thread={thread} shown={shown} seenBefore={since} onRow={openRow} />
+            <Memo thread={thread} shown={shown} fresh={fresh} onRow={openRow} />
             {/* What can be asked of the papers, in one place for both forms, before them, so a long list
                 doesn't bury it */}
             <ThreadActions thread={thread} />
-            {!table && <AnswerRows thread={thread} shown={shown} seenBefore={since} />}
+            {!table && <AnswerRows thread={thread} shown={shown} fresh={fresh} />}
           </div>
           {table && (
             <div className="mx-auto w-full max-w-6xl px-6">
-              <ThreadTable thread={thread} shown={shown} seenBefore={since} />
+              <ThreadTable thread={thread} shown={shown} fresh={fresh} />
             </div>
           )}
           <div className="mx-auto w-full max-w-3xl px-4">

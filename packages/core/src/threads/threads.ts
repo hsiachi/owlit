@@ -353,16 +353,10 @@ export class Threads {
 
       const c: Thread = existing ? structuredClone(existing) : await this.blank(input, now)
       const fresh = !existing
-      // Until the user has looked at the thread once, all of it is new: nothing in it gets a dot of its
-      // own (the list says it is new)
-      const looked = c.seenAt > 0
+      // Every item the write changed goes in the history and the log (which of them carry a dot is
+      // threadDot's to say)
       const changed = new Set<string>()
-      // Every item the write changed goes in the history; dot: false leaves it without Owlit's dot
-      const mark = (item: string, dot = true) => {
-        changed.add(item)
-        // Later than the user's last look even within the same millisecond, or the dot would never show
-        if (dot && !fresh && looked) c.changedAt[item] = Math.max(now, c.seenAt + 1)
-      }
+      const mark = (item: string) => changed.add(item)
 
       if (existing && input.title?.trim() && input.title.trim() !== c.title) {
         c.title = input.title.trim()
@@ -383,7 +377,7 @@ export class Threads {
         if (c.columns.some((have) => have.id === col.id || sameWords(have.question, question))) continue
         const id = col.id?.trim() || freshId("c", c.columns.map((x) => x.id))
         c.columns.push({ id, question, kind: "ask" })
-        mark(`column:${id}`, false)
+        mark(`column:${id}`)
       }
 
       // Groups: the whole of one grouping as Owlit means it now, under what the user did to it. Groups they
@@ -402,14 +396,14 @@ export class Threads {
       if (newGrouping && !grouping) {
         grouping = { id: freshId("g", c.columns.map((col) => col.id)), question: newGrouping, kind: "grouping", hidden: true, groups: [] }
         c.columns.push(grouping)
-        mark(`column:${grouping.id}`, false)
+        mark(`column:${grouping.id}`)
       } else if (wantsGroups && input.grouping && grouping?.kind !== "grouping") problems.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic), or give new_grouping to start one.`)
       else if (wantsGroups && !grouping) {
         let id = GROUPING_COLUMN
         for (let n = 2; c.columns.some((col) => col.id === id); n++) id = `${GROUPING_COLUMN}${n}`
         grouping = { id, question: "Topic", kind: "grouping", hidden: true, groups: [] }
         c.columns.push(grouping)
-        mark(`column:${id}`, false)
+        mark(`column:${id}`)
       }
       const col = grouping?.kind === "grouping" ? grouping : undefined
       const named = (id: string) => `${id} (${col?.groups?.find((g) => g.id === id)?.name ?? id})`
@@ -520,8 +514,7 @@ export class Threads {
           if (was && sameCell(was, next)) continue
           row.cells[col] = next
           touched = true
-          // A cell the user rewrote keeps their words; Owlit's new answer waits underneath without a dot
-          mark(itemId.cell(r.id, col), !c.overrides.edits[itemId.cell(r.id, col)])
+          mark(itemId.cell(r.id, col))
         }
         if (col && (r.group !== undefined || r.groups !== undefined)) {
           const ids = placeIn(col.groups ?? [], r.groups ?? (r.group ? [r.group] : []), (id) => {
@@ -542,7 +535,7 @@ export class Threads {
             if (ids.length) row.in = { ...row.in, [col.id]: ids }
             else if (row.in) delete row.in[col.id]
             touched = true
-            mark(itemId.row(r.id), false)
+            mark(itemId.row(r.id))
           }
         }
         if (touched && !changed.has(itemId.row(r.id))) updated++
@@ -623,8 +616,8 @@ export class Threads {
         if (done.problem === "group") throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
         throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the thread any more.`)
       }
-      // Looking, and how the user looks, change nothing worth an entry in the log, nor the order of the list
-      if (edit.op !== "seen" && edit.op !== "view") {
+      // How the user looks changes nothing worth an entry in the log, nor the order of the list
+      if (edit.op !== "view") {
         c.updatedAt = now
         await this.recordItems(caller, before, c, done.items.length ? done.items : [edit.op])
       }
@@ -876,8 +869,6 @@ export class Threads {
       watch: false,
       createdAt: now,
       updatedAt: now,
-      changedAt: {},
-      seenAt: 0,
       overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
     }
   }

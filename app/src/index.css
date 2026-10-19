@@ -648,6 +648,11 @@
 .suggest-line, .suggest-block, .suggest-bar { position: relative; }
 .suggest-line::before, .suggest-block::before, .suggest-bar::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: var(--owlit); }
 .note-editor .suggest-block::before, .note-editor .suggest-bar::before { left: -12px; }
+/* A paragraph someone else wrote since the user last had the doc on screen (editor/changed-since.ts): a
+   thinner, lighter rule where Owlit's proposed edits have theirs, with who and when on hover. It is there
+   from the first frame, never drawn in. */
+.changed-line { position: relative; }
+.changed-line::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 1.5px; background: color-mix(in oklch, var(--owlit-mark) 55%, transparent); }
 /* A note's block rule reaches down over the 0.5rem gap after it; the bar's bridges its own top margin */
 .suggest-block::before { bottom: -0.5rem; }
 .suggest-bar::before { top: -2px; }

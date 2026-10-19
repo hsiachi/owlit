@@ -1,4 +1,4 @@
-import { MENTION_LINK, parseOwlitUri, type Highlight, type Thread, type ThreadSummary, type Paper } from "@owlit/protocol"
+import { MENTION_LINK, parseOwlitUri, type Highlight, type SeenMarks, type Thread, type ThreadSummary, type Paper } from "@owlit/protocol"
 import { existsSync, realpathSync } from "node:fs"
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -18,7 +18,7 @@ async function source() {
   await writeFile(path.join(dir, ".owlit", "papers", "p1", "state.json"), JSON.stringify({ addedAt: 1_760_000_000_000, status: "read", page: 3 }))
   await writeFile(path.join(dir, ".owlit", "papers", "p1", "highlights.jsonl"), JSON.stringify({ createdAt: 1_760_000_500_000, page: 2 }) + "\n")
   await mkdir(path.join(dir, ".owlit", "threads", "c1"), { recursive: true })
-  await writeFile(path.join(dir, ".owlit", "threads", "c1", "thread.json"), JSON.stringify({ seenAt: 1_760_000_100_000, changedAt: { "memo:s1": 1_760_000_100_000 } }))
+  await writeFile(path.join(dir, ".owlit", "threads", "c1", "thread.json"), JSON.stringify({ updatedAt: 1_760_000_100_000, openedAt: { "memo:s1": 1_760_000_100_000 } }))
   await writeFile(path.join(dir, "Draft.md"), "# Draft\n")
   return dir
 }
@@ -37,8 +37,8 @@ describe("copyExample", () => {
     expect(state.page).toBe(3)
     // A map of times moves with the rest
     const thread = JSON.parse(await readFile(path.join(folder, ".owlit", "threads", "c1", "thread.json"), "utf8"))
-    expect(thread.changedAt["memo:s1"]).toBe(thread.seenAt)
-    expect(thread.seenAt).toBe(now - 3_600_000 - 400_000)
+    expect(thread.openedAt["memo:s1"]).toBe(thread.updatedAt)
+    expect(thread.updatedAt).toBe(now - 3_600_000 - 400_000)
     expect((await stat(path.join(folder, "Draft.md"))).mtimeMs).toBeLessThanOrEqual(now)
   })
 
@@ -71,6 +71,9 @@ describe("the shipped example workspace", () => {
       await call("workspace.open", { path: folder })
       const list = await call<ThreadSummary[]>("threads.list")
       expect(list.length).toBeGreaterThanOrEqual(2)
+      // Its threads were looked at, by whoever opened it
+      const seen = await call<SeenMarks>("seen.get", { kinds: ["threads"] })
+      expect(list.every((c) => seen.threads[c.id]?.[c.id] !== undefined)).toBe(true)
       const { papers, aliases } = await call<{ papers: Paper[]; aliases: Record<string, string> }>("library.list")
       const inLibrary = (id: string) => papers.some((p) => p.id === id) || !!aliases[id]
       // The example's person is whoever opened it

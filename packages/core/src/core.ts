@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -11,6 +11,7 @@ import { Agents } from "./agents/agents.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
+import { docPassages } from "./changes/passages.ts"
 import { Turns } from "./agents/turns.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
@@ -246,6 +247,17 @@ export class Core {
     // the user does and what core sees, and the clock
     this.initiative = new Initiative({ workspace: () => this.workspace, record: (entry) => this.journal.evaluation(entry), trace: (entry) => this.journal.trace(entry) })
     this.activity.subscribe((event) => this.initiative.observe(event))
+    // The person's last activity is kept in their seen marks, so the next start knows since when they
+    // were away; coming back is told to the windows (Home's Since you left)
+    const presence = this.initiative.presence
+    presence.heard = (at, left) => {
+      const ws = this.workspace
+      if (!ws) return
+      void this.personAt(WINDOW)
+        .then((me) => ws.seen.here(me, at, left))
+        .catch((error) => console.error("[core] couldn't keep when the person was last here", error))
+    }
+    presence.cameBack = (away) => this.notifier.notify("presence.away", away)
     this.hourly = setInterval(() => this.workspace && this.initiative.observe({ kind: "clock.hour", at: Date.now() }), 3_600_000)
     this.hourly.unref?.()
     // Owlit's reviews of the user's docs, and the comments they hold while the user writes
@@ -673,6 +685,42 @@ export class Core {
       (filter) => this.requireWorkspace().changes.list(filter),
     )
     this.router.register("members.get", noParams, () => this.requireWorkspace().members.get())
+    this.router.register("changes.unseen", z.object({ since: z.number().optional() }), async ({ since }, caller) => {
+      const ws = this.requireWorkspace()
+      const me = await this.personAt(caller)
+      const marks = await ws.seen.get(me, ["chats"])
+      const [changes, chatList, runs, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.chats.runs(), ws.library.list()])
+      const summaries = [...chatList, ...runs]
+      // Only the chats that moved after the person's mark on them can have a reply they haven't seen
+      const moved = summaries.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
+      const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
+      return ws.seen.unseen(me, { changes, chats, papers, since })
+    })
+    this.router.register("changes.since", z.object({ path: z.string().min(1), hash: z.string().min(1) }), async ({ path: rel, hash }, caller) => {
+      const ws = this.requireWorkspace()
+      const me = await this.personAt(caller)
+      const { content } = await ws.docs.read(rel)
+      return docPassages(ws.changes, rel, hash, content, me)
+    })
+    const seenKind = z.enum(["docs", "threads", "chats", "comments", "digests"])
+    this.router.register("seen.get", z.object({ kinds: z.array(seenKind).optional() }), async ({ kinds }, caller) => this.requireWorkspace().seen.get(await this.personAt(caller), kinds))
+    const at = { at: z.number().optional() }
+    this.router.register(
+      "seen.mark",
+      z.union([
+        z.object({ kind: z.literal("doc"), path: z.string().min(1), hash: z.string().min(1), ...at }),
+        z.object({ kind: z.literal("thread"), id: z.string().min(1), items: z.array(z.string().min(1)), ...at }),
+        z.object({ kind: z.literal("chat"), id: z.string().min(1), message: z.string().min(1), ...at }),
+        z.object({ kind: z.literal("comments"), path: z.string().min(1), ...at }),
+        z.object({ kind: z.literal("digest"), paper: z.string().min(1), ...at }),
+      ]),
+      async (mark, caller) => {
+        const marks = await this.requireWorkspace().seen.mark(await this.personAt(caller), mark)
+        this.notifier.notify("seen.changed", marks)
+        return marks
+      },
+    )
+    this.router.register("presence.away", noParams, () => this.initiative.presence.lastAway)
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
@@ -972,7 +1020,6 @@ export class Core {
           z.object({ op: z.literal("watch"), on: z.boolean() }),
           z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
           z.object({ op: z.literal("project"), project: z.string() }),
-          z.object({ op: z.literal("seen") }),
           z.object({ op: z.literal("view"), groupBy: z.string().min(1) }),
         ]),
       }),
@@ -1257,6 +1304,15 @@ export class Core {
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
+      // Away since the person was last heard from in this workspace, the app closed meanwhile
+      if (opened) {
+        const me = await this.personAt(WINDOW).catch(() => undefined)
+        const now = Date.now()
+        if (me) {
+          this.initiative.presence.resume((await next.seen.get(me, [])).here, now)
+          await next.seen.here(me, now, true)
+        }
+      }
       // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
       if (opened) await next.tasks.start()
       // Owlit's rules look at the workspace once it runs (watched threads get their daily look)
@@ -1470,6 +1526,13 @@ export class Core {
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
     return [...workspace.library.tasks(), ...workspace.search.tasks(), ...workspace.threads.tasks(), ...this.reviews.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+  }
+
+  // The person at the window, whose seen marks these are: an agent or a program on the socket has none
+  private async personAt(caller: Caller): Promise<PersonId> {
+    const actor = caller.kind === "window" ? await this.requireWorkspace().recorder.actorOf(caller) : "other"
+    if (!isPerson(actor)) throw new RpcFailure(RpcErrorCode.Forbidden, "Only the person at owlit's window has things they have seen.")
+    return actor
   }
 
   private requireWorkspace() {

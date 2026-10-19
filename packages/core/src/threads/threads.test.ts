@@ -5,6 +5,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
+import { Seen } from "../changes/seen.ts"
 import { Scheduler, TaskStore } from "../tasks/index.ts"
 import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
@@ -19,7 +20,11 @@ function setup(services: ThreadsServices = {}) {
   const changes = new ChangeLog(owlit)
   const events: { id: string; gone: boolean }[] = []
   const wrote: Notifications["changes.added"][] = []
-  const recorder = new Recorder(changes, { profile: async () => ({ id: "1234abcd" }), added: (n) => wrote.push(n) })
+  // One clock for the log and the marks, a tick per reading, so a write after a mark is always later
+  let tick = 1_000
+  const now = () => ++tick
+  const recorder = new Recorder(changes, { profile: async () => ({ id: "1234abcd" }), added: (n) => wrote.push(n), now })
+  const seen = new Seen(owlit, now)
   const threads = new Threads(
     owlit,
     { recorder },
@@ -29,8 +34,13 @@ function setup(services: ThreadsServices = {}) {
       ...services,
     },
   )
-  return { owlit, changes, threads, events, wrote }
+  // The thread's items that carry a dot for the person: unseen entries by anyone else
+  const dots = async (id: string) =>
+    (await seen.unseen(ME, { changes: await changes.list(), chats: [], papers: [] })).changes.filter((c) => c.target.path === id).map((c) => c.target.part)
+  return { owlit, changes, threads, events, wrote, seen, dots }
 }
+
+const ME = "p_1234abcd" as const
 
 // An agent on owlit's socket, working for a run (or the chat its write names)
 const agent = { kind: "socket" as const, run: "threads.more:t1" }
@@ -61,8 +71,6 @@ describe("Threads.write", () => {
     expect(c.rows.map((r) => r.paper.title)).toEqual([papers["doi-10.1145-1"]!.title, papers["doi-10.1145-2"]!.title])
     expect(c.asked).toMatchObject({ text: "我的研究方法该怎么设计？", chatId: "chat-1" })
     expect(c.memo.map((s) => s.id)).toEqual(["s1", "s2"])
-    // Nothing in a new thread is marked as changed: the whole thing is new
-    expect(c.changedAt).toEqual({})
     expect(wrote).toMatchObject([
       { change: { action: "create", target: { kind: "thread", path: out.id }, origin: { chatId: "chat-1" } }, label: "回放式标注作为研究方法", thread: { rows: ["doi-10.1145-1", "doi-10.1145-2"] } },
     ])
@@ -74,29 +82,33 @@ describe("Threads.write", () => {
     await expect(start(threads, { rows: [{ id: "doi-10.9999-x" }] })).rejects.toThrow(/doesn't know the paper doi-10.9999-x/)
   })
 
-  it("adds to a thread, marking only what changed once the user has looked", async () => {
-    const { threads } = setup()
+  it("adds to a thread, with a dot only on what changed after the user's look", async () => {
+    const { threads, seen, dots } = setup()
     const { id } = await start(threads)
     await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] }, agent)
-    expect((await threads.get(id)).changedAt).toEqual({})
-    await threads.edit(id, { op: "seen" }, window)
+    // Never looked at, the whole thread is new: nothing in it has a dot of its own
+    expect(await dots(id)).toEqual([])
+    await seen.mark(ME, { kind: "thread", id, items: [] })
     const out = await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Retrospective answers run lower.", depth: "abstract" } } }, { id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover more.", depth: "abstract" } } }] }, agent)
     expect(out).toMatchObject({ added: 0, updated: 1 })
-    const c = await threads.get(id)
-    expect(Object.keys(c.changedAt)).toEqual([itemId.cell("doi-10.1145-3", "q")])
+    expect(await dots(id)).toEqual([itemId.cell("doi-10.1145-3", "q")])
+    // On screen, the row's items are seen; the thread's other rows keep theirs
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run lower.", depth: "abstract" } } }] }, agent)
+    await seen.mark(ME, { kind: "thread", id, items: [itemId.row("doi-10.1145-3"), itemId.cell("doi-10.1145-3", "q")] })
+    expect(await dots(id)).toEqual([itemId.cell("doi-10.1145-1", "q")])
   })
 
   it("keeps the user's rewrite of a cell through Owlit's later answers, without a dot", async () => {
-    const { threads } = setup()
+    const { threads, seen, dots } = setup()
     const { id } = await start(threads)
-    await threads.edit(id, { op: "seen" }, window)
+    await seen.mark(ME, { kind: "thread", id, items: [] })
     await threads.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-2", "q"), text: "Lifelog replay beats diaries." }, window)
     await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Explanations from replay are more complete.", depth: "full", passage: { quote: "more complete", page: 12 } } } }] }, agent)
     const c = await threads.get(id)
     const shown = shownThread(c)
     expect(shown.rows.find((r) => r.id === "doi-10.1145-2")?.cells.q?.text).toBe("Lifelog replay beats diaries.")
     expect(c.overrides.edits[itemId.cell("doi-10.1145-2", "q")]?.was).toBe("Own explanations recover more.")
-    expect(c.changedAt[itemId.cell("doi-10.1145-2", "q")]).toBeUndefined()
+    expect(await dots(id)).toEqual([])
     // Owlit's own answer is still there underneath
     expect(c.rows.find((r) => r.id === "doi-10.1145-2")?.cells.q?.text).toBe("Explanations from replay are more complete.")
   })
@@ -288,7 +300,6 @@ describe("Threads, several groupings", () => {
     const c = await threads.get(id)
     expect(c.overrides.view).toEqual({ groupBy: "grouping:topic" })
     expect(c.updatedAt).toBe(before.updatedAt)
-    expect(c.changedAt).toEqual(before.changedAt)
     expect((await threads.history(id)).some((l) => l.items.includes("view"))).toBe(false)
   })
 })
@@ -313,8 +324,6 @@ describe("Threads kept before groupings", () => {
       watch: false,
       createdAt: 1,
       updatedAt: 1,
-      changedAt: { "group:eval": 5 },
-      seenAt: 0,
       overrides: { edits: { "group:eval": { text: "Evaluating", at: 2, was: "Evaluation" } }, removed: {} },
     }
     mkdirSync(path.join(owlit, "threads", "old"), { recursive: true })
@@ -324,11 +333,10 @@ describe("Threads kept before groupings", () => {
     expect(c.columns.at(-1)).toEqual({ id: "topic", question: "Topic", kind: "grouping", hidden: true, groups: v1.groups })
     expect(c.rows.map((r) => r.in)).toEqual([{ topic: ["eval"] }, undefined])
     expect(c.overrides.edits).toEqual({ "group:topic:eval": { text: "Evaluating", at: 2, was: "Evaluation" } })
-    expect(c.changedAt).toEqual({ "group:topic:eval": 5 })
     // A short list stays one: only the question's own column is shown
     expect((await threads.list())[0]?.columns).toBe(0)
     // And on disk, once nothing else is writing
-    await threads.edit("old", { op: "seen" }, window)
+    await threads.edit("old", { op: "view", groupBy: "none" }, window)
     expect(JSON.parse(readFileSync(path.join(owlit, "threads", "old", "thread.json"), "utf8")).version).toBe(2)
   })
 })
@@ -382,17 +390,16 @@ describe("Threads, the user's side", () => {
     expect((await threads.get(id)).overrides.edits).toEqual({})
   })
 
-  it("says in the list whether Owlit changed something since the user looked", async () => {
-    const { threads } = setup()
+  it("gives a row Owlit added a dot, and none to the user's own changes", async () => {
+    const { threads, seen, dots } = setup()
     const { id } = await start(threads)
-    // Never looked at: new
-    expect((await threads.list())[0]?.fresh).toBe(true)
-    await threads.edit(id, { op: "seen" }, window)
-    expect((await threads.list())[0]?.fresh).toBe(false)
+    await seen.mark(ME, { kind: "thread", id, items: [] })
+    await threads.edit(id, { op: "rename", title: "Replay as a method" }, window)
     await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] }, agent)
-    expect((await threads.list())[0]).toMatchObject({ fresh: true, papers: 3 })
-    await threads.edit(id, { op: "seen" }, window)
-    expect((await threads.list())[0]?.fresh).toBe(false)
+    expect(await dots(id)).toEqual([itemId.row("doi-10.1145-3")])
+    // A later look at the thread as a whole doesn't cover a row that was never on screen
+    await seen.mark(ME, { kind: "thread", id, items: [itemId.title()] })
+    expect(await dots(id)).toEqual([itemId.row("doi-10.1145-3")])
   })
 
   it("deletes to the trash and puts it back", async () => {
@@ -647,8 +654,8 @@ describe("Threads, the user's changes in the log", () => {
     await threads.edit(id, { op: "remove", item: itemId.row("doi-10.1145-2") }, window)
     await threads.edit(id, { op: "rewrite", item: itemId.memo("s1"), text: "Kelly 2015 is the closest." }, window)
     await threads.edit(id, { op: "watch", on: true }, window)
-    // Looking changes nothing worth an entry
-    await threads.edit(id, { op: "seen" }, window)
+    // How the user looks changes nothing worth an entry
+    await threads.edit(id, { op: "view", groupBy: "none" }, window)
     const mine = (await changes.list({ path: id, actor: "p_1234abcd" })).reverse()
     expect(mine.map((c) => [c.action, c.target.part, c.origin.via])).toEqual([
       ["update", "row:doi-10.1145-2", "editor"],

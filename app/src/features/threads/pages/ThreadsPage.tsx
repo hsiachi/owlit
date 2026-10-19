@@ -19,6 +19,7 @@ import { gather, runWords, useThreadWork } from "../runs"
 import { byProject } from "../lib"
 import { editThread, useThread, useThreadsStore, useSummaries } from "../store"
 import { useThreadsUi } from "../ui-store"
+import { useThreadFresh } from "@/app/seen"
 
 // Threads: what Owlit gathered for the questions the user gave it, by project. A row is the title, how
 // many papers (and columns, once it is a table), and when it last changed; the slot says whether Owlit
@@ -132,6 +133,7 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
   const set = useThreadsUi((s) => s.set)
   const open = () => navigate(`/threads/${summary.id}`)
   const work = useThreadWork(summary.id)
+  const fresh = useThreadFresh(summary.id)
   const running = work.running[0]
   const papers = plural(summary.papers, { one: "# paper", other: "# papers" })
   const size = summary.papers
@@ -170,7 +172,7 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
           ) : work.broken ? (
             <StoppedDot label={t`Owlit stopped.`} />
           ) : (
-            summary.fresh && <NoteDot />
+            fresh && <NoteDot />
           )}
         </span>
         <span className="shrink-0 truncate">{summary.title}</span>

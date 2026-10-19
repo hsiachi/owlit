@@ -53,9 +53,6 @@ function readingTools(): Thread {
     watch: false,
     createdAt: at,
     updatedAt: now - 30 * 60_000,
-    // The two papers Owlit added later carry the dot until the user looks
-    changedAt: { "row:doi-10.1145-3526113.3545660": now - 30 * 60_000, "row:doi-10.1145-3589955": now - 30 * 60_000, "memo:s3": now - 30 * 60_000 },
-    seenAt: at + 60_000,
     overrides: { edits: { "memo:s3": { text: "Evaluations are short lab studies; none followed readers over weeks, and none measured reading speed directly.", at: now - 20 * 60_000, was: "Evaluations are short lab studies; none followed readers over weeks." } }, removed: {}, placed: {}, merged: {} },
   }
 }
@@ -84,8 +81,6 @@ function toolUse(): Thread {
     watch: true,
     createdAt: at,
     updatedAt: at,
-    changedAt: {},
-    seenAt: at + HOUR,
     overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
@@ -106,8 +101,6 @@ function nothingFound(): Thread {
     watch: false,
     createdAt: at,
     updatedAt: at,
-    changedAt: {},
-    seenAt: at,
     overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
@@ -168,8 +161,6 @@ function venue(): Thread {
     watch: false,
     createdAt: at,
     updatedAt: at,
-    changedAt: {},
-    seenAt: at + HOUR,
     overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }

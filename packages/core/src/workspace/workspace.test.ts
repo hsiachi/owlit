@@ -42,15 +42,15 @@ function tree(dir: string): string[] {
 }
 
 describe("workspace.open", () => {
-  it("creates only .owlit/workspace.json and the members in an empty folder", async () => {
+  it("creates only .owlit/workspace.json, the members and the opener's seen marks in an empty folder", async () => {
     const { call, folder } = setup()
     const empty = folder("empty")
     const info = await call("workspace.open", { path: empty })
     expect(info).toEqual({ path: empty, name: "empty" })
-    expect(tree(empty).sort()).toEqual([path.join(".owlit", "members.json"), path.join(".owlit", "workspace.json")])
+    const { profile } = (await call("settings.get")) as { profile: { id: string } }
+    expect(tree(empty).sort()).toEqual([path.join(".owlit", "members.json"), path.join(".owlit", "seen", `p_${profile.id}.json`), path.join(".owlit", "workspace.json")])
     expect(JSON.parse(readFileSync(path.join(empty, ".owlit/workspace.json"), "utf8"))).toEqual({ version: 1, layout: {} })
     // The person who opened it and their Owlit, by the profile's id
-    const { profile } = (await call("settings.get")) as { profile: { id: string } }
     expect(JSON.parse(readFileSync(path.join(empty, ".owlit/members.json"), "utf8"))).toEqual({
       [`p_${profile.id}`]: { kind: "person" },
       [`o_${profile.id}`]: { kind: "assistant", of: `p_${profile.id}` },

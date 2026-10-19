@@ -3,11 +3,10 @@ import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { isTaskFinished, type Paper, type Task } from "@owlit/protocol"
 import { toast } from "sonner"
-import { create } from "zustand"
-import { persist } from "zustand/middleware"
 import { notifyWhenAway } from "@/lib/notify"
 import { rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
+import { useDigestUnseen } from "@/app/seen"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { useLibraryStore } from "./store"
 
@@ -15,27 +14,6 @@ import { useLibraryStore } from "./store"
 // new since they last looked, or stopped. And who is told when one is done: only someone waiting for it,
 // that is who saw it being written on the paper's page or asked for it from the paper's menu. A digest
 // written in the background (every paper, or opening one while reading its PDF) only leaves its mark.
-
-interface DigestMarks {
-  // When each paper's digest was last on screen
-  seen: Record<string, number>
-  // When the user asked for each paper's digest from its menu: a paper never opened can still want one
-  asked: Record<string, number>
-  markSeen: (id: string) => void
-  markAsked: (id: string) => void
-}
-
-export const useDigestMarks = create<DigestMarks>()(
-  persist(
-    (set) => ({
-      seen: {},
-      asked: {},
-      markSeen: (id) => set((s) => ({ seen: { ...s.seen, [id]: Date.now() } })),
-      markAsked: (id) => set((s) => ({ asked: { ...s.asked, [id]: Date.now() } })),
-    }),
-    { name: "owlit-digests", partialize: (s) => ({ seen: s.seen, asked: s.asked }) },
-  ),
-)
 
 // A paper's digest runs, finished ones too; a fresh array, free to sort
 const digestTasks = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).filter((task) => task.kind === "paper.digest")
@@ -52,14 +30,6 @@ export function digestFailed(byId: Record<string, Task>, id: string) {
   return last?.state === "failed"
 }
 
-// A digest Owlit wrote after the user last opened the paper (or asked for it) and that they haven't seen.
-// One on a paper they never opened or asked about was written in the background and is not news.
-function isNewDigest(paper: Paper, marks: Pick<DigestMarks, "seen" | "asked">) {
-  if (!paper.hasDigest || !paper.digestAt) return false
-  if (!paper.lastOpenedAt && !marks.asked[paper.id]) return false
-  return paper.digestAt > Math.max(marks.seen[paper.id] ?? 0, paper.lastOpenedAt ?? 0)
-}
-
 // The mark a paper's row and page show for its digest: writing while it is under way, stopped, or new.
 // Under way is a run at work, or one opened or asked for that waits on its own first steps (the paper's
 // figures); a background one only once at work, so a library-wide batch doesn't breathe on every row.
@@ -68,15 +38,13 @@ export type DigestState = "writing" | "failed" | "new" | null
 export function useDigestState(paper: Paper): DigestState {
   const failed = useTasksStore((s) => digestFailed(s.byId, paper.id))
   const writing = useTasksStore((s) => digestTasks(s.byId, paper.id).some((task) => task.state === "running" || (!isTaskFinished(task) && task.priority !== "background")))
-  const fresh = useDigestMarks((s) => isNewDigest(paper, s))
+  // New since the user last looked (protocol's digestUnseen, which core answers)
+  const fresh = useDigestUnseen(paper.id)
   return failed ? "failed" : writing ? "writing" : fresh ? "new" : null
 }
 
 // Whether a paper has a digest new since the user looked, by id (Home's rows, which hold no paper)
-export function useNewDigest(paperId: string | undefined) {
-  const paper = useLibraryStore((s) => (paperId ? s.papers[paperId] : undefined))
-  return useDigestMarks((s) => !!paper && isNewDigest(paper, s))
-}
+export const useNewDigest = useDigestUnseen
 
 // Any run for the digest, background ones too: the paper's page says it is being written
 export function useWritingDigest(paperId: string) {

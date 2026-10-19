@@ -139,10 +139,6 @@ export interface Thread {
   size?: ThreadSize
   createdAt: number
   updatedAt: number
-  // When Owlit last changed each item, and when the user last looked: an item changed after seenAt
-  // carries Owlit's dot
-  changedAt: Record<string, number>
-  seenAt: number
   overrides: ThreadOverrides
   // Kept separate from another thread: the rows as they were there (groups, every column) and the
   // question taken with them, so Undo can put them back
@@ -291,8 +287,6 @@ export interface ThreadSummary {
   columns: number
   createdAt: number
   updatedAt: number
-  // Owlit changed something since the user last looked, or they haven't looked at it yet
-  fresh: boolean
   watch: boolean
 }
 
@@ -306,7 +300,6 @@ export function summarize(c: Thread): ThreadSummary {
     columns: c.columns.filter((col) => col.id !== QUESTION_COLUMN && !col.hidden).length,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
-    fresh: c.seenAt === 0 || Object.values(c.changedAt).some((at) => at > c.seenAt),
     watch: c.watch,
   }
 }
@@ -413,7 +406,6 @@ export type ThreadEdit =
   // A column out of sight, or back
   | { op: "hide"; column: string; hidden: boolean }
   | { op: "project"; project: string }
-  | { op: "seen" }
   // What the table is grouped by, remembered for the thread (overrides.view)
   | { op: "view"; groupBy: string }
 
@@ -514,10 +506,6 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
     case "view":
       c.overrides.view = { ...c.overrides.view, groupBy: edit.groupBy }
       return { items: [] }
-    case "seen":
-      // Covers every change so far, even one dated a moment ahead so that it got its dot
-      c.seenAt = Math.max(now, ...Object.values(c.changedAt))
-      return { items: [] }
   }
 }
 
@@ -552,7 +540,6 @@ export function upgradeThread(c: Thread | ThreadV1): Thread {
     version: 2,
     columns: col ? [...c.columns, { id: col, question: "Topic", kind: "grouping", hidden: true, groups }] : c.columns,
     rows: c.rows.map((r) => row(r, col)),
-    changedAt: rekey(c.changedAt),
     overrides: { edits: rekey(c.overrides.edits), removed: rekey(c.overrides.removed), placed: {}, merged: {} },
     ...(c.splitFrom ? { splitFrom: { ...c.splitFrom, rows: c.splitFrom.rows.map((r) => row(r, GROUPING_COLUMN)) } } : {}),
   }

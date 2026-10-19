@@ -8,6 +8,7 @@ import { connectorProblem, problemSentence } from "@/features/chat/lib/connector
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { askSentence } from "@/features/chat/lib/step-words"
 import { callOf, chatWait, useSeenStore } from "@/features/chat/status"
+import { useSeen } from "./seen"
 import { useChatStore } from "@/features/chat/store"
 import { importOrigin } from "@/features/library/components/ImportBanner"
 import { useAskingImports } from "@/features/library/imports"
@@ -55,7 +56,7 @@ export function useWaitingOnYou(): WaitingItem[] {
   )
   // A reply Owlit finished while the user wasn't looking at its chat: the ladder's "changed since you
   // last looked" dot on the rail, so an answer that landed while they were reading reaches them
-  const finished = useSeenStore((s) => Object.keys(s.unseen).length > 0)
+  const finished = useSeen((s) => s.unseen.chats.length > 0)
   const connectors = useChatStore((s) => s.connectors)
   const selected = useChatStore((s) => s.selection.connectorId)
   const background = useSettings((s) => s.view?.backgroundAgent)

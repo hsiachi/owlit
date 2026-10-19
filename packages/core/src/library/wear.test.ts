@@ -105,8 +105,8 @@ describe("library.wear, threads", () => {
       ],
       rows: [
         row("p1", {
-          q: { text: "Lower.", depth: "full", passage: { quote: "Replay ratings ran lower.", page: 5 } },
-          c2: { text: "Diary study.", depth: "full", passage: { quote: "We ran a diary study.", page: 2 } },
+          q: { text: "Lower.", depth: "full", passage: { quote: "Replay ratings ran lower.", page: 5 }, at: 30 },
+          c2: { text: "Diary study.", depth: "full", passage: { quote: "We ran a diary study.", page: 2 }, at: 40 },
         }),
         row("p2", { q: { text: "Same.", depth: "full", passage: { quote: "Not this paper.", page: 1 } } }),
         row("p3", { q: { text: "From the abstract.", depth: "abstract" } }),
@@ -115,8 +115,6 @@ describe("library.wear, threads", () => {
       watch: false,
       createdAt: 1,
       updatedAt: 40,
-      changedAt: { "cell:p1:q": 30 },
-      seenAt: 0,
       overrides: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
     }
     mkdirSync(path.join(root, ".owlit/threads/replay"), { recursive: true })

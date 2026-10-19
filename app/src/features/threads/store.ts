@@ -56,7 +56,7 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
   const c = structuredClone(was)
   const done = applyThreadEdit(c, edit, Date.now())
   if ("problem" in done) return false
-  if (edit.op !== "seen" && edit.op !== "view") c.updatedAt = Date.now()
+  if (edit.op !== "view") c.updatedAt = Date.now()
   put(c)
   return true
 }

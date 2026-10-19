@@ -27,6 +27,8 @@ import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { agentSuggestions, setPendingEdits } from "./suggestions"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { blockPreview } from "./block-preview"
+import { changedSince } from "./changed-since"
+import { followChangedSince } from "../changed"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
@@ -110,6 +112,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     let saveCommentPlaces = () => {}
     // Owlit's proposed edits drawn in the doc are answered here, so the chat's card points at the doc
     const setDrawn = drawnEdits()
+    let seen: ReturnType<typeof followChangedSince> | undefined
 
     const saved = lastSelection.get(id)
     // A doc deleted on disk while open can still be read and copied, not edited
@@ -152,6 +155,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           ),
           keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
           agentSuggestions(respondToEdit, setDrawn),
+          changedSince,
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),
@@ -160,6 +164,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           EditorView.updateListener.of((u) => {
             if (u.selectionSet || u.docChanged) lastSelection.set(id, u.state.selection)
             if (!u.docChanged) return
+            seen?.changed()
             if (u.transactions.some(isUserEdit)) {
               reportDocEdited(id)
               userEdited = true
@@ -171,6 +176,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
         ],
       }),
     })
+
+    // What others changed since the user last had it on screen, and marking it seen
+    const diskText = () => (crlf ? view.state.doc.toString().replace(/\n/g, "\r\n") : view.state.doc.toString())
+    seen = followChangedSince(view, () => useDocsStore.getState().files[id]?.path, diskText)
 
     // A new doc starts with the cursor in it; a doc opened again picks up where it was left
     if (!content || saved) {
@@ -259,6 +268,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       unsubscribeOpen()
       unsubscribeMissing()
       unregister()
+      seen.close()
       view.destroy()
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it
       setTimeout(() => {

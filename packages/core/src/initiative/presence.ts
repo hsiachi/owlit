@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@owlit/protocol"
+import type { Absence, ActivityEvent } from "@owlit/protocol"
 
 // Where the user is, as their activity says: the doc they have open, when they last typed in it, and
 // whether they are away. It is what Owlit's one rule of manners rests on: it never works on the page the
@@ -16,15 +16,23 @@ export class Presence {
   // Since when the user is away: from the moment the window went to the background, until their next
   // activity (coming back to the window is one); null while they are here
   private since: number | null = null
+  // The last stretch away that has ended
+  private away: Absence | null = null
+  // Told each time the user is heard from (left: the time they went away, as soon as it is known), and
+  // when they come back from a stretch away
+  heard?: (at: number, left: boolean) => void
+  cameBack?: (away: Absence) => void
 
   hear(event: ActivityEvent) {
+    // Closing a doc is the window's doing as often as the user's (below), so it doesn't say they are here
+    if (event.kind !== "idle" && event.kind !== "doc.closed") this.here(event.at)
     switch (event.kind) {
       case "doc.opened":
         this.doc = event.path
         this.since = null
         return
       case "doc.closed":
-        // Closing what was open is the window's doing as often as the user's (a reload, a window closing)
+        // A reload or a window closing closes what was open too
         if (this.doc === event.path) this.doc = null
         return
       case "doc.edited":
@@ -33,11 +41,30 @@ export class Presence {
         return
       case "idle":
         // The window reports the background time once it is long enough to count
-        if (event.seconds * 1000 >= AWAY_MS && this.since === null) this.since = event.at - event.seconds * 1000
+        if (event.seconds * 1000 >= AWAY_MS && this.since === null) {
+          this.since = event.at - event.seconds * 1000
+          this.heard?.(this.since, true)
+        }
         return
       default:
         this.since = null
     }
+  }
+
+  // The user was last heard from at lastHere, before owlit (or this workspace) started: away since then
+  resume(lastHere: number | undefined, now: number) {
+    this.doc = null
+    this.since = null
+    this.away = lastHere !== undefined && now - lastHere >= AWAY_MS ? { from: lastHere, to: now } : null
+  }
+
+  // Heard from at this time: a stretch away, if they were away, ends here
+  private here(at: number) {
+    if (this.since !== null) {
+      this.away = { from: this.since, to: at }
+      this.cameBack?.(this.away)
+    }
+    this.heard?.(at, false)
   }
 
   // The user is writing in this doc now: it is open, they are here, and they typed lately
@@ -61,5 +88,10 @@ export class Presence {
   // When the current away stretch began, while the user is away
   get awaySince() {
     return this.since
+  }
+
+  // The last stretch the user was away that has ended
+  get lastAway() {
+    return this.away
   }
 }

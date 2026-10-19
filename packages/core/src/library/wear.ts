@@ -1,5 +1,5 @@
 import type { Chat, CitedPassage, CollectedPassage, Thread, ThreadSummary, PaperWear } from "@owlit/protocol"
-import { itemId, parseOwlitUri, QUESTION_COLUMN, shownThread } from "@owlit/protocol"
+import { parseOwlitUri, QUESTION_COLUMN, shownThread } from "@owlit/protocol"
 import { readJournal, readingOf } from "../activity/reading.ts"
 import type { Chats } from "../chats/chats.ts"
 
@@ -75,7 +75,7 @@ async function collectedOf(id: string, threads: ThreadsReader, alias: (id: strin
           threadTitle: shown.title,
           row: row.id,
           ...(col.id !== QUESTION_COLUMN && col.kind !== "compare" ? { column: col.question } : {}),
-          at: c.changedAt[itemId.cell(row.id, col.id)] ?? c.updatedAt,
+          at: row.cells[col.id]!.at,
         })
       }
     }

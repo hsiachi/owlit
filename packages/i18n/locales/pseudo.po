@@ -2733,6 +2733,7 @@ msgstr ""
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
+#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3090,20 +3091,6 @@ msgstr ""
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr ""
 
-#. placeholder {0}: view.rows.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {New thread · # paper} other {New thread · # papers}}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {# new paper} other {# new papers}}"
-msgstr ""
-
-#. a thread Owlit changed without adding papers
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Changed"
-msgstr ""
-
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left at {left}"
 msgstr ""
@@ -3117,7 +3104,54 @@ msgid "Finished {when}"
 msgstr ""
 
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
+msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "New thread: {title}"
+msgstr ""
+
+#. placeholder {0}: line.added.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{title} changed"
+msgstr ""
+
+#. placeholder {0}: titles.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
+msgstr ""
+
+#. placeholder {0}: line.count
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was made outside owlit"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} wrote {name}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was removed outside owlit"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} removed {name}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was changed outside owlit"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} edited {name}"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx

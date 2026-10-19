@@ -10,7 +10,8 @@ import { useSelectionMenu } from "@/components/selection-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
-import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useDigestMarks, useWritingDigest, waitForDigest } from "../../digests"
+import { markSeen } from "@/app/seen"
+import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useWritingDigest, waitForDigest } from "../../digests"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: most of the time
 // it is all the paper needs, so it reads like any other page, in the reading column. Its figures show
@@ -47,7 +48,7 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
   useEffect(() => {
     if (!shown) return
     const hide = showingDigest(paper.id)
-    const timer = setTimeout(() => useDigestMarks.getState().markSeen(paper.id), SEEN_AFTER_MS)
+    const timer = setTimeout(() => markSeen({ kind: "digest", paper: paper.id }), SEEN_AFTER_MS)
     return () => {
       hide()
       clearTimeout(timer)

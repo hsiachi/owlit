@@ -4,7 +4,7 @@
 // Owlit did (EXAMPLE_PERSON, EXAMPLE_OWLIT in the shipped files) becomes the opener's.
 
 import { existsSync } from "node:fs"
-import { cp, readdir, readFile, stat, utimes, writeFile } from "node:fs/promises"
+import { cp, readdir, readFile, rename, stat, utimes, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 const NAME = "Owlit Example"
@@ -12,7 +12,7 @@ const NAME = "Owlit Example"
 const EXAMPLE_PERSON = "p_example"
 const EXAMPLE_OWLIT = "o_example"
 const HOUR = 3_600_000
-// A field named for a time (at, addedAt), or a map of times named so (a thread's changedAt, by item), holding
+// A field named for a time (at, addedAt), or a map of times named so, holding
 // epoch milliseconds between 2017 and 2049: a timestamp, not a count or a page number
 const timeKey = (key: string) => /(^at|At)$/.test(key)
 const isTime = (value: unknown): value is number => typeof value === "number" && value > 1.5e12 && value < 2.5e12
@@ -38,6 +38,9 @@ async function signAs(folder: string, profileId: string) {
     const signed = text.replaceAll(`"${EXAMPLE_PERSON}"`, `"p_${profileId}"`).replaceAll(`"${EXAMPLE_OWLIT}"`, `"o_${profileId}"`)
     if (signed !== text) await writeFile(file, signed)
   }
+  // What the example's person has seen (its threads looked at) is the opener's
+  const seen = path.join(folder, ".owlit", "seen")
+  if (existsSync(path.join(seen, `${EXAMPLE_PERSON}.json`))) await rename(path.join(seen, `${EXAMPLE_PERSON}.json`), path.join(seen, `p_${profileId}.json`))
 }
 
 // Shifts every timestamp in owlit's own records, and every file's modified time, by one amount, so the

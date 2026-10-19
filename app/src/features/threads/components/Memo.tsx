@@ -44,7 +44,7 @@ function MemoMention({ label, uri, onRow, removed }: { label: string; uri: strin
 // Owlit's reading of the papers, a few sentences as a list. A sentence Owlit changed since the user last
 // looked has the dot for its bullet; one the user rewrote says so, with Owlit's words a hover away. Each can
 // be rewritten or removed from its ⋯; nothing asks to be accepted.
-export function Memo({ thread, shown, seenBefore, onRow }: { thread: Thread; shown: Thread; seenBefore: number; onRow?: (paperId: string) => boolean }) {
+export function Memo({ thread, shown, fresh: isFresh, onRow }: { thread: Thread; shown: Thread; fresh: (item: string) => boolean; onRow?: (paperId: string) => boolean }) {
   const [editing, setEditing] = useState<string | null>(null)
   if (!shown.memo.length) return null
   return (
@@ -52,7 +52,7 @@ export function Memo({ thread, shown, seenBefore, onRow }: { thread: Thread; sho
       {shown.memo.map((s) => {
         const item = itemId.memo(s.id)
         const edit = thread.overrides.edits[item]
-        const fresh = (thread.changedAt[item] ?? 0) > seenBefore && !edit
+        const fresh = isFresh(item) && !edit
         const groups: MenuGroups = [
           [
             { label: t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" }), onSelect: () => setEditing(s.id), afterClose: true },

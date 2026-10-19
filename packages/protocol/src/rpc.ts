@@ -4,7 +4,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Change, ChangeFilter, Roster } from "./changes.ts"
+import type { Absence, Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -360,6 +360,18 @@ export interface Methods {
   "changes.list": { params: ChangeFilter; result: Change[] }
   // The workspace's members: who the ids in the log are
   "members.get": { params: void; result: Roster }
+  // What changed since the window's person last looked, by anyone else; since: only entries from then on
+  "changes.unseen": { params: { since?: number }; result: Unseen }
+  // The paragraphs of a doc someone else wrote since the text whose sha1 is hash (the person's mark when
+  // a visit began); none when the log no longer knows that text
+  "changes.since": { params: { path: string; hash: string }; result: ChangedPassage[] }
+
+  // ---- Seen: what the window's person last looked at; refused to anyone else (an agent has no seen)
+  // kinds: only those (all when absent)
+  "seen.get": { params: { kinds?: SeenKind[] }; result: SeenMarks }
+  "seen.mark": { params: SeenMark; result: SeenMarks }
+  // The person's last stretch away that has ended (the app closed counts), or null
+  "presence.away": { params: void; result: Absence | null }
 
   // ---- Memory: what Owlit keeps in mind about the user (.owlit/memory.md)
   // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
@@ -548,6 +560,10 @@ export interface Notifications {
   // A change was added to the log. label names what changed (a paper's title, a thread's title, a
   // memory line's text, a doc's name); thread: what an agent's write to a thread did, for its result row
   "changes.added": { change: Change; label?: string; thread?: { rows: string[]; updated: number; asked?: string } }
+  // The person's seen marks changed (a window marked something); all of them as they are now
+  "seen.changed": SeenMarks
+  // The person came back from a stretch away
+  "presence.away": Absence
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

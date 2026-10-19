@@ -9,6 +9,7 @@ import { Http } from "../net/http.ts"
 import { ChangeLog } from "../changes/log.ts"
 import { newWriteId, Recorder } from "../changes/record.ts"
 import { Members } from "../changes/members.ts"
+import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings.ts"
 import { Memory } from "../memory/memory.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -71,6 +72,7 @@ export class Workspace {
   readonly changes: ChangeLog
   readonly recorder: Recorder
   readonly members: Members
+  readonly seen: Seen
   readonly chats: Chats
   readonly library: Library
   readonly tasks: Scheduler
@@ -99,6 +101,7 @@ export class Workspace {
       },
     })
     this.members = new Members(path.join(root, OWLIT_DIR))
+    this.seen = new Seen(path.join(root, OWLIT_DIR))
     // The window's saves; a doc that followed its first line to a new name is recorded as leaving the old
     // one and arriving at the new
     this.docs.saved = async (rel, before, after, at) => {

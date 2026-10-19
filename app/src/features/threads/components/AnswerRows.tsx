@@ -13,20 +13,21 @@ import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from
 import { regroupRow, removeRow, useThreadsStore } from "../store"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useThreadsUi } from "../ui-store"
+import { useSeenOnScreen } from "../seen"
 
 // The papers of a thread without columns, one line each: what the paper says about the question
 // first, the paper after it, named as the memo names it ("CiteSee · 2023"). Every answer is in ink: one from
 // the full text ends in the page it rests on, so an answer without a page is from the abstract, and grey
 // keeps meaning only "secondary" or "unread". The slot before it is Owlit's dot while the answer is new
 // since the user looked; their own reading is a half ring after the paper's name, on the thing it is about.
-export function AnswerRows({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
+export function AnswerRows({ thread, shown, fresh }: { thread: Thread; shown: Thread; fresh: (item: string) => boolean }) {
   const peek = useThreadsUi((s) => s.peek)
   if (!shown.rows.length) return null
   return (
     <div className="-mx-1.5 mt-8 flex flex-col">
       {shown.rows.map((row) => {
-        const fresh = Math.max(thread.changedAt[itemId.row(row.id)] ?? 0, thread.changedAt[itemId.cell(row.id, QUESTION_COLUMN)] ?? 0) > seenBefore
-        return <AnswerRow key={row.id} thread={thread} row={row} fresh={fresh} open={peek === row.id} />
+        const items = [itemId.row(row.id), itemId.cell(row.id, QUESTION_COLUMN)]
+        return <AnswerRow key={row.id} thread={thread} row={row} items={items} fresh={items.some(fresh)} open={peek === row.id} />
       })}
     </div>
   )
@@ -37,7 +38,8 @@ export function ReadingMark({ paper, className }: { paper: Paper | undefined; cl
   return <ReadingRing label={t`You've read some of it`} className={className} />
 }
 
-function AnswerRow({ thread, row, fresh, open }: { thread: Thread; row: ThreadRow; fresh: boolean; open: boolean }) {
+function AnswerRow({ thread, row, items, fresh, open }: { thread: Thread; row: ThreadRow; items: string[]; fresh: boolean; open: boolean }) {
+  const seenRef = useSeenOnScreen<HTMLDivElement>(thread.id, items)
   const set = useThreadsUi((s) => s.set)
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
@@ -45,6 +47,7 @@ function AnswerRow({ thread, row, fresh, open }: { thread: Thread; row: ThreadRo
   const toggle = () => set({ peek: open ? null : row.id })
   return (
     <div
+      ref={seenRef}
       id={`row-${row.id}`}
       className={cn(
         "rounded-xl border border-transparent px-[5px] transition-[background-color,border-color,box-shadow,margin,padding] duration-(--t-layout) ease-(--ease) motion-reduce:transition-none",

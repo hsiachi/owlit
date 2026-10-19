@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { NoteDot } from "@/components/marks"
+import { useSeenOnScreen } from "../seen"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { RenameInput } from "@/components/rename-input"
@@ -66,7 +67,7 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
     .join(" · ")
 }
 
-export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
+export function ThreadTable({ thread, shown, fresh }: { thread: Thread; shown: Thread; fresh: (item: string) => boolean }) {
   // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
   // nothing to group by until it is done
   const filling = useTasksStore(
@@ -301,7 +302,7 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
                           // needs no saying
                           sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
                           indent={s.label ? s.depth + 1 : 0}
-                          seenBefore={seenBefore}
+                          fresh={fresh}
                           open={isOpen(s, r.id)}
                           onOpen={() => {
                             useThreadsUi.getState().set({ peek: null })
@@ -582,7 +583,7 @@ function TableRow({
   columns,
   sentenceShown,
   indent,
-  seenBefore,
+  fresh: isFresh,
   open,
   onOpen,
 }: {
@@ -596,16 +597,17 @@ function TableRow({
   columns: ThreadColumn[]
   sentenceShown: (column: ThreadColumn) => boolean
   indent: number
-  seenBefore: number
+  fresh: (item: string) => boolean
   open: boolean
   onOpen: () => void
 }) {
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
-  const fresh = (thread.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
+  const fresh = isFresh(itemId.row(row.id))
+  const seenRef = useSeenOnScreen<HTMLTableRowElement>(thread.id, [itemId.row(row.id), ...columns.map((c) => itemId.cell(row.id, c.id))])
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
-    <tr id={first ? `row-${row.id}` : undefined} data-place={place} className="group/row">
+    <tr ref={seenRef} id={first ? `row-${row.id}` : undefined} data-place={place} className="group/row">
       <td className={cn(td, pinnedCell, pinnedEdge, "cursor-default text-sm")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>
@@ -649,7 +651,7 @@ function TableRow({
           {c.kind === "grouping" ? (
             <GroupsCell column={c} row={row} />
           ) : (
-            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={(thread.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
+            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={isFresh(itemId.cell(row.id, c.id))} showSentence={sentenceShown(c)} libraryId={library?.id} />
           )}
         </td>
       ))}
