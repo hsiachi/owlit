@@ -27,13 +27,15 @@ import path from "node:path"
 import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { messageOf } from "../util.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { failureOf } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
 import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
-import { answerFor, roleNote, takesRules, withUserName } from "./roles.ts"
+import type { Who } from "./policy.ts"
+import { answerFor, roleNote, takesRules, withUserName, type EngineAnswer } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
 import { memoryNote, preamble, USER_FOLLOWS } from "./rules.ts"
 import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
@@ -410,9 +412,13 @@ export class Turns {
           const allow = r.options.find((o) => o.kind === "allow_once")
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
         }
-        // What the role doesn't allow is refused before the user sees it
-        const answer = answerFor(turn.role, toKind(r.toolCall.kind))
-        if (answer === "reject") {
+        // A request may leave out what its tool call already announced (Codex sends only the id)
+        const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === r.toolCall.toolCallId)
+        // What the policy refuses for the chat's role, or on the files the request names, is refused
+        // before the user sees it
+        const answer = await this.answer(turn, r.toolCall, announced?.type === "tool_call" ? announced : undefined).catch((error: unknown) => ({ refuse: messageOf(error) }))
+        if (typeof answer === "object") {
+          if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${chatId.slice(0, 8)}] refused ${r.toolCall.title ?? r.toolCall.toolCallId}: ${answer.refuse}`)
           const reject = r.options.find((o) => o.kind === "reject_once") ?? r.options.find((o) => o.kind === "reject_always")
           return reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } }
         }
@@ -420,8 +426,6 @@ export class Turns {
         if (turn.cancelled) return { outcome: { outcome: "cancelled" } }
         const requestId = randomUUID()
         const toolCallId = toolCall.toolCallId
-        // A request may leave out what its tool call already announced (Codex sends only the id)
-        const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === toolCallId)
         const title = toolCall.title ?? (announced?.type === "tool_call" ? announced.title : undefined)
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
@@ -498,6 +502,16 @@ export class Turns {
         return {}
       },
     }
+  }
+
+  // An engine's permission request, as the policy answers it for this turn's chat and role, on the files
+  // the request names (or its tool call announced)
+  private async answer(turn: Turn, call: acp.ToolCallUpdate, announced?: { locations?: { path: string }[]; diff?: { path: string } }): Promise<EngineAnswer> {
+    const named = [...(call.locations ?? []).map((l) => l.path), ...(call.content ?? []).flatMap((c) => (c.type === "diff" ? [c.path] : []))]
+    const paths = named.length ? named : [...(announced?.locations ?? []).map((l) => l.path), ...(announced?.diff ? [announced.diff.path] : [])]
+    const caller = { kind: "owlit", chatId: turn.chatId } as const
+    const who: Who = { caller, actor: await this.options.fs.actorOf(caller), role: turn.role }
+    return answerFor(who, toKind(call.kind), await this.options.fs.target([...new Set(paths)]))
   }
 
   // The turn that is running on this session, or starting on it (a new message whose session is still

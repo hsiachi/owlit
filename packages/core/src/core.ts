@@ -210,6 +210,7 @@ export class Core {
       workspace: () => this.workspace,
       ui: this.ui,
       claimOf: (rel) => this.turns.claimOf(rel),
+      roleOf: (chatId) => this.turns.roleOf(chatId),
     })
     this.undo = new Undo({
       workspace: () => this.workspace,
@@ -233,7 +234,7 @@ export class Core {
         return readFromOf(this.reads.since(`chat:${chatId}`, since), answer, async (id) => (await ws.library.canonical(id)) ?? id, (id) => ws.hasText(id))
       },
     })
-    this.background = new Background(this.agents)
+    this.background = new Background(this.agents, this.fs)
     this.updates = new Updates({
       build: { version: this.version().version, channel: options.build?.channel ?? "dev", commit: options.build?.commit },
       userDataDir: options.userDataDir,
@@ -562,8 +563,8 @@ export class Core {
         return { stopReason: await this.turns.prompt(req) }
       },
     )
-    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), "structure", async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
-    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), "structure", async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
+    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), { touches: "structure", target: ({ paths }) => this.fs.target(paths) }, async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
+    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), { touches: "structure", target: ({ path: from, to }) => this.fs.target([from, to]) }, async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
     this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), "read", ({ clientId, paths }) =>
       this.ui.setOpenDocs(clientId, paths),
     )

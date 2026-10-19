@@ -1,8 +1,9 @@
-import { ROLE_TABLE, type ActorId, type CommentInput, type DocComment, type Role, type Touches } from "@owlit/protocol"
+import { ROLE_TABLE, ROLES, RUNS_COMMANDS, type ActorId, type CommentInput, type DocComment, type Role, type Touches } from "@owlit/protocol"
 import type { Caller } from "../rpc/router.ts"
 
-// One decision for everything a person or their Owlit asks of core: whether this caller may make a call
-// that touches this class, on this target. The person at the window is never policed. A chat's agent gets
+// One decision for everything a person or their Owlit asks of core, and for what an engine asks to do
+// with its own tools (agents/roles.ts answerFor): whether this caller may make a call that touches this
+// class, on this target. The person at the window is never policed. A chat's agent gets
 // the role's answer from protocol's ROLE_TABLE, where propose lands like allow (the change log marks it
 // and offers Undo; nothing here waits on the person); a caller with no chat (a background run, the CLI,
 // an agent outside owlit) has nobody behind it, so only read and own go through. own is decided on the
@@ -20,6 +21,10 @@ export interface Target {
   what?: string
   // The thing as it is now, for a method whose class depends on what the call changes in it
   was?: unknown
+  // The workspace files a write or an engine's request names (AgentFs.target)
+  files?: string[]
+  // One of those files isn't the user's doc to change: owlit's own state
+  notDoc?: boolean
 }
 
 export interface Who {
@@ -37,15 +42,45 @@ const REVIEWER = "Owlit works as Reviewer in this chat and changes nothing of th
 const ADMIN = "owlit's workspace, settings, chats, sharing and agents are the user's alone; Owlit's tools can't change them."
 const RUN = "Owlit works on its own here, with nobody to ask, and changes nothing of the user's."
 const COMMAND = "owlit's command can't change the user's workspace; use the app."
+const NOT_A_DOC = "That file isn't one of the user's docs."
 
 export function decide(who: Who, touches: Touches, target: Target = {}): Decision {
   if (who.caller.kind === "window") return "allow"
   if (touches === "read") return "allow"
+  const limits = offLimits(target)
+  if (limits !== "allow") return limits
   if (touches === "own") return own(who.actor, target)
   if (touches === "admin") return { refuse: ADMIN }
-  if (!who.role) return { refuse: who.caller.kind === "socket" && who.caller.run ? RUN : COMMAND }
-  if (ROLE_TABLE[touches][who.role] === "refuse") return { refuse: REVIEWER }
+  if (!who.role) return { refuse: noRole(who) }
+  if (ROLE_TABLE[touches][who.role] === "refuse") return { refuse: refusedAs(who) }
   return "allow"
+}
+
+// What no caller but the person may do to a target, whatever its role or its class: change a file that
+// isn't the user's doc. Core's own writes for a run (Owlit's record of a Go through) answer to this alone.
+export function offLimits(target: Target): Decision {
+  if (target.notDoc) return { refuse: NOT_A_DOC }
+  return "allow"
+}
+
+// Whether the caller's engine may run a command with its own shell: the role's RUNS_COMMANDS. A command
+// names no target owlit could check, so the role is all there is to go on.
+export function decideCommand(who: Who): Decision {
+  if (who.caller.kind === "window") return "allow"
+  if (!who.role) return { refuse: noRole(who) }
+  return RUNS_COMMANDS[who.role] ? "allow" : { refuse: refusedAs(who) }
+}
+
+const runOf = (caller: Caller) => (caller.kind === "socket" || caller.kind === "owlit" ? caller.run : undefined)
+
+const noRole = (who: Who) => (runOf(who.caller) ? RUN : COMMAND)
+
+// A run works with a Reviewer's role, and says it works on its own
+function refusedAs(who: Who) {
+  if (runOf(who.caller)) return RUN
+  if (who.role === "reviewer") return REVIEWER
+  const name = ROLES.find((r) => r.id === who.role)?.name ?? who.role
+  return `Owlit works as ${name} in this chat, which doesn't let it do that. Describe the change in your answer instead.`
 }
 
 // Owlit's own thing: made by this caller, or not there yet, and untouched by anyone else since

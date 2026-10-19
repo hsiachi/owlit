@@ -258,7 +258,8 @@ describe("turns", () => {
 
   it("asks permission and passes on the answer; Reject reaches the agent", async () => {
     const { send, updates, call, text } = await setup()
-    const turn = send("needs permission")
+    // A Co-author may run commands, each still the user's to allow when the agent asks
+    const turn = send("needs permission", { role: "coauthor" })
     await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
@@ -274,15 +275,11 @@ describe("turns", () => {
   })
 
   it("shows a Write over a file as what it replaces, and a Write of a new file as new", async () => {
-    const { send, updates, call } = await setup()
+    const { send, updates } = await setup()
     const diffOf = async (text: string) => {
       updates.length = 0
-      const turn = send(text, { role: "coauthor" })
-      await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
-      const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
-      const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === ask.toolCallId) as Extract<SessionUpdate, { type: "tool_call" }>
-      await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
-      await turn
+      await send(text, { role: "assistant" })
+      const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === "w1") as Extract<SessionUpdate, { type: "tool_call" }>
       return asked.diff
     }
     expect(await diffOf("rewrite notes.md thirteen chars")).toEqual({ path: "notes.md", oldText: "twelve chars", newText: "thirteen chars" })
@@ -428,17 +425,14 @@ describe("turns", () => {
     expect(wrote[1].origin.toolCallId).toBeUndefined()
   })
 
-  it("signs a change the user allowed (Apply) as Owlit's, taken by them, with its tool call", async () => {
+  it("lands a Co-author's edit at once, signed as Owlit's with its tool call", async () => {
     const { send, core, call, updates, root } = await setup()
     await call("docs.list")
     const wrote: any[] = []
     core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
-    const turn = send("rewrite notes.md thirteen chars", { role: "coauthor" })
-    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
-    const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
-    await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "yes" })
-    await turn
-    await until(() => wrote.length, { what: "the applied change" })
+    await send("rewrite notes.md thirteen chars", { role: "coauthor" })
+    expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+    await until(() => wrote.length, { what: "the landed change" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("thirteen chars")
     expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
   })

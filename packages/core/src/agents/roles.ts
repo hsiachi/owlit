@@ -1,5 +1,6 @@
 import type * as acp from "@agentclientprotocol/sdk"
-import { ROLES, roleSentences, type Role, type ToolKind } from "@owlit/protocol"
+import { ROLES, roleSentences, type Role, type ToolKind, type Touches } from "@owlit/protocol"
+import { decide, decideCommand, type Target, type Who } from "./policy.ts"
 import type { Guard } from "./profiles.ts"
 
 // Whether the agent takes owlit's rules, its role and the user's name in its own system prompt (it says so
@@ -13,14 +14,25 @@ export function withUserName(guard: Guard, userName: string | undefined): Guard 
   return { ...guard, meta: { ...guard.meta, owlit: { ...owlit, userName } } }
 }
 
-// How owlit answers an agent's permission request before the user sees it: a Reviewer's request to
-// change something is refused; an Assistant's request to edit, delete or move a file is allowed at once,
-// since the change lands as a proposal (ROLE_TABLE's propose: recorded as Owlit's, marked until seen,
-// Undo per passage); everything else is the user's to answer
-export function answerFor(role: Role, kind: ToolKind): "reject" | "allow" | "ask" {
-  const change = kind === "edit" || kind === "delete" || kind === "move"
-  if (role === "reviewer" && (change || kind === "execute")) return "reject"
-  if (role === "assistant" && change) return "allow"
+// How owlit answers an engine's permission request before the user sees it: the request in the policy's
+// terms (an edit is the user's words, a delete or move their structure, a command the role's
+// RUNS_COMMANDS), decided by the policy (policy.ts) for the chat or run that asks, on the files the
+// request names. allow lands the change at once (ROLE_TABLE's propose and allow alike: recorded as
+// Owlit's, marked until seen, Undo per passage); refuse is said in the chat; ask leaves it to the user:
+// a command the role may run, a change that names no file owlit could check, and every other kind.
+export type EngineAnswer = "allow" | "ask" | { refuse: string }
+
+export function answerFor(who: Who, kind: ToolKind, target: Target): EngineAnswer {
+  const touches: Touches | undefined = kind === "edit" ? "words" : kind === "delete" || kind === "move" ? "structure" : undefined
+  if (touches) {
+    const decision = decide(who, touches, target)
+    if (decision !== "allow") return decision
+    return target.files?.length ? "allow" : "ask"
+  }
+  if (kind === "execute") {
+    const decision = decideCommand(who)
+    return decision === "allow" ? "ask" : decision
+  }
   return "ask"
 }
 

@@ -3,21 +3,26 @@ import type { MemoryLine, SessionUpdate } from "@owlit/protocol"
 import { RpcErrorCode, withoutAgentError } from "@owlit/protocol"
 import { RpcFailure } from "../rpc/index.ts"
 import type { Agents } from "./agents.ts"
+import type { AgentFs } from "./fs.ts"
+import type { Who } from "./policy.ts"
 import { flatValues } from "./process.ts"
-import { backgroundMeta, bareToolTitle, FIRST_CHOICE, sendsPictures } from "./profiles.ts"
-import { takesRules } from "./roles.ts"
+import { backgroundMeta, bareToolTitle, FIRST_CHOICE, isOwlitCall, sendsPictures } from "./profiles.ts"
+import { answerFor, takesRules } from "./roles.ts"
 import { memoryNote, preamble } from "./rules.ts"
 import { failureOf } from "./failure.ts"
-import { agentNotice, agentWork, toUpdate, type HelperReports } from "./updates.ts"
+import { agentNotice, agentWork, toKind, toUpdate, type HelperReports } from "./updates.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
-// whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is there to answer
-// questions, so the only tools it may use are owlit's own read-only ones; anything else is refused, and
-// it can't write files: core writes what the answer says.
+// whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is
+// there to answer questions. What the agent asks to do with its own tools is decided by the policy, as a
+// chat's is (roles.ts answerFor), for a run with a Reviewer's role: it changes nothing of the user's and
+// runs no commands, and anything left to a person is refused. owlit's own tools are held to the run's
+// list, and the router's policy decides each call as it arrives. It can't write files: core writes what
+// the answer says.
 
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[background] ${line}`)
 
-// owlit-mcp tools a background session may use without asking
+// owlit-mcp tools every run may use: reading the workspace, not searching the web or moving the window
 const READ_ONLY = /^(library_(list|get|read|highlights)|docs_(list|read)|chats_(list|read)|thread_(list|read)|activity_read|owlit_help)$/
 
 
@@ -34,6 +39,8 @@ export interface BackgroundRun {
   connectorId?: string
   // Further tools this run may use (a thread run writes the thread)
   allow?: RegExp
+  // The run it is ("<kind>:<task id>"), as owlit-mcp signs its calls
+  run?: string
   // The model each agent uses here, when not its default (Settings › Owlit › Background work)
   models?: Record<string, string>
   // Owlit's memory of the user, said after the rules
@@ -63,9 +70,11 @@ export interface BackgroundResult {
 
 export class Background {
   private readonly agents: Agents
+  private readonly fs: AgentFs
 
-  constructor(agents: Agents) {
+  constructor(agents: Agents, fs: AgentFs) {
     this.agents = agents
+    this.fs = fs
   }
 
   async run(run: BackgroundRun): Promise<BackgroundResult> {
@@ -91,9 +100,10 @@ export class Background {
     let apart = false
     const refused: string[] = []
     const reports: HelperReports = { agentText: new Map() }
-    // Agents that ask before each of owlit's tools are held to READ_ONLY when they ask, below; one that
-    // calls them itself is told which it may offer (backgroundMeta)
+    // Agents that ask before each of owlit's tools are held to the run's list when they ask, below; one
+    // that calls them itself is told which it may offer (backgroundMeta)
     const _meta = backgroundMeta(connectorId, [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])], run.root)
+    const tools = new RegExp(`${READ_ONLY.source}${run.allow ? `|${run.allow.source}` : ""}`)
     const session = await proc.newSession(
       { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {
@@ -119,8 +129,9 @@ export class Background {
         },
         requestPermission: async (r) => {
           const name = r.toolCall.title ?? ""
-          const tool = bareToolTitle(name)
-          const allowed = READ_ONLY.test(tool) || !!run.allow?.test(tool)
+          // One of owlit's tools on the run's list goes ahead (the router's policy decides the call when it
+          // arrives); anything else is the engine's own, for the policy
+          const allowed = tools.test(bareToolTitle(name)) || (!isOwlitCall(r.toolCall) && (await this.answer(run, r.toolCall).catch(() => "ask" as const)) === "allow")
           log(`${allowed ? "allowed" : "refused"} ${name}`)
           const allow = allowed ? r.options.find((o) => o.kind === "allow_once") : undefined
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
@@ -172,6 +183,14 @@ export class Background {
       run.signal.removeEventListener("abort", cancel)
       await proc.closeSession(session.sessionId).catch(() => undefined)
     }
+  }
+
+  // An engine's own request, as the policy answers it for a run working with a Reviewer's role
+  private async answer(run: BackgroundRun, call: acp.ToolCallUpdate) {
+    const caller = { kind: "owlit", run: run.run ?? "background" } as const
+    const who: Who = { caller, actor: await this.fs.actorOf(caller), role: "reviewer" }
+    const paths = [...(call.locations ?? []).map((l) => l.path), ...(call.content ?? []).flatMap((c) => (c.type === "diff" ? [c.path] : []))]
+    return answerFor(who, toKind(call.kind), await this.fs.target(paths))
   }
 
   // The first agent that is installed and signed in, owlit's first choice first
