@@ -4,7 +4,7 @@ import { StateEffect, type EditorState, type Extension, type Range } from "@code
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view"
 import type { SyntaxNode } from "@lezer/common"
 import katex from "katex"
-import { unescapeLabel } from "@owlit/protocol"
+import { linkTitleText, unescapeLabel } from "@owlit/protocol"
 import { unreadHint } from "@/components/mention/mention-token"
 import { frontmatterEnd } from "../lib/naming"
 
@@ -16,21 +16,28 @@ class MentionWidget extends WidgetType {
   readonly uri: string
   readonly title?: string
   readonly unread: boolean
-  constructor(label: string, uri: string, title: string | undefined, unread: boolean) {
+  // A citation's sentence (the link's title), which its card checks and its click rings in the paper
+  readonly quote?: string
+  constructor(label: string, uri: string, title: string | undefined, unread: boolean, quote?: string) {
     super()
     this.label = label
     this.uri = uri
     this.title = title
     this.unread = unread
+    this.quote = quote
   }
   eq(other: MentionWidget) {
-    return other.label === this.label && other.uri === this.uri && other.title === this.title && other.unread === this.unread
+    return other.label === this.label && other.uri === this.uri && other.title === this.title && other.unread === this.unread && other.quote === this.quote
   }
   toDOM() {
     const span = document.createElement("span")
     span.className = "cm-mention"
     span.textContent = this.label || this.title || this.uri
     span.dataset.uri = this.uri
+    if (this.quote) span.dataset.quote = this.quote
+    if (this.unread) span.dataset.unread = ""
+    // A paper's citation has its card (DocCitationHover), which says all a tooltip would
+    if (this.uri.startsWith("owlit://library/")) return span
     const title = this.title && this.title !== this.label ? this.title : undefined
     if (this.unread) {
       span.dataset.unread = ""
@@ -276,7 +283,9 @@ function build(view: EditorView, { describe, unread, wikilink }: Resolvers): Bui
             // A mention is one token, drawn like every other mention and deleted as a unit. Its label's
             // brackets are written escaped (protocol's mentionLink) and drawn plain.
             if (href.startsWith("owlit://")) {
-              const widget = new MentionWidget(unescapeLabel(doc.sliceString(labelFrom, labelTo)), href, describe(href), unread(href))
+              const title = node.getChild("LinkTitle")
+              const quote = title ? linkTitleText(doc.sliceString(title.from, title.to)) : undefined
+              const widget = new MentionWidget(unescapeLabel(doc.sliceString(labelFrom, labelTo)), href, describe(href), unread(href), quote || undefined)
               mentions.push(Decoration.replace({ widget }).range(ref.from, ref.to))
               return false
             }
@@ -403,7 +412,7 @@ export function livePreview({
   onOpenRoute,
   resolversChange,
 }: Resolvers & {
-  onOpenMention: (uri: string) => void
+  onOpenMention: (uri: string, quote?: string) => void
   onOpenRoute: (route: string) => void
   // Calls back when the resolvers may answer differently; returns an unsubscribe
   resolversChange?: (changed: () => void) => () => void
@@ -448,7 +457,7 @@ export function livePreview({
       const mention = target.closest<HTMLElement>(".cm-mention")
       if (mention?.dataset.uri) {
         e.preventDefault()
-        onOpenMention(mention.dataset.uri)
+        onOpenMention(mention.dataset.uri, mention.dataset.quote)
         return true
       }
       const linked = target.closest<HTMLElement>("[data-route]")

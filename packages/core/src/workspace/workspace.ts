@@ -87,12 +87,7 @@ export class Workspace {
       paper: (id) => this.library.snapshot(id),
       canonical: (id, ids) => this.library.canonical(id, ids),
       facts: (id, paper) => this.library.rowFacts(id, paper),
-      findPassage: async (id, quote) => {
-        const here = await this.library.canonical(id)
-        if (!here) return undefined
-        const text = await readFile(path.join(paperDir(root, here), "text.md"), "utf8").catch(() => null)
-        return text === null ? undefined : findQuote(text, quote)
-      },
+      findPassage: (id, quote) => this.findPassage(id, quote),
       hasText: async (id, ids) => {
         const here = await this.library.canonical(id, ids)
         return !!here && (await stat(path.join(paperDir(root, here), "text.md")).then(() => true, () => false))
@@ -126,6 +121,15 @@ export class Workspace {
         return { paper, digest, note }
       },
     })
+  }
+
+  // The 1-based page a quote is on in a paper's full text, by any id the paper goes by; null when it
+  // isn't there word for word, undefined when owlit has no text of the paper
+  async findPassage(id: string, quote: string): Promise<number | null | undefined> {
+    const here = await this.library.canonical(id)
+    if (!here) return undefined
+    const text = await readFile(path.join(paperDir(this.root, here), "text.md"), "utf8").catch(() => null)
+    return text === null ? undefined : findQuote(text, quote)
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks

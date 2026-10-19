@@ -10,6 +10,8 @@ import { appLinkTitle, openAppLink } from "@/app/app-links"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { docUriOfLink, mentionTooltip, openMention, usePaperUnread } from "@/features/docs/lib/mentions"
 import { MentionToken } from "@/components/mention/mention-token"
+import { citationOf } from "@/components/citation"
+import { CitationHover } from "@/components/citation-card"
 
 // The default sanitizer drops unknown schemes; keep owlit:// so workspace references survive, and file://
 // so a doc linked by its file is found (it is never rendered as a link)
@@ -125,10 +127,18 @@ export function Markdown({ text, className, components, prepare }: { text: strin
   )
 }
 
-// A reference to something in the workspace; a paper not read yet is lighter until it is. A citation's
-// title is the sentence of the paper it rests on: the tooltip shows it under the paper's name.
+// A reference to something in the workspace; a paper not read yet is lighter until it is. A paper's
+// citation opens its card on hover, with the sentence it rests on (the link's title) checked against the
+// paper; anything else says on hover where it goes.
 function WorkspaceLink({ uri, label, quote, onClick }: { uri: string; label: string; quote?: string; onClick: () => void }) {
   const unread = usePaperUnread(uri)
+  const citation = citationOf(uri, quote)
+  if (citation)
+    return (
+      <CitationHover citation={citation}>
+        <MentionToken label={label} title={null} unread={unread} onClick={onClick} />
+      </CitationHover>
+    )
   const title = appLinkTitle(uri) ?? mentionTooltip(uri) ?? label
-  return <MentionToken label={label} title={title} quote={quote} unread={unread} onClick={onClick} />
+  return <MentionToken label={label} title={title} unread={unread} onClick={onClick} />
 }

@@ -6,6 +6,8 @@ import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { ChoiceMenu } from "@/components/choice-menu"
+import { citationCardSurface } from "@/components/citation"
+import { CitationCard } from "@/components/citation-card"
 import { NoteDot } from "@/components/marks"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
@@ -712,12 +714,10 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
           {body}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-96 gap-0 p-3">
-        <p className="text-detail text-muted-foreground">
-          {columnLabel(column)} · {citeOf(paperFacts(row, undefined))}
-        </p>
+      <PopoverContent align="start" className={cn(citationCardSurface, "w-96")}>
+        <p className="text-detail text-muted-foreground">{columnLabel(column)}</p>
         {editing ? (
-          <div className="mt-2">
+          <div className="mt-1.5">
             <SentenceEditor
               value={edit?.text ?? cell.text}
               onCancel={() => setEditing(false)}
@@ -729,33 +729,36 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
           </div>
         ) : (
           // An answer from the title only is thin: muted, as the short list's peek draws it
-          <p className={cn("mt-1.5 text-sm leading-relaxed", cell.depth === "title" && !edit && "text-muted-foreground")}>
+          <p className={cn("mt-1 text-sm leading-relaxed", cell.depth === "title" && !edit && "text-muted-foreground")}>
             {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
             {text}
           </p>
         )}
         {column.kind === "compare" && sentence && <Quote className="mt-2">“{sentence.text}”</Quote>}
-        {cell.passage && (
-          <Quote size="sm" className="mt-2.5">
-            “{cell.passage.quote}”
-          </Quote>
-        )}
-        <div className="mt-2.5 flex items-center gap-2 text-detail text-muted-foreground">
-          <span>{edit ? t`You edited this` : cell.depth === "full" ? t`Owlit, from the full text` : cell.depth === "title" ? t`Owlit, from the title only` : t`Owlit, from the abstract`}</span>
-          <span className="flex-1" />
-          {!editing && (
-            <Button variant="text" size="inline" onClick={() => setEditing(true)}>
-              {t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" })}
-            </Button>
-          )}
-          {edit && (
-            <Button variant="text" size="inline" title={t`Was: ${edit.was}`} onClick={() => void editThread(thread.id, { op: "revert", item })}>
-              {t`Use Owlit's words`}
-            </Button>
-          )}
-          {cell.passage && libraryId && (
-            <MentionToken label={t`Open at p. ${cell.passage.page}`} onClick={() => navigate(passageRoute(libraryId, cell.passage))} />
-          )}
+        {/* What the answer rests on, as every citation's card says it, then the row that changes it */}
+        <div className="mt-3 border-t pt-2.5">
+          <CitationCard
+            citation={{ paperId: row.id, depth: cell.depth, ...(cell.passage ? { page: cell.passage.page, quote: cell.passage.quote } : {}) }}
+            footer={
+              <div className="mt-2.5 flex items-center gap-2 border-t pt-2 text-detail text-muted-foreground">
+                {edit && <span>{t`You edited this`}</span>}
+                <span className="flex-1" />
+                {!editing && (
+                  <Button variant="text" size="inline" onClick={() => setEditing(true)}>
+                    {t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" })}
+                  </Button>
+                )}
+                {edit && (
+                  <Button variant="text" size="inline" title={t`Was: ${edit.was}`} onClick={() => void editThread(thread.id, { op: "revert", item })}>
+                    {t`Use Owlit's words`}
+                  </Button>
+                )}
+                {cell.passage && libraryId && (
+                  <MentionToken label={t`Open at p. ${cell.passage.page}`} onClick={() => navigate(passageRoute(libraryId, cell.passage))} />
+                )}
+              </div>
+            }
+          />
         </div>
       </PopoverContent>
     </Popover>
