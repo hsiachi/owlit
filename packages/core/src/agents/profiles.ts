@@ -6,6 +6,7 @@
 import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"
 import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
+import { OWLIT_DIR } from "../workspace/paths.ts"
 import type { ProcessOptions } from "./process.ts"
 
 // The agent owlit picks when nothing else says which (background work, a first chat)
@@ -143,20 +144,30 @@ export interface Guard {
 
 const CLAUDE_EDIT_TOOLS = ["Edit", "Write"]
 
+// owlit's own part of the workspace, which every role changes only through owlit's tools: as Edit / Write
+// deny rules (gitignore patterns from the session's cwd, the workspace) and as paths the sandbox keeps
+// shell commands from writing. A deny wins over any allow, so a paper's note (library/papers/<id>/note.md,
+// the user's, edited like a doc) is left writable by naming what owlit keeps beside it rather than the
+// folder; a file of a new kind there would slip through, and the watcher would record it as outside.
+const OWN_PATTERNS = [`${OWLIT_DIR}/**`, "library/*", "library/**/*.json", "library/**/*.pdf", "library/**/text.md", "library/**/digest.md", "library/**/figures/**", "library/**/sources/**"]
+const ownRules = () => CLAUDE_EDIT_TOOLS.flatMap((tool) => OWN_PATTERNS.map((pattern) => `${tool}(${pattern})`))
+// Shell commands get no such carve-out: a note is edited with the editing tools, never with a shell
+const ownPaths = (roots: string[]) => roots.flatMap((root) => [`${root}/${OWLIT_DIR}`, `${root}/library`])
+
 export function guardFor(connectorId: string, role: Role, roots: string[]): Guard {
   if (connectorId === "claude-code") {
     // Without auto mode (a plan or model that lacks it) the default mode asks for everything, which only
     // makes a Co-author ask more
     const modes = ["auto", "default"]
-    if (role === "coauthor") return { modes, meta: sessionMeta(connectorId) }
-    const permissions = role === "reviewer" ? { deny: CLAUDE_EDIT_TOOLS } : { ask: CLAUDE_EDIT_TOOLS }
+    const permissions = role === "reviewer" ? { deny: [...CLAUDE_EDIT_TOOLS, ...ownRules()] } : role === "assistant" ? { ask: CLAUDE_EDIT_TOOLS, deny: ownRules() } : { deny: ownRules() }
     const sandbox = {
       enabled: true,
       // Without a sandbox (Windows), commands could write where the role says they can't: the turn fails
       failIfUnavailable: true,
       autoAllowBashIfSandboxed: true,
       allowUnsandboxedCommands: false,
-      filesystem: { denyWrite: roots },
+      // A Co-author's commands write the user's docs; the others' write nothing in the workspace
+      filesystem: { denyWrite: role === "coauthor" ? ownPaths(roots) : roots },
     }
     return { modes, meta: sessionMeta(connectorId, { settings: { permissions }, sandbox }) }
   }

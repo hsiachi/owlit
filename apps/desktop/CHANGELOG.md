@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Owlit can now reply to and resolve your comments, star, tag and mark your papers read, rename and watch threads, and take back its own comments and highlights, each within its role and recorded with Undo: a Reviewer changes nothing of yours, an Assistant does these without asking and asks before touching your words, a Co-author goes ahead. What each role may do is decided in one place for every route in, the `owlit` command included, and Claude Code's editing tools and shell are kept out of owlit's own folders in every role.
 - A doc's Versions lists every change and who made it: your edits, Owlit's and another program's. Undo, there or under an answer, puts back just the passage that change touched and keeps what you wrote since; a passage you edited after it stays, and owlit says which. In a thread Undo takes back the rows and answers one write added, on a paper one field.
 - Keep mine, when a doc changed on disk while you edited it, keeps the other program's text in Versions, under yours. A change another program makes while Owlit works no longer passes for Owlit's.
 - Since you left counts from when you left, also when owlit was closed, and names what changed: the papers added to each thread, the docs Owlit wrote or edited, the comments it left.

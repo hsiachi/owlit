@@ -8,7 +8,6 @@ import {
   parseOwlitUri,
   RpcErrorCode,
   type ChatMessage,
-  type ConsentAction,
   type MemoryLine,
   type ReadFrom,
   type Mentionable,
@@ -36,7 +35,7 @@ import { failureOf } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
 import { guardFor, isOwlitCall, ownTurnOver, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
-import { answerFor, consentFor, roleNote, takesRules, withUserName } from "./roles.ts"
+import { answerFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
 import { memoryNote, preamble, USER_FOLLOWS } from "./rules.ts"
 import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
@@ -75,7 +74,7 @@ interface Live {
   told?: Role
   // The memory as the agent last heard it (memoryNote), so it is told again only when it changed
   heard?: string
-  // Calls the agent announced to owlit's own MCP server: owlit-mcp decides consent for those itself
+  // Calls the agent announced to owlit's own MCP server: core's policy answers those by the chat's role
   owlitCalls: Set<string>
   // While a turn runs
   turn: Turn | null
@@ -339,18 +338,19 @@ export class Turns {
     return undefined
   }
 
-  // Whether the agent of a chat may do this through owlit's own tools, by the role of its running turn;
-  // asked of the user in the chat when the role says so
-  async consent(chatId: string, action: ConsentAction, title: string): Promise<{ allowed: boolean; reason?: string }> {
+  // The role Owlit's tools answer to in a chat: its running turn's; between turns (a tool call that
+  // outlived its turn) the one the chat was saved with
+  async roleOf(chatId: string): Promise<Role> {
     const turn = this.turns.get(chatId)
-    // Between turns (a tool call that outlived its turn) the chat's saved role decides, and nobody is
-    // there to be asked
-    const role = turn ? turn.role : ((await this.options.workspace()?.chats.get(chatId).catch(() => null))?.role ?? DEFAULT_ROLE)
-    const rule = consentFor(role, action)
-    if (rule === "allow") return { allowed: true }
-    if (typeof rule === "object") return { allowed: false, reason: rule.refuse }
+    return turn ? turn.role : ((await this.options.workspace()?.chats.get(chatId).catch(() => null))?.role ?? DEFAULT_ROLE)
+  }
+
+  // Asks the user in the chat whether Owlit may make a change (the policy's ask): the Allow / Don't allow
+  // card. Between turns nobody is there to ask, so the answer is no, with why for the agent.
+  async askUser(chatId: string, title: string, kind: ToolKind): Promise<{ allowed: boolean; reason?: string }> {
+    const turn = this.turns.get(chatId)
     if (!turn || turn.cancelled) return { allowed: false, reason: "This chat isn't answering any more, so the user couldn't be asked." }
-    const allowed = await this.ask(turn, title, action === "add_paper" ? "other" : action)
+    const allowed = await this.ask(turn, title, kind)
     return allowed ? { allowed } : { allowed, reason: "The user said no." }
   }
 
@@ -467,8 +467,8 @@ export class Turns {
         const turn = this.asking(key, chatId)
         const emit = turn?.emit
         if (!turn || !emit || turn.cancelled) return { outcome: { outcome: "cancelled" } }
-        // A call to owlit's own tools asks owlit, not the user: owlit-mcp decides consent by the role
-        // itself (Codex asks before every MCP call in its read-only mode)
+        // A call to owlit's own tools asks owlit, not the user: core's policy decides it by the role when
+        // the call arrives (Codex asks before every MCP call in its read-only mode)
         if (this.live.get(key)?.owlitCalls.has(r.toolCall.toolCallId)) {
           const allow = r.options.find((o) => o.kind === "allow_once")
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }

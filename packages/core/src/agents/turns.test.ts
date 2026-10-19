@@ -1,9 +1,10 @@
 import type { RpcNotification, SessionUpdate } from "@owlit/protocol"
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import { until, testSearchPath } from "../test-util.ts"
 import { cannotRead, ownTurnOver, sendsPictures } from "./profiles.ts"
 import { RULES_VERSION } from "./rules.ts"
@@ -27,8 +28,8 @@ async function setup() {
   core.onNotify((n: RpcNotification) => {
     if (n.method === "chat.update") updates.push((n.params as { update: SessionUpdate }).update)
   })
-  const call = async (method: string, params?: unknown): Promise<any> => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  const call = async (method: string, params?: unknown, caller?: Caller): Promise<any> => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
@@ -200,33 +201,34 @@ describe("turns", () => {
     expect(text()).toBe("you chose no")
   })
 
-  it("refuses a delete, a move or a take-back the chat's role doesn't allow, whoever calls", async () => {
+  it("refuses a Reviewer's agent a delete, a move or a paper, before the handler runs", async () => {
     const { call, root } = await setup()
+    const mcp: Caller = { kind: "socket", chatId: "c1" }
     await call("chats.update", { id: "c1", patch: { role: "reviewer" } })
-    await expect(call("agents.deleteDocs", { paths: ["notes.md"], chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
-    await expect(call("agents.moveDoc", { path: "notes.md", to: "kept.md", chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
-    await expect(call("library.removeByAgent", { ids: ["doi-10.1-x"], chatId: "c1" })).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await expect(call("agents.moveDoc", { path: "notes.md", to: "kept.md" }, mcp)).rejects.toThrow(/Not done: Owlit works as Reviewer/)
+    await call("library.add", { paper: { id: "doi-10.1-x", title: "x", authors: [], ids: { doi: "10.1/x" } } })
+    await expect(call("library.update", { id: "doi-10.1-x", patch: { starred: true } }, mcp)).rejects.toThrow(/Not done: Owlit works as Reviewer/)
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+    expect((await call("library.list")).papers[0].starred).toBe(false)
   })
 
-  it("decides consent for owlit's own tools by the chat's role, asking the user when the role says so", async () => {
-    const { send, updates, call } = await setup()
-    // Between turns the saved role decides, and nobody can be asked
-    await call("chats.update", { id: "c1", patch: { role: "reviewer" } })
-    expect(await call("agents.consent", { chatId: "c1", action: "add_paper", title: "Add a paper" })).toMatchObject({ allowed: false })
+  it("asks the user in the chat for what the role says to ask, as a tool call with the card; between turns nobody can be asked", async () => {
+    const { send, updates, call, root } = await setup()
+    const mcp: Caller = { kind: "socket", chatId: "c1" }
     await call("chats.update", { id: "c1", patch: { role: "assistant" } })
-    expect(await call("agents.consent", { chatId: "c1", action: "add_paper", title: "Add a paper" })).toEqual({ allowed: true })
-    expect(await call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })).toMatchObject({ allowed: false })
-    // During an Assistant's turn a delete is asked in the chat, as a tool call with the card
+    await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)).rejects.toThrow(/Not done: This chat isn't answering any more, so the user couldn't be asked\./)
+    // During an Assistant's turn a delete is asked in the chat
     const turn = send("slow please", { role: "assistant" })
     // The turn is under way once the agent says something (a cold start takes longer than any fixed wait)
     await until(() => updates.some((u) => u.type === "agent_message_chunk"), { what: "a agent_message_chunk" })
-    const asked = call("agents.consent", { chatId: "c1", action: "delete", title: "Delete old" })
+    const asked = call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)
     await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
-    expect(ask).toMatchObject({ title: "Delete old", kind: "delete" })
+    expect(ask).toMatchObject({ title: "Delete notes.md", kind: "delete" })
     await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "allow" })
-    expect(await asked).toEqual({ allowed: true })
+    expect(await asked).toEqual({ deleted: ["notes.md"] })
+    expect(existsSync(path.join(root, "notes.md"))).toBe(false)
     await call("agents.cancel", { chatId: "c1" })
     await turn
   })

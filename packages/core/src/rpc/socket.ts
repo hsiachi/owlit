@@ -53,10 +53,10 @@ function callerOf(auth: { chatId?: unknown; run?: unknown }): Extract<Caller, { 
 }
 
 // The tool call a request is for changes with each call (Claude Code names it per MCP request), so it
-// comes in the call's params (agent: for comments.add)
+// comes in the call's params
 function withToolCall(caller: Extract<Caller, { kind: "socket" }>, request: RpcRequest): Caller {
-  const params = (request.params ?? {}) as { toolCallId?: unknown; agent?: { toolCallId?: unknown } }
-  const toolCallId = text(params.toolCallId) ?? text(params.agent?.toolCallId)
+  const params = (request.params ?? {}) as { toolCallId?: unknown }
+  const toolCallId = text(params.toolCallId)
   return toolCallId ? { ...caller, toolCallId } : caller
 }
 

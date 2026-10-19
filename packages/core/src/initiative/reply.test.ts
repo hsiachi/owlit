@@ -50,7 +50,7 @@ const RUN = "meetings.goThrough:t0"
 const leave = (call: Call, quote: string, text: string) =>
   call(
     "comments.add",
-    { path: "story.md", agent: { run: RUN }, comment: { id: `c-${quote.length}`, quote, prefix: "", suffix: "", entries: [{ id: `e-${quote.length}`, text, at: Date.now() }], createdAt: Date.now() } },
+    { path: "story.md", comment: { id: `c-${quote.length}`, quote, prefix: "", suffix: "", entries: [{ id: `e-${quote.length}`, text, at: Date.now() }], createdAt: Date.now() } },
     { kind: "socket", run: RUN },
   )
 

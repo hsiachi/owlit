@@ -59,7 +59,7 @@ describe("Core", () => {
 describe("Router", () => {
   it("checks params and turns a thrown error into InternalError", async () => {
     const router = new Router()
-    router.register("core.version" as never, z.object({ n: z.number() }) as never, ((p: { n: number }) => {
+    router.register("core.version" as never, z.object({ n: z.number() }) as never, "read", ((p: { n: number }) => {
       if (p.n < 0) throw new Error("negative")
       return { n: p.n }
     }) as never)
