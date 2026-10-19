@@ -10,12 +10,12 @@
 
 import type * as acp from "@agentclientprotocol/sdk"
 import type { AgentTool } from "@earendil-works/pi-agent-core"
+import type { Role } from "@owlit/protocol"
 import path from "node:path"
 import { Type } from "typebox"
 import type { ToolInfo } from "./updates.ts"
 
-export type Role = "reviewer" | "assistant" | "coauthor"
-export const DEFAULT_ROLE: Role = "assistant"
+export { DEFAULT_ROLE, type Role } from "@owlit/protocol"
 
 export interface FileContext {
   conn: acp.AgentSideConnection

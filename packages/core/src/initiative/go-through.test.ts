@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFile
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { McpServer } from "@agentclientprotocol/sdk"
-import { docUri } from "@owlit/protocol"
+import { chatUri, docUri } from "@owlit/protocol"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
@@ -107,6 +107,22 @@ describe("Go through", () => {
     expect(await call("docs.owlit", { path: material })).toMatchObject({ wentThrough: { record: "Meetings/P5 周会 2026-10-15 · 解读.md" } })
     // The record is the run's write: it can be undone from the run
     expect(await call("chats.list")).toEqual([])
+  })
+
+  it("goes through a transcript attached to a chat, with its record in Meetings and its link to the chat", { timeout: 20_000 }, async () => {
+    const { root, call, workspace, prompts, done } = await setup(async (_prompt, run, call) => {
+      await point(call, run)
+      return READING
+    })
+    const material = ".owlit/chats/c1/files/周会.txt"
+    mkdirSync(path.join(root, ".owlit/chats/c1/files"), { recursive: true })
+    writeFileSync(path.join(root, material), MEETING)
+    // As docs.goThrough enqueues it
+    workspace.tasks.enqueue("meetings.goThrough", material, "asked")
+    expect(await done("meetings.goThrough")).toMatchObject({ state: "done" })
+    expect(prompts[0]).toContain("故事要从任务讲起")
+    expect(readFileSync(path.join(root, "Meetings/周会 · 解读.md"), "utf8")).toBe(recordOf(READING.trim(), material, true, chatUri("c1")))
+    expect((Object.values(await call("comments.all")).flat() as any[])[0]).toMatchObject({ source: { path: "Meetings/周会 · 解读.md" } })
   })
 
   it("drops the points of a run that stops before its record", { timeout: 20_000 }, async () => {

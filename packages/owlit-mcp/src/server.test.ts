@@ -45,7 +45,7 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
     const result = (await mcp.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean }
     return { text: result.content.map((c) => c.text).join(""), isError: !!result.isError }
   }
-  return { root, core, call, mcp, tool, asked, transport }
+  return { root, dir, core, call, mcp, tool, asked, transport }
 }
 
 const isAlive = (pid: number) => {
@@ -58,6 +58,15 @@ const isAlive = (pid: number) => {
 }
 
 describe("owlit-mcp", () => {
+  it("tells an agent outside owlit that it reads the workspace and changes nothing from there", async () => {
+    const { root, dir, mcp } = await setup()
+    expect(mcp.getInstructions()).toMatch(/^owlit agent rules/)
+    const outside = new Client({ name: "outside-agent", version: "1" })
+    await outside.connect(new StdioClientTransport({ command: process.execPath, args: [MAIN, "--workspace", root, "--socket-dir", dir], stderr: "pipe" }))
+    cleanups.push(() => outside.close())
+    expect(outside.getInstructions()).toMatch(/^You are reading the user's owlit workspace from outside owlit\.[\s\S]*\n\nowlit agent rules/)
+  })
+
   it("leaves when the agent that started it closes its stdin, after using owlit", async () => {
     const { tool, transport } = await setup()
     await tool("library_list")
@@ -463,6 +472,28 @@ describe("docs_read on a PDF", () => {
     writeFileSync(path.join(root, "broken.pdf"), "not a pdf")
     expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
   }, 30_000)
+
+  it("starts a Go through of the material the agent names", async () => {
+    const { root, call, tool } = await setup()
+    mkdirSync(path.join(root, "Meetings"))
+    writeFileSync(path.join(root, "Meetings/Weekly.md"), "# Weekly\n\nAna: start the story from the task.\n")
+    expect((await tool("docs_go_through", { path: "Meetings/Weekly.md" })).text).toMatch(/^Owlit is going through Meetings\/Weekly\.md in the background\./)
+    expect((await call("tasks.list")).map((t: { kind: string; subject: string }) => [t.kind, t.subject])).toContainEqual(["meetings.goThrough", "Meetings/Weekly.md"])
+    expect((await tool("docs_go_through", { path: "Meetings/slides.pdf" })).isError).toBe(true)
+  })
+
+  it("names the tool and the parameter core couldn't use", async () => {
+    const { tool } = await setup()
+    expect(await tool("library_search", { query: "replay", limit: 100 })).toEqual({ isError: true, text: expect.stringMatching(/^library_search got parameters it can't use: limit: .*50\.$/) })
+  })
+
+  it("says after a doc's text that the user keeps Owlit out of it", async () => {
+    const { root, call, tool } = await setup()
+    writeFileSync(path.join(root, "Intro.md"), "# Intro\n\nMine alone.\n")
+    expect((await tool("docs_read", { path: "Intro.md" })).text).toBe("# Intro\n\nMine alone.\n")
+    await call("docs.setOwlitOut", { path: "Intro.md", out: true })
+    expect((await tool("docs_read", { path: "Intro.md" })).text).toMatch(/Mine alone\.\n\n\(The user keeps Owlit out of this doc: read it, don't change or comment on it\.\)$/)
+  })
 
   it("ends each tool's description with what the roles get", async () => {
     const { mcp } = await setup()

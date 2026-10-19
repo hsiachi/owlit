@@ -10,6 +10,8 @@ import { defineSkill } from "./skills.ts"
 
 // Where meeting records live by convention: a Meetings folder at the top of the workspace or in a project
 export const MEETINGS = /(^|\/)Meetings\//
+// Where the record of material that isn't among the docs (a file attached to a chat) goes
+export const MEETINGS_FOLDER = "Meetings"
 // The records Owlit writes there, named after the material ("… · reading", "… · 解读")
 export const RECORD = / · (reading|解读)( \d+)?\.md$/
 // What can be gone through: text
@@ -102,10 +104,11 @@ export function cleanReading(answer: string) {
   return (start > 0 ? text.slice(start) : text).trim()
 }
 
-// The record: the reading, then the material it read, by link (it stays as it was, where it is)
-export function recordOf(reading: string, material: string, chinese: boolean) {
+// The record: the reading, then the material it read, by link (it stays as it was, where it is); link is
+// for material that isn't a doc (the chat a file was attached to)
+export function recordOf(reading: string, material: string, chinese: boolean, link = docUri(material)) {
   const name = material.split("/").pop()!.replace(/\.(md|markdown|txt)$/i, "")
-  return `${reading}\n\n---\n\n## ${chinese ? "原文" : "The material"}\n\n- [${name}](${docUri(material)})\n`
+  return `${reading}\n\n---\n\n## ${chinese ? "原文" : "The material"}\n\n- [${name}](${link})\n`
 }
 
 // Material in Chinese gets its record named and headed in Chinese

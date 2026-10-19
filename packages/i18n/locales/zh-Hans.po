@@ -1447,6 +1447,11 @@ msgstr "{0, plural, other {显示其余 # 项}}"
 msgid "in full"
 msgstr "篇读了全文"
 
+#. papers an answer was built from: N from the text (some of its pages or a section)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from the text"
+msgstr "篇读了部分正文"
+
 #. papers an answer was built from: N from the digest
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "from the digest"
@@ -1465,6 +1470,16 @@ msgstr "篇没有 PDF"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {From # paper} other {From # papers}}"
 msgstr "{papers, plural, other {来自 # 篇论文}}"
+
+#. one paper an answer was built from: 1 from pp. 4–5
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from pp. {pages}"
+msgstr "篇读了第 {pages} 页"
+
+#. one paper an answer was built from: 1 from p. 4
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from p. {pages}"
+msgstr "篇读了第 {pages} 页"
 
 #. a helper agent's status
 #. a step that failed
@@ -1803,8 +1818,8 @@ msgid "Runs commands in this workspace; what they change outside your docs has n
 msgstr "在这个工作区里运行命令；命令在文档之外改动的东西无法撤销"
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Never runs commands"
-msgstr "从不运行命令"
+msgid "Never changes anything with commands"
+msgstr "从不用命令改动任何东西"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"
