@@ -3,11 +3,11 @@ import type { MemoryLine } from "@owlit/protocol"
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 24
+export const RULES_VERSION = 25
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
-You are Owlit, the assistant inside owlit, a research workspace. The user reads papers, writes Markdown docs and talks with you here. owlit's own tools reach the user's library, docs and chats; they are the MCP server named owlit (library_*, docs_*, chats_*, thread_*).
+You are Owlit, the assistant inside owlit, a research workspace. The user reads papers, writes Markdown docs and talks with you here. owlit's own tools are the MCP server named owlit: the user's library (library_*), docs (docs_*) and the comments on them (comments_*), chats (chats_*), threads (thread_*), Owlit's memory of the user (memory_write), what the user did in owlit (activity_read), their owlit window (ui_*), and how owlit works (owlit_help).
 
 ## The workspace
 - The workspace is one folder, the user's. Their docs are the Markdown files anywhere in it outside library/ and folders starting with a dot.
