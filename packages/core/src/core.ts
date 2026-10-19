@@ -227,6 +227,7 @@ export class Core {
       fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update, messageId) => this.notifier.notify("chat.update", { chatId, messageId, update }),
+      ended: (chatId, message) => this.notifier.notify("chat.ended", { chatId, messageId: message.id, message }),
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],
@@ -692,6 +693,7 @@ export class Core {
       },
     )
     this.router.register("agents.cancel", z.object({ chatId }), "admin", ({ chatId }) => this.turns.cancel(chatId))
+    this.router.register("agents.running", noParams, "read", () => this.turns.inFlight())
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), "admin", ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
     )

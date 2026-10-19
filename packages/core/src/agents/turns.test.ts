@@ -327,6 +327,21 @@ describe("turns", () => {
     expect(connectors.find((c: any) => c.id === agent.id).authenticated).not.toBe(false)
   })
 
+  it("lists the turns running, for a window that opens meanwhile, and says when one ends", async () => {
+    const { send, call, core, text } = await setup()
+    const ended: any[] = []
+    core.onNotify((n) => n.method === "chat.ended" && ended.push(n.params))
+    expect(await call("agents.running")).toEqual([])
+    const turn = send("slow please")
+    await until(() => text(), { what: "the agent to start talking" })
+    const [running] = await call("agents.running")
+    expect(running).toMatchObject({ chatId: "c1", messageId: "a1", message: { id: "a1", status: "streaming", parts: [{ type: "text" }] } })
+    await call("agents.cancel", { chatId: "c1" })
+    await turn
+    expect(await call("agents.running")).toEqual([])
+    expect(ended).toMatchObject([{ chatId: "c1", messageId: "a1", message: { id: "a1", status: "cancelled" } }])
+  })
+
   it("cancels a turn, closing it as cancelled", async () => {
     const { send, call, text } = await setup()
     const turn = send("slow please")

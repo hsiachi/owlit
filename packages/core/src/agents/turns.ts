@@ -48,6 +48,8 @@ interface TurnsOptions {
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
   // An update of the reply messageId, as it streams
   notify: (chatId: string, update: SessionUpdate, messageId: string) => void
+  // A turn ended, its reply as saved
+  ended?: (chatId: string, message: ChatMessage) => void
   // The MCP servers a chat's session gets (owlit-mcp, for that chat)
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
   // What the user asked Owlit to call them, read when a session starts
@@ -139,7 +141,13 @@ export class Turns {
       return await this.run(req, ws, turn)
     } finally {
       this.turns.delete(req.chatId)
+      this.options.ended?.(req.chatId, turn.message)
     }
+  }
+
+  // The turns running or starting, with each reply as it stands
+  inFlight() {
+    return [...this.turns.values()].map((turn) => ({ chatId: turn.chatId, messageId: turn.message.id, message: turn.message }))
   }
 
   private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn): Promise<StopReason> {
