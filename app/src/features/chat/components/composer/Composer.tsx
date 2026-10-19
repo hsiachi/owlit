@@ -49,19 +49,26 @@ export interface ComposerProps {
   autoFocus?: boolean
   placeholder?: string
   className?: string
-  // Shown above the input, e.g. the agent window's context chips
+  // Shown above the input, e.g. the agent window's context chips; before it in the one-line bar
   header?: React.ReactNode
+  // One line, the controls beside the input rather than under it: the ⌘J ask bar
+  bar?: boolean
+  // Esc in the input (the ask bar closes); what is typed stays in the draft
+  onEscape?: () => void
+  // Shown beside the controls while nothing is typed or attached (the ask bar's way back to the last chat)
+  idle?: React.ReactNode
 }
 
 // How long typing rests before the draft is written
 const SAVE_AFTER_MS = 300
 
 // Enter submits, Shift+Enter inserts a line break. Runs before the core keymap
-// (which would split the paragraph) and yields to the mention popup while open.
-const SubmitKeymap = Extension.create<{ onSubmit: () => void }>({
+// (which would split the paragraph) and yields to the mention popup while open. Esc is the composer's
+// (onEscape) once the popup is closed.
+const SubmitKeymap = Extension.create<{ onSubmit: () => void; onEscape: () => boolean }>({
   name: "submitKeymap",
   priority: 1000,
-  addOptions: () => ({ onSubmit: () => {} }),
+  addOptions: () => ({ onSubmit: () => {}, onEscape: () => false }),
   addKeyboardShortcuts() {
     return {
       Enter: () => {
@@ -70,6 +77,7 @@ const SubmitKeymap = Extension.create<{ onSubmit: () => void }>({
         return true
       },
       "Shift-Enter": () => this.editor.commands.setHardBreak(),
+      Escape: () => !mentionPopup.open && this.options.onEscape(),
     }
   },
 })
@@ -101,7 +109,7 @@ function extract(editor: Editor, known: Mentionable[] = []): { text: string; men
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header },
+  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header, bar = false, idle, onEscape },
   ref,
 ) {
   // What is typed waits with its chat (composer-drafts); a new chat's draft is the same in every place
@@ -119,17 +127,18 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   })
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
+  const escapeRef = useRef<() => boolean>(() => false)
   const { connector } = useResolvedSelection(chatId)
   const blocked = isUnavailable(connector)
   // The hint says what typing does while Owlit works or waits; read through a ref, since the editor is made
   // once
   const hint =
     waiting === "permission"
-      ? t`Or say what to do instead; it sends when Owlit finishes…`
+      ? t`Or say what to do instead…`
       : waiting === "question"
         ? t`Or type your own answer…`
         : streaming
-          ? t`Your next message; it sends when Owlit finishes…`
+          ? t`Next message, sent when Owlit finishes…`
           : placeholder
   const hintRef = useRef(hint)
 
@@ -156,11 +165,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       }),
       Placeholder.configure({ placeholder: () => hintRef.current }),
       WorkspaceMention,
-      SubmitKeymap.configure({ onSubmit: () => submitRef.current() }),
+      SubmitKeymap.configure({ onSubmit: () => submitRef.current(), onEscape: () => escapeRef.current() }),
     ],
     autofocus: autoFocus ? "end" : false,
     editorProps: {
-      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-body leading-6 outline-none" },
+      // The bar's line is as tall as its buttons' row (24px of text and 12px either side)
+      attributes: { class: bar ? "tiptap-composer max-h-40 overflow-y-auto px-1.5 py-3 text-body leading-6 outline-none" : "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-body leading-6 outline-none" },
       handlePaste: (_view, event) => {
         const pasted = Array.from(event.clipboardData?.files ?? [])
         if (pasted.length === 0) return false
@@ -250,7 +260,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }, [editor, canSend, ready, onSubmit, attachments, target, chatId, key, write])
   useEffect(() => {
     submitRef.current = submit
-  }, [submit])
+    escapeRef.current = () => {
+      if (!onEscape) return false
+      onEscape()
+      return true
+    }
+  }, [submit, onEscape])
 
   const openMention = (kind: SourceKind | "all") => {
     if (!editor) return
@@ -272,6 +287,62 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     },
     openMention,
   }))
+
+  const attach = (
+    <>
+      <DropdownMenu>
+        <Tip label={t`Attach files or mention a paper, doc or note`}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label={t`Add attachments or context`}>
+              <PlusIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Tip>
+        {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
+        <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>{t`Attach files`}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {(["paper", "doc", "thread"] as SourceKind[]).map((kind) => {
+            const place = KIND_PLACE[kind]
+            return (
+              <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
+                {t`Add from ${place}`}
+              </DropdownMenuItem>
+            )
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          attachments.add(Array.from(e.target.files ?? []))
+          e.target.value = ""
+        }}
+      />
+    </>
+  )
+
+  const controls = (
+    <>
+      <AgentPicker chatId={chatId} />
+      {streaming && !typed ? (
+        <Tip label={t({ message: "Stop", comment: "verb: stop the agent's reply" })}>
+          <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label={t`Stop generating`}>
+            <SquareIcon className="size-3 fill-current" />
+          </Button>
+        </Tip>
+      ) : (
+        <Tip label={t({ message: "Send", comment: "verb: send the message" })} shortcut="send">
+          <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label={t`Send message`}>
+            <ArrowUpIcon />
+          </Button>
+        </Tip>
+      )}
+    </>
+  )
 
   return (
     <div
@@ -297,7 +368,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         </button>
       )}
 
-      {header && <div className="flex flex-wrap gap-1 px-2.5 pt-2.5">{header}</div>}
+      {header && !bar && <div className="flex flex-wrap gap-1 px-2.5 pt-2.5">{header}</div>}
 
       {files.length > 0 && (
         <div className="px-3 pt-3">
@@ -312,65 +383,31 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       )}
       <LargeFilesDialog files={attachments.large} onAnswer={attachments.answerLarge} />
 
-      {/* Click anywhere in the editor area to focus */}
-      <div className="cursor-text" onClick={() => editor?.commands.focus()}>
-        <EditorContent editor={editor} />
-      </div>
-
-      <div className="flex items-center gap-1 px-2.5 pb-2.5">
-        <DropdownMenu>
-          <Tip label={t`Attach files or mention a paper, doc or note`}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label={t`Add attachments or context`}>
-                <PlusIcon />
-              </Button>
-            </DropdownMenuTrigger>
-          </Tip>
-          {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
-          <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
-            <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
-              {t`Attach files`}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {(["paper", "doc", "thread"] as SourceKind[]).map((kind) => {
-              const place = KIND_PLACE[kind]
-              return (
-                <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
-                  {t`Add from ${place}`}
-                </DropdownMenuItem>
-              )
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            attachments.add(Array.from(e.target.files ?? []))
-            e.target.value = ""
-          }}
-        />
-
-        <div className="ml-auto flex items-center gap-1">
-          <AgentPicker chatId={chatId} />
-          {streaming && !typed ? (
-            <Tip label={t({ message: "Stop", comment: "verb: stop the agent's reply" })}>
-              <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label={t`Stop generating`}>
-                <SquareIcon className="size-3 fill-current" />
-              </Button>
-            </Tip>
-          ) : (
-            <Tip label={t({ message: "Send", comment: "verb: send the message" })} shortcut="send">
-              <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label={t`Send message`}>
-                <ArrowUpIcon />
-              </Button>
-            </Tip>
-          )}
+      {bar ? (
+        <div className="flex items-end gap-1 pr-2 pl-2.5">
+          <span className="flex h-12 shrink-0 items-center">{attach}</span>
+          {header && <span className="flex h-12 max-w-[40%] min-w-0 items-center">{header}</span>}
+          {/* Click anywhere in the editor area to focus */}
+          <div className="min-w-0 flex-1 cursor-text" onClick={() => editor?.commands.focus()}>
+            <EditorContent editor={editor} />
+          </div>
+          <span className="flex h-12 shrink-0 items-center gap-1">
+            {isEmpty && !files.length && idle}
+            {controls}
+          </span>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Click anywhere in the editor area to focus */}
+          <div className="cursor-text" onClick={() => editor?.commands.focus()}>
+            <EditorContent editor={editor} />
+          </div>
+          <div className="flex items-center gap-1 px-2.5 pb-2.5">
+            {attach}
+            <div className="ml-auto flex items-center gap-1">{controls}</div>
+          </div>
+        </>
+      )}
     </div>
   )
 })

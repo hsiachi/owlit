@@ -1,24 +1,18 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useRef, useState } from "react"
-import { ArrowUpIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useFileDrop } from "@/hooks/use-file-drop"
-import { Button } from "@/components/ui/button"
+import { useEffect, useRef } from "react"
 import { Kbd } from "@/components/ui/kbd"
 import { Tip } from "@/components/tip"
 import { keysFor } from "@/app/shortcuts"
-import { AttachmentList } from "@/features/chat/components/composer/AttachmentList"
-import { LargeFilesDialog } from "@/features/chat/components/composer/LargeFilesDialog"
-import { fromDrop, openAttached, readerOf, useAttachments } from "@/features/chat/lib/attachments"
-import { useResolvedSelection } from "@/features/chat/use-selection"
+import { Composer, type ComposerHandle } from "@/features/chat/components/composer/Composer"
 import { useChatStore } from "@/features/chat/store"
-import type { Mentionable } from "@owlit/protocol"
-import { Chip, dontInclude, SelectionChip } from "./ContextChips"
+import { SelectionChip } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
 import { askAboutHint, useVisibleContext } from "./page-context"
 import { useAgentWindow } from "./store"
 
-// A small bar at the bottom of the page for the first question; sending it opens the panel
+// A small bar at the bottom of the page for the first question; sending it opens the panel. It is the
+// chat's own composer in one line, so what is typed waits in the new chat's draft (Esc keeps it), and
+// mentions, files, the agent and role pickers and the keys work as in every other composer.
 export function AgentAskBar() {
   const allowed = useAgentAllowed()
   const stage = useAgentWindow((s) => s.stage)
@@ -33,109 +27,46 @@ export function AgentAskBar() {
     return chat?.messages.length ? chat.title : null
   })
   const context = useVisibleContext()
-  const [text, setText] = useState("")
-  const input = useRef<HTMLInputElement>(null)
-  // The bar takes files like the composer: copied into the folder of the chat it will start
-  const [draftId, setDraftId] = useState(() => crypto.randomUUID())
-  const [mentions, setMentions] = useState<Mentionable[]>([])
-  const attachments = useAttachments(`bar:${draftId}`, draftId, (m) => setMentions((list) => (list.some((x) => x.uri === m.uri) ? list : [...list, m])))
-  const { connector } = useResolvedSelection(undefined)
-  const { dragging, dropProps } = useFileDrop((data) => {
-    const { files, folders } = fromDrop(data)
-    attachments.add(files, folders)
-  })
+  const composer = useRef<ComposerHandle>(null)
 
   useEffect(() => {
-    if (stage === "bar") input.current?.focus()
+    if (stage === "bar") composer.current?.focus()
   }, [stage, focusTick])
 
   if (!allowed || stage !== "bar") return null
-
-  const ready = attachments.files.some((f) => f.state === "ready")
-  const canSend = (!!text.trim() || ready || mentions.length > 0) && !attachments.adding
-  const send = () => {
-    if (!canSend) return
-    useAgentWindow.getState().send({ text: text.trim(), mentions, attachments: attachments.take() }, context, draftId)
-    setText("")
-    setMentions([])
-    setDraftId(crypto.randomUUID())
-  }
-  const holding = attachments.files.length > 0 || mentions.length > 0
 
   return (
     <>
       {/* The page's text fades out under the bar instead of running behind it */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-linear-to-t from-background from-40% to-transparent" />
-    <div
-      className={cn(
-        "absolute bottom-4 left-1/2 z-20 flex w-[min(600px,calc(100%-48px))] -translate-x-1/2 flex-col rounded-xl border bg-card shadow-md transition-[border-color] focus-within:border-foreground/20",
-        dragging && "border-ring ring-2 ring-ring/30",
-      )}
-      {...dropProps}
-    >
-      {holding && (
-        <div className="flex min-w-0 items-center gap-1.5 px-2.5 pt-2">
-          {mentions.map((m) => (
-            <Chip key={m.uri} label={dontInclude(m.title)} onRemove={() => setMentions((list) => list.filter((x) => x.uri !== m.uri))}>
-              <span className="text-mention">{m.title}</span>
-            </Chip>
-          ))}
-          <AttachmentList
-            files={attachments.files}
-            size="xs"
-            onRemove={attachments.remove}
-            onOpen={openAttached}
-            onAddToLibrary={(f) => attachments.addToLibrary(f.id)}
-            reader={readerOf(connector)}
-          />
-        </div>
-      )}
-      <div className="flex h-12 items-center gap-2 pr-2 pl-2.5">
-        {selection && (
-          <span className="shrink-0">
-            <SelectionChip selection={selection} length={24} />
-          </span>
-        )}
-        <input
-          ref={input}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onPaste={(e) => {
-            const pasted = Array.from(e.clipboardData.files)
-            if (!pasted.length) return
-            e.preventDefault()
-            attachments.add(pasted)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              send()
-            }
-            if (e.key === "Escape") useAgentWindow.getState().close()
-          }}
+      <div className="absolute bottom-4 left-1/2 z-20 w-[min(600px,calc(100%-48px))] -translate-x-1/2">
+        <Composer
+          ref={composer}
+          bar
+          autoFocus
+          className="shadow-md"
           placeholder={hint ?? (context[0] ? askAboutHint(context[0].kind) : t`Ask Owlit…`)}
-          className="min-w-0 flex-1 bg-transparent pl-1.5 text-body outline-none placeholder:text-muted-foreground"
-          aria-label={t`Ask Owlit`}
+          onSubmit={(input, id) => useAgentWindow.getState().send(input, context, id)}
+          onEscape={() => useAgentWindow.getState().close()}
+          header={selection ? <SelectionChip selection={selection} length={24} /> : undefined}
+          idle={
+            current &&
+            !selection && (
+              <Tip label={current} side="top">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => useAgentWindow.getState().togglePanel()}
+                  className="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Kbd>{keysFor("owlit-panel")}</Kbd>
+                  {t`Last chat`}
+                </button>
+              </Tip>
+            )
+          }
         />
-        {current && !text && !selection && !holding && (
-          <Tip label={current} side="top">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => useAgentWindow.getState().togglePanel()}
-              className="flex h-7 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <Kbd>{keysFor("owlit-panel")}</Kbd>
-              {t`Last chat`}
-            </button>
-          </Tip>
-        )}
-        <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={send} aria-label={t`Send`}>
-          <ArrowUpIcon />
-        </Button>
       </div>
-      <LargeFilesDialog files={attachments.large} onAnswer={attachments.answerLarge} />
-    </div>
     </>
   )
 }
