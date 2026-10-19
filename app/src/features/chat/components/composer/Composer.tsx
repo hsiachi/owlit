@@ -54,7 +54,7 @@ export interface ComposerProps {
   header?: React.ReactNode
   // One line, the controls beside the input rather than under it: the ⌘J ask bar
   bar?: boolean
-  // Esc in the input (the ask bar closes); what is typed stays in the draft
+  // Esc in the input while nothing runs (the ask bar closes); what is typed stays in the draft
   onEscape?: () => void
   // Shown beside the controls while nothing is typed or attached (the ask bar's way back to the last chat)
   idle?: React.ReactNode
@@ -67,7 +67,7 @@ const SAVE_AFTER_MS = 300
 // new item (on an empty item, the end of the list). Tab and Shift+Tab indent and outdent an item, and
 // Backspace at an item's start takes it out of the list. Runs before the core keymap (which would split
 // the paragraph) and yields to the mention popup while open; StarterKit's own list keymap stays off, since
-// it gives Enter to the list. Esc is the composer's (onEscape) once the popup is closed.
+// it gives Enter to the list. Esc is the composer's (Stop, or onEscape) once the popup is closed.
 const SubmitKeymap = Extension.create<{ onSubmit: () => void; onEscape: () => boolean }>({
   name: "submitKeymap",
   priority: 1000,
@@ -250,12 +250,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }, [editor, canSend, ready, onSubmit, attachments, target, chatId, key, write])
   useEffect(() => {
     submitRef.current = submit
+    // While Owlit works, Esc is Stop, as in a terminal agent; otherwise the place's own (the bar closes)
     escapeRef.current = () => {
-      if (!onEscape) return false
-      onEscape()
+      const run = streaming ? onCancel : onEscape
+      if (!run) return false
+      run()
       return true
     }
-  }, [submit, onEscape])
+  }, [submit, onEscape, onCancel, streaming])
 
   const openMention = (kind: SourceKind | "all") => {
     if (!editor) return
