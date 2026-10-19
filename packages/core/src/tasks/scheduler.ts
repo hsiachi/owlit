@@ -31,9 +31,8 @@ export interface TaskContext {
   // Not now: ends this run, and the task runs again from the start in ms. Not a try, and the lane is
   // free meanwhile.
   later(ms: number): never
-  // The session an agent run keeps its steps in, and what it is doing in a sentence: shown beside the
-  // subject and on the rail while the task is open
-  describe(patch: Pick<Task, "chatId" | "doing">): void
+  // The session an agent run keeps its steps in, so a retry adds to the same one
+  describe(patch: Pick<Task, "chatId">): void
 }
 
 export interface TaskDefinition {

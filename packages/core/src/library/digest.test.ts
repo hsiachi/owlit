@@ -72,12 +72,12 @@ describe("digests", () => {
     expect(await call("chats.list")).toEqual([])
   })
 
-  it("keeps its run as a session the paper's row opens: why, steps, result; not in the chat list", async () => {
+  it("keeps its run as a session: why, steps, result; not in the chat list", async () => {
     const { call, addPaper, digestDone } = await setup()
     await addPaper("doi-10.1-r")
     await call("library.requestDigest", { id: "doi-10.1-r" })
     const task = await digestDone("doi-10.1-r")
-    expect(task).toMatchObject({ state: "done", chatId: expect.any(String), doing: "Writing the digest of “Paper doi-10.1-r”" })
+    expect(task).toMatchObject({ state: "done", chatId: expect.any(String) })
     const run = await call("chats.get", { id: task.chatId })
     expect(run).toMatchObject({ startedBy: "owlit", run: { taskId: task.id, kind: "paper.digest", subject: "doi-10.1-r" }, title: "Digest of “Paper doi-10.1-r”" })
     expect(run.messages[0]).toMatchObject({ role: "user", parts: [{ type: "text", text: "You asked for a digest of “Paper doi-10.1-r”." }] })

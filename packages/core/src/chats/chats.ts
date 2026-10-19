@@ -45,7 +45,7 @@ export class Chats {
   }
 
   // Your chats, most recently updated first. Owlit's own runs (startedBy) are sessions too, kept here,
-  // but no chat list shows them: they open from what they work on.
+  // but no chat list shows them: their work shows where it lands.
   async list(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !c.startedBy)
   }

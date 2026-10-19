@@ -1,6 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { THREAD_RUNS, type ThreadSize, type ThreadSummary } from "@owlit/protocol"
-import { RunMark } from "@/features/runs/components"
+import type { ThreadSize, ThreadSummary } from "@owlit/protocol"
 import { useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FindField } from "@/components/find-field"
@@ -165,11 +164,10 @@ function ThreadRow({ summary, projects }: { summary: ThreadSummary; projects: st
         onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && open()}
         className="group/row flex h-9 cursor-default items-center gap-2 rounded-md pr-1 pl-2.5 text-sm outline-none select-none hover:bg-muted focus-key:bg-muted has-data-[state=open]:bg-muted data-[state=open]:bg-muted"
       >
-        {/* The slot keeps titles in line; Owlit's dot fills it while something changed since the user looked */}
+        {/* The slot keeps titles in line; Owlit's dot fills it while something changed since the user looked.
+            While Owlit works on the thread, the row's words say so and the slot stays empty. */}
         <span className="-ml-0.5 grid size-5 shrink-0 place-items-center">
-          {running ? (
-            <RunMark subject={summary.id} kinds={THREAD_RUNS} />
-          ) : work.broken ? (
+          {running ? null : work.broken ? (
             <StoppedDot label={t`Owlit stopped.`} />
           ) : (
             fresh && <NoteDot />

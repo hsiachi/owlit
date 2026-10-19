@@ -7,7 +7,8 @@ import { notifyWhenAway } from "@/lib/notify"
 import { rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
 import { useDigestUnseen } from "@/app/seen"
-import { tasksFor, useTasksStore } from "@/features/tasks/store"
+import { toastError } from "@/lib/toast"
+import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
 import { useLibraryStore } from "./store"
 
 // Where a paper's digest stands for the user, on the ladder of states (DESIGN.md, rule 3): being written,
@@ -48,6 +49,11 @@ export const useNewDigest = useDigestUnseen
 // Any run for the digest, background ones too: the paper's page says it is being written
 export function useWritingDigest(paperId: string) {
   return useTasksStore((s) => digestUnderWay(s.byId, paperId))
+}
+
+// Stops the paper's digest: every run for it still under way or waiting its turn
+export function stopDigest(paperId: string) {
+  for (const task of digestTasks(useTasksStore.getState().byId, paperId)) if (!isTaskFinished(task)) void cancelTask(task.id).catch(toastError)
 }
 
 export function useDigestFailed(paperId: string) {

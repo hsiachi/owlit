@@ -1,4 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
+import { isTaskFinished } from "@owlit/protocol"
 import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
-import { openRun, useOpenRuns } from "@/features/runs/hooks"
+import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
 import { fileAt } from "../store"
 import { useDocsUiStore } from "../ui-store"
 import { mentionLabel } from "../lib/mentions"
@@ -137,18 +138,17 @@ interface OpenActions {
   onClose: () => void
 }
 
-// Owlit answering the user's reply: its words shimmer where its entry will be, and open the run
-const REPLY_RUN = ["docs.reply"]
+// Owlit answering the user's reply: one muted line where its entry will be, with Stop
 function Replying({ subject }: { subject: string }) {
-  const [run] = useOpenRuns(subject, REPLY_RUN)
+  const run = useTasksStore((s) => tasksFor(s.byId, subject).find((task) => task.kind === "docs.reply" && !isTaskFinished(task)))
   if (!run) return null
   return (
-    <div className="mt-3">
-      <div className="flex h-6 items-center text-xs font-medium">Owlit</div>
-      <button type="button" disabled={!run.chatId} onClick={() => run.chatId && void openRun(run.chatId)} className="shimmer text-left text-sm text-muted-foreground">
-        {t({ message: "Replying…", comment: "Owlit is writing its answer to the user's reply on a comment" })}
-      </button>
-    </div>
+    <p className="mt-3 flex items-center gap-1.5 text-detail text-muted-foreground">
+      <span className="shimmer">{t({ message: "Owlit is answering…", comment: "Owlit is writing its answer to the user's reply on a comment" })}</span>
+      <Button variant="text" size="inline" onClick={() => void cancelTask(run.id)}>
+        {t({ message: "Stop", comment: "stop Owlit answering a reply on its comment" })}
+      </Button>
+    </p>
   )
 }
 

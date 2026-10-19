@@ -1220,12 +1220,13 @@ msgstr "附加文件"
 msgid "Add from {place}"
 msgstr "从{place}添加"
 
+#. stop Owlit answering a reply on its comment
+#. stop Owlit writing a paper's digest
 #. stop Owlit's work on a thread
-#. stop one of Owlit's background runs
-#. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/runs/components.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr "停止"
@@ -2436,6 +2437,10 @@ msgid "Resolved comments…"
 msgstr "已解决的评论…"
 
 #: app/src/features/docs/actions.ts
+msgid "Stop going through"
+msgstr "停止过这一遍"
+
+#: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
 msgstr "对照你的文稿过一遍"
 
@@ -2505,8 +2510,8 @@ msgstr "{0} {1}回复"
 
 #. Owlit is writing its answer to the user's reply on a comment
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Replying…"
-msgstr "正在回复…"
+msgid "Owlit is answering…"
+msgstr "Owlit 正在回复…"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
@@ -2799,6 +2804,14 @@ msgstr "{0, plural, other {# 篇论文}}"
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}，第 {page} 页"
+
+#: app/src/features/docs/owlit.ts
+msgid "Owlit is going through “{name}”"
+msgstr "Owlit 正在把“{name}”过一遍"
+
+#: app/src/features/docs/owlit.ts
+msgid "What it finds will come as comments. The doc's menu can stop it."
+msgstr "它发现的会以评论出现。可以在文稿的菜单里停止。"
 
 #: app/src/features/docs/owlit.ts
 msgid "Couldn't start going through it."
@@ -4196,6 +4209,10 @@ msgstr "Owlit 正在阅读这篇论文…"
 msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr "你可以继续阅读，导读写好后 Owlit 会告诉你。"
 
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr "Owlit 正在重新阅读这篇论文…"
+
 #. signs Owlit's digest of a paper, as in owlit
 #: app/src/features/library/pages/paper/Digest.tsx
 #: apps/share-web/src/App.tsx
@@ -4206,10 +4223,6 @@ msgstr "导读 · Owlit"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
 msgstr "导读 · Owlit，{when}"
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is reading this paper again…"
-msgstr "Owlit 正在重新阅读这篇论文…"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
@@ -4829,37 +4842,6 @@ msgstr "你好！"
 #: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Answered through {agentName}"
 msgstr "通过 {agentName} 回答"
-
-#: app/src/features/runs/components.tsx
-msgid "and {more} more waiting their turn"
-msgstr "还有 {more} 项在排队"
-
-#. stop every background run Owlit has going
-#: app/src/features/runs/components.tsx
-msgid "Stop all"
-msgstr "全部停止"
-
-#: app/src/features/runs/components.tsx
-msgid "Owlit is working on this."
-msgstr "Owlit 正在做这件事。"
-
-#: app/src/features/runs/components.tsx
-msgid "Owlit did this."
-msgstr "这是 Owlit 做的事。"
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Writing the digest of “{title}”"
-msgstr "正在为“{title}”写导读"
-
-#: app/src/features/runs/hooks.ts
-msgid "Working on “{title}”"
-msgstr "正在处理「{title}」"
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Working in the background"
-msgstr "正在后台工作"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
@@ -7192,20 +7174,12 @@ msgid "The digest is written:"
 msgstr "导读写好了："
 
 #: packages/core/src/agents/runs.ts
-msgid "Going through “{name}” against your docs"
-msgstr "正在对照你的文稿过“{name}”"
-
-#: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
 msgstr "过了一遍“{name}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to go through “{name}”."
 msgstr "你请 Owlit 把“{name}”过一遍。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Answering your reply in “{name}”"
-msgstr "正在回复你在“{name}”里的回复"
 
 #: packages/core/src/agents/runs.ts
 msgid "Answered your reply in “{name}”"
@@ -7220,10 +7194,6 @@ msgid "a thread"
 msgstr "一条脉络"
 
 #: packages/core/src/agents/runs.ts
-msgid "Gathering papers for “{title}”"
-msgstr "正在为「{title}」收集论文"
-
-#: packages/core/src/agents/runs.ts
 msgid "Gathered papers for “{title}”"
 msgstr "为「{title}」收集了论文"
 
@@ -7231,10 +7201,6 @@ msgstr "为「{title}」收集了论文"
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to gather papers: “{0}”."
 msgstr "你请 Owlit 收集论文：“{0}”。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Looking for more papers for “{title}”"
-msgstr "正在为「{title}」找更多论文"
 
 #: packages/core/src/agents/runs.ts
 msgid "Looked for more papers for “{title}”"
@@ -7245,20 +7211,12 @@ msgid "You asked for more papers in “{title}”."
 msgstr "你请 Owlit 为「{title}」再找些论文。"
 
 #: packages/core/src/agents/runs.ts
-msgid "Answering “{question}” for the papers in “{title}”"
-msgstr "正在逐篇回答「{title}」里的“{question}”"
-
-#: packages/core/src/agents/runs.ts
 msgid "Answered “{question}” in “{title}”"
 msgstr "回答了「{title}」里的“{question}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "You asked “{question}” of each paper in “{title}”."
 msgstr "你请 Owlit 逐篇回答「{title}」里的“{question}”。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading the papers in “{title}”"
-msgstr "正在通读「{title}」里的论文"
 
 #: packages/core/src/agents/runs.ts
 msgid "Read the papers in “{title}”"

@@ -8,9 +8,11 @@ import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { unseenComments, useSeen } from "@/app/seen"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { toast } from "sonner"
 import { toastError } from "@/lib/toast"
 import { onWorkspaceOpened } from "@/lib/workspace"
 import { useDocsStore } from "./store"
+import { displayName } from "./types"
 
 interface DocOwlitState {
   byPath: Record<string, DocOwlit>
@@ -43,10 +45,17 @@ export function useNewOwlitComments(file: { id: string; path: string } | undefin
   )
 }
 
+// The task kind of a Go through, whose subject is the doc's path
+export const GO_THROUGH = "meetings.goThrough"
+
 // Owlit goes through this doc as material from people (a meeting's transcript, reviews) against the
-// user's other docs. Quiet when it starts: the doc's chip breathes, and the run says what it did
+// user's other docs. What it finds lands as comments; until then the doc's ⋯ menu offers to stop it.
 export function goThrough(file: { path: string }) {
-  rpc.docs.goThrough({ path: file.path }).catch((error) => toastError(error, t`Couldn't start going through it.`))
+  const name = displayName(file.path)
+  rpc.docs.goThrough({ path: file.path }).then(
+    () => toast(t`Owlit is going through “${name}”`, { description: t`What it finds will come as comments. The doc's menu can stop it.` }),
+    (error) => toastError(error, t`Couldn't start going through it.`),
+  )
 }
 
 export function setOwlitOut(path: string, out: boolean) {

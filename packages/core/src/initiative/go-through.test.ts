@@ -88,7 +88,7 @@ describe("Go through", () => {
     const before = statSync(path.join(root, material)).mtimeMs
     const task = await call("docs.goThrough", { path: material })
     expect(task).toMatchObject({ kind: "meetings.goThrough", priority: "asked" })
-    expect(await done("meetings.goThrough")).toMatchObject({ state: "done", doing: "Going through “P5 周会 2026-10-15” against your docs" })
+    expect(await done("meetings.goThrough")).toMatchObject({ state: "done" })
     // Told the material, the docs to read it against, and where the record will be
     expect(prompts[0]).toContain("故事要从任务讲起")
     expect(prompts[0]).toContain("story.md")

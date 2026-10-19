@@ -10,12 +10,10 @@ import { useLibraryStore } from "@/features/library/store"
 import { shown } from "@/features/threads/lib"
 import { useThreadsStore } from "@/features/threads/store"
 import { ago, clock, isToday, shortDate } from "@/lib/time"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { useNewOwlitComments } from "@/features/docs/owlit"
-import { openRun } from "@/features/runs/hooks"
-import { useRunsStore } from "@/features/runs/store"
 import { KIND_ICON } from "@/lib/kinds"
 import { useChatStore } from "@/features/chat/store"
 import { listChanges, useSeen, useThreadFresh } from "@/app/seen"
@@ -177,7 +175,8 @@ function DocLine({ line }: { line: Extract<SinceLine, { kind: "doc" | "comments"
 
 // Owlit's runs that ended well since then, read from core, and again whenever a run starts or ends
 function useRunsSince(since: number) {
-  const heard = useRunsStore((s) => s.runs)
+  const [heard, hear] = useState(0)
+  useEffect(() => (isDesktop ? onNotify("chats.run", () => hear((n) => n + 1)) : undefined), [])
   const [runs, setRuns] = useState<RunSummary[]>([])
   useEffect(() => {
     if (!isDesktop) return
@@ -193,20 +192,17 @@ function useRunsSince(since: number) {
   return runs
 }
 
-// A run on a doc opens the doc, with Owlit's dot while it left comments there the user hasn't seen; a
-// digest opens its paper; any other run opens itself
+// A run on a doc (a Go through, an answer to a reply) opens the doc, with Owlit's dot while it left
+// comments there the user hasn't seen; a digest opens its paper
 function RunRow({ run }: { run: RunSummary }) {
   const navigate = useNavigate()
   const { kind, subject } = run.run
-  const docPath = kind.startsWith("docs.") ? subject.split("#")[0]! : null
+  const digest = kind === "paper.digest"
+  const docPath = digest ? null : subject.split("#")[0]!
   const file = useDocsStore((s) => (docPath ? Object.values(s.files).find((f) => f.path === docPath) : undefined))
   const fresh = useNewOwlitComments(file).length > 0
   const when = ago(run.endedAt, { inSentence: true })
-  const open = () => {
-    if (file) navigate(`/docs/${file.id}`)
-    else if (kind === "paper.digest") navigate(`/library/${subject}`)
-    else void openRun(run.id)
-  }
-  const mark = fresh ? <NoteDot /> : <KindIcon kind={kind === "paper.digest" ? "paper" : "doc"} className="size-4" />
+  const open = digest ? () => navigate(`/library/${subject}`) : file ? () => navigate(`/docs/${file.id}`) : undefined
+  const mark = fresh ? <NoteDot /> : <KindIcon kind={digest ? "paper" : "doc"} className="size-4" />
   return <ListRow onClick={open} mark={mark} title={run.title} end={when} />
 }

@@ -540,8 +540,8 @@ export interface Notifications {
   "agents.changed": Connector
   // One streamed update of a chat's running turn, for that turn's reply (messageId)
   "chat.update": { chatId: string; messageId: string; update: SessionUpdate }
-  // A run Owlit started on its own began or ended: its session whole, as core has it (the first
-  // message says why it started; the reply is "streaming" while it runs). Its steps stream as chat.update.
+  // A run the user asked Owlit for began or ended: its session whole, as core has it (the first message
+  // says why it started; the reply is "streaming" while it runs)
   "chats.run": { chat: Chat }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest

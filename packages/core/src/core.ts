@@ -1377,21 +1377,15 @@ export class Core {
     if (!allowed) throw new RpcFailure(RpcErrorCode.Conflict, `Not done: ${reason ?? "the user said no."}`)
   }
 
-  // A task's agent run, as a session the window can open from the row it works on: why it started, its
-  // steps as they come, and how it ended
+  // A task's agent run, kept as a session: why it started, its steps as they come, and how it ended
   private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
     const ws = this.workspace
     if (ws?.root !== root) throw new Error("The workspace closed.")
     const words = await runWords(ws, ctx.task)
-    const session = await openRun(ws.chats, ctx.task, words, {
-      update: (chatId, messageId, update) => {
-        if (this.workspace === ws) this.notifier.notify("chat.update", { chatId, messageId, update })
-      },
-      created: (chat) => {
-        if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
-      },
+    const session = await openRun(ws.chats, ctx.task, words, (chat) => {
+      if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
     })
-    ctx.describe({ chatId: session.chatId, doing: words.doing })
+    ctx.describe({ chatId: session.chatId })
     try {
       const result = await this.background.run({ ...run, onUpdate: session.update })
       await session.finish({ status: "done", connectorId: result.connectorId, model: result.model })

@@ -1220,12 +1220,13 @@ msgstr "Attach files"
 msgid "Add from {place}"
 msgstr "Add from {place}"
 
+#. stop Owlit answering a reply on its comment
+#. stop Owlit writing a paper's digest
 #. stop Owlit's work on a thread
-#. stop one of Owlit's background runs
-#. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/runs/components.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr "Stop"
@@ -2436,6 +2437,10 @@ msgid "Resolved comments…"
 msgstr "Resolved comments…"
 
 #: app/src/features/docs/actions.ts
+msgid "Stop going through"
+msgstr "Stop going through"
+
+#: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
 msgstr "Go through against your docs"
 
@@ -2505,8 +2510,8 @@ msgstr "{0} replied {1}"
 
 #. Owlit is writing its answer to the user's reply on a comment
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Replying…"
-msgstr "Replying…"
+msgid "Owlit is answering…"
+msgstr "Owlit is answering…"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
@@ -2799,6 +2804,14 @@ msgstr "{0, plural, one {# paper} other {# papers}}"
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}, p. {page}"
+
+#: app/src/features/docs/owlit.ts
+msgid "Owlit is going through “{name}”"
+msgstr "Owlit is going through {name}"
+
+#: app/src/features/docs/owlit.ts
+msgid "What it finds will come as comments. The doc's menu can stop it."
+msgstr "What it finds will come as comments. The doc's menu can stop it."
 
 #: app/src/features/docs/owlit.ts
 msgid "Couldn't start going through it."
@@ -4196,6 +4209,10 @@ msgstr "Owlit is reading this paper…"
 msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr "You can keep reading. Owlit will let you know when it's ready."
 
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr "Owlit is reading this paper again…"
+
 #. signs Owlit's digest of a paper, as in owlit
 #: app/src/features/library/pages/paper/Digest.tsx
 #: apps/share-web/src/App.tsx
@@ -4206,10 +4223,6 @@ msgstr "Digest · Owlit"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
 msgstr "Digest · Owlit, {when}"
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is reading this paper again…"
-msgstr "Owlit is reading this paper again…"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
@@ -4829,37 +4842,6 @@ msgstr "Hi!"
 #: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Answered through {agentName}"
 msgstr "Answered through {agentName}"
-
-#: app/src/features/runs/components.tsx
-msgid "and {more} more waiting their turn"
-msgstr "and {more} more waiting their turn"
-
-#. stop every background run Owlit has going
-#: app/src/features/runs/components.tsx
-msgid "Stop all"
-msgstr "Stop all"
-
-#: app/src/features/runs/components.tsx
-msgid "Owlit is working on this."
-msgstr "Owlit is working on this."
-
-#: app/src/features/runs/components.tsx
-msgid "Owlit did this."
-msgstr "Owlit did this."
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Writing the digest of “{title}”"
-msgstr "Writing the digest of “{title}”"
-
-#: app/src/features/runs/hooks.ts
-msgid "Working on “{title}”"
-msgstr "Working on “{title}”"
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Working in the background"
-msgstr "Working in the background"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
@@ -7192,20 +7174,12 @@ msgid "The digest is written:"
 msgstr "The digest is written:"
 
 #: packages/core/src/agents/runs.ts
-msgid "Going through “{name}” against your docs"
-msgstr "Going through “{name}” against your docs"
-
-#: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
 msgstr "Went through “{name}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to go through “{name}”."
 msgstr "You asked Owlit to go through “{name}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Answering your reply in “{name}”"
-msgstr "Answering your reply in “{name}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "Answered your reply in “{name}”"
@@ -7220,10 +7194,6 @@ msgid "a thread"
 msgstr "a thread"
 
 #: packages/core/src/agents/runs.ts
-msgid "Gathering papers for “{title}”"
-msgstr "Gathering papers for “{title}”"
-
-#: packages/core/src/agents/runs.ts
 msgid "Gathered papers for “{title}”"
 msgstr "Gathered papers for “{title}”"
 
@@ -7231,10 +7201,6 @@ msgstr "Gathered papers for “{title}”"
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to gather papers: “{0}”."
 msgstr "You asked Owlit to gather papers: “{0}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Looking for more papers for “{title}”"
-msgstr "Looking for more papers for “{title}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "Looked for more papers for “{title}”"
@@ -7245,20 +7211,12 @@ msgid "You asked for more papers in “{title}”."
 msgstr "You asked for more papers in “{title}”."
 
 #: packages/core/src/agents/runs.ts
-msgid "Answering “{question}” for the papers in “{title}”"
-msgstr "Answering “{question}” for the papers in “{title}”"
-
-#: packages/core/src/agents/runs.ts
 msgid "Answered “{question}” in “{title}”"
 msgstr "Answered “{question}” in “{title}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "You asked “{question}” of each paper in “{title}”."
 msgstr "You asked “{question}” of each paper in “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading the papers in “{title}”"
-msgstr "Reading the papers in “{title}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "Read the papers in “{title}”"
