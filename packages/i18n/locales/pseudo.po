@@ -1931,14 +1931,6 @@ msgid "Searched files for {pattern}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Hand a task to an agent"
-msgstr ""
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Handed a task to an agent"
-msgstr ""
-
-#: app/src/features/chat/lib/step-words.ts
 msgid "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
 msgstr ""
 
@@ -1964,10 +1956,6 @@ msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {opened a page} other {opened # pages}}"
-msgstr ""
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
@@ -2048,10 +2036,6 @@ msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opening pages"
-msgstr ""
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Working with a helper"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
@@ -3150,7 +3134,7 @@ msgid "Chat with Owlit"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
-msgid "Ask, or hand off work like finding papers"
+msgid "Ask, or have Owlit find papers"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
@@ -4711,11 +4695,11 @@ msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Ow
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Ask, or hand it off."
+msgid "Ask anywhere."
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx

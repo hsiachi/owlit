@@ -7,12 +7,9 @@
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
 //   "silent <path> <t>" writes t into the file itself without any tool call naming it, as a shell command does
-//   "agents"           hands work to two agents of its own in sessions of their own, as Claude Code does once
-//                      owlit says it understands subagents: one reads and hands a report back, the other asks
-//                      to edit (on its own session) and reports what the user chose
-//   "after the turn"   as Claude Code after background agents: starts an agent, ends its turn, and only then
-//                      hears the agent finish and gives the real answer, with no prompt open
-//   "after the turn, slowly"  the same, but that answer streams for a few seconds (to be stopped)
+//   "agents"           hands work to two agents of its own in sessions of their own, as ACP's subagent draft
+//                      has it: one reads and reports what it found, the other asks to edit (on its own
+//                      session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
@@ -216,13 +213,13 @@ class FakeAgent implements acp.Agent {
         // The announcements go under the names the adapters use, which the SDK doesn't type yet
         const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
         const step = (sessionId: string, update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId, update } as unknown as acp.SessionNotification)
-        const meta = (toolName: string, parent: string) => ({ claudeCode: { toolName, parentToolUseId: parent } })
+        const report = (sessionId: string, text: string) => step(sessionId, { sessionUpdate: "agent_message_chunk", content: { type: "text", text } })
         await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-a", name: "Read the notes", task: "Read notes.md", capabilities: {} })
         await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-b", name: "Fix the title", task: "Edit notes.md", capabilities: {} })
-        await step("agent-a", { sessionUpdate: "tool_call", toolCallId: "a1", title: "Read notes.md", kind: "read", status: "completed", rawInput: { file_path: "notes.md" }, _meta: meta("Read", "toolu_a") })
-        await step("agent-a", { sessionUpdate: "tool_call", toolCallId: "a2", title: "SubagentHandback", kind: "other", status: "pending", rawInput: { message: "The notes say twelve chars." }, _meta: meta("SubagentHandback", "toolu_a") })
+        await step("agent-a", { sessionUpdate: "tool_call", toolCallId: "a1", title: "Read notes.md", kind: "read", status: "completed", rawInput: { file_path: "notes.md" } })
+        await report("agent-a", "The notes say twelve chars.")
         await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-a", state: "completed" })
-        await step("agent-b", { sessionUpdate: "tool_call", toolCallId: "b1", title: "Edit notes.md", kind: "edit", status: "pending", rawInput: { file_path: "notes.md" }, _meta: meta("Edit", "toolu_b") })
+        await step("agent-b", { sessionUpdate: "tool_call", toolCallId: "b1", title: "Edit notes.md", kind: "edit", status: "pending", rawInput: { file_path: "notes.md" } })
         const answer = await this.conn.requestPermission({
           sessionId: "agent-b",
           toolCall: { toolCallId: "b1", title: "Edit notes.md", kind: "edit" },
@@ -233,7 +230,7 @@ class FakeAgent implements acp.Agent {
         })
         const chose = answer.outcome.outcome === "selected" ? answer.outcome.optionId : "cancelled"
         await step("agent-b", { sessionUpdate: "tool_call_update", toolCallId: "b1", status: chose === "yes" ? "completed" : "failed" })
-        await step("agent-b", { sessionUpdate: "tool_call", toolCallId: "b2", title: "SubagentHandback", kind: "other", status: "pending", rawInput: { message: `The user chose ${chose}.` }, _meta: meta("SubagentHandback", "toolu_b") })
+        await report("agent-b", `The user chose ${chose}.`)
         await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-b", state: "completed" })
         await say("both agents are done")
         return { stopReason: "end_turn" }
@@ -246,44 +243,6 @@ class FakeAgent implements acp.Agent {
         await step("agent-h", { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "The helper's notes." } })
         await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-h", state: "completed" })
         await say("The answer.")
-        return { stopReason: "end_turn" }
-      }
-      if (text.includes("two helpers, after the turn")) {
-        const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
-        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-x", name: "Read the notes", task: "Read notes.md", capabilities: {} })
-        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-y", name: "Search the web", task: "Search", capabilities: {} })
-        // The first reports soon; the second only after a quiet spell longer than core waits for more
-        setTimeout(async () => {
-          await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-x", state: "completed" })
-          await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m1", content: { type: "text", text: "The notes are read. " } } })
-          await sleep(700)
-          await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-y", state: "completed" })
-          await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m2", content: { type: "text", text: "The search is done." } } })
-        }, 150)
-        return { stopReason: "end_turn" }
-      }
-      if (text.includes("after the turn")) {
-        const notice = (update: Record<string, unknown>) => this.conn.sessionUpdate({ sessionId: params.sessionId, update } as unknown as acp.SessionNotification)
-        await notice({ sessionUpdate: "subagent_spawned", subagentSessionId: "agent-l", name: "Count the words", task: "wc -w notes.md", capabilities: {} })
-        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m1", content: { type: "text", text: "I'm waiting on the agent." } } })
-        const slow = text.includes("slowly")
-        // What comes after the turn can be stopped like a turn
-        const after = new AbortController()
-        setTimeout(async () => {
-          session.turn = after
-          try {
-            await notice({ sessionUpdate: "subagent_state_update", subagentSessionId: "agent-l", state: "completed" })
-            await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m2", content: { type: "text", text: "The file has " } } })
-            for (let i = 0; i < (slow ? 50 : 1); i++) {
-              await sleep(slow ? 100 : 20, after.signal)
-              await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", messageId: "m2", content: { type: "text", text: slow ? `${i} ` : "two words." } } })
-            }
-          } catch {
-            // Stopped
-          } finally {
-            if (session.turn === after) session.turn = null
-          }
-        }, 150)
         return { stopReason: "end_turn" }
       }
       if (text.includes("permission")) {

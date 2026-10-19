@@ -83,7 +83,7 @@ export function LibraryPage() {
   // nothing is sent until the person says so.
   const askOwlit = () => navigate("/chat", { state: { starter: `${starterPrompt("find")}${words}` } })
   // Enter in the field adds the reference it holds. Words that match nothing go to Owlit at once rather
-  // than moving focus to the button: the hand-off is the one thing offered, and it only fills the composer.
+  // than moving focus to the button: asking Owlit is the one thing offered, and it only fills the composer.
   // Words with matches have already done their work by narrowing the list.
   const submit = () => {
     if (refInput) add()
@@ -138,7 +138,7 @@ export function LibraryPage() {
 }
 
 // Words no paper matches: the list says so with the words themselves, and offers the next step. The one
-// action is a hand-off to Owlit, the same as the empty library's, so finding papers is always one button.
+// action is asking Owlit, the same as the empty library's, so finding papers is always one button.
 function NoMatch({ words, onAsk }: { words: string; onAsk: () => void }) {
   return (
     <EmptyPlace title={t`No papers match “${words}”`} detail={t`Owlit can look for papers on this and add what it finds.`} className="py-16">
@@ -165,7 +165,7 @@ function droppedImport(data: DataTransfer): { source: "bibtex" | "folder"; path:
 
 // The first papers come from the find field above or a drop; the card says both. The whole page takes the
 // drop, not just the card. Ask Owlit to find papers hands the search to Chat, which is also how people
-// learn that work can be handed off.
+// learn what Chat is for.
 function EmptyLibrary() {
   const navigate = useNavigate()
   const fileInput = useRef<HTMLInputElement>(null)

@@ -28,7 +28,7 @@ import { capital, joinActions } from "@/lib/words"
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
 // of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
-// row, so a long hand-off stays a few lines; past FOLD_AFTER rows the rest wait behind "Show N more".
+// row, so a long turn's card stays a few lines; past FOLD_AFTER rows the rest wait behind "Show N more".
 export interface ResultRow {
   key: string
   icon: LucideIcon

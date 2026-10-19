@@ -90,7 +90,7 @@ export class Background {
     // into its first line ("I'll read the rest.# Title")
     let apart = false
     const refused: string[] = []
-    const reports: HelperReports = { agentText: new Map(), handedBack: new Set() }
+    const reports: HelperReports = { agentText: new Map() }
     // Agents that ask before each of owlit's tools are held to READ_ONLY when they ask, below; one that
     // calls them itself is told which it may offer (backgroundMeta)
     const _meta = backgroundMeta(connectorId, [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])])

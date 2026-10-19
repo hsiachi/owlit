@@ -1931,14 +1931,6 @@ msgid "Searched files for {pattern}"
 msgstr "在文件中搜索了{pattern}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Hand a task to an agent"
-msgstr "把任务交给助手智能体"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Handed a task to an agent"
-msgstr "把任务交给了助手智能体"
-
-#: app/src/features/chat/lib/step-words.ts
 msgid "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
 msgstr "{questions, plural, other {问你 # 个问题}}"
 
@@ -1965,10 +1957,6 @@ msgstr "{n, plural, other {写入了 # 个文件}}"
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {opened a page} other {opened # pages}}"
 msgstr "{n, plural, other {打开了 # 个页面}}"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
-msgstr "{n, plural, other {把 # 个任务交给了助手智能体}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked you a question} other {asked you # questions}}"
@@ -2049,10 +2037,6 @@ msgstr "正在网上搜索"
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opening pages"
 msgstr "正在打开页面"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Working with a helper"
-msgstr "正在与助手智能体协作"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searching for papers"
@@ -3150,8 +3134,8 @@ msgid "Chat with Owlit"
 msgstr "和 Owlit 对话"
 
 #: app/src/features/home/HomePage.tsx
-msgid "Ask, or hand off work like finding papers"
-msgstr "提问，或把找论文之类的工作交给它"
+msgid "Ask, or have Owlit find papers"
+msgstr "提问，或让 Owlit 找论文"
 
 #: app/src/features/home/HomePage.tsx
 msgid "This folder is your workspace. Papers, notes and chats you add live in it as ordinary files."
@@ -4711,12 +4695,12 @@ msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Ow
 msgstr "文档就是你文件夹里的 Markdown 文件。输入 <0>@</0> 引用论文。Owlit <1>只在你开口时</1>才提修改建议，留不留由你定。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Ask, or hand it off."
-msgstr "问它，或者交给它。"
+msgid "Ask anywhere."
+msgstr "随处可问。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
-msgstr "在任何地方按 <0>⌘J</0>，就屏幕上的内容提问。在对话里，可以把<1>耗时的活交给它</1>，比如找论文，你接着忙你的。"
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
+msgstr "在任何地方按 <0>⌘J</0>，就屏幕上的内容提问。<1>耗时的活</1>，比如找论文，就到对话里做。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Owlit gathers papers."

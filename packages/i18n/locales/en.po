@@ -1931,14 +1931,6 @@ msgid "Searched files for {pattern}"
 msgstr "Searched files for {pattern}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Hand a task to an agent"
-msgstr "Hand a task to an agent"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Handed a task to an agent"
-msgstr "Handed a task to an agent"
-
-#: app/src/features/chat/lib/step-words.ts
 msgid "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
 msgstr "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
 
@@ -1965,10 +1957,6 @@ msgstr "{n, plural, one {wrote a file} other {wrote # files}}"
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {opened a page} other {opened # pages}}"
 msgstr "{n, plural, one {opened a page} other {opened # pages}}"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
-msgstr "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked you a question} other {asked you # questions}}"
@@ -2049,10 +2037,6 @@ msgstr "Searching the web"
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opening pages"
 msgstr "Opening pages"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Working with a helper"
-msgstr "Working with a helper"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searching for papers"
@@ -3150,8 +3134,8 @@ msgid "Chat with Owlit"
 msgstr "Chat with Owlit"
 
 #: app/src/features/home/HomePage.tsx
-msgid "Ask, or hand off work like finding papers"
-msgstr "Ask, or hand off work like finding papers"
+msgid "Ask, or have Owlit find papers"
+msgstr "Ask, or have Owlit find papers"
 
 #: app/src/features/home/HomePage.tsx
 msgid "This folder is your workspace. Papers, notes and chats you add live in it as ordinary files."
@@ -4711,12 +4695,12 @@ msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Ow
 msgstr "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Ask, or hand it off."
-msgstr "Ask, or hand it off."
+msgid "Ask anywhere."
+msgstr "Ask anywhere."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
-msgstr "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
+msgstr "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Owlit gathers papers."

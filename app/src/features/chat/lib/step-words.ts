@@ -107,9 +107,7 @@ function mcpWords(name: string): StepWords | undefined {
   return { now: t`Use ${server}: ${action}`, done: t`Used ${server}: ${action}`, group: `mcp:${server}` }
 }
 
-// SubagentHandback is how an agent the step handed work to gives its report back; the report reaches the
-// user through Owlit's answer, and the step itself only says "Report delivered"
-const HIDDEN = new Set(["ToolSearch", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "TaskOutput", "SubagentHandback"])
+const HIDDEN = new Set(["ToolSearch", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "TaskOutput"])
 
 // ---- One step ----
 
@@ -195,9 +193,6 @@ function wordsFor(call: ToolCall, questions: number): StepWords {
       return webSearch(tool?.query)
     case "WebFetch":
       return fetchPage(tool?.url ? shortUrl(tool.url) : undefined, call.content)
-    case "Agent":
-    case "Task":
-      return tool?.description ? described(tool.description, "agent") : { now: t`Hand a task to an agent`, done: t`Handed a task to an agent`, group: "agent" }
     case "AskUserQuestion":
       return {
         now: plural(questions, { one: "Ask you a question", other: "Ask you # questions" }),
@@ -254,8 +249,6 @@ function kindPhrase(group: string, n: number): string | undefined {
       return plural(n, { one: "searched the web", "=2": "searched the web twice", other: "searched the web # times" } as Twice)
     case "fetch":
       return plural(n, { one: "opened a page", other: "opened # pages" })
-    case "agent":
-      return plural(n, { one: "handed a task to a helper", other: "handed # tasks to helpers" })
     case "question":
       return plural(n, { one: "asked you a question", other: "asked you # questions" })
     case "other":
@@ -325,8 +318,6 @@ function liveWords(group: string): string | undefined {
       return t`Searching the web`
     case "fetch":
       return t`Opening pages`
-    case "agent":
-      return t`Working with a helper`
     case "owlit:library_search":
       return t`Searching for papers`
     case "owlit:library_related":

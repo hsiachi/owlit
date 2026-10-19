@@ -12,7 +12,7 @@ import s from "./demos.module.css"
 interface AskState {
   view: "paper" | "chat"
   place: DemoPlace
-  // Owlit's dot on Chat in the rail, while the hand-off's result is new
+  // Owlit's dot on Chat in the rail, while the longer task's result is new
   dot: boolean
   // ⌘J over the paper, the ask bar, the answer beside the page
   keys: "off" | "on" | "down"
@@ -23,7 +23,7 @@ interface AskState {
   read: boolean
   // How many of the answer's words have come in
   words: number
-  // The hand-off in Chat: what is typed, then sent, its step, its result
+  // The longer task in Chat: what is typed, then sent, its step, its result
   typed: string | null
   sent: boolean
   searched: "off" | "working" | "done"
@@ -47,8 +47,8 @@ const FIRST: AskState = {
   result: false,
 }
 
-// Ask: ⌘J over a paper asks about it beside the page; then, in Chat, longer work is handed off and comes
-// back as a result. The scene moves from the Library to Chat, and says so to the window's rail.
+// Ask: ⌘J over a paper asks about it beside the page; then, in Chat, a longer task runs and ends in a
+// result. The scene moves from the Library to Chat, and says so to the window's rail.
 export function AskDemo() {
   const answer = words(ASK.answer, "en")
   const { layers } = useScript<AskState>({
@@ -74,11 +74,11 @@ export function AskDemo() {
         await c.sleep(65)
       }
       await c.sleep(2200)
-      // The hand-off, in Chat
+      // The longer task, in Chat
       c.scene({ ...FIRST, view: "chat", place: "chat" })
       await c.sleep(500)
       c.set({ typed: "" })
-      await c.type("typed", ASK.handOff, 24)
+      await c.type("typed", ASK.task, 24)
       await c.sleep(300)
       c.set({ sent: true, searched: "working" })
       await c.sleep(1820)
@@ -157,7 +157,7 @@ function ChatView({ st }: { st: AskState }) {
   const kept = ASK.added.length
   return (
     <div className={s.chat}>
-      {st.sent && <div className={cn(s.bubble, s.wordIn)}>{ASK.handOff}</div>}
+      {st.sent && <div className={cn(s.bubble, s.wordIn)}>{ASK.task}</div>}
       <div>
         {st.searched !== "off" && (
           <div className={cn(s.step, s.fadein)}>

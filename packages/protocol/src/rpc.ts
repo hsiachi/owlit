@@ -540,9 +540,6 @@ export interface Notifications {
   "agents.changed": Connector
   // One streamed update of a chat's running turn, for that turn's reply (messageId)
   "chat.update": { chatId: string; messageId: string; update: SessionUpdate }
-  // A reply that had ended was opened again because the agent went on after its turn, or that reply ended
-  // again: the reply as core has it (status "streaming" while it runs). What it adds streams as chat.update.
-  "chat.lateReply": { chatId: string; message: ChatMessage }
   // A run Owlit started on its own began or ended: its session whole, as core has it (the first
   // message says why it started; the reply is "streaming" while it runs). Its steps stream as chat.update.
   "chats.run": { chat: Chat }

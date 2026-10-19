@@ -100,8 +100,6 @@ export interface CoreOptions {
   // of Claude Code's and Codex's adapters (agents/setup.ts)
   node?: { command: string; args: string[]; env?: Record<string, string> }
   npm?: string
-  // How long a reply the agent took up again after its turn waits for more before it ends (tests shorten it)
-  lateQuietMs?: number
   // The share server new links are made on (apps/share-server), e.g. https://share.example.org; without
   // one, docs can't be shared
   shareServer?: string
@@ -227,8 +225,6 @@ export class Core {
       fs: this.fs,
       workspace: () => this.workspace,
       notify: (chatId, update, messageId) => this.notifier.notify("chat.update", { chatId, messageId, update }),
-      lateReply: (chatId, message) => this.notifier.notify("chat.lateReply", { chatId, message }),
-      lateQuietMs: options.lateQuietMs,
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],

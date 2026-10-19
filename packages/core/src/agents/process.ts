@@ -230,20 +230,6 @@ export class AcpProcess {
     return this.handlers.has(sessionId)
   }
 
-  // Keeps the process from idling out while the agent works with no request open (a reply it took up
-  // again after its turn ended); returns the release
-  hold() {
-    this.busy++
-    clearTimeout(this.idleTimer)
-    let held = true
-    return () => {
-      if (!held) return
-      held = false
-      this.busy--
-      this.scheduleIdle()
-    }
-  }
-
   // Ends the process on purpose
   stop() {
     clearTimeout(this.idleTimer)

@@ -143,7 +143,7 @@ function Start() {
   const rows = [
     { key: "papers", icon: KIND_ICON.paper, title: t`Add papers`, detail: t`Drop PDFs anywhere here, or choose them from your disk`, run: () => fileInput?.click() },
     { key: "doc", icon: KIND_ICON.doc, title: t`New doc`, detail: t`Notes and drafts are Markdown files in this folder`, run: () => newDoc("") },
-    { key: "chat", icon: KIND_ICON.chat, title: t`Chat with Owlit`, detail: t`Ask, or hand off work like finding papers`, run: () => navigate("/chat") },
+    { key: "chat", icon: KIND_ICON.chat, title: t`Chat with Owlit`, detail: t`Ask, or have Owlit find papers`, run: () => navigate("/chat") },
   ]
   const palette = keysFor("palette")
   const owlit = keysFor("owlit")

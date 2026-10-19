@@ -38,8 +38,8 @@ export const FRESH_CHAT: ChatIndexState = { fresh: true }
 // /chat with no conversation selected: greeting, composer, starter prompts. Reached plainly (the rail's Chat
 // button, a link), it goes back to the chat the person last looked at, as Docs goes back to the doc they
 // were in: in a test, someone who left a running chat for the Library and came back by the rail landed on
-// an empty page and thought the app had lost their chat. New chat and a hand-off say so in the route's state
-// and get the empty page.
+// an empty page and thought the app had lost their chat. New chat and a page that sends a question to
+// Chat say so in the route's state and get the empty page.
 export function ChatEmpty() {
   const navigate = useNavigate()
   const createChat = useChatStore((s) => s.createChat)

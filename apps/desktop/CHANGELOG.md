@@ -23,10 +23,10 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Hovering a paper's status says how far you got, such as "12 min, pp. 1–6" or "the digest, 3 min", and agents asking what you read hear the same: read in full, looked at, or not opened here.
 - Only papers Owlit added and you haven't opened are named lighter in docs and chats; papers you imported look as usual.
 - Owlit works only when you ask: a star only stars, threads aren't watched for new papers (Watch for new papers is gone), and reading a paper in full doesn't re-answer its rows. The "On its own" setting and what ran under it (comments on a doc you open or stop editing, the daily look over your docs, a digest and threads for a paper that landed, going through a Meetings folder) are gone too. Ask for each from where it is: a digest on the paper, Find more papers on the thread, Go through from a doc's menu. A comment Owlit makes while you type in that doc shows at once, marked new.
+- A chat answer ends when Owlit's turn ends: on Claude Code, Owlit no longer hands parts of the work to helpers of its own, and a reply never goes on after it finished.
 - Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
 - Sign in and Open on a waiting line bring the browser with the extension to the front, not only a new tab in it.
 - Signing in to Tsinghua's library opens tlink's sign-in page instead of a 500 error.
-- When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.
 - Since you left lists Owlit's work that started before you left and finished after.
