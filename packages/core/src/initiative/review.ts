@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import type { DocComment } from "@owlit/protocol"
+import { isOwlit, type DocComment } from "@owlit/protocol"
 import { defineSkill } from "./skills.ts"
 
 // Review: Owlit reads a doc of the user's that changed since it last looked and comments where it has
@@ -74,7 +74,7 @@ export interface ReplyInput {
 export function replyPrompt({ path, content, comment }: ReplyInput) {
   const at = content.indexOf(comment.quote)
   const around = at >= 0 ? content.slice(Math.max(0, at - 600), at + comment.quote.length + 600) : comment.quote
-  const thread = comment.entries.map((e) => `${e.by === "owlit" ? "Owlit" : "The user"}: ${e.text}`).join("\n\n")
+  const thread = comment.entries.map((e) => `${isOwlit(e.by) ? "Owlit" : "The user"}: ${e.text}`).join("\n\n")
   return [
     `You are Owlit. On the user's doc ${path} you left a comment on the words «${comment.quote}», and the user has replied. Answer their latest reply, in the comment, as a short reply (one to four sentences), in the language they wrote in. You may look things up in their library and docs; you can't change the doc. If they asked you to change something, say what you would change and that they can ask you in a chat (the feather on the comment) to make the edit.`,
     `Around the words:\n\n${around}`,
@@ -143,7 +143,7 @@ export interface RecheckInput {
 export function recheckPrompt({ path, content, comment, paperId, title }: RecheckInput) {
   const at = content.indexOf(comment.quote)
   const around = at >= 0 ? content.slice(Math.max(0, at - 600), at + comment.quote.length + 600) : comment.quote
-  const thread = comment.entries.map((e) => `${e.by === "owlit" ? "Owlit" : "The user"}: ${e.text}`).join("\n\n")
+  const thread = comment.entries.map((e) => `${isOwlit(e.by) ? "Owlit" : "The user"}: ${e.text}`).join("\n\n")
   return [
     `You are Owlit. On the user's doc ${path} you left a comment on the words «${comment.quote}» that leans on the paper “${title}” (${paperId}). The user has since read that paper in full. Read it again (library_read), with what they highlighted and noted in it (library_highlights, library_get), and check whether what you said still holds.`,
     `Around the words:\n\n${around}`,

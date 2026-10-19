@@ -84,7 +84,7 @@ describe("library.import", () => {
     expect(done).toMatchObject({ total: 3, added: ["arxiv-1706.03762"], existed: 1, failed: [{ key: "ghost", title: "A Paper Nobody Indexed" }] })
     expect(done.finishedAt).toBeGreaterThan(0)
     const { papers } = await call("library.list")
-    expect(papers.find((p: { id: string }) => p.id === "arxiv-1706.03762")).toMatchObject({ title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], year: 2017, addedBy: "user" })
+    expect(papers.find((p: { id: string }) => p.id === "arxiv-1706.03762")).toMatchObject({ title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], year: 2017, addedBy: expect.stringMatching(/^p_/) })
 
     await call("library.dismissImport", { id: started.id })
     expect(await summary(started.id)).toMatchObject({ dismissed: true })

@@ -6,6 +6,7 @@ import type { RpcNotification } from "@owlit/protocol"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { until } from "../test-util.ts"
 import { halfDone, sectionsOf, WEEK_MS } from "./scan.ts"
@@ -21,7 +22,7 @@ afterEach(async () => {
 
 const DRAFT = "# Draft\n\nReplay ratings drift from live ones.\n\n## Related work\n\n## Method\n\nTwelve people.\n"
 
-type Call = (method: string, params?: unknown) => Promise<any>
+type Call = (method: string, params?: unknown, caller?: Caller) => Promise<any>
 
 async function setup(agent: (prompt: string, run: string, call: Call) => Promise<string>) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-night-")))
@@ -33,8 +34,8 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
   cores.push(core)
   const heard: RpcNotification[] = []
   core.onNotify((n) => heard.push(n))
-  const call: Call = async (method, params) => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  const call: Call = async (method, params, caller) => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
@@ -42,7 +43,9 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
   vi.spyOn(Background.prototype, "run").mockImplementation(async (run: BackgroundRun) => {
     prompts.push(run.prompt)
     const args = (run.mcpServers[0] as McpServer & { args: string[] }).args
-    return { text: await agent(run.prompt, args[args.indexOf("--run") + 1]!, call), connectorId: "fake" }
+    const id = args[args.indexOf("--run") + 1]!
+    // As owlit-mcp calls core for the run, on the socket
+    return { text: await agent(run.prompt, id, (method, params) => call(method, params, { kind: "socket", run: id })), connectorId: "fake" }
   })
   await call("workspace.open", { path: root })
   await call("initiative.set", { patch: { mode: "away" } })
@@ -56,7 +59,7 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
 }
 
 const leave = (call: Call, run: string, quote: string, text: string) =>
-  call("comments.add", { path: "draft.md", agent: { run }, comment: { id: `c-${quote.length}`, quote, prefix: "", suffix: "", entries: [{ id: `e-${quote.length}`, by: "owlit", text, at: Date.now() }], createdAt: Date.now() } })
+  call("comments.add", { path: "draft.md", agent: { run }, comment: { id: `c-${quote.length}`, quote, prefix: "", suffix: "", entries: [{ id: `e-${quote.length}`, text, at: Date.now() }], createdAt: Date.now() } })
 
 describe("The night shift, through core", () => {
   it("holds what a run made while the user was away for as long as they are in that doc, and says nothing when it lands", { timeout: 20_000 }, async () => {
@@ -89,10 +92,12 @@ describe("The night shift, through core", () => {
       return "Left 1 comment."
     })
     const old = Date.now() - WEEK_MS - 1000
-    await call("comments.add", {
-      path: "draft.md",
-      comment: { id: "stale", quote: "Replay ratings track the live ones.", prefix: "", suffix: "", entries: [{ id: "e1", by: "owlit", text: "Lee 2024 disagrees.", at: old }], createdAt: old },
-    })
+    // Owlit's, from a chat a week ago
+    await call(
+      "comments.add",
+      { path: "draft.md", agent: { chatId: "c0" }, comment: { id: "stale", quote: "Replay ratings track the live ones.", prefix: "", suffix: "", entries: [{ id: "e1", text: "Lee 2024 disagrees.", at: old }], createdAt: old } },
+      { kind: "socket", chatId: "c0" },
+    )
     // Found half done a week ago (the look before this one)
     const firstSeen = Object.fromEntries(halfDone(sectionsOf(DRAFT)).map((s) => [s.key, s.title === "Related work" ? old : Date.now()]))
     await workspace.docs.setHalfDone("draft.md", firstSeen)

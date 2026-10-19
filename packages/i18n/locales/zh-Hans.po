@@ -3310,9 +3310,10 @@ msgstr "已复制高亮"
 msgid "Add to note"
 msgstr "添加到笔记"
 
+#. under a highlight; who is Owlit, a name or outside owlit
 #: app/src/features/library/components/HighlightsList.tsx
-msgid "Added by Owlit"
-msgstr "由 Owlit 添加"
+msgid "Added by {who}"
+msgstr "由{who}添加"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight actions"
@@ -3996,9 +3997,10 @@ msgstr "信息"
 msgid "No abstract."
 msgstr "无摘要。"
 
+#. when a paper was added, and who added it: Owlit, a name or outside owlit
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "{when} by Owlit"
-msgstr "{when}，由 Owlit 添加"
+msgid "{when} by {who}"
+msgstr "{when}，由{who}添加"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgctxt "label before the threads that hold this paper"
@@ -7385,6 +7387,14 @@ msgstr "owlit 在这里无法用其他应用打开文件。"
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
 msgstr "owlit 已不再有那个文件。"
+
+#: packages/core/src/core.ts
+msgid "That paper isn't in the library."
+msgstr "那篇论文不在文献库里。"
+
+#: packages/core/src/core.ts
+msgid "That comment is already there."
+msgstr "那条评论已经在了。"
 
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."

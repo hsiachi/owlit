@@ -9,7 +9,7 @@ import { useTrail, workspaceKey } from "./trail"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { messageText } from "@/features/chat/lib/message-text"
-import type { Chat, ChatMessage } from "@owlit/protocol"
+import { isOwlit, type Chat, type ChatMessage } from "@owlit/protocol"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
@@ -107,7 +107,7 @@ export function usePlaces(): Place[] {
     const out: Place[] = []
     const lastMark = new Map<string, { at: number; words: string }>()
     for (const h of Object.values(highlights)) {
-      if (h.addedBy === "agent") continue
+      if (isOwlit(h.addedBy)) continue
       const words = h.comment ? `“${markdownPlain(h.text)}” ${h.comment}` : `“${markdownPlain(h.text)}”`
       if ((lastMark.get(h.paperId)?.at ?? 0) < h.createdAt) lastMark.set(h.paperId, { at: h.createdAt, words })
     }

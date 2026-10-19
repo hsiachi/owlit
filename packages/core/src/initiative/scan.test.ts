@@ -45,7 +45,7 @@ describe("Owlit's daily look", () => {
     expect(Object.values(later)).toEqual([now, now])
   })
 
-  const comment = (quote: string, prefix: string, suffix: string, lastAt: number, by: "owlit" | "you" = "owlit"): DocComment => ({
+  const comment = (quote: string, prefix: string, suffix: string, lastAt: number, by: "o_1" | "p_1" = "o_1"): DocComment => ({
     id: quote,
     quote,
     prefix,
@@ -59,7 +59,7 @@ describe("Owlit's daily look", () => {
     const changed = comment("Replay ratings track the live ones.", "", "", now - WEEK_MS)
     const kept = comment("Replay ratings", "\n\n", " drift", now - WEEK_MS)
     const recent = comment("gone words", "", "", now - 1000)
-    const yours = comment("other gone words", "", "", now - WEEK_MS, "you")
+    const yours = comment("other gone words", "", "", now - WEEK_MS, "p_1")
     expect(passageChanged(changed, content)).toBe(true)
     expect(passageChanged(kept, content)).toBe(false)
     expect(foldable([changed, kept, recent, yours, { ...changed, id: "done", resolvedAt: now }], content, now).map((c) => c.id)).toEqual([changed.id])

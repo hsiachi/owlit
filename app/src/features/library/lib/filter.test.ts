@@ -10,13 +10,13 @@ const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({
   authors: [],
   ids: { doi: `10.1/${id}` },
   addedAt: 1,
-  addedBy: "user",
+  addedBy: "p_1",
   starred: false,
   status: "unread",
   tags: [],
   ...extra,
 })
-const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit"): PdfTry => ({ by, ended, at: 1 })
+const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "search"): PdfTry => ({ by, ended, at: 1 })
 // No PDF, for the reason of the last try given
 const noPdf = (tries: PdfTry[], extra: Partial<PdfState> = {}) => ({ pdfState: { state: "no-pdf" as const, tried: tries, reason: tries.at(-1), ...extra } })
 
@@ -30,8 +30,8 @@ describe("papers without a PDF", () => {
     noDoi: paper("noDoi", { ids: {}, ...noPdf([found]) }),
     check: paper("check", noPdf([found, tryOf("check")])),
     signIn: paper("signIn", noPdf([found, tryOf("sign-in")])),
-    noAccess: paper("noAccess", noPdf([found, tryOf("no-access", "you")])),
-    notOffered: paper("notOffered", noPdf([found, tryOf("not-offered", "you")])),
+    noAccess: paper("noAccess", noPdf([found, tryOf("no-access", "person")])),
+    notOffered: paper("notOffered", noPdf([found, tryOf("not-offered", "person")])),
     notThere: paper("notThere", noPdf([found, tryOf("not-there")])),
   }
 

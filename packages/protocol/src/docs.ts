@@ -1,3 +1,5 @@
+import type { ActorId } from "./changes.ts"
+
 // Docs are the files of the workspace folder, read and written by core. Paths are workspace-relative and
 // "/"-separated; contents are kept exactly as they are on disk, byte for byte.
 
@@ -70,7 +72,8 @@ export interface DocComment {
 
 export interface CommentEntry {
   id: string
-  by: "you" | "owlit"
+  // Set by core from whoever wrote it, never by the client
+  by: ActorId
   // Owlit's entries: which agent wrote it ("Claude Code"); the app names it Owlit
   agent?: string
   text: string
@@ -82,21 +85,8 @@ export interface CommentEntry {
 
 export type CommentAnchor = Pick<DocComment, "quote" | "prefix" | "suffix">
 
-// A note as agents left them before comments: one text, no replies. Still read, as an Owlit comment.
-interface LegacyNote extends CommentAnchor {
-  id: string
-  text: string
-  by: string
-  chatId?: string
-  createdAt: number
-}
-
-export function asComment(value: DocComment | LegacyNote): DocComment {
-  if ("entries" in value && Array.isArray(value.entries)) return value
-  const note = value as LegacyNote
-  const entry: CommentEntry = { id: note.id, by: "owlit", agent: note.by, text: note.text, at: note.createdAt, ...(note.chatId ? { chatId: note.chatId } : {}) }
-  return { id: note.id, quote: note.quote, prefix: note.prefix, suffix: note.suffix, entries: [entry], createdAt: note.createdAt }
-}
+// A comment as a client sends it: core sets each new entry's author, so by is left out or ignored
+export type CommentInput = Omit<DocComment, "entries"> & { entries: (Omit<CommentEntry, "by"> & { by?: ActorId })[] }
 
 // Still open: not resolved, and with something said
 export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && !c.foldedAt && c.entries.length > 0

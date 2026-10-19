@@ -85,6 +85,9 @@ export class Initiative {
   // The deferral last logged for each rule and subject, so waiting on goes into the journal once
   private deferLogged = new Map<string, string>()
   private deferTimer: unknown
+  // The rule each task it queued came from, for the change log's origin.ruleId; held while core runs, so a
+  // run picked up again after a restart goes without it
+  private queuedBy = new Map<string, string>()
   private disposed = false
   readonly presence: Presence
 
@@ -128,8 +131,14 @@ export class Initiative {
     return this.chain
   }
 
+  // The rule that queued a task, if one did
+  ruleOf(taskId: string) {
+    return this.queuedBy.get(taskId)
+  }
+
   // The workspace is closing: what was settling or put off was about it, and the next one starts afresh
   reset() {
+    this.queuedBy.clear()
     this.epoch++
     for (const { timer } of this.settling.values()) this.clock.clearTimeout(timer)
     this.settling.clear()
@@ -217,6 +226,7 @@ export class Initiative {
       }
       try {
         const task = ws.tasks.enqueue(outcome.job.kind, outcome.job.subject, outcome.job.priority)
+        this.queuedBy.set(task.id, rule.id)
         if (initiative && this.today) this.today.count++
         this.record({ ...base, decision: "job", taskId: task.id })
       } catch (error) {

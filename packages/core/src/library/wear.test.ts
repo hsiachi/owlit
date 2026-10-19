@@ -117,7 +117,7 @@ describe("library.wear, threads", () => {
       updatedAt: 40,
       changedAt: { "cell:p1:q": 30 },
       seenAt: 0,
-      yours: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
+      overrides: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
     }
     mkdirSync(path.join(root, ".owlit/threads/replay"), { recursive: true })
     writeFileSync(path.join(root, ".owlit/threads/replay/thread.json"), JSON.stringify(thread))

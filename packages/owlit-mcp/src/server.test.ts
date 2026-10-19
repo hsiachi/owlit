@@ -71,13 +71,13 @@ describe("owlit-mcp", () => {
 describe("pdfFact", () => {
   // With a browser extension allowed, as most of these are read
   const fact = (p: Parameters<typeof pdfFact>[0]) => pdfFact(p, true)
-  const noPdf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit") => ({ pdfState: { state: "no-pdf" as const, tried: [{ by, ended, at: 1 }], reason: { by, ended, at: 1 } } })
+  const noPdf = (ended: PdfTry["ended"], by: PdfTry["by"] = "search") => ({ pdfState: { state: "no-pdf" as const, tried: [{ by, ended, at: 1 }], reason: { by, ended, at: 1 } } })
 
   it("says nothing of a paper with its PDF, and that owlit is at it while it is finding", () => {
     expect(fact({ pdf: { url: "owlit-pdf://doi-10.1145-1" } })).toBe("")
     expect(fact({})).toBe("no PDF yet (owlit is looking)")
     expect(fact({ pdfState: { state: "finding", tried: [] } })).toBe("no PDF yet (owlit is looking)")
-    expect(fact({ pdfState: { state: "finding", tried: [{ by: "owlit", ended: "offline", at: 1 }], reason: { by: "owlit", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
+    expect(fact({ pdfState: { state: "finding", tried: [{ by: "search", ended: "offline", at: 1 }], reason: { by: "search", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
   })
 
   it("says what the extension in the user's browser waits for, and that one step covers every such paper", () => {
@@ -99,8 +99,8 @@ describe("pdfFact", () => {
 
   it("says why for each way a try can end, and what the user can do", () => {
     expect(fact(noPdf("no-copy"))).toMatch(/found no copy.*drop the PDF on the paper/)
-    expect(fact(noPdf("no-access", "you"))).toMatch(/offered access instead.*drop the PDF/)
-    expect(fact(noPdf("not-offered", "you"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
+    expect(fact(noPdf("no-access", "person"))).toMatch(/offered access instead.*drop the PDF/)
+    expect(fact(noPdf("not-offered", "person"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
     expect(fact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
     expect(fact(noPdf("check"))).toMatch(/stopped owlit's own look with a check.*drop the PDF/)
     expect(fact(noPdf("sign-in"))).toMatch(/wanted a sign-in.*drop the PDF/)
@@ -149,7 +149,7 @@ describe("owlit-mcp", () => {
     expect(searches).toMatchObject([{ query: "historical newspapers question answering", source: "openalex", by: "chat:chat-1", results: ["doi-10.1145-3626772.3657891"] }])
     // What a search just found is added without asking the services again
     expect((await tool("library_add", { refs: ["doi-10.1145-3626772.3657891"] })).text).toMatch(/^Added doi-10\.1145-3626772\.3657891/)
-    expect((await call("library.list")).papers[0]).toMatchObject({ addedBy: "agent" })
+    expect((await call("library.list")).papers[0]).toMatchObject({ addedBy: expect.stringMatching(/^o_/) })
     routes["api.openalex.org/works/doi:10.1145"] = openalex
     expect((await tool("library_add", { refs: ["10.1145/3626772.3657891"] })).text).toMatch(/^Already in the library as doi-10\.1145-3626772\.3657891/)
     // and a search marks it as the library's, saying it has no PDF yet
@@ -289,7 +289,7 @@ describe("owlit-mcp", () => {
     expect(result.isError).toBe(false)
     expect(readFileSync(path.join(root, "Related work.md"), "utf8")).toBe(doc)
     const comments = await call("comments.all")
-    expect(comments["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", entries: [{ text: "Cite Vaswani 2017 here.", by: "owlit", chatId: "chat-1" }] }])
+    expect(comments["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", entries: [{ text: "Cite Vaswani 2017 here.", by: expect.stringMatching(/^o_/), chatId: "chat-1" }] }])
     // Windows hear of it, so the comment shows up in an open doc
     expect(told).toMatchObject([{ path: "Related work.md", comment: { entries: [{ text: "Cite Vaswani 2017 here." }] } }])
     expect((await tool("docs_add_comment", { path: "Related work.md", quote: "not in the doc", comment: "x" })).text).toMatch(/isn't in Related work\.md word for word/)
@@ -378,6 +378,14 @@ describe("owlit-mcp", () => {
     expect((await tool("thread_list")).text.split("\n")).toHaveLength(1)
   })
 
+  it("names the tool call Claude Code says a request is for in the change it makes", async () => {
+    const { root, call, mcp } = await setup()
+    writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
+    await mcp.callTool({ name: "docs_add_comment", arguments: { path: "Draft.md", quote: "all you need", comment: "Cite it." }, _meta: { "claudecode/toolUseId": "toolu_1" } })
+    const [change] = await call("changes.list", { target: { kind: "comment" } })
+    expect(change).toMatchObject({ actor: expect.stringMatching(/^o_/), origin: { via: "tool", chatId: "chat-1", toolCallId: "toolu_1", writeId: "toolu_1" } })
+  })
+
   it("lets the user undo an agent's comment and paper, and undo the undo", async () => {
     const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
     const { root, core, call, tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })
@@ -405,7 +413,7 @@ describe("owlit-mcp", () => {
     const paper = await call("changes.undo", { id: changed[1].change.id })
     expect((await call("library.list")).papers).toEqual([])
     await call("changes.undo", { id: paper.change.id })
-    expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: "agent" }])
+    expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: expect.stringMatching(/^o_/) }])
   })
 
   it("keeps a line in Owlit's memory for the chat, which Undo takes back", async () => {

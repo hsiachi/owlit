@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { anchorAt, isOwlit } from "@owlit/protocol"
+import { myOwlit } from "@/lib/actors"
 import { undo } from "@codemirror/commands"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
@@ -191,7 +192,7 @@ setWorkspaceNotes({
     useDocsStore.getState().addComment(file.id, {
       id: newId(),
       ...anchorAt(doc, at, at + quote.length),
-      entries: [{ id: newId(), by: "owlit", agent: by, text, at: now, ...(chatId ? { chatId } : {}) }],
+      entries: [{ id: newId(), by: myOwlit(), agent: by, text, at: now, ...(chatId ? { chatId } : {}) }],
       createdAt: now,
     })
     return true

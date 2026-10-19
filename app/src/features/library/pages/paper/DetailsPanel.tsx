@@ -1,4 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
+import { nameOf, useMe } from "@/lib/actors"
 import { MentionToken } from "@/components/mention/mention-token"
 import { useThreadsStore } from "@/features/threads/store"
 import { threadsByPaper } from "@/features/threads/lib"
@@ -97,6 +98,8 @@ function About({ paper }: { paper: Paper }) {
   const showTag = useLibraryUi((s) => s.showTag)
   const links = externalLinks(paper)
   const when = ago(paper.addedAt)
+  const viewer = useMe()
+  const who = nameOf(paper.addedBy)
   const pages = paper.pdf?.pages
   const threads = useThreadsStore((s) => s.threads)
   const aliases = useLibraryStore((s) => s.aliases)
@@ -127,7 +130,7 @@ function About({ paper }: { paper: Paper }) {
           </div>
         ))}
         <dt className="text-muted-foreground">{t({ message: "Added", context: "when the paper was added to the library" })}</dt>
-        <dd>{paper.addedBy === "agent" ? t`${when} by Owlit` : when}</dd>
+        <dd>{paper.addedBy === viewer ? when : t({ message: `${when} by ${who}`, comment: "when a paper was added, and who added it: Owlit, a name or outside owlit" })}</dd>
         {inThreads.length > 0 && (
           <>
             <dt className="text-muted-foreground">{t({ message: "In", context: "label before the threads that hold this paper" })}</dt>

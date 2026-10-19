@@ -6,6 +6,7 @@ import { docUri } from "@owlit/protocol"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import { until } from "../test-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { cleanReading, goThroughPrompt, recordOf } from "./go-through.ts"
@@ -20,7 +21,7 @@ const STORY = "# 研究故事\n\n故事从数据集讲起。\n\n研究问题分�
 const MEETING = "# P5 周会 2026-10-15\n\n@时英天 00:10:19\n故事要从任务讲起。\n\n@夏奇 00:11:02\n好，从任务出发。\n"
 const READING = "# P5 周会 · 2026-10-15\n\n## Owlit 的解读\n\n*2026-10-15 · 对照 [研究故事](owlit://docs/story.md)*\n\n时英天建议故事从任务讲起，你同意了。\n\n### 要点\n\n- **时英天**：故事要从任务讲起。你当场同意了。\n\n### 待办\n\n- [ ] 改研究故事的开头\n"
 
-type Call = (method: string, params?: unknown) => Promise<any>
+type Call = (method: string, params?: unknown, caller?: Caller) => Promise<any>
 
 // A workspace with a doc and a meeting's transcript, and Owlit's background session played by `agent`
 async function setup(agent: (prompt: string, run: string, call: Call) => Promise<string>) {
@@ -32,8 +33,8 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
   const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
   const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: [] } })
   cores.push(core)
-  const call: Call = async (method, params) => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  const call: Call = async (method, params, caller) => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
@@ -41,7 +42,9 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
   vi.spyOn(Background.prototype, "run").mockImplementation(async (run: BackgroundRun) => {
     prompts.push(run.prompt)
     const args = (run.mcpServers[0] as McpServer & { args: string[] }).args
-    return { text: await agent(run.prompt, args[args.indexOf("--run") + 1]!, call), connectorId: "fake" }
+    const id = args[args.indexOf("--run") + 1]!
+    // As owlit-mcp calls core for the run, on the socket
+    return { text: await agent(run.prompt, id, (method, params) => call(method, params, { kind: "socket", run: id })), connectorId: "fake" }
   })
   await call("workspace.open", { path: root })
   const workspace = (core as unknown as { workspace: Workspace }).workspace
@@ -70,7 +73,7 @@ const point = (call: Call, run: string, own?: string) =>
       suffix: "",
       // An agent can't say where words came from; core does
       source: { path: "elsewhere.md", label: "forged" },
-      entries: [{ id: "e1", by: "owlit", text: "时英天在周会上建议故事从任务讲起，你当场同意了。", at: Date.now() }, ...(own ? [{ id: "e2", by: "owlit", text: own, at: Date.now() }] : [])],
+      entries: [{ id: "e1", text: "时英天在周会上建议故事从任务讲起，你当场同意了。", at: Date.now() }, ...(own ? [{ id: "e2", text: own, at: Date.now() }] : [])],
       createdAt: Date.now(),
     },
   })
@@ -99,7 +102,7 @@ describe("Go through", () => {
     expect(record).toContain("## 原文")
     expect(statSync(path.join(root, material)).mtimeMs).toBe(before)
     const [comment] = Object.values(await call("comments.all")).flat() as any[]
-    expect(comment).toMatchObject({ source: { path: "Meetings/P5 周会 2026-10-15 · 解读.md", label: "P5 周会 2026-10-15 · 解读" }, entries: [{ by: "owlit" }, { by: "owlit", text: "任务的定义现在在 §3 第一段，可以提上来。" }] })
+    expect(comment).toMatchObject({ source: { path: "Meetings/P5 周会 2026-10-15 · 解读.md", label: "P5 周会 2026-10-15 · 解读" }, entries: [{ by: expect.stringMatching(/^o_/) }, { by: expect.stringMatching(/^o_/), text: "任务的定义现在在 §3 第一段，可以提上来。" }] })
     expect(await call("docs.owlit", { path: material })).toMatchObject({ wentThrough: { record: "Meetings/P5 周会 2026-10-15 · 解读.md" } })
     // The record is the run's write: it can be undone from the run
     expect(await call("chats.list")).toEqual([])

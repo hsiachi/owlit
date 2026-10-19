@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { isOpenComment, readableText, type DocComment } from "@owlit/protocol"
+import { isOpenComment, isOwlit, readableText, type DocComment } from "@owlit/protocol"
 
 // Owlit's daily look over the docs while the user is away (rules.ts › docs.dailyScan): sections left half
 // done for a week get one comment with what the threads and chats already have for them, and Owlit's own
@@ -76,5 +76,5 @@ export function passageChanged(comment: DocComment, content: string) {
 
 // Owlit's comments to fold away: still standing, on words that changed, with nothing said in a week
 export function foldable(comments: readonly DocComment[], content: string, now: number): DocComment[] {
-  return comments.filter((c) => c.entries[0]?.by === "owlit" && isOpenComment(c) && now - Math.max(...c.entries.map((e) => e.at)) >= WEEK_MS && passageChanged(c, content))
+  return comments.filter((c) => !!c.entries[0] && isOwlit(c.entries[0].by) && isOpenComment(c) && now - Math.max(...c.entries.map((e) => e.at)) >= WEEK_MS && passageChanged(c, content))
 }

@@ -10,7 +10,7 @@ import {
   QUESTION_COLUMN,
   placedKey,
   shownThread,
-  type DocComment,
+  type CommentInput,
   type Thread,
   type ThreadCell,
   type ThreadGroup,
@@ -63,7 +63,9 @@ export function createServer(options: OwlitMcpOptions) {
     const problem = checkArgs(spec, args)
     if (problem) return failure(problem)
     try {
-      return text(await run(spec.name, args, await owlit(), options))
+      // Claude Code names the tool call an MCP request is for; it is the same id as the ACP tool call
+      const toolCallId = request.params._meta?.["claudecode/toolUseId"]
+      return text(await run(spec.name, args, await owlit(), options, typeof toolCallId === "string" ? toolCallId : undefined))
     } catch (error) {
       if (error instanceof OwlitNotRunning) {
         client = null
@@ -75,12 +77,14 @@ export function createServer(options: OwlitMcpOptions) {
   return server
 }
 
-async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions): Promise<string> {
+async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions, toolCallId?: string): Promise<string> {
   const str = (key: string) => args[key] as string
   const num = (key: string) => args[key] as number | undefined
   const optStr = (key: string) => (args[key] as string | undefined) || undefined
   // The chat this agent is answering in, so the window keeps it in view
   const asker = options.chatId ? { chatId: options.chatId } : {}
+  // A change's chat and tool call, for the change log
+  const writer = { ...asker, ...(toolCallId ? { toolCallId } : {}) }
   switch (tool) {
     case "library_list": {
       const { papers } = await owlit.rpc.library.list()
@@ -187,7 +191,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
             lines.push(`Already in the library as ${existingId}: ${paper.title}`)
             continue
           }
-          const added = await owlit.rpc.library.add({ paper, addedBy: "agent", ...asker })
+          const added = await owlit.rpc.library.add({ paper, ...writer })
           lines.push(`Added ${added.id}: ${added.title}. Cite it as [${citeAs(added)}](owlit://library/${added.id}).`)
         } catch (error) {
           lines.push(`Couldn't add ${ref}: ${error instanceof Error ? error.message : String(error)}`)
@@ -200,7 +204,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))]
       if (!ids.length) return "library_remove needs at least one id."
       // Core asks the chat's role (and the user) first
-      const done = await owlit.rpc.library.removeByAgent({ ids, ...asker })
+      const done = await owlit.rpc.library.removeByAgent({ ids, ...writer })
       return [...done.removed.map((id) => `Removed ${id}.`), ...done.refused.map((r) => `Kept ${r.id}: ${r.why}.`)].join("\n")
     }
     // Every note comes from the same background run, so all of them are written one way, in the
@@ -226,11 +230,11 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "docs_delete": {
       const paths = (args.paths as string[]).filter(Boolean)
       if (!paths.length) return "Name at least one doc or folder to delete."
-      const { deleted } = await owlit.rpc.agents.deleteDocs({ paths, ...asker })
+      const { deleted } = await owlit.rpc.agents.deleteDocs({ paths, ...writer })
       return `Deleted ${deleted.join(", ")}. They are in the Trash, and the user can undo it from the chat.`
     }
     case "docs_move": {
-      const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...asker })
+      const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...writer })
       return `Moved ${str("path")} to ${moved.path}.`
     }
     case "docs_add_comment": {
@@ -238,17 +242,18 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const anchor = anchorOf(content, str("quote"))
       if (!anchor) return `That passage isn't in ${str("path")} word for word; quote it exactly as it appears.`
       const at = Date.now()
-      const comment: DocComment = {
+      // Core signs each entry as this agent's Owlit
+      const comment: CommentInput = {
         id: randomUUID(),
         ...anchor,
         entries: [
-          { id: randomUUID(), by: "owlit", text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) },
+          { id: randomUUID(), text: str("comment"), at, ...(options.chatId ? { chatId: options.chatId } : {}) },
           // Owlit's own word under a point carried over from someone else
-          ...(optStr("own") ? [{ id: randomUUID(), by: "owlit" as const, text: optStr("own")!, at, ...(options.chatId ? { chatId: options.chatId } : {}) }] : []),
+          ...(optStr("own") ? [{ id: randomUUID(), text: optStr("own")!, at, ...(options.chatId ? { chatId: options.chatId } : {}) }] : []),
         ],
         createdAt: at,
       }
-      await owlit.rpc.comments.add({ path: str("path"), comment, agent: { ...asker, ...(options.run ? { run: options.run } : {}) } })
+      await owlit.rpc.comments.add({ path: str("path"), comment, agent: { ...writer, ...(options.run ? { run: options.run } : {}) } })
       return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":
@@ -294,7 +299,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
         ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
         ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
-        ...asker,
+        ...writer,
       })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
       const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
@@ -307,7 +312,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         op,
         ...pickArgs(args, { id: "id", text: "text" }),
         ...(optStr("kind") ? { kind: optStr("kind") as MemoryKind } : {}),
-        ...asker,
+        ...writer,
       })
       if (!changeId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
       if (!line) return `Removed ${before?.id} ("${before?.text}") from the memory. Tell the user in a few words.`
@@ -384,7 +389,7 @@ function threadText(stored: Thread) {
   const groupings = c.columns.filter((col) => col.kind === "grouping")
   const groupName = new Map(groupings.flatMap((col) => (col.groups ?? []).map((g) => [`${col.id}:${g.id}`, g.name] as const)))
   // The user's own placements, which a write of yours doesn't change
-  const userPut = (col: string, paper: string, group: string) => stored.yours.placed[placedKey(col, paper, group)]?.in === true
+  const userPut = (col: string, paper: string, group: string) => stored.overrides.placed[placedKey(col, paper, group)]?.in === true
   const lines = [
     `${c.title} (${threadUri(c.id)})`,
     `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
@@ -407,24 +412,24 @@ function threadText(stored: Thread) {
       if (cell) lines.push(`  ${col.id}: ${cell.rel ? `${cell.rel} ` : ""}${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`)
     }
   }
-  const edits = Object.keys(stored.yours.edits)
-  const removed = Object.entries(stored.yours.removed)
+  const edits = Object.keys(stored.overrides.edits)
+  const removed = Object.entries(stored.overrides.removed)
     .filter(([item]) => !item.startsWith("group:"))
     .map(([, r]) => r.text)
   if (edits.length) lines.push("", `The user rewrote (keep their words): ${edits.join(", ")}`)
   if (removed.length) lines.push("", "The user removed (never bring back):", ...removed.map((t) => `- ${t}`))
   // What the user did to the groups, which stays whatever you write
   const regrouped: string[] = []
-  for (const [key, into] of Object.entries(stored.yours.merged)) {
+  for (const [key, into] of Object.entries(stored.overrides.merged)) {
     const [col, id] = key.split(":")
     const owlit = stored.columns.find((x) => x.id === col)?.groups?.find((g) => g.id === id)?.name
     if (groupings.some((x) => x.id === col)) regrouped.push(`- merged ${id}${owlit ? ` (${owlit})` : ""} into ${into}: papers you put in ${id} go in ${into}`)
   }
-  for (const [item, r] of Object.entries(stored.yours.removed)) {
+  for (const [item, r] of Object.entries(stored.overrides.removed)) {
     const [, col, id] = item.split(":")
     if (item.startsWith("group:")) regrouped.push(`- ungrouped ${id} (${r.text})${groupings.length > 1 ? ` in ${col}` : ""}: leave it out`)
   }
-  for (const [key, p] of Object.entries(stored.yours.placed)) {
+  for (const [key, p] of Object.entries(stored.overrides.placed)) {
     if (p.in) continue
     const [col, paper, group] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1, key.lastIndexOf(":")), key.slice(key.lastIndexOf(":") + 1)]
     if (c.rows.some((r) => r.id === paper)) regrouped.push(`- took ${paper} out of ${group}${groupings.length > 1 ? ` (${col})` : ""}: don't put it back`)

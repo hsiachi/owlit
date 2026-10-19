@@ -11,6 +11,9 @@ import {
   type OnlineSource,
   type LibrarySettings,
   type Paper,
+  type ActorId,
+  isOwlit,
+  isPerson,
   type PaperNote,
   type PdfState,
   type PaperPatch,
@@ -104,6 +107,8 @@ export interface AgentPicture {
 
 export interface LibraryServices {
   http: Http
+  // The person using this owlit, as the change log names them: who adds a paper that isn't an agent's
+  person?: () => Promise<ActorId>
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
   // (digests). model is the one chosen for background work, when one is.
   // The user starred a paper (not an agent, not an import)
@@ -177,7 +182,9 @@ export class Library {
   private journals = new Map<string, { articles: JournalArticle[]; issn: string; at: number }>()
   private scheduler: Scheduler | undefined
   private onChange: (change: LibraryChange) => void = () => {}
-  private onNote: (paperId: string, note: PaperNote | null, before: string) => void = () => {}
+  // own: core wrote it (an agent's edit, an undo), which whoever asked records; otherwise it was written
+  // outside owlit
+  private onNote: (paperId: string, note: PaperNote | null, before: string, own: boolean) => void = () => {}
   // Each note as owlit last wrote or read it, so a change on disk that isn't its own is told to windows
   private knownNotes = new Map<string, string>()
   private noteTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -201,7 +208,7 @@ export class Library {
     this.index = new PaperIndex(root)
     this.imports = new Imports(dataDir, {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
-      add: (paper, extra) => this.addNew(paper, "user", "background", extra),
+      add: (paper, extra) => this.addNew(paper, undefined, "background", extra),
       addPdf: (file, extra) => this.importPdf(file, { priority: "background", ...extra }),
       resolve: (title) => this.byTitle(title),
       parsingOn: async () => {
@@ -242,7 +249,7 @@ export class Library {
     const record = await readRecord(this.root, id)
     if (!record) return undefined
     // A paper put here by another program has no state yet: it counts as added when it appeared
-    const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt ?? Date.now())
+    const state = (await readState(this.root, id)) ?? freshState("other", record.fetchedAt ?? Date.now())
     const pdf = await hasPdfFile(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
     if (await exists(path.join(paperDir(this.root, id), "digest.md"))) {
@@ -325,7 +332,8 @@ export class Library {
   // and the paper's tags.
   addNew(
     resolved: ResolvedPaper,
-    addedBy: Paper["addedBy"] = "user",
+    // The person when not given
+    addedBy?: ActorId,
     priority: TaskPriority = "asked",
     extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean } } = {},
   ): Promise<{ paper: Paper; existed: boolean }> {
@@ -354,7 +362,8 @@ export class Library {
       await mkdir(paperDir(this.root, id), { recursive: true })
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
-      await writeState(this.root, id, { ...freshState(addedBy), ...(extra.tags?.length ? { tags: extra.tags } : {}) })
+      const by = addedBy ?? (await this.person())
+      await writeState(this.root, id, { ...freshState(by), ...(extra.tags?.length ? { tags: extra.tags } : {}) })
       // Known as imported before any step that reads it is queued
       if (extra.imported) this.imports.note(id, extra.imported)
       this.index.set(id, record.ids, record.title)
@@ -364,7 +373,7 @@ export class Library {
       else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
       if (extra.pdf) await this.placePdf(id, extra.pdf, await sha256Of(extra.pdf), priority)
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
-      if (addedBy === "user" && !extra.imported) this.services.landed?.(id, "user")
+      if (isPerson(by) && !extra.imported) this.services.landed?.(id, "user")
       return { paper: (await this.get(id))!, existed: false }
     })
   }
@@ -374,7 +383,7 @@ export class Library {
     return this.serial.run(async () => {
       const record = await readRecord(this.root, id)
       if (!record) throw notFound(id)
-      const state = (await readState(this.root, id)) ?? freshState("user", record.fetchedAt)
+      const state = (await readState(this.root, id)) ?? freshState("other", record.fetchedAt)
       if (id.startsWith("local-") && patch.ids && paperIdOf(cleanIds(patch.ids))) return this.relink(id, record, state, patch)
       await writeState(this.root, id, applyPatch(state, record, patch))
       // Starring a paper says it is worth reading: Owlit's rules hear it (a digest in the background)
@@ -413,6 +422,10 @@ export class Library {
     return paper
   }
 
+  private person(): Promise<ActorId> {
+    return this.services.person?.() ?? Promise.resolve("other")
+  }
+
   // Old ids → the ids those papers have now
   async aliases(): Promise<Record<string, string>> {
     const kept = await readJson<{ aliases?: Record<string, string> }>(this.aliasFile()).catch(() => undefined)
@@ -441,7 +454,7 @@ export class Library {
       const stamp = Date.now()
       for (const id of ids) {
         if (!isPaperId(id) || !(await readRecord(this.root, id))) refused.push({ id, why: "it isn't in the library" })
-        else if ((await readState(this.root, id))?.addedBy !== "agent") refused.push({ id, why: "the user added it; ask them to remove it" })
+        else if (!isOwlit((await readState(this.root, id))?.addedBy ?? "other")) refused.push({ id, why: "the user added it; ask them to remove it" })
         else if (await this.touched(id)) refused.push({ id, why: "the user has starred, tagged, marked, highlighted or written about it; ask them" })
         else {
           await this.moveToTrash(id, stamp)
@@ -500,7 +513,7 @@ export class Library {
       if (!record || typeof record.title !== "string") continue
       // Named as the user last saw it: their corrections (state.json's overrides) over the record
       const state = await readJson<PaperState>(path.join(dir, "state", "state.json")).catch(() => undefined)
-      const paper = toPaper({ ...record, id: entry.id, authors: Array.isArray(record.authors) ? record.authors : [] }, state ?? freshState("user", entry.at), false)
+      const paper = toPaper({ ...record, id: entry.id, authors: Array.isArray(record.authors) ? record.authors : [] }, state ?? freshState("other", entry.at), false)
       listed.push(clean({ id: entry.id, title: paper.title, authors: paper.authors, year: paper.year, venue: paper.venue, removedAt: entry.at }))
     }
     return listed
@@ -526,16 +539,19 @@ export class Library {
     if (record?.fetchedAt && (record.checked ?? 0) < METADATA_CHECKS && refOfIds(record.ids)) this.queue("paper.metadata", id, "background")
   }
 
-  // Adds a highlight, or replaces the one with its id
-  putHighlight(highlight: Highlight): Promise<null> {
+  // Adds a highlight, or replaces the one with its id; one already there keeps who added it. The
+  // highlight as kept, and the one it replaced.
+  putHighlight(highlight: Omit<Highlight, "addedBy">, addedBy: ActorId): Promise<{ highlight: Highlight; before: Highlight | null }> {
     return this.serial.run(async () => {
       if (!(await readRecord(this.root, highlight.paperId))) throw notFound(highlight.paperId)
       const all = await readHighlights(this.root, highlight.paperId)
       const at = all.findIndex((h) => h.id === highlight.id)
-      if (at >= 0) all[at] = highlight
-      else all.push(highlight)
+      const before = at >= 0 ? all[at]! : null
+      const kept: Highlight = { ...highlight, addedBy: before?.addedBy ?? addedBy }
+      if (before) all[at] = kept
+      else all.push(kept)
       await writeHighlights(this.root, highlight.paperId, all)
-      return null
+      return { highlight: kept, before }
     })
   }
 
@@ -571,7 +587,7 @@ export class Library {
       if (!this.knownNotes.has(paperId)) this.knownNotes.set(paperId, (await readNote(this.root, paperId))?.content ?? "")
       await writeNote(this.root, paperId, content)
     })
-    await this.noteMayHaveChanged(paperId)
+    await this.noteMayHaveChanged(paperId, true)
   }
 
   // The paper a workspace-relative path is the note of, if it is one
@@ -582,7 +598,7 @@ export class Library {
     return isPaperId(id) ? id : null
   }
 
-  private async noteMayHaveChanged(paperId: string) {
+  private async noteMayHaveChanged(paperId: string, own = false) {
     const note = await readNote(this.root, paperId)
     const content = note?.content ?? ""
     if (this.knownNotes.get(paperId) === content) return
@@ -591,7 +607,7 @@ export class Library {
     this.knownNotes.set(paperId, content)
     // The first sight of a note only learns it: owlit hasn't told anyone a version it could differ from
     if (first && note) return
-    this.onNote(paperId, note ?? null, before)
+    this.onNote(paperId, note ?? null, before, own)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -1061,7 +1077,7 @@ export class Library {
       await mkdir(paperDir(this.root, id), { recursive: true })
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
-      await writeState(this.root, id, { ...freshState("user"), ...(options.tags?.length ? { tags: options.tags } : {}) })
+      await writeState(this.root, id, { ...freshState(await this.person()), ...(options.tags?.length ? { tags: options.tags } : {}) })
       if (options.imported) this.imports.note(id, options.imported)
       this.index.set(id, record.ids, record.title)
       // An id the services couldn't be asked about (offline) gets its metadata later
@@ -1087,7 +1103,7 @@ export class Library {
     const dir = paperDir(this.root, id)
     await Promise.all(["text.json", "text.md", "text.pdfium.json", "parse.json"].map((name) => rm(path.join(dir, name), { force: true })))
     await removeFigures(this.root, id)
-    await this.acquisitions.notePlaced(id, { by: route.startsWith("extension") ? "extension" : "you", route, sha256: sha }, { held: true })
+    await this.acquisitions.notePlaced(id, { by: route.startsWith("extension") ? "extension" : "person", route, sha256: sha }, { held: true })
     this.services.extension?.drop(this, id)
     this.pdfHashes?.set(sha, id)
     this.queueText(id, priority)
@@ -1181,7 +1197,7 @@ export class Library {
   // ---- Hearing about changes
 
   // Changes core makes on its own and changes other programs make under library/papers/
-  async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null, before: string) => void) {
+  async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null, before: string, own: boolean) => void) {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
@@ -1399,13 +1415,13 @@ export class Library {
                   const named = await pdfNamedOnPage(http, error.page, ctx.signal)
                   if (named && named !== route.url) pages.push({ kind: route.kind, name: `${route.name}:page`, url: named, checkTitle: true })
                 }
-                tried.push({ by: "owlit", ended: "no-copy", at: Date.now(), route: route.name })
+                tried.push({ by: "search", ended: "no-copy", at: Date.now(), route: route.name })
                 continue
               }
               const sha256 = await sha256Of(download)
               // Cancelled meanwhile (the user placed a PDF, or the paper moved or went to the trash): not
               // moved in, and nothing is noted
-              await this.acquisitions.notePlaced(id, { by: "owlit", route: route.name, sha256 }, { signal: ctx.signal, place: () => rename(download, dest) })
+              await this.acquisitions.notePlaced(id, { by: "search", route: route.name, sha256 }, { signal: ctx.signal, place: () => rename(download, dest) })
               this.pdfHashes?.set(sha256, id)
               this.queueText(id, ctx.task.priority)
               await this.announce([id])
@@ -1417,11 +1433,11 @@ export class Library {
           // No server answered at all (doi.org, Unpaywall, the routes): the machine is offline, which
           // passes. One dead host among ones that answered is just a route that failed.
           if (heard.asked && !heard.answered) {
-            if (await this.acquisitions.noteTried(id, { by: "owlit", ended: "offline", at: Date.now() }, { signal: ctx.signal })) await this.announce([id])
+            if (await this.acquisitions.noteTried(id, { by: "search", ended: "offline", at: Date.now() }, { signal: ctx.signal })) await this.announce([id])
             throw new HttpError(0, "", t`Couldn't reach any source of PDFs.`)
           }
           // A paper with nothing to look by still had its look
-          if (!tried.length) tried.push({ by: "owlit", ended: "no-copy", at: Date.now() })
+          if (!tried.length) tried.push({ by: "search", ended: "no-copy", at: Date.now() })
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
           // extension, or to the user's browser): only the user asking looks again there.
@@ -1516,7 +1532,7 @@ export class Library {
   private async touched(id: string) {
     const state = await readState(this.root, id)
     if (state && (state.starred || state.tags.length || state.status !== "unread" || Object.keys(state.overrides ?? {}).length)) return true
-    if ((await readHighlights(this.root, id)).some((h) => h.addedBy !== "agent")) return true
+    if ((await readHighlights(this.root, id)).some((h) => !isOwlit(h.addedBy))) return true
     return !!(await readNote(this.root, id))?.content.trim()
   }
 

@@ -73,7 +73,7 @@ describe("Memory", () => {
   it("leaves a line the user changed since alone", async () => {
     const { memory, changes } = setUp()
     const { changeId } = await memory.agentWrite({ op: "add", kind: "about", text: "I study proactive agents." }, chat("c1"))
-    await memory.put({ id: "m1", kind: "about", text: "I study proactive agents for ADHD." })
+    await memory.put({ id: "m1", kind: "about", text: "I study proactive agents for ADHD." }, window)
     await expect(memory.undo((await changes.get(changeId!))!, window, false)).rejects.toThrow(/changed after Owlit wrote it/)
   })
 
@@ -81,18 +81,36 @@ describe("Memory", () => {
     const { memory } = setUp()
     await expect(memory.agentWrite({ op: "replace", id: "m9", text: "x" }, chat("c1"))).rejects.toThrow(/no line m9/)
     await expect(memory.agentWrite({ op: "add", kind: "work", text: "x".repeat(400) }, chat("c1"))).rejects.toThrow(/one short sentence/)
-    for (let i = 0; i < MEMORY_MAX_LINES; i++) await memory.put({ kind: "about", text: `Fact ${i}` })
+    for (let i = 0; i < MEMORY_MAX_LINES; i++) await memory.put({ kind: "about", text: `Fact ${i}` }, window)
     await expect(memory.agentWrite({ op: "add", kind: "about", text: "One more" }, chat("c1"))).rejects.toThrow(/full/)
   })
 
   it("puts a removed line back where Settings undoes it, under its own id", async () => {
     const { memory } = setUp()
-    await memory.put({ kind: "work", text: "Short answers." })
-    await memory.put({ kind: "work", text: "No emoji." })
+    await memory.put({ kind: "work", text: "Short answers." }, window)
+    await memory.put({ kind: "work", text: "No emoji." }, window)
     const [first] = await memory.list()
-    await memory.remove(first.id)
-    await memory.put(first)
+    await memory.remove(first.id, window)
+    await memory.put(first, window)
     expect((await memory.list()).map((l) => l.id).sort()).toEqual(["m1", "m2"])
+  })
+
+  it("records the user's own lines from Settings: added, edited, removed, each with both sides", async () => {
+    const { memory, changes } = setUp()
+    await memory.put({ kind: "work", text: "Short answers." }, window)
+    await memory.put({ id: "m1", kind: "work", text: "Short answers, in English." }, window)
+    // The same line again changes nothing
+    await memory.put({ id: "m1", kind: "work", text: "Short answers, in English." }, window)
+    await memory.remove("m1", window)
+    const all = (await changes.list({ target: { kind: "memory" } })).reverse()
+    expect(all.map((c) => [c.action, c.target.part, c.actor, c.origin.via])).toEqual([
+      ["create", "m1", "p_1234abcd", "editor"],
+      ["update", "m1", "p_1234abcd", "editor"],
+      ["delete", "m1", "p_1234abcd", "editor"],
+    ])
+    expect(all[1]).toMatchObject({ before: { text: "Short answers." }, after: { text: "Short answers, in English." } })
+    expect(all[2]).toMatchObject({ before: { text: "Short answers, in English." } })
+    expect(all[2]!.after).toBeUndefined()
   })
 
   it("offers Claude Code's notes for this folder until each is kept or dropped", async () => {
@@ -109,7 +127,7 @@ describe("Memory", () => {
       { file: "docs.md", kind: "work", text: "Discuss docs in chat; edit only when asked" },
       { file: "p5.md", kind: "about", text: "I own P5 in Infera" },
     ])
-    const lines = await memory.decideClaudeNotes([{ file: "p5.md", kind: "about", text: "I own P5 in the Infera project" }], ["docs.md"])
+    const lines = await memory.decideClaudeNotes([{ file: "p5.md", kind: "about", text: "I own P5 in the Infera project" }], ["docs.md"], window)
     expect(lines).toMatchObject([{ id: "m1", kind: "about", text: "I own P5 in the Infera project" }])
     expect(await memory.claudeNotes()).toEqual([])
   })

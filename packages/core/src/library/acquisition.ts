@@ -78,7 +78,7 @@ export function forExtension(acquisition: Pick<Acquisition, "state" | "tried">):
   const { reason } = standing(acquisition.tried)
   if (!reason) return undefined
   if (acquisition.state === "finding") return waitsForUser(reason) || (reason.by === "extension" && reason.ended === "offline") ? reason : undefined
-  if (acquisition.state !== "no-pdf" || reason.by !== "owlit" || !OWLIT_ONLY.has(reason.ended)) return undefined
+  if (acquisition.state !== "no-pdf" || reason.by !== "search" || !OWLIT_ONLY.has(reason.ended)) return undefined
   const sincePdf = acquisition.tried.slice(acquisition.tried.findLastIndex((t) => t.ended === "pdf") + 1)
   return sincePdf.some((t) => t.by === "extension") ? undefined : reason
 }
@@ -86,7 +86,7 @@ export function forExtension(acquisition: Pick<Acquisition, "state" | "tried">):
 const OWLIT_ONLY: ReadonlySet<PdfTry["ended"]> = new Set(["no-copy", "check", "sign-in"])
 
 const saysLess = (later: PdfTry, earlier: PdfTry) =>
-  later.by === "owlit" && ((later.ended === "no-copy" && earlier.ended !== "no-copy") || ((later.ended === "check" || later.ended === "sign-in") && earlier.by !== "owlit"))
+  later.by === "search" && ((later.ended === "no-copy" && earlier.ended !== "no-copy") || ((later.ended === "check" || later.ended === "sign-in") && earlier.by !== "search"))
 
 // When owlit's back-off look is next due for a paper without its PDF: from its newest look, after
 // LOOK_AGAIN_DAYS by how many found nothing. undefined while it isn't spaced out (finding). A record that
@@ -95,7 +95,7 @@ const saysLess = (later: PdfTry, earlier: PdfTry) =>
 export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "looks">) {
   if (acquisition.state === "have-it") return acquisition.tried.at(-1)?.at ?? 0
   if (acquisition.state !== "no-pdf") return undefined
-  const last = acquisition.tried.findLast((t) => t.by === "owlit")?.at ?? acquisition.tried.at(-1)?.at ?? 0
+  const last = acquisition.tried.findLast((t) => t.by === "search")?.at ?? acquisition.tried.at(-1)?.at ?? 0
   const days = LOOK_AGAIN_DAYS[Math.min(Math.max(acquisition.looks ?? 1, 1), LOOK_AGAIN_DAYS.length) - 1]
   return last + days * DAY_MS
 }
@@ -125,7 +125,7 @@ export const readAcquisition = (root: string, id: string) =>
 
 const write = (root: string, id: string, acquisition: Acquisition) => writeJsonAtomic(acquisitionFile(root, id), acquisition, { parents: false })
 
-// A PDF in place: how it came. by "you" for a file the user dropped or chose; route names the way
+// A PDF in place: how it came. by "person" for a file the user dropped or chose; route names the way
 // ("dropped", "arxiv", "extension:journals.sagepub.com")
 export interface Placed {
   by: PdfTry["by"]

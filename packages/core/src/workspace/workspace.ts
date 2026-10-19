@@ -7,12 +7,12 @@ import { Docs } from "../docs/docs.ts"
 import type { Host } from "../host.ts"
 import { Http } from "../net/http.ts"
 import { ChangeLog } from "../changes/log.ts"
-import { Recorder } from "../changes/record.ts"
-import { Members } from "../changes/roster.ts"
+import { newWriteId, Recorder } from "../changes/record.ts"
+import { Members } from "../changes/members.ts"
 import { SettingsStore } from "../settings.ts"
 import { Memory } from "../memory/memory.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
-import { RpcFailure } from "../rpc/index.ts"
+import { RpcFailure, WINDOW } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Threads, type ThreadsServices } from "../threads/threads.ts"
@@ -45,6 +45,8 @@ export interface WorkspaceOptions {
   profile?: () => Promise<ProfileSettings>
   // An entry was added to the change log
   changeAdded?: (notification: Notifications["changes.added"]) => void
+  // The initiative rule that queued a task, if one did
+  ruleOf?: (taskId: string) => string | undefined
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
@@ -86,14 +88,32 @@ export class Workspace {
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
     this.changes = new ChangeLog(path.join(root, OWLIT_DIR))
-    this.recorder = new Recorder(this.changes, { profile, added: options.changeAdded })
+    this.recorder = new Recorder(this.changes, {
+      profile,
+      added: options.changeAdded,
+      // A run ("<kind>:<task id>") reports in its task's session
+      runOf: (run) => {
+        const taskId = run.slice(run.indexOf(":") + 1)
+        const ruleId = options.ruleOf?.(taskId)
+        return { chatId: this.tasks.get(taskId)?.chatId, ...(ruleId ? { ruleId } : {}) }
+      },
+    })
     this.members = new Members(path.join(root, OWLIT_DIR))
-    // Keep mine in a conflict: recorded as outside owlit's, with the other program's text as the before,
-    // so the doc's Versions can put it back
-    this.docs.overwriting = (rel, theirs, mine) => this.recorder.doc({ kind: "watcher" }, rel, theirs, mine)
+    // The window's saves; a doc that followed its first line to a new name is recorded as leaving the old
+    // one and arriving at the new
+    this.docs.saved = async (rel, before, after, at) => {
+      await this.recorder.saved(WINDOW, rel, before, after)
+      if (at === rel) return
+      const writeId = newWriteId()
+      await this.recorder.doc(WINDOW, rel, after, null, { origin: { writeId } }, { quiet: true })
+      await this.recorder.doc(WINDOW, at, null, after, { origin: { writeId } }, { quiet: true })
+    }
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged)
-    this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
+    this.library = new Library(root, dataDir, {
+      ...(options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) }),
+      person: () => this.recorder.actorOf(WINDOW),
+    })
     this.search = new SearchIndex(root, dataDir, this.library)
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said

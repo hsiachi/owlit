@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
-import { until } from "../test-util.ts"
+import { knownProfile, ME, until } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -17,7 +17,7 @@ async function setup(files: Record<string, string>) {
     mkdirSync(path.dirname(path.join(root, rel)), { recursive: true })
     writeFileSync(path.join(root, rel), content)
   }
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: knownProfile(path.join(base, "userData")) })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -35,7 +35,7 @@ const comment = (id: string, createdAt = 1) => ({
   quote: "the words",
   prefix: "a ",
   suffix: " b",
-  entries: [{ id: `${id}-e`, by: "owlit", agent: "Claude Code", text: `comment ${id}`, at: createdAt }],
+  entries: [{ id: `${id}-e`, by: ME, agent: "Claude Code", text: `comment ${id}`, at: createdAt }],
   createdAt,
 })
 
@@ -100,26 +100,30 @@ describe("comments", () => {
   it("replaces a comment as it reads now: a reply, then resolved", async () => {
     const { call } = await setup({ "a.md": "x" })
     await call("comments.add", { path: "a.md", comment: comment("n1") })
-    const replied = { ...comment("n1"), entries: [...comment("n1").entries, { id: "r1", by: "you", text: "ok", at: 2 }] }
+    const replied = { ...comment("n1"), entries: [...comment("n1").entries, { id: "r1", by: ME, text: "ok", at: 2 }] }
     expect(await call("comments.put", { path: "a.md", comment: replied })).toEqual(comment("n1"))
     await call("comments.put", { path: "a.md", comment: { ...replied, resolvedAt: 3 } })
     expect((await call("comments.all"))["a.md"]).toEqual([{ ...replied, resolvedAt: 3 }])
   })
 
-  it("reads the notes agents left before comments as Owlit's comments, from the old folder", async () => {
-    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-comments-")))
-    const root = path.join(base, "ws")
-    mkdirSync(path.join(root, ".owlit/docs/notes/w"), { recursive: true })
-    writeFileSync(path.join(root, "w.md"), "x")
-    const old = { id: "n1", quote: "q", prefix: "", suffix: "", text: "an old note", by: "Codex", chatId: "c1", createdAt: 5 }
-    writeFileSync(path.join(root, ".owlit/docs/notes/w.md.jsonl"), JSON.stringify(old) + "\n")
-    const core = new Core({ userDataDir: path.join(base, "userData") })
-    cores.push(core)
-    await core.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
-    const response: any = await core.handle({ jsonrpc: "2.0", id: 2, method: "comments.all" })
-    expect(response.result).toEqual({
-      "w.md": [{ id: "n1", quote: "q", prefix: "", suffix: "", createdAt: 5, entries: [{ id: "n1", by: "owlit", agent: "Codex", text: "an old note", at: 5, chatId: "c1" }] }],
-    })
-    expect(existsSync(path.join(root, ".owlit/docs/comments/w.md.jsonl"))).toBe(true)
+  it("signs each entry by who wrote it and records the window's comments, replies, resolves and removals", async () => {
+    const { call } = await setup({ "a.md": "a the words b" })
+    // A client can't sign for anyone: whatever it says, the window is the person
+    await call("comments.add", { path: "a.md", comment: { ...comment("n1"), entries: [{ ...comment("n1").entries[0], by: "o_1234abcd" }] } })
+    const [added] = (await call("comments.all"))["a.md"]
+    expect(added.entries[0].by).toBe(ME)
+    await call("comments.put", { path: "a.md", comment: { ...added, entries: [...added.entries, { id: "r1", text: "ok", at: 2 }] } })
+    await call("comments.put", { path: "a.md", comment: { ...(await call("comments.all"))["a.md"][0], resolvedAt: 3 } })
+    await call("comments.remove", { path: "a.md", id: "n1" })
+    const entries = (await call("changes.list", { target: { kind: "comment", path: "a.md" } })).reverse()
+    expect(entries.map((c: any) => [c.action, c.target.part, c.actor, c.origin.via])).toEqual([
+      ["create", "n1", ME, "editor"],
+      ["create", "n1/r1", ME, "editor"],
+      ["update", "n1", ME, "editor"],
+      ["delete", "n1", ME, "editor"],
+    ])
+    expect(entries[1].after).toMatchObject({ id: "r1", by: ME, text: "ok" })
+    expect(entries[2]).toMatchObject({ before: { id: "n1" }, after: { id: "n1", resolvedAt: 3 } })
+    expect(entries[2].after.entries).toBeUndefined()
   })
 })

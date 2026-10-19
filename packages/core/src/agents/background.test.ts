@@ -4,6 +4,7 @@ import path from "node:path"
 import type { SessionUpdate } from "@owlit/protocol"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import { testSearchPath } from "../test-util.ts"
 import type { Background } from "./background.ts"
 
@@ -21,8 +22,9 @@ async function setup() {
   writeFileSync(path.join(root, "story.md"), "# Story\n\nThe first claim.\n")
   const core = new Core({ userDataDir: path.join(base, "userData"), searchPath: testSearchPath })
   cores.push(core)
-  const call = async (method: string, params?: unknown): Promise<any> => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  // The window by default; owlit-mcp on the socket for an agent's call
+  const call = async (method: string, params?: unknown, caller?: Caller): Promise<any> => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
@@ -32,12 +34,13 @@ async function setup() {
   return { root, call, background, agent: agent.id as string }
 }
 
-const comment = (by: "owlit" | "you", id = "c1") => ({
+// A comment as a client sends it, claiming an author core doesn't take from it
+const comment = (id = "c1") => ({
   id,
   quote: "The first claim.",
   prefix: "",
   suffix: "",
-  entries: [{ id: `${id}-e`, by, text: "A word on it.", at: 1 }],
+  entries: [{ id: `${id}-e`, by: "p_1234abcd", text: "A word on it.", at: 1 }],
   createdAt: 1,
 })
 
@@ -48,17 +51,17 @@ describe("what Owlit may write without being asked", () => {
     expect(existsSync(path.join(root, "notes.md"))).toBe(false)
   })
 
-  it("an agent adds Owlit's own comments only, and never over one that is there", async () => {
+  it("an agent's comments are signed as Owlit's whatever it says, and never go over one that is there", async () => {
     const { call } = await setup()
-    await call("comments.add", { path: "story.md", comment: comment("owlit"), agent: {} })
-    await expect(call("comments.add", { path: "story.md", comment: comment("you", "c2"), agent: {} })).rejects.toMatchObject({ message: "An agent leaves only Owlit's own comments." })
+    const mcp: Caller = { kind: "socket", chatId: "chat-1" }
+    await call("comments.add", { path: "story.md", comment: comment("c1"), agent: { chatId: "chat-1" } }, mcp)
     // The user's own comment, then an agent trying to write over it
-    await call("comments.add", { path: "story.md", comment: comment("you", "c3") })
-    await expect(call("comments.add", { path: "story.md", comment: { ...comment("owlit", "c3") }, agent: {} })).rejects.toMatchObject({ message: "That comment is already there; an agent adds new ones." })
+    await call("comments.add", { path: "story.md", comment: comment("c3") })
+    await expect(call("comments.add", { path: "story.md", comment: comment("c3"), agent: { chatId: "chat-1" } }, mcp)).rejects.toMatchObject({ message: "That comment is already there; an agent adds new ones." })
     const all = await call("comments.all")
-    expect(Object.values(all).flat().map((c: any) => [c.id, c.entries[0].by])).toEqual([
-      ["c1", "owlit"],
-      ["c3", "you"],
+    expect(Object.values(all).flat().map((c: any) => [c.id, c.entries[0].by.slice(0, 2)])).toEqual([
+      ["c1", "o_"],
+      ["c3", "p_"],
     ])
   })
 })

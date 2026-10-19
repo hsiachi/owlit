@@ -121,10 +121,14 @@ export class Turns {
   // The turn each chat is running, from the moment it is asked for (starting an agent and loading its
   // session take a while, and a Stop or a second send can come meanwhile)
   private turns = new Map<string, Turn>()
-  // Files a running (or just finished) turn's tool calls edit, move or delete: path → chat, and until when
-  private claims = new Map<string, { chatId: string; until: number }>()
-  // Chats whose Co-author turn is running (or just finished): chat → until when
-  private coauthors = new Map<string, number>()
+  // Files tool calls edit, move or delete, by path: the latest call to name each, until a moment after it
+  // completed (the watcher hears about its writes a little later)
+  private claims = new Map<string, Claim>()
+  // Tool calls whose permission the user answered with an allow
+  private accepted = new Set<string>()
+  // Chats whose Co-author turn runs, until when (a moment after it ends, as for claims): a change nobody
+  // claimed meanwhile came while it worked
+  private coauthoring = new Map<string, number>()
   // Each chat's last reply, while it is the last and its turn ended normally: what the agent sends on that
   // session with no turn running is added to it (see reopen)
   private ended = new Map<string, Turn>()
@@ -173,7 +177,7 @@ export class Turns {
       if (turn.late) this.lateTick(turn, update)
     }
     turn.emit = emit
-    if (turn.role === "coauthor") this.coauthors.set(req.chatId, Infinity)
+    if (turn.role === "coauthor") this.coauthoring.set(req.chatId, Infinity)
     const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string) => {
       // An agent of the agent's that hadn't finished won't go on once the answer has ended
       for (const p of turn.message.parts) {
@@ -267,6 +271,12 @@ export class Turns {
     for (const live of this.live.values()) {
       const pending = live.turn?.chatId === chatId ? live.turn.permissions.get(requestId) : undefined
       if (!pending) continue
+      // What the agent writes for this call next is the user's choice (Apply): "Owlit, taken by you"
+      const kind = pending.options.find((o) => o.optionId === optionId)?.kind
+      if (kind === "allow_once" || kind === "allow_always") {
+        this.accepted.add(pending.toolCallId)
+        for (const claim of this.claims.values()) if (claim.toolCallId === pending.toolCallId) claim.accepted = true
+      }
       pending.resolve({ outcome: { outcome: "selected", optionId } })
       return null
     }
@@ -286,19 +296,35 @@ export class Turns {
     for (const chatId of [...this.turns.keys()]) void this.cancel(chatId)
     this.live.clear()
     this.claims.clear()
-    this.coauthors.clear()
+    this.accepted.clear()
+    this.coauthoring.clear()
     this.ended.clear()
   }
 
-  // The chat whose agent is changing this file, if one is (a change on disk is then the agent's). Besides
-  // the files its tool calls name, a Co-author's turn owns any change in the workspace while it runs: its
-  // shell commands write files no tool call names, and only a Co-author may (the other roles' agents
-  // can't write the workspace from a shell). With two Co-authors at work nobody can tell whose it is.
-  claimant(rel: string) {
+  // The live claim on a file: the tool call of a chat's agent that is changing it, if one is
+  claimOf(rel: string): Claim | undefined {
     const claim = this.claims.get(rel)
-    if (claim && claim.until >= Date.now()) return claim.chatId
-    const coauthors = [...this.coauthors.entries()].filter(([, until]) => until >= Date.now())
-    return coauthors.length === 1 ? coauthors[0][0] : undefined
+    return claim && claim.until >= Date.now() ? claim : undefined
+  }
+
+  // The chat whose Co-author turn is running (or just ended), when exactly one is: a change on disk nobody
+  // claimed came while it worked (its shell commands write files no tool call names), which says when,
+  // not who
+  coauthorAtWork(): string | undefined {
+    const at = [...this.coauthoring].filter(([, until]) => until >= Date.now())
+    return at.length === 1 ? at[0]![0] : undefined
+  }
+
+  // The call to owlit's own tools a chat's agent is making now, when exactly one is running: the tool
+  // call an owlit-mcp request is for, when the engine doesn't name it
+  owlitCallOf(chatId: string): string | undefined {
+    for (const live of this.live.values()) {
+      const turn = live.turn
+      if (turn?.chatId !== chatId) continue
+      const running = turn.message.parts.filter((p) => p.type === "tool_call" && live.owlitCalls.has(p.toolCallId) && (p.status === "pending" || p.status === "in_progress"))
+      return running.length === 1 && running[0]!.type === "tool_call" ? running[0]!.toolCallId : undefined
+    }
+    return undefined
   }
 
   // Whether the agent of a chat may do this through owlit's own tools, by the role of its running turn;
@@ -450,7 +476,10 @@ export class Turns {
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
         const by = agentId ? { agentId } : {}
-        emit({ type: "tool_call", toolCallId, title: title ?? t({ message: "Tool", comment: "a step in a chat whose tool the agent did not name" }), kind: toKind(toolCall.kind), status: "pending", ...toolContent(toolCall, root), ...by })
+        const announce: SessionUpdate = { type: "tool_call", toolCallId, title: title ?? t({ message: "Tool", comment: "a step in a chat whose tool the agent did not name" }), kind: toKind(toolCall.kind), status: "pending", ...toolContent(toolCall, root), ...by }
+        emit(announce)
+        // Its file is claimed now, so an Apply marks the claim whatever order the agent's updates come in
+        this.claim(turn, announce)
         emit({
           type: "permission_request",
           requestId,
@@ -502,7 +531,7 @@ export class Turns {
       },
       readTextFile: (r) => asAcpError(this.options.fs.read(r.path, r.line ?? undefined, r.limit ?? undefined)),
       writeTextFile: async (r) => {
-        await asAcpError(this.options.fs.write(r.path, r.content, chatId))
+        await asAcpError(this.options.fs.write(r.path, r.content, { chatId }))
         return {}
       },
     }
@@ -561,7 +590,7 @@ export class Turns {
     turn.late = { calls: new Set(), release: live.proc.hold() }
     live.turn = turn
     this.turns.set(turn.chatId, turn)
-    if (turn.role === "coauthor") this.coauthors.set(turn.chatId, Infinity)
+    if (turn.role === "coauthor") this.coauthoring.set(turn.chatId, Infinity)
     this.options.lateReply?.(turn.chatId, turn.message)
     this.lateTick(turn)
   }
@@ -617,20 +646,25 @@ export class Turns {
     return late.ending
   }
 
-  // A turn's hold on the files it changed ends a moment after the turn (the watcher hears about the last
-  // writes a little later)
+  // A turn's tool calls that never said they completed let go of their files a moment after the turn, and
+  // a Co-author's turn stops being at work
   private letGo(chatId: string) {
     for (const claim of this.claims.values()) if (claim.chatId === chatId && claim.until === Infinity) claim.until = Date.now() + CLAIM_AFTER_MS
-    if (this.coauthors.get(chatId) === Infinity) this.coauthors.set(chatId, Date.now() + CLAIM_AFTER_MS)
+    if (this.coauthoring.get(chatId) === Infinity) this.coauthoring.set(chatId, Date.now() + CLAIM_AFTER_MS)
   }
 
-  // A tool call that edits, moves or deletes workspace files claims them for this chat while it runs
+  // A tool call that edits, moves or deletes workspace files claims them while it runs, and until a moment
+  // after it completes
   private claim(turn: Turn, update: SessionUpdate) {
     if (update.type !== "tool_call" && update.type !== "tool_call_update") return
     const part = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === update.toolCallId)
     if (part?.type !== "tool_call" || !["edit", "delete", "move"].includes(part.kind)) return
+    const until = part.status === "completed" || part.status === "failed" ? Date.now() + CLAIM_AFTER_MS : Infinity
+    const toolCallId = part.toolCallId
+    for (const claim of this.claims.values()) if (claim.toolCallId === toolCallId && claim.until === Infinity) claim.until = until
     for (const p of [...(part.locations ?? []).map((l) => l.path), ...(part.diff ? [part.diff.path] : [])]) {
-      if (!p.startsWith("/")) this.claims.set(p, { chatId: turn.chatId, until: Infinity })
+      if (p.startsWith("/") || this.claims.get(p)?.toolCallId === toolCallId) continue
+      this.claims.set(p, { chatId: turn.chatId, toolCallId, ...(this.accepted.has(toolCallId) ? { accepted: true } : {}), until })
     }
   }
 
@@ -679,6 +713,15 @@ async function quiet(turn: Turn) {
       last = turn.heard
     }
   }
+}
+
+// A tool call's claim on the files it names, while it runs (until Infinity) and a moment after
+export interface Claim {
+  chatId: string
+  toolCallId: string
+  // The user allowed this call's edit (Apply)
+  accepted?: boolean
+  until: number
 }
 
 const CLAIM_AFTER_MS = 5000

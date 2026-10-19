@@ -1,10 +1,11 @@
 import { t } from "@lingui/core/macro"
-import { asComment, editStats, RpcErrorCode, type Change, type DocComment } from "@owlit/protocol"
+import { editStats, RpcErrorCode, type Change, type ChangeOrigin, type DocComment } from "@owlit/protocol"
 import { newWriteId } from "../changes/record.ts"
 import { sha1 } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { UiBridge } from "../ui/bridge.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import type { Claim } from "./turns.ts"
 
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[agent fs] ${line}`)
 
@@ -13,6 +14,8 @@ interface AgentFsOptions {
   ui: UiBridge
   // An undo added or removed a comment; windows show it
   commentsChanged: (change: { path: string; changed?: DocComment; removed?: string }) => void
+  // The tool call claiming a file now (agents/turns.ts)
+  claimOf?: (rel: string) => Claim | undefined
 }
 
 // What agents read and write (ACP fs/read_text_file and fs/write_text_file). A doc open in a window is
@@ -21,8 +24,6 @@ interface AgentFsOptions {
 // as it was, so it can be taken back.
 export class AgentFs {
   private readonly options: AgentFsOptions
-  // Paths this class is writing right now, whose change on disk is already recorded
-  private writing = new Set<string>()
 
   constructor(options: AgentFsOptions) {
     this.options = options
@@ -41,19 +42,22 @@ export class AgentFs {
     return { content: lines.slice(start, limit === undefined ? undefined : start + limit).join("\n") }
   }
 
-  // An agent's ACP write, for the chat it runs in (or the run a review is part of)
-  async write(file: string, content: string, chatId?: string) {
+  // An agent's ACP write, for the chat it runs in, or a write of Owlit's own for a run ("<kind>:<task id>").
+  // The chat's tool call that named the file says which call wrote it, and whether the user chose it (Apply).
+  async write(file: string, content: string, { chatId, run }: { chatId?: string; run?: string } = {}) {
     log(`write ${file} (${content.length} characters)`)
     const ws = this.workspace()
     const rel = ws.docs.resolve(file)
-    const caller: Caller = { kind: "owlit", ...(chatId ? { chatId } : {}) }
+    const caller: Caller = { kind: "owlit", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+    const claim = chatId ? this.options.claimOf?.(rel) : undefined
+    const origin: Partial<ChangeOrigin> = claim && claim.chatId === chatId ? { via: claim.accepted ? "apply" : "tool", toolCallId: claim.toolCallId } : {}
     // A paper's note is the user's, like a doc: the agent may change it when asked (the edit is shown in
     // the note first), and it goes through the library so open windows take it in
     const notePaper = ws.library.noteOf(rel)
     if (notePaper) {
       const before = (await ws.library.read(notePaper, "note")).text
-      const change = await ws.recorder.doc(caller, rel, before || null, content, {}, { quiet: true })
-      await this.writingTo(rel, () => ws.library.writeNoteFor(notePaper, content))
+      const change = await ws.recorder.doc(caller, rel, before || null, content, { origin }, { quiet: true })
+      await ws.library.writeNoteFor(notePaper, content)
       ws.recorder.say(change)
       return
     }
@@ -61,7 +65,7 @@ export class AgentFs {
     const holder = this.options.ui.holder(rel)
     const before = (await this.fromEditor(rel)) ?? (await ws.docs.readDisk(rel))
     // Said only once it reaches the disk: an editor that takes it shows the edit itself
-    const change = await ws.recorder.doc(caller, rel, before, content, {}, { quiet: true })
+    const change = await ws.recorder.doc(caller, rel, before, content, { origin }, { quiet: true })
     if (holder) {
       const applied = await this.options.ui
         .request(holder, "fs.write", { path: rel, content, changeId: change.id })
@@ -70,7 +74,7 @@ export class AgentFs {
       log(applied ? `  through the editor in window ${holder.slice(0, 8)}` : "  the window didn't take it; writing to disk")
       if (applied) return
     }
-    await this.writingTo(rel, () => ws.docs.writeTold(rel, content))
+    await ws.docs.writeTold(rel, content)
     ws.recorder.say(change)
   }
 
@@ -126,14 +130,6 @@ export class AgentFs {
     return this.workspace().recorder.doc(caller, rel, before, after, { origin: { writeId } })
   }
 
-  // An agent that writes the disk itself (Claude Code does, not through ACP's fs): its change, seen by the
-  // watcher while one of its tool calls names the file, is recorded as its chat's
-  async recordDirect(rel: string, before: string | null, after: string | null, chatId: string) {
-    if (this.writing.has(rel)) return
-    log(`${rel} changed by the agent of chat ${chatId.slice(0, 8)}`)
-    await this.workspace().recorder.doc({ kind: "watcher", chatId }, rel, before, after)
-  }
-
   // How much a run of changes to one doc changed it: from the text before the first to the text after
   // the last, which the doc's next entry holds when there is one since, and the file itself otherwise.
   // Agents report their edits in pieces, if at all; these texts are what happened.
@@ -167,12 +163,12 @@ export class AgentFs {
     if (target.kind === "comment") {
       if (change.action === "create") {
         // Taking back Owlit's comment takes the replies under it too; the redo brings them back
-        const removed = await ws.docs.removeComment(target.path, asComment(change.after as DocComment).id)
+        const removed = await ws.docs.removeComment(target.path, (change.after as DocComment).id)
         if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, t`That comment is already gone.`, { path: target.path })
         this.options.commentsChanged({ path: target.path, removed: removed.id })
         return ws.recorder.record(caller, { action: "delete", target, before: removed, undoes })
       }
-      const comment = asComment(change.before as DocComment)
+      const comment = change.before as DocComment
       await ws.docs.addComment(target.path, comment)
       this.options.commentsChanged({ path: target.path, changed: comment })
       return ws.recorder.record(caller, { action: "create", target, after: comment, undoes })
@@ -196,7 +192,7 @@ export class AgentFs {
         throw new RpcFailure(RpcErrorCode.Conflict, t`The note changed after the agent's edit, so owlit left it as it is.`, { path: target.path })
       }
       const undo = await ws.recorder.doc(caller, target.path, now || null, before, { undoes })
-      await this.writingTo(target.path, () => ws.library.writeNoteFor(notePaper, before ?? ""))
+      await ws.library.writeNoteFor(notePaper, before ?? "")
       return undo
     }
 
@@ -207,18 +203,8 @@ export class AgentFs {
       throw new RpcFailure(RpcErrorCode.Conflict, t`${name} changed after the agent's edit, so owlit left it as it is.`, { path: target.path })
     }
     const undo = await ws.recorder.doc(caller, target.path, now, before, { undoes })
-    await this.writingTo(target.path, () => (before !== null ? ws.docs.writeTold(target.path, before) : ws.docs.removeTold(target.path)))
+    await (before !== null ? ws.docs.writeTold(target.path, before) : ws.docs.removeTold(target.path))
     return undo
-  }
-
-  // A write whose change on disk is already recorded, so the watcher's report of it isn't a second one
-  private async writingTo(rel: string, write: () => Promise<unknown>) {
-    this.writing.add(rel)
-    try {
-      await write()
-    } finally {
-      this.writing.delete(rel)
-    }
   }
 
   private workspace() {

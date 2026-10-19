@@ -41,7 +41,7 @@ async function setup() {
 describe("agent fs", () => {
   it("keeps the file as it was, records the write as Owlit's, and tells windows", async () => {
     const { core, root, of, added, log } = await setup()
-    await core.fs.write(path.join(root, "a.md"), "agent text", "chat-1")
+    await core.fs.write(path.join(root, "a.md"), "agent text", { chatId: "chat-1" })
     const [entry] = await log("a.md")
     await core.dispose()
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("agent text")
@@ -53,8 +53,8 @@ describe("agent fs", () => {
 
   it("says how much a reply's writes to a file changed it, from before the first to after the last", async () => {
     const { core, root, call, added } = await setup()
-    await core.fs.write(path.join(root, "a.md"), "on disk and more", "chat-1")
-    await core.fs.write(path.join(root, "a.md"), "on paper and more words", "chat-1")
+    await core.fs.write(path.join(root, "a.md"), "on disk and more", { chatId: "chat-1" })
+    await core.fs.write(path.join(root, "a.md"), "on paper and more words", { chatId: "chat-1" })
     const [first, second] = added().map((c) => c.id)
     // "on disk" → "on paper and more words": the net change, not the two writes added up
     expect(await call("changes.stats", { ids: [first, second] })).toEqual({ unit: "words", added: 4, removed: 1, rewritten: false })
@@ -111,7 +111,7 @@ describe("agent fs", () => {
     })
     await call("ui.setOpenDocs", { clientId: "w1", paths: ["a.md"] })
     expect(await core.fs.read(path.join(root, "a.md"))).toEqual({ content: "typed in the editor" })
-    await core.fs.write(path.join(root, "a.md"), "agent text", "c")
+    await core.fs.write(path.join(root, "a.md"), "agent text", { chatId: "c" })
     expect(asked.map((r) => r.method)).toEqual(["fs.read", "fs.read", "fs.write"])
     expect(asked[2]).toMatchObject({ clientId: "w1", params: { path: "a.md", content: "agent text" } })
     // The window applied it: core left the disk alone and offered no Undo of its own
@@ -187,7 +187,7 @@ describe("agent fs", () => {
     await call("library.add", { paper: { id, title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
     await call("library.setNote", { paperId: id, content: "Mine. Long and repeated." })
     const file = path.join(root, `library/papers/${id}/note.md`)
-    await core.fs.write(file, "Mine.", "chat-1")
+    await core.fs.write(file, "Mine.", { chatId: "chat-1" })
     expect(readFileSync(file, "utf8")).toBe("Mine.")
     // The window's own save is not news; the agent's edit is
     expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ paperId: id, content: "Mine." }) }])
@@ -207,7 +207,7 @@ describe("agent fs", () => {
     await call("library.add", { paper: { id, title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
     await call("library.setNote", { paperId: id, content: "Mine. Long and repeated." })
     // Claude Code edits files itself; owlit only sees its tool call claim the path
-    ;(core as any).turns.claims.set(rel, { chatId: "chat-2", until: Infinity })
+    ;(core as any).turns.claims.set(rel, { chatId: "chat-2", toolCallId: "t2", until: Infinity })
     // A watcher only just started can miss a write (FSEvents on macOS, on a busy machine): the agent
     // writes again until core hears it. The same content is news only once.
     await vi.waitFor(
@@ -220,12 +220,12 @@ describe("agent fs", () => {
     expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ content: "Mine." }) }])
     // Recorded just after windows hear of it
     const entry = await until(() => added()[0], { what: "the change in the log" })
-    expect(entry).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { kind: "doc", path: rel }, origin: { via: "watcher", chatId: "chat-2" } })
+    expect(entry).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { kind: "doc", path: rel }, origin: { via: "watcher", chatId: "chat-2", toolCallId: "t2" } })
     await call("changes.undo", { id: entry.id })
     expect(readFileSync(path.join(root, rel), "utf8")).toBe("Mine. Long and repeated.")
     // The undo is owlit's own write: not recorded again as the agent's. An agent's write to another file,
     // heard the same way after it, is the sentinel: once it is in, the undo's turn has passed.
-    ;(core as any).turns.claims.set("a.md", { chatId: "chat-3", until: Infinity })
+    ;(core as any).turns.claims.set("a.md", { chatId: "chat-3", toolCallId: "t3", until: Infinity })
     const owlits = () => added().filter((c) => c.actor.startsWith("o_"))
     await eventually(() => {
       if (!owlits().some((c) => c.target.path === "a.md")) writeFileSync(path.join(root, "a.md"), "the agent's sentinel")

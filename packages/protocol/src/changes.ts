@@ -12,7 +12,9 @@ export interface ChangeTarget {
   kind: "doc" | "comment" | "paper" | "thread" | "memory"
   // The doc's path, the comment's doc path, the paper's id, the thread's id, "memory"
   path: string
-  // The piece inside it: a comment's id, a memory line's id; absent when the whole thing changed
+  // The piece inside it: a comment's id (<comment>/<entry> for one entry), a paper's field (status,
+  // overrides.title…), a thread item (row:…, cell:…, memo:…, title), a memory line's id; absent when the
+  // whole thing was created, deleted or changed
   part?: string
 }
 

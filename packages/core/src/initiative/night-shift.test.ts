@@ -167,7 +167,7 @@ describe("The night shift", () => {
   })
 
   it("looks again at what leans on a paper read in full: thread rows from its abstract, Owlit's comments citing it", async () => {
-    const owlitComment = (id: string, text: string): DocComment => ({ id, quote: "A claim.", prefix: "", suffix: "", createdAt: at, entries: [{ id: `${id}e`, by: "owlit", text, at }] })
+    const owlitComment = (id: string, text: string): DocComment => ({ id, quote: "A claim.", prefix: "", suffix: "", createdAt: at, entries: [{ id: `${id}e`, by: "o_1", text, at }] })
     const { ws, queued } = fakeWorkspace("away", {
       rows: [
         { thread: "t1", fromAbstract: true },

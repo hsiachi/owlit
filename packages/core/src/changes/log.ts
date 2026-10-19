@@ -33,6 +33,18 @@ export class ChangeLog {
     return change
   }
 
+  // Rewrites one entry in place (a typing session folding in another save): entries are append-only by
+  // id, and this is the one change made to a line already written
+  replace(change: Change) {
+    return this.indexTurn.run(async () => {
+      const all = await this.index()
+      const at = all.findLastIndex((c) => c.id === change.id)
+      if (at < 0) return
+      all[at] = change
+      await writeFileAtomic(path.join(this.dir, "index.jsonl"), all.map((c) => JSON.stringify(c) + "\n").join(""))
+    })
+  }
+
   async get(id: string): Promise<Change | null> {
     return (await this.index()).findLast((c) => c.id === id) ?? null
   }

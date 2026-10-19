@@ -195,7 +195,7 @@ export function threadsByPaper(threads: Record<string, Thread>, papers: Record<s
 export function threadHolding(threads: Record<string, Thread>, paperId: string): Thread | undefined {
   return Object.values(threads)
     .sort((a, b) => b.updatedAt - a.updatedAt)
-    .find((c) => c.rows.some((r) => r.id === paperId) && !c.yours.removed[`row:${paperId}`])
+    .find((c) => c.rows.some((r) => r.id === paperId) && !c.overrides.removed[`row:${paperId}`])
 }
 
 // A grouping's groups as the table shows them, in order with each subgroup after its parent: the papers

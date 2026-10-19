@@ -1,13 +1,12 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
-import type { Change, PersonId, Roster } from "@owlit/protocol"
+import type { Change } from "@owlit/protocol"
 import { RowList, revealOnHover, rowClass } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useChatStore } from "@/features/chat/store"
-import { useSettings } from "@/features/settings/store"
-import { actorLabel } from "@/lib/actors"
+import { nameOf } from "@/lib/actors"
 import { dateTime } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
 import { undoChange } from "@/lib/changes"
@@ -20,10 +19,7 @@ import { capital } from "@/lib/words"
 // text from before that change even if the doc changed since; the toast offers Undo.
 export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFile; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [changes, setChanges] = useState<Change[] | null>(null)
-  const [roster, setRoster] = useState<Roster>({})
   const chats = useChatStore((s) => s.chats)
-  const myId = useSettings((s) => s.view?.profile.id)
-  const me: PersonId | undefined = myId ? `p_${myId}` : undefined
   const name = displayName(file.path)
 
   useEffect(() => {
@@ -34,10 +30,6 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
       // A change that created the doc has no text from before; restoring it would only delete the doc
       .then((all) => live && setChanges(all.filter((c) => c.action !== "create")))
       .catch(() => live && setChanges([]))
-    rpc.members
-      .get()
-      .then((members) => live && setRoster(members))
-      .catch(() => undefined)
     return () => {
       live = false
     }
@@ -67,7 +59,7 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
               const chatId = c.origin.chatId
               const when = dateTime(c.at)
               const title = chatId ? chats[chatId]?.title : undefined
-              const who = actorLabel(c.actor, me, roster)
+              const who = nameOf(c.actor)
               return (
                 <li key={c.id} className={cn("group/row flex h-11 items-center gap-3 pr-1 hover:bg-accent", rowClass)}>
                   <p className="flex min-w-0 flex-1 items-baseline gap-2">

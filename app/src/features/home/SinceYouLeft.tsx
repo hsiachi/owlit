@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import type { RunSummary } from "@owlit/protocol"
+import { isOwlit, type RunSummary } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { useShallow } from "zustand/react/shallow"
 import { GroupLabel } from "@/components/group-label"
@@ -80,7 +80,7 @@ export function SinceYouLeft({ since, all }: { since: number; all: boolean }) {
   const siteWaits = useExtensionWaits()
   const came = useMemo(() => Object.values(papers).filter((p) => p.pdf?.came?.by === "extension" && p.pdf.came.at > since).length, [papers, since])
   const pdfs = cameLine(came, siteWaits)
-  const addedAll = useMemo(() => Object.values(papers).filter((p) => p.addedBy === "agent" && p.addedAt > since).length, [papers, since])
+  const addedAll = useMemo(() => Object.values(papers).filter((p) => isOwlit(p.addedBy) && p.addedAt > since).length, [papers, since])
   // The chat list's own mark, "Finished since you last looked", limited to replies that ended while away;
   // opening the chat takes it off, here as in the list. Only those chats are selected, and a finished
   // chat isn't streaming, so a streamed reply elsewhere redraws nothing here.

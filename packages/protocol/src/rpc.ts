@@ -3,7 +3,7 @@ import type { ArchiveSummary, InitiativeSettings } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
-import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangeFilter, Roster } from "./changes.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
@@ -187,10 +187,10 @@ export interface Methods {
   // Starts a comment, or puts back one deleted
   // agent: the comment is an agent's (owlit-mcp), recorded in the change log so the window can offer Undo
   // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "docs.review:<task id>")
-  "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string; run?: string } }; result: null }
+  "comments.add": { params: { path: string; comment: CommentInput; agent?: { chatId?: string; run?: string; toolCallId?: string } }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
-  "comments.put": { params: { path: string; comment: DocComment }; result: DocComment | null }
+  "comments.put": { params: { path: string; comment: CommentInput }; result: DocComment | null }
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
   // One of Owlit's comments the user doesn't want; journaled as feedback.dismiss
@@ -324,8 +324,8 @@ export interface Methods {
   "agents.consent": { params: { chatId: string; action: ConsentAction; title: string }; result: { allowed: boolean; reason?: string } }
   // Deletes or moves the user's docs for an agent (owlit-mcp's docs_delete and docs_move, after consent),
   // keeping each file's text so the chat offers Undo
-  "agents.deleteDocs": { params: { paths: string[]; chatId?: string }; result: { deleted: string[] } }
-  "agents.moveDoc": { params: { path: string; to: string; chatId?: string }; result: { path: string } }
+  "agents.deleteDocs": { params: { paths: string[]; chatId?: string; toolCallId?: string }; result: { deleted: string[] } }
+  "agents.moveDoc": { params: { path: string; to: string; chatId?: string; toolCallId?: string }; result: { path: string } }
   // Stops the chat's running turn; questions it was waiting on close as cancelled
   "agents.cancel": { params: { chatId: string }; result: null }
   // Answers a permission_request with one of its options
@@ -365,7 +365,7 @@ export interface Methods {
   // An agent's change (owlit-mcp's memory_write), absent changeId when nothing changed. Errors are said
   // to the agent.
   "memory.write": {
-    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string }
+    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string; toolCallId?: string }
     result: { line: MemoryLine | null; before: MemoryLine | null; changeId?: string }
   }
   // The user's change from Settings: a new line (no id), an edit, or a removed line put back (its id)
@@ -392,14 +392,16 @@ export interface Methods {
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
   // An agent's addition is recorded in the change log (Undo moves the paper to .owlit/trash/); chatId says whose
-  "library.add": { params: { paper: ResolvedPaper; addedBy?: Paper["addedBy"]; chatId?: string }; result: Paper }
+  "library.add": { params: { paper: ResolvedPaper; chatId?: string; toolCallId?: string }; result: Paper }
   // The user's judgement, reading position, or a field they corrected (kept over refreshes)
   "library.update": { params: { id: string; patch: PaperPatch }; result: Paper }
+  // The person opened a paper: lastOpenedAt, and an unread paper becomes reading
+  "library.opened": { params: { id: string }; result: Paper }
   // Moves papers, with their highlights and notes, to .owlit/trash/
   "library.remove": { params: { ids: string[] }; result: null }
   // Papers an agent added and the user hasn't worked with, to .owlit/trash/, recorded in the change log (Undo); papers
   // it may not remove come back in refused, with why
-  "library.removeByAgent": { params: { ids: string[]; chatId?: string }; result: { removed: string[]; refused: { id: string; why: string }[] } }
+  "library.removeByAgent": { params: { ids: string[]; chatId?: string; toolCallId?: string }; result: { removed: string[]; refused: { id: string; why: string }[] } }
   // Puts back what library.remove took (Undo), from the newest trash entry of each paper; a paper that is
   // in the library already comes back as it is
   "library.restore": { params: { ids: string[] }; result: Paper[] }
@@ -410,7 +412,9 @@ export interface Methods {
   // own corrections stay). A paper found to be a copy of another is folded into it: that one comes back.
   "library.refresh": { params: { id: string }; result: Paper | null }
   // Adds a highlight, or replaces the one with its id
-  "library.putHighlight": { params: { highlight: Highlight }; result: null }
+  // addedBy is set by core: the window's person, or their Owlit when chatId names the chat whose agent
+  // asked for the mark (ui.mark)
+  "library.putHighlight": { params: { highlight: Omit<Highlight, "addedBy">; chatId?: string }; result: Highlight }
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
   // Part of a paper as text: the full text (pages "3-5" or the section under a heading), the digest or
   // the user's note. pages: how many the paper has.

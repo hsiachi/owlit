@@ -41,13 +41,15 @@ interface Connection {
   topics: Set<string> | null
 }
 
-// owlit-mcp names the chat or run it works for in each call's params (agent: for comments.add)
+// owlit-mcp names the chat or run it works for, and the tool call when it knows it, in each call's params
+// (agent: for comments.add)
 function callerOf(request: RpcRequest): Caller {
-  const params = (request.params ?? {}) as { chatId?: unknown; run?: unknown; agent?: { chatId?: unknown; run?: unknown } }
+  const params = (request.params ?? {}) as { chatId?: unknown; run?: unknown; toolCallId?: unknown; agent?: { chatId?: unknown; run?: unknown; toolCallId?: unknown } }
   const text = (value: unknown) => (typeof value === "string" && value ? value : undefined)
   const chatId = text(params.chatId) ?? text(params.agent?.chatId)
   const run = text(params.run) ?? text(params.agent?.run)
-  return { kind: "socket", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+  const toolCallId = text(params.toolCallId) ?? text(params.agent?.toolCallId)
+  return { kind: "socket", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}), ...(toolCallId ? { toolCallId } : {}) }
 }
 
 export class SocketServer {

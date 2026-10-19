@@ -168,26 +168,31 @@ export class Memory {
   }
 
   // The user's own change, from Settings: a new line (no id), a line edited, or a removed one put back
-  put(input: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }): Promise<MemoryLine[]> {
+  put(input: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }, caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
       const lines = await this.list()
       const text = oneLine(input.text)
       if (!text) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something to keep first.`)
       const i = input.id ? lines.findIndex((l) => l.id === input.id) : -1
-      if (i >= 0) {
-        lines[i] = { ...lines[i], kind: input.kind, text, at: lines[i].text === text ? lines[i].at : Date.now() }
-      } else {
-        // A line removed a moment ago comes back as it was, under its own id
-        lines.push({ id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(input.chatId ? { chatId: input.chatId } : {}) })
-      }
+      const before = i >= 0 ? lines[i]! : null
+      // A line removed a moment ago comes back as it was, under its own id
+      const line: MemoryLine = before
+        ? { ...before, kind: input.kind, text, at: before.text === text ? before.at : Date.now() }
+        : { id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(input.chatId ? { chatId: input.chatId } : {}) }
+      if (before) lines[i] = line
+      else lines.push(line)
+      if (JSON.stringify(before) !== JSON.stringify(line)) await this.record(caller, before, line)
       await this.save(lines)
       return lines
     })
   }
 
-  remove(id: string): Promise<MemoryLine[]> {
+  remove(id: string, caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
-      const lines = (await this.list()).filter((l) => l.id !== id)
+      const all = await this.list()
+      const before = all.find((l) => l.id === id)
+      const lines = all.filter((l) => l !== before)
+      if (before) await this.record(caller, before, null)
       await this.save(lines)
       return lines
     })
@@ -251,12 +256,15 @@ export class Memory {
 
   // Keeps the chosen notes as lines (edited first, if the user did) and remembers every note named as
   // decided, kept or not, so none is offered again
-  decideClaudeNotes(keep: { file: string; kind: MemoryKind; text: string }[], drop: string[]): Promise<MemoryLine[]> {
+  decideClaudeNotes(keep: { file: string; kind: MemoryKind; text: string }[], drop: string[], caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
       const lines = await this.list()
       for (const note of keep) {
         const text = oneLine(note.text)
-        if (text && !lines.some((l) => sameText(l.text, text)) && lines.length < MEMORY_MAX_LINES) lines.push({ id: nextId(lines), kind: note.kind, text, at: Date.now() })
+        if (!text || lines.some((l) => sameText(l.text, text)) || lines.length >= MEMORY_MAX_LINES) continue
+        const line: MemoryLine = { id: nextId(lines), kind: note.kind, text, at: Date.now() }
+        lines.push(line)
+        await this.record(caller, null, line)
       }
       const sidecar = (await readJson<{ claudeCode?: Record<string, string> }>(this.sidecar).catch(() => undefined)) ?? {}
       const claudeCode = { ...sidecar.claudeCode }

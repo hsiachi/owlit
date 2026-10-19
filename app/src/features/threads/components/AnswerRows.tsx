@@ -134,9 +134,9 @@ export function RowPeek({ thread, row, grouping, here, library, className }: { t
   const facts = paperFacts(row, library)
   const answer = shown(thread).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
   const all = useThreadsStore((s) => s.threads)
-  const others = Object.values(all).filter((c) => c.id !== thread.id && c.rows.some((r) => r.id === row.id && !c.yours.removed[itemId.row(r.id)]))
+  const others = Object.values(all).filter((c) => c.id !== thread.id && c.rows.some((r) => r.id === row.id && !c.overrides.removed[itemId.row(r.id)]))
   const published = [facts.venue, facts.year].filter(Boolean).join(" · ")
-  const bring = () => library ?? addPaper({ id: row.id, title: facts.title, authors: facts.authors, ids: facts.ids, year: facts.year, venue: facts.venue, abstract: facts.abstract, kind: facts.kind }, "user")
+  const bring = () => library ?? addPaper({ id: row.id, title: facts.title, authors: facts.authors, ids: facts.ids, year: facts.year, venue: facts.venue, abstract: facts.abstract, kind: facts.kind })
   const page = answer?.passage?.page
   return (
     <div data-peek-body className={className ?? "px-2.5 pt-1 pb-1.5 pl-[38px]"}>

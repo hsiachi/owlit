@@ -51,7 +51,7 @@ export function Memo({ thread, shown, seenBefore, onRow }: { thread: Thread; sho
     <ul className="mt-4 flex max-w-[68ch] flex-col gap-1 text-body leading-relaxed">
       {shown.memo.map((s) => {
         const item = itemId.memo(s.id)
-        const edit = thread.yours.edits[item]
+        const edit = thread.overrides.edits[item]
         const fresh = (thread.changedAt[item] ?? 0) > seenBefore && !edit
         const groups: MenuGroups = [
           [
@@ -78,7 +78,7 @@ export function Memo({ thread, shown, seenBefore, onRow }: { thread: Thread; sho
               </div>
             ) : (
               <span className={cn("min-w-0 flex-1 pr-7")}>
-                <MemoText text={s.text} onRow={onRow} removed={(paper) => !!thread.yours.removed[itemId.row(paper)]} />
+                <MemoText text={s.text} onRow={onRow} removed={(paper) => !!thread.overrides.removed[itemId.row(paper)]} />
                 {edit && (
                   <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground" title={t`Was: ${plainMemo(edit.was).plain}`}>
                     {t({ message: "you edited", comment: "after a sentence of Owlit's that the user rewrote" })}

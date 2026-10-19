@@ -5,7 +5,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { sha1 } from "../fs-util.ts"
 import { changeId, ChangeLog, KEEP_MS, KEEP_PER_PATH } from "./log.ts"
-import { Recorder } from "./record.ts"
+import { FOLD_MS, Recorder } from "./record.ts"
 
 const entry = (target: Change["target"], extra: Partial<Change> = {}): Change => {
   const at = extra.at ?? Date.now()
@@ -65,10 +65,11 @@ describe("ChangeLog", () => {
 })
 
 describe("Recorder", () => {
-  const recorder = (id?: string) => {
+  const recorder = (id?: string, now?: () => number) => {
     const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
     const said: Change[] = []
-    return { said, recorder: new Recorder(new ChangeLog(owlit), { profile: async () => ({ id }), added: ({ change }) => said.push(change) }) }
+    const log = new ChangeLog(owlit)
+    return { said, log, recorder: new Recorder(log, { profile: async () => ({ id }), added: ({ change }) => said.push(change), now, runOf: (run) => (run === "docs.review:t1" ? { chatId: "run-chat", ruleId: "docs.review" } : {}) }) }
   }
 
   it("names the actor by the caller", async () => {
@@ -78,8 +79,63 @@ describe("Recorder", () => {
     expect(await r.actorOf({ kind: "socket", run: "docs.review:t1" })).toBe("o_1234abcd")
     expect(await r.actorOf({ kind: "socket" })).toBe("other")
     expect(await r.actorOf({ kind: "owlit" })).toBe("o_1234abcd")
-    expect(await r.actorOf({ kind: "watcher", chatId: "c1" })).toBe("o_1234abcd")
+    // The watcher's change is Owlit's only when a tool call named the file; a running turn alone is a hint
+    expect(await r.actorOf({ kind: "watcher", chatId: "c1", toolCallId: "t1" })).toBe("o_1234abcd")
+    expect(await r.actorOf({ kind: "watcher", chatId: "c1" })).toBe("other")
     expect(await r.actorOf({ kind: "watcher" })).toBe("other")
+  })
+
+  it("takes the evidence into the origin: an accepted claim is apply, a run its session and rule", async () => {
+    const { recorder: r } = recorder("1234abcd")
+    const applied = await r.doc({ kind: "watcher", chatId: "c1", toolCallId: "t1", accepted: true }, "a.md", "a", "b")
+    const seen = await r.doc({ kind: "watcher", chatId: "c1", toolCallId: "t2" }, "a.md", "b", "c")
+    const hinted = await r.doc({ kind: "watcher", chatId: "c1" }, "a.md", "c", "d")
+    const run = await r.record({ kind: "socket", run: "docs.review:t1" }, { action: "create", target: { kind: "comment", path: "a.md", part: "x" } })
+    expect(applied).toMatchObject({ actor: "o_1234abcd", origin: { via: "apply", chatId: "c1", toolCallId: "t1", writeId: "t1" } })
+    expect(seen).toMatchObject({ actor: "o_1234abcd", origin: { via: "watcher", toolCallId: "t2" } })
+    expect(hinted).toMatchObject({ actor: "other", origin: { via: "watcher", chatId: "c1" } })
+    expect(hinted.origin.toolCallId).toBeUndefined()
+    expect(run.origin).toMatchObject({ via: "tool", chatId: "run-chat", ruleId: "docs.review" })
+  })
+
+  it("folds one person's saves of a doc into one entry while nobody else changes it, for up to FOLD_MS between saves", async () => {
+    let clock = 1_000_000
+    const { recorder: r, log } = recorder("1234abcd", () => clock)
+    const window = { kind: "window" } as const
+    const first = await r.saved(window, "a.md", "one", "two")
+    clock += 60_000
+    await r.saved(window, "a.md", "two", "three")
+    clock += FOLD_MS - 1
+    await r.saved(window, "a.md", "three", "four")
+    let all = await log.list({ path: "a.md" })
+    expect(all).toHaveLength(1)
+    expect(all[0]).toMatchObject({ id: first!.id, at: 1_000_000, until: clock, afterHash: sha1("four") })
+    // The entry's file keeps the text from before the first save
+    expect(await log.content(first!.id)).toBe("one")
+
+    // Past the window, or after someone else's change, the next save starts a new entry
+    clock += FOLD_MS
+    await r.saved(window, "a.md", "four", "five")
+    await r.doc({ kind: "watcher" }, "a.md", "five", "six")
+    clock += 1000
+    await r.saved(window, "a.md", "six", "seven")
+    all = await log.list({ path: "a.md" })
+    expect(all.map((c) => [c.actor, c.origin.via])).toEqual([
+      ["p_1234abcd", "editor"],
+      ["other", "watcher"],
+      ["p_1234abcd", "editor"],
+      ["p_1234abcd", "editor"],
+    ])
+  })
+
+  it("records nothing for a save that writes what the doc's newest entry left: an agent's edit coming back from the editor", async () => {
+    const { recorder: r, log } = recorder("1234abcd")
+    await r.doc({ kind: "owlit", chatId: "c1" }, "a.md", "mine", "Owlit's")
+    expect(await r.saved({ kind: "window" }, "a.md", "mine", "Owlit's")).toBeNull()
+    expect((await log.list({ path: "a.md" })).map((c) => c.actor)).toEqual(["o_1234abcd"])
+    // The person typing on top of it is theirs
+    await r.saved({ kind: "window" }, "a.md", "Owlit's", "Owlit's, and mine")
+    expect((await log.list({ path: "a.md" })).map((c) => c.actor)).toEqual(["p_1234abcd", "o_1234abcd"])
   })
 
   it("stamps a doc's change from its texts and says it unless quiet", async () => {

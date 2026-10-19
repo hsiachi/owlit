@@ -102,9 +102,13 @@ describe("docs.write", () => {
     expect(error.data).toMatchObject({ path: "a.md", content: "theirs" })
     await call("docs.write", { path: "a.md", content: "mine", expectedModifiedAt: 0, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("mine")
-    // Keep mine doesn't lose theirs: it is kept as the other program's change, and restoring it brings it back
+    // Keep mine doesn't lose theirs: the other program's change is an entry of its own, and the person's
+    // save stands on top of it, so taking the save back brings theirs back
     const changes = await call("changes.list", { path: "a.md" })
-    expect(changes.map((c: any) => [c.target.kind, c.actor, c.origin.via])).toEqual([["doc", "other", "watcher"]])
+    expect(changes.map((c: any) => [c.actor.replace(/_.*/, "_"), c.origin.via])).toEqual([
+      ["p_", "editor"],
+      ["other", "watcher"],
+    ])
     await call("changes.undo", { id: changes[0].id, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("theirs")
   })

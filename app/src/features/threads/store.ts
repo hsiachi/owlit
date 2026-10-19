@@ -66,7 +66,7 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
 export async function regroupRow(c: Thread, edit: Extract<ThreadEdit, { op: "place" | "move" }>, undo?: string) {
   const prefix = `${edit.column}:${edit.row}:`
   const groups = c.columns.find((col) => col.id === edit.column)?.groups ?? []
-  const placed = Object.fromEntries(groups.map((g) => [g.id, c.yours.placed[`${prefix}${g.id}`] ?? null]))
+  const placed = Object.fromEntries(groups.map((g) => [g.id, c.overrides.placed[`${prefix}${g.id}`] ?? null]))
   if ((await editThread(c.id, edit)) && undo) toastUndo(undo, () => editThread(c.id, { op: "unplace", column: edit.column, row: edit.row, placed }))
 }
 

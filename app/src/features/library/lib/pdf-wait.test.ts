@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { PdfState, PdfTry } from "@owlit/protocol"
 import { pdfWait, pdfWord, waitsOnYou } from "./pdf-wait"
 
-const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit"): PdfTry => ({ by, ended, at: 1 })
+const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "search"): PdfTry => ({ by, ended, at: 1 })
 const noPdf = (ended: PdfTry["ended"], extra: Partial<PdfState> = {}) => ({ pdfState: { state: "no-pdf" as const, tried: [tryOf(ended)], reason: tryOf(ended), ...extra } })
 
 describe("pdfWait", () => {

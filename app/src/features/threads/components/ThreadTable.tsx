@@ -79,10 +79,10 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
   const columns = shown.columns.filter((c) => !c.hidden || (c.kind === "grouping" && filling.includes(c.id)))
   const compare = columns.find((c) => c.kind === "compare")
   const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length && !filling.includes(c.id))
-  // What the table is grouped by is remembered for the thread (yours.view); one that isn't there (a
+  // What the table is grouped by is remembered for the thread (overrides.view); one that isn't there (a
   // grouping still being worked out, a comparison hidden) gives way to the first grouping
   const [chosen, setChosen] = useState<GroupBy>()
-  const want = chosen ?? (thread.yours.view?.groupBy as GroupBy | undefined)
+  const want = chosen ?? (thread.overrides.view?.groupBy as GroupBy | undefined)
   const groupBy: GroupBy =
     want === "none" ||
     (want?.startsWith("grouping:") && groupings.some((c) => c.id === want.slice(9))) ||
@@ -451,8 +451,8 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
 function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn }) {
   const filling = useTasksStore((s) => tasksFor(s.byId, `${thread.id}:${column.id}`).some((task) => task.kind === "threads.fill" && !isTaskFinished(task)))
   // A grouping counts the papers Owlit has put in a group so far
-  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.yours.removed[itemId.row(r.id)]).length
-  const of = thread.rows.filter((r) => !thread.yours.removed[itemId.row(r.id)]).length
+  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.overrides.removed[itemId.row(r.id)]).length
+  const of = thread.rows.filter((r) => !thread.overrides.removed[itemId.row(r.id)]).length
   const label = columnLabel(column)
   const progress = filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>
   if (column.id === QUESTION_COLUMN)
@@ -683,7 +683,7 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
   const navigate = useNavigate()
   if (!cell) return <span className="text-muted-foreground/60">…</span>
   const item = itemId.cell(row.id, column.id)
-  const edit = thread.yours.edits[item]
+  const edit = thread.overrides.edits[item]
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
   const text = edit?.text ?? cell.text
   const page = cell.depth === "full" && cell.passage && !edit ? cell.passage.page : undefined

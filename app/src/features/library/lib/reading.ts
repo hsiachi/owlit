@@ -1,5 +1,6 @@
+import { isOwlit } from "@owlit/protocol"
 import { useEffect } from "react"
-import { isLibraryFromCore } from "../disk"
+import { isLibraryFromCore, markReading } from "../disk"
 import { useLibraryStore } from "../store"
 
 // When opening a paper counts as reading it. A paper becomes Reading, and its last-read time (lastOpenedAt,
@@ -17,7 +18,7 @@ let visit: { paperId: string; counted: boolean } | null = null
 export function readInPaper(paperId: string) {
   if (!visit || visit.paperId !== paperId || visit.counted) return
   visit.counted = true
-  useLibraryStore.getState().markReading(paperId)
+  markReading(paperId)
 }
 
 // One visit to a paper's page: the clock, and the person's own marks, while it is open
@@ -39,7 +40,7 @@ export function useReadingVisit(paperId: string, enabled: boolean) {
       if (s.notes[paperId] !== prev.notes[paperId] && s.notes[paperId]?.content.trim()) readInPaper(paperId)
       else if (s.highlights !== prev.highlights) {
         for (const h of Object.values(s.highlights)) {
-          if (h.paperId !== paperId || h.addedBy === "agent" || prev.highlights[h.id] === h) continue
+          if (h.paperId !== paperId || isOwlit(h.addedBy) || prev.highlights[h.id] === h) continue
           readInPaper(paperId)
           break
         }

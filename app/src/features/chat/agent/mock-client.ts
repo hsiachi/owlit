@@ -1,6 +1,7 @@
 import { type AgentQuestion, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
+import { myOwlit } from "@/lib/actors"
 import { mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
 import { recordResult, setMockUndo } from "../results"
@@ -167,7 +168,7 @@ export class MockAgentClient implements AgentClient {
     await step("Searched Semantic Scholar", "search", 1800, "14 results", 1)
     await step("Searched OpenAlex", "search", 1500, "9 results, 5 new", 1)
     await step("Read 6 abstracts", "read", 2500, "Kept 3", 2)
-    const added = FOUND.map((p) => useLibraryStore.getState().addPaper(p, "agent"))
+    const added = FOUND.map((p) => useLibraryStore.getState().addPaper(p, myOwlit()))
     for (const paper of added) {
       const changeId = `mock-${crypto.randomUUID()}`
       setMockUndo(changeId, () => {

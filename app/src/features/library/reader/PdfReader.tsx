@@ -155,7 +155,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
       },
       jumpToHighlight,
       showPage: (page) => scroll.scrollToPage({ pageNumber: page + 1, behavior: "smooth" }),
-      markPassage: async (p, color) => {
+      markPassage: async (p, color, chatId) => {
         const at = await locate(p)
         if (!at || !at.rects.length || !registry || !pdf) return null
         // The words as the PDF has them, like a highlight the user made; the quote if PDFium has none
@@ -170,8 +170,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
           rects: at.rects.map((r) => ({ ...r, page: at.page })),
           text: cleanPdfText([text ?? ""]) || p.start,
           color,
-          addedBy: "agent",
-        })
+        }, chatId)
         jumpToHighlight(h)
         return h
       },

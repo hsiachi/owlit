@@ -3310,9 +3310,10 @@ msgstr "Highlight copied"
 msgid "Add to note"
 msgstr "Add to note"
 
+#. under a highlight; who is Owlit, a name or outside owlit
 #: app/src/features/library/components/HighlightsList.tsx
-msgid "Added by Owlit"
-msgstr "Added by Owlit"
+msgid "Added by {who}"
+msgstr "Added by {who}"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight actions"
@@ -3996,9 +3997,10 @@ msgstr "About"
 msgid "No abstract."
 msgstr "No abstract."
 
+#. when a paper was added, and who added it: Owlit, a name or outside owlit
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "{when} by Owlit"
-msgstr "{when} by Owlit"
+msgid "{when} by {who}"
+msgstr "{when} by {who}"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgctxt "label before the threads that hold this paper"
@@ -7385,6 +7387,14 @@ msgstr "owlit can't open files in other apps here."
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
 msgstr "owlit no longer has that file."
+
+#: packages/core/src/core.ts
+msgid "That paper isn't in the library."
+msgstr "That paper isn't in the library."
+
+#: packages/core/src/core.ts
+msgid "That comment is already there."
+msgstr "That comment is already there."
 
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."

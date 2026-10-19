@@ -56,7 +56,7 @@ function readingTools(): Thread {
     // The two papers Owlit added later carry the dot until the user looks
     changedAt: { "row:doi-10.1145-3526113.3545660": now - 30 * 60_000, "row:doi-10.1145-3589955": now - 30 * 60_000, "memo:s3": now - 30 * 60_000 },
     seenAt: at + 60_000,
-    yours: { edits: { "memo:s3": { text: "Evaluations are short lab studies; none followed readers over weeks, and none measured reading speed directly.", at: now - 20 * 60_000, was: "Evaluations are short lab studies; none followed readers over weeks." } }, removed: {}, placed: {}, merged: {} },
+    overrides: { edits: { "memo:s3": { text: "Evaluations are short lab studies; none followed readers over weeks, and none measured reading speed directly.", at: now - 20 * 60_000, was: "Evaluations are short lab studies; none followed readers over weeks." } }, removed: {}, placed: {}, merged: {} },
   }
 }
 
@@ -86,7 +86,7 @@ function toolUse(): Thread {
     updatedAt: at,
     changedAt: {},
     seenAt: at + HOUR,
-    yours: { edits: {}, removed: {}, placed: {}, merged: {} },
+    overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
 
@@ -108,7 +108,7 @@ function nothingFound(): Thread {
     updatedAt: at,
     changedAt: {},
     seenAt: at,
-    yours: { edits: {}, removed: {}, placed: {}, merged: {} },
+    overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
 
@@ -170,7 +170,7 @@ function venue(): Thread {
     updatedAt: at,
     changedAt: {},
     seenAt: at + HOUR,
-    yours: { edits: {}, removed: {}, placed: {}, merged: {} },
+    overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
   }
 }
 

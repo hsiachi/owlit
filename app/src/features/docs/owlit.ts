@@ -2,7 +2,7 @@
 // and Owlit's last look. Read when a doc's header shows, kept current by docs.owlit.
 
 import { t } from "@lingui/core/macro"
-import { isOpenComment, type DocComment, type DocOwlit } from "@owlit/protocol"
+import { isOpenComment, isOwlit, type DocComment, type DocOwlit } from "@owlit/protocol"
 import { useEffect } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
@@ -41,7 +41,7 @@ export const useOwlitSeenAt = (path: string) => useOwlitSeen((s) => s.seen[path]
 
 // Owlit's open comments on a doc that came after the user last saw its comments, oldest first
 export function newOwlitComments(comments: DocComment[] | undefined, seenAt: number | undefined) {
-  return (comments ?? []).filter((c) => isOpenComment(c) && c.entries[0]?.by === "owlit" && c.createdAt > (seenAt ?? 0)).sort((a, b) => a.createdAt - b.createdAt)
+  return (comments ?? []).filter((c) => isOpenComment(c) && !!c.entries[0] && isOwlit(c.entries[0].by) && c.createdAt > (seenAt ?? 0)).sort((a, b) => a.createdAt - b.createdAt)
 }
 
 // Owlit goes through this doc as material from people (a meeting's transcript, reviews) against the
