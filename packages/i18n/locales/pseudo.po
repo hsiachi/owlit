@@ -7215,6 +7215,14 @@ msgstr ""
 msgid "Owlit was closed before it finished, when you opened another workspace."
 msgstr ""
 
+#: packages/core/src/agents/failure.ts
+msgid "{name}'s usage limit is reached."
+msgstr ""
+
+#: packages/core/src/agents/failure.ts
+msgid "{name}'s usage limit is reached; it resets at {at}."
+msgstr ""
+
 #: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts
 #: packages/core/src/changes/undo.ts
