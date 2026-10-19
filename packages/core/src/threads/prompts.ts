@@ -104,16 +104,3 @@ ${ABOUT(c)}
 Read the parts of the paper that matter with library_read, and what the user highlighted in it with library_highlights. Then rewrite that row's cells, in every column, from the full text, with depth full and the words each rests on in quote, word for word, with thread_write id ${c.id} (one row, id ${paperId}). Leave a cell as it is when the full text says the same as the answer there; never change what the user rewrote. Update the memo only if what you read changes it. ${MEMO}
 Your answer at the end is one line on what you changed.`
 }
-
-// A paper landed in the library from outside a thread: Owlit sees whether it answers one of the threads'
-// questions, and gathers it there if it does
-export function relatePrompt(threads: readonly Thread[], paperId: string) {
-  const list = threads.map((c) => `- ${c.id}: «${c.asked.text}»`).join("\n")
-  return `You are looking at a paper that has just come into the user's library in owlit: ${paperId}. Read its abstract with library_get (and its full text with library_read if it has one).
-
-These are the user's threads, each a question with papers gathered for it:
-${list}
-
-For each thread whose question this paper answers well (not one it merely touches), read the thread first with thread_read (what the user removed never comes back), then add the paper as a row with thread_write, with its answers in the thread's columns. ${ANSWERS}
-Most papers belong in no thread: then write nothing. Your answer at the end is one line on what you did.`
-}

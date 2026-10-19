@@ -4,6 +4,10 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Owlit writes a digest only when you ask: from the paper's Digest side, its menu, a chat, or by starring it. Opening a paper no longer starts one, and the setting "Digests for every paper" is gone.
+- A paper opens on the side you last read of it, the digest or the PDF, each where you left it; a digest you asked for opens as soon as it is ready.
+- Once you read a paper in full, Owlit answers its thread rows again from the full text and looks again at its comments that cite it, without a setting.
+- Owlit no longer looks at your docs or your library on its own: the "On its own" setting and what ran under it (comments on a doc you open or stop editing, the daily look over your docs, a digest and threads for a paper that landed, going through a Meetings folder) are gone for now. Go through still runs from a doc's menu.
 - Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
 - When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.

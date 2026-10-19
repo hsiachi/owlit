@@ -2341,19 +2341,6 @@ msgstr ""
 msgid "Owlit works here only when you ask"
 msgstr ""
 
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Owlit hasn’t looked at this doc yet"
-msgstr ""
-
-#. placeholder {0}: looked.count
-#: app/src/features/docs/OwlitChip.tsx
-msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
-msgstr ""
-
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Looked {when} · nothing to add"
-msgstr ""
-
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr ""
@@ -3693,14 +3680,16 @@ msgid "Couldn't refresh the details."
 msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Rewrite the digest"
-msgstr ""
-
-#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Write a digest"
 msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
+msgid "Rewrite the digest"
+msgstr ""
+
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Couldn't ask for a digest."
 msgstr ""
 
@@ -4057,6 +4046,10 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper again…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "No digest yet. Owlit writes one when you ask."
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -4515,7 +4508,7 @@ msgid "Read closely."
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <0>digest</0> of any paper."
 msgstr ""
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
@@ -5046,14 +5039,6 @@ msgid "Keep"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On its own"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 #: packages/core/src/agents/runs.ts
 msgid "Background work"
@@ -5082,35 +5067,6 @@ msgstr ""
 msgid "What Owlit calls you"
 msgstr ""
 
-#. Owlit does nothing on its own beyond its upkeep
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Off"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When I open things"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also while I'm away"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also looks while you're away, and leaves what it found for when you're back."
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit on its own"
-msgstr ""
-
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
 msgstr ""
@@ -5137,18 +5093,6 @@ msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model for background work"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Digests for every paper"
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Otherwise only for papers you open or star."
-msgstr ""
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On, a big import keeps the agent busy for a while."
 msgstr ""
 
 #. a language not in the list
@@ -6098,11 +6042,11 @@ msgid "Owlit's digest"
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+msgid "Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs."
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Try switching to the PDF…"
+msgid "Try opening the digest…"
 msgstr ""
 
 #: app/src/features/tour/TourOverlay.tsx

@@ -50,6 +50,8 @@ export function toPaper(record: PaperRecord, state: PaperState, pdf: boolean): P
     tags: state.tags,
     lastOpenedAt: state.lastOpenedAt,
     position: state.position,
+    view: state.view,
+    digestPosition: state.digestPosition,
   })
 }
 
@@ -57,7 +59,7 @@ export function toPaper(record: PaperRecord, state: PaperState, pdf: boolean): P
 // corrected becomes an override, or stops being one when it is set back to what the record says
 export function applyPatch(state: PaperState, record: PaperRecord, patch: PaperPatch): PaperState {
   const next: PaperState = { ...state }
-  for (const key of ["starred", "status", "tags", "position", "lastOpenedAt"] as const) {
+  for (const key of ["starred", "status", "tags", "position", "view", "digestPosition", "lastOpenedAt"] as const) {
     if (key in patch) (next as unknown as Record<string, unknown>)[key] = patch[key]
   }
   const overrides: PaperOverrides = { ...state.overrides }

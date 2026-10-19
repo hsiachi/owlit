@@ -11,7 +11,6 @@ import {
   RpcErrorCode,
   uniquePath,
   type DocConflict,
-  type DocLook,
   type DocsChange,
   type DocsListing,
   type CommentAnchor,
@@ -90,8 +89,6 @@ export class Docs {
   // A forced write is about to replace text another program left on disk; it keeps theirs first, and the
   // write fails if it can't
   overwriting: ((rel: string, theirs: string, mine: string) => Promise<unknown>) | undefined
-  // A file appeared that core didn't write (Finder, a sync, an agent's own file tools), not a rename
-  appeared: ((rel: string) => void) | undefined
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -101,7 +98,7 @@ export class Docs {
     this.owlit = new DocsOwlit(owlitDir)
   }
 
-  // Whether you keep Owlit out of a doc, and its last look
+  // Whether you keep Owlit out of a doc, and what it went through there
   owlitOf(rel: string) {
     return this.owlit.get(this.check(rel))
   }
@@ -113,26 +110,9 @@ export class Docs {
     })
   }
 
-  setLooked(rel: string, looked: DocLook) {
-    return this.serial.run(() => this.owlit.setLooked(this.check(rel), looked))
-  }
-
-  setHalfDone(rel: string, halfDone: Record<string, number>) {
-    return this.serial.run(() => this.owlit.setHalfDone(this.check(rel), halfDone))
-  }
-
   // Owlit went through this material (a meeting's transcript, reviews) and wrote record
   setWentThrough(rel: string, wentThrough: { at: number; record: string }) {
     return this.serial.run(() => this.owlit.setWentThrough(this.check(rel), wentThrough))
-  }
-
-  // When Owlit last looked over all the docs (its daily look)
-  scannedAt() {
-    return this.owlit.scannedAt()
-  }
-
-  setScannedAt(at: number) {
-    return this.serial.run(() => this.owlit.setScannedAt(at))
   }
 
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
@@ -577,7 +557,6 @@ export class Docs {
         }
       }
     }
-    if (external) for (const [p, e] of added) if (!e.dir && !byIno.has(e.ino)) this.appeared?.(p)
     for (const [p, e] of removed) {
       if (e.dir || renamedFrom.has(p) || !keepsText(p, e)) continue
       const before = this.texts.get(p)

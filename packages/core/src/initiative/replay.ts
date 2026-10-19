@@ -1,4 +1,4 @@
-import { CORE_KINDS, JOURNALED_KINDS, type EvaluationRecord, type InitiativeSettings, type RuleRead, type Task } from "@owlit/protocol"
+import { CORE_KINDS, JOURNALED_KINDS, type EvaluationRecord, type RuleRead, type Task } from "@owlit/protocol"
 import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -8,37 +8,18 @@ import { Initiative, type Clock } from "./initiative.ts"
 import { RULES, type InitiativeEvent, type Rule, type World } from "./rules.ts"
 
 // An archive (archive.ts) fed back through the rules: the same events in the same order, on a clock that
-// moves only to each event's time, with the dial as the archive says and every look at the workspace
-// answered as it was answered then. The same rules give the same decisions; a changed rule shows what it
-// would have decided. Nothing runs: a job is only a task id.
+// moves only to each event's time, with every look at the workspace answered as it was answered then.
+// The same rules give the same decisions; a changed rule shows what it would have decided. Nothing runs:
+// a job is only a task id.
 
 // A clock that moves only when told
 export class ManualClock implements Clock {
-  private timers: { due: number; fn: () => void; id: number }[] = []
-  private next = 0
   at: number
   constructor(at: number) {
     this.at = at
   }
   now() {
     return this.at
-  }
-  setTimeout(fn: () => void, ms: number) {
-    const id = ++this.next
-    this.timers.push({ due: this.at + ms, fn, id })
-    return id
-  }
-  clearTimeout(handle: unknown) {
-    this.timers = this.timers.filter((t) => t.id !== handle)
-  }
-  // Moves to the earliest timer due by upTo and runs it; false when there is none
-  fireNext(upTo: number) {
-    const due = this.timers.filter((t) => t.due <= upTo).sort((a, b) => a.due - b.due || a.id - b.id)[0]
-    if (!due) return false
-    this.timers = this.timers.filter((t) => t !== due)
-    this.at = Math.max(this.at, due.due)
-    due.fn()
-    return true
   }
 }
 
@@ -75,12 +56,11 @@ const takeKey = (rule: string, cause: string, causeAt: unknown) => `${rule}\u000
 class QuietLook extends Error {}
 
 export async function replay(archive: { manifest: ArchiveManifest; events: ArchiveEvent[] }, rules: readonly Rule[] = RULES): Promise<ReplayResult> {
-  const { events, manifest } = archive
+  const { events } = archive
   // Only the engine's own decisions: a comment held back as it came to land (Reviews) heard nothing
   const recorded = events.filter((e) => e.type === "evaluation" && e.payload.causeAt !== undefined).map((e) => decisionOf(e.payload as never))
 
-  // What each evaluation looked at, by rule and the event it heard, in the order they were taken (one
-  // event is taken again after a defer)
+  // What each evaluation looked at, by rule and the event it heard, in the order they were taken
   const looks = new Map<string, RuleRead[][]>()
   for (const e of events) {
     if (e.type !== "rule.looked") continue
@@ -107,24 +87,18 @@ export async function replay(archive: { manifest: ArchiveManifest; events: Archi
     return {
       digestHeldBack: answer("digestHeldBack"),
       watched: answer("watched"),
-      doc: answer("doc"),
-      mtime: answer("mtime"),
-      threads: answer("threads"),
       rowsOf: answer("rowsOf"),
       leaning: answer("leaning"),
-      lastScan: answer("lastScan"),
     }
   }
 
-  const settings: InitiativeSettings = { ...manifest.safeConfig.owlit.initiative }
   let tasks = 0
   const dir = await mkdtemp(path.join(tmpdir(), "owlit-replay-"))
-  // What the engine asks of a workspace itself: the dial, where today's count of runs would be read
-  // (nowhere: the count starts at the archive's start), and somewhere to queue
+  // What the engine asks of a workspace itself: where today's count of runs would be read (nowhere: the
+  // count starts at the archive's start), and somewhere to queue
   const ws = {
     root: dir,
     owlitPath: (...parts: string[]) => path.join(dir, ...parts),
-    initiative: async () => settings,
     tasks: { enqueue: () => ({ id: `replay-${++tasks}` }) as Task },
   } as unknown as Workspace
 
@@ -144,22 +118,13 @@ export async function replay(archive: { manifest: ArchiveManifest; events: Archi
     }),
   )
   const engine = new Initiative({ workspace: () => ws, record: (r) => replayed.push(decisionOf(r)), rules: quiet, clock, world })
-  // Runs everything due by then, one timer at a time, each evaluation taken before the next timer
-  const until = async (at: number) => {
-    do await engine.idle()
-    while (clock.fireNext(at))
-    clock.at = Math.max(clock.at, at)
-  }
   for (const e of events) {
-    if (e.type === "feedback.dialChanged") {
-      await until(e.at)
-      settings.mode = (e.payload.detail as { to: InitiativeSettings["mode"] }).to
-    } else if (INPUTS.has(e.type)) {
-      await until(e.at)
-      engine.observe({ kind: e.type, at: e.at, ...e.payload } as InitiativeEvent)
-    }
+    if (!INPUTS.has(e.type)) continue
+    await engine.idle()
+    clock.at = Math.max(clock.at, e.at)
+    engine.observe({ kind: e.type, at: e.at, ...e.payload } as InitiativeEvent)
   }
-  await until(events.reduce((last, e) => Math.max(last, e.at), clock.at))
+  await engine.idle()
   engine.dispose()
   return { recorded, replayed, unanswered }
 }

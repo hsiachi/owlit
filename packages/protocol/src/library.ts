@@ -1,3 +1,5 @@
+import type { PaperView } from "./activity.ts"
+
 // Library domain types. A paper is one record: facts about it plus the user's judgement
 // (star, status, tags). Highlights and notes are separate records keyed by paper.
 
@@ -102,6 +104,15 @@ export interface Paper {
   lastOpenedAt?: number
   // Reading position, so a paper reopens where it was left
   position?: ReadingPosition
+  // The side of the paper last read (the digest or the PDF), so it reopens there; absent until chosen
+  view?: PaperView
+  // How far down the digest was read
+  digestPosition?: DigestPosition
+}
+
+export interface DigestPosition {
+  // Scroll offset in CSS pixels
+  y: number
 }
 
 // The top of what was on screen: a 1-based page and a distance from that page's top edge in
@@ -320,6 +331,8 @@ export interface PaperState {
   status: ReadStatus
   tags: string[]
   position?: ReadingPosition
+  view?: PaperView
+  digestPosition?: DigestPosition
   lastOpenedAt?: number
   // Fields the user corrected by hand; they win over paper.json and survive a metadata refresh
   overrides?: PaperOverrides
