@@ -412,7 +412,8 @@ export function livePreview({
   onOpenRoute,
   resolversChange,
 }: Resolvers & {
-  onOpenMention: (uri: string, quote?: string) => void
+  // meta: ⌘ (Ctrl elsewhere) was held; pos: where the mention sits in the doc
+  onOpenMention: (uri: string, quote: string | undefined, click: { meta: boolean; pos: number }) => void
   onOpenRoute: (route: string) => void
   // Calls back when the resolvers may answer differently; returns an unsubscribe
   resolversChange?: (changed: () => void) => () => void
@@ -457,7 +458,7 @@ export function livePreview({
       const mention = target.closest<HTMLElement>(".cm-mention")
       if (mention?.dataset.uri) {
         e.preventDefault()
-        onOpenMention(mention.dataset.uri, mention.dataset.quote)
+        onOpenMention(mention.dataset.uri, mention.dataset.quote, { meta: e.metaKey || e.ctrlKey, pos: view.posAtDOM(mention) })
         return true
       }
       const linked = target.closest<HTMLElement>("[data-route]")

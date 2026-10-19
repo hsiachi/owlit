@@ -138,10 +138,12 @@ msgstr "选择"
 #. palette footer, beside the Esc key: closes the palette
 #. verb: close the Owlit panel
 #. verb: close the find field
+#. verb: close the paper beside the doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/components/ui/dialog.tsx
 #: app/src/components/ui/sheet.tsx
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/library/pages/paper/PaperBeside.tsx
 #: app/src/features/library/reader/ReaderControls.tsx
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
@@ -502,9 +504,11 @@ msgstr "owlit 里没有摘要。"
 #. a page of a paper
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/components/citation-card.tsx
 #: app/src/features/agent/page-context.ts
+#: app/src/features/library/pages/paper/PaperBeside.tsx
 #: app/src/features/library/reader/WearStrip.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -732,7 +736,7 @@ msgstr "笔记"
 #. a view of the paper page: Owlit's digest of the paper
 #. chip: a passage quoted from the paper's digest
 #: app/src/features/agent/page-context.ts
-#: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/library/paper-view.ts
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr "导读"
@@ -1044,6 +1048,7 @@ msgid "Next question"
 msgstr "下一个问题"
 
 #. choice between showing the digest or the PDF
+#. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: show the Library, where the papers wait
 #. verb: unfold the card with Owlit's question
@@ -1051,6 +1056,7 @@ msgstr "下一个问题"
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/extension/waits.ts
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/library/pages/paper/PaperBeside.tsx
 msgid "Show"
 msgstr "显示"
 
@@ -4458,6 +4464,18 @@ msgstr "ACL Anthology"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Tried {list}"
 msgstr "试过{list}"
+
+#: app/src/features/library/pages/paper/PaperBeside.tsx
+msgid "Resize the paper"
+msgstr "调整论文宽度"
+
+#: app/src/features/library/pages/paper/PaperBeside.tsx
+msgid "p. {page} of {pages}"
+msgstr "第 {page} 页，共 {pages} 页"
+
+#: app/src/features/library/pages/paper/PaperBeside.tsx
+msgid "Open the paper's page"
+msgstr "打开论文页"
 
 #. placeholder {0}: c.chatTitle
 #: app/src/features/library/reader/CitedLayer.tsx
