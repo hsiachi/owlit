@@ -10,7 +10,7 @@ const now = Date.now()
 const lib = (title: string, authors: string[], year: number, venue?: string): ThreadPaper => ({ title, authors, ids: {}, year, ...(venue ? { venue } : {}) })
 
 function row(id: string, paper: ThreadPaper, answer: string, depth: AnswerDepth, at: number, passage?: { quote: string; page: number }): ThreadRow {
-  return { id, paper, cells: { [QUESTION_COLUMN]: { text: answer, depth, at, ...(passage ? { passage } : {}) } }, addedAt: at, foundBy: "search" }
+  return { id, paper, cells: { [QUESTION_COLUMN]: { text: answer, depth, at, ...(passage ? { passage } : {}) } }, addedAt: Math.min(at, now - 2 * HOUR), foundBy: "search" }
 }
 
 function readingTools(): Thread {
@@ -31,7 +31,9 @@ function readingTools(): Thread {
     columns: [{ id: QUESTION_COLUMN, question: asked, kind: "ask" }],
     rows: [
       row("p9", lib("CiteSee: Augmenting Citations in Scientific Papers with Persistent and Personalized Historical Context", ["Joseph Chee Chang", "Amy X. Zhang"], 2023, "CHI"), "Marks citations the reader has already seen or saved, so familiar work stands out while reading.", "full", at, { quote: "personalized and persistent citation context", page: 2 }),
-      row("p15", lib("Scim: Intelligent Skimming Support for Scientific Papers", ["Raymond Fok", "Hita Kambhamettu"], 2023, "IUI"), "Highlights a paper's objective, method and result sentences in different colours to guide skimming.", "abstract", at),
+      // Answered again from the full text after the user asked for the thread to be read in full (the
+      // preview's change log has the answer it replaced)
+      row("p15", lib("Scim: Intelligent Skimming Support for Scientific Papers", ["Raymond Fok", "Hita Kambhamettu"], 2023, "IUI"), "Highlights objective, method and result sentences in four colours; readers skimmed faster with no loss of recall.", "full", now - 25 * 60_000, { quote: "faceted highlights", page: 3 }),
       row("p10", lib("Synergi: A Mixed-Initiative System for Scholarly Synthesis and Sensemaking", ["Hyeonsu B. Kang", "Sherry Tongshuang Wu"], 2023, "UIST"), "Builds a hierarchy of related work from a citation the user picks, mixing the user's choices with an LLM's.", "full", at, { quote: "threads of related work", page: 4 }),
       row("p11", lib("Relatedly: Scaffolding Literature Reviews with Existing Related Work Sections", ["Srishti Palani", "Aakanksha Naik"], 2023, "CHI"), "Reuses related-work sections of other papers as a map of a topic, with the papers each one cites.", "abstract", at),
       row("p12", lib("The Semantic Reader Project", ["Kyle Lo", "Joseph Chee Chang"], 2024, "CACM"), "An overview of reading interfaces built on one PDF reader; most were tested with fewer than twenty readers.", "abstract", at),
@@ -156,6 +158,7 @@ function venue(): Thread {
       },
     ],
     rows: [
+      // Answered again from the full text (the preview's change log has the answer it replaced)
       p("u1", "MarginNotes: Inline Context for Citations While Reading", ["Ana Ruiz", "Kai Chen"], "Inline citation cards cut lookups by half and readers kept their place.", "Lab study, N = 16", { rel: "supports", sentence: "l1", text: "context in place beats leaving the page" }, "inside", { quote: "readers returned to the citing sentence in 94% of lookups", page: 6 }),
       p("u2", "Skimlets: Pre-reading Summaries for Long Papers", ["Ola Nord"], "A summary shown before reading sped up skimming but lowered recall of methods.", "Within-subjects, N = 24", { rel: "challenges", sentence: "l1", text: "a summary before reading also helped" }, "inside"),
       p("u3", "Threadline: Following an Argument Across Papers", ["Ming Li", "Sara Holt"], "Linking claims across papers helped readers trace an argument's history.", "Field deployment, 3 weeks, N = 9", { rel: "related", sentence: "l2", text: "measures understanding, not speed" }, "across"),

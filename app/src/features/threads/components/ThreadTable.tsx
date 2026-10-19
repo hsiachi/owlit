@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { isTaskFinished, itemId, QUESTION_COLUMN, sameWords, threadOfSubject, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
+import { isTaskFinished, itemId, QUESTION_COLUMN, readInFull, sameWords, threadOfSubject, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { useShallow } from "zustand/react/shallow"
 import { Fragment, useEffect, useRef, useState } from "react"
@@ -9,7 +9,7 @@ import { ChoiceMenu } from "@/components/choice-menu"
 import { citationCardSurface } from "@/components/citation"
 import { CitationCard } from "@/components/citation-card"
 import { NoteDot } from "@/components/marks"
-import { useSeenOnScreen } from "../seen"
+import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { RenameInput } from "@/components/rename-input"
@@ -25,7 +25,7 @@ import { toastError, toastUndo } from "@/lib/toast"
 import { cn, scrollMotion } from "@/lib/utils"
 import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
 import { editThread, put, regroupRow } from "../store"
-import { ReadingMark, RowPeek } from "./AnswerRows"
+import { ReadingMark, RowPeek, WasLine } from "./AnswerRows"
 import { groupAnotherWay } from "../runs"
 import { useThreadsUi } from "../ui-store"
 import { AskEach } from "./Work"
@@ -69,7 +69,7 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
     .join(" · ")
 }
 
-export function ThreadTable({ thread, shown, fresh }: { thread: Thread; shown: Thread; fresh: (item: string) => boolean }) {
+export function ThreadTable({ thread, shown, visit }: { thread: Thread; shown: Thread; visit: VisitDots }) {
   // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
   // nothing to group by until it is done
   const filling = useTasksStore(
@@ -304,7 +304,7 @@ export function ThreadTable({ thread, shown, fresh }: { thread: Thread; shown: T
                           // needs no saying
                           sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
                           indent={s.label ? s.depth + 1 : 0}
-                          fresh={fresh}
+                          visit={visit}
                           open={isOpen(s, r.id)}
                           onOpen={() => {
                             useThreadsUi.getState().set({ peek: null })
@@ -585,7 +585,7 @@ function TableRow({
   columns,
   sentenceShown,
   indent,
-  fresh: isFresh,
+  visit,
   open,
   onOpen,
 }: {
@@ -599,13 +599,13 @@ function TableRow({
   columns: ThreadColumn[]
   sentenceShown: (column: ThreadColumn) => boolean
   indent: number
-  fresh: (item: string) => boolean
+  visit: VisitDots
   open: boolean
   onOpen: () => void
 }) {
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
-  const fresh = isFresh(itemId.row(row.id))
+  const fresh = visit.fresh(itemId.row(row.id))
   const seenRef = useSeenOnScreen<HTMLTableRowElement>(thread.id, [itemId.row(row.id), ...columns.map((c) => itemId.cell(row.id, c.id))])
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
@@ -653,7 +653,7 @@ function TableRow({
           {c.kind === "grouping" ? (
             <GroupsCell column={c} row={row} />
           ) : (
-            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={isFresh(itemId.cell(row.id, c.id))} showSentence={sentenceShown(c)} libraryId={library?.id} />
+            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={visit.fresh(itemId.cell(row.id, c.id))} reread={readInFull(visit.changeOf(itemId.cell(row.id, c.id)))} showSentence={sentenceShown(c)} libraryId={library?.id} />
           )}
         </td>
       ))}
@@ -681,19 +681,31 @@ function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRow }) {
 // A comparison says how the paper stands and why, Owlit's reason being what the user doesn't know yet; their
 // own sentence is one muted line under it only where nothing else says which one. It opens to the words it
 // rests on, and to rewriting it; the user's words stay through every later answer.
-function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { thread: Thread; row: ThreadRow; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; showSentence: boolean; libraryId?: string }) {
+// reread: the dot's change is Owlit answering again from the full text: the page's place says so while the
+// dot lasts, and the card keeps the answer it replaced after.
+function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryId }: { thread: Thread; row: ThreadRow; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean; libraryId?: string }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
-  if (!cell) return <span className="text-muted-foreground/60">…</span>
   const item = itemId.cell(row.id, column.id)
+  const was = useReadInFull(thread.id, item, open)
+  if (!cell) return <span className="text-muted-foreground/60">…</span>
   const edit = thread.overrides.edits[item]
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
   const text = edit?.text ?? cell.text
   const page = cell.depth === "full" && cell.passage && !edit ? cell.passage.page : undefined
   // No bearing on any of the user's sentences: nothing to say
   if (column.kind === "compare" && !cell.rel && !edit) return <span title={cell.text} />
-  const pageMark = page && <span className="ml-1 whitespace-nowrap text-muted-foreground tabular-nums">{t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>
+  // The words wrap in a narrow column; the page stays on one line, as it does alone
+  const pageMark =
+    fresh && reread && !edit ? (
+      <span className="ml-1 text-owlit">
+        {t({ message: "Changed after reading in full", comment: "chip on a thread cell Owlit answered again from the full text" })}
+        {page && <span className="whitespace-nowrap tabular-nums"> · {t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>}
+      </span>
+    ) : (
+      page && <span className="ml-1 whitespace-nowrap text-muted-foreground tabular-nums">{t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>
+    )
   const body =
     column.kind === "compare" && cell.rel ? (
       <>
@@ -736,6 +748,7 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
             {text}
           </p>
         )}
+        {!editing && !edit && <WasLine was={was === undefined ? reread : was} className="mt-1" />}
         {column.kind === "compare" && sentence && <Quote className="mt-2">“{sentence.text}”</Quote>}
         {/* What the answer rests on, as every citation's card says it, then the row that changes it */}
         <div className="mt-3 border-t pt-2.5">
