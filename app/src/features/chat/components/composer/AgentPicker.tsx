@@ -161,13 +161,14 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
       )}
 
       {/* The role is Owlit's own, not the agent's: every agent offers the same three. Named in full even
-          in a narrow composer, since a role reads as its name. */}
+          in a narrow composer, since a role reads as its name. It belongs to this chat: the menu says
+          so once the chat exists. */}
       <DropdownMenu>
         <PickerButton aria-label={t`Choose how Owlit works`} tip={roleSaid.description} className="shrink-0">
           {roleSaid.name}
         </PickerButton>
         <DropdownMenuContent align="end" className="w-80">
-          <DropdownMenuLabel>{t`Owlit works as`}</DropdownMenuLabel>
+          <DropdownMenuLabel>{chatId ? t`In this chat, Owlit works as` : t`Owlit works as`}</DropdownMenuLabel>
           {ROLES.map((r) => (
             <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={roleWords(r.id).name} description={<RoleLines role={r.id} />} />
           ))}

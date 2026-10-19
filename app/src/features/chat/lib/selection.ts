@@ -1,20 +1,24 @@
 import { t } from "@lingui/core/macro"
 import { type Chat, type Connector, DEFAULT_ROLE, type Role, ROLE_TABLE, ROLES, RUNS_COMMANDS } from "@owlit/protocol"
 
+// The agent and model new chats start with, kept across restarts. Owlit's role is not here: it belongs
+// to its chat (Chat.role), and a new chat starts as Assistant whatever the last one was, since a role
+// picked once for a review is not what the next question wants.
 export interface Selection {
   connectorId: string
   modelId?: string
-  // Owlit's role, the same whichever agent runs; it stays when the agent changes
-  role: Role
   effortId?: string
 }
 
 // A chat's own choice once it has one, else the one new chats start with
-export const selectionOf = (chat: Pick<Chat, "connectorId" | "modelId" | "role" | "effortId"> | undefined, fallback: Selection): Selection =>
-  chat?.connectorId ? { connectorId: chat.connectorId, modelId: chat.modelId, role: chat.role ?? fallback.role, effortId: chat.effortId } : fallback
+export const selectionOf = (chat: Pick<Chat, "connectorId" | "modelId" | "effortId"> | undefined, fallback: Selection): Selection =>
+  chat?.connectorId ? { connectorId: chat.connectorId, modelId: chat.modelId, effortId: chat.effortId } : fallback
 
-// The agent, model, effort and role a selection comes to, as the pickers show them: an agent that is gone
-// is the first one, and a model or effort the agent no longer offers (such as Claude Code's "default",
+// The role a chat works in: its own, or Assistant for a chat saved before roles existed
+export const roleOf = (chat: Pick<Chat, "role"> | undefined, fallback: Role = DEFAULT_ROLE) => ROLES.find((r) => r.id === chat?.role) ?? ROLES.find((r) => r.id === fallback)!
+
+// The agent, model and effort a selection comes to, as the pickers show them: an agent that is gone is
+// the first one, and a model or effort the agent no longer offers (such as Claude Code's "default",
 // which owlit doesn't show) is the agent's own default
 export function resolveSelection(connectors: Connector[], selection: Selection) {
   const connector = connectors.find((c) => c.id === selection.connectorId) ?? connectors[0]
@@ -26,8 +30,7 @@ export function resolveSelection(connectors: Connector[], selection: Selection) 
     connector?.efforts?.find((e) => e.id === selection.effortId) ??
     connector?.efforts?.find((e) => e.id === connector.defaultEffortId) ??
     connector?.efforts?.[0]
-  const role = ROLES.find((r) => r.id === selection.role) ?? ROLES.find((r) => r.id === DEFAULT_ROLE)!
-  return { connector, model, effort, role }
+  return { connector, model, effort }
 }
 
 // A role's name, in the interface's language

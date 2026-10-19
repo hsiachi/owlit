@@ -15,8 +15,8 @@ import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
 import { useBrokenReply, useSeenStore } from "../status"
 import { regenerate } from "../lib/regenerate"
-import { modelNameOf } from "../lib/selection"
-import type { Chat, ChatMessage } from "@owlit/protocol"
+import { modelNameOf, roleName, roleOf } from "../lib/selection"
+import { DEFAULT_ROLE, type Chat, type ChatMessage } from "@owlit/protocol"
 import { AssistantMessage, UserMessage } from "./messages/MessageItem"
 
 // A chat's messages, on the Chat page or in the docked agent panel (`panel`): the same conversation at
@@ -46,6 +46,11 @@ export function ChatMessages({
       <MessageScroller className={cn("flex-1", panel && "min-h-0")}>
         <MessageScrollerViewport className="px-4" aria-label={t`Messages`}>
           <MessageScrollerContent className={panel ? "w-full gap-1 py-2 pb-10" : "mx-auto w-full max-w-3xl gap-1 py-6 pb-12"}>
+            {/* A chat in another role than the usual says so before its first message, so a Reviewer chat
+                reads as one before Owlit's first "I can't edit"; the panel says it in its header instead */}
+            {!panel && chat.messages.length > 0 && roleOf(chat).id !== DEFAULT_ROLE && (
+              <p className="pb-5 text-center text-detail text-muted-foreground">{t`In this chat, Owlit works as ${roleName(roleOf(chat).id)}`}</p>
+            )}
             {/* Items sit directly in the content: the scroller only sees its direct children, so a wrapper
                 hides new messages from it and a sent question never moves to the top.
                 Items carry the spacing as bottom padding so the hover footers, which hang below each

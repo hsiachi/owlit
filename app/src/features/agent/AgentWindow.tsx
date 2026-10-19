@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { GroupLabel } from "@/components/group-label"
 import { ListRow } from "@/components/list-row"
 import { ago } from "@/lib/time"
-import type { Mentionable } from "@owlit/protocol"
+import { DEFAULT_ROLE, type Mentionable } from "@owlit/protocol"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChatMessages } from "@/features/chat/components/ChatMessages"
 import { ComposerDock } from "@/features/chat/components/ComposerDock"
@@ -19,6 +19,7 @@ import type { ComposerHandle } from "@/features/chat/components/composer/Compose
 import { useChatList } from "@/features/chat/use-chat-list"
 import { useChatStatus } from "@/features/chat/use-chat-status"
 import { useLookAt } from "@/features/chat/status"
+import { roleName, roleOf } from "@/features/chat/lib/selection"
 import { useChatStore } from "@/features/chat/store"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
@@ -66,7 +67,7 @@ export function AgentPanel() {
       onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}
     >
       <ResizeEdge />
-      <PanelHeader chatId={chat?.id} title={chat?.title} />
+      <PanelHeader chatId={chat?.id} title={chat?.title} role={chat && chat.messages.length > 0 && roleOf(chat).id !== DEFAULT_ROLE ? roleName(roleOf(chat).id) : undefined} />
       {chat && chat.messages.length > 0 ? (
         <ChatMessages chat={chat} streaming={streaming} panel />
       ) : (
@@ -151,8 +152,9 @@ function EarlierRow({ chatId, onOpen }: { chatId: string; onOpen: () => void }) 
   )
 }
 
-// The chat's title, opening the recent chats to switch to; New chat, Open in Chat and Close
-function PanelHeader({ chatId, title }: { chatId?: string; title?: string }) {
+// The chat's title, opening the recent chats to switch to, with the chat's role after it when it isn't
+// the usual one; New chat, Open in Chat and Close
+function PanelHeader({ chatId, title, role }: { chatId?: string; title?: string; role?: string }) {
   const navigate = useNavigate()
   const { close, newChat, showChat } = useAgentWindow.getState()
   const chats = useChatList()
@@ -163,6 +165,7 @@ function PanelHeader({ chatId, title }: { chatId?: string; title?: string }) {
         <DropdownMenuTrigger asChild>
           <button type="button" className="-ml-1.5 flex h-7 min-w-0 items-center gap-1 rounded-md px-1.5 text-sm font-medium outline-hidden hover:bg-accent focus-visible:bg-accent">
             <span className="truncate">{title ?? t`New chat`}</span>
+            {role && <span className="shrink-0 font-normal text-muted-foreground">· {role}</span>}
             <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>

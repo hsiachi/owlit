@@ -85,7 +85,7 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
       const connectors = s.connectors.filter((c) => c.id !== id)
       const selection =
         s.selection.connectorId === id
-          ? { connectorId: connectors[0]?.id ?? "", modelId: connectors[0]?.defaultModelId, role: s.selection.role }
+          ? { connectorId: connectors[0]?.id ?? "", modelId: connectors[0]?.defaultModelId }
           : s.selection
       return { connectors, selection }
     })
@@ -96,8 +96,8 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
 // agent's own default
 function fitSelection(store: StoreApi<ChatState>) {
   const { connectors, selection } = store.getState()
-  const { connector, model, effort, role } = resolveSelection(connectors, selection)
-  if (connector) store.setState({ selection: { connectorId: connector.id, modelId: model?.id, role: role.id, effortId: effort?.id } })
+  const { connector, model, effort } = resolveSelection(connectors, selection)
+  if (connector) store.setState({ selection: { connectorId: connector.id, modelId: model?.id, effortId: effort?.id } })
 }
 
 // Agents never checked are checked now, so the user never sees an "unknown" state

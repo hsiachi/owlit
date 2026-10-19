@@ -916,6 +916,11 @@ msgstr "No chats yet."
 msgid "Messages"
 msgstr "Messages"
 
+#. placeholder {0}: roleName(roleOf(chat).id)
+#: app/src/features/chat/components/ChatMessages.tsx
+msgid "In this chat, Owlit works as {0}"
+msgstr "In this chat, Owlit works as {0}"
+
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 msgid "Not signed in"
 msgstr "Not signed in"
@@ -1129,6 +1134,10 @@ msgstr "Effort"
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Choose how Owlit works"
 msgstr "Choose how Owlit works"
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "In this chat, Owlit works as"
+msgstr "In this chat, Owlit works as"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Owlit works as"

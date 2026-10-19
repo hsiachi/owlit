@@ -916,6 +916,11 @@ msgstr "还没有对话。"
 msgid "Messages"
 msgstr "消息"
 
+#. placeholder {0}: roleName(roleOf(chat).id)
+#: app/src/features/chat/components/ChatMessages.tsx
+msgid "In this chat, Owlit works as {0}"
+msgstr "这个对话里，Owlit 作为{0}"
+
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 msgid "Not signed in"
 msgstr "未登录"
@@ -1129,6 +1134,10 @@ msgstr "思考强度"
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Choose how Owlit works"
 msgstr "选择 Owlit 的工作方式"
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "In this chat, Owlit works as"
+msgstr "这个对话里，Owlit 作为"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Owlit works as"
