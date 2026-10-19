@@ -389,7 +389,7 @@ describe("turns", () => {
     cores.push(next)
     await next.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
     const chat = await next.handle({ jsonrpc: "2.0", id: 2, method: "chats.get", params: { id: "c1" } })
-    expect((chat as { result: { messages: unknown[] } }).result.messages[1]).toMatchObject({ status: "error", error: "Owlit was closed before it finished." })
+    expect((chat as { result: { messages: unknown[] } }).result.messages[1]).toMatchObject({ status: "error", error: "Owlit was closed before it finished.", cutOff: "closed" })
   })
 
   it("says a turn cut off by opening another workspace was cut off by that", async () => {

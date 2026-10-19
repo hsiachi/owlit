@@ -1,40 +1,42 @@
 import { onNotify, rpc } from "@/lib/rpc"
-import type { Connector, QuestionAnswer, SessionUpdate, StopReason } from "@owlit/protocol"
-import type { AgentClient, PromptRequest } from "./client"
+import type { ChatMessage, Connector, QuestionAnswer, SessionUpdate, StopReason } from "@owlit/protocol"
+import type { AgentClient, PromptRequest, RunningTurn } from "./client"
 
 // The real agent client in the desktop app: turns run in core on the user's local agents (ACP). Core
-// saves both messages of a turn itself; this side only shows what streams in.
+// saves both messages of a turn itself and tells every window of each turn's updates and end.
 export class RpcAgentClient implements AgentClient {
-  readonly persistsMessages = true
-
   check(connector: Connector): Promise<Connector> {
     return rpc.agents.check({ id: connector.id })
   }
 
-  async prompt(req: PromptRequest, onUpdate: (update: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
-    if (!req.userMessage || !req.assistantMessageId) throw new Error("A turn needs its messages.")
-    // Only this turn's reply
-    const stopListening = onNotify("chat.update", ({ chatId, messageId, update }) => {
-      if (chatId === req.chatId && messageId === req.assistantMessageId) onUpdate(update)
+  async prompt(req: PromptRequest): Promise<StopReason> {
+    const { stopReason } = await rpc.agents.prompt({
+      chatId: req.chatId,
+      connectorId: req.connectorId,
+      modelId: req.modelId,
+      role: req.role,
+      effortId: req.effortId,
+      input: { ...req.input, attachments: req.input.attachments.map(({ previewUrl: _url, ...a }) => a) },
+      userMessage: req.userMessage,
+      assistantMessageId: req.assistantMessageId,
     })
-    const cancel = () => void rpc.agents.cancel({ chatId: req.chatId }).catch(() => undefined)
-    signal.addEventListener("abort", cancel)
-    try {
-      const { stopReason } = await rpc.agents.prompt({
-        chatId: req.chatId,
-        connectorId: req.connectorId,
-        modelId: req.modelId,
-        role: req.role,
-        effortId: req.effortId,
-        input: { ...req.input, attachments: req.input.attachments.map(({ previewUrl: _url, ...a }) => a) },
-        userMessage: req.userMessage,
-        assistantMessageId: req.assistantMessageId,
-      })
-      return stopReason
-    } finally {
-      signal.removeEventListener("abort", cancel)
-      stopListening()
-    }
+    return stopReason
+  }
+
+  cancel(chatId: string) {
+    void rpc.agents.cancel({ chatId }).catch(() => undefined)
+  }
+
+  running(): Promise<RunningTurn[]> {
+    return rpc.agents.running()
+  }
+
+  onUpdate(listener: (chatId: string, messageId: string, update: SessionUpdate) => void) {
+    return onNotify("chat.update", ({ chatId, messageId, update }) => listener(chatId, messageId, update))
+  }
+
+  onEnded(listener: (chatId: string, messageId: string, message: ChatMessage) => void) {
+    return onNotify("chat.ended", ({ chatId, messageId, message }) => listener(chatId, messageId, message))
   }
 
   respondPermission(chatId: string, requestId: string, optionId: string) {

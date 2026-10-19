@@ -213,18 +213,30 @@ export function AssistantMessage({
           </div>
         )}
         {!streaming && <ResultCard message={message} chatId={chatId} />}
-        {message.status === "error" && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
+        {message.status === "error" && !message.cutOff && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
           {/* A partial answer says so at all times, in the same muted tone (stopping was the user's
               choice, never red), since it may read as whole */}
           {message.status === "cancelled" && <span className="mr-0.5 text-xs font-normal text-muted-foreground">{t`Stopped, partial`}</span>}
+          {/* Cut off by owlit closing or a switch of workspace: said as where it stopped, in the same muted
+              tone (the person did it, nothing broke), with the way to ask again beside it */}
+          {message.cutOff && (
+            <span className="mr-0.5 flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+              {message.cutOff === "switched" ? t`Stopped when you switched workspace` : t`Stopped when owlit closed`}
+              {onRegenerate && (
+                <Button variant="text" size="inline" className="text-xs" onClick={onRegenerate}>
+                  {t({ message: "Retry", comment: "verb: send the question again" })}
+                </Button>
+              )}
+            </span>
+          )}
           {/* Which model answered and when it ended show with the actions on hover, so a long chat
               reads as the answers alone; they line up with the answer's left edge */}
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             <span className="mr-1 text-xs font-normal text-muted-foreground">
-              {message.status === "cancelled" && "· "}
+              {(message.status === "cancelled" || message.cutOff) && "· "}
               {[modelName, timeStamp(message.finishedAt ?? message.createdAt)].filter(Boolean).join(" · ")}
             </span>
             {text && <CopyButton text={text} />}

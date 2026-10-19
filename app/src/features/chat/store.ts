@@ -13,17 +13,14 @@ import { useComposerDrafts } from "./composer-drafts"
 import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
 import { resolveSelection, roleOf, selectionOf, type Selection } from "./lib/selection"
 import { titleFrom } from "./lib/title"
-import type { Chat, ChatMessage, PromptInput, QuestionAnswer } from "@owlit/protocol"
-
-// Whether the store saves messages through ./disk (core saves them itself when it runs the turn)
-const savesMessages = () => disk.onDisk && !agentClient.persistsMessages
+import type { Chat, ChatMessage, PromptInput, QuestionAnswer, SessionUpdate } from "@owlit/protocol"
+import type { RunningTurn } from "./agent/client"
 
 // Chats deleted in this window, for Undo in the browser build (the desktop app's are in .owlit/trash/)
 const deleted = new Map<string, Chat>()
 
-// Abort controllers for in-flight turns, and when each turn is over; not part of persisted state
-const inflight = new Map<string, AbortController>()
-const over = new Map<string, Promise<void>>()
+// What the person sent while a turn ran, sent once it ends
+const afterEnd = new Map<string, PromptInput>()
 
 // In the desktop app chats live in the workspace (.owlit/chats/, through ./disk); in a plain browser
 // (pnpm dev:web) seeded chats are kept in localStorage as before.
@@ -35,8 +32,10 @@ export interface ChatState extends ConnectorSlice {
   // The role the composer holds for the chat it is about to start (a new chat starts as Assistant;
   // picking another before the first message gives the new chat that one); not kept across restarts
   newChatRole: Role
-  // Chat ids with a running turn
-  streaming: Record<string, true>
+  // The chats with a running turn, each with its reply's id. A mirror of the agent client's turns (core's,
+  // in the desktop app), which are the only record of what runs: set when a turn is sent or found running,
+  // cleared when the client says it ended.
+  streaming: Record<string, string>
 
   createChat: (init?: Partial<Pick<Chat, "id" | "connectorId" | "modelId" | "role" | "effortId">>) => Chat
   deleteChat: (id: string) => void
@@ -129,7 +128,7 @@ export const useChatStore = create<ChatState>()(
         if (!message?.attachments) return
         const next = { ...message, attachments: message.attachments.map((a) => (a.id === attachmentId ? { ...a, paperId } : a)) }
         patchMessage(chatId, messageId, () => next)
-        if (disk.onDisk) disk.patchMessageOnDisk(chatId, next, true)
+        if (disk.onDisk) disk.patchMessageOnDisk(chatId, next)
       },
 
       renameChat(id, title) {
@@ -184,12 +183,11 @@ export const useChatStore = create<ChatState>()(
           // stopped, and the message sent once it has.
           const ask = pendingAsk(chat)
           if (ask?.type === "question") return useAskDraft.getState().type(chatId, ask, input.text)
-          if (ask?.type !== "permission") return
+          if (ask?.type !== "permission") throw new Error(t`Owlit is still answering in this chat.`)
           const reject = optionFor(ask.options, false)
           if (reject) get().respondPermission(chatId, ask.requestId, reject.optionId)
-          get().cancel(chatId)
-          await over.get(chatId)
-          return get().send(chatId, input)
+          afterEnd.set(chatId, input)
+          return get().cancel(chatId)
         }
         // What the pickers show: a model the agent no longer lists (such as Claude Code's "default", which
         // owlit doesn't show) is the agent's own default. Until core has listed the agents there is nothing
@@ -230,68 +228,30 @@ export const useChatStore = create<ChatState>()(
             updatedAt: now,
             messages: [...c.messages, userMsg, assistantMsg],
           })),
-          streaming: { ...s.streaming, [chatId]: true },
+          streaming: { ...s.streaming, [chatId]: assistantMsg.id },
           connectors: connector?.status === "available" ? withConnector(s.connectors, { ...connector, status: "connected" }) : s.connectors,
         }))
-        if (disk.onDisk) {
-          if (isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
-          if (savesMessages()) {
-            disk.appendMessageOnDisk(chatId, userMsg)
-            disk.appendMessageOnDisk(chatId, assistantMsg)
-          }
-        }
+        if (disk.onDisk && isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
 
-        const controller = new AbortController()
-        inflight.set(chatId, controller)
-        let endTurn = () => {}
-        over.set(chatId, new Promise<void>((resolve) => (endTurn = resolve)))
-
-        // The answer as it grows; on disk at a measured pace, and whole once the turn is over
-        const patchAssistant = (fn: (m: ChatMessage) => ChatMessage, final = false) => {
-          patchMessage(chatId, assistantMsg.id, fn)
-          const now = get().chats[chatId]?.messages.find((m) => m.id === assistantMsg.id)
-          if (now && savesMessages()) disk.patchMessageOnDisk(chatId, now, final)
-        }
-
+        // The reply grows and ends through the client's onUpdate and onEnded (watchTurns); the call's own
+        // result only matters when nothing said the turn ended
+        let ending: Partial<ChatMessage>
         try {
           // A chat made just now must reach core before core can run a turn in it
           if (disk.onDisk) await disk.settled()
-          const stop = await agentClient.prompt(
-            { chatId, connectorId, modelId, role: role.id, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id },
-            (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
-            controller.signal,
-          )
-          patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done", finishedAt: Date.now() }), true)
+          const stop = await agentClient.prompt({ chatId, connectorId, modelId, role: role.id, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id })
+          ending = { status: stop === "cancelled" ? "cancelled" : "done" }
         } catch (e) {
           // Core may say more than its sentence: how the agent's process ended, for Details
           const detail = (e as { data?: { detail?: unknown } }).data?.detail
-          patchAssistant(
-            (m) =>
-              withoutAgentError({
-                ...m,
-                status: "error",
-                finishedAt: Date.now(),
-                error: e instanceof Error ? e.message : String(e),
-                ...(typeof detail === "string" ? { errorDetail: detail } : {}),
-              }),
-            true,
-          )
-        } finally {
-          // What core saved is the answer: a streamed update can go missing on its way here (a reply once
-          // showed only its first letter), and this side never hears it again
-          if (agentClient.persistsMessages && isDesktop) {
-            const saved = (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === assistantMsg.id)
-            if (saved && saved.status !== "streaming") patchAssistant(() => saved)
-          }
-          inflight.delete(chatId)
-          over.delete(chatId)
-          turnOver(chatId)
-          endTurn()
+          ending = { status: "error", error: e instanceof Error ? e.message : String(e), ...(typeof detail === "string" ? { errorDetail: detail } : {}) }
         }
+        if (runs(chatId, assistantMsg.id)) await settle(chatId, assistantMsg.id, ending)
       },
 
       cancel(chatId) {
-        inflight.get(chatId)?.abort()
+        afterEnd.delete(chatId)
+        agentClient.cancel(chatId)
       },
 
       removeMessages(chatId, messageIds) {
@@ -330,7 +290,7 @@ export const useChatStore = create<ChatState>()(
         const chats = Object.fromEntries(
           Object.entries(isDesktop ? current.chats : (p.chats ?? current.chats)).map(([id, c]) => [
             id,
-            { ...c, messages: c.messages.map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m)) },
+            { ...c, messages: c.messages.map((m) => (m.status === "streaming" ? cutOff(m) : m)) },
           ]),
         )
         // A selection saved by an earlier owlit may carry a mode or a role; neither is kept
@@ -348,13 +308,95 @@ function patchMessage(chatId: string, messageId: string, fn: (m: ChatMessage) =>
   )
 }
 
-// A turn is over and the chat stops working. A reply that finished while the user was elsewhere waits on
-// its row until seen (app/seen.ts hears it end).
-function turnOver(chatId: string) {
+// A reply the browser build was streaming when its page went away: said as core says it of a turn owlit
+// closed on
+const cutOff = (m: ChatMessage): ChatMessage => ({ ...m, status: "error", error: t`Owlit was closed before it finished.`, cutOff: "closed" })
+
+// Whether this reply's turn is the chat's running one
+const runs = (chatId: string, messageId: string) => useChatStore.getState().streaming[chatId] === messageId
+
+// Replies of running turns whose chat's messages haven't been read yet, by message id: they take the
+// updates meanwhile and replace what is read (withHeld)
+const held = new Map<string, { chatId: string; message: ChatMessage }>()
+
+// One update of a turn's reply: into the reply, or into the copy held for it. A reply still streaming
+// that takes updates is a running turn, whoever started it.
+export function followUpdate(chatId: string, messageId: string, update: SessionUpdate) {
+  const kept = held.get(messageId)
+  if (kept) kept.message = { ...kept.message, parts: applyUpdate(kept.message.parts, update) }
   useChatStore.setState((s) => {
-    const { [chatId]: _done, ...rest } = s.streaming
-    return { streaming: rest }
+    const reply = s.chats[chatId]?.messages.find((m) => m.id === messageId)
+    if (reply?.status !== "streaming") return s
+    return {
+      ...patchChat(s, chatId, (c) => ({ ...c, messages: c.messages.map((m) => (m === reply ? { ...m, parts: applyUpdate(m.parts, update) } : m)) })),
+      ...(s.streaming[chatId] === messageId ? {} : { streaming: { ...s.streaming, [chatId]: messageId } }),
+    }
   })
 }
 
+// A turn ended, with its reply as saved: the reply takes it and the chat stops working. What the person
+// sent meanwhile goes next. A reply that finished while the user was elsewhere waits on its row until
+// seen (app/seen.ts hears it end).
+export function turnEnded(chatId: string, messageId: string, message: ChatMessage) {
+  held.delete(messageId)
+  const wasRunning = runs(chatId, messageId)
+  useChatStore.setState((s) => {
+    const replaced = s.chats[chatId]?.messages.some((m) => m.id === messageId)
+      ? patchChat(s, chatId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId ? message : m)) }))
+      : {}
+    if (s.streaming[chatId] !== messageId) return replaced
+    const { [chatId]: _done, ...rest } = s.streaming
+    return { ...replaced, streaming: rest }
+  })
+  const next = afterEnd.get(chatId)
+  if (!wasRunning || !next) return
+  afterEnd.delete(chatId)
+  void useChatStore.getState().send(chatId, next)
+}
+
+// The turns running when the window opened the workspace: each chat works again, its reply replaced by
+// the turn's (newer than what was read), or held until the chat's messages are read
+export function adoptRunning(turns: RunningTurn[]) {
+  useChatStore.setState((s) => {
+    let { chats, streaming } = s
+    for (const turn of turns) {
+      const chat = chats[turn.chatId]
+      if (!chat) continue
+      streaming = { ...streaming, [turn.chatId]: turn.messageId }
+      if (chat.messages.some((m) => m.id === turn.messageId)) {
+        chats = { ...chats, [turn.chatId]: { ...chat, messages: chat.messages.map((m) => (m.id === turn.messageId ? turn.message : m)) } }
+      } else held.set(turn.messageId, { chatId: turn.chatId, message: turn.message })
+    }
+    return { chats, streaming }
+  })
+}
+
+// A chat's messages as read, with the replies held for it in place of what was read
+export function withHeld(chatId: string, messages: ChatMessage[]): ChatMessage[] {
+  let out = messages
+  for (const [id, { chatId: of, message }] of held) {
+    if (of !== chatId) continue
+    held.delete(id)
+    out = out.some((m) => m.id === id) ? out.map((m) => (m.id === id ? message : m)) : [...out, message]
+  }
+  return out
+}
+
+// Another workspace: nothing of the last one's turns is followed or sent
+export function forgetTurns() {
+  held.clear()
+  afterEnd.clear()
+}
+
+// The turn's call returned and nothing said it ended (core refused it before it began, or the notice was
+// lost on its way): what core saved is the reply, else what the call said
+async function settle(chatId: string, messageId: string, ending: Partial<ChatMessage>) {
+  const saved = isDesktop ? (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === messageId) : undefined
+  const mine = useChatStore.getState().chats[chatId]?.messages.find((m) => m.id === messageId)
+  if (!runs(chatId, messageId) || !mine) return
+  turnEnded(chatId, messageId, saved && saved.status !== "streaming" ? saved : withoutAgentError({ ...mine, ...ending, finishedAt: Date.now() }))
+}
+
+agentClient.onUpdate(followUpdate)
+agentClient.onEnded(turnEnded)
 watchConnectors(useChatStore)

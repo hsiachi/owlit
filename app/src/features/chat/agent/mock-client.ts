@@ -1,9 +1,9 @@
-import { type AgentQuestion, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind } from "@owlit/protocol"
+import { type AgentQuestion, applyUpdate, type ChatMessage, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind, withoutAgentError } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { myOwlit } from "@/lib/actors"
 import { mockCheckResults } from "../mocks/connectors"
-import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
+import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest, type RunningTurn } from "./client"
 import { addMockChange, mockEntry } from "../results"
 import { landMockProposal } from "@/app/seen"
 
@@ -30,6 +30,52 @@ const AUTO_ROLES = new Set<string>(["coauthor", "assistant"])
 export class MockAgentClient implements AgentClient {
   private pendingPermissions = new Map<string, (optionId: string) => void>()
   private pendingQuestions = new Map<string, (answers: Record<string, QuestionAnswer> | null) => void>()
+  // The turns running in this preview, each with its reply, as core keeps them in the desktop app
+  private turns = new Map<string, { controller: AbortController; message: ChatMessage }>()
+  private updated = new Set<(chatId: string, messageId: string, update: SessionUpdate) => void>()
+  private ended = new Set<(chatId: string, messageId: string, message: ChatMessage) => void>()
+
+  async prompt(req: PromptRequest): Promise<StopReason> {
+    if (this.turns.has(req.chatId)) throw new Error("This chat is still answering.")
+    const message: ChatMessage = { id: req.assistantMessageId, role: "assistant", createdAt: req.userMessage.createdAt + 1, parts: [], status: "streaming", connectorId: req.connectorId, modelId: req.modelId }
+    const turn = { controller: new AbortController(), message }
+    this.turns.set(req.chatId, turn)
+    const emit = (update: SessionUpdate) => {
+      turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
+      for (const listener of this.updated) listener(req.chatId, message.id, update)
+    }
+    const end = (patch: Partial<ChatMessage>) => {
+      this.turns.delete(req.chatId)
+      turn.message = withoutAgentError({ ...turn.message, finishedAt: Date.now(), ...patch })
+      for (const listener of this.ended) listener(req.chatId, message.id, turn.message)
+    }
+    try {
+      const stop = await this.run(req, emit, turn.controller.signal)
+      end({ status: stop === "cancelled" ? "cancelled" : "done" })
+      return stop
+    } catch (e) {
+      end({ status: "error", error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  }
+
+  cancel(chatId: string) {
+    this.turns.get(chatId)?.controller.abort()
+  }
+
+  async running(): Promise<RunningTurn[]> {
+    return [...this.turns].map(([chatId, { message }]) => ({ chatId, messageId: message.id, message }))
+  }
+
+  onUpdate(listener: (chatId: string, messageId: string, update: SessionUpdate) => void) {
+    this.updated.add(listener)
+    return () => void this.updated.delete(listener)
+  }
+
+  onEnded(listener: (chatId: string, messageId: string, message: ChatMessage) => void) {
+    this.ended.add(listener)
+    return () => void this.ended.delete(listener)
+  }
 
   async check(connector: Connector): Promise<Connector> {
     await new Promise((r) => setTimeout(r, 700))
@@ -52,11 +98,7 @@ export class MockAgentClient implements AgentClient {
     this.pendingQuestions.delete(requestId)
   }
 
-  async prompt(
-    req: PromptRequest,
-    emit: (u: SessionUpdate) => void,
-    signal: AbortSignal,
-  ): Promise<StopReason> {
+  private async run(req: PromptRequest, emit: (u: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
     const { text, mentions, attachments, context = [], selection } = req.input
     const mode: string = req.role ?? DEFAULT_ROLE
     // What the agent reads first: everything mentioned, plus what was on screen

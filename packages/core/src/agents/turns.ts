@@ -8,6 +8,7 @@ import {
   parseOwlitUri,
   RpcErrorCode,
   type ChatMessage,
+  type CutOff,
   type MemoryLine,
   type ReadFrom,
   type Mentionable,
@@ -30,7 +31,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import { messageOf } from "../util.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { cutOffSentence, failureOf, type CutOff } from "./failure.ts"
+import { cutOffSentence, failureOf } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
 import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
@@ -161,7 +162,7 @@ export class Turns {
     }
     turn.emit = emit
     if (turn.role === "coauthor") this.coauthoring.set(req.chatId, Infinity)
-    const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string) => {
+    const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string, cutOff?: CutOff) => {
       // An agent of the agent's that hadn't finished won't go on once the answer has ended
       for (const p of turn.message.parts) {
         if (p.type === "agent" && p.status === "working") emit({ type: "agent_update", agentId: p.agentId, status: status === "done" && p.report ? "done" : "stopped" })
@@ -174,6 +175,7 @@ export class Turns {
         finishedAt: Date.now(),
         ...(error ? { error } : {}),
         ...(errorDetail ? { errorDetail } : {}),
+        ...(cutOff ? { cutOff } : {}),
         ...(readFrom.length ? { readFrom } : {}),
       })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
@@ -215,7 +217,7 @@ export class Turns {
     } catch (error) {
       if (turn.cutOff) {
         const text = cutOffSentence(turn.cutOff)
-        await finish("error", text)
+        await finish("error", text, undefined, turn.cutOff)
         throw new RpcFailure(RpcErrorCode.InternalError, text)
       }
       if (turn.cancelled) {
@@ -223,8 +225,8 @@ export class Turns {
         return "cancelled"
       }
       const said = withoutAgentError({ ...turn.message, status: "error" }).errorDetail ?? ""
-      const { text, detail } = await failureOf(this.options.agents, req.connectorId, error, said)
-      await finish("error", text, detail)
+      const { text, detail, cutOff } = await failureOf(this.options.agents, req.connectorId, error, said)
+      await finish("error", text, detail, cutOff)
       throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
     } finally {
       this.closePermissions(turn)

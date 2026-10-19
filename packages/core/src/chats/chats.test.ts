@@ -78,7 +78,7 @@ describe("chats", () => {
       await first.core.dispose()
       return open()
     })
-    expect((await second.call("chats.get", { id: "a" })).messages[0]).toMatchObject({ status: "error", error: "Owlit was closed before it finished." })
+    expect((await second.call("chats.get", { id: "a" })).messages[0]).toMatchObject({ status: "error", error: "Owlit was closed before it finished.", cutOff: "closed" })
   })
 
   it("moves a deleted chat to the trash", async () => {

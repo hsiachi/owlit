@@ -4,15 +4,13 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
-import { useChatStore } from "./store"
+import { agentClient } from "./agent"
+import { adoptRunning, forgetTurns, useChatStore, withHeld } from "./store"
 
 // The chat store's link to .owlit/chats/. The store changes at once; each change then goes to core in
-// order. A streaming answer is sent at most every SEND_EVERY_MS, and whole once its turn ends; core
-// writes it to disk on its own schedule.
+// order. A turn's messages are core's to save, as it runs the turn.
 
 export const onDisk = isDesktop
-
-const SEND_EVERY_MS = 250
 
 const queue = createWorkspaceQueue({ onError: (error) => toastError(error, t`Couldn't save the chat.`) })
 const enqueue = (op: () => Promise<unknown>) => queue.enqueue(op)
@@ -22,13 +20,16 @@ const diskFlag = createDiskFlag()
 export const isChatsFromDisk = diskFlag.isOn
 const fromDisk = diskFlag.apply
 
-// The list first, then every chat's messages: the list shows at once, and ⌘K and docs'
-// pending edits see whole chats
+// The list first, then the turns running now (a window opened or reloaded while one runs takes it up),
+// then every chat's messages: the list shows at once, and ⌘K and docs' pending edits see whole chats
 async function load() {
   const sameWorkspace = queue.tracker()
   const list = await rpc.chats.list()
   if (!sameWorkspace()) return
   fromDisk(() => useChatStore.setState({ chats: Object.fromEntries(list.map((c) => [c.id, { ...c, messages: [] }])), chatsLoaded: true }))
+  const running = await agentClient.running().catch(() => [])
+  if (!sameWorkspace()) return
+  adoptRunning(running)
   // Outside the queue, so sending a message doesn't wait for every old chat to be read
   void loadMessages(list, sameWorkspace)
 }
@@ -42,7 +43,7 @@ async function loadMessages(list: ChatSummary[], sameWorkspace: () => boolean) {
         const mine = s.chats[chat.id]
         // A chat the user has already written in since the list came keeps what it has
         if (!mine || mine.messages.length) return s
-        return { chats: { ...s.chats, [chat.id]: { ...mine, messages: chat.messages } } }
+        return { chats: { ...s.chats, [chat.id]: { ...mine, messages: withHeld(chat.id, chat.messages) } } }
       }),
     )
   }
@@ -56,10 +57,7 @@ export const createChatOnDisk = (chat: ChatSummary) => enqueue(() => rpc.chats.c
 export const updateChatOnDisk = (id: string, patch: Partial<Omit<ChatSummary, "id" | "createdAt">>) =>
   enqueue(() => rpc.chats.update({ id, patch }))
 
-export function deleteChatOnDisk(id: string) {
-  dropPending(id)
-  enqueue(() => rpc.chats.delete({ id }))
-}
+export const deleteChatOnDisk = (id: string) => enqueue(() => rpc.chats.delete({ id }))
 
 // The chat deleted last under this id, back from .owlit/trash/ with its files; after the delete reached core
 export function restoreChatOnDisk(id: string): Promise<Chat> {
@@ -69,58 +67,18 @@ export function restoreChatOnDisk(id: string): Promise<Chat> {
   })))
 }
 
-export const appendMessageOnDisk = (id: string, message: ChatMessage) => enqueue(() => rpc.chats.appendMessage({ id, message }))
 export const removeMessagesOnDisk = (id: string, messageIds: string[]) => enqueue(() => rpc.chats.removeMessages({ id, messageIds }))
-
-// A streamed answer, as it grows: the latest version waits here until it is sent
-const pending = new Map<string, { chatId: string; message: ChatMessage; timer: ReturnType<typeof setTimeout> }>()
-
-export function patchMessageOnDisk(chatId: string, message: ChatMessage, final = false) {
-  const key = `${chatId}/${message.id}`
-  const waiting = pending.get(key)
-  if (final) {
-    if (waiting) clearTimeout(waiting.timer)
-    pending.delete(key)
-    enqueue(() => rpc.chats.patchMessage({ id: chatId, message, final: true }))
-    return
-  }
-  if (waiting) {
-    waiting.message = message
-    return
-  }
-  const timer = setTimeout(() => sendPending(key), SEND_EVERY_MS)
-  pending.set(key, { chatId, message, timer })
-}
-
-function sendPending(key: string) {
-  const latest = pending.get(key)
-  if (!latest) return
-  clearTimeout(latest.timer)
-  pending.delete(key)
-  enqueue(() => rpc.chats.patchMessage({ id: latest.chatId, message: latest.message }))
-}
-
-function dropPending(chatId: string) {
-  for (const [key, entry] of pending) {
-    if (entry.chatId !== chatId) continue
-    clearTimeout(entry.timer)
-    pending.delete(key)
-  }
-}
+export const patchMessageOnDisk = (chatId: string, message: ChatMessage) => enqueue(() => rpc.chats.patchMessage({ id: chatId, message, final: true }))
 
 if (onDisk) {
   onWorkspaceOpened(() => {
     queue.reset()
-    for (const entry of pending.values()) clearTimeout(entry.timer)
-    pending.clear()
+    forgetTurns()
     useChatStore.setState({ chats: {}, streaming: {}, chatsLoaded: false })
     enqueue(load)
   })
-  // Opening another workspace drops the queue, so what waits or is queued goes to core first
-  beforeWorkspaceSwitch(() => {
-    for (const key of [...pending.keys()]) sendPending(key)
-    return queue.settled()
-  })
+  // Opening another workspace drops the queue, so what is queued goes to core first
+  beforeWorkspaceSwitch(() => queue.settled())
   // Opened before this module was loaded (a reload of the window)
   queueMicrotask(() => {
     if (useWorkspace.getState().current && !useChatStore.getState().chatsLoaded) enqueue(load)

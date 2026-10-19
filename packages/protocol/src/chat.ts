@@ -182,6 +182,8 @@ export type MessagePart =
 // or stopped with the answer
 export type AgentStatus = "working" | "done" | "failed" | "stopped"
 
+export type CutOff = "closed" | "switched"
+
 export type MessageStatus = "streaming" | "done" | "cancelled" | "error"
 
 export interface ChatMessage {
@@ -203,6 +205,9 @@ export interface ChatMessage {
   // 403 Request not allowed"), kept apart from the answer
   error?: string
   errorDetail?: string
+  // Set on a reply owlit itself cut off, by closing or by opening another workspace: not the person's own
+  // Stop and not the agent breaking, so it is said as where it stopped, with Retry
+  cutOff?: CutOff
   // What an answer was built from, set when its turn ends: each paper it read or cited, and how far
   // (core's view of the turn's library_read calls, not the agent's word)
   readFrom?: ReadFrom[]
