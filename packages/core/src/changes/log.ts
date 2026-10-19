@@ -91,7 +91,9 @@ export class ChangeLog {
     })
   }
 
-  private index() {
-    return readJsonl<Change>(path.join(this.dir, "index.jsonl"))
+  // Only lines in the log's own shape: an owlit built before the change log, opening the same workspace,
+  // writes its version records into this file too, and a line without a target is one of those
+  private async index() {
+    return (await readJsonl<Change>(path.join(this.dir, "index.jsonl"))).filter((c) => !!c.target)
   }
 }

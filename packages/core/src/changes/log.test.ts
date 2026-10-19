@@ -42,6 +42,16 @@ describe("ChangeLog", () => {
     expect(ids(await log.list({ since: 2000 }))).toEqual([c.id, b.id])
   })
 
+  it("leaves out lines an owlit from before the change log wrote into the same index", async () => {
+    const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
+    const log = new ChangeLog(owlit)
+    const a = await log.append(entry({ kind: "doc", path: "a.md" }, { at: 1000 }), "")
+    // A version record in the earlier shape: no target
+    writeFileSync(path.join(owlit, "versions", "index.jsonl"), JSON.stringify({ id: "2000-x-a.md", at: 2000, by: "agent", kind: "note", path: "a.md", op: "added" }) + "\n", { flag: "a" })
+    expect((await log.list()).map((x) => x.id)).toEqual([a.id])
+    expect(await log.get("2000-x-a.md")).toBeNull()
+  })
+
   it("keeps the newest of each path and nothing older than the keep window", async () => {
     const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
     const log = new ChangeLog(owlit)
