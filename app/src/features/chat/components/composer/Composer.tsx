@@ -22,6 +22,7 @@ import { useFileDrop } from "@/hooks/use-file-drop"
 import { fromDrop, openAttached, readerOf, useAttachments } from "../../lib/attachments"
 import type { Mentionable, PromptInput, SourceKind } from "@owlit/protocol"
 import { useResolvedSelection } from "../../use-selection"
+import { composerText } from "../../lib/composer-text"
 import { useComposerDrafts, useDraftKey } from "../../composer-drafts"
 import { AgentPicker } from "./AgentPicker"
 import { isUnavailable, problemSentence } from "../../lib/connector-status"
@@ -62,51 +63,42 @@ export interface ComposerProps {
 // How long typing rests before the draft is written
 const SAVE_AFTER_MS = 300
 
-// Enter submits, Shift+Enter inserts a line break. Runs before the core keymap
-// (which would split the paragraph) and yields to the mention popup while open. Esc is the composer's
-// (onEscape) once the popup is closed.
+// Enter always submits, as in Claude's own apps, lists or not; Shift+Enter is a new line, and in a list a
+// new item (on an empty item, the end of the list). Tab and Shift+Tab indent and outdent an item, and
+// Backspace at an item's start takes it out of the list. Runs before the core keymap (which would split
+// the paragraph) and yields to the mention popup while open; StarterKit's own list keymap stays off, since
+// it gives Enter to the list. Esc is the composer's (onEscape) once the popup is closed.
 const SubmitKeymap = Extension.create<{ onSubmit: () => void; onEscape: () => boolean }>({
   name: "submitKeymap",
   priority: 1000,
   addOptions: () => ({ onSubmit: () => {}, onEscape: () => false }),
   addKeyboardShortcuts() {
+    const inItem = () => this.editor.isActive("listItem")
+    const emptyLine = () => this.editor.state.selection.$from.parent.content.size === 0
+    const atLineStart = () => this.editor.state.selection.empty && this.editor.state.selection.$from.parentOffset === 0
     return {
       Enter: () => {
         if (mentionPopup.open) return false
         this.options.onSubmit()
         return true
       },
-      "Shift-Enter": () => this.editor.commands.setHardBreak(),
+      "Shift-Enter": () => {
+        // A new paragraph rather than a line break, so "- " or "1. " can start a list on it; both are sent
+        // as one new line
+        if (!inItem()) return this.editor.commands.splitBlock()
+        return emptyLine() ? this.editor.commands.liftListItem("listItem") : this.editor.commands.splitListItem("listItem")
+      },
+      Tab: () => inItem() && !mentionPopup.open && (this.editor.commands.sinkListItem("listItem") || true),
+      "Shift-Tab": () => inItem() && !mentionPopup.open && (this.editor.commands.liftListItem("listItem") || true),
+      Backspace: () => inItem() && atLineStart() && this.editor.commands.liftListItem("listItem"),
       Escape: () => !mentionPopup.open && this.options.onEscape(),
     }
   },
 })
 
-// Flatten the document into plain text plus the mentioned items. `known` holds mentions that @ doesn't
-// offer (a workspace file that isn't Markdown, made a mention by attaching it).
-function extract(editor: Editor, known: Mentionable[] = []): { text: string; mentions: Mentionable[] } {
-  const mentions: Mentionable[] = []
-  const lines: string[] = []
-  const offered = docMentionItems("")
-  editor.state.doc.forEach((block) => {
-    let line = ""
-    block.descendants((node) => {
-      if (node.type.name === "mention") {
-        const same = (x: Mentionable) => x.id === node.attrs.id && (!node.attrs.kind || x.kind === node.attrs.kind)
-        const m = offered.find(same) ?? known.find(same)
-        if (m && !mentions.some((x) => x.id === m.id)) mentions.push(m)
-        line += `@[${node.attrs.label}]`
-      } else if (node.isText) {
-        line += node.text
-      } else if (node.type.name === "hardBreak") {
-        line += "\n"
-      }
-      return true
-    })
-    lines.push(line)
-  })
-  return { text: lines.join("\n").trim(), mentions }
-}
+// What is typed, as the message's text and mentions. `known` holds mentions that @ doesn't offer (a
+// workspace file that isn't Markdown, made a mention by attaching it).
+const extract = (editor: Editor, known: Mentionable[] = []) => composerText(editor.state.doc, [...docMentionItems(""), ...known])
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
   { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header, bar = false, idle, onEscape },
@@ -146,9 +138,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     extensions: [
       StarterKit.configure({
         blockquote: false,
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
+        // Lists, by "- ", "* " or "1. " at a line's start; their keys are SubmitKeymap's
         listKeymap: false,
         codeBlock: false,
         heading: false,
