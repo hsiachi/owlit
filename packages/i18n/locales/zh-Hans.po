@@ -2482,6 +2482,12 @@ msgstr "新建文件夹"
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr "{count, plural, other {删除 # 项}}"
 
+#. before the words Owlit's comment said before it corrected them
+#. before the words Owlit's comment said before it corrected them
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "was:"
+msgstr "原为："
+
 #. after a comment's time: it was changed after it was written
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "edited"
@@ -5679,6 +5685,11 @@ msgstr "查找新论文"
 #: app/src/features/threads/components/About.tsx
 msgid "Read in full"
 msgstr "读全文"
+
+#. a batch of a thread: once the user read a paper in full, Owlit answered its row again from it
+#: app/src/features/threads/components/About.tsx
+msgid "Answered again from the full text"
+msgstr "读全文后重新回答"
 
 #. a batch of a thread: Owlit answered a column's question for every paper
 #: app/src/features/threads/components/About.tsx

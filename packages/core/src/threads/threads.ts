@@ -809,7 +809,7 @@ export class Threads {
       let batch = batches.at(-1)
       if (!batch || batch.key !== key || (!line.run && line.at - batch.last > BATCH_GAP_MS)) {
         const kind = line.run?.split(":")[0]?.replace(/^threads\./, "")
-        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "check", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
+        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "check", "read", "reread", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
         batch = { key, last: line.at, rows: new Set(), lines: [], at: line.at, trigger, added: 0, answered: 0, columns: [], searches: [], notes: [] }
         if (trigger === "chat") batch.chatId = line.by.slice("chat:".length)
         batches.push(batch)

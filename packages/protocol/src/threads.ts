@@ -349,7 +349,7 @@ export interface ThreadBatch {
   at: number
   // Its first gathering, Find more papers, a watch check, reading in full, a column, a chat, or Owlit
   // without saying (threads from before batches were recorded)
-  trigger: "gather" | "more" | "check" | "read" | "fill" | "chat" | "agent"
+  trigger: "gather" | "more" | "check" | "read" | "reread" | "fill" | "chat" | "agent"
   chatId?: string
   // A later question in a chat that Owlit answered by adding here
   asked?: string
