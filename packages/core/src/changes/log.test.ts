@@ -1,5 +1,5 @@
 import type { Change } from "@owlit/protocol"
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
@@ -50,6 +50,26 @@ describe("ChangeLog", () => {
     writeFileSync(path.join(owlit, "versions", "index.jsonl"), JSON.stringify({ id: "2000-x-a.md", at: 2000, by: "agent", kind: "note", path: "a.md", op: "added" }) + "\n", { flag: "a" })
     expect((await log.list()).map((x) => x.id)).toEqual([a.id])
     expect(await log.get("2000-x-a.md")).toBeNull()
+  })
+
+  it("writes lines in another shape back where they were when cleanup and replace rewrite the index", async () => {
+    const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
+    const log = new ChangeLog(owlit)
+    const index = path.join(owlit, "versions", "index.jsonl")
+    const foreign = [JSON.stringify({ id: "1-x-a.md", at: 1, by: "agent", kind: "note", path: "a.md", op: "added" }), JSON.stringify({ id: "2-y-a.md", at: 2, by: "user", kind: "note", path: "a.md", op: "edited" })]
+    // Written directly: appending this many through the log would start its own cleanup
+    const t0 = Date.now() - 1000
+    const own = Array.from({ length: KEEP_PER_PATH + 100 }, (_, i) => entry({ kind: "doc", path: "a.md" }, { at: t0 + i }))
+    const lines = own.map((c) => JSON.stringify(c))
+    mkdirSync(path.dirname(index))
+    writeFileSync(index, [lines[0], foreign[0], ...lines.slice(1), foreign[1]].map((l) => l + "\n").join(""))
+    expect(await log.cleanup()).toBe(100)
+    const kept = own.slice(100).map((c) => JSON.stringify(c))
+    expect(readFileSync(index, "utf8").trimEnd().split("\n")).toEqual([foreign[0], ...kept, foreign[1]])
+    expect((await log.list()).map((c) => c.id)).toEqual(own.slice(100).map((c) => c.id).reverse())
+    const changed = { ...own[150], afterHash: sha1("folded") }
+    await log.replace(changed)
+    expect(readFileSync(index, "utf8").trimEnd().split("\n")).toEqual([foreign[0], ...own.slice(100).map((c) => JSON.stringify(c.id === changed.id ? changed : c)), foreign[1]])
   })
 
   it("keeps the newest of each path and nothing older than the keep window", async () => {
