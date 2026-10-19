@@ -202,13 +202,17 @@ export async function downloadPdf(http: Http, url: string, dest: string, signal?
       yield chunk
     }
   }
+  const out = createWriteStream(part)
   try {
-    await pipeline(Readable.fromWeb(response.body as import("node:stream/web").ReadableStream), checked, createWriteStream(part))
+    await pipeline(Readable.fromWeb(response.body as import("node:stream/web").ReadableStream), checked, out)
     if (head.length < 5) throw new NotAPdf(`${host} sent an empty file.`)
     // Cancelled meanwhile (the user attached a PDF): it isn't wanted over theirs
     signal?.throwIfAborted()
     await rename(part, dest)
   } catch (error) {
+    // A refusal at the first chunk can come while the stream is still opening the file; it would then be
+    // created after a removal here, so the removal waits for the stream to close
+    if (!out.closed) await new Promise<void>((resolve) => out.once("close", resolve))
     await rm(part, { force: true })
     throw error
   }
