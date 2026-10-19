@@ -258,10 +258,6 @@ export class Library {
     }
     const text = await this.textQuality(id)
     if (text) paper.text = text
-    if (pdf && paper.pdf) {
-      const placed = (await this.acquisitions.read(id))?.tried.at(-1)
-      if (placed?.ended === "pdf") paper.pdf.came = { by: placed.by, at: placed.at }
-    }
     if (!pdf) {
       paper.pdfState = await this.acquisitions.shown(id)
       // In the extension's queue, or being fetched: owlit is still finding it, whatever its own look said

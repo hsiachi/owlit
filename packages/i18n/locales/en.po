@@ -2792,7 +2792,6 @@ msgstr "Edit applied"
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
-#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3068,26 +3067,6 @@ msgstr "Press owlit's button in your browser's toolbar, then Allow."
 msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "The extension asks to read {host} for the papers waiting there."
 
-#: app/src/features/extension/waits.ts
-msgid "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-msgstr "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
-msgstr "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
-msgstr "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
-msgstr "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
-msgstr "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
-
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Recent"
@@ -3157,69 +3136,6 @@ msgstr "This folder is your workspace. Papers, notes and chats you add live in i
 #: app/src/features/home/HomePage.tsx
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left at {left}"
-msgstr "Since you left at {left}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left on {left}"
-msgstr "Since you left on {left}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Finished {when}"
-msgstr "Finished {when}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
-msgstr "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "New thread: {title}"
-msgstr "New thread: {title}"
-
-#. placeholder {0}: line.added.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
-msgstr "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{title} changed"
-msgstr "{title} changed"
-
-#. placeholder {0}: titles.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
-msgstr "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
-
-#. placeholder {0}: line.count
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
-msgstr "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was made outside owlit"
-msgstr "{name} was made outside owlit"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} wrote {name}"
-msgstr "{who} wrote {name}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was removed outside owlit"
-msgstr "{name} was removed outside owlit"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} removed {name}"
-msgstr "{who} removed {name}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was changed outside owlit"
-msgstr "{name} was changed outside owlit"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} edited {name}"
-msgstr "{who} edited {name}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
@@ -3629,15 +3545,6 @@ msgstr "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PD
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 
-#. Library tab: the papers to read next
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Up next"
-msgstr "Up next"
-
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "All papers"
-msgstr "All papers"
-
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr "Recently added"
@@ -3694,11 +3601,9 @@ msgstr "Search or add papers"
 msgid "Add a PDF file"
 msgstr "Add a PDF file"
 
-#. group heading: papers being read now
 #. reading status of a paper: being read now
 #. reading status of a paper: being read now
 #: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
@@ -3932,10 +3837,6 @@ msgstr "Not from a thread"
 msgid "No year"
 msgstr "No year"
 
-#: app/src/features/library/lib/filter.ts
-msgid "Not read yet"
-msgstr "Not read yet"
-
 #: app/src/features/library/lib/format.ts
 msgid "{count, plural, one {# citation} other {# citations}}"
 msgstr "{count, plural, one {# citation} other {# citations}}"
@@ -4127,14 +4028,6 @@ msgstr "Hide details"
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Show details"
 msgstr "Show details"
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Nothing to read next"
-msgstr "Nothing to read next"
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Papers you start reading, and new ones with a PDF, will show up here."
-msgstr "Papers you start reading, and new ones with a PDF, will show up here."
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Resize details"

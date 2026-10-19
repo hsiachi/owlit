@@ -66,6 +66,9 @@ describe("readJournal", () => {
       { kind: "rule.looked", at: at + 1, rule: "paper.readInFull", cause: "paper.read", causeAt: at, reads: [], actor: MY_OWLIT },
       { kind: "paper.read", at, paperId: "p", actor: MY_OWLIT },
       { kind: "feedback.dismiss", at: at + 2, subject: "a.md", detail: { comment: "c1" }, actor: ME },
+      { kind: "idle", at: at + 3, seconds: 30, actor: ME },
+      { kind: "back", at: at + 4, seconds: 90, actor: ME },
+      { kind: "doc.closed", at: at + 5, path: "a.md", actor: ME },
     ]
     writeFileSync(file, [opened, ...old].map((e) => JSON.stringify(e)).join("\n") + "\n")
     expect(await readJournal(file)).toEqual([opened])

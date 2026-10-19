@@ -131,5 +131,6 @@ export function fullReadAt(entries: readonly JournalEntry[], paperId: string, cl
 const JOURNALED = new Set<string>(JOURNALED_KINDS)
 
 // The entries of a journal file in order. A line that doesn't parse (a write cut short) is skipped, and so
-// is one of a kind owlit doesn't write: older journals also hold Owlit's decisions and feedback.
+// is one of a kind owlit doesn't write: older journals also hold Owlit's decisions and feedback, docs
+// closing, and the window going to the background and coming back.
 export const readJournal = async (file: string) => (await readJsonl<JournalEntry>(file)).filter((e) => JOURNALED.has(e.kind))

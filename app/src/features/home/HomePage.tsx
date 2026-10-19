@@ -17,13 +17,12 @@ import { useNewDigest } from "@/features/library/digests"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
-import { SinceYouLeft } from "./SinceYouLeft"
-import { useSeen } from "@/app/seen"
 import { ago } from "@/lib/time"
 import { type Place, usePlaces } from "./where"
 
-// Home: where the user was, what waits for them (WaitingOnYou) and what changed while they were away
-// (SinceYouLeft), in that order. PDFs dropped anywhere on it go to the Library.
+// Home: where the user was and what waits for them (WaitingOnYou), in that order. What others changed is
+// marked where it happened (a thread's dot, a doc's changed lines, a chat's finished mark), not listed
+// here. PDFs dropped anywhere on it go to the Library.
 
 const RECENT = 8
 
@@ -32,10 +31,6 @@ export function HomePage() {
   const workspace = useWorkspace((s) => s.current)
   const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files)))
   const [lead, ...rest] = places
-  // Since the user left, as core heard it: three days or more say everything; a shorter stretch, the last
-  // one, still says Owlit's runs meanwhile
-  const since = useSeen((s) => s.long?.from ?? null)
-  const runsFrom = useSeen((s) => s.long?.from ?? s.away?.from ?? null)
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col" {...dropProps}>
@@ -54,7 +49,6 @@ export function HomePage() {
               <div className="mt-8 empty:hidden">
                 <SiteWaits />
               </div>
-              {runsFrom && <SinceYouLeft since={runsFrom} all={!!since} />}
               {rest.length > 0 && (
                 <section className="mt-8">
                   <GroupLabel>{t`Recent`}</GroupLabel>
@@ -76,7 +70,7 @@ export function HomePage() {
   )
 }
 
-// A paper whose digest came while the user was away from it carries Owlit's dot in its icon's place and
+// A paper whose digest came since the user last looked at it carries Owlit's dot in its icon's place and
 // says so where its time was, until the digest has been seen
 function RecentRow({ place }: { place: Place }) {
   const fresh = useNewDigest(place.paperId)

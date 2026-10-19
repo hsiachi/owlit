@@ -4,12 +4,12 @@ import { isLibraryFromCore, markReading } from "../disk"
 import { useLibraryStore } from "../store"
 
 // When opening a paper counts as reading it. A paper becomes Reading, and its last-read time (lastOpenedAt,
-// which orders Up next's Reading group and Home's recent papers) moves, only once the person has really
-// read in it: 45 seconds on the paper with the window in view, a move past the page the reader opened on
-// (a scroll or a page change), or a highlight, a comment or a note of their own. A glance changes nothing
-// but the remembered position. In a blind test a paper opened for 10 seconds turned Reading and jumped
-// to the top of Up next, ahead of the paper the person was actually half-way through. Read comes from
-// core, when the person reaches the end (core's activity/reading.ts › readInFull).
+// which orders Home's recent papers and the ⌘K list) moves, only once the person has really read in it:
+// 45 seconds on the paper with the window in view, a move past the page the reader opened on (a scroll or
+// a page change), or a highlight, a comment or a note of their own. A glance changes nothing but the
+// remembered position: a paper opened for ten seconds would otherwise turn Reading and come before the
+// paper the person is half-way through. Read comes from core, when the person reaches the end (core's
+// activity/reading.ts › readInFull).
 const READ_AFTER_MS = 45_000
 
 // The paper open now, and whether this visit has counted yet: it counts once

@@ -78,8 +78,6 @@ export const personOf = (owlit: OwlitId): PersonId => `p_${owlit.slice(2)}`
 export interface SeenMarks {
   // When this person's marks began: comments from before it count as seen
   since: number
-  // When the person was last heard from, so the next start knows since when they were away
-  here?: number
   // A doc: the sha1 of its text as it was on the person's screen
   docs: Record<string, { hash: string; at: number }>
   // A thread, by id: each item when it was on screen, and the thread's own id for the first look at it
@@ -93,7 +91,7 @@ export interface SeenMarks {
   digests: Record<string, number>
 }
 
-export type SeenKind = Exclude<keyof SeenMarks, "since" | "here">
+export type SeenKind = Exclude<keyof SeenMarks, "since">
 
 // seen.mark: one unit the person has on screen now (at defaults to now)
 export type SeenMark = { at?: number } & (
@@ -120,12 +118,6 @@ export interface ChangedPassage {
   text: string
   actor: ActorId
   at: number
-}
-
-// A stretch the person was away, from when they left to when they came back
-export interface Absence {
-  from: number
-  to: number
 }
 
 // A thread item's entry by someone else carries a dot when it is something the person reads: the title,

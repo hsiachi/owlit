@@ -12,7 +12,7 @@ export class Journal {
 
   // file: where the journal of the open workspace lives, or null when none is open. person: the profile's
   // id, whose the window's events are. recording: whether the user lets owlit note what they do; off,
-  // their events still reach every other listener (Since you left)
+  // their events still reach every other listener (the read-in-full check on a visit's end)
   constructor(bus: ActivityBus, file: () => string | null, person: () => Promise<PersonId>, recording: () => boolean = () => true) {
     this.person = person
     this.unsubscribe = bus.subscribe(JOURNALED_KINDS, (event) => {

@@ -27,7 +27,6 @@ import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
-import { Presence } from "./activity/presence.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
 import { GO_THROUGH_RUN, REPLY_RUN } from "./initiative/runs.ts"
@@ -140,8 +139,6 @@ export class Core {
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
   private readonly background: Background
-  // Whether the person is here or away, as their activity says
-  private readonly presence = new Presence()
   private readonly reviews: Reviews
   // Owlit updating itself
   readonly updates: Updates
@@ -244,18 +241,6 @@ export class Core {
       answering: () => this.turns.answering(),
       notify: (view) => this.notifier.notify("updates.changed", view),
     })
-    // The person's last activity is kept in their seen marks, so the next start knows since when they
-    // were away; coming back is told to the windows (Home's Since you left)
-    const presence = this.presence
-    this.activity.subscribe((event) => presence.hear(event))
-    presence.heard = (at, left) => {
-      const ws = this.workspace
-      if (!ws) return
-      void this.personAt(WINDOW)
-        .then((me) => ws.seen.here(me, at, left))
-        .catch((error) => console.error("[core] couldn't keep when the person was last here", error))
-    }
-    presence.cameBack = (away) => this.notifier.notify("presence.away", away)
     // Owlit's runs on the user's docs: answering a reply under its comment, going through material
     this.reviews = new Reviews({
       workspace: () => this.workspace,
@@ -517,7 +502,6 @@ export class Core {
     }) as unknown as z.ZodType<ChatMessage>
     this.router.register("chats.list", noParams, () => chats().list())
     this.router.register("chats.get", z.object({ id: chatId }), ({ id }) => chats().get(id))
-    this.router.register("chats.runs", z.object({ since: z.number().nonnegative() }), ({ since }) => chats().runsSince(since))
     this.router.register("chats.create", z.object({ chat: summary }), ({ chat }) => chats().create(chat))
     this.router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), ({ id, patch }) =>
       chats().update(id, patch),
@@ -685,11 +669,6 @@ export class Core {
         return marks
       },
     )
-    // When the person was away is theirs, like what they have seen: the window asks, no program on the socket
-    this.router.register("presence.away", noParams, (_params, caller) => {
-      if (caller.kind !== "window") throw new RpcFailure(RpcErrorCode.Forbidden, "Only owlit's window asks when the person was away.")
-      return this.presence.lastAway
-    })
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
@@ -1270,14 +1249,11 @@ export class Core {
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
-      // Away since the person was last heard from in this workspace, the app closed meanwhile
+      // The opener's seen marks begin as it opens, when they have none yet: what it held before isn't news
+      // to them
       if (opened) {
         const me = await this.personAt(WINDOW).catch(() => undefined)
-        const now = Date.now()
-        if (me) {
-          this.presence.resume((await next.seen.get(me, [])).here, now)
-          await next.seen.here(me, now, true)
-        }
+        if (me) await next.seen.get(me, [])
       }
       // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
       if (opened) await next.tasks.start()

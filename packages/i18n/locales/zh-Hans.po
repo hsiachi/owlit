@@ -2792,7 +2792,6 @@ msgstr "已应用修改"
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
-#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3068,26 +3067,6 @@ msgstr "点浏览器工具栏里的 owlit 按钮，再点“允许”。"
 msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "扩展需要读取 {host}，才能取回在那里等着的论文。"
 
-#: app/src/features/extension/waits.ts
-msgid "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-msgstr "{came, plural, other {# 篇 PDF 经你的浏览器取回}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
-msgstr "{n, plural, other {# 篇在等你登录图书馆}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
-msgstr "{n, plural, other {# 篇在等你登录 {host}}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
-msgstr "{n, plural, other {# 篇在等你完成 {host} 的验证}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
-msgstr "{n, plural, other {# 篇在等你允许扩展读取 {host}}}"
-
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Recent"
@@ -3157,69 +3136,6 @@ msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对
 #: app/src/features/home/HomePage.tsx
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left at {left}"
-msgstr "你 {left}离开后"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left on {left}"
-msgstr "你 {left}离开后"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Finished {when}"
-msgstr "{when}完成"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
-msgstr "{more, plural, other {{shownNames}等另外 # 篇}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "New thread: {title}"
-msgstr "新脉络：{title}"
-
-#. placeholder {0}: line.added.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
-msgstr "{0, plural, other {{title} 新增 # 篇论文}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{title} changed"
-msgstr "{title} 有改动"
-
-#. placeholder {0}: titles.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
-msgstr "{0, plural, other {文献库新增 # 篇论文}}"
-
-#. placeholder {0}: line.count
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
-msgstr "{0, plural, other {{who} 在 {name} 留了 # 条评论}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was made outside owlit"
-msgstr "{name} 在 owlit 之外新建"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} wrote {name}"
-msgstr "{who} 写了 {name}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was removed outside owlit"
-msgstr "{name} 在 owlit 之外被删除"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} removed {name}"
-msgstr "{who} 删除了 {name}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was changed outside owlit"
-msgstr "{name} 在 owlit 之外被改动"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} edited {name}"
-msgstr "{who} 编辑了 {name}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
@@ -3629,15 +3545,6 @@ msgstr "{0, plural, one {# 篇论文，{1} 篇有 PDF} other {# 篇论文，{2} 
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr "{0, plural, other {其中 # 篇已在库中。}}"
 
-#. Library tab: the papers to read next
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Up next"
-msgstr "待读"
-
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "All papers"
-msgstr "全部论文"
-
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr "最近添加"
@@ -3694,11 +3601,9 @@ msgstr "搜索或添加论文"
 msgid "Add a PDF file"
 msgstr "添加 PDF 文件"
 
-#. group heading: papers being read now
 #. reading status of a paper: being read now
 #. reading status of a paper: being read now
 #: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
@@ -3932,10 +3837,6 @@ msgstr "不在任何脉络里"
 msgid "No year"
 msgstr "无年份"
 
-#: app/src/features/library/lib/filter.ts
-msgid "Not read yet"
-msgstr "还没读"
-
 #: app/src/features/library/lib/format.ts
 msgid "{count, plural, one {# citation} other {# citations}}"
 msgstr "{count, plural, other {被引 # 次}}"
@@ -4127,14 +4028,6 @@ msgstr "隐藏详情"
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Show details"
 msgstr "显示详情"
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Nothing to read next"
-msgstr "没有待读的论文"
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Papers you start reading, and new ones with a PDF, will show up here."
-msgstr "你开始阅读的论文，以及新加入且有 PDF 的论文，都会显示在这里。"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Resize details"

@@ -1,9 +1,9 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
 import type { EditStats } from "./edit-stats.ts"
-import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
+import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Absence, Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
+import type { Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -244,8 +244,6 @@ export interface Methods {
   // Your chats; Owlit's own runs aren't among them
   "chats.list": { params: void; result: ChatSummary[] }
   "chats.get": { params: { id: string }; result: Chat }
-  // Owlit's runs that ended after since, newest first
-  "chats.runs": { params: { since: number }; result: RunSummary[] }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
@@ -361,8 +359,6 @@ export interface Methods {
   // kinds: only those (all when absent)
   "seen.get": { params: { kinds?: SeenKind[] }; result: SeenMarks }
   "seen.mark": { params: SeenMark; result: SeenMarks }
-  // The person's last stretch away that has ended (the app closed counts), or null
-  "presence.away": { params: void; result: Absence | null }
 
   // ---- Memory: what Owlit keeps in mind about the user (.owlit/memory.md)
   // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
@@ -557,8 +553,6 @@ export interface Notifications {
   "changes.added": { change: Change; label?: string; thread?: { rows: string[]; updated: number; asked?: string } }
   // The person's seen marks changed (a window marked something); all of them as they are now
   "seen.changed": SeenMarks
-  // The person came back from a stretch away
-  "presence.away": Absence
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

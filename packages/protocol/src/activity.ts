@@ -30,24 +30,18 @@ export type ActivityEvent =
   // The paper's own note, once typing has paused
   | { kind: "note.edited"; at: number; paperId: string }
   | { kind: "doc.opened"; at: number; path: string }
-  | { kind: "doc.closed"; at: number; path: string }
   // Typed by the user (not an agent's edit), once typing has paused; workspace-relative path
   | { kind: "doc.edited"; at: number; path: string }
   | { kind: "chat.sent"; at: number; chatId: string }
   // The user left a chat they had written in
   | { kind: "chat.ended"; at: number; chatId: string }
-  // The window has been in the background this long
-  | { kind: "idle"; at: number; seconds: number }
-  // The window came to the front again after an idle stretch this long
-  | { kind: "back"; at: number; seconds: number }
 
 export type ActivityKind = ActivityEvent["kind"]
 
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
 // What goes into .owlit/journal.jsonl. The rest (page turns, removing a highlight, sending a message) is
-// only for live listeners. Closing a doc, the window going idle and coming back are kept as the record of
-// when the user was here.
+// only for live listeners.
 export const JOURNALED_KINDS = [
   "paper.opened",
   "paper.focus",
@@ -60,9 +54,6 @@ export const JOURNALED_KINDS = [
   "highlight.added",
   "note.edited",
   "paper.closed",
-  "doc.closed",
-  "idle",
-  "back",
 ] as const satisfies readonly ActivityKind[]
 
 // A line of .owlit/journal.jsonl: what the person did, when. Older journals also hold lines of other

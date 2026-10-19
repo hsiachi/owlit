@@ -6,7 +6,6 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 - A doc's Versions lists every change and who made it: your edits, Owlit's and another program's. Undo, there or under an answer, puts back just the passage that change touched and keeps what you wrote since; a passage you edited after it stays, and owlit says which. In a thread Undo takes back the rows and answers one write added, on a paper one field.
 - Keep mine, when a doc changed on disk while you edited it, keeps the other program's text in Versions, under yours. A change another program makes while Owlit works no longer passes for Owlit's.
-- Since you left counts from when you left, also when owlit was closed, and names what changed: the papers added to each thread, the docs Owlit wrote or edited, the comments it left.
 - A doc shows a thin line beside the paragraphs Owlit or another program changed since you last looked, with who and when on hover.
 - The dots on threads, comments, chats and digests, and the result card under an answer with its Undo, survive a restart and agree across windows.
 - When your reply shows one of Owlit's comments was wrong, Owlit corrects the comment itself instead of only saying so underneath: it reads "edited", shows what it first said ("was: …"), and is new to you again; your replies stay.
@@ -25,12 +24,12 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Owlit works only when you ask: a star only stars, threads aren't watched for new papers (Watch for new papers is gone), and reading a paper in full doesn't re-answer its rows. The "On its own" setting and what ran under it (comments on a doc you open or stop editing, the daily look over your docs, a digest and threads for a paper that landed, going through a Meetings folder) are gone too. Ask for each from where it is: a digest on the paper, Find more papers on the thread, Go through from a doc's menu. A comment Owlit makes while you type in that doc shows at once, marked new.
 - A chat answer ends when Owlit's turn ends: on Claude Code, Owlit no longer hands parts of the work to helpers of its own, and a reply never goes on after it finished.
 - Owlit's background work shows only where it lands: the thread's line, the paper's Digest side (now with Stop), the doc's menu for a Go through (Stop going through), and "Owlit is answering…" with Stop in the comment you replied to. The breathing marks on paper and thread rows and on a doc's Owlit chip, the ring on Chat in the rail, the hover cards listing runs, and opening a run in the Owlit panel are gone.
+- Home keeps Continue, Waiting on you and Recent; Since you left and Library's Up next are gone, and what they said shows where it happened: the thread's dot, the doc's changed lines, the chat's finished mark, the paper's new digest.
 - Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
 - Sign in and Open on a waiting line bring the browser with the extension to the front, not only a new tab in it.
 - Signing in to Tsinghua's library opens tlink's sign-in page instead of a 500 error.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.
-- Since you left lists Owlit's work that started before you left and finished after.
 - Choosing a language during the first launch keeps you on that step, and Settings opened before a workspace no longer shows an error.
 - A reply you typed on a comment is still there when its card opens again.
 - A link to a paper in a big thread opens its row even when its group is folded or shows only its first papers, and a paper you removed from a thread is struck through where its summary still names it.

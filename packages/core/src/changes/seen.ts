@@ -3,10 +3,6 @@ import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { Serial } from "../util.ts"
 
-// The person's last activity is written down at most this often while they are here: it only has to
-// say, after the app was closed, about when they left
-const HERE_EVERY_MS = 60_000
-
 const KINDS: SeenKind[] = ["docs", "threads", "chats", "comments", "digests"]
 
 // .owlit/seen/<person>.json: what each person last looked at, one file each, so a synced folder carries
@@ -26,7 +22,7 @@ export class Seen {
   get(person: PersonId, kinds: SeenKind[] = KINDS) {
     return this.turn.run(async () => {
       const marks = await this.read(person)
-      return { since: marks.since, ...(marks.here !== undefined ? { here: marks.here } : {}), ...Object.fromEntries(KINDS.map((k) => [k, kinds.includes(k) ? marks[k] : {}])) } as SeenMarks
+      return { since: marks.since, ...Object.fromEntries(KINDS.map((k) => [k, kinds.includes(k) ? marks[k] : {}])) } as SeenMarks
     })
   }
 
@@ -35,17 +31,6 @@ export class Seen {
       const marks = await this.read(person)
       if (applySeen(marks, mark, mark.at ?? this.now())) await this.write(person, marks)
       return marks
-    })
-  }
-
-  // The person was heard from at this time; written down once HERE_EVERY_MS has passed, or at once
-  // (force) when it is when they left or came (the app may close before anything else is heard)
-  here(person: PersonId, at: number, force = false) {
-    return this.turn.run(async () => {
-      const marks = await this.read(person)
-      if (!force && marks.here !== undefined && at - marks.here < HERE_EVERY_MS) return
-      marks.here = at
-      await this.write(person, marks)
     })
   }
 

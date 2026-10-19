@@ -2792,7 +2792,6 @@ msgstr ""
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
-#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3068,26 +3067,6 @@ msgstr ""
 msgid "The extension asks to read {host} for the papers waiting there."
 msgstr ""
 
-#: app/src/features/extension/waits.ts
-msgid "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-msgstr ""
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
-msgstr ""
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
-msgstr ""
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
-msgstr ""
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
-msgstr ""
-
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Recent"
@@ -3156,69 +3135,6 @@ msgstr ""
 
 #: app/src/features/home/HomePage.tsx
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left at {left}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left on {left}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Finished {when}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "New thread: {title}"
-msgstr ""
-
-#. placeholder {0}: line.added.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{title} changed"
-msgstr ""
-
-#. placeholder {0}: titles.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
-msgstr ""
-
-#. placeholder {0}: line.count
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was made outside owlit"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} wrote {name}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was removed outside owlit"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} removed {name}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was changed outside owlit"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} edited {name}"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3629,15 +3545,6 @@ msgstr ""
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr ""
 
-#. Library tab: the papers to read next
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Up next"
-msgstr ""
-
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "All papers"
-msgstr ""
-
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr ""
@@ -3694,11 +3601,9 @@ msgstr ""
 msgid "Add a PDF file"
 msgstr ""
 
-#. group heading: papers being read now
 #. reading status of a paper: being read now
 #. reading status of a paper: being read now
 #: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
@@ -3932,10 +3837,6 @@ msgstr ""
 msgid "No year"
 msgstr ""
 
-#: app/src/features/library/lib/filter.ts
-msgid "Not read yet"
-msgstr ""
-
 #: app/src/features/library/lib/format.ts
 msgid "{count, plural, one {# citation} other {# citations}}"
 msgstr ""
@@ -4126,14 +4027,6 @@ msgstr ""
 
 #: app/src/features/library/pages/PaperPage.tsx
 msgid "Show details"
-msgstr ""
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Nothing to read next"
-msgstr ""
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Papers you start reading, and new ones with a PDF, will show up here."
 msgstr ""
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx

@@ -14,6 +14,6 @@ describe("routeSubject", () => {
   })
 
   it("takes a place's own pages and lists for no subject", () => {
-    for (const p of ["/", "/library", "/library/", "/library/up-next", "/docs", "/chat", "/threads", "/library/p1/more"]) expect(routeSubject(p)).toBeNull()
+    for (const p of ["/", "/library", "/library/", "/docs", "/chat", "/threads", "/library/p1/more"]) expect(routeSubject(p)).toBeNull()
   })
 })

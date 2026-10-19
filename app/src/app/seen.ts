@@ -2,35 +2,26 @@
 // changes.unseen): every "new" mark in the window reads this one store. A mark the window makes shows at
 // once and goes to core; core's answer, asked again whenever something could have changed, replaces it.
 
-import { applySeen, unseenOf, type Absence, type Change, type ChangedPassage, type ChangeFilter, type SeenMark, type SeenMarks, type Unseen } from "@owlit/protocol"
+import { applySeen, unseenOf, type Change, type ChangedPassage, type ChangeFilter, type SeenMark, type SeenMarks, type Unseen } from "@owlit/protocol"
 import { create } from "zustand"
 import { useChatStore } from "@/features/chat/store"
 import { useLibraryStore } from "@/features/library/store"
 import { me, WEB_ME } from "@/lib/actors"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
-import { MOCK_AWAY, MOCK_CHANGES, MOCK_MARKS, MOCK_PASSAGES } from "./seen-mock"
+import { MOCK_CHANGES, MOCK_MARKS, MOCK_PASSAGES } from "./seen-mock"
 
 interface SeenState {
   // Core's marks have come (the browser preview's are there from the start)
   loaded: boolean
   marks: SeenMarks
   unseen: Unseen
-  // The person's last stretch away that has ended, and the last one in this run of the app that was long
-  // enough for Home to say all that changed (a short one after it doesn't take that away)
-  away: Absence | null
-  long: Absence | null
 }
-
-// Away this long, Home says everything others changed meanwhile, not only Owlit's runs
-const LONG_AWAY = 3 * 24 * 3_600_000
-
-const withAway = (away: Absence | null, long: Absence | null) => ({ away, long: away && away.to - away.from >= LONG_AWAY ? away : long })
 
 const NONE: Unseen = { changes: [], chats: [], digests: [] }
 const NO_MARKS: SeenMarks = { since: 0, docs: {}, threads: {}, chats: {}, comments: {}, digests: {} }
 
-export const useSeen = create<SeenState>(() => ({ loaded: !isDesktop, marks: isDesktop ? NO_MARKS : MOCK_MARKS, unseen: NONE, ...withAway(isDesktop ? null : MOCK_AWAY, null) }))
+export const useSeen = create<SeenState>(() => ({ loaded: !isDesktop, marks: isDesktop ? NO_MARKS : MOCK_MARKS, unseen: NONE }))
 
 // Marks made here that core's answer may not hold yet, each with the first load asked after core took it
 // (Infinity while it is on its way). An answer older than that has the mark put on it again, so a reply
@@ -100,14 +91,14 @@ async function load() {
     return
   }
   const load = ++loads
-  const [marks, unseen, away] = await Promise.all([rpc.seen.get({}), rpc.changes.unseen({}), rpc.presence.away()]).catch(() => [null, null, null] as const)
+  const [marks, unseen] = await Promise.all([rpc.seen.get({}), rpc.changes.unseen({})]).catch(() => [null, null] as const)
   if (!marks || !unseen) return
   let answer = { marks, unseen }
   for (const [mark, heldFrom] of pending) {
     if (load >= heldFrom) pending.delete(mark)
     else answer = withMark(answer, mark) ?? answer
   }
-  useSeen.setState((s) => ({ loaded: true, ...answer, ...withAway(away, s.long) }))
+  useSeen.setState({ loaded: true, ...answer })
 }
 
 // The log's entries, newest first (the browser preview's own: since and the target's kind only)
@@ -132,14 +123,13 @@ export function startSeen() {
   }
   onWorkspaceOpened(() => {
     pending.clear()
-    useSeen.setState({ loaded: false, marks: NO_MARKS, unseen: NONE, away: null, long: null })
+    useSeen.setState({ loaded: false, marks: NO_MARKS, unseen: NONE })
     refresh()
   })
   onNotify("seen.changed", (marks) => {
     useSeen.setState({ marks })
     refresh()
   })
-  onNotify("presence.away", (away) => useSeen.setState((s) => withAway(away, s.long)))
   for (const topic of ["changes.added", "threads.changed", "comments.changed", "library.changed", "chats.run"] as const) onNotify(topic, refresh)
 }
 
