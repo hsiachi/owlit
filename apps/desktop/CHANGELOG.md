@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A chat answer says under it what it was built from, from what Owlit actually opened: "From 3 papers · 2 in full · 1 abstract only · 1 without a PDF". Resting on a count marks those papers' citations in the answer, and Owlit says "from the abstract only" in the sentence itself when that is all it read.
 - Resting on a citation of a paper, in a chat, a doc, a comment or a thread's page, shows a card: the paper, the sentence the claim rests on, its page, what Owlit read, how far you read it, and "Owlit couldn't find this sentence in the paper" when it isn't there. A thread cell's popover is the same card with Rewrite under it.
 - Clicking a citation in a doc opens the paper with its sentence ringed, as chat citations do, and Back returns to the doc and to the thread page scrolled where you left them.
 - Owlit cites papers with the sentence it rests on in its comments, replies and Go through, as it does in chats, and a thread exported as a doc keeps each answer's sentence with its page.

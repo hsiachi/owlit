@@ -19,7 +19,10 @@ export function CitationHover({ citation, children }: { citation: Citation; chil
   return (
     <HoverCard openDelay={CARD_OPEN_DELAY} closeDelay={CARD_CLOSE_DELAY}>
       <HoverCardTrigger asChild>
-        <span>{children}</span>
+        {/* data-paper: the answer's "built from" line marks the citations of the papers a count names */}
+        <span data-paper={citation.paperId} className="rounded-[0.3em] transition-colors duration-(--t-mark) ease-(--ease) data-marked:bg-mention/15">
+          {children}
+        </span>
       </HoverCardTrigger>
       <HoverCardContent align="start" className={cn("menu-surface", citationCardSurface)}>
         <CitationCard citation={citation} />

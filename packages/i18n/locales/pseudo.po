@@ -1409,6 +1409,30 @@ msgstr ""
 msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
+#. papers an answer was built from: N in full
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "in full"
+msgstr ""
+
+#. papers an answer was built from: N from the digest
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from the digest"
+msgstr ""
+
+#. papers an answer was built from: N abstract only
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "abstract only"
+msgstr ""
+
+#. papers an answer was built from: N without a PDF (owlit has no text of them)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "without a PDF"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {From # paper} other {From # papers}}"
+msgstr ""
+
 #. a helper agent's status
 #. a step that failed
 #: app/src/features/chat/components/messages/agents.tsx
