@@ -817,6 +817,10 @@ export class Core {
       return null
     })
     this.router.register("library.text", z.object({ id: paperId }), ({ id }) => library().text(id))
+    this.router.register("library.findPassage", z.object({ id: paperId, quote: z.string().min(1).max(4000) }), async ({ id, quote }) => {
+      const page = await this.requireWorkspace().findPassage(id, quote)
+      return typeof page === "number" ? { page } : null
+    })
     // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
     this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
       const ws = this.requireWorkspace()

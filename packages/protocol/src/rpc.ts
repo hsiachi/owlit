@@ -460,6 +460,9 @@ export interface Methods {
   // How far the user got with each paper, from the journal: for the status's hover
   "library.trace": { params: { ids: string[] }; result: Record<string, ReadTrace> }
   "library.text": { params: { id: string }; result: PaperText | null }
+  // Where a citation's sentence is in the paper's text, word for word; null when it isn't there (or
+  // owlit has no text of the paper)
+  "library.findPassage": { params: { id: string; quote: string }; result: { page: number } | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }

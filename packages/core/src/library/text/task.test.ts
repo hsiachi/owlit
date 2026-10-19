@@ -51,6 +51,15 @@ describe("paper.text", () => {
     expect(again.state).toBe("done")
   })
 
+  it("finds a citation's sentence in the text, across a line break, by any id of the paper", async () => {
+    const { root, call } = await setup()
+    await call("library.add", { paper: { id: "doi-10.9999-q", title: "Q", authors: [], ids: { doi: "10.9999/q" } } })
+    expect(await call("library.findPassage", { id: "doi-10.9999-q", quote: "anything" })).toBeNull()
+    writeFileSync(path.join(root, "library/papers/doi-10.9999-q/text.md"), "<!-- page 1 -->\n\nIntro.\n\n<!-- page 2 -->\n\nDecoding reduces exact\nmatch by 2.1 points.\n")
+    expect(await call("library.findPassage", { id: "doi-10.9999-q", quote: "Decoding reduces exact match by 2.1 points." })).toEqual({ page: 2 })
+    expect(await call("library.findPassage", { id: "doi-10.9999-q", quote: "Decoding removes the need for retrieval." })).toBeNull()
+  })
+
   it("has nothing to do for a paper without a PDF", async () => {
     const { root, workspace, call } = await setup()
     await call("library.add", { paper: { id: "doi-10.9999-none", title: "None", authors: [], ids: { doi: "10.9999/none" } } })

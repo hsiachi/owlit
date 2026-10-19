@@ -4,6 +4,9 @@ import { defineSkill } from "./skills.ts"
 // Owlit's own comments on the user's docs: how it answers under one, and how it looks at one again.
 // It never edits the doc; its comments are its own words.
 
+// The citation rule of agents/rules.ts, repeated where the answer's form is asked for (change them together)
+const CITE = `When you say something about a paper, cite it with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").`
+
 export interface ReplyInput {
   path: string
   // The doc as it is now, for the passage's surroundings
@@ -13,9 +16,6 @@ export interface ReplyInput {
 
 // A reply of the user's under one of Owlit's comments: Owlit answers in the comment, in its own voice,
 // as briefly as a comment reply is. The answer is the reply; it writes nothing else.
-// The citation rule of agents/rules.ts, repeated where the answer's form is asked for (change them together)
-const CITE = `When you say something about a paper, cite it with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").`
-
 export function replyPrompt({ path, content, comment }: ReplyInput) {
   const at = content.indexOf(comment.quote)
   const around = at >= 0 ? content.slice(Math.max(0, at - 600), at + comment.quote.length + 600) : comment.quote
