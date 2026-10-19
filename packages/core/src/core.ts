@@ -1018,7 +1018,7 @@ export class Core {
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }), "own",
       (params, caller) => threads().gather(params, caller),
     )
-    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]) }), "own", ({ id, run }) => threads().start(id, run))
+    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, run, what }, caller) => threads().start(id, run, caller, what))
     this.router.register(
       "threads.compare",
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }), "own",

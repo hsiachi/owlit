@@ -39,13 +39,13 @@ export const gatherSkill = defineSkill<{ thread: Thread; size: GatherSize; withT
   writes: ["thread"],
   instructions: ({ thread, size, withText }) => gatherPrompt(thread, size, withText),
 })
-export const moreSkill = defineSkill<{ thread: Thread; withText: string[] }>({
+export const moreSkill = defineSkill<{ thread: Thread; withText: string[]; lookFor?: string }>({
   id: "threads.more",
-  format: 2,
+  format: 3,
   lane: "agent",
   tools: SEARCH,
   writes: ["thread"],
-  instructions: ({ thread, withText }) => morePrompt(thread, withText),
+  instructions: ({ thread, withText, lookFor }) => morePrompt(thread, withText, lookFor),
 })
 export const fillSkill = defineSkill<{ thread: Thread; column: ThreadColumn; withText: string[] }>({
   id: "threads.fill",
@@ -56,11 +56,11 @@ export const fillSkill = defineSkill<{ thread: Thread; column: ThreadColumn; wit
   instructions: ({ thread, column, withText }) => fillPrompt(thread, column, withText),
 })
 // Reading in full means the paper is used: it joins the library
-export const readSkill = defineSkill<{ thread: Thread }>({
+export const readSkill = defineSkill<{ thread: Thread; toRead: string[] }>({
   id: "threads.read",
-  format: 2,
+  format: 3,
   lane: "agent",
   tools: /^(library_add|thread_write)$/,
   writes: ["thread", "paper"],
-  instructions: ({ thread }) => readPrompt(thread),
+  instructions: ({ thread, toRead }) => readPrompt(thread, toRead),
 })

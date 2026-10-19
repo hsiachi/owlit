@@ -636,6 +636,7 @@ msgstr ""
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/threads/components/CompareDialog.tsx
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -5903,19 +5904,19 @@ msgid "Owlit stopped."
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
 msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
@@ -5927,11 +5928,11 @@ msgid "Widen the question…"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
+msgid "None of the papers answered from their abstracts has a PDF to read"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Read all in full"
+msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
@@ -5940,6 +5941,23 @@ msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Draft a review…"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Searches further and adds papers to this thread"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Find more papers…"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "What to look for"
+msgstr ""
+
+#. button: start finding more papers for a thread
+#: app/src/features/threads/components/Work.tsx
+msgid "Find"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx

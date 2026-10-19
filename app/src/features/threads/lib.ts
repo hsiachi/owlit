@@ -40,7 +40,7 @@ function byIds(papers: Record<string, Paper>): ByIds {
 // The Library's own record of a row's paper, when the paper is there: by the row's id, an id it had
 // before, or a shared DOI or arXiv id (a paper added by hand gets the same id, but one dropped in as a PDF
 // may not). Of two papers sharing them, the first in the Library.
-function libraryPaperOf(row: Pick<ThreadRow, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
+export function libraryPaperOf(row: Pick<ThreadRow, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
   const direct = paperById(papers, aliases, row.id)
   if (direct) return direct
   const { doi, arxiv } = row.paper.ids

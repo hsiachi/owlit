@@ -636,6 +636,7 @@ msgstr "评论"
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/threads/components/CompareDialog.tsx
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -5903,20 +5904,20 @@ msgid "Owlit stopped."
 msgstr "Owlit 停下了。"
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
+msgstr "{minutes, plural, other {你的智能体大约要 # 分钟}}"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
+msgstr "{noPdf, plural, other {# 篇没有 PDF，不读}}"
+
+#: app/src/features/threads/components/Work.tsx
 msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
 msgstr "根据脉络“{title}”起草一份文献综述。先给出提纲，等我确认后再写。"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
 msgstr "“{asked}”什么都没找到。帮我把问题放宽一些：建议几个更宽或相近的问题去搜。"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr "继续检索，把论文加进这条脉络"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers"
-msgstr "找更多论文"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Owlit suggests broader or neighbouring questions in a chat"
@@ -5927,12 +5928,12 @@ msgid "Widen the question…"
 msgstr "放宽问题…"
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
-msgstr "把只读过摘要的论文读全文（有 PDF 的），它们会加入你的文献库"
+msgid "None of the papers answered from their abstracts has a PDF to read"
+msgstr "按摘要作答的论文都没有可读的 PDF"
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Read all in full"
-msgstr "全部读全文"
+msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
+msgstr "{toRead, plural, other {通读 # 篇}}"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Owlit proposes an outline in a chat first"
@@ -5941,6 +5942,23 @@ msgstr "Owlit 会先在对话里给出提纲"
 #: app/src/features/threads/components/Work.tsx
 msgid "Draft a review…"
 msgstr "起草综述…"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Searches further and adds papers to this thread"
+msgstr "继续检索，把论文加进这条脉络"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Find more papers…"
+msgstr "再找些论文…"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "What to look for"
+msgstr "要找什么"
+
+#. button: start finding more papers for a thread
+#: app/src/features/threads/components/Work.tsx
+msgid "Find"
+msgstr "找"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Method and sample"

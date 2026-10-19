@@ -43,11 +43,12 @@ ${ABOUT(c)}
 If you find nothing, write a one-sentence memo saying so, and in note what you tried. Your answer at the end is one line on what you did.`
 }
 
-export function morePrompt(c: Thread, withText: string[] = []) {
-  return `You are finding more papers for a thread in owlit. The question: «${c.asked.text}»
+// lookFor: what the user asked for this time, when it isn't the thread's question as it stands
+export function morePrompt(c: Thread, withText: string[] = [], lookFor?: string) {
+  return `You are finding more papers for a thread in owlit. The question: «${c.asked.text}»${lookFor ? `\nThis time the user asks you to look for: «${lookFor}». Search for that, within the thread's question.` : ""}
 
 ${ABOUT(c)}
-Search further than before: other sources, other words, older or newer years, the references and citations of the best papers there (library_related). Add 5 to 10 papers that aren't there yet and answer the question well, with thread_write id ${c.id} (rows). Don't add anything to the library. ${NOTE}
+Search further than before: other sources, other words, older or newer years, the references and citations of the best papers there (library_related). Add 5 to 10 papers that aren't there yet and answer ${lookFor ? "what the user asks for" : "the question"} well, with thread_write id ${c.id} (rows). Don't add anything to the library. ${NOTE}
 ${ANSWERS} ${FULL(withText)}
 ${groupingsOf(c).some((col) => col.groups?.length) ? `Put each new row in the group it fits, or a new group when none does. ${ONE_GROUP}\n` : ""}Then update the memo if the new papers change it. ${MEMO}
 Your answer at the end is one line on what you added.`
@@ -86,11 +87,13 @@ ${again ? `The grouping has groups already and the user asked for it again: grou
 Don't change answers, other columns, the memo or other groupings. Your answer at the end is one line on what you did.`
 }
 
-export function readPrompt(c: Thread) {
-  return `You are reading in full the papers of a thread in owlit that were answered only from their abstracts or titles. The question: «${c.asked.text}»
+// toRead: the rows to read, those answered from their abstracts or titles whose paper has a PDF to be
+// had (the button that started the run counted them; the others are left as they are)
+export function readPrompt(c: Thread, toRead: string[]) {
+  return `You are reading in full ${toRead.length} papers of a thread in owlit that were answered only from their abstracts or titles. The question: «${c.asked.text}»
 
 ${ABOUT(c)}
-For each row whose answers are all depth abstract or title: add the paper to the library with library_add (the user asked for this; several in one call), then read the parts that matter with library_read and rewrite its answers in every column from the full text, with depth full and the words each rests on in quote, word for word. A paper whose PDF owlit can't get stays as it is; say how many at the end.
+Read these rows, and no others: ${toRead.join(", ")}. For each: add the paper to the library with library_add (the user asked for this; several in one call), then read the parts that matter with library_read and rewrite its answers in every column from the full text, with depth full and the words each rests on in quote, word for word. A paper whose PDF owlit can't get after all stays as it is; say how many at the end.
 Then update the memo if what you read changes it. ${MEMO}
 Your answer at the end is one line on what you read.`
 }

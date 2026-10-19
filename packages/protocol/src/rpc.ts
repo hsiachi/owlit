@@ -225,7 +225,9 @@ export interface Methods {
   "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: Thread }
   // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full, check
   // for new papers now
-  "threads.run": { params: { id: string; run: "more" | "read" }; result: Task }
+  // more: what to look for this time (what), when it isn't the thread's question; read: the rows answered
+  // from their abstracts whose paper has a PDF to read (the button says how many)
+  "threads.run": { params: { id: string; run: "more" | "read"; what?: string }; result: Task }
   // A new column: a question Owlit answers for every paper
   "threads.ask": { params: { id: string; question: string }; result: Thread }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)

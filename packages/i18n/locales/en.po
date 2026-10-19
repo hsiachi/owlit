@@ -636,6 +636,7 @@ msgstr "Comment"
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/threads/components/CompareDialog.tsx
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -5903,20 +5904,20 @@ msgid "Owlit stopped."
 msgstr "Owlit stopped."
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
+msgstr "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
+msgstr "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
+
+#: app/src/features/threads/components/Work.tsx
 msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
 msgstr "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
 msgstr "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr "Searches further and adds papers to this thread"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers"
-msgstr "Find more papers"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Owlit suggests broader or neighbouring questions in a chat"
@@ -5927,12 +5928,12 @@ msgid "Widen the question…"
 msgstr "Widen the question…"
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
-msgstr "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
+msgid "None of the papers answered from their abstracts has a PDF to read"
+msgstr "None of the papers answered from their abstracts has a PDF to read"
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Read all in full"
-msgstr "Read all in full"
+msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
+msgstr "{toRead, plural, one {Read # in full} other {Read # in full}}"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Owlit proposes an outline in a chat first"
@@ -5941,6 +5942,23 @@ msgstr "Owlit proposes an outline in a chat first"
 #: app/src/features/threads/components/Work.tsx
 msgid "Draft a review…"
 msgstr "Draft a review…"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Searches further and adds papers to this thread"
+msgstr "Searches further and adds papers to this thread"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Find more papers…"
+msgstr "Find more papers…"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "What to look for"
+msgstr "What to look for"
+
+#. button: start finding more papers for a thread
+#: app/src/features/threads/components/Work.tsx
+msgid "Find"
+msgstr "Find"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Method and sample"
