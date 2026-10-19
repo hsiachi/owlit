@@ -47,8 +47,9 @@ Claude Code, Codex or Gemini CLI, or owlit's own engine.
 - **Owlit understands your work, and you can correct that understanding.** It keeps a running account of
   what you're trying to figure out, what you believe so far and what you read, built from your work, never
   something you maintain. It's text you can read, and correcting it is just writing.
-- **Owlit takes initiative, and everything it does can be undone.** Instead of asking permission, it does
-  the thing, so you see exactly what it means, and you undo it in one step.
+- **Everything Owlit does can be undone.** When you ask for something, it does the thing instead of
+  asking permission at each step, so you see exactly what it means, and you undo it in one step. It works
+  only when you ask, while you're there; nothing starts on its own.
 - **You stay aware of what Owlit does.** Each change shows where it happened, signed, with what was there
   before one step away. You can leave for a month and read from the work what moved.
 - **Owlit leaves room for your thinking.** There is always a place where only your words live, and your
