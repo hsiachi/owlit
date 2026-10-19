@@ -1,7 +1,10 @@
-import type { ChatMessage, FileDiff, MessagePart, SessionUpdate } from "./chat.ts"
+import type { ChatAbout, ChatMessage, FileDiff, MessagePart, SessionUpdate } from "./chat.ts"
 
 // How a message is built from an agent's stream; core (which saves it) and the app (which shows it) fold
 // the same updates the same way.
+
+// Whether two chats owlit started work on the same thing
+export const sameAbout = (a: ChatAbout | undefined, b: ChatAbout | undefined) => !!a && !!b && a.kind === b.kind && a.id === b.id
 
 // An agent whose turn fails often says why as the last text of its answer ("Failed to authenticate. API
 // Error: 403 Request not allowed", "You've hit your session limit · resets 2:20am"). That isn't an answer:

@@ -239,18 +239,35 @@ export interface Chat {
   // The ACP session this chat has on each agent (connector id → session id), so it continues where it
   // left off after a restart; kept by core
   sessions?: Record<string, string>
-  // Work the user asked Owlit for in the background (a digest, a thread's gathering): a run, not one of
-  // their chats. It isn't in the chat list; its first message, though stored as a question, is the reason
-  // it started, in Owlit's words.
+  // A chat owlit started for the person (a button, a tool), not one they typed into: it isn't in the chat
+  // list and nothing opens it; its work shows where it lands, and its file is the work's record. Its first
+  // message is the recipe it was given.
   startedBy?: "owlit"
+  // What a chat owlit started works on: the status line there reads its running turn by this
+  about?: ChatAbout
+  // The scheduler task whose run this is, for a run of the agent lane (threads, Go through, a reply)
   run?: OwlitRun
   messages: ChatMessage[]
+}
+
+export interface ChatAbout {
+  kind: "paper" | "thread" | "doc" | "comment"
+  // A paper's or thread's id, a doc's workspace path, a comment as <doc path>#<comment id>
+  id: string
+}
+
+// A chat owlit started, as the thing it is about shows it: its last reply, streaming while its turn runs,
+// else how it ended (a failure says why, with Retry)
+export interface StartedChat {
+  chatId: string
+  about: ChatAbout
+  reply?: ChatMessage
 }
 
 // The background task an Owlit run is the session of
 export interface OwlitRun {
   taskId: string
-  // The task's kind and subject (paper.digest on a paper id, threads.more on a thread id)
+  // The task's kind and subject (threads.more on a thread id, meetings.goThrough on a doc's path)
   kind: string
   subject: string
 }

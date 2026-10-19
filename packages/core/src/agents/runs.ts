@@ -1,21 +1,18 @@
 import { t } from "@lingui/core/macro"
-import { applyUpdate, mentionLink, paperUri, threadOfSubject, type Chat, type ChatMessage, type SessionUpdate, type Task } from "@owlit/protocol"
+import { applyUpdate, threadOfSubject, type Chat, type ChatMessage, type SessionUpdate, type Task } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import type { Chats } from "../chats/chats.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 
-// Every piece of background work the user asks Owlit for is a run with a body: a session (a chat that no
-// chat list shows) holding why it started, its steps and its result; Home names the ones that ended. A
-// retry of the same task adds to the same session.
+// A scheduler task's agent run (a thread's work, Go through, a reply under Owlit's comment) has a body: a
+// session (a chat that no chat list shows) holding why it started, its steps and its result. A retry of
+// the same task adds to the same session. A digest is a chat owlit starts instead (chats.ts startFor).
 
 export interface RunWords {
   // The session's title: what the run does, by name
   title: string
   // Why it started, as the session's first message
   why: string
-  // Said in place of the agent's answer once it is done, when the answer itself lives elsewhere (a
-  // digest is the paper's, not a message)
-  result?: string
 }
 
 export interface RunSession {
@@ -51,9 +48,7 @@ export async function openRun(
       void chats.patchMessage(chatId, message).catch(() => undefined)
     },
     async finish({ status, error, errorDetail, connectorId, model }) {
-      // Steps stay; the answer, when it lives elsewhere, is said in a line
-      const parts = status === "done" && words.result ? [...message.parts.filter((p) => p.type !== "text"), { type: "text" as const, text: words.result }] : message.parts
-      message = { ...message, parts, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}), ...(connectorId ? { connectorId } : {}), ...(model ? { modelId: model } : {}) }
+      message = { ...message, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}), ...(connectorId ? { connectorId } : {}), ...(model ? { modelId: model } : {}) }
       await chats.patchMessage(chatId, message, true)
       await chats.update(chatId, { updatedAt: Date.now() })
       changed(await chats.get(chatId))
@@ -66,10 +61,6 @@ const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i,
 
 // The words of a run, from its task: what it is about, by name, and what the user asked
 export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
-  if (task.kind === "paper.digest") {
-    const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
-    return { title: t`Digest of “${title}”`, why: t`You asked for a digest of “${title}”.`, result: `${t`The digest is written:`} ${mentionLink(title, paperUri(task.subject))}` }
-  }
   if (task.kind === "meetings.goThrough") {
     const name = docName(task.subject)
     return { title: t`Went through “${name}”`, why: t`You asked Owlit to go through “${name}”.` }

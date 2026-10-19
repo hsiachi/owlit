@@ -6,8 +6,8 @@ import { useOpenFromChat } from "@/features/agent/hooks"
 import type { ResultRow } from "@/features/chat/components/messages/ResultRows"
 import { owlitToolOf } from "@/features/chat/lib/tool-title"
 import type { MessagePart } from "@owlit/protocol"
-import { useTasksStore } from "@/features/tasks/store"
-import { digestFailed, digestUnderWay, retryDigest } from "./digests"
+import { standOf, useStarted } from "@/features/chat/started"
+import { retryDigest } from "./digests"
 import { useLibraryStore } from "./store"
 
 // The papers an answer asked Owlit to write a digest of, by the tool's own reply ("Owlit is writing a
@@ -31,7 +31,14 @@ export function useDigestRows(parts: MessagePart[]): ResultRow[] {
   const navigate = useOpenFromChat()
   const ids = askedFor(parts)
   // One string, so the card redraws when a digest moves on rather than on every task or paper change
-  const stands = useTasksStore((s) => ids.map((id) => (digestUnderWay(s.byId, id) ? "writing" : digestFailed(s.byId, id) ? "failed" : "")).join(",")).split(",")
+  const stands = useStarted((s) =>
+    ids
+      .map((id) => {
+        const stand = standOf(s, { kind: "paper", id })
+        return stand?.state === "running" ? "writing" : stand?.state === "failed" ? "failed" : ""
+      })
+      .join(","),
+  ).split(",")
   const papers = useLibraryStore(useShallow((s) => ids.map((id) => s.papers[id])))
   return ids.flatMap((id, i) => {
     const paper = papers[i]

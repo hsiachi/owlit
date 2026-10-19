@@ -29,7 +29,7 @@ export interface ExternalJob {
 
 export interface Task {
   id: string
-  // paper.metadata | paper.pdf | paper.text | paper.parse | paper.digest | index.* | import.* | threads.* | …
+  // paper.metadata | paper.pdf | paper.text | paper.parse | paper.figures | index.* | import.* | threads.* | …
   kind: string
   // What it works on: a paper id, a file path, an import batch id, "workspace"
   subject: string

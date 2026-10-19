@@ -1,12 +1,11 @@
 import { plural, t } from "@lingui/core/macro"
 import { useLocation } from "react-router-dom"
-import { toast } from "sonner"
 import { MenuItems, type MenuGroups } from "@/components/action-menu"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { usePaperActions } from "../actions"
 import { markSeen } from "@/app/seen"
-import { waitForDigest } from "../digests"
+import { askDigest, waitForDigest } from "../digests"
 import { STATUS_ORDER, statusLabel } from "../lib/status"
 import { useLibraryStore } from "../store"
 import type { Paper } from "@owlit/protocol"
@@ -53,7 +52,7 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
         // Asked for, the digest that comes is news even on a paper never opened
         markSeen({ kind: "digest", paper: single.id })
         waitForDigest(single.id)
-        void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error(t`Couldn't ask for a digest.`))
+        void askDigest(single, !!single.hasDigest)
       },
     })
   }

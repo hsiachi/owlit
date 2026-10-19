@@ -1,5 +1,4 @@
 import type { TaskLane, Thread, ThreadColumn } from "@owlit/protocol"
-import { DIGEST_FORMAT, digestPrompt } from "../library/digest/prompt.ts"
 import { fillPrompt, gatherPrompt, morePrompt, readPrompt, type GatherSize } from "../threads/prompts.ts"
 
 // Every kind of work Owlit does in a background session has one shape: what it is told (instructions,
@@ -10,7 +9,7 @@ import { fillPrompt, gatherPrompt, morePrompt, readPrompt, type GatherSize } fro
 
 // What a run may change, always through core and signed as Owlit's
 // record: a new doc of Owlit's own beside the material it went through (Go through)
-export type SkillWrite = "digest" | "thread" | "paper" | "comment" | "record"
+export type SkillWrite = "thread" | "paper" | "comment" | "record"
 
 export interface Skill<I> {
   id: string
@@ -23,11 +22,6 @@ export interface Skill<I> {
 }
 
 export const defineSkill = <I>(skill: Skill<I>): Skill<I> => skill
-
-type DigestInput = Parameters<typeof digestPrompt>[0]
-
-// The digest of a paper: its answer is the note, which core writes
-export const digestSkill = defineSkill<DigestInput>({ id: "paper.digest", format: DIGEST_FORMAT, lane: "agent", writes: ["digest"], instructions: digestPrompt })
 
 // Thread work: everything it does goes through thread_write, so the thread shows it with Owlit's dots
 const SEARCH = /^(library_(search|related|journal)|thread_write)$/

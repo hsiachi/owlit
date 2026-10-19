@@ -1,6 +1,6 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
 import type { EditStats } from "./edit-stats.ts"
-import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
+import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
@@ -246,6 +246,8 @@ export interface Methods {
   // Your chats; Owlit's own runs aren't among them
   "chats.list": { params: void; result: ChatSummary[] }
   "chats.get": { params: { id: string }; result: Chat }
+  // The chats owlit started, the last one about each thing (of one kind, when given)
+  "chats.startedFor": { params: { kind?: ChatAbout["kind"] }; result: StartedChat[] }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
@@ -317,8 +319,8 @@ export interface Methods {
   // Stops the chat's running turn; questions it was waiting on close as cancelled
   "agents.cancel": { params: { chatId: string }; result: null }
   // The turns running or starting now, each with its reply as it stands: for a window that opens while
-  // one runs, which then follows it by chat.update until chat.ended
-  "agents.running": { params: void; result: { chatId: string; messageId: string; message: ChatMessage }[] }
+  // one runs, which then follows it by chat.update until chat.ended. about: what a chat owlit started works on
+  "agents.running": { params: void; result: { chatId: string; messageId: string; message: ChatMessage; about?: ChatAbout }[] }
   // Answers a permission_request with one of its options
   "agents.respondPermission": { params: { chatId: string; requestId: string; optionId: string }; result: null }
   // Answers a question_request by question id; null skips it (the agent goes on without an answer)
@@ -445,7 +447,13 @@ export interface Methods {
   // library_request_digest); nothing when the paper has nothing to read. rewrite: the user asks for the
   // note there to be written again (a newer way of writing, another language); without it a paper that
   // has one is left as it is.
-  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: null }
+  // Starts Owlit writing a paper's digest in a chat about the paper (Chat.about), once the paper's text is
+  // read: the chat's id (one already writing it, when there is), or why none is written. rewrite: replace
+  // the digest the paper has.
+  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: { chatId: string } | { heldBack: "has-digest" | "nothing-to-read" } }
+  // An agent's digest of a paper (library_write_digest): what goes under its Summary and its Details;
+  // owlit adds the title and the headings, and replaces a digest already there
+  "library.writeDigest": { params: { id: string; summary: string; details: string; chatId?: string; toolCallId?: string }; result: { id: string } }
   // The paper's figures and tables as pictures, for its digest
   "library.figures": { params: { id: string }; result: PaperFigure[] }
   // A page of the paper's PDF as a small picture (base64), for a glance at a page a note points at
@@ -542,8 +550,9 @@ export interface Notifications {
   "chat.update": { chatId: string; messageId: string; update: SessionUpdate }
   // A chat's turn ended, however it ended: its reply as saved
   "chat.ended": { chatId: string; messageId: string; message: ChatMessage }
-  // A run the user asked Owlit for began or ended: its session whole, as core has it (the first message
-  // says why it started; the reply is "streaming" while it runs)
+  // A chat owlit started (Chat.startedBy), or a scheduler run's session, began or ended a turn: the chat
+  // whole, as core has it (the first message says what it was asked; the last reply is "streaming" while
+  // it runs)
   "chats.run": { chat: Chat }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest

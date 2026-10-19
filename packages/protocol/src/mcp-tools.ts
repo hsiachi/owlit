@@ -183,12 +183,28 @@ function TOOLS(): ToolSpec[] {
     name: "library_request_digest",
     touches: "own",
     description:
-      "Have Owlit write a digest for a paper (one you just added, say): it reads the full text and its figures in the background, in the user's language, and the digest appears on the paper's page. Nothing happens when the paper already has one. Read one with library_read part=digest.",
+      "Have Owlit write a digest for a paper (one you just added, say): it reads the full text and its figures on its own, beside your chat, in the user's language, and the digest appears on the paper's page. Nothing happens when the paper already has one, or has no PDF or text to read. Read one with library_read part=digest.",
     inputSchema: {
       type: "object",
       properties: { id },
       required: ["id"],
     },
+  },
+  {
+    name: "library_write_digest",
+    touches: "own",
+    description:
+      "Write Owlit's digest of a paper in the library, or replace the one it has: the two sections of the note as the digest instructions describe them, each without its heading. owlit adds the paper's title and the headings, records the language and shows it on the paper's page. To change a digest, read it with library_read part=digest and write it whole again.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id,
+        summary: { type: "string", description: "Markdown: what goes under ## Summary (its bulleted fields)" },
+        details: { type: "string", description: "Markdown: what goes under ## Details (its ### subsections)" },
+      },
+      required: ["id", "summary", "details"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false },
   },
   {
     name: "docs_list",

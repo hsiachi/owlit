@@ -1401,6 +1401,11 @@ msgstr "Updated"
 msgid "Keep it separate"
 msgstr "Keep it separate"
 
+#. the agent wrote or rewrote a paper's digest
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Wrote its digest"
+msgstr "Wrote its digest"
+
 #. a line the agent took out of what it keeps in mind
 #. a paper the agent took out of the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1445,7 +1450,12 @@ msgstr "{0, plural, one {started a thread} other {started # threads}}"
 msgid "{0, plural, one {added a paper to a thread} other {added # papers to threads}}"
 msgstr "{0, plural, one {added a paper to a thread} other {added # papers to threads}}"
 
-#. placeholder {0}: n("digest")
+#. placeholder {0}: wrote(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {wrote a digest} other {wrote # digests}}"
+msgstr "{0, plural, one {wrote a digest} other {wrote # digests}}"
+
+#. placeholder {0}: n("digest") - wrote(rows)
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr "{0, plural, one {asked for a digest} other {asked for # digests}}"
@@ -2496,6 +2506,7 @@ msgid "Stopped with an error"
 msgstr "Stopped with an error"
 
 #: app/src/features/chat/store.ts
+#: app/src/features/library/digests.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
 msgstr "Owlit was closed before it finished."
@@ -3840,11 +3851,6 @@ msgstr "Write a digest"
 msgid "Rewrite the digest"
 msgstr "Rewrite the digest"
 
-#: app/src/features/library/components/PaperMenu.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Couldn't ask for a digest."
-msgstr "Couldn't ask for a digest."
-
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
@@ -3899,8 +3905,16 @@ msgid "Writing the digest…"
 msgstr "Writing the digest…"
 
 #: app/src/features/library/digests.ts
-msgid "Couldn't ask for the digest again."
-msgstr "Couldn't ask for the digest again."
+msgid "Owlit couldn't write a digest of this paper."
+msgstr "Owlit couldn't write a digest of this paper."
+
+#: app/src/features/library/digests.ts
+msgid "This paper has no PDF or text for Owlit to read."
+msgstr "This paper has no PDF or text for Owlit to read."
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't ask for a digest."
+msgstr "Couldn't ask for a digest."
 
 #: app/src/features/library/digests.ts
 msgid "Couldn't write the digest"
@@ -4257,14 +4271,6 @@ msgstr "Digest · Owlit, {when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
 msgstr "No digest yet. Owlit writes one when you ask."
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write this digest again."
-msgstr "Owlit couldn't write this digest again."
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write a digest of this paper."
-msgstr "Owlit couldn't write a digest of this paper."
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "This digest is in another language than the one set for digests."
@@ -7151,6 +7157,10 @@ msgid "The comment couldn't be saved. Try again."
 msgstr "The comment couldn't be saved. Try again."
 
 #: packages/core/src/agents/agents.ts
+msgid "No agent is set up for Owlit to work with. Set one up in Settings › Agents."
+msgstr "No agent is set up for Owlit to work with. Set one up in Settings › Agents."
+
+#: packages/core/src/agents/agents.ts
 msgid "The command is empty."
 msgstr "The command is empty."
 
@@ -7253,18 +7263,6 @@ msgstr "{name} exited with code {code}. It starts again with the next message."
 #: packages/core/src/agents/process.ts
 msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
-
-#: packages/core/src/agents/runs.ts
-msgid "Digest of “{title}”"
-msgstr "Digest of “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked for a digest of “{title}”."
-msgstr "You asked for a digest of “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "The digest is written:"
-msgstr "The digest is written:"
 
 #: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
@@ -7387,6 +7385,10 @@ msgstr "That paper isn't in the library any more."
 #: packages/core/src/changes/undo.ts
 msgid "The paper's {what} changed since, so owlit left it as it is."
 msgstr "The paper's {what} changed since, so owlit left it as it is."
+
+#: packages/core/src/changes/undo.ts
+msgid "The paper's digest changed since, so owlit left it as it is."
+msgstr "The paper's digest changed since, so owlit left it as it is."
 
 #: packages/core/src/changes/undo.ts
 msgid "That comment changed since, so owlit left it as it is."
@@ -7529,6 +7531,14 @@ msgstr "That comment is already there."
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "That comment isn't there any more."
+
+#: packages/core/src/core.ts
+msgid "Digest of “{title}”"
+msgstr "Digest of “{title}”"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing the digest."
+msgstr "Owlit finished without writing the digest."
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

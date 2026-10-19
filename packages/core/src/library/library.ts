@@ -38,7 +38,7 @@ import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
-import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
+import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
@@ -54,8 +54,7 @@ import { contentListToText } from "./parse/convert.ts"
 import { awaitCloud, checkCloud, cloudResult, ParseRefused, parseSelfHosted, submitCloud, uploadCloud } from "./parse/mineru.ts"
 import { figurePictures, noFigures, readFigures, removeFigures, toPaperFigures, writeFiguresFromLayout, writeFiguresFromText } from "./figures/figures.ts"
 import { renderCrops } from "./figures/render.ts"
-import { DIGEST_FORMAT, drifted, type DigestRecord } from "./digest/prompt.ts"
-import { digestSkill } from "../initiative/skills.ts"
+import { DIGEST_FORMAT, digestPrompt, drifted, type DigestRecord } from "./digest/prompt.ts"
 import { identify, type Identified } from "./text/identify.ts"
 import { merge, NotAPaper, resolve, type Resolution } from "./resolve.ts"
 import { findJournal, listJournal, parseYears, relatedOf, searchSource, type RelatedKind } from "./discover.ts"
@@ -95,24 +94,12 @@ const MAX_PICTURES = 16
 // How far back the Library's removed papers are offered for restoring
 const TRASH_LISTED_MS = 30 * 24 * 60 * 60_000
 
-// A picture for a background agent: an id the prompt names it by, and the image
-export interface AgentPicture {
-  label: string
-  // base64
-  data: string
-  mimeType: string
-}
-
 export interface LibraryServices {
   http: Http
   // The person using this owlit, as the change log names them: who adds a paper that isn't an agent's
   person?: () => Promise<ActorId>
-  // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
-  // (digests). model is the one chosen for background work, when one is.
   // An import of the person's added a paper (importId: which one)
   imported?: (paper: Paper, importId: string) => void
-  // A background agent run for a task: its session shows beside the paper (ctx.describe)
-  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string; pictures?: number }>
   // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // MinerU's settings, read at each use
@@ -626,62 +613,6 @@ export class Library {
     return (await exists(path.join(dir, "text.md"))) ? "basic" : undefined
   }
 
-  private digestTask(agent: NonNullable<LibraryServices["agent"]>) {
-    return defineTask("paper.digest", {
-      lane: "agent",
-      retries: 1,
-      run: async (ctx) => {
-        const id = ctx.task.subject
-        const record = await readRecord(this.root, id)
-        if (!record) throw new TaskFailure(`${id} is not in the library.`)
-        const dir = paperDir(this.root, id)
-        // A note already there stays, unless the user asked for it to be written again
-        const rewrite = await this.rewriteAsked(id)
-        if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
-        const text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
-        if (text === null) {
-          if (await hasPdfFile(this.root, id)) ctx.require("paper.text", id)
-          return
-        }
-        // The figures first, so the note can show them. Looking for them never fails (paper.figures
-        // notes what went wrong); one that failed a while ago is tried again.
-        const figures = await readFigures(this.root, id)
-        if ((!figures || (figures.error && Date.now() - figures.at > FIGURES_RETRY_MS)) && (await hasPdfFile(this.root, id))) ctx.require("paper.figures", id)
-        ctx.progress(0, undefined, "writing")
-        const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
-        const listed = figures?.figures ?? []
-        const pictures = (await figurePictures(this.root, id, figures ?? { version: 1, source: "text", at: 0, figures: [] }))
-          .filter((p) => p.data.length <= PICTURE_MAX_BYTES)
-          .slice(0, MAX_PICTURES)
-          .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
-        const prompt = digestSkill.instructions({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
-        const { text: answer, connectorId, model, pictures: seen } = await agent(prompt, ctx, pictures)
-        const digest = cleanDigest(answer)
-        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
-        await this.serial.run(async () => {
-          // The paper moved to a DOI or went to the trash while the agent wrote (both cancel under this
-          // lock): the note isn't written into a folder that is no longer there
-          ctx.signal.throwIfAborted()
-          // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
-          if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
-          const kept: DigestRecord = {
-            version: 1,
-            format: DIGEST_FORMAT,
-            by: connectorId,
-            ...(model ? { model } : {}),
-            language,
-            ...(drifted(digest, language) ? { drift: true } : {}),
-            ...(seen !== undefined ? { pictures: seen } : {}),
-            at: Date.now(),
-          }
-          await writeFileAtomic(path.join(dir, "digest.md"), digest, { parents: false })
-          await writeJsonAtomic(path.join(dir, "digest.json"), kept, { parents: false })
-        })
-        await this.announce([id])
-      },
-    })
-  }
-
   // A paper's figures as pictures (figures.json), for its digest: from MinerU's result when the
   // cloud still has it, else from the figure blocks text.json has. Never fails, so the note it comes
   // before never does on its account: what went wrong goes into figures.json, empty.
@@ -713,40 +644,37 @@ export class Library {
     })
   }
 
-  // A digest is wanted (asked for by the user or an agent): queued
-  // when the paper has, or will have, text to read and has no note yet. A note already there, one written
-  // another way included, is written again only when the user asks (rewrite), never on owlit's own account.
-  async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
-    if (await this.digestHeldBack(id, options.rewrite)) return
+  // What Owlit's digest of a paper is written from, once the paper's text is read and its figures looked
+  // for (each a scheduler task, run now when it is missing): the recipe, the pictures and the text. Or
+  // why none is written: the paper has a digest and no rewrite was asked for (one written another way
+  // included: it is replaced only when the person asks), or it has nothing to read.
+  async digestWork(name: string, rewrite = false): Promise<DigestWork | { heldBack: "has-digest" | "nothing-to-read" }> {
+    const id = await this.here(name)
     const dir = paperDir(this.root, id)
-    // Asked for on disk, beside the note: the task may run after a restart, and must still know
-    if (options.rewrite && (await exists(path.join(dir, "digest.md")))) {
-      await this.serial.run(async () => {
-        // A note with no record (written another way) gets one that says no more than the file does
-        const record = (await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)) ?? {
-          version: 1,
-          by: "unknown",
-          at: Math.round((await stat(path.join(dir, "digest.md"))).mtimeMs),
-        }
-        await writeJsonAtomic(path.join(dir, "digest.json"), { ...record, rewriteAsked: Date.now() } satisfies DigestRecord, { parents: false })
-      })
+    if (!rewrite && (await exists(path.join(dir, "digest.md")))) return { heldBack: "has-digest" }
+    const pdf = await hasPdfFile(this.root, id)
+    let text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
+    if (text === null && pdf && this.scheduler?.knows("paper.text")) {
+      await this.scheduler.run("paper.text", id)
+      text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
     }
-    this.queue("paper.digest", id, priority)
-  }
-
-  // Why no digest would be written for a paper now, or null when one would
-  private async digestHeldBack(id: string, rewrite = false): Promise<string | null> {
-    if (!this.services.agent) return "no agent to write it"
-    if (!isPaperId(id) || !(await readRecord(this.root, id))) return "not in the library"
-    const dir = paperDir(this.root, id)
-    if (!rewrite && (await exists(path.join(dir, "digest.md")))) return "has a digest"
-    if (!(await exists(path.join(dir, "text.md"))) && !(await hasPdfFile(this.root, id))) return "nothing to read"
-    return null
-  }
-
-  private async rewriteAsked(id: string) {
-    const record = await readJson<DigestRecord>(path.join(paperDir(this.root, id), "digest.json")).catch(() => undefined)
-    return !!record?.rewriteAsked
+    if (text === null) return { heldBack: "nothing-to-read" }
+    // The figures first, so the note can show them. Looking for them never fails (paper.figures notes
+    // what went wrong); one that failed a while ago is tried again.
+    let figures = await readFigures(this.root, id)
+    if ((!figures || (figures.error && Date.now() - figures.at > FIGURES_RETRY_MS)) && pdf && this.scheduler?.knows("paper.figures")) {
+      await this.scheduler.run("paper.figures", id)
+      figures = await readFigures(this.root, id)
+    }
+    const record = await readRecord(this.root, id)
+    if (!record) throw notFound(id)
+    const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
+    const pictures = (await figurePictures(this.root, id, figures ?? { version: 1, source: "text", at: 0, figures: [] }))
+      .filter((p) => p.data.length <= PICTURE_MAX_BYTES)
+      .slice(0, MAX_PICTURES)
+      .map((p) => ({ name: `${p.figure.id}${path.extname(p.figure.file) || ".png"}`, mimeType: p.mimeType, data: p.data }))
+    const prompt = digestPrompt({ id, record, text, language, figures: figures?.figures ?? [], pictures: pictures.length > 0 })
+    return { id, title: (await this.get(id))?.title ?? record.title, recipe: prompt.recipe, text: prompt.text, pictures }
   }
 
   // A paper's figures and tables as pictures, for its digest
@@ -792,6 +720,54 @@ export class Library {
       ...(pages ? { textPages: pages } : {}),
       ...(sample.length >= 200 ? { cjkText: cjk / sample.length > 0.2 } : {}),
     }
+  }
+
+  // An agent's digest of a paper (library_write_digest): the two sections the digest prompt asks for,
+  // under the paper's title, with what digest.json records beside it. A digest already there is
+  // replaced; what it was comes back, for the change log and its Undo. id: any id the paper goes by.
+  async writeDigest(name: string, sections: { summary: string; details: string }, by: Pick<DigestRecord, "by" | "model" | "pictures">): Promise<DigestWritten> {
+    const id = await this.here(name)
+    const summary = sectionBody(sections.summary, "Summary")
+    const details = sectionBody(sections.details, "Details")
+    // Said to the agent, so plain English
+    if (!summary || !details) throw new RpcFailure(RpcErrorCode.InvalidParams, "library_write_digest needs both the summary and the details.")
+    const title = (await this.get(id))?.title ?? id
+    const text = `# ${title}\n\n## Summary\n\n${summary}\n\n## Details\n\n${details}\n`
+    const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
+    const record: DigestRecord = {
+      version: 1,
+      format: DIGEST_FORMAT,
+      by: by.by,
+      ...(by.model ? { model: by.model } : {}),
+      language,
+      ...(drifted(text, language) ? { drift: true } : {}),
+      ...(by.pictures !== undefined ? { pictures: by.pictures } : {}),
+      at: Date.now(),
+    }
+    const was = await this.putDigest(id, text, record)
+    return { id, title, text, record, ...was }
+  }
+
+  // Puts a digest in place, or takes it away (text null), under the library's lock; what was there before
+  async putDigest(id: string, text: string | null, record: DigestRecord | null): Promise<{ before: string | null; beforeRecord: DigestRecord | null }> {
+    const was = await this.serial.run(async () => {
+      // A paper moved to another id or gone to the trash meanwhile: its old folder isn't made again
+      if (!(await readRecord(this.root, id))) throw notFound(id)
+      const dir = paperDir(this.root, id)
+      const before = await readFile(path.join(dir, "digest.md"), "utf8").catch(() => null)
+      const beforeRecord = (await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)) ?? null
+      if (text === null) {
+        await rm(path.join(dir, "digest.md"), { force: true })
+        await rm(path.join(dir, "digest.json"), { force: true })
+      } else {
+        await writeFileAtomic(path.join(dir, "digest.md"), text, { parents: false })
+        if (record) await writeJsonAtomic(path.join(dir, "digest.json"), record, { parents: false })
+        else await rm(path.join(dir, "digest.json"), { force: true })
+      }
+      return { before, beforeRecord }
+    })
+    await this.announce([id])
+    return was
   }
 
   // The paper's digests (digest.md), or null when it has none
@@ -1267,8 +1243,6 @@ export class Library {
 
   tasks(): TaskDefinition[] {
     return [
-      // A digest by a background agent session, from the paper's full text
-      ...(this.services.agent ? [this.digestTask(this.services.agent)] : []),
       ...this.imports.tasks(),
       this.figuresTask(),
       // MinerU's reading of the PDF replaces pdfium's (kept as text.pdfium.json). The job is recorded
@@ -1845,16 +1819,32 @@ export function pickFromText(markdown: string, where: { pages?: string; section?
   return { text: markdown, pages }
 }
 
-// The note as Markdown: without a code fence around it or words before its title
-export function cleanDigest(answer: string) {
-  let text = answer.trim()
-  const fenced = text.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/)
-  if (fenced) text = fenced[1].trim()
-  const title = text.search(/^# /m)
-  if (title > 0) {
-    text = text.slice(title)
-    // A note fenced after words before it: the fence's end is left over
-    text = text.replace(/\n```\s*$/, "").trim()
-  }
-  return text + "\n"
+// What a digest is written from (digestWork)
+export interface DigestWork {
+  id: string
+  title: string
+  // What the agent is asked, without the paper's text
+  recipe: string
+  // The paper's text as the agent is given it, after the recipe
+  text: string
+  // The paper's figures as pictures, each named by its id
+  pictures: { name: string; mimeType: string; data: Uint8Array }[]
+}
+
+export interface DigestWritten {
+  // The library's own id for the paper
+  id: string
+  title: string
+  text: string
+  record: DigestRecord
+  before: string | null
+  beforeRecord: DigestRecord | null
+}
+
+// A section as an agent passed it, without the heading owlit adds or a code fence around it
+function sectionBody(text: string, heading: string) {
+  let body = text.trim()
+  const fenced = body.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/)
+  if (fenced) body = fenced[1]!.trim()
+  return body.replace(/^# [^\n]*\n+/, "").replace(new RegExp(`^##\\s*${heading}\\s*\n+`, "i"), "").trim()
 }

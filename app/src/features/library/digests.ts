@@ -1,81 +1,92 @@
 import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { isTaskFinished, type Paper, type Task } from "@owlit/protocol"
+import type { ChatAbout, Paper } from "@owlit/protocol"
 import { toast } from "sonner"
 import { notifyWhenAway } from "@/lib/notify"
-import { rpc } from "@/lib/rpc"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
 import { useDigestUnseen } from "@/app/seen"
-import { toastError } from "@/lib/toast"
-import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
+import { aboutKey, asking, heardStarted, standOf, stopStarted, useStand, useStarted } from "@/features/chat/started"
 import { useLibraryStore } from "./store"
 
 // Where a paper's digest stands for the user, on the ladder of states (DESIGN.md, rule 3): being written,
-// new since they last looked, or stopped. And who is told when one is done: only someone waiting for it,
-// that is who saw it being written on the paper's page or asked for it from the paper's menu. One asked
-// for in a chat or by an agent only leaves its mark.
+// new since they last looked, or stopped. A digest is written in a chat owlit starts about the paper
+// (core's library.requestDigest); its running turn, or the sentence its last reply ended with, is read by
+// what the chat is about (features/chat/started.ts). And who is told when one is done: only someone
+// waiting for it, that is who saw it being written on the paper's page or asked for it from the paper's
+// menu. One asked for in a chat or by an agent only leaves its mark.
 
-// A paper's digest runs, finished ones too; a fresh array, free to sort
-const digestTasks = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).filter((task) => task.kind === "paper.digest")
+const digestAbout = (paperId: string): ChatAbout => ({ kind: "paper", id: paperId })
 
-// A run for the paper's digest is under way or waiting its turn
-export const digestUnderWay = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).some((task) => task.kind === "paper.digest" && !isTaskFinished(task))
-
-// The digest's last run broke and nothing has taken it up again. Known for this session only: core keeps
-// a few finished tasks, and a digest that failed long ago is better asked for again from the menu.
-export function digestFailed(byId: Record<string, Task>, id: string) {
-  const tasks = digestTasks(byId, id)
-  if (tasks.some((task) => !isTaskFinished(task))) return false
-  const last = tasks.sort((a, b) => b.createdAt - a.createdAt)[0]
-  return last?.state === "failed"
-}
-
-// The mark a paper's row and page show for its digest: writing while it is under way (at work, or waiting
-// on its first steps, the paper's figures), stopped, or new.
+// The mark a paper's row and page show for its digest: writing while it is under way (asked for, its
+// text being read, or its chat at work), stopped, or new.
 export type DigestState = "writing" | "failed" | "new" | null
 
 export function useDigestState(paper: Paper): DigestState {
-  const failed = useTasksStore((s) => digestFailed(s.byId, paper.id))
-  const writing = useTasksStore((s) => digestUnderWay(s.byId, paper.id))
+  const stand = useStand(digestAbout(paper.id))
   // New since the user last looked (protocol's digestUnseen, which core answers)
   const fresh = useDigestUnseen(paper.id)
-  return failed ? "failed" : writing ? "writing" : fresh ? "new" : null
+  return stand?.state === "failed" ? "failed" : stand?.state === "running" ? "writing" : fresh ? "new" : null
 }
 
 // Whether a paper has a digest new since the user looked, by id (Home's rows, which hold no paper)
 export const useNewDigest = useDigestUnseen
 
-// Any run for the digest, background ones too: the paper's page says it is being written
+// Owlit is writing the paper's digest, whoever asked
 export function useWritingDigest(paperId: string) {
-  return useTasksStore((s) => digestUnderWay(s.byId, paperId))
+  return useStand(digestAbout(paperId))?.state === "running"
 }
 
-// Stops the paper's digest: every run for it still under way or waiting its turn
+// Why the last try at the paper's digest broke, in the words its reply ended with; null when it didn't.
+// Read from core's chat, so it is still said after a restart.
+export function useDigestFailure(paperId: string): string | null {
+  const stand = useStand(digestAbout(paperId))
+  return stand?.state === "failed" ? (stand.reply.error ?? t`Owlit couldn't write a digest of this paper.`) : null
+}
+
 export function stopDigest(paperId: string) {
-  for (const task of digestTasks(useTasksStore.getState().byId, paperId)) if (!isTaskFinished(task)) void cancelTask(task.id).catch(toastError)
+  stopStarted(digestAbout(paperId))
 }
 
-export function useDigestFailed(paperId: string) {
-  return useTasksStore((s) => digestFailed(s.byId, paperId))
+// Starts Owlit writing the paper's digest, saying so when that failed; resolves to whether it was started
+export async function askDigest(paper: Paper, rewrite: boolean): Promise<boolean> {
+  const about = digestAbout(paper.id)
+  if (!isDesktop) return mockDigest(about)
+  asking(about, true)
+  try {
+    const asked = await rpc.library.requestDigest({ id: paper.id, rewrite })
+    if ("chatId" in asked) return true
+    asking(about, false)
+    if (asked.heldBack === "nothing-to-read") toast.error(t`This paper has no PDF or text for Owlit to read.`)
+    return false
+  } catch (error) {
+    asking(about, false)
+    toast.error((error instanceof Error && error.message) || t`Couldn't ask for a digest.`)
+    return false
+  }
 }
 
-// Asks for the paper's digest again, saying so when the asking itself failed; resolves to whether it was asked
-export function askDigestAgain(paper: Paper, rewrite: boolean) {
-  return rpc.library.requestDigest({ id: paper.id, rewrite }).then(
-    () => true,
-    () => {
-      toast.error(t`Couldn't ask for the digest again.`)
-      return false
-    },
-  )
-}
-
-// Asks for the digest again (Retry), and waits for it
+// Asks for the digest again (Retry: a new turn in the chat that broke), and waits for it
 export function retryDigest(paper: Paper) {
   waitForDigest(paper.id)
-  return askDigestAgain(paper, !!paper.hasDigest)
+  return askDigest(paper, !!paper.hasDigest)
 }
+
+// Without core (pnpm dev:web) a digest asked for is written for a few seconds and then cut off, so both
+// the line that says it is being written and the one that says why it stopped can be seen
+function mockDigest(about: ChatAbout) {
+  const chatId = `mock-${aboutKey(about)}`
+  const reply = { id: `${chatId}-${Date.now()}`, role: "assistant" as const, parts: [], createdAt: Date.now() }
+  heardStarted({ chatId, about, reply: { ...reply, status: "streaming" } })
+  setTimeout(() => {
+    if (useStarted.getState().byAbout[aboutKey(about)]?.reply?.id !== reply.id) return
+    heardStarted({ chatId, about, reply: { ...reply, status: "error", error: t`Owlit was closed before it finished.`, cutOff: "closed", finishedAt: Date.now() } })
+  }, MOCK_WRITING_MS)
+  return Promise.resolve(true)
+}
+
+const MOCK_WRITING_MS = 4000
 
 // ---- Telling the one waiting ----
 
@@ -96,10 +107,6 @@ export function showingDigest(id: string) {
   }
 }
 
-// How long a run that ended without a digest (a paper with no text to read) is given before the wait is
-// dropped: core says a paper changed a moment after its task ends
-const SETTLE_MS = 15_000
-
 // Watches the waited-for digests from the shell. Done or stopped, the user hears it where they are: on the
 // paper's page nothing is said (its switch carries the mark); elsewhere in owlit a toast that opens the
 // digest; with owlit behind other windows a system notification too, as a chat waiting on them does.
@@ -110,18 +117,15 @@ export function useDigestNotices() {
       const subject = routeSubject(window.location.pathname)
       return document.hasFocus() && subject?.kind === "paper" && subject.id === id
     }
-    // One wait for runs that ended without a digest yet, however many changes come in meantime
-    let settle: ReturnType<typeof setTimeout> | undefined
     const check = () => {
       const papers = useLibraryStore.getState().papers
-      const tasks = useTasksStore.getState().byId
+      const started = useStarted.getState()
       for (const [id, since] of waiting) {
         const paper = papers[id]
         if (!paper) {
           waiting.delete(id)
           continue
         }
-        const runs = digestTasks(tasks, id)
         if (paper.hasDigest && (paper.digestAt ?? 0) >= since) {
           waiting.delete(id)
           if (onPaperPage(id)) continue
@@ -130,31 +134,23 @@ export function useDigestNotices() {
           notifyWhenAway({ title: t`Digest ready`, body: paper.title, onClick: open })
           continue
         }
-        if (runs.some((task) => !isTaskFinished(task))) continue
-        const last = runs.filter((task) => (task.endedAt ?? 0) >= since).sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))[0]
-        if (!last) continue
-        if (last.state === "failed") {
-          waiting.delete(id)
-          if (onScreen === id && document.hasFocus()) continue
-          const retry = () => void retryDigest(paper)
-          toast(t`Couldn't write the digest`, { description: paper.title, action: { label: t`Retry`, onClick: retry }, duration: 10_000 })
-          notifyWhenAway({ title: t`Couldn't write the digest`, body: paper.title, onClick: () => navigate(`/library/${id}`) })
-        } else if (last.state === "cancelled" || Date.now() - (last.endedAt ?? 0) > SETTLE_MS) {
-          waiting.delete(id)
-        } else {
-          settle ??= setTimeout(() => {
-            settle = undefined
-            check()
-          }, SETTLE_MS)
-        }
+        const stand = standOf(started, digestAbout(id))
+        if (stand?.state === "running") continue
+        const reply = started.byAbout[aboutKey(digestAbout(id))]?.reply
+        if (!reply || (reply.finishedAt ?? 0) < since) continue
+        waiting.delete(id)
+        // On the paper's page the Digest side says it already
+        if (stand?.state !== "failed" || onPaperPage(id) || (onScreen === id && document.hasFocus())) continue
+        const retry = () => void retryDigest(paper)
+        toast(t`Couldn't write the digest`, { description: paper.title, action: { label: t`Retry`, onClick: retry }, duration: 10_000 })
+        notifyWhenAway({ title: t`Couldn't write the digest`, body: paper.title, onClick: () => navigate(`/library/${id}`) })
       }
     }
     const offPapers = useLibraryStore.subscribe((s, prev) => s.papers !== prev.papers && check())
-    const offTasks = useTasksStore.subscribe((s, prev) => s.byId !== prev.byId && check())
+    const offStarted = useStarted.subscribe((s, prev) => s.byAbout !== prev.byAbout && check())
     return () => {
       offPapers()
-      offTasks()
-      clearTimeout(settle)
+      offStarted()
     }
   }, [navigate])
 }

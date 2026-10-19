@@ -1,11 +1,13 @@
 import { t } from "@lingui/core/macro"
-import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary } from "@owlit/protocol"
+import { chatFilesDir, RpcErrorCode, sameAbout, type AttachmentFile, type Chat, type ChatAbout, type ChatMessage, type ChatSummary, type StartedChat, type StopReason } from "@owlit/protocol"
+import { randomUUID } from "node:crypto"
 import { constants } from "node:fs"
 import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { ignoreMissing, readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { cutOffSentence } from "../agents/failure.ts"
+import type { Turns } from "../agents/turns.ts"
 import { messageOf, Serial } from "../util.ts"
 
 // How often a streaming chat is written while its messages keep changing
@@ -45,15 +47,35 @@ export class Chats {
     this.trashDir = path.join(owlitDir, "trash")
   }
 
-  // Your chats, most recently updated first. Owlit's own runs (startedBy) are sessions too, kept here,
-  // but no chat list shows them: their work shows where it lands.
+  // Your chats, most recently updated first. The chats owlit started (startedBy) are kept here too, but
+  // no chat list shows them: their work shows where it lands.
   async list(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !c.startedBy)
   }
 
-  // Owlit's runs, most recent first
+  // The chats owlit started and the scheduler's runs, most recent first
   async runs(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !!c.startedBy)
+  }
+
+  // The chat owlit started last about each thing (of one kind), with its last message
+  async startedFor(kind?: ChatAbout["kind"]): Promise<StartedChat[]> {
+    const seen = new Set<string>()
+    const out: StartedChat[] = []
+    for (const c of await this.runs()) {
+      if (!c.about || (kind && c.about.kind !== kind)) continue
+      const key = `${c.about.kind}:${c.about.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const reply = (await this.get(c.id).catch(() => null))?.messages.at(-1)
+      out.push({ chatId: c.id, about: c.about, ...(reply ? { reply } : {}) })
+    }
+    return out
+  }
+
+  // The chat owlit started last about this thing
+  async latestAbout(about: ChatAbout): Promise<ChatSummary | undefined> {
+    return (await this.all()).find((c) => c.startedBy && sameAbout(c.about, about))
   }
 
   private async all() {
@@ -320,8 +342,20 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, run } = chat
-  return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, ...(role ? { role } : {}), effortId, ...(sessions ? { sessions } : {}), ...(startedBy ? { startedBy, run } : {}) }
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, about, run } = chat
+  return {
+    id,
+    title,
+    createdAt,
+    updatedAt,
+    pinned,
+    connectorId,
+    modelId,
+    ...(role ? { role } : {}),
+    effortId,
+    ...(sessions ? { sessions } : {}),
+    ...(startedBy ? { startedBy, ...(about ? { about } : {}), ...(run ? { run } : {}) } : {}),
+  }
 }
 
 // A turn that never finished, because owlit stopped before its reply was saved: said as owlit closing,
@@ -346,4 +380,77 @@ function safeName(name: string) {
   // oxlint-disable-next-line no-control-regex -- control characters are what is taken out
   const clean = base.replace(/[\u0000-\u001f\u007f:]/g, " ").replace(/\s+/g, " ").trim().replace(/^\.+/, "")
   return clean.slice(0, 200) || "file"
+}
+
+// ---- Chats owlit starts for the person ----
+
+// What a chat owlit starts is given: what it works on, its recipe as the first message, and what goes
+// with it. The agent and model are Settings' choice for work owlit starts (core.ts).
+export interface StartFor {
+  about: ChatAbout
+  // The chat's name in its file: the work, by name
+  title: string
+  // What the agent is asked, in English (text for agents is never translated)
+  recipe: string
+  // Sent as a typed chat sends images: copied into the chat's folder and attached to the first message,
+  // so an agent that takes pictures sees them
+  pictures?: { name: string; mimeType: string; data: Uint8Array }[]
+  // Text the recipe works from (a paper's text), sent after it. The chat keeps where it came from rather
+  // than the text itself, which can run to hundreds of pages and is on disk already.
+  texts?: { text: string; from: string }[]
+  connectorId: string
+  modelId?: string
+}
+
+export interface Started {
+  chatId: string
+  // The reply the turn writes
+  messageId: string
+  // How the turn ended; "error" when it broke (the reply says why)
+  done: Promise<StopReason | "error">
+}
+
+// Starts a chat for the person about something, as Reviewer, and runs its first turn with no window
+// involved: its updates go to the chat's file and to every window (chat.update, chat.ended) as any
+// chat's do, Stop is agents.cancel on it, and owlit closing cuts it off as it does any turn.
+export async function startFor(turns: Turns, chats: Chats, start: StartFor): Promise<Started> {
+  const chatId = randomUUID()
+  const now = Date.now()
+  await chats.create({ id: chatId, title: start.title, createdAt: now, updatedAt: now, pinned: false, connectorId: start.connectorId, ...(start.modelId ? { modelId: start.modelId } : {}), role: "reviewer", startedBy: "owlit", about: start.about })
+  const attachments: AttachmentFile[] = []
+  for (const picture of start.pictures ?? []) {
+    const kept = await chats.writeIn(chatId, picture.name, picture.data)
+    attachments.push({ id: randomUUID(), name: picture.name, size: picture.data.length, mimeType: picture.mimeType, path: kept })
+  }
+  const texts = start.texts ?? []
+  const said = [start.recipe, ...texts.map((t) => `(${t.from} followed here.)`)].join("\n\n")
+  const sent = [start.recipe, ...texts.map((t) => t.text)].join("\n\n")
+  return turn(turns, chatId, start.about, { text: said, sent, attachments, connectorId: start.connectorId, modelId: start.modelId })
+}
+
+// What Retry says: a new turn in the same chat, so the agent sees what it did before it broke
+export const TRY_AGAIN = "Try again."
+
+// Another turn in a chat owlit started, on its own agent and model (Retry)
+export async function tryAgain(turns: Turns, chats: Chats, chatId: string): Promise<Started> {
+  const chat = await chats.get(chatId)
+  if (!chat.startedBy || !chat.about || !chat.connectorId) throw new RpcFailure(RpcErrorCode.InvalidParams, "That chat wasn't started by owlit for something.", { id: chatId })
+  return turn(turns, chatId, chat.about, { text: TRY_AGAIN, sent: TRY_AGAIN, attachments: [], connectorId: chat.connectorId, modelId: chat.modelId })
+}
+
+async function turn(turns: Turns, chatId: string, about: ChatAbout, ask: { text: string; sent: string; attachments: AttachmentFile[]; connectorId: string; modelId?: string }): Promise<Started> {
+  const userMessage: ChatMessage = { id: randomUUID(), role: "user", parts: [{ type: "text", text: ask.text }], ...(ask.attachments.length ? { attachments: ask.attachments } : {}), createdAt: Date.now() }
+  const messageId = randomUUID()
+  // Not awaited: the turn runs on its own. This returns once its messages are in the chat, or once it
+  // ended before they were (a turn already running in the chat)
+  let begun = () => {}
+  const inChat = new Promise<void>((resolve) => (begun = resolve))
+  const done = turns
+    .prompt(
+      { chatId, connectorId: ask.connectorId, ...(ask.modelId ? { modelId: ask.modelId } : {}), role: "reviewer", input: { text: ask.sent, mentions: [], attachments: ask.attachments }, userMessage, assistantMessageId: messageId },
+      { about, begun },
+    )
+    .catch((): "error" => "error")
+  await Promise.race([inChat, done])
+  return { chatId, messageId, done }
 }

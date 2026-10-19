@@ -4,6 +4,7 @@ import { sha1 } from "../fs-util.ts"
 import { sameJson } from "../util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import type { DigestRecord } from "../library/digest/prompt.ts"
 import { hunks, merge } from "./hunks.ts"
 import { proposalHunks } from "./proposals.ts"
 
@@ -158,6 +159,7 @@ export class Undo {
       } else if (!(await ws.library.restore([target.path])).length) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper is no longer in the trash.`)
       return ws.recorder.record(caller, { action: change.action === "create" ? "delete" : "create", target, ...extra })
     }
+    if (target.part === "digest") return this.digest(ws, change, caller, extra)
     const field = target.part.replace(/^overrides\./, "") as keyof PaperPatch
     const paper = await ws.library.get(target.path)
     if (!paper) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the library any more.`)
@@ -167,6 +169,27 @@ export class Undo {
     }
     await ws.library.update(target.path, { [field]: change.before })
     return ws.recorder.record(caller, { action: "update", target, ...extra, ...(change.after !== undefined ? { before: change.after } : {}), ...(change.before !== undefined ? { after: change.before } : {}) })
+  }
+
+  // A digest goes back to the one before it, or away when there was none, while it is still the one the
+  // entry wrote
+  private async digest(ws: Workspace, change: Change, caller: Caller, extra: Extra) {
+    const id = change.target.path
+    const now = await ws.library.digest(id).catch(() => null)
+    const still = change.action === "delete" ? now === null : now !== null && sha1(now) === change.afterHash
+    if (!still) throw new RpcFailure(RpcErrorCode.Conflict, t`The paper's digest changed since, so owlit left it as it is.`, { id })
+    const before = change.action === "create" ? null : await ws.changes.content(change.id)
+    if (change.action !== "create" && before === null) throw gone(change.id)
+    const done = await ws.library.putDigest(id, before, (change.before as DigestRecord | undefined) ?? null)
+    return ws.recorder.record(caller, {
+      action: before === null ? "delete" : "update",
+      target: change.target,
+      ...extra,
+      ...(done.beforeRecord ? { before: done.beforeRecord } : {}),
+      ...(change.before !== undefined ? { after: change.before } : {}),
+      ...(before !== null ? { afterHash: sha1(before) } : {}),
+      ...(done.before !== null ? { content: done.before } : {}),
+    })
   }
 
   // A whole comment comes out (with its replies) or back; its own fields or one of its entries go back

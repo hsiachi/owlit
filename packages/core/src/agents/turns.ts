@@ -4,6 +4,7 @@ import { RequestError } from "@agentclientprotocol/sdk"
 import {
   applyUpdate,
   type AttachmentFile,
+  type ChatAbout,
   DEFAULT_ROLE,
   parseOwlitUri,
   RpcErrorCode,
@@ -50,8 +51,8 @@ interface TurnsOptions {
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
   // An update of the reply messageId, as it streams
   notify: (chatId: string, update: SessionUpdate, messageId: string) => void
-  // A turn ended, its reply as saved
-  ended?: (chatId: string, message: ChatMessage) => void
+  // A turn ended, its reply as saved; about: what the chat works on, for a chat owlit started
+  ended?: (chatId: string, message: ChatMessage, about?: ChatAbout) => void
   // The MCP servers a chat's session gets (owlit-mcp, for that chat)
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
   // What the user asked Owlit to call them, read when a session starts
@@ -103,6 +104,9 @@ interface Turn {
   emit?: (update: SessionUpdate) => void
   // What each of the agent's own agents said as text: its report
   agentText: Map<string, string>
+  // What a chat owlit started works on. Nobody watches such a turn: what would wait on the person (a
+  // permission the policy leaves to them, a question) is refused at once rather than left hanging
+  about?: ChatAbout
 }
 
 // Chat turns on local agents. Each chat has one ACP session per agent, recorded in the chat so it can be
@@ -125,12 +129,16 @@ export class Turns {
   // Chats whose Co-author turn runs, until when (a moment after it ends, as for claims): a change nobody
   // claimed meanwhile came while it worked
   private coauthoring = new Map<string, number>()
+  // Images sent with each chat's attachments (picturesSent)
+  private pictures = new Map<string, number>()
 
   constructor(options: TurnsOptions) {
     this.options = options
   }
 
-  async prompt(req: TurnRequest): Promise<StopReason> {
+  // about: set for a chat owlit started (chats.ts startFor), which runs with nobody watching. begun: told
+  // once both messages of the turn are in the chat.
+  async prompt(req: TurnRequest, { about, begun }: { about?: ChatAbout; begun?: () => void } = {}): Promise<StopReason> {
     const ws = this.options.workspace()
     if (!ws) throw new RpcFailure(RpcErrorCode.NoWorkspace, t`Open a folder as the workspace first.`)
     if (this.turns.has(req.chatId)) throw new RpcFailure(RpcErrorCode.Conflict, t`This chat is still answering.`)
@@ -146,24 +154,31 @@ export class Turns {
     }
     let stop = () => {}
     const stopped = new Promise<void>((resolve) => (stop = resolve))
-    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, stopped, stop, replaced: new Map(), agentText: new Map() }
+    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, stopped, stop, replaced: new Map(), agentText: new Map(), ...(about ? { about } : {}) }
     this.turns.set(req.chatId, turn)
     try {
-      return await this.run(req, ws, turn)
+      return await this.run(req, ws, turn, begun)
     } finally {
       this.turns.delete(req.chatId)
-      this.options.ended?.(req.chatId, turn.message)
+      this.options.ended?.(req.chatId, turn.message, turn.about)
     }
   }
 
   // The turns running or starting, with each reply as it stands
   inFlight() {
-    return [...this.turns.values()].map((turn) => ({ chatId: turn.chatId, messageId: turn.message.id, message: turn.message }))
+    return [...this.turns.values()].map((turn) => ({ chatId: turn.chatId, messageId: turn.message.id, message: turn.message, ...(turn.about ? { about: turn.about } : {}) }))
   }
 
-  private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn): Promise<StopReason> {
+  // How many pictures a chat's turns sent its agent as images since owlit started: none when the agent
+  // doesn't take them; undefined for a typed chat none of whose turns sent attachments
+  picturesSent(chatId: string): number | undefined {
+    return this.pictures.get(chatId)
+  }
+
+  private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn, begun?: () => void): Promise<StopReason> {
     await ws.chats.appendMessage(req.chatId, req.userMessage)
     await ws.chats.appendMessage(req.chatId, turn.message)
+    begun?.()
     const say = (update: SessionUpdate) => {
       turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
       this.options.notify(req.chatId, update, turn.message.id)
@@ -226,6 +241,7 @@ export class Turns {
       const role = live.told !== turn.role && !fresh.rulesInSystemPrompt ? roleNote(turn.role) : undefined
       const pictures = sendsPictures(req.connectorId, await live.proc.initialized(), req.modelId)
       const attached = await attachmentBlocks(req.input.attachments, ws.root, pictures)
+      if (req.input.attachments.length || turn.about) this.pictures.set(req.chatId, (this.pictures.get(req.chatId) ?? 0) + attached.filter((b) => b.type === "image").length)
       // Owlit's memory: in full when the session hasn't heard it, again whenever it changed since
       const lines = (await this.options.memory?.().catch(() => [])) ?? []
       const heard = JSON.stringify(lines.map((l) => [l.id, l.kind, l.text]))
@@ -421,6 +437,9 @@ export class Turns {
       const option = live.options.find((o) => o.category === category && o.type === "select")
       if (option && option.type === "select") {
         if (option.currentValue === value) continue
+        // A model chosen once (Settings' model for work owlit starts) that the agent no longer offers: its
+        // default stays rather than the turn failing
+        if (category === "model" && !flatValues(option.options).includes(value)) continue
         const result = await live.proc.setConfigOption({ sessionId: live.sessionId, configId: option.id, value })
         live.options = result.configOptions ?? live.options.map((o) => (o.id === option.id ? ({ ...o, currentValue: value } as acp.SessionConfigOption) : o))
       } else if (category === "mode" && live.modes && live.modes.currentModeId !== value && live.modes.availableModes.some((m) => m.id === value)) {
@@ -477,8 +496,8 @@ export class Turns {
         // What the policy refuses for the chat's role, or on the files the request names, is refused
         // before the user sees it
         const answer = await this.answer(turn, r.toolCall, announced?.type === "tool_call" ? announced : undefined).catch((error: unknown) => ({ refuse: messageOf(error) }))
-        if (typeof answer === "object") {
-          if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${chatId.slice(0, 8)}] refused ${r.toolCall.title ?? r.toolCall.toolCallId}: ${answer.refuse}`)
+        if (typeof answer === "object" || (answer === "ask" && turn.about)) {
+          if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${chatId.slice(0, 8)}] refused ${r.toolCall.title ?? r.toolCall.toolCallId}: ${typeof answer === "object" ? answer.refuse : "nobody is there to ask"}`)
           const reject = r.options.find((o) => o.kind === "reject_once") ?? r.options.find((o) => o.kind === "reject_always")
           return reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } }
         }
@@ -534,7 +553,7 @@ export class Turns {
 
         const emit = turn?.emit
         if (!turn || !emit || turn.cancelled) return { action: "cancel" }
-        if (!isSessionForm(r)) return { action: "decline" }
+        if (!isSessionForm(r) || turn.about) return { action: "decline" }
         const questions = questionsFrom(r)
         if (!questions.length) return { action: "decline" }
         const requestId = randomUUID()

@@ -4,6 +4,9 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A digest you ask for starts at once, beside whatever else Owlit is doing, instead of waiting its turn behind a thread's work. The paper's page says "Owlit is reading this paper…" with Stop.
+- A digest that couldn't be written says why on the paper's page ("Claude Code's usage limit is reached; it resets at 2:20", "Owlit was closed before it finished"), with Retry, and still says so after you restart owlit. Retry carries on where it stopped.
+- Asking Owlit in a chat for a digest of a paper with no PDF or text now gets "no digest" rather than a promise. Ask Owlit in a chat to fix a digest and it rewrites it; the chat's card says so and Undo puts the old one back.
 - When your agent's usage limit is reached, owlit says so in one sentence with when it resets ("Claude Code's usage limit is reached; it resets at 2:20"), and a digest, thread run or reply under a comment that hits the limit stops there instead of trying again.
 - Owlit's memory keeps lines written only in Chinese: a second one is no longer taken for the first.
 - Settings › Owlit › Remember what I do says what turning it off costs ("papers you finish stay as you left them") and that it applies on this Mac.
