@@ -1,5 +1,5 @@
 import type { Task } from "@owlit/protocol"
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, readdirSync, statSync } from "node:fs"
 import { readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -349,6 +349,31 @@ describe("Scheduler", () => {
     const store = new TaskStore(dir)
     const ids = (await store.load()).map((t) => t.id).sort()
     expect(ids).toEqual([running.id, queued.id].sort())
+  })
+
+  it("keeps the log to the current file and the one before it, and recovers from both", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))
+    const store = new TaskStore(dir, { maxLogBytes: 2000 })
+    const task = (id: string, state: Task["state"]): Task => ({ id, kind: "fake.k", subject: id, lane: "cpu", priority: "asked", state, attempts: 0, createdAt: 1 })
+    store.record(task("early", "queued"))
+    await store.flush()
+    for (let i = 0; i < 60; i++) {
+      store.record(task(`t${i}`, "done"))
+      await store.flush()
+    }
+    store.record(task("late", "queued"))
+    await store.flush()
+    // Until the line for late is in the older file
+    for (let i = 0; !(await readFile(path.join(dir, "log.1.jsonl"), "utf8")).includes('"late"'); i++) {
+      store.record(task(`u${i}`, "done"))
+      await store.flush()
+    }
+    const files = readdirSync(dir).sort()
+    expect(files).toEqual(["log.1.jsonl", "log.jsonl"])
+    for (const file of files) expect(statSync(path.join(dir, file)).size).toBeLessThanOrEqual(2000)
+    // What the dropped files held is gone (early); without open.json the two files still say what is
+    // unfinished
+    expect((await store.load()).map((t) => t.id)).toEqual(["late"])
   })
 
   it("fails tasks of a kind it no longer knows", async () => {
