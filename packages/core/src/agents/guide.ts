@@ -1,9 +1,8 @@
 // How to use owlit, for Owlit when the user asks about owlit itself (owlit_help in owlit-mcp). It says
 // how to do things and where they are, never why. It describes the app as it is: a change to a feature
-// that one of these paragraphs mentions changes the paragraph in the same commit. It also serves the
-// recipes of the work owlit starts for the person (recipes/), so a chat can do that work the same way.
+// that one of these paragraphs mentions changes the paragraph in the same commit.
 
-import { RECIPES } from "../recipes/index.ts"
+import { recipeList } from "../recipes/index.ts"
 
 interface GuideTopic {
   id: string
@@ -40,7 +39,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "docs",
     title: "Docs",
-    text: `Docs are the Markdown files in the workspace, shown as the folder tree in Docs. ⌘N in Docs makes a new doc; its first line is the title and names the file. Every change is saved. Selecting text offers Ask Owlit and a comment icon (⌥⌘M). Comments, Owlit's, the user's and a shared doc's readers', sit in a column to the right of the doc, each level with its words, stored beside the file, not in it; the header's comment button shows or hides the column. A comment is flat: replies go to the whole comment, and Owlit doesn't answer replies; Ask Owlit on a comment opens a chat about it. Asking Owlit to review a doc leaves comments. A doc's menu has Versions… for earlier versions, and Go through against your docs: Owlit reads the doc as material from people (a meeting's transcript, reviews) against the other docs, writes its reading beside it and leaves the points as comments; while it works the same row stops it, and if it stopped, the row says why and offers Retry. Deleting moves the file to the system Trash, with Undo.`,
+    text: `Docs are the Markdown files in the workspace, shown as the folder tree in Docs. ⌘N in Docs makes a new doc; its first line is the title and names the file. Every change is saved. Selecting text offers Ask Owlit and a comment icon (⌥⌘M). Comments, Owlit's, the user's and a shared doc's readers', sit in a column to the right of the doc, each level with its words, stored beside the file, not in it; the header's comment button shows or hides the column. A comment is flat: replies go to the whole comment, and Owlit doesn't answer replies; Ask Owlit on a comment opens a chat about it. Asking Owlit to review a doc leaves comments. A doc's menu has Versions… for earlier versions. Deleting moves the file to the system Trash, with Undo.`,
   },
   {
     id: "owlit",
@@ -81,13 +80,13 @@ const TOPICS: GuideTopic[] = [
 
 const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (owlit, agents, papers, appearance), or a part of one (background, privacy, sources, proxy, reading), for example [Settings › Papers › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
 
+// The recipes are answered in core.ts, which works each out for the thing it is on
+const RECIPES = `Recipes: how owlit's own buttons do a piece of work, written out for the thing it is on. Ask for one by its name as topic, with thread (its id), before doing that work:\n${recipeList()}`
+
 export function guide(topic?: string) {
-  const recipes = Object.entries(RECIPES).map(([name, r]) => `- ${name}: ${r.description}`).join("\n")
-  const list = `${TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")}\n\nHow Owlit does a piece of work, to do it the same way when the user asks for it in a chat:\n${recipes}`
-  if (!topic) return `How to use owlit. Ask for one topic:\n${list}\n\n${LINKS}`
+  const list = TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")
+  if (!topic) return `How to use owlit. Ask for one topic:\n${list}\n\n${RECIPES}\n\n${LINKS}`
   const want = topic.trim().toLowerCase()
-  const recipe = RECIPES[want]
-  if (recipe) return recipe.text()
   // Its id, then a word of its title, then a word anywhere in it
   const found =
     TOPICS.find((t) => t.id === want) ?? TOPICS.find((t) => t.title.toLowerCase().includes(want)) ?? TOPICS.find((t) => t.text.toLowerCase().includes(want))

@@ -128,6 +128,10 @@ export class Workspace {
       findPassage: (id, quote) => this.findPassage(id, quote),
       hasText: (id, ids) => this.hasText(id, ids),
       searches: (by, since) => this.library.searchesBy(by, since),
+      chatAbout: async (chatId) => {
+        const chat = await this.chats.get(chatId).catch(() => null)
+        return chat?.startedBy ? chat.about : undefined
+      },
       ...options.threads,
     })
     this.tasks = new Scheduler({
@@ -137,7 +141,6 @@ export class Workspace {
       limits: tasks.limits,
     })
     this.library.attach(this.tasks)
-    this.threads.attach(this.tasks)
     this.shares = new Shares({
       server: () => null,
       author: async () => undefined,

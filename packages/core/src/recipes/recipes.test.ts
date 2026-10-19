@@ -4,6 +4,7 @@ import { guide } from "../agents/guide.ts"
 import { correctionOf } from "../docs/comments.ts"
 import { goThroughRecipe } from "./go-through.ts"
 import { replyRecipe } from "./reply.ts"
+import { RECIPES } from "./index.ts"
 
 const input = {
   path: "Meetings/P5 周会.md",
@@ -34,8 +35,8 @@ describe("the Go through recipe", () => {
     expect(recipe).toContain("read it whole with docs_read")
     expect(recipe).toContain("docs_list lists the workspace's docs")
     expect(recipe).toContain('" · reading"')
-    expect(guide("go-through")).toBe(recipe)
-    expect(guide()).toMatch(/- go-through: Go through material from people/)
+    expect(RECIPES["go-through"].text(undefined)).toBe(recipe)
+    expect(guide()).toMatch(/- go-through: go through material from people/)
   })
 })
 
@@ -60,7 +61,7 @@ describe("the reply recipe", () => {
     expect(recipe).toContain("CORRECT:")
     const carried = replyRecipe({ path: "story.md", content: "", comment: comment("o_1234abcd", { path: "m · reading.md", label: "m · reading" }) })
     expect(carried).not.toContain("CORRECT:")
-    expect(guide("reply")).toContain("comments_reply")
+    expect(RECIPES.reply.text(undefined)).toContain("comments_reply")
   })
 
   it("reads a correction as the rewritten entry after CORRECT:, and nothing else as one", () => {

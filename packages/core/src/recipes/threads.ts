@@ -1,10 +1,22 @@
-import { groupingsOf, threadUri, type Thread, type ThreadColumn } from "@owlit/protocol"
+import { groupingsOf, threadUri, type Thread, type ThreadColumn, type ThreadSize } from "@owlit/protocol"
+import type { Recipe } from "./index.ts"
 
-// What a background session is told for each kind of thread work. It has owlit's tools only (the
-// owlit MCP server), no one to ask, and its answer is shown nowhere: everything it does goes through
-// thread_write, so the user sees it in the thread with Owlit's dots.
+// The recipes for work on a thread: a chat owlit starts from a thread's button is given one as its first
+// message, and an agent in any chat reads one through owlit_help before doing the same work there.
+// Everything the work does goes through thread_write, so the user sees it in the thread with Owlit's dots.
 
-export type GatherSize = "few" | "many"
+// What a thread's recipe is written from; Threads.recipeInput works it out
+export interface ThreadRecipeInput {
+  thread: Thread
+  // Rows whose full text owlit has, which are answered from it
+  withText: string[]
+  // read-in-full: the rows to read (Threads.toRead)
+  toRead: string[]
+  // find-more: what the user asked to look for this time, when it isn't the thread's question
+  lookFor?: string
+  // ask-each and group: the column to fill
+  column?: ThreadColumn
+}
 
 const ABOUT = (c: Thread) =>
   `The thread is ${c.id} (${threadUri(c.id)}). Read it first with thread_read: what is there, what the user rewrote (keep it) and removed (never bring it back).`
@@ -27,7 +39,7 @@ const MEMO = `The memo is at most four sentences on what the papers say together
 // What a search couldn't reach goes with the write, not in the memo; owlit records the searches themselves
 const NOTE = `When your search couldn't reach something (a source failed, an index misses part of a venue, papers have no abstract), say so in one plain sentence as note on the write that adds those papers.`
 
-export function gatherPrompt(c: Thread, size: GatherSize, withText: string[] = []) {
+function gatherPrompt(c: Thread, size: ThreadSize, withText: string[] = []) {
   const many =
     size === "many"
       ? `Gather as many papers as the question takes, up to about 200: for a venue or a year ("UIST 2026 papers"), go through it whole, page by page. Then group the rows: groups of at most about 30 papers, named for what they share, two levels at most, each with a one-line description (one); put each row in its group with its group field. ${ONE_GROUP}`
@@ -44,7 +56,7 @@ If you find nothing, write a one-sentence memo saying so, and in note what you t
 }
 
 // lookFor: what the user asked for this time, when it isn't the thread's question as it stands
-export function morePrompt(c: Thread, withText: string[] = [], lookFor?: string) {
+function morePrompt(c: Thread, withText: string[] = [], lookFor?: string) {
   return `You are finding more papers for a thread in owlit. The question: «${c.asked.text}»${lookFor ? `\nThis time the user asks you to look for: «${lookFor}». Search for that, within the thread's question.` : ""}
 
 ${ABOUT(c)}
@@ -54,7 +66,7 @@ ${groupingsOf(c).some((col) => col.groups?.length) ? `Put each new row in the gr
 Your answer at the end is one line on what you added.`
 }
 
-export function fillPrompt(c: Thread, column: ThreadColumn, withText: string[] = []) {
+function fillPrompt(c: Thread, column: ThreadColumn, withText: string[] = []) {
   if (column.kind === "compare") return comparePrompt(c, column, withText)
   if (column.kind === "grouping") return groupingPrompt(c, column)
   return `You are answering a question for every paper of a thread in owlit. The thread's question: «${c.asked.text}». The column to fill: ${column.id} — «${column.question}».
@@ -88,8 +100,8 @@ Don't change answers, other columns, the memo or other groupings. Your answer at
 }
 
 // toRead: the rows to read, those answered from their abstracts or titles whose paper has a PDF to be
-// had (the button that started the run counted them; the others are left as they are)
-export function readPrompt(c: Thread, toRead: string[]) {
+// had (the thread's Read N in full button counts the same rows; the others are left as they are)
+function readPrompt(c: Thread, toRead: string[]) {
   return `You are reading in full ${toRead.length} papers of a thread in owlit that were answered only from their abstracts or titles. The question: «${c.asked.text}»
 
 ${ABOUT(c)}
@@ -97,3 +109,37 @@ Read these rows, and no others: ${toRead.join(", ")}. For each: add the paper to
 Then update the memo if what you read changes it. ${MEMO}
 Your answer at the end is one line on what you read.`
 }
+
+// A recipe for a thread's column needs the column; the registry's callers find it first
+const columnOf = (input: ThreadRecipeInput) => {
+  if (!input.column) throw new Error("This recipe needs the column it fills.")
+  return input.column
+}
+
+export const THREAD_RECIPES = {
+  gather: {
+    about: "thread",
+    description: "gather a thread's papers for its question (a new thread: start it with thread_write first)",
+    text: ({ thread, withText }) => gatherPrompt(thread, thread.size ?? "few", withText),
+  },
+  "find-more": {
+    about: "thread",
+    description: "find more papers for a thread (look_for: what to look for this time, when it isn't the thread's question)",
+    text: ({ thread, withText, lookFor }) => morePrompt(thread, withText, lookFor),
+  },
+  "ask-each": {
+    about: "thread",
+    description: "answer a question for every paper of a thread (column: the column's id or question; add a new question first with thread_write columns)",
+    text: (input) => fillPrompt(input.thread, columnOf(input), input.withText),
+  },
+  group: {
+    about: "thread",
+    description: "group a thread's papers one way (column: the grouping's id or what it groups by; a new grouping starts with thread_write new_grouping)",
+    text: (input) => fillPrompt(input.thread, columnOf(input), input.withText),
+  },
+  "read-in-full": {
+    about: "thread",
+    description: "read in full the papers of a thread answered only from their abstracts, and rewrite their answers",
+    text: ({ thread, toRead }) => readPrompt(thread, toRead),
+  },
+} satisfies Record<string, Recipe<ThreadRecipeInput>>

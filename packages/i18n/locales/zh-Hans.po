@@ -2497,6 +2497,13 @@ msgstr "放弃"
 msgid "Apply"
 msgstr "应用"
 
+#: app/src/features/chat/started.ts
+#: app/src/features/chat/store.ts
+#: app/src/features/docs/owlit.ts
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr "Owlit 在完成之前被关闭了。"
+
 #: app/src/features/chat/status.ts
 msgid "Finished since you last looked"
 msgstr "在你上次查看后完成"
@@ -2504,13 +2511,6 @@ msgstr "在你上次查看后完成"
 #: app/src/features/chat/status.ts
 msgid "Stopped with an error"
 msgstr "出错停止"
-
-#: app/src/features/chat/store.ts
-#: app/src/features/docs/owlit.ts
-#: app/src/features/library/digests.ts
-#: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it finished."
-msgstr "Owlit 在完成之前被关闭了。"
 
 #: app/src/features/chat/use-notify.ts
 msgid "In “{title}”"
@@ -6004,6 +6004,10 @@ msgid "{papers} so far"
 msgstr "已有 {papers} 篇"
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{more, plural, one {and # more} other {and # more}}"
+msgstr "{more, plural, other {另有 # 项}}"
+
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Owlit stopped."
 msgstr "Owlit 停下了。"
@@ -6218,37 +6222,49 @@ msgstr "{0, plural, other {# 列}}"
 msgid "Found nothing"
 msgstr "什么也没找到"
 
-#: app/src/features/threads/runs.ts
-msgid "Gathering papers…"
-msgstr "正在收集论文…"
-
-#: app/src/features/threads/runs.ts
-msgid "Finding more papers…"
-msgstr "正在找更多论文…"
-
-#: app/src/features/threads/runs.ts
-msgid "Grouping the papers by “{question}”…"
-msgstr "正在按「{question}」给论文分组…"
-
-#: app/src/features/threads/runs.ts
-msgid "Asking each paper “{question}”…"
-msgstr "正在问每篇论文“{question}”…"
-
-#: app/src/features/threads/runs.ts
-msgid "Reading papers in full…"
-msgstr "正在读全文…"
-
-#: app/src/features/threads/runs.ts
-msgid "Owlit works on threads in the desktop app."
-msgstr "Owlit 在桌面版里处理脉络。"
-
-#: app/src/features/threads/runs.ts
-msgid "Owlit gathers papers in the desktop app."
-msgstr "Owlit 在桌面版里收集论文。"
-
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
 msgstr "已删除脉络"
+
+#: app/src/features/threads/work.ts
+msgid "Gathering papers…"
+msgstr "正在收集论文…"
+
+#: app/src/features/threads/work.ts
+msgid "Finding more papers…"
+msgstr "正在找更多论文…"
+
+#: app/src/features/threads/work.ts
+msgid "Asking each paper “{question}”…"
+msgstr "正在问每篇论文“{question}”…"
+
+#: app/src/features/threads/work.ts
+msgid "Asking each paper…"
+msgstr "正在问每篇论文…"
+
+#: app/src/features/threads/work.ts
+msgid "Grouping the papers by “{question}”…"
+msgstr "正在按「{question}」给论文分组…"
+
+#: app/src/features/threads/work.ts
+msgid "Grouping the papers…"
+msgstr "正在给论文分组…"
+
+#: app/src/features/threads/work.ts
+msgid "Reading papers in full…"
+msgstr "正在读全文…"
+
+#: app/src/features/threads/work.ts
+msgid "Owlit is working on this thread…"
+msgstr "Owlit 正在处理这条脉络…"
+
+#: app/src/features/threads/work.ts
+msgid "Owlit gathers papers in the desktop app."
+msgstr "Owlit 在桌面版里收集论文。"
+
+#: app/src/features/threads/work.ts
+msgid "Owlit works on threads in the desktop app."
+msgstr "Owlit 在桌面版里处理脉络。"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "The example's papers"
@@ -7286,43 +7302,6 @@ msgid "You replied to Owlit's comment in “{name}”."
 msgstr "你回复了 Owlit 在“{name}”里的评论。"
 
 #: packages/core/src/agents/runs.ts
-msgid "a thread"
-msgstr "一条脉络"
-
-#: packages/core/src/agents/runs.ts
-msgid "Gathered papers for “{title}”"
-msgstr "为「{title}」收集了论文"
-
-#. placeholder {0}: thread?.asked.text ?? title
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to gather papers: “{0}”."
-msgstr "你请 Owlit 收集论文：“{0}”。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked for more papers for “{title}”"
-msgstr "为「{title}」找了更多论文"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked for more papers in “{title}”."
-msgstr "你请 Owlit 为「{title}」再找些论文。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered “{question}” in “{title}”"
-msgstr "回答了「{title}」里的“{question}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked “{question}” of each paper in “{title}”."
-msgstr "你请 Owlit 逐篇回答「{title}」里的“{question}”。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Read the papers in “{title}”"
-msgstr "通读了「{title}」里的论文"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to read the papers in “{title}”."
-msgstr "你请 Owlit 通读「{title}」里的论文。"
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr "这是你请 Owlit 做的事。"
 
@@ -7956,6 +7935,10 @@ msgid "That thread isn't here any more."
 msgstr "那条脉络已经不在了。"
 
 #: packages/core/src/threads/threads.ts
+msgid "Owlit can't work on threads here."
+msgstr "这里无法让 Owlit 处理脉络。"
+
+#: packages/core/src/threads/threads.ts
 msgid "Say what to collect papers on."
 msgstr "说说要收集关于什么的论文。"
 
@@ -7974,10 +7957,6 @@ msgstr "那一列已经不在了。"
 #: packages/core/src/threads/threads.ts
 msgid "Pick at least one sentence to compare with."
 msgstr "至少选一句来对照。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Owlit can't work in the background here."
-msgstr "Owlit 在这里无法在后台工作。"
 
 #: packages/core/src/threads/threads.ts
 msgid "Write something, or remove it instead."

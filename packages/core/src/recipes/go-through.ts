@@ -97,8 +97,9 @@ Don't pre-write changes to the doc, and don't comment on the material itself. To
   ].join("\n\n")
 }
 
-export const goThrough: Recipe<GoThroughInput> = {
-  description: "Go through material from people (a meeting's transcript or minutes, reviews, someone's comments, an email of points) against the user's docs: a reading of what it changes as a record beside it, and its points as comments on the docs.",
+export const goThrough: Recipe<GoThroughInput | undefined> = {
+  about: "doc",
+  description: "go through material from people (a meeting's transcript or minutes, reviews, someone's comments, an email of points) against the user's docs: a reading of what it changes as a record beside it, its points as comments on the docs (no thread)",
   text: goThroughRecipe,
 }
 
