@@ -41,11 +41,20 @@ export interface OwlitMcpOptions {
   instructions?: string
 }
 
+// When owlit wasn't running to give its rules
 const FALLBACK_INSTRUCTIONS =
-  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and their chats (chats_*). Cite papers as [Author Year](owlit://library/<id>). Leave comments on docs with docs_add_comment rather than editing them."
+  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and the comments on them (comments_*), their chats (chats_*) and threads (thread_*). Cite papers as [Author Year](owlit://library/<id>)."
+
+// Started for no chat and no run, owlit-mcp serves an agent outside owlit (the `owlit mcp` command), which
+// core lets read and refuses every change (agents/policy.ts); the rules that follow are written for Owlit
+// inside the app, so this goes first
+export const OUTSIDE_INSTRUCTIONS =
+  "You are reading the user's owlit workspace from outside owlit. Through these tools you can read their papers, docs, comments, chats and threads, but you can't change anything in it from here: when a change would help, say what it is, and the user makes it in the owlit app or asks Owlit there. The rules below are written for Owlit inside the app; what they say about reading and citing applies to you, what they say about changing things doesn't."
 
 export function createServer(options: OwlitMcpOptions) {
-  const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: options.instructions ?? FALLBACK_INSTRUCTIONS })
+  const outside = !options.chatId && !options.run
+  const instructions = options.instructions ?? FALLBACK_INSTRUCTIONS
+  const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: outside ? `${OUTSIDE_INSTRUCTIONS}\n\n${instructions}` : instructions })
   let client: Promise<OwlitClient> | null = null
   // Connected on first use, and again after owlit closed and opened again
   const owlit = async () => {
