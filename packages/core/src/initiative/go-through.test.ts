@@ -110,15 +110,15 @@ describe("Go through", () => {
   })
 
   it("goes through a transcript attached to a chat, with its record in Meetings and its link to the chat", { timeout: 20_000 }, async () => {
-    const { root, call, workspace, prompts, done } = await setup(async (_prompt, run, call) => {
+    const { root, call, prompts, done } = await setup(async (_prompt, run, call) => {
       await point(call, run)
       return READING
     })
     const material = ".owlit/chats/c1/files/周会.txt"
     mkdirSync(path.join(root, ".owlit/chats/c1/files"), { recursive: true })
     writeFileSync(path.join(root, material), MEETING)
-    // As docs.goThrough enqueues it
-    workspace.tasks.enqueue("meetings.goThrough", material, "asked")
+    await expect(call("docs.goThrough", { path: ".owlit/chats/c1/files/gone.txt" })).rejects.toThrow("That file isn't there any more.")
+    expect(await call("docs.goThrough", { path: material })).toMatchObject({ kind: "meetings.goThrough", priority: "asked" })
     expect(await done("meetings.goThrough")).toMatchObject({ state: "done" })
     expect(prompts[0]).toContain("故事要从任务讲起")
     expect(readFileSync(path.join(root, "Meetings/周会 · 解读.md"), "utf8")).toBe(recordOf(READING.trim(), material, true, chatUri("c1")))

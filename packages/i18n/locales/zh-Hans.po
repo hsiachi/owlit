@@ -7458,6 +7458,10 @@ msgid "Owlit goes through text: a Markdown or plain-text file."
 msgstr "Owlit 只过文字：Markdown 或纯文本文件。"
 
 #: packages/core/src/core.ts
+msgid "That file isn't there any more."
+msgstr "那个文件已经不在了。"
+
+#: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't open files in other apps here."
 msgstr "owlit 在这里无法用其他应用打开文件。"

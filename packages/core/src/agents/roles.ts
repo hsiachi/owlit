@@ -1,5 +1,5 @@
 import type * as acp from "@agentclientprotocol/sdk"
-import { ROLES, roleSentences, type Role, type ToolKind, type Touches } from "@owlit/protocol"
+import { roleSummary, type Role, type ToolKind, type Touches } from "@owlit/protocol"
 import { decide, decideCommand, type Target, type Who } from "./policy.ts"
 import type { Guard } from "./profiles.ts"
 
@@ -37,13 +37,11 @@ export function answerFor(who: Who, kind: ToolKind, target: Target): EngineAnswe
 }
 
 // Told to the agent before a prompt whenever the chat's role is new to its session: what the role may do,
-// in the sentences the person read in the composer (protocol's roleSentences, read off the policy's
+// in the sentences the person read in the composer (protocol's roleSummary, read off the policy's
 // table), then how to work within it. What owlit's own tools let each role do is decided by the policy
 // (policy.ts) whatever this says; this tells the agent ahead.
 export function roleNote(role: Role) {
-  const name = ROLES.find((r) => r.id === role)!.name
-  const may = roleSentences(role).join(". ")
-  return `[owlit] In this chat Owlit works as ${name}: ${may}. ${HOW[role]}`
+  return `[owlit] ${roleSummary(role)} ${HOW[role]}`
 }
 
 const HOW: Record<Role, string> = {

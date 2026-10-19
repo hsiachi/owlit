@@ -43,7 +43,7 @@ describe("decide", () => {
       for (const touches of ["meta", "words", "structure", "admin"] as const) expect(refused(decide(who, touches, {})), `${touches} for ${who.caller.kind}`).toBe(true)
     }
     expect(decide(inRun, "meta", {})).toEqual({ refuse: expect.stringMatching(/^Owlit works on its own here/) })
-    expect(decide(command, "words", {})).toEqual({ refuse: "owlit's command can't change the user's workspace; use the app." })
+    expect(decide(command, "words", {})).toEqual({ refuse: "From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app." })
   })
 
   it("decides own on the target: Owlit's while Owlit made it and nobody else touched it since", () => {
@@ -175,7 +175,7 @@ describe("the router's policy", () => {
     const command: Caller = { kind: "socket" }
     // owlit add: the paper is the command's own, as other
     expect((await call("library.add", { paper: paper("doi-10.9-a") }, command)).addedBy).toBe("other")
-    await expect(call("library.update", { id: "doi-10.9-a", patch: { starred: true } }, command)).rejects.toThrow("Not done: owlit's command can't change the user's workspace; use the app.")
+    await expect(call("library.update", { id: "doi-10.9-a", patch: { starred: true } }, command)).rejects.toThrow("Not done: From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app.")
     await expect(call("settings.update", { patch: {} }, command)).rejects.toThrow(/the user's alone/)
     expect((await call("library.list", undefined, command)).papers).toHaveLength(1)
     await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies." }, command)
@@ -217,8 +217,8 @@ describe("the router's policy", () => {
     const { call, paper } = await setup()
     const borrowed: Caller = { kind: "socket", chatId: "nobody's" }
     await call("library.add", { paper: paper("doi-10.9-a") })
-    await expect(call("library.update", { id: "doi-10.9-a", patch: { starred: true } }, borrowed)).rejects.toThrow("Not done: owlit's command can't change the user's workspace; use the app.")
-    await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, borrowed)).rejects.toThrow(/^Not done: owlit's command/)
+    await expect(call("library.update", { id: "doi-10.9-a", patch: { starred: true } }, borrowed)).rejects.toThrow("Not done: From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app.")
+    await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, borrowed)).rejects.toThrow(/^Not done: From outside owlit/)
     expect((await call("library.list", undefined, borrowed)).papers).toHaveLength(1)
     await call("library.add", { paper: paper("doi-10.9-b") }, borrowed)
     expect((await call("library.list")).papers).toHaveLength(2)

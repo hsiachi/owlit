@@ -45,7 +45,8 @@ export type Decision = "allow" | { refuse: string }
 const REVIEWER = "Owlit works as Reviewer in this chat and changes nothing of the user's. Describe the change in your answer instead; if the user wants it made, they can choose Assistant or Co-author in the composer."
 const ADMIN = "owlit's workspace, settings, chats, sharing and agents are the user's alone; Owlit's tools can't change them."
 const RUN = "Owlit works on its own here, with nobody to ask, and changes nothing of the user's."
-const COMMAND = "owlit's command can't change the user's workspace; use the app."
+// Said to the owlit command, and to an agent outside owlit using owlit-mcp (as its instructions say)
+const COMMAND = "From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app."
 const NOT_A_DOC = "That file isn't one of the user's docs."
 const KEPT_OUT = "The user keeps Owlit out of this doc: read it if you need to, but don't change it or comment on it."
 

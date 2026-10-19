@@ -3,7 +3,7 @@ import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, RO
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-import { readFile } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
@@ -457,10 +457,17 @@ export class Core {
     this.router.register("docs.open", z.object({ path: rel }), "admin", ({ path }) => docs().open(path))
     this.router.register("docs.owlit", z.object({ path: rel }), "read", ({ path }) => docs().owlitOf(path))
     // The user asks Owlit to go through some material (a meeting's transcript, reviews) against their docs
-    this.router.register("docs.goThrough", z.object({ path: rel }), "own", async ({ path }) => {
-      if (!MATERIAL.test(path)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit goes through text: a Markdown or plain-text file.`)
-      await docs().read(path)
-      return this.requireWorkspace().tasks.enqueue(GO_THROUGH_RUN, path, "asked")
+    this.router.register("docs.goThrough", z.object({ path: rel }), "own", async ({ path: file }) => {
+      if (!MATERIAL.test(file)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit goes through text: a Markdown or plain-text file.`)
+      const ws = this.requireWorkspace()
+      // A file attached in a chat is kept in owlit's own folder, out of Docs' reach; the run reads it there
+      const resolved = ws.docs.resolve(file)
+      const attached = chatOfFile(resolved) ? resolved : null
+      if (attached) {
+        const there = await stat(path.join(ws.root, attached)).then((info) => info.isFile()).catch(() => false)
+        if (!there) throw new RpcFailure(RpcErrorCode.NotFound, t`That file isn't there any more.`, { path: attached })
+      } else await docs().read(file)
+      return ws.tasks.enqueue(GO_THROUGH_RUN, attached ?? file, "asked")
     })
     this.router.register("docs.setOwlitOut", z.object({ path: rel, out: z.boolean() }), "admin", async ({ path, out }) => {
       const state = await docs().setOwlitOut(path, out)
@@ -852,7 +859,7 @@ export class Core {
       async ({ id, part, pages, section, asker }) => {
         const read = await library().read(id, part, { pages, section })
         // Only what was there to read counts as read
-        if (asker && read.text.trim()) this.reads.record({ asker, paperId: id, part, ...(pages ? { pages } : {}), at: Date.now() })
+        if (asker && read.text.trim()) this.reads.record({ asker, paperId: id, part, ...(pages ? { pages } : {}), ...(section ? { section } : {}), at: Date.now() })
         return read
       },
     )

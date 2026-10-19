@@ -56,7 +56,7 @@ describe("the workspace socket", () => {
     const star = { id: "doi-10.9-a", patch: { starred: true } }
     // Naming the chat isn't enough: the client is a program with no chat, which can't star the user's paper
     const named = await connect(root, { dir, as: { chatId: "c1" } })
-    await expect(named.call("library.update", star)).rejects.toThrow(/^Not done: owlit's command/)
+    await expect(named.call("library.update", star)).rejects.toThrow(/^Not done: From outside owlit/)
     named.close()
     // The secret core handed owlit-mcp for the chat's session makes it the chat's Assistant
     const session = core.mcpServers(root, "c1")[0]!.env.find((e) => e.name === "OWLIT_SESSION")!.value
