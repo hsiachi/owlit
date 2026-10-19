@@ -566,14 +566,29 @@ export class Core {
     )
     this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), { touches: "structure", target: ({ paths }) => this.fs.target(paths) }, async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
     this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), { touches: "structure", target: ({ path: from, to }) => this.fs.target([from, to]) }, async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
-    this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), "read", ({ clientId, paths }) =>
-      this.ui.setOpenDocs(clientId, paths),
-    )
-    this.router.register("ui.respond", z.object({ requestId: z.string(), result: z.unknown().optional(), error: z.string().optional() }), "read", ({ requestId, result, error }) =>
-      this.ui.respond(requestId, result, error),
-    )
-    this.router.register("ui.focus", z.object({ clientId: z.string().min(1) }), "read", ({ clientId }) => this.ui.focus(clientId))
-    this.router.register("ui.leave", z.object({ clientId: z.string().min(1) }), "read", ({ clientId }) => this.ui.leave(clientId))
+    // What a window says of itself: which docs it holds open (Owlit's writes to them go through it), its
+    // answers to core's requests, its focus. Changing nothing, they pass the policy as reads, so a program
+    // on the socket that said it held a doc open could take Owlit's writes and drop them: only a window
+    // may say them.
+    const windowOnly = (caller: Caller) => {
+      if (caller.kind !== "window") throw new RpcFailure(RpcErrorCode.Forbidden, "Not done: only owlit's window says what it has open and answers its requests.")
+    }
+    this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), "read", ({ clientId, paths }, caller) => {
+      windowOnly(caller)
+      return this.ui.setOpenDocs(clientId, paths)
+    })
+    this.router.register("ui.respond", z.object({ requestId: z.string(), result: z.unknown().optional(), error: z.string().optional() }), "read", ({ requestId, result, error }, caller) => {
+      windowOnly(caller)
+      return this.ui.respond(requestId, result, error)
+    })
+    this.router.register("ui.focus", z.object({ clientId: z.string().min(1) }), "read", ({ clientId }, caller) => {
+      windowOnly(caller)
+      return this.ui.focus(clientId)
+    })
+    this.router.register("ui.leave", z.object({ clientId: z.string().min(1) }), "read", ({ clientId }, caller) => {
+      windowOnly(caller)
+      return this.ui.leave(clientId)
+    })
     const owlitUri = z.string().regex(/^owlit:\/\/[a-z]+\/.+/, "an owlit:// link")
     const asker = z.string().min(1).optional()
     this.router.register("ui.open", z.object({ uri: owlitUri, chatId: asker }), "read", (params) => this.ui.act("open", params))

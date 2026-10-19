@@ -200,6 +200,19 @@ describe("the router's policy", () => {
     ])
   })
 
+  it("lets only the window say what it holds open and answer core's requests", async () => {
+    const { call, mcp } = await setup()
+    for (const [method, params] of [
+      ["ui.setOpenDocs", { clientId: "w", paths: ["notes.md"] }],
+      ["ui.respond", { requestId: "r", result: { applied: true } }],
+      ["ui.focus", { clientId: "w" }],
+      ["ui.leave", { clientId: "w" }],
+    ] as const) {
+      await expect(call(method, params, mcp), method).rejects.toThrow(/^Not done: only owlit's window/)
+    }
+    await call("ui.setOpenDocs", { clientId: "w", paths: ["notes.md"] })
+  })
+
   it("treats a caller naming a chat that isn't there as a program with no chat", async () => {
     const { call, paper } = await setup()
     const borrowed: Caller = { kind: "socket", chatId: "nobody's" }
