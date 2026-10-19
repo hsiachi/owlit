@@ -54,9 +54,11 @@ export function socketPaths(workspace: string, dir = tmpdir()) {
   return { socket: path.join(dir, `owlit-${hash}.sock`), pointer: path.join(dir, `owlit-${hash}.json`) }
 }
 
-// as: the chat or run owlit-mcp works for, said once for the connection; core records what it changes
-// as that person's Owlit's. Without it the caller is a program owlit can't tell from the person.
-export async function connect(workspace: string, options: { dir?: string; as?: { chatId?: string; run?: string } } = {}): Promise<OwlitClient> {
+// session: the secret core gave the owlit-mcp it started for an agent session (OWLIT_SESSION in its
+// environment, read here when not given). Core takes the chat or run the connection works for from it,
+// and records what it changes as that person's Owlit's. Without it the caller is a program with no chat,
+// whatever it says: `as` names what owlit-mcp works for to itself, and isn't sent.
+export async function connect(workspace: string, options: { dir?: string; as?: { chatId?: string; run?: string }; session?: string } = {}): Promise<OwlitClient> {
   const name = path.basename(path.resolve(workspace))
   const root = await realpath(path.resolve(workspace)).catch(() => {
     throw new OwlitNotRunning(`There is no folder at ${path.resolve(workspace)}.`)
@@ -109,7 +111,8 @@ export async function connect(workspace: string, options: { dir?: string; as?: {
       socket.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n")
     })
 
-  await send("auth", { token: pointer.token, ...options.as })
+  const session = options.session ?? process.env.OWLIT_SESSION
+  await send("auth", { token: pointer.token, ...(session ? { session } : {}) })
   let subscribed = false
 
   const client: OwlitClient = {

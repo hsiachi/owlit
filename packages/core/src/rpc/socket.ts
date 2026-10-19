@@ -10,9 +10,11 @@ import type { Caller } from "./router.ts"
 // The open workspace's JSON-RPC for programs other than the window (owlit-mcp, the CLI): a Unix socket
 // in the user's temp folder, $TMPDIR/owlit-<hash>.sock (the app data path is too long for a socket
 // name), and beside it owlit-<hash>.json naming the socket and a token made fresh at each start. Both are
-// the user's alone (0600). A client's first message is auth with that token, and the chat or run it works
-// for when it is owlit-mcp; then requests and answers go one JSON object per line, and notifications
-// follow once it subscribes.
+// the user's alone (0600). A client's first message is auth with that token and, for an owlit-mcp core
+// started for an agent session, the session secret core gave it (grant): only that names the chat or run
+// it works for. A chat id a client names itself is never taken, so a program can't borrow a chat's role
+// by naming it. Then requests and answers go one JSON object per line, and notifications follow once it
+// subscribes.
 
 export interface SocketPointer {
   version: 1
@@ -45,11 +47,16 @@ interface Connection {
 
 const text = (value: unknown) => (typeof value === "string" && value ? value : undefined)
 
-// owlit-mcp names the chat or run it works for once, at auth; the CLI names neither
-function callerOf(auth: { chatId?: unknown; run?: unknown }): Extract<Caller, { kind: "socket" }> {
-  const chatId = text(auth.chatId)
-  const run = text(auth.run)
-  return { kind: "socket", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+// What a session secret was granted for: the chat or run of the agent session owlit-mcp was started for
+export interface Grant {
+  chatId?: string
+  run?: string
+}
+
+// The caller a connection is: the chat or run its session secret was granted for; the CLI, or a program
+// with no secret, names neither
+function callerOf(granted: Grant | undefined): Extract<Caller, { kind: "socket" }> {
+  return { kind: "socket", ...(granted?.chatId ? { chatId: granted.chatId } : {}), ...(granted?.run ? { run: granted.run } : {}) }
 }
 
 // The tool call a request is for changes with each call (Claude Code names it per MCP request), so it
@@ -67,12 +74,22 @@ export class SocketServer {
   private server: net.Server
   private connections = new Set<Connection>()
   private unsubscribe: () => void
+  // Session secrets by value; they live as long as the socket, as the sessions they were made for can
+  private readonly sessions: Map<string, Grant>
 
-  private constructor(root: string, paths: { socket: string; pointer: string }, server: net.Server, unsubscribe: () => void) {
+  private constructor(root: string, paths: { socket: string; pointer: string }, server: net.Server, unsubscribe: () => void, sessions: Map<string, Grant>) {
     this.root = root
     this.paths = paths
     this.server = server
     this.unsubscribe = unsubscribe
+    this.sessions = sessions
+  }
+
+  // A secret for the owlit-mcp of one agent session, which names its chat or run when it authenticates
+  grant(granted: Grant): string {
+    const secret = randomBytes(24).toString("hex")
+    this.sessions.set(secret, granted)
+    return secret
   }
 
   // The workspace's lock is held, so a socket file already there was left by an owlit that died
@@ -80,6 +97,7 @@ export class SocketServer {
     const paths = socketPaths(workspace, dir)
     await rm(paths.socket, { force: true })
     const token = randomBytes(24).toString("hex")
+    const sessions = new Map<string, Grant>()
     const connections = new Set<Connection>()
     const server = net.createServer((socket) => {
       const connection: Connection = { socket, caller: null, topics: null }
@@ -111,13 +129,14 @@ export class SocketServer {
       }
       const reply = (result: unknown) => write(connection, { jsonrpc: "2.0", id: request.id, result })
       if (!connection.caller) {
-        const auth = (request.params ?? {}) as { token?: unknown; chatId?: unknown; run?: unknown }
+        const auth = (request.params ?? {}) as { token?: unknown; session?: unknown }
         if (request.method !== "auth" || auth.token !== token) {
           write(connection, { jsonrpc: "2.0", id: request.id ?? null, error: { code: RpcErrorCode.InvalidRequest, message: "owlit didn't recognise this client." } })
           connection.socket.end()
           return
         }
-        connection.caller = callerOf(auth)
+        const session = text(auth.session)
+        connection.caller = callerOf(session ? sessions.get(session) : undefined)
         reply({ ok: true, workspace })
         return
       }
@@ -146,7 +165,7 @@ export class SocketServer {
     await chmod(paths.socket, 0o600)
     const pointer: SocketPointer = { version: 1, socket: paths.socket, token, pid: process.pid, workspace }
     await writeFile(paths.pointer, JSON.stringify(pointer) + "\n", { mode: 0o600 })
-    const started = new SocketServer(workspace, paths, server, unsubscribe)
+    const started = new SocketServer(workspace, paths, server, unsubscribe, sessions)
     started.connections = connections
     return started
   }

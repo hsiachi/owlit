@@ -87,6 +87,8 @@ describe("seen over RPC", () => {
       return response.result
     }
     await call("workspace.open", { path: root })
+    // The chat Owlit's writes here are for
+    await call("chats.create", { chat: { id: "chat-1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
     return { core, root, call }
   }
 

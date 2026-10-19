@@ -93,7 +93,8 @@ export interface CoreOptions {
   socket?: boolean | { dir: string }
   // Serve owlit's browser extension on 127.0.0.1 (EXTENSION_PORT; tests give port 0 for any free one)
   extension?: boolean | ExtensionServerOptions
-  // How to start owlit-mcp, handed to every agent session; --workspace and --chat are added
+  // How to start owlit-mcp, handed to every agent session; --workspace, --chat and its session secret
+  // (OWLIT_SESSION) are added
   mcp?: { command: string; args: string[]; env?: Record<string, string> }
   // How to start the Owlit engine (packages/owlit-agent); without it the engine isn't offered
   engine?: { command: string; args: string[]; env?: Record<string, string> }
@@ -1379,7 +1380,8 @@ export class Core {
     const ws = this.requireWorkspace()
     const target = policy.target ? await policy.target(params as never) : {}
     const chatId = caller.kind === "watcher" ? undefined : caller.chatId
-    const who: Who = { caller, actor: await ws.recorder.actorOf(caller), ...(chatId ? { role: await this.turns.roleOf(chatId) } : {}) }
+    const role = chatId ? await this.turns.roleOf(chatId) : undefined
+    const who: Who = { caller, actor: await ws.recorder.actorOf(caller), ...(role ? { role } : {}) }
     const touches = typeof policy.touches === "function" ? policy.touches(params as never, target, who) : policy.touches
     const decision = decide(who, touches, target)
     if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, `Not done: ${decision.refuse}`)
@@ -1470,16 +1472,19 @@ export class Core {
     return { connectorId: connectors.background, models: connectors.backgroundModels }
   }
 
-  // owlit-mcp for an agent session in this workspace (for one chat, or none in the background)
-  private mcpServers(root: string, chatId?: string, run?: string) {
+  // owlit-mcp for an agent session in this workspace (for one chat, or a run in the background). The
+  // secret in OWLIT_SESSION is what names the chat or run to core at auth (rpc/socket.ts); --chat and
+  // --run only tell owlit-mcp what to sign its searches and comments with.
+  mcpServers(root: string, chatId?: string, run?: string) {
     const mcp = this.options.mcp
     if (!mcp || this.socket?.root !== root) return []
+    const session = this.socket.grant({ ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) })
     return [
       {
         name: "owlit",
         command: mcp.command,
         args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : []), ...(run ? ["--run", run] : [])],
-        env: Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })),
+        env: [...Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })), { name: "OWLIT_SESSION", value: session }],
       },
     ]
   }

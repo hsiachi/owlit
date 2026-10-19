@@ -170,4 +170,15 @@ describe("the router's policy", () => {
     await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies." }, command)
     expect((await call("memory.list")).lines).toMatchObject([{ text: "Works on replay studies." }])
   })
+
+  it("treats a caller naming a chat that isn't there as a program with no chat", async () => {
+    const { call, paper } = await setup()
+    const borrowed: Caller = { kind: "socket", chatId: "nobody's" }
+    await call("library.add", { paper: paper("doi-10.9-a") })
+    await expect(call("library.update", { id: "doi-10.9-a", patch: { starred: true } }, borrowed)).rejects.toThrow("Not done: owlit's command can't change the user's workspace; use the app.")
+    await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, borrowed)).rejects.toThrow(/^Not done: owlit's command/)
+    expect((await call("library.list", undefined, borrowed)).papers).toHaveLength(1)
+    await call("library.add", { paper: paper("doi-10.9-b") }, borrowed)
+    expect((await call("library.list")).papers).toHaveLength(2)
+  })
 })

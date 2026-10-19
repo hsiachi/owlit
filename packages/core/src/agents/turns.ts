@@ -292,10 +292,13 @@ export class Turns {
   }
 
   // The role Owlit's tools answer to in a chat: its running turn's; between turns (a tool call that
-  // outlived its turn) the one the chat was saved with
-  async roleOf(chatId: string): Promise<Role> {
+  // outlived its turn) the one the chat was saved with. None for a chat that isn't there, so its caller
+  // is a program with nobody behind it.
+  async roleOf(chatId: string): Promise<Role | undefined> {
     const turn = this.turns.get(chatId)
-    return turn ? turn.role : ((await this.options.workspace()?.chats.get(chatId).catch(() => null))?.role ?? DEFAULT_ROLE)
+    if (turn) return turn.role
+    const chat = await this.options.workspace()?.chats.get(chatId).catch(() => null)
+    return chat ? (chat.role ?? DEFAULT_ROLE) : undefined
   }
 
   // ---- inside ----

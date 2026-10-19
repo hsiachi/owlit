@@ -42,6 +42,29 @@ describe("the workspace socket", () => {
     raw.destroy()
   })
 
+  it("takes the chat a connection works for from the session secret core gave, never from what the client says", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-sock-")))
+    const root = path.join(base, "ws")
+    mkdirSync(root)
+    const dir = realpathSync(mkdtempSync("/tmp/ows-"))
+    const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir }, mcp: { command: "owlit-mcp", args: [] } })
+    cores.push(core)
+    const window = (method: string, params: unknown) => core.handle({ jsonrpc: "2.0", id: 1, method, params })
+    await window("workspace.open", { path: root })
+    await window("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+    await window("library.add", { paper: { id: "doi-10.9-a", title: "A", authors: [], ids: { doi: "10.9/a" } } })
+    const star = { id: "doi-10.9-a", patch: { starred: true } }
+    // Naming the chat isn't enough: the client is a program with no chat, which can't star the user's paper
+    const named = await connect(root, { dir, as: { chatId: "c1" } })
+    await expect(named.call("library.update", star)).rejects.toThrow(/^Not done: owlit's command/)
+    named.close()
+    // The secret core handed owlit-mcp for the chat's session makes it the chat's Assistant
+    const session = core.mcpServers(root, "c1")[0]!.env.find((e) => e.name === "OWLIT_SESSION")!.value
+    const granted = await connect(root, { dir, session })
+    await expect(granted.call("library.update", star)).resolves.toMatchObject({ starred: true })
+    granted.close()
+  })
+
   it("passes errors on in a sentence", async () => {
     const { root, dir } = await running()
     const client = await connect(root, { dir })

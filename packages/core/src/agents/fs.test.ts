@@ -29,6 +29,8 @@ async function setup() {
     return response.result
   }
   await call("workspace.open", { path: root })
+  // The chats the agents here write for, each in the default role
+  for (const id of ["chat-1", "c"]) await call("chats.create", { chat: { id, title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
   await call("docs.list")
   const of = (method: string) => heard.filter((n) => n.method === method).map((n) => n.params as any)
   // The changes windows were told of, Owlit's and the undos

@@ -29,15 +29,21 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
     const match = Object.entries(options.routes ?? {}).find(([pattern]) => url.includes(pattern))
     return match ? new Response(match[1]) : new Response("", { status: 404 })
   }) as unknown as typeof globalThis.fetch
-  const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir }, host: { fetch }, retryBaseMs: 1 })
+  const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir }, host: { fetch }, retryBaseMs: 1, mcp: { command: process.execPath, args: [MAIN, "--socket-dir", dir] } })
   cleanups.push(() => core.dispose())
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
-  if (options.open !== false) await call("workspace.open", { path: root })
-  const transport = new StdioClientTransport({ command: process.execPath, args: [MAIN, "--workspace", root, "--socket-dir", dir, "--chat", "chat-1"], stderr: "pipe" })
+  if (options.open !== false) {
+    await call("workspace.open", { path: root })
+    await call("chats.create", { chat: { id: "chat-1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+  }
+  // As core hands it to the chat's agent session, with the session secret that names the chat
+  const [given] = core.mcpServers(root, "chat-1")
+  const env = Object.fromEntries([...Object.entries(process.env).filter((e): e is [string, string] => e[1] !== undefined), ...(given?.env ?? []).map((e) => [e.name, e.value])])
+  const transport = new StdioClientTransport({ command: process.execPath, args: given?.args ?? [MAIN, "--socket-dir", dir, "--workspace", root, "--chat", "chat-1"], env, stderr: "pipe" })
   const mcp = new Client({ name: "test-agent", version: "1" })
   await mcp.connect(transport)
   cleanups.push(() => mcp.close())
@@ -482,7 +488,7 @@ describe("docs_read on a PDF", () => {
     expect((await tool("docs_comments", { path: "Draft.md" })).text).toBe('- c1 on "all you need"\n  the user: Add the citation here?')
 
     // The chat is a Reviewer's: the user's comment stays theirs, Owlit's own is Owlit's
-    await call("chats.create", { chat: { id: "chat-1", title: "t", createdAt: 1, updatedAt: 1, pinned: false, role: "reviewer" } })
+    await call("chats.update", { id: "chat-1", patch: { role: "reviewer" } })
     expect(await tool("comments_resolve", { path: "Draft.md", id: "c1", reply: "Added it." })).toEqual({ isError: true, text: expect.stringMatching(/^Not done: Owlit works as Reviewer in this chat and changes nothing of the user's\./) })
     expect(await tool("comments_reply", { path: "Draft.md", id: "c1", text: "Vaswani 2017." })).toMatchObject({ isError: true })
     await tool("docs_add_comment", { path: "Draft.md", quote: "Attention", comment: "Spell it out?" })
