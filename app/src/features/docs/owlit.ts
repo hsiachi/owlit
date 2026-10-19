@@ -12,7 +12,7 @@ import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { toast } from "sonner"
 import { toastError } from "@/lib/toast"
 import { onWorkspaceOpened } from "@/lib/workspace"
-import { aboutKey, asking, heardStarted, standOf, stopStarted, useStand, useStarted, type StartedStand } from "@/features/chat/started"
+import { asking, mockStarted, standOf, stopStarted, useStand, useStarted, type StartedStand } from "@/features/chat/started"
 import { useDocsStore } from "./store"
 import { displayName } from "./types"
 
@@ -74,8 +74,9 @@ export function goThrough(file: { path: string }, { retry = false } = {}) {
   const started = () => {
     if (!retry) toast(t`Owlit is going through “${name}”`, { description: t`What it finds will come as comments. The doc's menu can stop it.` })
   }
+  // Without core (pnpm dev:web) a mock runs, so the menu's working and Retry rows can be seen
   if (!isDesktop) {
-    mockGoThrough(about)
+    mockStarted(about)
     return started()
   }
   asking(about, true)
@@ -84,20 +85,6 @@ export function goThrough(file: { path: string }, { retry = false } = {}) {
     toastError(error, t`Couldn't start going through it.`)
   })
 }
-
-// Without core (pnpm dev:web) a Go through runs for a few seconds and then stops with a sentence, so both
-// the menu's working row and its Retry row can be seen
-function mockGoThrough(about: ChatAbout) {
-  const chatId = `mock-${aboutKey(about)}`
-  const reply = { id: `${chatId}-${Date.now()}`, role: "assistant" as const, parts: [], createdAt: Date.now() }
-  heardStarted({ chatId, about, reply: { ...reply, status: "streaming" } })
-  setTimeout(() => {
-    if (useStarted.getState().byAbout[aboutKey(about)]?.reply?.id !== reply.id) return
-    heardStarted({ chatId, about, reply: { ...reply, status: "error", error: t`Owlit was closed before it finished.`, cutOff: "closed", finishedAt: Date.now() } })
-  }, MOCK_WORKING_MS)
-}
-
-const MOCK_WORKING_MS = 6000
 
 export function setOwlitOut(path: string, out: boolean) {
   rpc.docs.setOwlitOut({ path, out }).then(

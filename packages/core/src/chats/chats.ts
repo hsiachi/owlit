@@ -432,10 +432,16 @@ export async function startFor(turns: Turns, chats: Chats, start: StartFor): Pro
 export const TRY_AGAIN = "Try again."
 
 // Another turn in a chat owlit started, on its own agent and model (Retry)
-export async function tryAgain(turns: Turns, chats: Chats, chatId: string): Promise<Started> {
+export function tryAgain(turns: Turns, chats: Chats, chatId: string): Promise<Started> {
+  return askAgain(turns, chats, chatId, TRY_AGAIN)
+}
+
+// Another turn in a chat owlit started, on its own agent and model, asking it this (the person's next
+// reply under a comment, to the chat about that comment)
+export async function askAgain(turns: Turns, chats: Chats, chatId: string, text: string): Promise<Started> {
   const chat = await chats.get(chatId)
   if (!chat.startedBy || !chat.about || !chat.connectorId) throw new RpcFailure(RpcErrorCode.InvalidParams, "That chat wasn't started by owlit for something.", { id: chatId })
-  return turn(turns, chatId, chat.about, { text: TRY_AGAIN, sent: TRY_AGAIN, attachments: [], connectorId: chat.connectorId, modelId: chat.modelId })
+  return turn(turns, chatId, chat.about, { text, sent: text, attachments: [], connectorId: chat.connectorId, modelId: chat.modelId })
 }
 
 async function turn(turns: Turns, chatId: string, about: ChatAbout, ask: { text: string; sent: string; attachments: AttachmentFile[]; connectorId: string; modelId?: string }): Promise<Started> {

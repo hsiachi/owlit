@@ -433,6 +433,7 @@ msgstr "Owlit stopped"
 #. verb: send the question again
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -2499,7 +2500,6 @@ msgstr "Apply"
 
 #: app/src/features/chat/started.ts
 #: app/src/features/chat/store.ts
-#: app/src/features/docs/owlit.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
 msgstr "Owlit was closed before it finished."
@@ -2639,6 +2639,10 @@ msgstr "{replies, plural, one {# reply} other {# replies}}"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} replied {1}"
 msgstr "{0} replied {1}"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit couldn't answer."
+msgstr "Owlit couldn't answer."
 
 #. Owlit is writing its answer to the user's reply on a comment
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -7523,6 +7527,14 @@ msgstr "Digest of “{title}”"
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."
 msgstr "Owlit finished without writing the digest."
+
+#: packages/core/src/core.ts
+msgid "Answering your reply in “{name}”"
+msgstr "Answering your reply in “{name}”"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without answering in the comment."
+msgstr "Owlit finished without answering in the comment."
 
 #: packages/core/src/core.ts
 msgid "There is nothing in it to go through."

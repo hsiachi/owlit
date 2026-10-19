@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
 import { testSearchPath } from "../test-util.ts"
-import type { Background } from "./background.ts"
+import { Background } from "./background.ts"
+import type { AgentFs } from "./fs.ts"
+import type { Agents } from "./agents.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
 const cores: Core[] = []
@@ -31,7 +33,9 @@ async function setup() {
   }
   await call("workspace.open", { path: root })
   const agent = await call("agents.add", { name: "Fake", command: `"${process.execPath}" "${fake}"` })
-  const background = (core as unknown as { background: Background }).background
+  // Nothing in core runs one any more; made here on core's agents and files until the module goes
+  const { agents, fs } = core as unknown as { agents: Agents; fs: AgentFs }
+  const background = new Background(agents, fs)
   return { root, call, background, agent: agent.id as string, core }
 }
 

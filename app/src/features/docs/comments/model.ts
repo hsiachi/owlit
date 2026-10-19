@@ -3,7 +3,8 @@ import { type CommentAnchor, type DocComment, findAnchor, isOpenComment, isOwlit
 import { me, nameOf } from "@/lib/actors"
 import { capital } from "@/lib/words"
 import { newId } from "@/lib/id"
-import { rpc } from "@/lib/rpc"
+import { isDesktop, rpc } from "@/lib/rpc"
+import { mockStarted } from "@/features/chat/started"
 import { toastError, toastUndo } from "@/lib/toast"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
@@ -128,6 +129,10 @@ export async function reply(fileId: string, view: CommentView, text: string) {
   if (view.doc) {
     const now = docComment(fileId, view.doc.id)
     if (now) useDocsStore.getState().putComment(fileId, { ...now, entries: [...now.entries, { id: newId(), by: me() ?? "other", text, at: Date.now() }] })
+    // Core answers a reply under Owlit's comment in the chat about it; without core (pnpm dev:web) a mock
+    // runs instead, so the card's lines can be seen
+    const path = pathOf(fileId)
+    if (!isDesktop && now?.entries[0] && isOwlit(now.entries[0].by) && path) mockStarted({ kind: "comment", id: `${path}#${now.id}` })
     return
   }
   const path = pathOf(fileId)

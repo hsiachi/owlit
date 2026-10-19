@@ -22,22 +22,17 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure, WINDOW, type Caller, type Policy } from "./rpc/index.ts"
 import { commentTouches, decide, replyOnly, type Target, type Who } from "./agents/policy.ts"
 import { newWriteId } from "./changes/record.ts"
-import { commentChanges, signed } from "./docs/comments.ts"
-import { readMemory } from "./memory/memory.ts"
+import { commentChanges, correctable, corrected, correctionOf, signed } from "./docs/comments.ts"
+import { replyRecipe } from "./recipes/reply.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { isRecipe, RECIPES } from "./recipes/index.ts"
-import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
-import { openRun, runWords } from "./agents/runs.ts"
-import { startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
-import { Reviews } from "./initiative/reviews.ts"
+import { askAgain, startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
-import { REPLY_RUN } from "./initiative/runs.ts"
 import { MATERIAL } from "./recipes/go-through.ts"
 import { goThroughWork } from "./docs/go-through.ts"
-import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
@@ -49,7 +44,7 @@ import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { isMissing, sha1 } from "./fs-util.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
-import { debugTasks, LANE_LIMITS, TaskFailure, TaskThrottle, type TaskContext, type TaskDefinition } from "./tasks/index.ts"
+import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
 import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -145,14 +140,14 @@ export class Core {
   private opening = 0
   // Digests asked for whose chat hasn't started yet (the paper's text is being read), by workspace and paper
   private digestAsks = new Map<string, Promise<DigestAsked>>()
+  // Replies under Owlit's comments being answered, by workspace and comment: the last one's answer
+  private replies = new Map<string, Promise<void>>()
   // Go throughs asked for whose chat hasn't started yet, by workspace and material
   private goThroughAsks = new Map<string, Promise<{ chatId: string }>>()
   private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
-  private readonly background: Background
-  private readonly reviews: Reviews
   // Owlit updating itself
   readonly updates: Updates
   private socket: SocketServer | null = null
@@ -251,7 +246,6 @@ export class Core {
         return readFromOf(this.reads.since(`chat:${chatId}`, since), answer, async (id) => (await ws.library.canonical(id)) ?? id, (id) => ws.hasText(id))
       },
     })
-    this.background = new Background(this.agents, this.fs)
     this.updates = new Updates({
       build: { version: this.version().version, channel: options.build?.channel ?? "dev", commit: options.build?.commit },
       userDataDir: options.userDataDir,
@@ -260,19 +254,6 @@ export class Core {
       onboarded: async () => (await this.settings.get()).onboardedAt !== undefined,
       answering: () => this.turns.answering(),
       notify: (view) => this.notifier.notify("updates.changed", view),
-    })
-    // Owlit's run on the user's docs that answers a reply under its comment
-    this.reviews = new Reviews({
-      workspace: () => this.workspace,
-      agent: async (prompt, ctx, tools, runId) => {
-        const root = this.requireWorkspace().root
-        const mcpServers = this.mcpServers(root, undefined, runId)
-        if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
-        return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow: tools })
-      },
-      put: async (path, comment, run) => {
-        await this.putComment(path, comment, { kind: "owlit", run }, {}, true)
-      },
     })
     // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down
     // from what the person set: Read is the top), once it is on disk
@@ -1158,13 +1139,13 @@ export class Core {
     }
     this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
       const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
-      const comment = signed(input, was, await this.requireWorkspace().recorder.actorOf(caller))
+      const comment = correcting(signed(input, was, await this.requireWorkspace().recorder.actorOf(caller)), was, caller)
       const before = await this.putComment(path, comment, caller)
       // A reply of the user's under one of Owlit's comments: Owlit answers it there
       const first = comment.entries[0]
       const last = comment.entries.at(-1)
       if (first && isOwlit(first.by) && last && isPerson(last.by) && !before?.entries.some((e) => e.id === last.id) && isOpenComment(comment)) {
-        this.requireWorkspace().tasks.enqueue(REPLY_RUN, `${path}#${comment.id}`, "asked")
+        this.answerReply(this.requireWorkspace(), path, comment.id)
       }
       return before
     })
@@ -1562,6 +1543,50 @@ export class Core {
     await this.announceStarted(ws, started.chatId)
   }
 
+  // The person replied under one of Owlit's comments: Owlit answers there (recipes/reply.ts), in a turn of
+  // the chat about that comment, so a later answer remembers the earlier ones. Replies under one comment
+  // are answered in order, each once the turn before has ended; nothing else waits on them.
+  private answerReply(ws: Workspace, path: string, id: string) {
+    const key = `${ws.root}\0${path}#${id}`
+    const next = (this.replies.get(key) ?? Promise.resolve())
+      .then(() => this.replyTurn(ws, path, id))
+      .catch((error) => console.error("[core] couldn't answer a reply under Owlit's comment", error))
+    this.replies.set(key, next)
+    void next.finally(() => {
+      if (this.replies.get(key) === next) this.replies.delete(key)
+    })
+  }
+
+  private async replyTurn(ws: Workspace, path: string, id: string) {
+    if (this.workspace !== ws) return
+    const comment = (await ws.docs.listComments(path)).find((c) => c.id === id)
+    // Gone, put away, or already answered (a turn before this one took in the later reply too)
+    const last = comment?.entries.at(-1)
+    if (!comment || !isOpenComment(comment) || !last || !isPerson(last.by)) return
+    const { content } = await ws.docs.read(path)
+    const recipe = replyRecipe({ path, content, comment })
+    const about = { kind: "comment", id: `${path}#${id}` } as const
+    const chat = await ws.chats.latestAbout(about)
+    let started: Started
+    if (chat) {
+      started = await askAgain(this.turns, ws.chats, chat.id, recipe)
+      await this.announceStarted(ws, started.chatId)
+    } else {
+      const name = path.split("/").pop()!.replace(/\.md$/i, "")
+      started = await this.startFor({ about, title: t`Answering your reply in “${name}”`, recipe })
+    }
+    const stop = await started.done
+    // A turn that ended without a word in the comment says so on its reply, as a failure, with Retry
+    if (stop !== "end_turn" || this.workspace !== ws) return
+    const reply = (await ws.chats.get(started.chatId).catch(() => null))?.messages.find((m) => m.id === started.messageId)
+    if (!reply) return
+    const now = (await ws.docs.listComments(path)).find((c) => c.id === id)
+    const answered = !now || now.entries.some((e) => isOwlit(e.by) && Math.max(e.at, e.editedAt ?? 0) >= reply.createdAt)
+    if (answered) return
+    await ws.chats.patchMessage(started.chatId, { ...reply, status: "error", error: t`Owlit finished without answering in the comment.` }, true)
+    await this.announceStarted(ws, started.chatId)
+  }
+
   // Owlit going through material (a meeting's transcript, reviews) against the person's docs: a chat about
   // the material, whose agent writes the reading as a record of its own with docs_write and then lands
   // the points as comments. One already going is that one; after one that broke or was stopped, Retry is
@@ -1641,28 +1666,6 @@ export class Core {
   private async announceStarted(ws: Workspace, chatId: string) {
     const chat = await ws.chats.get(chatId).catch(() => null)
     if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
-  }
-
-  // A task's agent run (Go through, a reply), kept as a session: why it started, its steps as
-  // they come, and how it ended
-  private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
-    const ws = this.workspace
-    if (ws?.root !== root) throw new Error("The workspace closed.")
-    const words = runWords(ctx.task)
-    const session = await openRun(ws.chats, ctx.task, words, (chat) => {
-      if (this.workspace === ws) this.notifier.notify("chats.run", { chat })
-    })
-    ctx.describe({ chatId: session.chatId })
-    try {
-      const result = await this.background.run({ ...run, onUpdate: session.update })
-      await session.finish({ status: "done", connectorId: result.connectorId, model: result.model })
-      return result
-    } catch (error) {
-      const failed = ctx.signal.aborted ? {} : { error: messageOf(error), ...(error instanceof BackgroundFailure && error.detail ? { errorDetail: error.detail } : {}) }
-      await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...failed }).catch(() => undefined)
-      // The task's retries would each start a session against a limit known to be reached
-      throw error instanceof BackgroundFailure && error.final ? new TaskFailure(error.message) : error
-    }
   }
 
   async dispose() {
@@ -1747,7 +1750,7 @@ export class Core {
 
   // Every kind of task core knows, made for one workspace
   private taskDefinitions(workspace: Workspace): TaskDefinition[] {
-    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...this.reviews.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
+    return [...workspace.library.tasks(), ...workspace.search.tasks(), ...(this.options.debug ? this.debugTasks.definitions : [])]
   }
 
   // The person at the window, whose seen marks these are: an agent or a program on the socket has none
@@ -1786,3 +1789,15 @@ export class Core {
 // The card's icon for a change the policy asks about, from what the method does
 
 const toInfo = (folder: string): WorkspaceInfo => ({ path: folder, name: folder.slice(folder.lastIndexOf("/") + 1) })
+
+// An agent's reply under its own comment that starts with CORRECT: (recipes/reply.ts) rewrites the
+// comment's first entry instead of standing under it; the old words are kept as was. Under a comment that
+// isn't that Owlit's to rewrite, it stands as a reply without the word.
+function correcting(comment: DocComment, was: DocComment | null, caller: Caller): DocComment {
+  if (caller.kind === "window" || !was) return comment
+  const added = comment.entries.filter((e) => !was.entries.some((w) => w.id === e.id))
+  const fix = added.length === 1 && isOwlit(added[0]!.by) ? correctionOf(added[0]!.text) : null
+  if (!fix) return comment
+  if (correctable(was) && was.entries[0]!.by === added[0]!.by) return corrected(was, fix, Date.now())
+  return { ...comment, entries: comment.entries.map((e) => (e === added[0] ? { ...e, text: fix } : e)) }
+}

@@ -1,5 +1,4 @@
 import { plural, t } from "@lingui/core/macro"
-import { isTaskFinished } from "@owlit/protocol"
 import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -18,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
-import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
+import { stopStarted, tryAgain, useStand } from "@/features/chat/started"
 import { fileAt } from "../store"
 import { useDocsUiStore } from "../ui-store"
 import { mentionLabel } from "../lib/mentions"
@@ -138,22 +137,34 @@ interface OpenActions {
   onClose: () => void
 }
 
-// Owlit answering the user's reply: one muted line where its entry will be, with Stop
-function Replying({ subject }: { subject: string }) {
-  const run = useTasksStore((s) => tasksFor(s.byId, subject).find((task) => task.kind === "docs.reply" && !isTaskFinished(task)))
-  if (!run) return null
+// Owlit answering the user's reply, in the chat owlit started about the comment: one muted line where its
+// entry will be, with Stop; when the answer broke, why (kept by core, so after a restart too), with
+// Retry, a new turn in that chat
+function Replying({ comment }: { comment: string }) {
+  const about = { kind: "comment" as const, id: comment }
+  const stand = useStand(about)
+  if (!stand) return null
+  if (stand.state === "failed")
+    return (
+      <p className="mt-3 text-detail text-muted-foreground">
+        {stand.reply.error ?? t`Owlit couldn't answer.`}{" "}
+        <Button variant="text" size="inline" onClick={() => void tryAgain(stand.chatId)}>
+          {t`Retry`}
+        </Button>
+      </p>
+    )
   return (
     <p className="mt-3 flex items-center gap-1.5 text-detail text-muted-foreground">
       <span className="shimmer">{t({ message: "Owlit is answering…", comment: "Owlit is writing its answer to the user's reply on a comment" })}</span>
-      <Button variant="text" size="inline" onClick={() => void cancelTask(run.id)}>
+      <Button variant="text" size="inline" onClick={() => stopStarted(about)}>
         {t({ message: "Stop", comment: "stop Owlit answering a reply on its comment" })}
       </Button>
     </p>
   )
 }
 
-// replyRun: the subject of Owlit's run answering a reply here ("<path>#<comment id>"), for Owlit's comments
-export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: CommentView; lost: boolean; actions: OpenActions; focusReply?: boolean; replyRun?: string }) {
+// owlitsComment: the comment as the chat about it names it ("<path>#<comment id>"), for Owlit's comments
+export function OpenCard({ view, lost, actions, focusReply, owlitsComment }: { view: CommentView; lost: boolean; actions: OpenActions; focusReply?: boolean; owlitsComment?: string }) {
   const [first, ...replies] = view.entries
   const [editing, setEditing] = useState<string | null>(null)
   // More than three replies open folded down to the latest. Which one that is is fixed when the card
@@ -207,7 +218,7 @@ export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: 
               }} onCancel={() => setEditing(null)} />
           </div>
         ))}
-        {replyRun && <Replying subject={replyRun} />}
+        {owlitsComment && <Replying comment={owlitsComment} />}
         <AskedLine commentKey={view.key} />
         {/* Keyed by the comment, so another comment opened in its place starts with an empty field */}
         <ReplyField key={view.key} view={view} autoFocus={focusReply} onReply={actions.onReply} />
