@@ -216,7 +216,7 @@ describe("Scheduler", () => {
   it("gives the lane up while waiting for the user and continues after resume", async () => {
     const log: string[] = []
     const login = defineTask("fake.login", {
-      lane: "agent",
+      lane: "index",
       async run(ctx) {
         log.push(`${ctx.task.subject} start`)
         if (ctx.task.subject === "a") await ctx.waitForUser("login", "Sign in to the library proxy.")
@@ -235,7 +235,7 @@ describe("Scheduler", () => {
 
   it("cancels a batch's unstarted tasks with it and lets running ones finish", async () => {
     const gate = deferred()
-    const child = defineTask("fake.child", { lane: "agent", run: () => gate.promise })
+    const child = defineTask("fake.child", { lane: "index", run: () => gate.promise })
     const batch = defineTask("fake.batch", {
       lane: "cpu",
       async run(ctx) {
@@ -275,7 +275,7 @@ describe("Scheduler", () => {
 
   it("debounces: each call pushes a queued run back", async () => {
     const run = vi.fn()
-    const { scheduler } = await newScheduler([defineTask("fake.debounced", { lane: "agent", run })])
+    const { scheduler } = await newScheduler([defineTask("fake.debounced", { lane: "index", run })])
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] })
     const first = scheduler.debounce("fake.debounced", "workspace", 30)
     await vi.advanceTimersByTimeAsync(15)
@@ -359,30 +359,6 @@ describe("Scheduler", () => {
     expect(again.get(task.id)).toMatchObject({ state: "failed", error: "owlit no longer knows how to do fake.old." })
   })
 
-  it("stops a background run for an asked one in the same lane, and runs it again after, not as a try", async () => {
-    const order: string[] = []
-    let firstRun = true
-    const work = defineTask("fake.agent", {
-      lane: "agent",
-      async run(ctx) {
-        order.push(`start ${ctx.task.subject}`)
-        if (ctx.task.subject === "review" && firstRun) {
-          firstRun = false
-          await untilAborted(ctx.signal)
-        }
-        await tick(5)
-        order.push(`end ${ctx.task.subject}`)
-      },
-    })
-    const { scheduler } = await newScheduler([work])
-    const review = scheduler.enqueue("fake.agent", "review", "background")
-    await until(() => scheduler.get(review.id)?.state === "running", { what: "the background run to start" })
-    expect(scheduler.get(review.id)).toMatchObject({ state: "running", attempts: 1 })
-    const asked = scheduler.enqueue("fake.agent", "digest", "asked")
-    expect(await scheduler.wait(asked.id)).toMatchObject({ state: "done" })
-    expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
-    expect(order).toEqual(["start review", "start digest", "end digest", "start review", "end review"])
-  })
 })
 
 describe("TaskThrottle", () => {

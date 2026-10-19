@@ -41,8 +41,8 @@ function setup(services: ThreadsServices = {}) {
 
 const ME = "p_1234abcd" as const
 
-// An agent on owlit's socket, working for a run (or the chat its write names)
-const agent = { kind: "socket" as const, run: "threads.more:t1" }
+// Owlit's agent, writing for the chat its write names when it names one
+const agent = { kind: "owlit" as const }
 const window = { kind: "window" as const }
 
 const start = (threads: Threads, extra: object = {}) =>
@@ -125,19 +125,18 @@ describe("Threads.write", () => {
     const { threads, changes } = setup()
     const { id } = await start(threads)
     const newest = async (paper: string) => (await changes.list({ target: { kind: "thread", path: id, part: itemId.cell(paper, "q") } }))[0]
-    // Read all in full: a background run rewrites the rows answered from their abstracts
-    const read = { kind: "socket" as const, run: "threads.read:t2" }
-    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover a third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }] }, read)
+    // Read all in full: Owlit rewrites the rows answered from their abstracts
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover a third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-2"))).toEqual({ was: "Own explanations recover more.", from: "abstract" })
     // A chat's write over an answer from the title only (the paper has no abstract) is the same entry
     await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }] }, agent)
     await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }], chatId: "chat-1" }, { kind: "socket", chatId: "chat-1" })
     expect(readInFull(await newest("doi-10.1145-1"))).toEqual({ was: "Lower.", from: "title" })
     // A rewrite that stays from the full text, or under the user's own words, isn't one
-    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }] }, read)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-1"))).toBeNull()
     await threads.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-2", "q"), text: "Mine." }, window)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Owlit's again.", depth: "full", passage: { quote: "again", page: 5 } } } }] }, read)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Owlit's again.", depth: "full", passage: { quote: "again", page: 5 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-2"))).toBeNull()
   })
 

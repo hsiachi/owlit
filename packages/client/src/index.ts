@@ -55,10 +55,10 @@ export function socketPaths(workspace: string, dir = tmpdir()) {
 }
 
 // session: the secret core gave the owlit-mcp it started for an agent session (OWLIT_SESSION in its
-// environment, read here when not given). Core takes the chat or run the connection works for from it,
+// environment, read here when not given). Core takes the chat the connection works for from it,
 // and records what it changes as that person's Owlit's. Without it the caller is a program with no chat,
 // whatever it says: `as` names what owlit-mcp works for to itself, and isn't sent.
-export async function connect(workspace: string, options: { dir?: string; as?: { chatId?: string; run?: string }; session?: string } = {}): Promise<OwlitClient> {
+export async function connect(workspace: string, options: { dir?: string; as?: { chatId?: string }; session?: string } = {}): Promise<OwlitClient> {
   const name = path.basename(path.resolve(workspace))
   const root = await realpath(path.resolve(workspace)).catch(() => {
     throw new OwlitNotRunning(`There is no folder at ${path.resolve(workspace)}.`)

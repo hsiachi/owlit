@@ -228,7 +228,7 @@ export interface Methods {
   // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full
   // more: what to look for this time (what), when it isn't the thread's question; read: the rows answered
   // from their abstracts whose paper has a PDF to read (the button says how many)
-  "threads.run": { params: { id: string; run: "more" | "read"; what?: string }; result: { chatId: string } }
+  "threads.start": { params: { id: string; work: "more" | "read"; what?: string }; result: { chatId: string } }
   // A new column: a question Owlit answers for every paper
   "threads.ask": { params: { id: string; question: string }; result: { thread: Thread; chatId: string } }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
@@ -449,10 +449,6 @@ export interface Methods {
   // refused, since its proceedings can't be listed yet.
   "library.journal": { params: { journal: string; year: string; query?: string; offset?: number; limit?: number; by?: string }; result: FoundPapers }
   "library.highlights": { params: { id: string }; result: Highlight[] }
-  // Queues a digest by a background agent (the paper menu's Write a digest, an agent's
-  // library_request_digest); nothing when the paper has nothing to read. rewrite: the user asks for the
-  // note there to be written again (a newer way of writing, another language); without it a paper that
-  // has one is left as it is.
   // Starts Owlit writing a paper's digest in a chat about the paper (Chat.about), once the paper's text is
   // read: the chat's id (one already writing it, when there is), or why none is written. rewrite: replace
   // the digest the paper has.
@@ -556,10 +552,10 @@ export interface Notifications {
   "chat.update": { chatId: string; messageId: string; update: SessionUpdate }
   // A chat's turn ended, however it ended: its reply as saved
   "chat.ended": { chatId: string; messageId: string; message: ChatMessage }
-  // A chat owlit started (Chat.startedBy), or a scheduler run's session, began or ended a turn: the chat
+  // A chat owlit started (Chat.startedBy) began or ended a turn: the chat
   // whole, as core has it (the first message says what it was asked; the last reply is "streaming" while
   // it runs)
-  "chats.run": { chat: Chat }
+  "chats.turn": { chat: Chat }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it

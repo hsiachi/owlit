@@ -12,15 +12,15 @@ import type { Target, Who } from "../agents/policy.ts"
 import { invalidParams, RpcFailure, toRpcError } from "./errors.ts"
 
 // Who a request came from, as far as core can tell: the window (the person at it); a program on the
-// workspace's socket (owlit-mcp names the chat or run it works for and, when its engine says, the tool
-// call; the CLI names none); core itself working for Owlit (an agent's ACP write, a review); a change the
+// workspace's socket (owlit-mcp names the chat it works for and, when its engine says, the tool
+// call; the CLI names none); core itself working for Owlit (an agent's ACP write); a change the
 // watcher saw. The watcher's evidence is the claim of a tool call that named the file (toolCallId, and
 // accepted when the user allowed that call's edit); with none, chatId only says a Co-author turn was
 // running. The change log's actor follows from it (changes/record.ts).
 export type Caller =
   | { kind: "window" }
-  | { kind: "socket"; chatId?: string; run?: string; toolCallId?: string }
-  | { kind: "owlit"; chatId?: string; run?: string; toolCallId?: string }
+  | { kind: "socket"; chatId?: string; toolCallId?: string }
+  | { kind: "owlit"; chatId?: string; toolCallId?: string }
   | { kind: "watcher"; chatId?: string; toolCallId?: string; accepted?: boolean }
 
 export const WINDOW: Caller = { kind: "window" }

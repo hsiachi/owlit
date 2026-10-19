@@ -95,13 +95,13 @@ export function useWaitingOnYou(): WaitingItem[] {
         })
       }
     }
-    // Only agents owlit would run: the one picked for chats and the one doing background work. One
-    // nobody uses keeps its problem on its own row in Settings, unmarked.
+    // Only agents owlit would run: the one picked for chats and the one doing the tasks you hand Owlit.
+    // One nobody uses keeps its problem on its own row in Settings, unmarked.
     const used = new Set([selected, background].filter(Boolean))
     for (const c of connectors) {
       const problem = connectorProblem(c)
       if (!used.has(c.id) || !problem) continue
-      const role = c.id === selected ? t`picked for chats` : t`picked for background work`
+      const role = c.id === selected ? t`picked for chats` : t`picked for tasks you hand Owlit`
       out.push({
         key: `agent:${c.id}`,
         place: "settings:agents",

@@ -1,11 +1,11 @@
-// Background work core does on its own: fetching metadata and PDFs, extracting text, indexing,
-// agent runs. Tasks are kept per workspace in owlit's data folder (not in the workspace) and survive
+// Work core does on its own that involves no agent: fetching metadata and PDFs, extracting text and
+// figures, imports, indexing. Agent work is a chat (Chat.startedBy). Tasks are kept per workspace in owlit's data folder (not in the workspace) and survive
 // restarts; their state shows beside what they are about (a paper's row, the import line), never in a
 // task list of its own.
 
 // Each lane runs a fixed number of tasks at once: network 3, cpu 2, parse as the service
-// allows, agent 1, index 1
-export type TaskLane = "network" | "cpu" | "parse" | "agent" | "index"
+// allows, index 1
+export type TaskLane = "network" | "cpu" | "parse" | "index"
 
 // Someone is looking at the result > the user asked for it > owlit started it on its own
 export type TaskPriority = "waiting" | "asked" | "background"
@@ -52,8 +52,6 @@ export interface Task {
   // Queued behind another task that produces what this one needs
   blockedOn?: string
   external?: ExternalJob
-  // An agent run's session: a chat no chat list shows, holding why it started, its steps and its result
-  chatId?: string
 }
 
 export const TASK_PRIORITIES: readonly TaskPriority[] = ["waiting", "asked", "background"]

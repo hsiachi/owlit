@@ -71,7 +71,7 @@ export class Engine implements acp.Agent {
   }
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
-    const session = await this.open(randomUUID(), params.cwd, params.mcpServers, roleOf(params._meta), userNameOf(params._meta), undefined, backgroundOf(params._meta)).catch((error) => {
+    const session = await this.open(randomUUID(), params.cwd, params.mcpServers, roleOf(params._meta), userNameOf(params._meta)).catch((error) => {
       throw asAcpError(error)
     })
     return { sessionId: session.id, configOptions: session.configOptions() }
@@ -126,37 +126,31 @@ export class Engine implements acp.Agent {
   // Without any sign-in there is no model to talk to: owlit shows that as "not signed in"
   // owlit's role for the chat decides which file tools the session has and whether they ask; a new role
   // comes as a new session (owlit loads it again with the role's _meta)
-  // A background session (a digest, a thread run) has nobody to ask and no files to touch: it
-  // gets only the owlit tools owlit names for it, and its answer is the result
-  private async open(id: string, cwd: string, servers: acp.McpServer[], role: Role, userName: string | undefined, saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}, background?: RegExp[]) {
+  private async open(id: string, cwd: string, servers: acp.McpServer[], role: Role, userName: string | undefined, saved?: Awaited<ReturnType<typeof EngineSession.read>> & {}) {
     const available = await availableModels(this.models, this.credentials)
     if (!available.length) throw acp.RequestError.authRequired()
     const mcp = await connectTools(servers, cwd, this.log)
-    const allowed = background ? mcp.tools.filter((t) => background.some((pattern) => pattern.test(t.name))) : mcp.tools
-    const filesFor = (sessionId: string) => (this.files && !background ? fileTools({ conn: this.conn, sessionId, cwd, role }) : { tools: [], infos: new Map() })
+    const filesFor = (sessionId: string) => (this.files ? fileTools({ conn: this.conn, sessionId, cwd, role }) : { tools: [], infos: new Map() })
     const files = filesFor(id)
     const context = { role, workspace: cwd, userName, rules: mcp.instructions, today: new Date().toISOString().slice(0, 10) }
-    const prompt = systemPrompt({ ...context, background: !!background })
-    // A chat's session can hand work to agents of its own (agents.ts); a background run and the agents
-    // themselves can't. An agent's file tools are made for its own session, so owlit sees whose they are.
+    const prompt = systemPrompt(context)
+    // A chat's session can hand work to agents of its own (agents.ts); the agents themselves can't. An agent's file tools are made for its own session, so owlit sees whose they are.
     let session: EngineSession | undefined
-    const agents = background
-      ? []
-      : [
-          agentTool({
-            conn: this.conn,
-            sessionId: id,
-            models: this.models,
-            current: () => session!.current(),
-            systemPrompt: systemPrompt({ ...context, background: false, agent: true }),
-            toolsFor: (agentSessionId) => {
-              const own = filesFor(agentSessionId)
-              return { tools: [...own.tools, ...allowed], info: (name) => own.infos.get(name) ?? mcp.info(name) }
-            },
-          }),
-        ]
+    const agents = [
+      agentTool({
+        conn: this.conn,
+        sessionId: id,
+        models: this.models,
+        current: () => session!.current(),
+        systemPrompt: systemPrompt({ ...context, agent: true }),
+        toolsFor: (agentSessionId) => {
+          const own = filesFor(agentSessionId)
+          return { tools: [...own.tools, ...mcp.tools], info: (name) => own.infos.get(name) ?? mcp.info(name) }
+        },
+      }),
+    ]
     const toolbox: Toolbox = {
-      tools: [...files.tools, ...allowed, ...agents],
+      tools: [...files.tools, ...mcp.tools, ...agents],
       info: (name) => (name === AGENT_TOOL ? agentToolInfo : (files.infos.get(name) ?? mcp.info(name))),
       close: mcp.close,
     }
@@ -168,7 +162,6 @@ export class Engine implements acp.Agent {
       available,
       toolbox,
       saved,
-      persist: !background,
       send: (update) => this.conn.sessionUpdate({ sessionId: id, update }),
     })
     this.sessions.set(id, session)
@@ -184,12 +177,6 @@ const roleOf = (meta: Record<string, unknown> | null | undefined): Role => {
 const userNameOf = (meta: Record<string, unknown> | null | undefined) => {
   const name = (meta as { owlit?: { userName?: unknown } } | null | undefined)?.owlit?.userName
   return typeof name === "string" && name.trim() ? name.trim() : undefined
-}
-
-// The tools a background session may use, as patterns over their names
-const backgroundOf = (meta: Record<string, unknown> | null | undefined): RegExp[] | undefined => {
-  const tools = (meta as { owlit?: { background?: { tools?: unknown } } } | null | undefined)?.owlit?.background?.tools
-  return Array.isArray(tools) ? tools.filter((t): t is string => typeof t === "string").map((t) => new RegExp(t)) : undefined
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))

@@ -918,12 +918,12 @@ export class Library {
     await appendJsonl(path.join(this.root, OWLIT_DIR, "searches.jsonl"), line)
   }
 
-  // The searches one chat or background run made since a moment, for the thread it writes to
+  // The searches one chat made since a moment, for the thread it writes to
   async searchesBy(by: string, since: number): Promise<SearchLine[]> {
     return (await this.recentSearches()).filter((s) => s.by === by && s.at > since)
   }
 
-  // The latest searches, read from the log once (a run that outlived a restart keeps its earlier ones)
+  // The latest searches, read from the log once (a chat that goes on after a restart keeps its earlier ones)
   private async recentSearches() {
     if (!this.searchLog) {
       const lines = await readJsonl<SearchLine>(path.join(this.root, OWLIT_DIR, "searches.jsonl"))

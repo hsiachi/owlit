@@ -11,7 +11,6 @@ describe("an agent's usage limit", () => {
     expect(await failureOf(agents, "claude-code", internal("You've hit your session limit · resets 2:20am (Asia/Shanghai)"), "")).toEqual({
       text: "Claude Code's usage limit is reached; it resets at 2:20.",
       detail: "You've hit your session limit · resets 2:20am (Asia/Shanghai)",
-      final: true,
     })
     expect((await failureOf(agents, "claude-code", internal("You've hit your weekly limit · resets Oct 21, 5pm (Europe/Berlin)"), "")).text).toBe(
       "Claude Code's usage limit is reached; it resets at Oct 21 17:00.",
@@ -26,7 +25,6 @@ describe("an agent's usage limit", () => {
     expect(await failureOf(agents, "claude-code", internal("You're out of usage credits"), "")).toEqual({
       text: "Claude Code's usage limit is reached.",
       detail: "You're out of usage credits",
-      final: true,
     })
   })
 

@@ -49,7 +49,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "agents",
     title: "Agents (Claude Code, Codex, Gemini CLI)",
-    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for background work such as digests.`,
+    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for the tasks the user hands Owlit with a button, such as digests.`,
   },
   {
     id: "threads",
@@ -64,12 +64,12 @@ const TOPICS: GuideTopic[] = [
   {
     id: "memory",
     title: "What Owlit keeps in mind",
-    text: `Owlit keeps a short list about the user for this workspace: how they like it to work ("cite as (Author, Year)", "answer in Chinese") and facts about their work ("I'm writing my thesis on…"). Every chat starts with it, whichever agent runs, and so does background work. Owlit adds a line when the user tells it to remember something or says "from now on", when they correct how it works, or when they state a fact about their work; the answer's result card shows "Remembered" with Undo. The list is in Settings › Owlit › What Owlit keeps in mind (Edit, Remove, Add one) and in the file .owlit/memory.md. The agents' own memory features are off inside owlit; this list is the only memory.`,
+    text: `Owlit keeps a short list about the user for this workspace: how they like it to work ("cite as (Author, Year)", "answer in Chinese") and facts about their work ("I'm writing my thesis on…"). Every chat starts with it, whichever agent runs, the chats owlit starts for a button too. Owlit adds a line when the user tells it to remember something or says "from now on", when they correct how it works, or when they state a fact about their work; the answer's result card shows "Remembered" with Undo. The list is in Settings › Owlit › What Owlit keeps in mind (Edit, Remove, Add one) and in the file .owlit/memory.md. The agents' own memory features are off inside owlit; this list is the only memory.`,
   },
   {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, what Owlit keeps in mind about them, the agent and language for background work such as digests, and whether owlit records what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, what Owlit keeps in mind about them, the agent and language for the tasks the user hands Owlit, such as digests, and whether owlit records what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",

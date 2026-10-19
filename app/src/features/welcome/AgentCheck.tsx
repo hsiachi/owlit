@@ -22,7 +22,7 @@ export function AgentCheck() {
   const check = useChatStore((s) => s.checkConnector)
   useConnectorRecheck(connectors, { untilOneRuns: true })
 
-  // Built-in agents come first, Claude Code first of all, as background work picks them
+  // Built-in agents come first, Claude Code first of all, as the tasks you hand Owlit pick them
   const ready = connectors.find(canRun)
   const checking = !connectors.length || connectors.some(isChecking)
   // The Owlit engine (Beta) signs in under Settings, not in Terminal, and isn't what a first run is about

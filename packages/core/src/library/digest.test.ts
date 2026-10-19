@@ -84,7 +84,7 @@ describe("digests", () => {
     expect((await call("library.list")).papers.find((p: { id: string }) => p.id === "doi-10.1-a")).toMatchObject({ hasDigest: true, digestAt: expect.any(Number) })
     expect(await call("chats.list")).toEqual([])
     // Only the paper asked about has a chat
-    expect((await workspace.chats.runs()).map((c) => c.about?.id)).toEqual(["doi-10.1-a"])
+    expect((await workspace.chats.started()).map((c) => c.about?.id)).toEqual(["doi-10.1-a"])
     expect(await call("library.digestSource", { id: "doi-10.1-a" })).toEqual({ pictures: 0, language: "en", textPages: 1 })
   })
 

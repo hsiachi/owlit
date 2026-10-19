@@ -156,7 +156,7 @@ export function startSeen() {
     useSeen.setState({ marks })
     refresh()
   })
-  for (const topic of ["changes.added", "threads.changed", "comments.changed", "library.changed", "chats.run"] as const) onNotify(topic, refresh)
+  for (const topic of ["changes.added", "threads.changed", "comments.changed", "library.changed", "chats.turn"] as const) onNotify(topic, refresh)
 }
 
 // ---- What each place reads ----

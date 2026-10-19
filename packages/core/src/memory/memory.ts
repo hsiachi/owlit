@@ -88,13 +88,6 @@ export function formatMemory(lines: MemoryLine[]) {
 
 const oneLine = (text: string) => text.replace(/\s+/g, " ").replace(/<!--|-->/g, "").trim()
 
-// The memory of a workspace by its folder, for work that has the folder but not the open Workspace
-// (background runs started while it opens)
-export async function readMemory(root: string) {
-  const text = await readFile(path.join(root, ".owlit", FILE), "utf8").catch(() => "")
-  return parseMemory(text)
-}
-
 export type MemoryOp = { op: "add"; kind: MemoryKind; text: string } | { op: "replace"; id: string; text: string; kind?: MemoryKind } | { op: "remove"; id: string }
 
 export interface MemoryChange {

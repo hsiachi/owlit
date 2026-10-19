@@ -23,9 +23,10 @@ export interface SettingsView {
   parsing: { service?: "cloud" | "self-hosted"; url?: string; auto: boolean }
   // The last four characters of each key that is set
   secrets: Partial<Record<SecretName, string>>
-  // The agent that does background work; unset means the first one that is ready
+  // The agent for the tasks the person hands Owlit (a chat owlit starts for a button); unset means the
+  // first one that is ready
   backgroundAgent?: string
-  // The model each agent uses for background work, by agent id; absent means the agent's default
+  // The model each agent uses for those tasks, by agent id; absent means the agent's default
   backgroundModels?: Record<string, string>
   activity: { enabled: boolean }
   // A workspace has opened on this machine before; until then a launch shows the first-launch flow
@@ -39,7 +40,7 @@ export interface SettingsPatch {
   library?: { contactEmail?: string | null; digestLanguage?: string | null }
   parsing?: { service?: "cloud" | "self-hosted" | null; url?: string | null; auto?: boolean }
   backgroundAgent?: string | null
-  // One agent's background model; null goes back to the agent's default
+  // The model one agent uses for the tasks the person hands Owlit; null goes back to the agent's default
   backgroundModel?: { agent: string; model: string | null }
 }
 
@@ -84,5 +85,5 @@ export function proxyFromLink(link: string): ProxySettings | null {
   return null
 }
 
-// The agent owlit picks when nothing says which (background work, the automatic choice in Settings)
+// The agent owlit picks when nothing says which (a chat owlit starts, the automatic choice in Settings)
 export const FIRST_CHOICE_AGENT = "claude-code"

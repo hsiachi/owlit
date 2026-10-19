@@ -12,12 +12,12 @@ import { updateSettings, useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/spinner"
 
-// The agents on this Mac, and which one Owlit uses. The choice is both background work's agent and new
-// chats' agent, so the first day has one answer to "what runs Owlit"; Settings can part them later. Agents
-// not ready say what would make them ready, and are checked again when the window comes back to the front,
-// since people may leave to run a command in Terminal. The Owlit engine (Beta) signs in under Settings, so a
-// first run leaves it out. Under the list, what Owlit may do through the agent in its default role, in
-// the lines the composer's menu says, so the scope is met here and not found by accident.
+// The agents on this Mac, and which one Owlit uses. The choice is both the agent for the tasks you hand
+// Owlit and new chats' agent, so the first day has one answer to "what runs Owlit"; Settings can part them
+// later. Agents not ready say what would make them ready, and are checked again when the window comes back
+// to the front, since people may leave to run a command in Terminal. The Owlit engine (Beta) signs in under
+// Settings, so a first run leaves it out. Under the list, what Owlit may do through the agent in its
+// default role, in the lines the composer's menu says, so the scope is met here and not found by accident.
 export function AgentChoice() {
   return (
     <>

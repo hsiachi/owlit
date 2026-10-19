@@ -23,7 +23,7 @@ export function fauxModels(credentials: CredentialStore): Models {
         .filter((m) => m.role === "system")
         .map((m) => (typeof m.content === "string" ? m.content : ""))
         .join("\n")
-      const role = /Your role in this chat: ([\w-]+)/.exec(system)?.[1] ?? (system.includes("This is background work") ? "background" : "none")
+      const role = /Your role in this chat: ([\w-]+)/.exec(system)?.[1] ?? "none"
       const name = /The user's name: ([^.]+)\./.exec(system)?.[1] ?? "none"
       return fauxAssistantMessage(`rules:${system.includes("owlit agent rules")} role:${role} name:${name} preamble:${text.includes("[owlit]")}`)
     }

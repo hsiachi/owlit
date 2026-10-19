@@ -10,10 +10,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { stopChat, tryAgain } from "@/features/chat/started"
 import { useLibraryStore } from "@/features/library/store"
 import { libraryPaperOf, shown as shownOf } from "../lib"
-import { askEach, startRun, useThreadWork, workWords } from "../work"
+import { askEach, startWork, useThreadWork, workWords } from "../work"
 
 // What a paper read in full costs in the agent's time, roughly: one turn that adds it, reads the parts
-// that matter and rewrites its answers. Said on the button's hover so the run's size is known before it
+// that matter and rewrites its answers. Said on the button's hover so the work's size is known before it
 // starts; it is a guess, not a measurement.
 const MINUTES_PER_PAPER = 0.8
 
@@ -98,7 +98,7 @@ export function ThreadActions({ thread }: { thread: Thread }) {
         <>
           <AskEach thread={thread} />
           {fromAbstract.length > 0 && (
-            <Button variant="text" size="inline" disabled={busy("read-in-full") || toRead === 0} title={toRead ? readTip : t`None of the papers answered from their abstracts has a PDF to read`} onClick={() => void startRun(thread.id, "read")}>
+            <Button variant="text" size="inline" disabled={busy("read-in-full") || toRead === 0} title={toRead ? readTip : t`None of the papers answered from their abstracts has a PDF to read`} onClick={() => void startWork(thread.id, "read")}>
               {plural(toRead, { one: "Read # in full", other: "Read # in full" })}
             </Button>
           )}
@@ -119,7 +119,7 @@ function FindMore({ thread, disabled }: { thread: Thread; disabled: boolean }) {
   const find = () => {
     if (!what.trim()) return
     setOpen(false)
-    void startRun(thread.id, "more", what.trim())
+    void startWork(thread.id, "more", what.trim())
   }
   return (
     <Popover

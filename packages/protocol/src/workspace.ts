@@ -124,9 +124,10 @@ export interface ProxySettings {
 
 export interface ConnectorSettings {
   custom?: { id: string; name: string; command: string }[]
-  // The agent that writes digests and other background work; the first one set up when absent
+  // The agent for the chats owlit starts for a button (a digest, a thread's work); the first one set up
+  // when absent
   background?: string
-  // The model each agent uses for background work, when not its own default (a cheaper one for digests)
+  // The model each agent uses for those chats, when not its own default (a cheaper one for digests)
   backgroundModels?: Record<string, string>
   // From the last check: what the agent offers, so the pickers fill without starting it
   probed?: Record<string, ProbedConnector>

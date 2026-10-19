@@ -4,8 +4,7 @@ import path from "node:path"
 import type { AgentNotice } from "./process.ts"
 import { toolInfoOf } from "./questions.ts"
 
-// What an agent sends over ACP, as owlit's chat updates: for a chat turn (turns.ts) and a background run
-// (background.ts) alike
+// What an agent sends over ACP, as owlit's chat updates (turns.ts)
 
 const KINDS = new Set<ToolKind>(["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"])
 export const toKind = (kind?: string | null): ToolKind => (kind && KINDS.has(kind as ToolKind) ? (kind as ToolKind) : "other")
@@ -66,7 +65,7 @@ export interface HelperReports {
 
 // What one of the agent's own agents sent: its steps, marked as its own, and its report, which is what it
 // said as text (the Owlit engine's agents hand back their last words). Never the reply's own words: a chat
-// turn and a background run both keep them apart.
+// turn keeps them apart.
 export function agentWork(reports: HelperReports, agentId: string, u: acp.SessionUpdate, root: string): SessionUpdate[] {
   if (u.sessionUpdate === "agent_message_chunk" && u.content.type === "text") {
     const text = (reports.agentText.get(agentId) ?? "") + u.content.text

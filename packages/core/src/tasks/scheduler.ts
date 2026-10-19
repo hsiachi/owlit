@@ -4,7 +4,7 @@ import type { TaskStore } from "./store.ts"
 import { clean, messageOf } from "../util.ts"
 
 // How many tasks of each lane run at once. Hosts get their own limits in the HTTP client, inside network.
-export const LANE_LIMITS: Record<TaskLane, number> = { network: 3, cpu: 2, parse: 1, agent: 1, index: 1 }
+export const LANE_LIMITS: Record<TaskLane, number> = { network: 3, cpu: 2, parse: 1, index: 1 }
 
 // How many finished tasks list() still shows
 const KEEP_FINISHED = 200
@@ -31,8 +31,6 @@ export interface TaskContext {
   // Not now: ends this run, and the task runs again from the start in ms. Not a try, and the lane is
   // free meanwhile.
   later(ms: number): never
-  // The session an agent run keeps its steps in, so a retry adds to the same one
-  describe(patch: Pick<Task, "chatId">): void
 }
 
 export interface TaskDefinition {
@@ -92,8 +90,6 @@ interface Entry {
   waiters: ((task: Task) => void)[]
   // Prerequisites that already ran for this task: requiring one again means it can't be made
   satisfied: Set<string>
-  // Stopped to make way for something more urgent: queued again, not counted as a try
-  preempted?: boolean
 }
 
 const key = (kind: string, subject: string) => `${kind}\u0000${subject}`
@@ -335,24 +331,8 @@ export class Scheduler {
       else ready.push(entry)
     }
     ready.sort((a, b) => byUrgency(a.task, b.task))
-    for (const entry of ready) {
-      if (this.inUse(entry.task.lane) < this.limits[entry.task.lane]) this.startRun(entry)
-      // Someone asked, or is waiting, and the agent is busy with work nobody asked for: that work steps
-      // aside and runs again once there is room (its steps are idempotent). Only agent work: elsewhere a
-      // run is short or costly to start over (parsing, indexing)
-      else if (entry.task.priority !== "background" && entry.task.lane === "agent") this.preemptOne(entry.task.lane)
-    }
+    for (const entry of ready) if (this.inUse(entry.task.lane) < this.limits[entry.task.lane]) this.startRun(entry)
     if (nextDue < Infinity) this.timer = setTimeout(() => this.pump(), nextDue - now)
-  }
-
-  // Stops the newest background run in a lane, to run again from the start later
-  private preemptOne(lane: TaskLane) {
-    const running = [...this.entries.values()]
-      .filter((e) => e.holdsSlot && e.task.lane === lane && e.task.priority === "background" && !e.preempted)
-      .sort((a, b) => (b.task.startedAt ?? 0) - (a.task.startedAt ?? 0))[0]
-    if (!running) return
-    running.preempted = true
-    running.controller?.abort(new DOMException("Something more urgent needed the lane.", "AbortError"))
   }
 
   private inUse(lane: TaskLane) {
@@ -420,10 +400,6 @@ export class Scheduler {
       later: (ms) => {
         throw new Later(ms)
       },
-      describe: (patch) => {
-        if (entry.controller?.signal !== signal || isTaskFinished(entry.task)) return
-        this.update(entry, patch)
-      },
     }
   }
 
@@ -434,13 +410,8 @@ export class Scheduler {
     entry.suspended = undefined
     // Closing: what was running stays recorded as running, to run again next time
     if (this.stopped) return
-    const preempted = entry.preempted
-    entry.preempted = undefined
     if (isTaskFinished(entry.task)) {
       // Cancelled while it ran; its lane is free only now
-    } else if (preempted && error !== null) {
-      // Made way for something more urgent: not a try
-      this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, progress: undefined })
     } else if (error instanceof Blocked) {
       // Waiting on another task is not a try
       this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, blockedOn: error.on })

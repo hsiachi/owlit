@@ -97,7 +97,7 @@ export function PaperPage() {
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
   // There is something to choose once the paper has text to digest: the Digest side then holds the
-  // digest, or the offer to write one, or a run's Retry where the user looked for it
+  // digest, or the offer to write one, or a broken chat's Retry where the user looked for it
   const choosing = hasDigest || writing || digestState === "failed" || !!paper.pdf || !!paper.text
   // A digest that arrived while the PDF was being read: Owlit's dot on the switch until it is seen
   const views = paperViews().map((v) => (v.value === "digest" && view === "pdf" && digestState === "new" ? { ...v, dot: true } : v))

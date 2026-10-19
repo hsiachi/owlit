@@ -19,16 +19,13 @@ export interface RecordInput {
   content?: string
 }
 
-// What changes.added says besides the change; quiet: nothing is said (the editor already showed the
-// edit, or a run Owlit made while the user was away lands without a word)
+// What changes.added says besides the change; quiet: nothing is said (the person made it where they see
+// it, or it is told another way: a chat's card, a batch's own toast, the place it lands)
 export interface Say {
   label?: string
   thread?: Notifications["changes.added"]["thread"]
   quiet?: boolean
 }
-
-// A background run ("<kind>:<task id>") as the log names it: the session it reports in
-export type RunOrigin = (run: string) => { chatId?: string }
 
 // The reply a chat's change belongs to: the one whose tool call made it, else the one whose turn is running
 export type ReplyOrigin = (chatId: string, toolCallId?: string) => string | undefined
@@ -48,24 +45,22 @@ export class Recorder {
   private readonly log: ChangeLog
   private readonly profile: () => Promise<ProfileSettings>
   private readonly added: (notification: Notifications["changes.added"]) => void
-  private readonly runOf: RunOrigin
   private readonly replyOf: ReplyOrigin
   private readonly now: () => number
   private readonly turn = new Serial()
   // Each doc's newest entry, read from the log the first time it is needed and kept current after
   private readonly newest = new Map<string, Change | null>()
 
-  constructor(log: ChangeLog, options: { profile: () => Promise<ProfileSettings>; added?: (notification: Notifications["changes.added"]) => void; runOf?: RunOrigin; replyOf?: ReplyOrigin; now?: () => number }) {
+  constructor(log: ChangeLog, options: { profile: () => Promise<ProfileSettings>; added?: (notification: Notifications["changes.added"]) => void; replyOf?: ReplyOrigin; now?: () => number }) {
     this.log = log
     this.profile = options.profile
     this.added = options.added ?? (() => {})
-    this.runOf = options.runOf ?? (() => ({}))
     this.replyOf = options.replyOf ?? (() => undefined)
     this.now = options.now ?? Date.now
   }
 
-  // The window is the profile's person. A program on the socket working for a chat or run is that
-  // person's Owlit; one working for neither (the CLI, an agent outside owlit) can't be told from a person
+  // The window is the profile's person. A program on the socket working for a chat is that
+  // person's Owlit; one working for none (the CLI, an agent outside owlit) can't be told from a person
   // at a terminal, so it is other. A change the watcher saw is Owlit's only when a tool call named the file.
   async actorOf(caller: Caller): Promise<ActorId> {
     const id = (await this.profile()).id
@@ -73,7 +68,7 @@ export class Recorder {
     if (caller.kind === "window") return `p_${id}`
     if (caller.kind === "owlit") return `o_${id}`
     if (caller.kind === "watcher") return caller.toolCallId ? `o_${id}` : "other"
-    return caller.chatId || caller.run ? `o_${id}` : "other"
+    return caller.chatId ? `o_${id}` : "other"
   }
 
   record(caller: Caller, input: RecordInput, say: Say = {}): Promise<Change> {
@@ -120,9 +115,8 @@ export class Recorder {
   private async append(caller: Caller, input: RecordInput): Promise<Change> {
     const at = this.now()
     const { content, origin = {}, ...rest } = input
-    const from: { chatId?: string; run?: string; toolCallId?: string } = caller.kind === "window" ? {} : caller
-    const run = from.run ? this.runOf(from.run) : {}
-    const chatId = origin.chatId ?? from.chatId ?? run.chatId
+    const from: { chatId?: string; toolCallId?: string } = caller.kind === "window" ? {} : caller
+    const chatId = origin.chatId ?? from.chatId
     const toolCallId = origin.toolCallId ?? from.toolCallId
     const replyId = origin.replyId ?? (chatId ? this.replyOf(chatId, toolCallId) : undefined)
     const via = origin.via ?? (caller.kind === "watcher" ? (caller.accepted ? "apply" : "watcher") : VIA[caller.kind])

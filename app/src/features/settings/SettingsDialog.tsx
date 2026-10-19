@@ -28,7 +28,7 @@ import { closeSettings, SECTIONS, showSection, useSettings, type SettingsSection
 const PARTS: Record<SettingsSection, { icon: React.ComponentType; about: MessageDescriptor; body: React.ComponentType }> = {
   owlit: {
     icon: OwlitMark,
-    about: msg`What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with.`,
+    about: msg`What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with.`,
     body: OwlitSection,
   },
   agents: {

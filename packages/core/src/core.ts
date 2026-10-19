@@ -233,7 +233,7 @@ export class Core {
       notify: (chatId, update, messageId) => this.notifier.notify("chat.update", { chatId, messageId, update }),
       ended: (chatId, message, about) => {
         this.notifier.notify("chat.ended", { chatId, messageId: message.id, message })
-        // A chat owlit started is followed where its work lands, by what it is about (chats.run)
+        // A chat owlit started is followed where its work lands, by what it is about (chats.turn)
         const ws = this.workspace
         if (about && ws) void this.announceStarted(ws, chatId)
       },
@@ -677,11 +677,10 @@ export class Core {
       const ws = this.requireWorkspace()
       const me = await this.personAt(caller)
       const marks = await ws.seen.get(me, ["chats"])
-      const [changes, chatList, runs, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.chats.runs(), ws.library.list()])
-      // A chat owlit started about something is never news as a chat: its work is, where it lands
-      const summaries = [...chatList, ...runs.filter((c) => !c.about)]
+      // A chat owlit started is never news as a chat (chats.list leaves it out): its work is, where it lands
+      const [changes, chatList, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.library.list()])
       // Only the chats that moved after the person's mark on them can have a reply they haven't seen
-      const moved = summaries.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
+      const moved = chatList.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
       const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
       return ws.seen.unseen(me, { changes, chats, papers, since })
     })
@@ -1043,7 +1042,6 @@ export class Core {
         why: z.string().optional(),
         note: z.string().optional(),
         chatId: z.string().optional(),
-        run: z.string().optional(),
         docPath: z.string().optional(),
       }), "own",
       (params, caller) => threads().write(params, caller),
@@ -1088,7 +1086,7 @@ export class Core {
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }), "own",
       (params, caller) => threads().gather(params, caller),
     )
-    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, run, what }, caller) => threads().start(id, run, caller, what))
+    this.router.register("threads.start", z.object({ id: z.string().min(1), work: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, work, what }, caller) => threads().start(id, work, caller, what))
     this.router.register(
       "threads.compare",
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }), "own",
@@ -1349,7 +1347,7 @@ export class Core {
         const me = await this.personAt(WINDOW).catch(() => undefined)
         if (me) await next.seen.get(me, [])
       }
-      // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
+      // Its tasks start once it is the open workspace
       if (opened) await next.tasks.start()
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
@@ -1366,9 +1364,7 @@ export class Core {
   }
 
   // One of Owlit's comments, written as an agent's: recorded in the change log (Undo) and shown in the
-  // session's result card
-  // quiet: from a run Owlit made while the user was away, which says nothing when it lands (no toast);
-  // the comment and its change are kept the same
+  // chat's result card
   private async agentComment(path: string, comment: DocComment, caller: Caller) {
     const ws = this.requireWorkspace()
     await ws.docs.addComment(path, comment)
@@ -1652,10 +1648,10 @@ export class Core {
   }
 
   // A chat owlit starts for the person, on the agent and model Settings chooses for its work. Every window
-  // hears it begin (chats.run) and end (chats.run again, after chat.ended).
+  // hears it begin (chats.turn) and end (chats.turn again, after chat.ended).
   async startFor(start: Omit<StartFor, "connectorId" | "modelId">): Promise<Started> {
     const ws = this.requireWorkspace()
-    const { connectorId: chosen, models } = await this.backgroundAgent()
+    const { connectorId: chosen, models } = await this.handedAgent()
     const connectorId = await this.agents.forWork(chosen)
     const modelId = models?.[connectorId]
     const started = await startFor(this.turns, ws.chats, { ...start, connectorId, ...(modelId ? { modelId } : {}) })
@@ -1665,7 +1661,7 @@ export class Core {
 
   private async announceStarted(ws: Workspace, chatId: string) {
     const chat = await ws.chats.get(chatId).catch(() => null)
-    if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
+    if (chat && this.workspace === ws) this.notifier.notify("chats.turn", { chat })
   }
 
   async dispose() {
@@ -1674,8 +1670,8 @@ export class Core {
     await this.switching
     if (this.workspace) await this.stopWorkspace(this.workspace, "closed")
     this.workspace = null
-    // After the workspace's background tasks: a run cut off by its agent closing would count as a failed
-    // try, where one stopped by closing stays running, to run again next time
+    // After the workspace's turns and tasks: a turn cut off by its agent closing would end as the agent's
+    // failure, where one stopped by closing says owlit was closed
     this.agents.dispose()
     await this.extension?.close().catch(() => undefined)
     await this.journal.dispose()
@@ -1690,7 +1686,7 @@ export class Core {
       ["chat turns", () => this.turns.reset(why)],
       ["the window's requests", () => this.ui.reset()],
       // Before the agents they run on close (dispose closes them after this)
-      ["background tasks", () => ws.tasks.dispose()],
+      ["tasks", () => ws.tasks.dispose()],
       // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
       ["the socket", () => this.closeSocket()],
       ["the journal", () => this.journal.flush()],
@@ -1707,24 +1703,24 @@ export class Core {
     this.taskChanges.flush()
   }
 
-  // The agent (and its model) chosen for background work in Settings
-  private async backgroundAgent() {
+  // The agent (and its model) Settings chooses for the tasks the person hands Owlit
+  private async handedAgent() {
     const { connectors } = await this.settings.get()
     return { connectorId: connectors.background, models: connectors.backgroundModels }
   }
 
-  // owlit-mcp for an agent session in this workspace (for one chat, or a run in the background). The
-  // secret in OWLIT_SESSION is what names the chat or run to core at auth (rpc/socket.ts); --chat and
-  // --run only tell owlit-mcp what to sign its searches and comments with.
-  mcpServers(root: string, chatId?: string, run?: string) {
+  // owlit-mcp for an agent session in this workspace, for one chat. The secret in OWLIT_SESSION is what
+  // names the chat to core at auth (rpc/socket.ts); --chat only tells owlit-mcp what to sign its searches
+  // and comments with.
+  mcpServers(root: string, chatId?: string) {
     const mcp = this.options.mcp
     if (!mcp || this.socket?.root !== root) return []
-    const session = this.socket.grant({ ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) })
+    const session = this.socket.grant(chatId ? { chatId } : {})
     return [
       {
         name: "owlit",
         command: mcp.command,
-        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : []), ...(run ? ["--run", run] : [])],
+        args: [...mcp.args, "--workspace", root, ...(chatId ? ["--chat", chatId] : [])],
         env: [...Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })), { name: "OWLIT_SESSION", value: session }],
       },
     ]

@@ -31,7 +31,7 @@ export function KeptInMindRow() {
     <div data-settings-group="memory" className="scroll-mt-1">
       <Row
         name={t`What Owlit keeps in mind`}
-        info={t`Every chat in this workspace starts with this list, whichever agent runs it, and so does background work. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too.`}
+        info={t`Every chat in this workspace starts with this list, whichever agent runs it, the ones owlit starts for you too. Owlit adds to it when you tell it something worth keeping, and says so in the chat. It is kept in .owlit/memory.md in this folder; you can edit that file too.`}
         control={
           <>
             {loaded && <span className="mr-1.5 text-detail text-muted-foreground">{fromClaude ? `${count} · ${fromClaude}` : count}</span>}

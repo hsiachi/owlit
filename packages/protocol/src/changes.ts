@@ -168,14 +168,14 @@ export function readInFull(change: Change | undefined): { was: string; from: "ab
 }
 
 // A chat whose last reply ended well after the last message the person saw. A chat they never looked at
-// (a run, or one from before the marks) has none: it is not news.
+// (one from before the marks) has none: it is not news.
 function chatUnseen(chat: Pick<Chat, "messages">, mark: SeenMarks["chats"][string] | undefined): boolean {
   const last = chat.messages.at(-1)
   return !!mark && last?.role === "assistant" && last.status === "done" && last.id !== mark.message
 }
 
 // A digest Owlit wrote after the person last opened the paper or looked at (or asked for) its digest.
-// One on a paper they never opened or asked about was written in the background and is not news.
+// One on a paper they never opened or asked about is not news.
 export function digestUnseen(paper: Pick<Paper, "hasDigest" | "digestAt" | "lastOpenedAt">, mark: number | undefined): boolean {
   if (!paper.hasDigest || !paper.digestAt) return false
   if (!paper.lastOpenedAt && mark === undefined) return false

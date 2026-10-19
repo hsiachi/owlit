@@ -299,7 +299,7 @@ function Teach({ step }: { step: StepId }) {
   )
 }
 
-// The agent Owlit will use: the one chosen for background work, else the first that can run
+// The agent Owlit will use: the one chosen for the tasks you hand it, else the first that can run
 function useAgentName() {
   const connectors = useChatStore((s) => s.connectors)
   const chosen = useSettings((s) => s.view?.backgroundAgent)

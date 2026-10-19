@@ -11,7 +11,7 @@ import type { Caller } from "./router.ts"
 // in the user's temp folder, $TMPDIR/owlit-<hash>.sock (the app data path is too long for a socket
 // name), and beside it owlit-<hash>.json naming the socket and a token made fresh at each start. Both are
 // the user's alone (0600). A client's first message is auth with that token and, for an owlit-mcp core
-// started for an agent session, the session secret core gave it (grant): only that names the chat or run
+// started for an agent session, the session secret core gave it (grant): only that names the chat
 // it works for. A chat id a client names itself is never taken, so a program can't borrow a chat's role
 // by naming it. Then requests and answers go one JSON object per line, and notifications follow once it
 // subscribes.
@@ -47,16 +47,15 @@ interface Connection {
 
 const text = (value: unknown) => (typeof value === "string" && value ? value : undefined)
 
-// What a session secret was granted for: the chat or run of the agent session owlit-mcp was started for
+// What a session secret was granted for: the chat of the agent session owlit-mcp was started for
 export interface Grant {
   chatId?: string
-  run?: string
 }
 
-// The caller a connection is: the chat or run its session secret was granted for; the CLI, or a program
+// The caller a connection is: the chat its session secret was granted for; the CLI, or a program
 // with no secret, names neither
 function callerOf(granted: Grant | undefined): Extract<Caller, { kind: "socket" }> {
-  return { kind: "socket", ...(granted?.chatId ? { chatId: granted.chatId } : {}), ...(granted?.run ? { run: granted.run } : {}) }
+  return { kind: "socket", ...(granted?.chatId ? { chatId: granted.chatId } : {}) }
 }
 
 // The tool call a request is for changes with each call (Claude Code names it per MCP request), so it
@@ -85,7 +84,7 @@ export class SocketServer {
     this.sessions = sessions
   }
 
-  // A secret for the owlit-mcp of one agent session, which names its chat or run when it authenticates
+  // A secret for the owlit-mcp of one agent session, which names its chat when it authenticates
   grant(granted: Grant): string {
     const secret = randomBytes(24).toString("hex")
     this.sessions.set(secret, granted)

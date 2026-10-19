@@ -1,6 +1,6 @@
 // The chats owlit started for the person (a digest, a thread's work, and later a doc's), as the thing
 // each is about shows it: running, or how its last turn ended. Core is the record (chats.startedFor, then
-// chats.run as each turn begins and ends); nothing here opens such a chat, which no chat list shows.
+// chats.turn as each turn begins and ends); nothing here opens such a chat, which no chat list shows.
 
 import { t } from "@lingui/core/macro"
 import type { ChatAbout, ChatMessage, StartedChat } from "@owlit/protocol"
@@ -132,7 +132,7 @@ export function startStartedChats() {
     useStarted.setState({ byAbout: {}, running: {}, asking: {} })
     await follow.load().catch((error: unknown) => console.warn("[owlit] couldn't list the chats owlit started", error))
   }
-  onNotify("chats.run", ({ chat }) => {
+  onNotify("chats.turn", ({ chat }) => {
     if (!chat.about) return
     const about = chat.about
     const reply = chat.messages.at(-1)

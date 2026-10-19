@@ -15,11 +15,10 @@ const LIMIT = /You['â€™]ve (?:hit|reached) your\b[^\n]*?\b(?:limit|usage)|You['â
 const RESETS = /\b(?:resets|try again at)\s+([^()\n]*?\d[^()\n]*?)\s*(?:\(|\.(?:\s|$)|$)/i
 const CLOCK = /\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?![a-z])/i
 
-// What owlit says when an agent's session fails, the same for a chat turn and a background run, with how
-// the agent's process ended as its detail. said: the error the agent wrote as its last words
-// (withoutAgentError), which decides between a sign-in and a refusal it can't fix by signing in. final:
-// trying again before something changes fails the same way (the usage limit), so a task isn't retried.
-export async function failureOf(agents: Agents, connectorId: string, error: unknown, said: string): Promise<{ text: string; detail?: string; cutOff?: CutOff; final?: true }> {
+// What owlit says when an agent's turn fails, with how the agent's process ended as its detail. said: the
+// error the agent wrote as its last words (withoutAgentError), which decides between a sign-in and a
+// refusal it can't fix by signing in.
+export async function failureOf(agents: Agents, connectorId: string, error: unknown, said: string): Promise<{ text: string; detail?: string; cutOff?: CutOff }> {
   if (error instanceof AgentEnded) {
     // The agent's process went away mid-turn; the library only says its connection closed
     const name = await agents.nameOf(connectorId)
@@ -28,7 +27,7 @@ export async function failureOf(agents: Agents, connectorId: string, error: unkn
     return { text: t`${name} quit unexpectedly. It starts again with the next message.`, ...detail }
   }
   const limit = [messageOf(error), said].map((m) => m.replace(/^Internal error:\s*/i, "").trim()).find((m) => LIMIT.test(m))
-  if (limit) return { text: limitSentence(await agents.nameOf(connectorId), limit), detail: limit, final: true }
+  if (limit) return { text: limitSentence(await agents.nameOf(connectorId), limit), detail: limit }
   if (isAuthError(error)) return { text: /\b403\b/.test(said) ? await agents.refused(connectorId) : await agents.signedOut(connectorId) }
   if (GENERIC.test(messageOf(error)) && said) return { text: await agents.nameOf(connectorId).then((name) => t`${name} ran into a problem.`) }
   return { text: messageOf(error) }

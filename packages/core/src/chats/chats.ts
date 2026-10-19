@@ -53,8 +53,8 @@ export class Chats {
     return (await this.all()).filter((c) => !c.startedBy)
   }
 
-  // The chats owlit started and the scheduler's runs, most recent first
-  async runs(): Promise<ChatSummary[]> {
+  // The chats owlit started, most recent first
+  async started(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !!c.startedBy)
   }
 
@@ -62,7 +62,7 @@ export class Chats {
   async startedFor(kind?: ChatAbout["kind"]): Promise<StartedChat[]> {
     const seen = new Set<string>()
     const out: StartedChat[] = []
-    for (const c of await this.runs()) {
+    for (const c of await this.started()) {
       if (!c.about || (kind && c.about.kind !== kind)) continue
       const key = `${c.about.kind}:${c.about.id}`
       if (seen.has(key)) continue
@@ -342,7 +342,7 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, about, run } = chat
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, about } = chat
   return {
     id,
     title,
@@ -354,7 +354,7 @@ function summaryOf(chat: Chat | ChatFile): ChatSummary {
     ...(role ? { role } : {}),
     effortId,
     ...(sessions ? { sessions } : {}),
-    ...(startedBy ? { startedBy, ...(about ? { about } : {}), ...(run ? { run } : {}) } : {}),
+    ...(startedBy ? { startedBy, ...(about ? { about } : {}) } : {}),
   }
 }
 

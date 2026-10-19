@@ -66,9 +66,9 @@ export async function gather(question: string, size: ThreadSize, project: string
 }
 
 // what: for more, what to look for this time
-export async function startRun(id: string, run: "more" | "read", what?: string) {
-  if (!isDesktop) return mock(id, run === "more" ? "find-more" : "read-in-full")
-  await rpc.threads.run({ id, run, ...(what ? { what } : {}) }).catch(toastError)
+export async function startWork(id: string, work: "more" | "read", what?: string) {
+  if (!isDesktop) return mock(id, work === "more" ? "find-more" : "read-in-full")
+  await rpc.threads.start({ id, work, ...(what ? { what } : {}) }).catch(toastError)
 }
 
 // Group another way: a new grouping Owlit works out; the thread with it

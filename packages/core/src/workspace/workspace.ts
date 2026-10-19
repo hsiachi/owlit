@@ -57,8 +57,8 @@ export interface WorkspaceTasks {
   definitions?: (workspace: Workspace) => TaskDefinition[]
   onChange?: (task: Task) => void
   limits?: SchedulerOptions["limits"]
-  // Run them once the workspace has opened (the default). Core starts them itself once the workspace's
-  // socket is up, so no agent run starts without owlit's tools.
+  // Run them once the workspace has opened (the default). Core starts them itself once the workspace is
+  // the open one.
   start?: boolean
 }
 
@@ -93,8 +93,6 @@ export class Workspace {
     this.recorder = new Recorder(this.changes, {
       profile,
       added: options.changeAdded,
-      // A run ("<kind>:<task id>") reports in its task's session
-      runOf: (run) => ({ chatId: this.tasks.get(run.slice(run.indexOf(":") + 1))?.chatId }),
       replyOf: options.replyOf,
     })
     this.members = new Members(path.join(root, OWLIT_DIR))
