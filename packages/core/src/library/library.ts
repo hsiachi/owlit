@@ -78,8 +78,6 @@ const RESOLUTION_TTL_MS = 10 * 60_000
 const FOUND_TTL_MS = 12 * 3_600_000
 // How long changes under library/papers/ settle before they are read
 const SETTLE_MS = 300
-// More papers than this appearing at once from outside are a library brought in, not papers landing
-const LANDED_AT_ONCE = 5
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
 
@@ -108,9 +106,6 @@ export interface LibraryServices {
   // (digests). model is the one chosen for background work, when one is.
   // The user starred a paper (not an agent, not an import)
   starred?: (id: string) => void
-  // A paper joined the library one at a time, not by an agent and not in a batch import: the user added
-  // it in the app, or another program put its folder in the library
-  landed?: (id: string, by: "user" | "outside") => void
   // A background agent run for a task: its session shows beside the paper (ctx.describe)
   agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
   // The language digests are written in: Settings' choice, else the system's
@@ -364,7 +359,6 @@ export class Library {
       else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
       if (extra.pdf) await this.placePdf(id, extra.pdf, await sha256Of(extra.pdf), priority)
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
-      if (addedBy === "user" && !extra.imported) this.services.landed?.(id, "user")
       return { paper: (await this.get(id))!, existed: false }
     })
   }
@@ -1067,7 +1061,6 @@ export class Library {
       // An id the services couldn't be asked about (offline) gets its metadata later
       if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, priority)
       await this.placePdf(id, file, sha, priority)
-      if (!options.imported) this.services.landed?.(id, "user")
       return { paper: (await this.get(id))!, existed: false }
     })
   }
@@ -1327,11 +1320,8 @@ export class Library {
           ctx.signal.throwIfAborted()
           await writeText(this.root, id, text)
           this.queue("index.paper", id, "background")
-          // An imported paper gets no digest of its own accord, and MinerU only if the import allowed it
-          const imported = this.imports.imported(id)
-          if (!imported && (await this.services.settings()).digestEveryPaper) void this.wantDigest(id, "background")
-          // A scan has no text at all until MinerU reads it
-          if (imported?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
+          // A scan has no text at all until MinerU reads it, which an import may have declined
+          if (this.imports.imported(id)?.parse !== false) this.queue("paper.parse", id, text.needsOcr ? "asked" : "background")
         },
       }),
       // Tries each route for the paper's PDF until one gives a real PDF. Every route failing is a fact
@@ -1621,18 +1611,11 @@ export class Library {
       // The system lost track: look at every folder, and at every paper that had one
       const all = ids.includes("*")
       if (all) ids = [...new Set([...(await this.ids()), ...this.index.ids()])]
-      const known = new Set(this.index.ids())
-      const arrived: string[] = []
       for (const id of ids) {
         const record = await readRecord(this.root, id)
         if (record) this.index.set(id, record.ids, record.title)
         else this.index.delete(id)
-        // Another program's paper: a folder owlit didn't write (the app indexes its own adds before the
-        // watcher hears them) and has no state for
-        if (record && !all && !known.has(id) && !(await readState(this.root, id))) arrived.push(id)
       }
-      // A few at a time are papers landing; many at once are a library brought in, which isn't
-      if (arrived.length <= LANDED_AT_ONCE) for (const id of arrived) this.services.landed?.(id, "outside")
       // Told from inside the lock, so a write queued behind this look (a restore, for Undo) can't land
       // between reading the folders and telling the window: "removed" would then arrive after the paper
       // was back, and the window would lose it again

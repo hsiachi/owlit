@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { INITIATIVE_DEFAULTS, RpcErrorCode, type InitiativeSettings, type MemoryLine, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { RpcErrorCode, type MemoryLine, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
@@ -179,22 +179,6 @@ export class Workspace {
     }
     await writeJsonAtomic(file, { ...stored, version: 1, layout })
     return layout
-  }
-
-  // How far Owlit goes here without being asked (Settings › Owlit › On its own): it is the user's leave to
-  // this workspace, so it lives with the workspace, not with this machine's settings
-  async initiative(): Promise<InitiativeSettings> {
-    const stored = await readJson<WorkspaceSettings>(this.owlitPath("workspace.json")).catch(() => undefined)
-    return { ...INITIATIVE_DEFAULTS, ...stored?.initiative }
-  }
-
-  async setInitiative(patch: Partial<InitiativeSettings>): Promise<InitiativeSettings> {
-    const file = this.owlitPath("workspace.json")
-    const stored = await readJson<WorkspaceSettings>(file).catch(() => null)
-    if (stored === null) throw new RpcFailure(RpcErrorCode.Conflict, t`workspace.json in .owlit can't be read, so owlit leaves it alone.`)
-    const initiative = { ...stored?.initiative, ...patch }
-    await writeJsonAtomic(file, { ...stored, version: 1, layout: stored?.layout ?? {}, initiative })
-    return { ...INITIATIVE_DEFAULTS, ...initiative }
   }
 
   async dispose() {

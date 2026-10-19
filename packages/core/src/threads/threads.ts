@@ -32,7 +32,7 @@ import type { Versions } from "../docs/versions.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
-import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, relateSkill, rereadSkill, type Skill } from "../initiative/skills.ts"
+import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, rereadSkill, type Skill } from "../initiative/skills.ts"
 import { Serial } from "../util.ts"
 
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
@@ -200,19 +200,6 @@ export class Threads {
       run(checkSkill, (thread) => ({ thread, since: thread.checkedAt ?? thread.createdAt }), (c) => this.checked(c.id)),
       // "<id>:<paper>": one row, answered again once the user read the paper in full
       run(rereadSkill, (thread, subject) => ({ thread, paperId: subject.slice(subject.indexOf(":") + 1) })),
-      // A paper (the subject) that came into the library: into the threads whose question it answers
-      defineTask(relateSkill.id, {
-        lane: relateSkill.lane,
-        retries: 1,
-        run: async (ctx) => {
-          const ids = (await this.list()).map((summary) => summary.id)
-          const loaded = await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)))
-          const threads: Thread[] = []
-          for (const c of loaded) if (c && !(await this.rowOf(c.rows, ctx.task.subject))) threads.push(c)
-          if (!threads.length) return
-          await agent(relateSkill.instructions({ threads, paperId: ctx.task.subject }), ctx, relateSkill.tools ?? NO_TOOLS, `${relateSkill.id}:${ctx.task.id}`)
-        },
-      }),
     ]
   }
 

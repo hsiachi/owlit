@@ -1,5 +1,5 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
-import type { ArchiveSummary, InitiativeSettings } from "./initiative.ts"
+import type { ArchiveSummary } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
@@ -109,9 +109,6 @@ export interface Methods {
   "workspace.clearRecent": { params: void; result: null }
   // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
   // window's chat, …)
-  // How far Owlit goes in this workspace without being asked; set records feedback.dialChanged
-  "initiative.get": { params: void; result: InitiativeSettings }
-  "initiative.set": { params: { patch: Partial<InitiativeSettings> }; result: InitiativeSettings }
   // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
   "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
   // Everything Owlit did on its own here (what it heard, each decision, what you did with its work, its
@@ -168,11 +165,11 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit and a doc: kept out or let in, and its last look
+  // Owlit and a doc: kept out or let in, and what it went through there
   "docs.owlit": { params: { path: string }; result: DocOwlit }
   // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
-  // the user's docs: a record beside it, and the points as comments where they belong. Asked, at any
-  // position of the dial; the task that does it
+  // the user's docs: a record beside it, and the points as comments where they belong; the task that
+  // does it
   "docs.goThrough": { params: { path: string }; result: Task }
   "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
@@ -185,7 +182,7 @@ export interface Methods {
   "comments.all": { params: void; result: Record<string, DocComment[]> }
   // Starts a comment, or puts back one deleted
   // agent: the comment is an agent's (owlit-mcp), kept as a version so the window can offer Undo
-  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "docs.review:<task id>")
+  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "meetings.goThrough:<task id>")
   "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string; run?: string } }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
@@ -513,8 +510,6 @@ export interface Notifications {
   "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
-  // The dial moved, in any window
-  "initiative.changed": InitiativeSettings
   // Owlit was kept out of a doc or let in, or looked at it
   "docs.owlit": { path: string; state: DocOwlit }
   // An agent's state changed (it started, ended, crashed, was checked)

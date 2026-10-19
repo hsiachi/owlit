@@ -19,7 +19,6 @@ export interface SettingsView {
     // What unset gives: the interface language when one is chosen, otherwise the system's language, as
     // the note language it means
     digestLanguageSystem: string
-    digestEveryPaper?: boolean
   }
   parsing: { service?: "cloud" | "self-hosted"; url?: string; auto: boolean }
   // The last four characters of each key that is set
@@ -37,7 +36,7 @@ export interface SettingsView {
 export interface SettingsPatch {
   appearance?: Partial<AppearanceSettings>
   profile?: { name?: string | null }
-  library?: { contactEmail?: string | null; digestLanguage?: string | null; digestEveryPaper?: boolean }
+  library?: { contactEmail?: string | null; digestLanguage?: string | null }
   parsing?: { service?: "cloud" | "self-hosted" | null; url?: string | null; auto?: boolean }
   backgroundAgent?: string | null
   // One agent's background model; null goes back to the agent's default

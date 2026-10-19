@@ -2341,19 +2341,6 @@ msgstr "In “{title}”: {error}"
 msgid "Owlit works here only when you ask"
 msgstr "Owlit works here only when you ask"
 
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Owlit hasn’t looked at this doc yet"
-msgstr "Owlit hasn’t looked at this doc yet"
-
-#. placeholder {0}: looked.count
-#: app/src/features/docs/OwlitChip.tsx
-msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
-msgstr "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
-
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Looked {when} · nothing to add"
-msgstr "Looked {when} · nothing to add"
-
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "Link copied"
@@ -3693,14 +3680,16 @@ msgid "Couldn't refresh the details."
 msgstr "Couldn't refresh the details."
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Rewrite the digest"
-msgstr "Rewrite the digest"
-
-#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Write a digest"
 msgstr "Write a digest"
 
 #: app/src/features/library/components/PaperMenu.tsx
+msgid "Rewrite the digest"
+msgstr "Rewrite the digest"
+
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Couldn't ask for a digest."
 msgstr "Couldn't ask for a digest."
 
@@ -4058,6 +4047,10 @@ msgstr "Digest · Owlit, {when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper again…"
 msgstr "Owlit is reading this paper again…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "No digest yet. Owlit writes one when you ask."
+msgstr "No digest yet. Owlit writes one when you ask."
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit couldn't write this digest again."
@@ -4515,8 +4508,8 @@ msgid "Read closely."
 msgstr "Read closely."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
-msgstr "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <0>digest</0> of any paper."
+msgstr "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <0>digest</0> of any paper."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Write with your sources."
@@ -5046,14 +5039,6 @@ msgid "Keep"
 msgstr "Keep"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On its own"
-msgstr "On its own"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
-msgstr "Owlit comments on its own, never edits. Your docs change only when you ask."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 #: packages/core/src/agents/runs.ts
 msgid "Background work"
@@ -5082,35 +5067,6 @@ msgstr "Your name"
 msgid "What Owlit calls you"
 msgstr "What Owlit calls you"
 
-#. Owlit does nothing on its own beyond its upkeep
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Off"
-msgstr "Off"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When I open things"
-msgstr "When I open things"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also while I'm away"
-msgstr "Also while I'm away"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
-msgstr "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
-msgstr "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also looks while you're away, and leaves what it found for when you're back."
-msgstr "Also looks while you're away, and leaves what it found for when you're back."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit on its own"
-msgstr "Owlit on its own"
-
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
 msgstr "Automatic ({fallbackName})"
@@ -5138,18 +5094,6 @@ msgstr "A smaller one costs less. Digests come out best from the strongest: it c
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model for background work"
 msgstr "Model for background work"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Digests for every paper"
-msgstr "Digests for every paper"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Otherwise only for papers you open or star."
-msgstr "Otherwise only for papers you open or star."
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On, a big import keeps the agent busy for a while."
-msgstr "On, a big import keeps the agent busy for a while."
 
 #. a language not in the list
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -6098,12 +6042,12 @@ msgid "Owlit's digest"
 msgstr "Owlit's digest"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
-msgstr "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
+msgid "Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs."
+msgstr "Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs."
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Try switching to the PDF…"
-msgstr "Try switching to the PDF…"
+msgid "Try opening the digest…"
+msgstr "Try opening the digest…"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Select to highlight or ask"

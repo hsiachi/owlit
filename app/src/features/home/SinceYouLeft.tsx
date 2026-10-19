@@ -26,8 +26,8 @@ import { cameLine } from "@/features/extension/waits"
 // opened since (the jobs they handed off before leaving), one row per thread Owlit started or added
 // to meanwhile, and one line for papers Owlit added to the Library. It belongs to this launch only; what
 // the user doesn't open keeps its dot in Threads. After any time away, however short, the runs Owlit
-// finished meanwhile come first (its night shift: a doc it read after the user's edits, its daily look,
-// a digest), one row each, which open what the run worked on, and a line for the PDFs that came through
+// finished meanwhile come first (a digest, a comment it looked at again), one row each, which open what
+// the run worked on, and a line for the PDFs that came through
 // the user's browser meanwhile. A run on a thread says so in the thread's
 // own row, so it has none of its own.
 
@@ -47,8 +47,8 @@ interface Finished {
   at: number
 }
 
-// Runs that show in their subject's own row here (threads), or say nothing worth a row
-const QUIET_RUNS = (kind: string) => kind.startsWith("threads.") || kind === "paper.relate"
+// Runs that show in their subject's own row here (threads)
+const QUIET_RUNS = (kind: string) => kind.startsWith("threads.")
 
 // all: the user was away three days or more, and everything is said; else only Owlit's runs
 export function SinceYouLeft({ since, all }: { since: number; all: boolean }) {
@@ -151,11 +151,11 @@ function useRunsSince(since: number) {
 }
 
 // A run on a doc opens the doc, with Owlit's dot while it left comments there the user hasn't seen; a
-// digest opens its paper; a look over every doc opens the run itself
+// digest opens its paper; any other run opens itself
 function RunRow({ run }: { run: RunSummary }) {
   const navigate = useNavigate()
   const { kind, subject } = run.run
-  const docPath = kind.startsWith("docs.") && kind !== "docs.scan" ? subject.split("#")[0]! : null
+  const docPath = kind.startsWith("docs.") ? subject.split("#")[0]! : null
   const file = useDocsStore((s) => (docPath ? Object.values(s.files).find((f) => f.path === docPath) : undefined))
   const seenAt = useOwlitSeenAt(docPath ?? "")
   const fresh = useDocsStore((s) => (file ? newOwlitComments(s.comments[file.id], seenAt).length > 0 : false))

@@ -1,4 +1,4 @@
-import { CORE_KINDS, JOURNALED_CORE_KINDS, type ArchiveSummary, type InitiativeSettings, type JournalEntry, type Task } from "@owlit/protocol"
+import { CORE_KINDS, JOURNALED_CORE_KINDS, type ArchiveSummary, type JournalEntry, type Task } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -45,8 +45,6 @@ export interface OwlitArchiveConfig {
   workspace: string
   from?: number
   until?: number
-  // The dial when the archive starts, and the daily cap: a replay starts from them
-  initiative: InitiativeSettings
   recording: boolean
   note?: string
 }
@@ -71,7 +69,6 @@ export interface ExportOptions {
   tasksLog: string
   to: string
   since?: number
-  settings: InitiativeSettings
   // Activity recording (Settings): off, nothing is exported
   recording: boolean
   version: string
@@ -94,7 +91,7 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
   if ((await readdir(to).catch(() => []))?.length) throw new Error(`${to} isn't empty; the archive needs a new folder.`)
 
   const workspace = workspaceHash(o.root)
-  const write = async (events: ArchiveEvent[], config: Pick<OwlitArchiveConfig, "initiative" | "from" | "until" | "note">): Promise<ArchiveSummary> => {
+  const write = async (events: ArchiveEvent[], config: Pick<OwlitArchiveConfig, "from" | "until" | "note">): Promise<ArchiveSummary> => {
     const sessionId = `owlit-${workspace}-${config.from ?? o.now}`
     const envelopes = toEnvelopes(events, sessionId)
     await mkdir(path.join(to, "audio"), { recursive: true })
@@ -118,7 +115,7 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
 
   // Recording is off: what the user did isn't Owlit's to hand out, and its decisions make no sense
   // without it
-  if (!o.recording) return write([], { initiative: o.settings, note: "Activity recording is off, so there is nothing to export." })
+  if (!o.recording) return write([], { note: "Activity recording is off, so there is nothing to export." })
 
   const since = o.since ?? 0
   const journal = (await readJsonl<JournalEntry>(o.journal).catch(() => [])).filter((e) => typeof e?.at === "number")
@@ -184,12 +181,9 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
     return { seq, at: d.at, type: d.type, actor: d.actor, class: classOf(d.type), ...(cause !== undefined ? { cause } : {}), payload: d.payload }
   })
 
-  // The dial as it was when the archive starts: what its first move moved from, else as it is now
-  const firstMove = events.find((e) => e.type === "feedback.dialChanged")?.payload.detail as { from?: InitiativeSettings["mode"] } | undefined
-  const initiative = { ...o.settings, mode: firstMove?.from ?? o.settings.mode }
-  if (!events.length) return write([], { initiative, note: "Nothing was recorded in this time." })
+  if (!events.length) return write([], { note: "Nothing was recorded in this time." })
   const from = o.since ?? events.reduce((first, e) => Math.min(first, e.at), Infinity)
-  return write(events, { initiative, from, until: events.reduce((last, e) => Math.max(last, e.at), 0) })
+  return write(events, { from, until: events.reduce((last, e) => Math.max(last, e.at), 0) })
 }
 
 // continuo's event envelope (@continuo/protocol's EventEnvelope), as much of it as an archive writes.
@@ -221,7 +215,7 @@ const DECISION_KIND = { job: "work", none: "no-action", defer: "defer" } as cons
 // evaluation tasks: a task.started caused by that event, the rule's look at the workspace, and one
 // evaluation.decided per subject it decided on, all with the task's id. A run the rules queued is
 // continuo's delegated job, its states job.*. Names continuo reserves are renamed: idle is app.idle (as
-// in continuo's own tests), agent.wrote is owlit.wrote, feedback.dialChanged is feedback.dial.changed.
+// in continuo's own tests), agent.wrote is owlit.wrote.
 export function toEnvelopes(events: ArchiveEvent[], sessionId: string): Envelope[] {
   const out: Envelope[] = []
   const idOf = new Map<number, string>()
@@ -272,9 +266,6 @@ export function toEnvelopes(events: ArchiveEvent[], sessionId: string): Envelope
       envelope = push({ ...base, source: { kind: "runtime", id: "owlit-tasks" }, type: RUN_TO_JOB[e.type] ?? "job.progress", ...(taskId ? { taskId } : {}), payload, ...owlit(e.payload) })
     } else if (e.type === "agent.wrote") {
       envelope = push({ ...base, source: { kind: "agent", id: "owlit" }, type: "owlit.wrote", payload: e.payload, ...owlit() })
-    } else if (e.type === "feedback.dialChanged") {
-      const { from, to } = (p.detail ?? {}) as { from?: string; to?: string }
-      envelope = push({ ...base, source: { kind: "adapter", id: "owlit" }, type: "feedback.dial.changed", payload: { ...(from ? { from } : {}), to: to ?? "" }, ...owlit(e.payload) })
     } else if (e.type.startsWith("feedback.")) {
       envelope = push({ ...base, source: { kind: "adapter", id: "owlit" }, type: e.type, payload: { ...(p.subject ? { targetId: p.subject } : {}), ...(p.detail ? { detail: p.detail } : {}) }, ...owlit(e.payload) })
     } else {

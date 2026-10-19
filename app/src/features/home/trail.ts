@@ -23,7 +23,7 @@ interface TrailState {
   // When this launch found the user last here, per workspace; not kept, so it is fresh every launch
   awayFrom: Record<string, number | null>
   // The last stretch in this launch the window was in the background long enough for Owlit to count the
-  // user away (its night shift works then); not kept
+  // user away; not kept
   lastAway: { from: number; to: number } | null
 }
 

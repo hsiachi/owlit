@@ -46,7 +46,7 @@ export class Journal {
     if (target) this.append(target, { ...entry, actor: "owlit" })
   }
 
-  // What the user did with Owlit's work, and the dial
+  // What the user did with Owlit's work
   feedback(entry: FeedbackRecord) {
     const target = this.file()
     if (target) this.append(target, { ...entry, actor: "user" })

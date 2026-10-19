@@ -48,14 +48,14 @@ const STOPS: Stop[] = [
   {
     kicker: () => t`Reading`,
     title: () => t`Owlit's digest`,
-    body: () => t`A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself.`,
+    body: () => t`Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs.`,
     target: ['[data-tour="digest-switch"] [role="radiogroup"]'],
     enter: (navigate, pathname) => !pathname.startsWith("/library/") && navigate(`/library/${PAPER}`),
     done: (pathname) => {
       const { paperId, view } = usePaperView.getState()
-      return pathname.startsWith("/library/") && paperId === paperAt(pathname) && view === "pdf"
+      return pathname.startsWith("/library/") && paperId === paperAt(pathname) && view === "digest"
     },
-    waiting: () => t`Try switching to the PDF…`,
+    waiting: () => t`Try opening the digest…`,
   },
   {
     kicker: () => t`Reading`,

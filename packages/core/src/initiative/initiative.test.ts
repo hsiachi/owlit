@@ -1,21 +1,20 @@
-import type { EvaluationRecord, InitiativeSettings, Task } from "@owlit/protocol"
+import type { EvaluationRecord, Task } from "@owlit/protocol"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import type { Workspace } from "../workspace/workspace.ts"
-import { Initiative } from "./initiative.ts"
+import { DAILY_CAP, Initiative } from "./initiative.ts"
 import { ManualClock } from "./manual-clock.ts"
 import { defineRule, RULES, type Rule } from "./rules.ts"
 
 // Just what the engine and these rules touch of a workspace
-function fakeWorkspace(settings: Partial<InitiativeSettings> = {}) {
+function fakeWorkspace() {
   const queued: { kind: string; subject: string; priority: string }[] = []
   const dir = mkdtempSync(path.join(tmpdir(), "owlit-initiative-"))
   const ws = {
     root: dir,
     owlitPath: (...s: string[]) => path.join(dir, ".owlit", ...s),
-    initiative: async () => ({ mode: "off", dailyCap: 20, ...settings }),
     tasks: {
       enqueue: (kind: string, subject: string, priority: string) => {
         queued.push({ kind, subject, priority })
@@ -23,7 +22,7 @@ function fakeWorkspace(settings: Partial<InitiativeSettings> = {}) {
       },
     },
   }
-  return { ws: ws as unknown as Workspace, queued, settings }
+  return { ws: ws as unknown as Workspace, queued }
 }
 
 function engine(rules: readonly Rule[], ws: Workspace) {
@@ -33,135 +32,76 @@ function engine(rules: readonly Rule[], ws: Workspace) {
   return { clock, records, initiative }
 }
 
-const docOpened = (path: string, at = 0) => ({ kind: "doc.opened" as const, at, path })
+const starred = (paperId: string, at = 0) => ({ kind: "paper.starred" as const, at, paperId })
 
-// A rule that looks at each doc opened, once things settle, if it isn't about a draft
-const review = defineRule({
-  id: "test.review",
-  on: ["doc.opened", "doc.edited"],
-  needs: "onOpen",
-  key: (e) => e.path,
-  settleMs: 1000,
-  when: async (e) => [e.path.startsWith("draft") ? { subject: e.path, none: "a draft" } : { subject: e.path, job: { kind: "docs.review", subject: e.path, priority: "background" } }],
+// A rule whose runs fan out from one event, so they are capped; a draft gets none
+const fanOut = defineRule({
+  id: "test.fanOut",
+  on: ["paper.starred"],
+  capped: true,
+  when: async (e) => [e.paperId.startsWith("draft") ? { subject: e.paperId, none: "a draft" } : { subject: e.paperId, job: { kind: "paper.digest", subject: e.paperId, priority: "background" } }],
 })
 
+// One act of the user's, one run: never capped
 const upkeep = defineRule({
   id: "test.upkeep",
-  on: ["doc.opened"],
-  needs: "off",
-  when: async (e) => [{ subject: e.path, defer: "the user is on that page" }],
+  on: ["paper.starred"],
+  capped: false,
+  when: async (e) => [{ subject: e.paperId, job: { kind: "paper.digest", subject: e.paperId, priority: "background" } }],
 })
 
 describe("Initiative", () => {
-  it("settles events by key: several in a row make one evaluation, after the last", async () => {
-    const { ws, queued } = fakeWorkspace({ mode: "onOpen" })
-    const { clock, records, initiative } = engine([review], ws)
-    initiative.observe(docOpened("a.md"))
-    clock.advance(600)
-    initiative.observe({ kind: "doc.edited", at: 0, path: "a.md" })
-    initiative.observe(docOpened("b.md"))
-    clock.advance(600)
+  it("takes evaluations one at a time in the order heard, and logs every one, with or without an action", async () => {
+    const { ws, queued } = fakeWorkspace()
+    const { clock, records, initiative } = engine([fanOut], ws)
+    initiative.observe(starred("draft-1"))
+    initiative.observe(starred("p1"))
     await initiative.idle()
-    expect(records).toHaveLength(0)
-    clock.advance(500)
-    await initiative.idle()
-    // Due together, they are taken in the order they were last heard
-    expect(records.map((r) => [r.subject, r.decision, r.cause])).toEqual([
-      ["a.md", "job", "doc.edited"],
-      ["b.md", "job", "doc.opened"],
+    expect(records).toEqual([
+      expect.objectContaining({ kind: "evaluation", rule: "test.fanOut", subject: "draft-1", decision: "none", reason: "a draft", cause: "paper.starred", at: clock.at }),
+      expect.objectContaining({ subject: "p1", decision: "job", taskId: "t1" }),
     ])
-    expect(queued).toEqual([
-      { kind: "docs.review", subject: "a.md", priority: "background" },
-      { kind: "docs.review", subject: "b.md", priority: "background" },
-    ])
+    expect(queued).toEqual([{ kind: "paper.digest", subject: "p1", priority: "background" }])
   })
 
-  it("forgets what was settling when the workspace closes", async () => {
-    const { ws, queued } = fakeWorkspace({ mode: "onOpen" })
-    const { clock, records, initiative } = engine([review], ws)
-    initiative.observe(docOpened("a.md"))
+  it("stops starting capped runs past the daily cap; uncapped ones aren't counted and go on", async () => {
+    const { ws, queued } = fakeWorkspace()
+    const { clock, records, initiative } = engine([fanOut, upkeep], ws)
+    for (let i = 0; i < DAILY_CAP; i++) initiative.observe(starred(`p${i}`))
+    await initiative.idle()
+    expect(queued.filter((q) => q.subject === "p0")).toHaveLength(2)
+    initiative.observe(starred("one-more"))
+    await initiative.idle()
+    expect(records.filter((r) => r.subject === "one-more").map((r) => [r.rule, r.decision, r.reason])).toEqual([
+      ["test.fanOut", "none", "cap"],
+      ["test.upkeep", "job", undefined],
+    ])
+    // A new day starts the count again
+    clock.advance(24 * 3_600_000)
+    initiative.observe(starred("next-day"))
+    await initiative.idle()
+    expect(records.filter((r) => r.subject === "next-day").map((r) => r.decision)).toEqual(["job", "job"])
+  })
+
+  it("forgets what was heard when the workspace closes", async () => {
+    const { ws, queued } = fakeWorkspace()
+    const { records, initiative } = engine([fanOut], ws)
+    initiative.observe(starred("p1"))
     initiative.reset()
-    clock.advance(1000)
     await initiative.idle()
     expect(records).toEqual([])
     expect(queued).toEqual([])
     // Heard afterwards: taken as before
-    initiative.observe(docOpened("b.md"))
-    clock.advance(1000)
+    initiative.observe(starred("p2"))
     await initiative.idle()
-    expect(queued.map((q) => q.subject)).toEqual(["b.md"])
+    expect(queued.map((q) => q.subject)).toEqual(["p2"])
   })
 
-  it("leaves initiative rules out while the dial is Off; upkeep still runs", async () => {
-    const { ws, queued } = fakeWorkspace({ mode: "off" })
-    const { clock, records, initiative } = engine([review, upkeep], ws)
-    initiative.observe(docOpened("a.md"))
-    clock.advance(2000)
-    await initiative.idle()
-    expect(queued).toEqual([])
-    expect(records.map((r) => [r.rule, r.decision, r.reason])).toEqual([["test.upkeep", "defer", "the user is on that page"]])
-  })
-
-  it("logs every evaluation, with or without an action", async () => {
-    const { ws } = fakeWorkspace({ mode: "away" })
-    const { clock, records, initiative } = engine([review], ws)
-    initiative.observe(docOpened("draft.md"))
-    initiative.observe(docOpened("a.md"))
-    clock.advance(1000)
-    await initiative.idle()
-    expect(records).toEqual([
-      expect.objectContaining({ kind: "evaluation", rule: "test.review", subject: "draft.md", decision: "none", reason: "a draft", cause: "doc.opened", at: clock.at }),
-      expect.objectContaining({ subject: "a.md", decision: "job", taskId: "t1" }),
+  it("keeps up with the user and nothing more: a star, a watched thread, a paper read in full", () => {
+    expect(RULES.map((r) => [r.id, r.capped])).toEqual([
+      ["digest.onStar", false],
+      ["threads.checkWatched", false],
+      ["paper.readInFull", true],
     ])
-  })
-
-  it("stops starting runs on its own past the daily cap; upkeep isn't counted", async () => {
-    const { ws, queued } = fakeWorkspace({ mode: "onOpen", dailyCap: 2 })
-    const { clock, records, initiative } = engine([review], ws)
-    for (const p of ["a.md", "b.md", "c.md"]) initiative.observe(docOpened(p))
-    clock.advance(1000)
-    await initiative.idle()
-    expect(queued.map((q) => q.subject)).toEqual(["a.md", "b.md"])
-    expect(records.at(-1)).toMatchObject({ subject: "c.md", decision: "none", reason: "cap" })
-    // A new day starts the count again
-    clock.advance(24 * 3_600_000)
-    initiative.observe(docOpened("c.md"))
-    clock.advance(1000)
-    await initiative.idle()
-    expect(queued.map((q) => q.subject)).toEqual(["a.md", "b.md", "c.md"])
-  })
-
-  it("keeps today's upkeep rules (digests, watched threads) at Off, review behind When I open things, the night shift behind Also while I'm away", () => {
-    expect(RULES.map((r) => [r.id, r.needs])).toEqual([
-      ["digest.onOpen", "off"],
-      ["digest.onStar", "off"],
-      ["threads.checkWatched", "off"],
-      ["docs.reviewOnOpen", "onOpen"],
-      ["docs.reviewSettled", "away"],
-      ["paper.landed", "away"],
-      ["paper.readInFull", "away"],
-      ["docs.dailyScan", "away"],
-      ["meetings.goThrough", "away"],
-    ])
-  })
-
-  it("puts a decision off while the user writes there, and takes it again once they leave", async () => {
-    const { ws, queued } = fakeWorkspace({ mode: "onOpen" })
-    let writing = true
-    const careful = defineRule({
-      id: "test.careful",
-      on: ["doc.opened"],
-      needs: "onOpen",
-      when: async (e) => [writing ? { subject: e.path, defer: "the user is writing in it" } : { subject: e.path, job: { kind: "docs.review", subject: e.path, priority: "background" } }],
-    })
-    const { records, initiative } = engine([careful], ws)
-    initiative.observe(docOpened("a.md"))
-    await initiative.idle()
-    expect(queued).toEqual([])
-    writing = false
-    initiative.observe({ kind: "doc.closed", at: 0, path: "a.md" })
-    await initiative.idle()
-    expect(records.map((r) => r.decision)).toEqual(["defer", "job"])
-    expect(queued.map((q) => q.subject)).toEqual(["a.md"])
   })
 })

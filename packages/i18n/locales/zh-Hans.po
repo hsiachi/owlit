@@ -2341,19 +2341,6 @@ msgstr "在“{title}”中：{error}"
 msgid "Owlit works here only when you ask"
 msgstr "只有你开口，Owlit 才在这里动手"
 
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Owlit hasn’t looked at this doc yet"
-msgstr "Owlit 还没看过这篇文稿"
-
-#. placeholder {0}: looked.count
-#: app/src/features/docs/OwlitChip.tsx
-msgid "{0, plural, one {Looked {when} · left # comment} other {Looked {when} · left # comments}}"
-msgstr "{0, plural, other {{when}看过 · 留了 # 条评论}}"
-
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Looked {when} · nothing to add"
-msgstr "{when}看过 · 没什么要说的"
-
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "链接已复制"
@@ -3693,14 +3680,16 @@ msgid "Couldn't refresh the details."
 msgstr "无法刷新信息。"
 
 #: app/src/features/library/components/PaperMenu.tsx
-msgid "Rewrite the digest"
-msgstr "重写导读"
-
-#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Write a digest"
 msgstr "写导读"
 
 #: app/src/features/library/components/PaperMenu.tsx
+msgid "Rewrite the digest"
+msgstr "重写导读"
+
+#: app/src/features/library/components/PaperMenu.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Couldn't ask for a digest."
 msgstr "无法请求导读。"
 
@@ -4058,6 +4047,10 @@ msgstr "导读 · Owlit，{when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper again…"
 msgstr "Owlit 正在重新阅读这篇论文…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "No digest yet. Owlit writes one when you ask."
+msgstr "还没有摘要。你要求时，Owlit 才会写。"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit couldn't write this digest again."
@@ -4515,8 +4508,8 @@ msgid "Read closely."
 msgstr "细细读。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and <0>Owlit writes a digest</0> of each paper you open."
-msgstr "拖进 PDF，或粘贴 DOI、arXiv 编号。边读边划重点，你打开的每篇论文，<0>Owlit 都会写一份导读</0>。"
+msgid "Drop in PDFs, or paste a DOI or arXiv id. Highlight as you read, and ask Owlit for a <0>digest</0> of any paper."
+msgstr "拖入 PDF，或粘贴 DOI、arXiv 编号。边读边高亮，任何一篇论文都可以让 Owlit 写<0>摘要</0>。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Write with your sources."
@@ -5046,14 +5039,6 @@ msgid "Keep"
 msgstr "保留"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On its own"
-msgstr "自己动手"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit comments on its own, never edits. Your docs change only when you ask."
-msgstr "Owlit 自己动手时只写评论，从不改动。你的文稿只在你开口时才会改。"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 #: packages/core/src/agents/runs.ts
 msgid "Background work"
@@ -5082,35 +5067,6 @@ msgstr "你的名字"
 msgid "What Owlit calls you"
 msgstr "Owlit 怎么称呼你"
 
-#. Owlit does nothing on its own beyond its upkeep
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Off"
-msgstr "关"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When I open things"
-msgstr "我打开时"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also while I'm away"
-msgstr "我不在时也看"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit works only when you ask, apart from digests and the threads you asked it to watch."
-msgstr "除了导读和你请它留意的脉络，Owlit 只在你开口时才动手。"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say."
-msgstr "你打开一篇自 Owlit 上次看过后改过的文稿时，它会读一遍，有话要说的地方留下评论。"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Also looks while you're away, and leaves what it found for when you're back."
-msgstr "你不在时也会看，发现的东西等你回来再看。"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Owlit on its own"
-msgstr "Owlit 自己动手"
-
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Automatic ({fallbackName})"
 msgstr "自动（{fallbackName}）"
@@ -5138,18 +5094,6 @@ msgstr "小模型更省钱。最强的模型写出的导读最好：它能发现
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Model for background work"
 msgstr "后台任务使用的模型"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Digests for every paper"
-msgstr "为每篇论文写导读"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Otherwise only for papers you open or star."
-msgstr "关闭时，只为你打开过或加了星标的论文写导读。"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "On, a big import keeps the agent busy for a while."
-msgstr "开启后，一次大量导入会让智能体忙上一阵。"
 
 #. a language not in the list
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -6098,12 +6042,12 @@ msgid "Owlit's digest"
 msgstr "Owlit 的导读"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "A paper opens on Owlit's digest: what it asks, how, and what it found, with page links. Switch to the PDF to read the paper itself."
-msgstr "论文打开时先显示 Owlit 的导读：它问了什么、怎么做、发现了什么，附页码链接。切到 PDF 就能读原文。"
+msgid "Owlit's digest of a paper: what it asks, how, and what it found, with page links. Owlit writes one when you ask; the example's papers have theirs."
+msgstr "Owlit 的论文摘要：论文问什么、怎么做、发现了什么，附页码链接。你要求时 Owlit 才会写；示例里的论文已经有了。"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Try switching to the PDF…"
-msgstr "试着切到 PDF…"
+msgid "Try opening the digest…"
+msgstr "试试打开摘要…"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Select to highlight or ask"

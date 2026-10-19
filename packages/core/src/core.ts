@@ -26,7 +26,7 @@ import { Initiative } from "./initiative/initiative.ts"
 import { exportArchive } from "./initiative/archive.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./initiative/reads.ts"
-import { GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN, REVIEW_RUN, SCAN_RUN, SETTLED_REVIEW_RUN } from "./initiative/runs.ts"
+import { GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN } from "./initiative/runs.ts"
 import { MATERIAL } from "./initiative/go-through.ts"
 import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
@@ -114,7 +114,7 @@ export interface CoreOptions {
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
 // notifications. Constructing it touches nothing outside; start() is when it begins to talk.
 // Runs Owlit starts on its own, which step aside while the user waits on a chat's answer
-const OWN_RUNS = new Set<string>([REVIEW_RUN, SETTLED_REVIEW_RUN, SCAN_RUN, RECHECK_RUN, "threads.reread", "paper.relate"])
+const OWN_RUNS = new Set<string>([RECHECK_RUN, "threads.reread"])
 
 export class Core {
   readonly settings: SettingsStore
@@ -269,20 +269,6 @@ export class Core {
         .catch((error) => console.error("[core] couldn't tell whether a paper was read in full", error))
     })
 
-    this.router.register("initiative.get", noParams, () => this.requireWorkspace().initiative())
-    this.router.register(
-      "initiative.set",
-      z.object({ patch: z.object({ mode: z.enum(["off", "onOpen", "away"]).optional(), dailyCap: z.number().int().min(0).max(500).optional() }) }),
-      async ({ patch }) => {
-        const ws = this.requireWorkspace()
-        const before = await ws.initiative()
-        const next = await ws.setInitiative(patch)
-        if (next.mode !== before.mode) this.journal.feedback({ kind: "feedback.dialChanged", at: Date.now(), subject: "workspace", detail: { from: before.mode, to: next.mode } })
-        this.notifier.notify("initiative.changed", next)
-        return next
-      },
-    )
-
     // Written where the user says, outside the workspace: handing it out is theirs to do
     this.router.register("archive.export", z.object({ to: z.string().min(1), since: z.number().nonnegative().optional() }), async ({ to, since }) => {
       const ws = this.requireWorkspace()
@@ -293,7 +279,6 @@ export class Core {
         tasksLog: path.join(ws.dataDir, "tasks", "log.jsonl"),
         to: path.resolve(ws.root, to),
         since,
-        settings: await ws.initiative(),
         recording: (await this.settings.get()).activity.enabled,
         version: this.version().version,
         now: Date.now(),
@@ -553,8 +538,8 @@ export class Core {
         assistantMessageId: z.string().min(1),
       }),
       async (req) => {
-        // The user is waiting on this answer: a review Owlit started on its own steps aside and runs
-        // again a minute later, so the chat isn't slowed or charged for it meanwhile
+        // The user is waiting on this answer: a run Owlit started on its own steps aside and runs again
+        // a minute later, so the chat isn't slowed or charged for it meanwhile
         this.workspace?.tasks.yieldTo("agent", (task) => OWN_RUNS.has(task.kind), 60_000)
         return { stopReason: await this.turns.prompt(req) }
       },
@@ -693,6 +678,8 @@ export class Core {
         status: z.enum(["unread", "reading", "read"]),
         tags: z.array(z.string()),
         position,
+        view: z.enum(["digest", "pdf"]),
+        digestPosition: z.object({ y: z.number() }),
         lastOpenedAt: z.number(),
       })
       .partial()
@@ -970,8 +957,7 @@ export class Core {
       }
       return before
     })
-    // One of Owlit's comments the user doesn't want: put away for good, and remembered so Owlit doesn't
-    // say it again (the review reads the dismissed ones)
+    // One of Owlit's comments the user doesn't want: put away for good
     this.router.register("comments.dismiss", z.object({ path: rel, id: z.string() }), async ({ path, id }) => {
       const comment = (await docs().listComments(path)).find((c) => c.id === id)
       if (!comment) throw new RpcFailure(RpcErrorCode.NotFound, t`That comment isn't there any more.`)
@@ -1078,9 +1064,6 @@ export class Core {
                 starred: (paperId) => {
                   if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.starred", at: Date.now(), paperId })
                 },
-                landed: (paperId, by) => {
-                  if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.landed", at: Date.now(), paperId, by })
-                },
                 agent: async (prompt, ctx, pictures) =>
                   this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers: this.mcpServers(root), signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
@@ -1130,10 +1113,6 @@ export class Core {
               },
             })
       if (this.workspace !== next) {
-        // What another program put in the workspace, for the rules (Meetings); an agent's own file isn't
-        next.docs.appeared = (rel) => {
-          if (this.workspace === next && !this.turns.claimant(rel)) this.initiative.observe({ kind: "docs.appeared", at: Date.now(), path: rel })
-        }
         next.docs.textChanged = (rel, before, after) => {
           const chatId = this.turns.claimant(rel)
           if (chatId) void this.fs.recordDirect(rel, before, after, chatId).catch((error) => console.error("[core] couldn't keep the agent's change", error))
