@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import type { Paper, PaperFigure } from "@owlit/protocol"
+import type { DigestSource, Paper, PaperFigure } from "@owlit/protocol"
 import { reportPaperEnd } from "@/app/activity"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
@@ -11,6 +11,7 @@ import { useSelectionMenu } from "@/components/selection-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
+import { digestSourceNotes } from "../../lib/digest-source"
 import { toast } from "sonner"
 import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useDigestMarks, useWritingDigest, waitForDigest } from "../../digests"
 import { useLibraryStore } from "../../store"
@@ -25,14 +26,14 @@ import { useLibraryStore } from "../../store"
 export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page: number) => void }) {
   const writing = useWritingDigest(paper.id)
   const failed = useDigestFailed(paper.id)
-  const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[] } | null>(null)
+  const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[]; source: DigestSource } | null>(null)
 
   // Read again whenever the digest may have changed: written, rewritten, or gone
   useEffect(() => {
     if (!paper.hasDigest || writing) return
     let live = true
-    Promise.all([rpc.library.digest({ id: paper.id }), rpc.library.figures({ id: paper.id }).catch(() => [])])
-      .then(([text, figures]) => live && setDigest({ paperId: paper.id, text, figures }))
+    Promise.all([rpc.library.digest({ id: paper.id }), rpc.library.figures({ id: paper.id }).catch(() => []), rpc.library.digestSource({ id: paper.id }).catch(() => ({}))])
+      .then(([text, figures, source]) => live && setDigest({ paperId: paper.id, text, figures, source }))
       .catch(() => undefined)
     return () => {
       live = false
@@ -79,11 +80,14 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
     )
   }
   const when = paper.digestAt ? ago(paper.digestAt, { inSentence: true }) : null
+  // What it was written from, when that limits it
+  const from = digest ? digestSourceNotes(digest.source, paper.pdf?.pages) : []
   return (
     <Column paperId={paper.id} remembers>
       <p className="text-detail text-muted-foreground">
         {writing ? <span className="shimmer">{t`Owlit is reading this paper again…`}</span> : when ? t`Digest · Owlit, ${when}` : t`Digest · Owlit`}
       </p>
+      {from.length > 0 && <p className="text-detail text-muted-foreground">{from.join(" · ")}</p>}
       {failed && !writing ? <Stopped paper={paper} again /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown
         text={withoutTitle(text)}

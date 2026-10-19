@@ -57,6 +57,8 @@ export interface BackgroundResult {
   connectorId: string
   // The model chosen for background work, when one is and the agent offers it
   model?: string
+  // How many of the run's pictures went with the prompt: none when the agent doesn't see images
+  pictures?: number
 }
 
 export class Background {
@@ -155,19 +157,17 @@ export class Background {
       const rules: acp.ContentBlock[] = takesRules(init) ? [] : [{ type: "text", text: preamble(run.root) }]
       // Background work follows owlit's memory too (a digest in the language the user asked for)
       if (run.memory?.length) rules.push({ type: "text", text: memoryNote(run.memory, false) })
-      const pictures: acp.ContentBlock[] =
-        run.pictures?.length && sendsPictures(connectorId, init, model)
-          ? run.pictures.flatMap((p) => [
-              { type: "text" as const, text: p.label },
-              { type: "image" as const, data: p.data, mimeType: p.mimeType },
-            ])
-          : []
+      const seen = run.pictures?.length && sendsPictures(connectorId, init, model) ? run.pictures : []
+      const pictures: acp.ContentBlock[] = seen.flatMap((p) => [
+        { type: "text" as const, text: p.label },
+        { type: "image" as const, data: p.data, mimeType: p.mimeType },
+      ])
       const response = await proc.prompt({ sessionId: session.sessionId, prompt: [...rules, { type: "text", text: run.prompt }, ...pictures] })
       run.signal.throwIfAborted()
       log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
       if (response.stopReason === "refusal") throw new Error("The agent declined.")
       if (!answer.trim()) throw new Error(refused.length ? `The agent wanted tools it may not use here (${refused.join(", ")}).` : "The agent said nothing.")
-      return { text: answer, connectorId, ...(model ? { model } : {}) }
+      return { text: answer, connectorId, ...(model ? { model } : {}), pictures: seen.length }
     } finally {
       run.signal.removeEventListener("abort", cancel)
       await proc.closeSession(session.sessionId).catch(() => undefined)
