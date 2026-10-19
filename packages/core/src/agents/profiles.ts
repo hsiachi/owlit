@@ -147,9 +147,11 @@ const CLAUDE_EDIT_TOOLS = ["Edit", "Write"]
 // owlit's own part of the workspace, which every role changes only through owlit's tools: as Edit / Write
 // deny rules (gitignore patterns from the session's cwd, the workspace) and as paths the sandbox keeps
 // shell commands from writing. A deny wins over any allow, so a paper's note (library/papers/<id>/note.md,
-// the user's) can't be carved out of library/ here: it is edited through owlit alone.
-const OWN_PATTERNS = [`${OWLIT_DIR}/**`, "library/**"]
+// the user's, edited like a doc) is left writable by naming what owlit keeps beside it rather than the
+// folder; a file of a new kind there would slip through, and the watcher would record it as outside.
+const OWN_PATTERNS = [`${OWLIT_DIR}/**`, "library/*", "library/**/*.json", "library/**/*.pdf", "library/**/text.md", "library/**/digest.md", "library/**/figures/**", "library/**/sources/**"]
 const ownRules = () => CLAUDE_EDIT_TOOLS.flatMap((tool) => OWN_PATTERNS.map((pattern) => `${tool}(${pattern})`))
+// Shell commands get no such carve-out: a note is edited with the editing tools, never with a shell
 const ownPaths = (roots: string[]) => roots.flatMap((root) => [`${root}/${OWLIT_DIR}`, `${root}/library`])
 
 export function guardFor(connectorId: string, role: Role, roots: string[]): Guard {

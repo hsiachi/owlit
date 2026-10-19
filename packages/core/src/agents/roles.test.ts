@@ -15,7 +15,8 @@ describe("roles", () => {
   })
 
   it("keeps owlit's own part of the workspace from Claude Code's editing tools and shell in every role", () => {
-    const own = ["Edit(.owlit/**)", "Edit(library/**)", "Write(.owlit/**)", "Write(library/**)"]
+    const kept = [".owlit/**", "library/*", "library/**/*.json", "library/**/*.pdf", "library/**/text.md", "library/**/digest.md", "library/**/figures/**", "library/**/sources/**"]
+    const own = [...kept.map((p) => `Edit(${p})`), ...kept.map((p) => `Write(${p})`)]
     for (const role of ["reviewer", "assistant", "coauthor"] as const) {
       const options = (guardFor("claude-code", role, ["/w", "/real/w"]).meta as any).claudeCode.options
       expect(options.settings.permissions.deny).toEqual(expect.arrayContaining(own))
