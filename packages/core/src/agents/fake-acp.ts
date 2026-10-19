@@ -47,8 +47,12 @@ interface Session {
   history: string[]
 }
 
+// FAKE_ACP_MODES="read-only,agent": the modes offered instead of ask and auto, starting in the last, as
+// codex-acp offers its own and starts in whichever the user last chose
+const MODES = process.env.FAKE_ACP_MODES?.split(",")
+
 const config = (s: Session): acp.SessionConfigOption[] => [
-  { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: s.config.mode, options: [{ value: "ask", name: "Ask" }, { value: "auto", name: "Auto", description: "No questions" }] },
+  { id: "mode", name: "Mode", category: "mode", type: "select", currentValue: s.config.mode, options: MODES ? MODES.map((value) => ({ value, name: value })) : [{ value: "ask", name: "Ask" }, { value: "auto", name: "Auto", description: "No questions" }] },
   { id: "model", name: "Model", category: "model", type: "select", currentValue: s.config.model, options: [{ value: "small", name: "Small" }, { value: "large", name: "Large" }] },
   { id: "effort", name: "Effort", category: "thought_level", type: "select", currentValue: s.config.effort, options: [{ value: "low", name: "Low" }, { value: "high", name: "High" }] },
 ]
@@ -87,7 +91,7 @@ class FakeAgent implements acp.Agent {
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
     if (process.env.FAKE_ACP_AUTH === "required") throw acp.RequestError.authRequired()
     const sessionId = randomUUID()
-    const session: Session = { cwd: params.cwd, turn: null, config: { mode: "ask", model: "small", effort: "low" }, history: [] }
+    const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [] }
     this.sessions.set(sessionId, session)
     return { sessionId, configOptions: config(session) }
   }
@@ -325,6 +329,10 @@ class FakeAgent implements acp.Agent {
           await say(`${i} `)
           await sleep(100, signal)
         }
+        return { stopReason: "end_turn" }
+      }
+      if (text === "mode?") {
+        await say(session.config.mode)
         return { stopReason: "end_turn" }
       }
       if (text.startsWith("whole prompt")) {

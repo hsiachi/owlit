@@ -6,7 +6,7 @@ import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { Who } from "./policy.ts"
 import { flatValues } from "./process.ts"
-import { backgroundMeta, bareToolTitle, FIRST_CHOICE, isOwlitCall, sendsPictures } from "./profiles.ts"
+import { backgroundMeta, bareToolTitle, FIRST_CHOICE, guardFor, isOwlitCall, roots, sendsPictures } from "./profiles.ts"
 import { answerFor, takesRules } from "./roles.ts"
 import { memoryNote, preamble } from "./rules.ts"
 import { failureOf } from "./failure.ts"
@@ -157,10 +157,11 @@ export class Background {
     try {
       // Cancelled while the session was starting: the listener above came too late to hear it
       run.signal.throwIfAborted()
-      // The agent's own default mode (acceptEdits, bypassPermissions) would let it edit or run things
-      // without asking, and requestPermission only refuses what is asked: the session asks first.
-      // (Not plan mode: Claude Code then ends by asking to leave it, which nobody can answer here.)
-      await setMode(proc, session, "default")
+      // The agent's own default mode (acceptEdits, bypassPermissions, Codex's agent) would let it edit or
+      // run things without asking, and requestPermission only refuses what is asked: the session takes a
+      // Reviewer's mode (Codex's read-only), else one that asks first. (Not plan mode: Claude Code then
+      // ends by asking to leave it, which nobody can answer here.)
+      await setMode(proc, session, [...guardFor(connectorId, "reviewer", roots(run.root)).modes, "default"])
       const chosen = run.models?.[connectorId]
       const model = chosen && (await setModel(proc, session, chosen)) ? chosen : undefined
       const init = await proc.initialized()
@@ -217,14 +218,15 @@ async function setModel(proc: Awaited<ReturnType<Agents["process"]>>, session: a
   return false
 }
 
-// The mode set on the session if the agent offers it: as a config option (category mode) or, for an
-// agent without those, as a session mode
-async function setMode(proc: Awaited<ReturnType<Agents["process"]>>, session: acp.NewSessionResponse, mode: string) {
+// The first of these modes the agent offers, set on the session: as a config option (category mode) or,
+// for an agent without those, as a session mode
+async function setMode(proc: Awaited<ReturnType<Agents["process"]>>, session: acp.NewSessionResponse, modes: string[]) {
   const option = session.configOptions?.find((o) => o.category === "mode" && o.type === "select")
   if (option && option.type === "select") {
-    const values = flatValues(option.options)
-    if (values.includes(mode) && option.currentValue !== mode) await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: mode })
-  } else if (session.modes?.availableModes.some((m) => m.id === mode) && session.modes.currentModeId !== mode) {
-    await proc.setMode({ sessionId: session.sessionId, modeId: mode })
+    const mode = modes.find((m) => flatValues(option.options).includes(m))
+    if (mode && option.currentValue !== mode) await proc.setConfigOption({ sessionId: session.sessionId, configId: option.id, value: mode })
+  } else {
+    const mode = modes.find((m) => session.modes?.availableModes.some((a) => a.id === m))
+    if (mode && session.modes?.currentModeId !== mode) await proc.setMode({ sessionId: session.sessionId, modeId: mode })
   }
 }

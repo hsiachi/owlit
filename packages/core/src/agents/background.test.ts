@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { SessionUpdate } from "@owlit/protocol"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
 import { testSearchPath } from "../test-util.ts"
@@ -13,6 +13,7 @@ const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((c) => c.dispose()))
   delete process.env.FAKE_ACP_AUTH
+  delete process.env.FAKE_ACP_MODES
 })
 
 async function setup() {
@@ -31,7 +32,7 @@ async function setup() {
   await call("workspace.open", { path: root })
   const agent = await call("agents.add", { name: "Fake", command: `"${process.execPath}" "${fake}"` })
   const background = (core as unknown as { background: Background }).background
-  return { root, call, background, agent: agent.id as string }
+  return { root, call, background, agent: agent.id as string, core }
 }
 
 // A comment as a client sends it, claiming an author core doesn't take from it
@@ -77,6 +78,16 @@ describe("a background run", () => {
     expect(updates).toContainEqual(expect.objectContaining({ type: "tool_call", toolCallId: "h1", agentId: "agent-h" }))
     expect(updates).toContainEqual({ type: "agent_started", agentId: "agent-h", title: "Read the story" })
     expect(updates.filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text)).toEqual(["The answer."])
+  })
+
+  it("puts Codex in its read-only mode, whichever mode it starts in", async () => {
+    const { root, background, agent, core } = await setup()
+    process.env.FAKE_ACP_MODES = "read-only,agent"
+    // The fake agent stands in for Codex, which offers read-only and agent and keeps the user's last choice
+    const process_ = core.agents.process.bind(core.agents)
+    vi.spyOn(core.agents, "process").mockImplementation((id) => process_(id === "codex" ? agent : id))
+    const result = await background.run({ prompt: "mode?", root, mcpServers: [], signal: new AbortController().signal, connectorId: "codex" })
+    expect(result.text).toBe("read-only")
   })
 
   it("fails in owlit's words when the agent isn't signed in", async () => {
