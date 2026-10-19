@@ -283,7 +283,10 @@ function checked(text: string) {
   return line
 }
 
-const sameText = (a: string, b: string) => a.toLowerCase().replace(/\W+/g, " ").trim() === b.toLowerCase().replace(/\W+/g, " ").trim()
+// Two lines that differ only in case, spacing and punctuation. Letters and digits of every script count:
+// \W would take a line written only in Chinese for nothing at all, and so for the same as any other.
+const words = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+const sameText = (a: string, b: string) => words(a) === words(b)
 
 // A Claude Code memory note: front matter (name, description, metadata.type) and a body. Its description
 // is the one line that says it; a feedback note is about how to work, every other kind about the work.

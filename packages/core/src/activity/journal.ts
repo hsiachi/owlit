@@ -2,9 +2,8 @@ import { JOURNALED_KINDS, type ActivityEvent, type PersonId } from "@owlit/proto
 import type { ActivityBus } from "./bus.ts"
 import { appendJsonl } from "../fs-util.ts"
 
-// Appends the coarse events to <workspace>/.owlit/journal.jsonl, one JSON object per line, in the
-// order they arrived. Fine-grained ones (page turns) never reach the disk; reading time does, already
-// settled into 30-second pieces by the window.
+// Appends the person's events to <workspace>/.owlit/journal.jsonl, one JSON object per line, in the
+// order they arrived. Reading time comes already settled into 30-second pieces by the window.
 export class Journal {
   private writing: Promise<void> = Promise.resolve()
   private unsubscribe: () => void

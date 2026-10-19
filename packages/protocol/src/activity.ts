@@ -14,8 +14,6 @@ export type PaperMark = { what: "starred"; to: boolean } | { what: "status"; to:
 export type ActivityEvent =
   | { kind: "paper.opened"; at: number; paperId: string }
   | { kind: "paper.closed"; at: number; paperId: string }
-  // 1-based page that came to the top while reading
-  | { kind: "paper.page"; at: number; paperId: string; page: number }
   // Time on the paper's page with the window in front and the person not away, settled every 30
   // seconds of it and when they leave the paper, the view or the window
   | { kind: "paper.focus"; at: number; paperId: string; view: PaperView; seconds: number }
@@ -32,7 +30,6 @@ export type ActivityEvent =
   | { kind: "doc.opened"; at: number; path: string }
   // Typed by the user (not an agent's edit), once typing has paused; workspace-relative path
   | { kind: "doc.edited"; at: number; path: string }
-  | { kind: "chat.sent"; at: number; chatId: string }
   // The user left a chat they had written in
   | { kind: "chat.ended"; at: number; chatId: string }
 
@@ -40,8 +37,7 @@ export type ActivityKind = ActivityEvent["kind"]
 
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
-// What goes into .owlit/journal.jsonl. The rest (page turns, removing a highlight, sending a message) is
-// only for live listeners.
+// What goes into .owlit/journal.jsonl: every kind, since a kind nobody reads back isn't sent at all
 export const JOURNALED_KINDS = [
   "paper.opened",
   "paper.focus",
@@ -52,6 +48,7 @@ export const JOURNALED_KINDS = [
   "doc.edited",
   "chat.ended",
   "highlight.added",
+  "highlight.removed",
   "note.edited",
   "paper.closed",
 ] as const satisfies readonly ActivityKind[]

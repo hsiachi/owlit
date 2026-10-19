@@ -116,6 +116,17 @@ describe("Memory", () => {
     expect(all[2]!.after).toBeUndefined()
   })
 
+  it("keeps two different lines written only in Chinese, from an agent and from Claude Code's notes", async () => {
+    const { memory } = setUp()
+    await memory.agentWrite({ op: "add", kind: "work", text: "讨论文档时在聊天里说，不要直接改。" }, chat("c1"))
+    const second = await memory.agentWrite({ op: "add", kind: "work", text: "回答用中文。" }, chat("c1"))
+    expect(second.line).toMatchObject({ id: "m2", text: "回答用中文。" })
+    // The same line with other punctuation is still the same line
+    expect((await memory.agentWrite({ op: "add", kind: "work", text: "回答用中文" }, chat("c1"))).changeId).toBeUndefined()
+    const lines = await memory.decideClaudeNotes([{ file: "p5.md", kind: "about", text: "我负责第五部分。" }], [], window)
+    expect(lines.map((l) => l.text)).toEqual(["讨论文档时在聊天里说，不要直接改。", "回答用中文。", "我负责第五部分。"])
+  })
+
   it("offers Claude Code's notes for this folder until each is kept or dropped", async () => {
     const { root, memory } = setUp()
     const config = mkdtempSync(path.join(tmpdir(), "owlit-claude-"))

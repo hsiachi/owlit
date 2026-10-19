@@ -37,6 +37,16 @@ describe("readingOf", () => {
     expect(papers.get("p")?.visits).toBe(2)
   })
 
+  it("counts the highlights still there: a removed one no longer counts, nor one removed it never saw added", () => {
+    const papers = readingOf([
+      user({ kind: "highlight.added", at, paperId: "p", highlightId: "h1" }),
+      user({ kind: "highlight.added", at: at + 1, paperId: "p", highlightId: "h2" }),
+      user({ kind: "highlight.removed", at: at + 2, paperId: "p", highlightId: "h1" }),
+      user({ kind: "highlight.removed", at: at + 3, paperId: "p", highlightId: "h0" }),
+    ])
+    expect(papers.get("p")?.highlights).toBe(1)
+  })
+
   it("follows a paper that changed id", () => {
     const papers = readingOf(
       [

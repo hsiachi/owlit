@@ -47,7 +47,7 @@ import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { isMissing } from "./fs-util.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
-import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskContext, type TaskDefinition } from "./tasks/index.ts"
+import { debugTasks, LANE_LIMITS, TaskFailure, TaskThrottle, type TaskContext, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
 import { createFolder, suggestFolder } from "./workspace/welcome.ts"
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
@@ -1493,7 +1493,8 @@ export class Core {
     } catch (error) {
       const failed = ctx.signal.aborted ? {} : { error: messageOf(error), ...(error instanceof BackgroundFailure && error.detail ? { errorDetail: error.detail } : {}) }
       await session.finish({ status: ctx.signal.aborted ? "cancelled" : "error", ...failed }).catch(() => undefined)
-      throw error
+      // The task's retries would each start a session against a limit known to be reached
+      throw error instanceof BackgroundFailure && error.final ? new TaskFailure(error.message) : error
     }
   }
 

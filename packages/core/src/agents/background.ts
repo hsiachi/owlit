@@ -48,13 +48,16 @@ export interface BackgroundRun {
   onUpdate?: (update: SessionUpdate) => void
 }
 
-// A run that failed, in owlit's words (failure.ts), with how the agent's process ended when it did
+// A run that failed, in owlit's words (failure.ts), with how the agent's process ended when it did.
+// final: another try fails the same way until something changes (the agent's usage limit).
 export class BackgroundFailure extends Error {
   readonly detail?: string
+  readonly final: boolean
 
-  constructor(text: string, detail?: string) {
+  constructor(text: string, detail?: string, final = false) {
     super(text)
     this.detail = detail
+    this.final = final
   }
 }
 
@@ -85,8 +88,8 @@ export class Background {
     } catch (error) {
       if (run.signal.aborted) throw error
       const said = withoutAgentError({ id: "", role: "assistant", createdAt: 0, status: "error", parts: [{ type: "text", text: answer }] }).errorDetail ?? ""
-      const { text, detail } = await failureOf(this.agents, connectorId, error, said)
-      throw new BackgroundFailure(text, detail)
+      const { text, detail, final } = await failureOf(this.agents, connectorId, error, said)
+      throw new BackgroundFailure(text, detail, final)
     }
   }
 

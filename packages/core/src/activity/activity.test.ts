@@ -14,12 +14,12 @@ describe("ActivityBus", () => {
     const bus = new ActivityBus()
     const pages: number[] = []
     const all: string[] = []
-    bus.subscribe("paper.page", (e) => pages.push(e.page))
+    bus.subscribe("paper.dwell", (e) => pages.push(e.page))
     bus.subscribe((e) => all.push(e.kind))
-    bus.publish({ kind: "paper.page", at, paperId: "p", page: 3 })
-    bus.publish({ kind: "chat.sent", at, chatId: "c" })
+    bus.publish({ kind: "paper.dwell", at, paperId: "p", page: 3, seconds: 5 })
+    bus.publish({ kind: "chat.ended", at, chatId: "c" })
     expect(pages).toEqual([3])
-    expect(all).toEqual(["paper.page", "chat.sent"])
+    expect(all).toEqual(["paper.dwell", "chat.ended"])
   })
 
   it("filters by a list of kinds", () => {
@@ -27,7 +27,7 @@ describe("ActivityBus", () => {
     const heard: string[] = []
     bus.subscribe(["doc.opened", "doc.edited"], (e) => heard.push(`${e.kind} ${e.path}`))
     bus.publish({ kind: "doc.opened", at, path: "a.md" })
-    bus.publish({ kind: "chat.sent", at, chatId: "c" })
+    bus.publish({ kind: "chat.ended", at, chatId: "c" })
     bus.publish({ kind: "doc.edited", at, path: "a.md" })
     expect(heard).toEqual(["doc.opened a.md", "doc.edited a.md"])
   })
@@ -35,14 +35,14 @@ describe("ActivityBus", () => {
   it("stops delivering after unsubscribe, for every kind subscribed", () => {
     const bus = new ActivityBus()
     const heard: string[] = []
-    const off = bus.subscribe(["chat.sent", "chat.ended"], (e) => heard.push(e.kind))
+    const off = bus.subscribe(["doc.opened", "chat.ended"], (e) => heard.push(e.kind))
     const offAll = bus.subscribe((e) => heard.push(`all ${e.kind}`))
-    bus.publish({ kind: "chat.sent", at, chatId: "c" })
+    bus.publish({ kind: "chat.ended", at, chatId: "c" })
     off()
     offAll()
-    bus.publish({ kind: "chat.sent", at, chatId: "c" })
     bus.publish({ kind: "chat.ended", at, chatId: "c" })
-    expect(heard).toEqual(["chat.sent", "all chat.sent"])
+    bus.publish({ kind: "doc.opened", at, path: "a.md" })
+    expect(heard).toEqual(["chat.ended", "all chat.ended"])
   })
 
   it("keeps delivering when one listener throws", () => {
@@ -50,15 +50,23 @@ describe("ActivityBus", () => {
     const heard: string[] = []
     const error = console.error
     console.error = () => {}
-    bus.subscribe("paper.page", () => {
+    bus.subscribe("paper.dwell", () => {
       throw new Error("boom")
     })
-    bus.subscribe("paper.page", (e) => heard.push(String(e.page)))
-    bus.publish({ kind: "paper.page", at, paperId: "p", page: 5 })
+    bus.subscribe("paper.dwell", (e) => heard.push(String(e.page)))
+    bus.publish({ kind: "paper.dwell", at, paperId: "p", page: 5, seconds: 5 })
     console.error = error
     expect(heard).toEqual(["5"])
   })
 })
+
+// A visit that reads a paper's digest to its end, long enough to count as read
+const readToEnd = (paperId: string, from: number): ActivityEvent[] => [
+  { kind: "paper.opened", at: from, paperId },
+  { kind: "paper.focus", at: from + 1000, paperId, view: "digest", seconds: 130 },
+  { kind: "paper.end", at: from + 2000, paperId, view: "digest" },
+  { kind: "paper.closed", at: from + 3000, paperId },
+]
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -82,13 +90,11 @@ async function openCore() {
 }
 
 describe("activity.emit and the journal", () => {
-  it("journals reading and the coarse events, with the user as actor", async () => {
+  it("journals every event, with the user as actor", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
     const events: ActivityEvent[] = [
       { kind: "paper.opened", at, paperId: "arxiv-1" },
-      { kind: "paper.page", at: at + 1, paperId: "arxiv-1", page: 2 },
-      { kind: "paper.page", at: at + 2, paperId: "arxiv-1", page: 3 },
       { kind: "paper.focus", at: at + 3, paperId: "arxiv-1", view: "pdf", seconds: 30 },
       { kind: "paper.dwell", at: at + 3, paperId: "arxiv-1", page: 3, seconds: 25 },
       { kind: "highlight.added", at: at + 4, paperId: "arxiv-1", highlightId: "h1" },
@@ -96,12 +102,11 @@ describe("activity.emit and the journal", () => {
       { kind: "paper.marked", at: at + 6, paperId: "arxiv-1", mark: { what: "status", to: "read" } },
       { kind: "paper.closed", at: at + 8, paperId: "arxiv-1" },
       { kind: "doc.opened", at: at + 9, path: "a.md" },
-      { kind: "chat.sent", at: at + 10, chatId: "c" },
+      { kind: "chat.ended", at: at + 10, chatId: "c" },
     ]
     for (const event of events) await call("activity.emit", { event })
     await core["journal"].flush()
-    const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "paper.closed", "doc.opened"])
-    expect(lines()).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: ME })))
+    expect(lines()).toEqual(events.map((e) => ({ ...e, actor: ME })))
   })
 
   it("passes every event to bus listeners", async () => {
@@ -109,27 +114,35 @@ describe("activity.emit and the journal", () => {
     await call("workspace.open", { path: ws })
     const heard: string[] = []
     core.activity.subscribe((e) => heard.push(e.kind))
-    await call("activity.emit", { event: { kind: "paper.page", at, paperId: "p", page: 4 } })
-    expect(heard).toEqual(["paper.page"])
+    await call("activity.emit", { event: { kind: "doc.opened", at, path: "a.md" } })
+    expect(heard).toEqual(["doc.opened"])
   })
 
-  it("journals nothing while turned off, but listeners still hear, and says so to clients", async () => {
+  it("journals nothing while turned off, so a paper read to the end stays as it was; says so to clients", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
+    for (const id of ["p1", "p2"]) await call("library.add", { paper: { id, title: `Paper ${id}`, authors: ["A. Author"], ids: { doi: `10.1/${id}` } } })
     const notes: RpcNotification[] = []
     core.onNotify((n) => notes.push(n))
+    const status = async (id: string) => ((await call("library.list")) as { papers: { id: string; status: string }[] }).papers.find((p) => p.id === id)?.status
     expect(await call("activity.status")).toEqual({ enabled: true })
     expect(await call("activity.setEnabled", { enabled: false })).toEqual({ enabled: false })
     expect(notes.find((n) => n.method === "activity.status")).toMatchObject({ params: { enabled: false } })
     expect(notes.at(-1)).toMatchObject({ method: "settings.changed", params: { activity: { enabled: false } } })
-    const heard: string[] = []
-    core.activity.subscribe((e) => heard.push(e.kind))
-    await call("activity.emit", { event: { kind: "doc.edited", at, path: "a.md" } })
-    await call("activity.emit", { event: { kind: "paper.opened", at, paperId: "arxiv-1" } })
+
+    // Read to the end with the switch off: the read-in-full check reads only the journal
+    for (const event of readToEnd("p1", at)) await call("activity.emit", { event })
     await core["journal"].flush()
-    expect(heard).toEqual(["doc.edited", "paper.opened"])
     expect(lines().filter((l: { actor: string }) => l.actor === ME)).toEqual([])
+    // Switched on, the next paper read to the end turns Read; the first stays as it was
+    await call("activity.setEnabled", { enabled: true })
+    for (const event of readToEnd("p2", at + 10_000)) await call("activity.emit", { event })
+    await vi.waitFor(async () => expect(await status("p2")).toBe("read"))
+    expect(await status("p1")).toBe("unread")
+    expect(notes.filter((n) => n.method === "library.readToEnd").map((n) => (n.params as { paperId: string }).paperId)).toEqual(["p2"])
+
     // The switch is a machine setting: it survives a restart
+    await call("activity.setEnabled", { enabled: false })
     const next = new Core({ userDataDir: core["options"].userDataDir })
     expect(await next.settings.get()).toMatchObject({ activity: { enabled: false } })
   })

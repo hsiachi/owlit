@@ -173,14 +173,11 @@ export function startActivity(router: typeof appRouter) {
   useBeside.subscribe(refresh)
   refresh()
 
-  // Page turns in the open paper, marks, highlights and the paper's note
+  // Page turns in the open paper (for its reading time), marks, highlights and the paper's note
   useLibraryStore.subscribe((state, prev) => {
     if (open.paperId) {
       const page = state.papers[open.paperId]?.position?.page
-      if (page && page !== prev.papers[open.paperId]?.position?.page) {
-        emit({ kind: "paper.page", paperId: open.paperId, page })
-        reading?.setPage(page)
-      }
+      if (page && page !== prev.papers[open.paperId]?.position?.page) reading?.setPage(page)
     }
     // What loading the library (or another program's change) put in the store isn't something the user did
     if (isLibraryFromCore()) return
@@ -196,7 +193,7 @@ export function startActivity(router: typeof appRouter) {
       for (const h of Object.values(state.highlights))
         if (!prev.highlights[h.id] && !isOwlit(h.addedBy)) emit({ kind: "highlight.added", paperId: h.paperId, highlightId: h.id })
       for (const h of Object.values(prev.highlights))
-        if (!state.highlights[h.id]) emit({ kind: "highlight.removed", paperId: h.paperId, highlightId: h.id })
+        if (!state.highlights[h.id] && !isOwlit(h.addedBy)) emit({ kind: "highlight.removed", paperId: h.paperId, highlightId: h.id })
     }
     if (state.notes !== prev.notes) {
       for (const note of Object.values(state.notes)) {
@@ -206,8 +203,9 @@ export function startActivity(router: typeof appRouter) {
     }
   })
 
-  // A message the user sent. A streamed reply changes one chat's object on every chunk, so only changed
-  // chats are counted, and each message list once (the previous state's count is remembered from before).
+  // A message the user sent, which makes leaving the chat a chat.ended. A streamed reply changes one chat's
+  // object on every chunk, so only changed chats are counted, and each message list once (the previous
+  // state's count is remembered from before).
   useChatStore.subscribe((state, prev) => {
     // Chats read from the workspace aren't messages being sent
     if (state.chats === prev.chats || isChatsFromDisk()) return
@@ -216,7 +214,6 @@ export function startActivity(router: typeof appRouter) {
       const before = prev.chats[id]
       if (chat === before || userMessages(chat.messages) <= (before ? userMessages(before.messages) : 0)) continue
       wroteIn.add(id)
-      emit({ kind: "chat.sent", chatId: id })
       sent = true
     }
     // A chat sent from the agent window may open only now; nothing else here changes what is open

@@ -21,6 +21,8 @@
 //                      session owlit gave its owlit server, and says back the result
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
+// FAKE_ACP_LIMIT="You've hit your session limit · resets 2:20am" fails every prompt as Claude Code does at
+// its usage limit: the message as its answer, then an internal error carrying it.
 // FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
 // as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
@@ -199,6 +201,10 @@ class FakeAgent implements acp.Agent {
     const signal = session.turn.signal
     const say = (t: string) => this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: t } } })
     try {
+      if (process.env.FAKE_ACP_LIMIT) {
+        await say(process.env.FAKE_ACP_LIMIT)
+        throw acp.RequestError.internalError(undefined, process.env.FAKE_ACP_LIMIT)
+      }
       if (text.includes("writing a literature note")) {
         // Says back what it was given (the language, the pictures it saw), so tests can tell
         const title = text.match(/starting with "# ([^"]+)"/)?.[1] ?? "Paper"
