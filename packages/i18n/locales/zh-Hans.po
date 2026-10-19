@@ -5373,8 +5373,8 @@ msgid "Remember what I do in owlit"
 msgstr "记住我在 owlit 中的操作"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted."
-msgstr "你在这个工作区里读、写和问的内容会记在 .owlit/journal.jsonl 中，让 Owlit 跟上你的工作。关闭后什么都不记。"
+msgid "What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. Off: nothing is noted, and papers you finish stay as you left them."
+msgstr "你在这台 Mac 上读、写和问的内容会记在工作区的 .owlit/journal.jsonl 中，让 Owlit 跟上你的工作。关闭后：什么都不记，读完的论文也保持你离开时的状态。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Tsinghua University"

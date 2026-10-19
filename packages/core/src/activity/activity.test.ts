@@ -60,6 +60,14 @@ describe("ActivityBus", () => {
   })
 })
 
+// A visit that reads a paper's digest to its end, long enough to count as read
+const readToEnd = (paperId: string, from: number): ActivityEvent[] => [
+  { kind: "paper.opened", at: from, paperId },
+  { kind: "paper.focus", at: from + 1000, paperId, view: "digest", seconds: 130 },
+  { kind: "paper.end", at: from + 2000, paperId, view: "digest" },
+  { kind: "paper.closed", at: from + 3000, paperId },
+]
+
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((core) => core.dispose()))
@@ -110,23 +118,31 @@ describe("activity.emit and the journal", () => {
     expect(heard).toEqual(["doc.opened"])
   })
 
-  it("journals nothing while turned off, but listeners still hear, and says so to clients", async () => {
+  it("journals nothing while turned off, so a paper read to the end stays as it was; says so to clients", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
+    for (const id of ["p1", "p2"]) await call("library.add", { paper: { id, title: `Paper ${id}`, authors: ["A. Author"], ids: { doi: `10.1/${id}` } } })
     const notes: RpcNotification[] = []
     core.onNotify((n) => notes.push(n))
+    const status = async (id: string) => ((await call("library.list")) as { papers: { id: string; status: string }[] }).papers.find((p) => p.id === id)?.status
     expect(await call("activity.status")).toEqual({ enabled: true })
     expect(await call("activity.setEnabled", { enabled: false })).toEqual({ enabled: false })
     expect(notes.find((n) => n.method === "activity.status")).toMatchObject({ params: { enabled: false } })
     expect(notes.at(-1)).toMatchObject({ method: "settings.changed", params: { activity: { enabled: false } } })
-    const heard: string[] = []
-    core.activity.subscribe((e) => heard.push(e.kind))
-    await call("activity.emit", { event: { kind: "doc.edited", at, path: "a.md" } })
-    await call("activity.emit", { event: { kind: "paper.opened", at, paperId: "arxiv-1" } })
+
+    // Read to the end with the switch off: the read-in-full check reads only the journal
+    for (const event of readToEnd("p1", at)) await call("activity.emit", { event })
     await core["journal"].flush()
-    expect(heard).toEqual(["doc.edited", "paper.opened"])
     expect(lines().filter((l: { actor: string }) => l.actor === ME)).toEqual([])
+    // Switched on, the next paper read to the end turns Read; the first stays as it was
+    await call("activity.setEnabled", { enabled: true })
+    for (const event of readToEnd("p2", at + 10_000)) await call("activity.emit", { event })
+    await vi.waitFor(async () => expect(await status("p2")).toBe("read"))
+    expect(await status("p1")).toBe("unread")
+    expect(notes.filter((n) => n.method === "library.readToEnd").map((n) => (n.params as { paperId: string }).paperId)).toEqual(["p2"])
+
     // The switch is a machine setting: it survives a restart
+    await call("activity.setEnabled", { enabled: false })
     const next = new Core({ userDataDir: core["options"].userDataDir })
     expect(await next.settings.get()).toMatchObject({ activity: { enabled: false } })
   })
