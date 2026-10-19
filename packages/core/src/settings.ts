@@ -37,6 +37,8 @@ export class SettingsStore {
   readonly file: string
   private value: AppSettings | undefined
   private box: SecretBox | undefined
+  // Sealed keys this launch couldn't open, by "group.key", written back as they were
+  private unopened = new Map<string, Sealed>()
 
   constructor(userDataDir: string, box?: SecretBox) {
     this.file = path.join(userDataDir, "settings.json")
@@ -87,7 +89,8 @@ export class SettingsStore {
   }
 
   // A key written before sealing existed (or by hand) is read as is and sealed on the next write. One
-  // that can't be opened (settings.json copied from another machine) is dropped rather than misused.
+  // that can't be opened is left out, and kept sealed until a new value replaces it: the keychain can
+  // refuse for a while (a new signature, a denied prompt), and a later launch may open it again.
   private open(settings: AppSettings): AppSettings {
     const copy = structuredClone(settings) as unknown as Record<string, Record<string, unknown>>
     for (const [group, key] of SECRETS) {
@@ -98,6 +101,7 @@ export class SettingsStore {
         copy[group][key] = this.box.open(value.sealed)
       } catch (error) {
         console.error(`[core] settings.json: ${group}.${key} couldn't be opened and is left out`, error)
+        this.unopened.set(`${group}.${key}`, value)
         delete copy[group][key]
       }
     }
@@ -109,7 +113,12 @@ export class SettingsStore {
     const copy = structuredClone(settings) as unknown as Record<string, Record<string, unknown>>
     for (const [group, key] of SECRETS) {
       const value = copy[group]?.[key]
-      if (typeof value !== "string" || !value) continue
+      if (typeof value !== "string" || !value) {
+        const kept = this.unopened.get(`${group}.${key}`)
+        if (kept) copy[group] = { ...copy[group], [key]: kept }
+        continue
+      }
+      this.unopened.delete(`${group}.${key}`)
       try {
         copy[group][key] = { sealed: this.box.seal(value) } satisfies Sealed
       } catch (error) {

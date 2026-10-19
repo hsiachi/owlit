@@ -5,7 +5,7 @@ import path from "node:path"
 import type { Library } from "../library/library.ts"
 import { isPaperId, PAPERS_DIR, paperDir, paperStateDir } from "../library/paths.ts"
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
-import { OWLIT_DIR } from "../workspace/paths.ts"
+import { isOwlitPath, OWLIT_DIR } from "../workspace/paths.ts"
 import { IndexDb, linksIn, type Source } from "./index-db.ts"
 
 // The workspace's search index: what is in it, kept in step with the files by index.sync, which reads
@@ -171,7 +171,7 @@ export class SearchIndex {
     const walk = async (rel: string) => {
       const entries = await readdir(path.join(this.root, rel), { withFileTypes: true }).catch(() => [])
       for (const entry of entries) {
-        if (entry.name.startsWith(".") || (!rel && entry.name === "library") || entry.name === "node_modules") continue
+        if (entry.name.startsWith(".") || (!rel && isOwlitPath(entry.name)) || entry.name === "node_modules") continue
         const child = rel ? `${rel}/${entry.name}` : entry.name
         if (entry.isDirectory()) await walk(child)
         else if (entry.isFile() && /\.md$/i.test(entry.name)) found.set(child, String((await stat(path.join(this.root, child))).mtimeMs))

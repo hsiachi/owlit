@@ -208,13 +208,18 @@ export class Workspace {
   }
 }
 
-// The folder's real absolute path; a readable error when it is missing or not a folder
+// The folder's real absolute path; a readable error when it is missing, not a folder, or one macOS doesn't
+// let owlit read
 export async function resolveFolder(folder: string) {
   const absolute = path.resolve(folder)
   let info
   try {
     info = await stat(absolute)
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === "EPERM" || code === "EACCES") {
+      throw new RpcFailure(RpcErrorCode.Forbidden, t`owlit isn't allowed to open ${absolute}. Allow it in System Settings › Privacy & Security › Files and Folders, then try again.`, { path: absolute })
+    }
     throw new RpcFailure(RpcErrorCode.NotFound, t`There is no folder at ${absolute}.`, { path: absolute })
   }
   if (!info.isDirectory()) {

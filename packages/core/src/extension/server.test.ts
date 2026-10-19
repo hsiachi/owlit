@@ -6,6 +6,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { makePdf, paragraph } from "../library/text/make-pdf.ts"
+import { eventually } from "../test-util.ts"
 import type { BrowserApp } from "./browser-app.ts"
 import type { ExtensionServer } from "./server.ts"
 
@@ -19,6 +20,8 @@ const ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop"
 
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => {
+  // A test that mocks Date.now and fails before its own restore must not leave the mock to the rest
+  vi.restoreAllMocks()
   await Promise.all(cleanups.splice(0).map((clean) => clean()))
 })
 
@@ -71,7 +74,7 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
     await call("ui.focus", { clientId: "window-1" })
     const started = await request("/pair", { body: { browser, extensionVersion: "0.1.0" } })
     expect(started.status).toBe(202)
-    await vi.waitFor(async () => expect((await call("extension.get")).asking).toHaveLength(1))
+    await eventually(async () => expect((await call("extension.get")).asking).toHaveLength(1))
     const [asking] = (await call("extension.get")).asking
     await call("extension.answer", { id: asking.id, allow: true })
     const answer = await request(`/pair/${started.body.pairing}`)
@@ -131,7 +134,7 @@ describe("the extension's port", () => {
     expect(views.at(-1)?.asking).toEqual([])
     // Seen when it asks something
     await request("/status", { token })
-    await vi.waitFor(async () => expect((await call("extension.get")).paired[0].lastSeenAt).toBeGreaterThan(0))
+    await eventually(async () => expect((await call("extension.get")).paired[0].lastSeenAt).toBeGreaterThan(0))
     // Forgotten in Settings: the extension has to ask again
     const view = await call("extension.forget", { id: stored.extension.paired[0].id })
     expect(view.paired).toEqual([])
@@ -144,7 +147,7 @@ describe("the extension's port", () => {
     const { call, request, pair, server, userDataDir } = await setup({ browserApp: async (port) => (ports.push(port), dia) })
     await call("ui.focus", { clientId: "window-1" })
     await request("/pair", { body: { browser: "Chromium" } })
-    await vi.waitFor(async () => expect((await call("extension.get")).asking).toHaveLength(1))
+    await eventually(async () => expect((await call("extension.get")).asking).toHaveLength(1))
     // Asked by the port the request came from, not owlit's own
     expect(ports).toHaveLength(1)
     expect(ports[0]).toBeGreaterThan(0)
@@ -168,7 +171,7 @@ describe("the extension's port", () => {
     await request("/status", { token })
     await request("/status", { token })
     expect(asked).toBe(1)
-    await vi.waitFor(async () => expect((await call("extension.get")).paired).toEqual([expect.objectContaining({ browser: "Dia" })]))
+    await eventually(async () => expect((await call("extension.get")).paired).toEqual([expect.objectContaining({ browser: "Dia" })]))
   })
 
   it("says which owlit answers, to a paired extension and to one paired elsewhere", async () => {
@@ -186,7 +189,7 @@ describe("the extension's port", () => {
     const { call, request, userDataDir } = await setup()
     await call("ui.focus", { clientId: "window-1" })
     const started = await request("/pair", { body: { browser: "Chrome" } })
-    await vi.waitFor(async () => expect((await call("extension.get")).asking).toHaveLength(1))
+    await eventually(async () => expect((await call("extension.get")).asking).toHaveLength(1))
     const [asking] = (await call("extension.get")).asking
     expect(asking).toMatchObject({ browser: "Chrome", origin: ORIGIN })
     await call("extension.answer", { id: asking.id, allow: true })
@@ -212,7 +215,7 @@ describe("the extension's port", () => {
     const { call, request } = await setup()
     await call("ui.focus", { clientId: "window-1" })
     const started = await request("/pair", { body: { browser: "Chrome" } })
-    await vi.waitFor(async () => expect((await call("extension.get")).asking).toHaveLength(1))
+    await eventually(async () => expect((await call("extension.get")).asking).toHaveLength(1))
     // Already waiting for the answer when it comes
     const waiting = request(`/pair/${started.body.pairing}`)
     const [asking] = (await call("extension.get")).asking
@@ -301,7 +304,7 @@ describe("the extension's port", () => {
     const { call } = await setup({ port, retryMs: 20 })
     expect(await call("extension.get")).toMatchObject({ serving: false, portTaken: true })
     await new Promise<void>((resolve) => blocker.close(() => resolve()))
-    await vi.waitFor(async () => expect(await call("extension.get")).toMatchObject({ serving: true, portTaken: false }))
+    await eventually(async () => expect(await call("extension.get")).toMatchObject({ serving: true, portTaken: false }))
   })
 
   describe("fetching for owlit", () => {
@@ -375,6 +378,22 @@ describe("the extension's port", () => {
       expect(opened).toEqual([["https://journals.sagepub.com/action/showLogin", { name: "Arc" }]])
       // Being allowed to read a site can't be asked from outside the browser
       expect(await s.call("extension.open", { kind: "permission", host: "sagepub.com" })).toEqual({ by: "none" })
+      vi.restoreAllMocks()
+    })
+
+    it("never opens a page the extension names that isn't a web page", async () => {
+      const opened: Opened[] = []
+      const s = await setup({ holdMs: 20, opened })
+      const token = await s.pair("Arc")
+      s.putPaper(id, { title, ids: { doi: SAGE } })
+      await s.request("/work", { token })
+      await s.call("library.fetchPdf", { id })
+      const [item] = (await s.request("/work", { token })).body.work
+      await s.request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "file:///Users/x/Results.terminal" } })
+      const now = Date.now()
+      vi.spyOn(Date, "now").mockReturnValue(now + 2 * 60_000)
+      await s.call("extension.open", { kind: "sign-in", host: "sagepub.com" })
+      expect(opened.map(([url]) => url)).not.toContainEqual(expect.stringMatching(/^file:/))
       vi.restoreAllMocks()
     })
 
@@ -479,14 +498,14 @@ describe("the extension's port", () => {
       const token = await s.pair()
       const order: string[] = []
       for (let i = 0; i < 3; i++) {
-        const item = await vi.waitFor(async () => {
+        const item = await eventually(async () => {
           const [next] = (await s.request("/work", { token })).body.work
           expect(next).toBeDefined()
           return next
         })
         order.push(item.paperId)
         // Each is finding again while the extension has it, not "No PDF"
-        if (i === 0) await vi.waitFor(async () => expect((await s.call("library.list")).papers.find((p: { id: string }) => p.id === newer.id).pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } }))
+        if (i === 0) await eventually(async () => expect((await s.call("library.list")).papers.find((p: { id: string }) => p.id === newer.id).pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } }))
         await s.request(`/work/${item.id}`, { token, body: { ended: "no-copy", host: "journals.sagepub.com" } })
       }
       expect(order).toEqual([older.id, newer.id, signIn.id])

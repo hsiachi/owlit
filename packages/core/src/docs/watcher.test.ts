@@ -2,15 +2,17 @@ import type { DocsChange, RpcNotification } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
+import { eventually } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((core) => core.dispose()))
 })
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+// Written from outside once the workspace is open, until the watcher reports it; left out of what tests see
+const PROBE = "probe.md"
 
 async function setup(files: Record<string, string> = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-watch-")))
@@ -23,7 +25,14 @@ async function setup(files: Record<string, string> = {}) {
   const core = new Core({ userDataDir: path.join(base, "userData") })
   cores.push(core)
   const changes: DocsChange[] = []
-  core.onNotify((n: RpcNotification) => n.method === "docs.changed" && changes.push(n.params as DocsChange))
+  let probed = false
+  core.onNotify((n: RpcNotification) => {
+    if (n.method !== "docs.changed") return
+    const change = n.params as DocsChange
+    if (change.changed.some((f) => f.path === PROBE)) probed = true
+    const rest = { ...change, changed: change.changed.filter((f) => f.path !== PROBE) }
+    if (rest.changed.length || rest.deleted.length || rest.folders.created.length || rest.folders.deleted.length || rest.reload) changes.push(rest)
+  })
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
@@ -31,18 +40,27 @@ async function setup(files: Record<string, string> = {}) {
   }
   await call("workspace.open", { path: root })
   const listing = await call("docs.list")
-  // FSEvents can deliver events from before the watcher started; let them pass
-  await sleep(300)
-  changes.length = 0
   const at = (rel: string) => path.join(root, rel)
-  // Waits until the watcher has said something (or a while has passed)
-  const settled = async (ms = 1500) => {
-    const start = Date.now()
-    while (!changes.length && Date.now() - start < ms) await sleep(25)
-    await sleep(250)
-    return changes.splice(0)
+  // A watcher only just started can miss a write, and FSEvents can deliver events from before it started:
+  // once a file written now is heard, the watcher is live and those older events have come. Then forget them.
+  await vi.waitFor(
+    () => {
+      if (!probed) writeFileSync(at(PROBE), "probe")
+      expect(probed).toBe(true)
+    },
+    { timeout: 4_000, interval: 500 },
+  )
+  changes.length = 0
+  // Until what the watcher said, merged, passes check
+  const heard = (check: (m: ReturnType<typeof merged>) => void) => eventually(() => check(merged(changes)))
+  // For what must cause nothing: a file written from outside after it is heard last, so anything the
+  // watcher was going to say about what came before it has been said
+  const nothingBefore = async () => {
+    writeFileSync(at("sentinel.md"), "s")
+    await heard((m) => expect(m.changed.map((f) => f.path)).toContain("sentinel.md"))
+    expect(merged(changes)).toEqual({ changed: [expect.objectContaining({ path: "sentinel.md" })], deleted: [], created: [], folderDeleted: [], reload: false })
   }
-  return { root, call, listing, changes, at, settled }
+  return { root, call, listing, changes, at, heard, nothingBefore }
 }
 
 const merged = (changes: DocsChange[]) => ({
@@ -55,45 +73,49 @@ const merged = (changes: DocsChange[]) => ({
 
 describe("docs watcher", () => {
   it("hears an edit made by another program, with the new text", async () => {
-    const { at, settled, listing } = await setup({ "a.md": "one" })
+    const { at, heard, listing } = await setup({ "a.md": "one" })
     writeFileSync(at("a.md"), "two")
-    const m = merged(await settled())
-    expect(m.changed).toHaveLength(1)
-    expect(m.changed[0]).toMatchObject({ id: listing.files[0].id, path: "a.md", content: "two" })
+    await heard((m) => {
+      expect(m.changed).toHaveLength(1)
+      expect(m.changed[0]).toMatchObject({ id: listing.files[0].id, path: "a.md", content: "two" })
+    })
   })
 
   it("keeps the id of a file renamed or moved outside", async () => {
-    const { at, settled, listing } = await setup({ "a.md": "x", "sub/keep.md": "k" })
+    const { at, heard, listing } = await setup({ "a.md": "x", "sub/keep.md": "k" })
     const id = listing.files.find((f: any) => f.path === "a.md").id
     renameSync(at("a.md"), at("sub/b.md"))
-    const m = merged(await settled())
-    expect(m.changed.map((f) => [f.id, f.path])).toEqual([[id, "sub/b.md"]])
-    expect(m.deleted).toEqual([])
+    await heard((m) => {
+      expect(m.changed.map((f) => [f.id, f.path])).toEqual([[id, "sub/b.md"]])
+      expect(m.deleted).toEqual([])
+    })
   })
 
   it("reports deletes, new files and folders", async () => {
-    const { at, settled } = await setup({ "gone.md": "x" })
+    const { at, heard } = await setup({ "gone.md": "x" })
     rmSync(at("gone.md"))
     mkdirSync(at("new/deeper"), { recursive: true })
     writeFileSync(at("new/deeper/n.md"), "n")
-    const m = merged(await settled())
-    expect(m.deleted.map((d) => d.path)).toEqual(["gone.md"])
-    expect(m.created.sort()).toEqual(["new", "new/deeper"])
-    expect(m.changed.map((f) => f.path)).toEqual(["new/deeper/n.md"])
+    await heard((m) => {
+      expect(m.deleted.map((d) => d.path)).toEqual(["gone.md"])
+      expect(m.created.sort()).toEqual(["new", "new/deeper"])
+      expect(m.changed.map((f) => f.path)).toEqual(["new/deeper/n.md"])
+    })
   })
 
   it("follows a folder moved outside, with the files in it", async () => {
-    const { at, settled, listing } = await setup({ "f/a.md": "a", "f/b.md": "b" })
+    const { at, heard, listing } = await setup({ "f/a.md": "a", "f/b.md": "b" })
     renameSync(at("f"), at("g"))
-    const m = merged(await settled())
-    expect(m.folderDeleted).toEqual(["f"])
-    expect(m.created).toEqual(["g"])
     const ids = Object.fromEntries(listing.files.map((f: any) => [f.path, f.id]))
-    expect(m.changed.map((f) => [f.path, f.id]).sort()).toEqual([["g/a.md", ids["f/a.md"]], ["g/b.md", ids["f/b.md"]]])
+    await heard((m) => {
+      expect(m.folderDeleted).toEqual(["f"])
+      expect(m.created).toEqual(["g"])
+      expect(m.changed.map((f) => [f.path, f.id]).sort()).toEqual([["g/a.md", ids["f/a.md"]], ["g/b.md", ids["f/b.md"]]])
+    })
   })
 
   it("never echoes core's own changes", async () => {
-    const { call, settled, listing } = await setup({ "a.md": "x" })
+    const { call, nothingBefore, listing } = await setup({ "a.md": "x" })
     const file = listing.files[0]
     const written = await call("docs.write", { path: "a.md", content: "y", expectedModifiedAt: file.modifiedAt })
     await call("docs.create", { path: "n.md", content: "# New", followsFirstLine: true })
@@ -102,23 +124,22 @@ describe("docs watcher", () => {
     await call("docs.rename", { path: "folder", name: "renamed" })
     await call("docs.write", { path: "renamed/a.md", content: "z", expectedModifiedAt: (await call("docs.read", { path: "renamed/a.md" })).modifiedAt })
     expect(written.path).toBe("a.md")
-    expect(await settled(1200)).toEqual([])
+    await nothingBefore()
   })
 
   it("ignores .owlit, library and dot-folders", async () => {
-    const { at, settled } = await setup()
+    const { at, nothingBefore } = await setup()
     mkdirSync(at("library/papers/p"), { recursive: true })
     writeFileSync(at("library/papers/p/paper.json"), "{}")
     mkdirSync(at(".git"), { recursive: true })
     writeFileSync(at(".git/HEAD"), "ref")
     writeFileSync(at(".owlit/x.json"), "{}")
-    expect(await settled(1000)).toEqual([])
+    await nothingBefore()
   })
 
   it("asks for a reload when too much changes at once", async () => {
-    const { at, settled } = await setup()
+    const { at, heard } = await setup()
     for (let i = 0; i < 300; i++) writeFileSync(at(`n${i}.md`), String(i))
-    const m = merged(await settled())
-    expect(m.reload).toBe(true)
+    await heard((m) => expect(m.reload).toBe(true))
   })
 })

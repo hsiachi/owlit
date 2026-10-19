@@ -69,6 +69,8 @@ if (pkg.version !== version) {
 }
 
 step("Typecheck, lint and test")
+// What the lockfile says, not whatever node_modules holds (a pnpm link, a package edited while debugging)
+run("pnpm", ["install", "--frozen-lockfile"])
 run("pnpm", ["check"])
 
 step("Building and signing the dmg")

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import { until } from "../test-util.ts"
 import { halfDone, sectionsOf, WEEK_MS } from "./scan.ts"
 
 // The night shift through core: what its runs write, where it lands, what the window hears, and what Home
@@ -47,14 +48,8 @@ async function setup(agent: (prompt: string, run: string, call: Call) => Promise
   await call("initiative.set", { patch: { mode: "away" } })
   const workspace = (core as unknown as { workspace: Workspace }).workspace
   const emit = (event: Record<string, unknown>) => call("activity.emit", { event: { at: Date.now(), ...event } })
-  const finished = async (kind: string) => {
-    for (let i = 0; i < 400; i++) {
-      const task = workspace.tasks.list().find((t) => t.kind === kind && ["done", "failed", "cancelled"].includes(t.state))
-      if (task) return task
-      await new Promise((r) => setTimeout(r, 25))
-    }
-    throw new Error(`no ${kind} finished`)
-  }
+  const finished = (kind: string) =>
+    until(() => workspace.tasks.list().find((t) => t.kind === kind && ["done", "failed", "cancelled"].includes(t.state)), { timeout: 10_000, what: `a ${kind} to finish` })
   const comments = async () => (Object.values(await call("comments.all")).flat() as any[])
   const journal = () => readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
   return { root, call, emit, workspace, finished, comments, journal, prompts, heard }
@@ -76,8 +71,7 @@ describe("The night shift, through core", () => {
     expect(task).toMatchObject({ state: "done", doing: "Reading “draft” after your edits" })
     expect(await comments()).toEqual([])
     await emit({ kind: "doc.closed", path: "draft.md" })
-    await new Promise((r) => setTimeout(r, 100))
-    expect((await comments()).map((c) => c.quote)).toEqual(["Replay ratings drift from live ones."])
+    await vi.waitFor(async () => expect((await comments()).map((c) => c.quote)).toEqual(["Replay ratings drift from live ones."]), { timeout: 5_000, interval: 20 })
     // Kept as a version (Undo), but no "Note added" toast
     expect(heard.some((n) => n.method === "comments.changed")).toBe(true)
     expect(heard.some((n) => n.method === "agent.changed")).toBe(false)
@@ -112,7 +106,7 @@ describe("The night shift, through core", () => {
     expect(prompts[0]).not.toContain("Method")
     // Once a section has had its comment, the next look says nothing about it
     workspace.tasks.enqueue("docs.scan", "workspace", "background")
-    for (let i = 0; i < 200 && workspace.tasks.list().filter((t) => t.kind === "docs.scan" && t.state === "done").length < 2; i++) await new Promise((r) => setTimeout(r, 25))
+    await until(() => workspace.tasks.list().filter((t) => t.kind === "docs.scan" && t.state === "done").length === 2, { timeout: 10_000, what: "the second docs.scan" })
     expect(prompts).toHaveLength(1)
     expect((await call("chats.runs", { since: 0 })).map((r: any) => r.title)).toEqual(["Looked over your docs"])
   })
@@ -125,14 +119,14 @@ describe("The night shift, through core", () => {
     await emit({ kind: "paper.opened", at: now, paperId: "doi-10.1-a" })
     for (const page of [1, 2, 3]) await emit({ kind: "paper.dwell", at: now + page, paperId: "doi-10.1-a", page, seconds: 20 })
     await emit({ kind: "paper.closed", at: now + 10, paperId: "doi-10.1-a" })
-    const evaluations = async (rule: string) => {
-      for (let i = 0; i < 100; i++) {
-        const found = journal().filter((l) => l.kind === "evaluation" && l.rule === rule)
-        if (found.length) return found
-        await new Promise((r) => setTimeout(r, 25))
-      }
-      return []
-    }
+    const evaluations = (rule: string) =>
+      until(
+        () => {
+          const found = journal().filter((l) => l.kind === "evaluation" && l.rule === rule)
+          return found.length ? found : undefined
+        },
+        { what: `an evaluation of ${rule}` },
+      )
     expect((await evaluations("paper.landed")).map((e) => [e.decision, e.reason])).toEqual([["defer", "waiting for the user to be away"]])
     expect((await evaluations("paper.readInFull")).map((e) => [e.subject, e.decision])).toEqual([["doi-10.1-a", "defer"]])
     await emit({ kind: "idle", seconds: 30 })

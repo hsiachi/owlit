@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { SettingsStore } from "../settings.ts"
+import { until as waitUntil } from "../test-util.ts"
 import { Agents } from "./agents.ts"
 import { failure, newer } from "./setup.ts"
 
@@ -51,13 +52,14 @@ async function setup(options: { claude?: boolean } = {}) {
   })
   made.push(agents)
   // Ends when a change for Claude Code satisfies the test
-  const until = async (test: (c: Connector) => boolean) => {
-    for (;;) {
-      const c = heard.filter((h) => h.id === "claude-code").at(-1)
-      if (c && test(c)) return c
-      await new Promise((r) => setTimeout(r, 20))
-    }
-  }
+  const until = (test: (c: Connector) => boolean) =>
+    waitUntil(
+      () => {
+        const c = heard.filter((h) => h.id === "claude-code").at(-1)
+        return c && test(c) ? c : undefined
+      },
+      { what: "a change for Claude Code that satisfies the test" },
+    )
   return { agents, heard, until, dir }
 }
 

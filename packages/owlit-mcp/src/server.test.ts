@@ -5,7 +5,7 @@ import type { PdfTry, UiRequest } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { makePdf, paragraph } from "../../core/src/library/text/make-pdf.ts"
 import { pdfFact } from "./server.ts"
 
@@ -45,8 +45,28 @@ async function setup(options: { open?: boolean; routes?: Record<string, string> 
     const result = (await mcp.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean }
     return { text: result.content.map((c) => c.text).join(""), isError: !!result.isError }
   }
-  return { root, core, call, mcp, tool, asked }
+  return { root, core, call, mcp, tool, asked, transport }
 }
+
+const isAlive = (pid: number) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+describe("owlit-mcp", () => {
+  it("leaves when the agent that started it closes its stdin, after using owlit", async () => {
+    const { tool, transport } = await setup()
+    await tool("library_list")
+    const pid = transport.pid!
+    // What a crashed agent leaves: its end of the pipe closed, and nobody to send a signal
+    ;(transport as unknown as { _process: { stdin: NodeJS.WritableStream } })._process.stdin.end()
+    await vi.waitFor(() => expect(isAlive(pid)).toBe(false), { timeout: 5_000, interval: 20 })
+  })
+})
 
 describe("pdfFact", () => {
   // With a browser extension allowed, as most of these are read

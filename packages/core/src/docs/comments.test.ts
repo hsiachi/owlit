@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
+import { until } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((core) => core.dispose()))
 })
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function setup(files: Record<string, string>) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-comments-")))
@@ -27,7 +27,7 @@ async function setup(files: Record<string, string>) {
   await call("workspace.open", { path: root })
   await call("docs.list")
   const sidecar = (rel: string) => path.join(root, ".owlit/docs/comments", `${rel}.jsonl`)
-  return { root, call, sidecar }
+  return { root, core, call, sidecar }
 }
 
 const comment = (id: string, createdAt = 1) => ({
@@ -77,11 +77,23 @@ describe("comments", () => {
   })
 
   it("follows a rename made outside owlit", async () => {
-    const { call, root } = await setup({ "a.md": "x" })
+    const { call, root, core } = await setup({ "a.md": "x" })
     await call("comments.add", { path: "a.md", comment: comment("n1") })
-    await sleep(300)
+    // A watcher only just started can miss a change: write a file from outside until it is heard, so the
+    // rename, which can't be made twice, comes once the watcher is live
+    let probed = false
+    core.onNotify((n) => {
+      if (n.method === "docs.changed" && (n.params as { changed: { path: string }[] }).changed.some((f) => f.path === "probe.md")) probed = true
+    })
+    await vi.waitFor(
+      () => {
+        if (!probed) writeFileSync(path.join(root, "probe.md"), "probe")
+        expect(probed).toBe(true)
+      },
+      { timeout: 4_000, interval: 500 },
+    )
     renameSync(path.join(root, "a.md"), path.join(root, "renamed.md"))
-    for (let i = 0; i < 60 && !(await call("comments.all"))["renamed.md"]; i++) await sleep(25)
+    await until(async () => (await call("comments.all"))["renamed.md"], { what: "the comments to follow the rename" })
     expect(Object.keys(await call("comments.all"))).toEqual(["renamed.md"])
   })
 

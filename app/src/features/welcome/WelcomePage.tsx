@@ -18,7 +18,7 @@ import { updateSettings, useSettings } from "@/features/settings/store"
 import { bridge, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { useControlsRoom } from "@/lib/window-frame"
-import { pickParent, pickWorkspaceFolder, tilde } from "@/lib/workspace"
+import { pickParent, pickWorkspaceFolder, switchWorkspace, tilde } from "@/lib/workspace"
 import { AgentCheck } from "./AgentCheck"
 import { cn } from "@/lib/utils"
 
@@ -51,11 +51,11 @@ export function WelcomePage() {
     void load()
   }, [])
 
-  const create = () => rpc.workspace.create({ parent, name: name.trim() || info!.suggestion.name }).catch(toastError)
+  const create = () => switchWorkspace(() => rpc.workspace.create({ parent, name: name.trim() || info!.suggestion.name })).catch(toastError)
 
   const openFolder = async () => {
     const folder = await pickWorkspaceFolder()
-    if (folder) await rpc.workspace.open({ path: folder }).catch(toastError)
+    if (folder) await switchWorkspace(() => rpc.workspace.open({ path: folder })).catch(toastError)
   }
 
   const chooseParent = async () => {
@@ -69,7 +69,7 @@ export function WelcomePage() {
     const folder = await bridge?.chooseFolder({ title: t`Locate ${name}`, buttonLabel: t({ message: "Open", comment: "button of the folder picker" }), defaultPath: parentOf(gone.path) })
     if (!folder) return
     try {
-      await rpc.workspace.open({ path: folder })
+      await switchWorkspace(() => rpc.workspace.open({ path: folder }))
       await rpc.workspace.forget({ path: gone.path })
     } catch (error) {
       toastError(error)
@@ -164,7 +164,7 @@ export function WelcomePage() {
                         </IconButton>
                       </div>
                     ) : (
-                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={where} onClick={() => rpc.workspace.open({ path: w.path }).catch(toastError)} />
+                      <ListRow key={w.path} icon={FolderIcon} title={w.name} detail={where} onClick={() => switchWorkspace(() => rpc.workspace.open({ path: w.path })).catch(toastError)} />
                     )
                   })}
                 </div>

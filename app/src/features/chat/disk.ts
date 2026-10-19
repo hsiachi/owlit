@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { Chat, ChatMessage, ChatSummary } from "@owlit/protocol"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
-import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
+import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { useChatStore } from "./store"
 
@@ -88,12 +88,16 @@ export function patchMessageOnDisk(chatId: string, message: ChatMessage, final =
     waiting.message = message
     return
   }
-  const timer = setTimeout(() => {
-    const latest = pending.get(key)
-    pending.delete(key)
-    if (latest) enqueue(() => rpc.chats.patchMessage({ id: chatId, message: latest.message }))
-  }, SEND_EVERY_MS)
+  const timer = setTimeout(() => sendPending(key), SEND_EVERY_MS)
   pending.set(key, { chatId, message, timer })
+}
+
+function sendPending(key: string) {
+  const latest = pending.get(key)
+  if (!latest) return
+  clearTimeout(latest.timer)
+  pending.delete(key)
+  enqueue(() => rpc.chats.patchMessage({ id: latest.chatId, message: latest.message }))
 }
 
 function dropPending(chatId: string) {
@@ -111,6 +115,11 @@ if (onDisk) {
     pending.clear()
     useChatStore.setState({ chats: {}, streaming: {}, chatsLoaded: false })
     enqueue(load)
+  })
+  // Opening another workspace drops the queue, so what waits or is queued goes to core first
+  beforeWorkspaceSwitch(() => {
+    for (const key of [...pending.keys()]) sendPending(key)
+    return queue.settled()
   })
   // Opened before this module was loaded (a reload of the window)
   queueMicrotask(() => {

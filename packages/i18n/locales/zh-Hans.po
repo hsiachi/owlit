@@ -7642,6 +7642,22 @@ msgstr "{host} 目前出了点问题。"
 msgid "{host} answered {status}."
 msgstr "{host} 返回了 {status}。"
 
+#: packages/core/src/rpc/errors.ts
+msgid "owlit isn't allowed to change {name}. It may be locked in Finder or kept from owlit by macOS."
+msgstr "owlit 无权修改 {name}。它可能在访达中被锁定，或被 macOS 限制了 owlit 的访问。"
+
+#: packages/core/src/rpc/errors.ts
+msgid "{name} is on a disk owlit can't write to."
+msgstr "{name} 所在的磁盘 owlit 无法写入。"
+
+#: packages/core/src/rpc/errors.ts
+msgid "The disk is full, so {name} couldn't be saved."
+msgstr "磁盘已满，{name} 未能保存。"
+
+#: packages/core/src/rpc/errors.ts
+msgid "{name} is no longer there."
+msgstr "{name} 已不在原处。"
+
 #: packages/core/src/settings-rpc.ts
 msgid "That link doesn't show which proxy it went through."
 msgstr "那个链接看不出经过了哪个代理。"
@@ -7865,6 +7881,10 @@ msgstr "{name} 已在另一个 owlit 中打开。"
 #: packages/core/src/workspace/workspace.ts
 msgid "workspace.json in .owlit can't be read, so owlit leaves it alone."
 msgstr ".owlit 中的 workspace.json 无法读取，所以 owlit 没有动它。"
+
+#: packages/core/src/workspace/workspace.ts
+msgid "owlit isn't allowed to open {absolute}. Allow it in System Settings › Privacy & Security › Files and Folders, then try again."
+msgstr "owlit 无权打开 {absolute}。请在“系统设置 › 隐私与安全性 › 文件与文件夹”中允许后再试。"
 
 #: packages/core/src/workspace/workspace.ts
 msgid "There is no folder at {absolute}."

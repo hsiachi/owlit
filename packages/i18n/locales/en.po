@@ -7642,6 +7642,22 @@ msgstr "{host} is having trouble right now."
 msgid "{host} answered {status}."
 msgstr "{host} answered {status}."
 
+#: packages/core/src/rpc/errors.ts
+msgid "owlit isn't allowed to change {name}. It may be locked in Finder or kept from owlit by macOS."
+msgstr "owlit isn't allowed to change {name}. It may be locked in Finder or kept from owlit by macOS."
+
+#: packages/core/src/rpc/errors.ts
+msgid "{name} is on a disk owlit can't write to."
+msgstr "{name} is on a disk owlit can't write to."
+
+#: packages/core/src/rpc/errors.ts
+msgid "The disk is full, so {name} couldn't be saved."
+msgstr "The disk is full, so {name} couldn't be saved."
+
+#: packages/core/src/rpc/errors.ts
+msgid "{name} is no longer there."
+msgstr "{name} is no longer there."
+
 #: packages/core/src/settings-rpc.ts
 msgid "That link doesn't show which proxy it went through."
 msgstr "That link doesn't show which proxy it went through."
@@ -7865,6 +7881,10 @@ msgstr "{name} is already open in another owlit."
 #: packages/core/src/workspace/workspace.ts
 msgid "workspace.json in .owlit can't be read, so owlit leaves it alone."
 msgstr "workspace.json in .owlit can't be read, so owlit leaves it alone."
+
+#: packages/core/src/workspace/workspace.ts
+msgid "owlit isn't allowed to open {absolute}. Allow it in System Settings › Privacy & Security › Files and Folders, then try again."
+msgstr "owlit isn't allowed to open {absolute}. Allow it in System Settings › Privacy & Security › Files and Folders, then try again."
 
 #: packages/core/src/workspace/workspace.ts
 msgid "There is no folder at {absolute}."

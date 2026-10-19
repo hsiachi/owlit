@@ -4,11 +4,11 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { SettingsStore } from "../settings.ts"
+import { eventually, until } from "../test-util.ts"
 import { agentEnv, Agents, tidy } from "./agents.ts"
 import { splitCommand } from "./command.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const alive = (pid: number) => {
   try {
     process.kill(pid, 0)
@@ -174,9 +174,10 @@ describe("agents", () => {
     await agents.check(id)
     const pid = (await agents.process(id)).pid!
     expect(alive(pid)).toBe(true)
-    await sleep(700)
-    expect(alive(pid)).toBe(false)
-    expect((await agents.process(id)).running).toBe(false)
+    await eventually(async () => {
+      expect(alive(pid)).toBe(false)
+      expect((await agents.process(id)).running).toBe(false)
+    })
     await agents.check(id)
     const again = (await agents.process(id)).pid!
     expect(again).not.toBe(pid)
@@ -201,10 +202,11 @@ describe("agents", () => {
     const pid = proc.pid!
     heard.length = 0
     process.kill(pid, "SIGKILL")
-    await sleep(300)
-    expect(heard.filter((c) => c.status === "error")).toHaveLength(1)
-    expect(heard.find((c) => c.status === "error")!.error).toBe("Fake stopped (SIGKILL). It starts again with the next message.")
+    const error = await until(() => heard.find((c) => c.status === "error"), { what: "the crash's error" })
+    expect(error.error).toBe("Fake stopped (SIGKILL). It starts again with the next message.")
     expect((await agents.check(id)).status).toBe("connected")
     expect(proc.pid).not.toBe(pid)
+    // Started again: any other error about the crash would have come before
+    expect(heard.filter((c) => c.status === "error")).toHaveLength(1)
   })
 })

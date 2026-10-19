@@ -38,6 +38,7 @@ import { serveWorkspaceFile } from "./files/serve.ts"
 import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
+import { isMissing } from "./fs-util.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskContext, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
@@ -78,6 +79,9 @@ export interface CoreOptions {
   debug?: boolean
   // Base of the wait between tries of a failed request (default 1s); tests shorten it
   retryBaseMs?: number
+  // The PATH agents are looked up and started with (default: the login shell's); tests pass their own, so
+  // the developer's ~/.zshrc doesn't run inside them
+  searchPath?: () => Promise<string>
   // pdfium's wasm file, where the desktop app ships it beside main
   pdfiumWasm?: string
   // Serve the open workspace on a Unix socket for owlit-mcp and the CLI ($TMPDIR, or this folder)
@@ -162,6 +166,7 @@ export class Core {
     const resolveProxy = options.host?.resolveProxy
     this.agents = new Agents({
       settings: this.settings,
+      searchPath: options.searchPath,
       proxyEnv: resolveProxy && !hasProxyEnv(process.env) ? () => systemProxyEnv(resolveProxy) : undefined,
       setup: options.node && options.npm ? { dir: path.join(options.userDataDir, "agents"), node: options.node, npm: options.npm, fetchJson: async (url) => JSON.parse(await this.http.text(url)) } : undefined,
       probeDir: path.join(options.userDataDir, "agents", "probe"),
@@ -327,12 +332,12 @@ export class Core {
     this.router.register("workspace.open", z.object({ path: z.string().min(1) }), ({ path }) => this.openWorkspace(path))
     this.router.register("workspace.recent", noParams, async () => {
       const { recentWorkspaces } = await this.settings.get()
-      return recentWorkspaces.filter((p) => existsSync(p)).map(toInfo)
+      return recentWorkspaces.filter((p) => !isMissing(p)).map(toInfo)
     })
     this.router.register("workspace.state", noParams, () => this.state())
     this.router.register("workspace.welcome", noParams, async () => {
       const { recentWorkspaces } = await this.settings.get()
-      return { recent: recentWorkspaces.map((p) => ({ ...toInfo(p), missing: !existsSync(p) })), suggestion: suggestFolder() }
+      return { recent: recentWorkspaces.map((p) => ({ ...toInfo(p), missing: isMissing(p) })), suggestion: suggestFolder() }
     })
     this.router.register("workspace.create", z.object({ parent: z.string().min(1), name: z.string() }), async ({ parent, name }) =>
       this.openWorkspace(await createFolder(parent, name)),
@@ -1054,7 +1059,8 @@ export class Core {
     this.notifier.notify("workspace.state", this.state())
     const run = this.switching.then(async () => {
       const root = await resolveFolder(folder).catch(async (error) => {
-        await this.settings.forgetWorkspace(folder)
+        // Forgotten only when it is really gone: a folder macOS keeps from owlit, or an unmounted drive, comes back
+        if (isMissing(folder)) await this.settings.forgetWorkspace(folder)
         throw error
       })
       // The current workspace stays open until the next one has opened, so a failed switch loses nothing

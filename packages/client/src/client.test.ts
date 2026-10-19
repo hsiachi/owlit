@@ -4,6 +4,7 @@ import net from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
+import { eventually } from "../../core/src/test-util.ts"
 import { connect, OwlitNotRunning, socketPaths } from "./index.ts"
 
 const cores: Core[] = []
@@ -55,10 +56,10 @@ describe("the workspace socket", () => {
     const heard: string[] = []
     a.on("activity.status", () => heard.push("a"))
     b.on("activity.status", () => heard.push("b"))
-    await new Promise((r) => setTimeout(r, 50))
+    // Each client's subscribe went out before this call on the same connection, so is in by its reply
+    await Promise.all([a.call("core.ping"), b.call("core.ping")])
     await a.call("activity.setEnabled", { enabled: false })
-    await new Promise((r) => setTimeout(r, 50))
-    expect(heard.sort()).toEqual(["a", "b"])
+    await eventually(() => expect(heard.sort()).toEqual(["a", "b"]))
     a.close()
     b.close()
   })

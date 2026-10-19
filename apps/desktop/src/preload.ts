@@ -50,6 +50,13 @@ const bridge: OwlitBridge = {
       ipcRenderer.off("notification-click", forward)
     }
   },
+  onBeforeSwitch(flush) {
+    const forward = (_event: IpcRendererEvent, id: number) => void flush().finally(() => ipcRenderer.send("before-switch-done", id))
+    ipcRenderer.on("before-switch", forward)
+    return () => {
+      ipcRenderer.off("before-switch", forward)
+    }
+  },
   onMenu(listener) {
     const forward = (_event: IpcRendererEvent, command: MenuCommand) => listener(command)
     ipcRenderer.on("menu", forward)

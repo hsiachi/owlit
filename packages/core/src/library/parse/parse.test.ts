@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../../core.ts"
+import { until } from "../../test-util.ts"
 import type { Workspace } from "../../workspace/workspace.ts"
 import { makePdf, paragraph } from "../text/make-pdf.ts"
 import { toMarkdown } from "../text/extract.ts"
@@ -192,14 +193,14 @@ async function addWithPdf(call: (m: string, p?: unknown) => Promise<any>, base: 
   await call("library.attachPdf", { id: "doi-10.9-p", path: path.join(base, "p.pdf") })
 }
 
-const settled = async (workspace: Workspace, kind: string) => {
-  for (let i = 0; i < 200; i++) {
-    const task = workspace.tasks.list().find((t) => t.kind === kind && t.subject === "doi-10.9-p")
-    if (task && ["done", "failed", "cancelled"].includes(task.state)) return task
-    await new Promise((r) => setTimeout(r, 20))
-  }
-  throw new Error(`${kind} never finished`)
-}
+const settled = (workspace: Workspace, kind: string) =>
+  until(
+    () => {
+      const task = workspace.tasks.list().find((t) => t.kind === kind && t.subject === "doi-10.9-p")
+      return task && ["done", "failed", "cancelled"].includes(task.state) ? task : undefined
+    },
+    { what: `${kind} to finish` },
+  )
 
 describe("paper.parse", () => {
   it("sends the PDF to MinerU's cloud and replaces pdfium's text with its own", async () => {
@@ -239,7 +240,7 @@ describe("paper.parse", () => {
     const first = await setup(hanging.fetch, { service: "cloud", token: "t" })
     await addWithPdf(first.call, first.base)
     await settled(first.workspace, "paper.text")
-    for (let i = 0; i < 200 && !first.workspace.tasks.list().find((t) => t.kind === "paper.parse")?.external; i++) await new Promise((r) => setTimeout(r, 20))
+    await until(() => first.workspace.tasks.list().find((t) => t.kind === "paper.parse")?.external, { what: "the job recorded on the task" })
     expect(first.workspace.tasks.list().find((t) => t.kind === "paper.parse")?.external).toMatchObject({ service: "mineru", jobId: "batch-1" })
     await first.core.dispose()
 

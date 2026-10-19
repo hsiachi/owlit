@@ -47,7 +47,7 @@ export class Router {
       const result = await route.handler(parsed.data)
       return { jsonrpc: "2.0", id: request.id, result: result ?? null }
     } catch (error) {
-      return { jsonrpc: "2.0", id: id as RpcRequest["id"], error: toRpcError(error) }
+      return { jsonrpc: "2.0", id: id as RpcRequest["id"], error: toRpcError(error, isRequest(request) ? request.method : undefined) }
     }
   }
 }

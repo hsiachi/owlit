@@ -20,12 +20,14 @@ async function setup(files: Record<string, string> = {}) {
   mkdirSync(root, { recursive: true })
   const trashed: string[] = []
   const revealed: string[] = []
+  const opened: string[] = []
   const core = new Core({ userDataDir: path.join(base, "userData"), host: {
     trash: async (p) => {
       trashed.push(p)
       renameSync(p, path.join(base, `trashed-${trashed.length}`))
     },
     revealPath: (p) => void revealed.push(p),
+    openPath: async (p) => void opened.push(p),
   } })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
@@ -36,7 +38,7 @@ async function setup(files: Record<string, string> = {}) {
   await call("workspace.open", { path: root })
   const disk = (rel: string) => readFileSync(path.join(root, rel), "utf8")
   const exists = (rel: string) => existsSync(path.join(root, rel))
-  return { root, call, disk, exists, trashed, revealed }
+  return { root, call, disk, exists, trashed, revealed, opened }
 }
 
 describe("docs.list", () => {
@@ -185,6 +187,23 @@ describe("folders, moves and deletes", () => {
     }
   })
 
+  it("refuses owlit's folders in another case, and links that lead out of Docs", async () => {
+    const { root, call } = await setup({ "library/papers/a/note.md": "mine" })
+    // macOS's file system takes Library for library
+    await expect(call("docs.write", { path: "Library/papers/a/note.md", content: "x", expectedModifiedAt: 0, force: true })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    await expect(call("docs.delete", { path: "Library" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    const outside = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-outside-")))
+    writeFileSync(path.join(outside, "config"), "secret")
+    symlinkSync(path.join(outside, "config"), path.join(root, "refs.md"))
+    symlinkSync(outside, path.join(root, "away"))
+    symlinkSync(path.join(root, "library"), path.join(root, "shelf"))
+    await expect(call("docs.read", { path: "refs.md" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    await expect(call("docs.create", { path: "away/new.md", content: "x" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    await expect(call("docs.read", { path: "shelf/papers/a/note.md" })).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams })
+    const { files } = await call("docs.list")
+    expect(files.map((f: any) => f.path)).not.toContain("refs.md")
+  })
+
   it("needs a workspace", async () => {
     const core = new Core({ userDataDir: mkdtempSync(path.join(tmpdir(), "owlit-none-")) })
     cores.push(core)
@@ -202,6 +221,17 @@ describe("docs.reveal", () => {
     await expect(call("docs.reveal", { path: "a/gone.md" })).rejects.toThrow()
     await expect(call("docs.reveal", { path: "../outside" })).rejects.toThrow()
     expect(revealed).toHaveLength(2)
+  })
+})
+
+describe("docs.open", () => {
+  it("opens a document in its app, and only shows anything that could run", async () => {
+    const { call, revealed, opened, root } = await setup({ "refs/paper.pdf": "%PDF", "run.command": "echo hi", "Results.terminal": "<plist/>" })
+    mkdirSync(path.join(root, "Tool.app"))
+    symlinkSync(path.join(root, "Tool.app"), path.join(root, "notes.pdf"))
+    for (const p of ["refs/paper.pdf", "run.command", "Results.terminal", "Tool.app", "notes.pdf"]) await call("docs.open", { path: p })
+    expect(opened).toEqual([path.join(root, "refs/paper.pdf")])
+    expect(revealed).toEqual(["run.command", "Results.terminal", "Tool.app", "notes.pdf"].map((p) => path.join(root, p)))
   })
 })
 

@@ -19,6 +19,16 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Previous and Next keep working under the Unread filter after the open paper turns Reading.
 - A thread's answer for a paper with no abstract says it came from the title only, and a paper with no PDF no longer offers to highlight in it.
 - @ opens right after Chinese text, and on a full-width ＠.
+- The last words typed in a paper's note reach the disk when you quit, reload or open another workspace right after typing.
+- A paper or thread that changed while Owlit was opening your workspace shows its change, instead of how it was a moment before.
+- A workspace in a folder macOS keeps Owlit out of (such as Documents, after Don't Allow) says where to allow it, and stays in your recent workspaces; so does one on a drive that isn't plugged in.
+- After Owlit crashed or was force-quit, its workspace opens again instead of sometimes saying it is open in another Owlit.
+- Your API keys survive a Keychain prompt you deny, or a new build Keychain doesn't know yet: they show as not set and come back once Keychain lets Owlit read them.
+- An error Owlit didn't expect names the file and why (locked in Finder, disk full, read-only) where it can, and is in the diagnostics.
+- A link in your workspace that leads outside it, or into Owlit's own folders, no longer shows in Docs, and Owlit and agents can't read or write through it.
+- Clicking a file in Docs opens documents, pictures and media in their app; anything that could run, such as a .command file, is shown in Finder instead.
+- ⌘B is Bold again in docs, notes and the composer; it no longer hides the list panel. The window can't get narrow enough to lose the sidebar or Settings' sections.
+- ⌘K stays quick with a large library, showing the best 20 of each kind.
 
 ## 0.2.1
 

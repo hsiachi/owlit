@@ -1143,6 +1143,9 @@ export class Library {
     }
   }
 
+  // The last open's recount, settled once it has counted or found it had nothing to do (tests wait on it)
+  citationsRecounted: Promise<void> = Promise.resolve()
+
   // Citation counts over a month old counted again (citations.ts), once a day at most, quietly: a count is
   // the service's fact, not something Owlit wrote, so nothing marks it. A day the services can't be
   // reached is tried again on the next open.
@@ -1182,7 +1185,7 @@ export class Library {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
     void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
-    void this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
+    this.citationsRecounted = this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
     // Before any paper is read: imported papers skip the digest and maybe MinerU
     await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))

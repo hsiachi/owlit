@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { until } from "../test-util.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -21,11 +22,16 @@ async function setup() {
     return response.result
   }
   await call("workspace.open", { path: root })
-  const journal = async () => {
-    // The journal is written in the background
-    await new Promise((r) => setTimeout(r, 50))
-    return readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
-  }
+  // The journal is written in the background: read once it has a line that passes `last`, the sentinel
+  // for everything before it
+  const journal = (last: (line: any) => boolean) =>
+    until(
+      () => {
+        const lines = readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+        return lines.some(last) ? lines : undefined
+      },
+      { what: "the journal's line" },
+    )
   return { root, call, journal }
 }
 
@@ -38,7 +44,12 @@ describe("the dial (Settings › Owlit › On its own)", () => {
     expect(file).toMatchObject({ version: 1, layout: {}, initiative: { mode: "onOpen" } })
     // Setting the same position again isn't a move
     await call("initiative.set", { patch: { mode: "onOpen", dailyCap: 5 } })
-    expect(await journal()).toEqual([{ kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "off", to: "onOpen" }, actor: "user" }])
+    // A move after it is the sentinel: once that is journaled, a line for the non-move would be too
+    await call("initiative.set", { patch: { mode: "away" } })
+    expect(await journal((l) => l.detail?.to === "away")).toEqual([
+      { kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "off", to: "onOpen" }, actor: "user" },
+      { kind: "feedback.dialChanged", at: expect.any(Number), subject: "workspace", detail: { from: "onOpen", to: "away" }, actor: "user" },
+    ])
     await expect(call("initiative.set", { patch: { mode: "always" } })).rejects.toThrow()
   })
 
@@ -46,9 +57,12 @@ describe("the dial (Settings › Owlit › On its own)", () => {
     const { call, journal } = await setup()
     await call("library.add", { paper: { id: "doi-10.1-x", title: "X", authors: ["A"], ids: { doi: "10.1/x" } } })
     await call("library.update", { id: "doi-10.1-x", patch: { starred: true } })
-    const lines = await journal()
+    // Opening the paper's page is the sentinel: its decision comes after any the star or the add led to
+    await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-x" } })
+    const lines = await journal((l) => l.kind === "evaluation" && l.rule === "digest.onOpen")
     expect(lines.filter((l: { kind: string }) => l.kind === "evaluation")).toEqual([
       expect.objectContaining({ rule: "digest.onStar", subject: "doi-10.1-x", decision: "none", reason: "nothing to read", cause: "paper.starred", actor: "owlit" }),
+      expect.objectContaining({ rule: "digest.onOpen", subject: "doi-10.1-x", decision: "none", reason: "nothing to read", cause: "paper.opened" }),
     ])
   })
 })

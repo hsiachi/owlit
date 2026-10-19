@@ -20,6 +20,8 @@ const BUNDLE_IDS: Record<string, string> = {
 }
 
 export async function openInBrowser(url: string, browser: { app?: string; name?: string }) {
+  // `open` runs whatever a file: or custom-scheme link names; core only means web pages here
+  if (!/^https?:\/\//i.test(url)) throw new Error(`Not a web page: ${url}`)
   const bundle = browser.app ?? (browser.name && BUNDLE_IDS[browser.name])
   if (process.platform === "darwin" && bundle) {
     // open fails when the app isn't installed under that id: then the default browser

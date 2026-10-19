@@ -29,6 +29,7 @@ import { Comments } from "./comments.ts"
 import { DocsOwlit } from "./owlit.ts"
 import type { Host } from "../host.ts"
 import { Serial } from "../util.ts"
+import { isOwlitPath } from "../workspace/paths.ts"
 
 // What core needs from the machine it runs on that plain Node can't do: the desktop app hands in
 // Electron's shell; without one, deleted files go to .owlit/trash/ and nothing opens
@@ -440,8 +441,13 @@ export class Docs {
     })
   }
 
+  // A document opens in its app; anything else (a folder, which may be an .app, a .command, a .terminal) is
+  // shown in Finder instead, since agents can write files here and one click must not run one
   async open(rel: string) {
     await this.entry(rel)
+    // Judged by what a link leads to: notes.pdf -> Tool.app is an app
+    const target = await realpath(this.abs(rel))
+    if ((await stat(target)).isDirectory() || !OPENS.test(target)) return this.reveal(rel)
     if (!this.host.openPath) throw new RpcFailure(RpcErrorCode.InternalError, t`owlit can't open files in other apps here.`)
     await this.host.openPath(this.abs(rel))
     return null
@@ -465,6 +471,7 @@ export class Docs {
         const child = joinPath(dir, entry.name)
         if (!isDocsPath(child)) continue
         // Symlinked folders are not followed, so a link back up can't loop; a symlinked file is read through
+        // when it leads to a doc in the workspace
         if (entry.isDirectory()) {
           const info = await lstat(this.abs(child)).catch(() => null)
           if (info) found.set(child, entryOf(info, true))
@@ -472,6 +479,7 @@ export class Docs {
           continue
         }
         if (!entry.isFile() && !entry.isSymbolicLink()) continue
+        if (entry.isSymbolicLink() && !isDocsPath(this.realRel(child) ?? "..")) continue
         const info = await stat(this.abs(child)).catch(() => null)
         if (info?.isFile()) found.set(child, entryOf(info, false))
       }
@@ -620,9 +628,11 @@ export class Docs {
     return file
   }
 
-  // A path a client may name: inside the workspace, not under library/ or a dot-folder
+  // A path a client may name: inside the workspace, not under library/ or a dot-folder, where it is
+  // written and where it really is
   private check(rel: string) {
-    if (!isDocsPath(rel) || path.posix.normalize(rel) !== rel || rel.startsWith("/")) {
+    const real = path.posix.normalize(rel) === rel && !rel.startsWith("/") && isDocsPath(rel) ? this.realRel(rel) : null
+    if (real === null || !isDocsPath(real)) {
       throw invalidParams(rel ? t`${rel} is outside what Docs can reach.` : t`The workspace root is outside what Docs can reach.`, { path: rel })
     }
     return rel
@@ -635,13 +645,25 @@ export class Docs {
     if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
       throw new RpcFailure(RpcErrorCode.InvalidParams, t`${file} is outside the workspace.`, { path: file })
     }
-    // Where it really is, too: a symlink in the folder (notes.md -> ~/.zshrc) doesn't lead outside it
-    const target = realOfDeepest(resolved)
-    const real = target === null ? ".." : path.relative(realpathSync(this.root), target)
-    if (real.startsWith("..") || path.isAbsolute(real)) {
+    if (this.realRel(rel) === null) {
       throw new RpcFailure(RpcErrorCode.InvalidParams, t`${file} leads outside the workspace.`, { path: file })
     }
     return rel.split(path.sep).join("/")
+  }
+
+  // Whether a workspace path is owlit's own (library/, .owlit/) as written or where it really is, so a link
+  // (state -> .owlit) doesn't get past
+  isOwlits(rel: string) {
+    return isOwlitPath(rel) || isOwlitPath(this.realRel(rel) ?? "")
+  }
+
+  // Where a path in the workspace really is, relative to it; null when a symlink on the way
+  // (notes.md -> ~/.zshrc) leads outside it, or to nothing
+  private realRel(rel: string) {
+    const target = realOfDeepest(this.abs(rel))
+    if (target === null) return null
+    const real = path.relative(realpathSync(this.root), target)
+    return real.startsWith("..") || path.isAbsolute(real) ? null : real.split(path.sep).join("/")
   }
 
   private abs(rel: string) {
@@ -729,7 +751,7 @@ export class Docs {
 export function isDocsPath(rel: string) {
   const segments = rel.split("/")
   if (segments.some((s) => !s || s === "." || s === ".." || s.startsWith("."))) return false
-  return segments[0] !== "library"
+  return !isOwlitPath(rel)
 }
 
 const entryOf = (info: Stats, dir: boolean): Entry => ({
@@ -753,6 +775,10 @@ const conflict = (data: DocConflict) => {
   const name = baseName(data.path)
   return new RpcFailure(RpcErrorCode.Conflict, data.content === null ? t`${name} is no longer on disk.` : t`${name} changed on disk.`, data)
 }
+
+// Files Docs opens in their own app: documents, pictures, sound and video. Not web pages, scripts or
+// anything macOS runs.
+const OPENS = /\.(pdf|txt|rtf|csv|tsv|json|ya?ml|toml|bib|ris|tex|docx?|xlsx?|pptx?|odt|ods|odp|pages|numbers|key|epub|png|jpe?g|gif|webp|heic|tiff?|bmp|mp3|m4a|wav|aiff?|mp4|m4v|mov)$/i
 
 // Files whose text is kept, so a change an agent makes to them on its own can be undone: Markdown, and
 // other small text files a researcher keeps (references, LaTeX, data)

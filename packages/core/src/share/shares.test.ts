@@ -8,6 +8,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
+import { until } from "../test-util.ts"
 
 // owlit and a real share server, talking over HTTP on this machine
 
@@ -26,13 +27,6 @@ async function call<T = unknown>(method: string, params?: unknown): Promise<T> {
   return response.result as T
 }
 const reader = (url: string, init?: RequestInit) => fetch(base + url, { ...init, headers: { "content-type": "application/json", ...init?.headers } })
-const until = async (check: () => boolean | Promise<boolean>, ms = 3000) => {
-  const end = Date.now() + ms
-  while (!(await check())) {
-    if (Date.now() > end) throw new Error("timed out")
-    await new Promise((r) => setTimeout(r, 20))
-  }
-}
 
 function putPaper(id: string, record: object, extra: { digest?: string; note?: string } = {}) {
   const dir = path.join(root, "library/papers", id)
