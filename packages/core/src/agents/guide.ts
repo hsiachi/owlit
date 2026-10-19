@@ -1,6 +1,9 @@
 // How to use owlit, for Owlit when the user asks about owlit itself (owlit_help in owlit-mcp). It says
 // how to do things and where they are, never why. It describes the app as it is: a change to a feature
-// that one of these paragraphs mentions changes the paragraph in the same commit.
+// that one of these paragraphs mentions changes the paragraph in the same commit. It also serves the
+// recipes of the work owlit starts for the person (recipes/), so a chat can do that work the same way.
+
+import { RECIPES } from "../recipes/index.ts"
 
 interface GuideTopic {
   id: string
@@ -79,9 +82,12 @@ const TOPICS: GuideTopic[] = [
 const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (owlit, agents, papers, appearance), or a part of one (background, privacy, sources, proxy, reading), for example [Settings › Papers › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
 
 export function guide(topic?: string) {
-  const list = TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")
+  const recipes = Object.entries(RECIPES).map(([name, r]) => `- ${name}: ${r.description}`).join("\n")
+  const list = `${TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")}\n\nHow Owlit does a piece of work, to do it the same way when the user asks for it in a chat:\n${recipes}`
   if (!topic) return `How to use owlit. Ask for one topic:\n${list}\n\n${LINKS}`
   const want = topic.trim().toLowerCase()
+  const recipe = RECIPES[want]
+  if (recipe) return recipe.text()
   // Its id, then a word of its title, then a word anywhere in it
   const found =
     TOPICS.find((t) => t.id === want) ?? TOPICS.find((t) => t.title.toLowerCase().includes(want)) ?? TOPICS.find((t) => t.text.toLowerCase().includes(want))

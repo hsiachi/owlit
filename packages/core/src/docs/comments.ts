@@ -1,4 +1,4 @@
-import type { ActorId, ChangeAction, CommentAnchor, CommentInput, DocComment } from "@owlit/protocol"
+import { isOwlit, type ActorId, type ChangeAction, type CommentAnchor, type CommentInput, type DocComment } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { mkdir, readdir, rename, rm } from "node:fs/promises"
 import path from "node:path"
@@ -151,4 +151,28 @@ export function commentChanges(before: DocComment | null, after: DocComment | nu
   }
   for (const e of was) if (!now.some((n) => n.id === e.id)) out.push({ action: "delete", part: `${after.id}/${e.id}`, before: e })
   return out
+}
+
+// ---- Owlit correcting its own comment ----
+
+// What an Owlit reply under its own comment starts with when it rewrites the comment's first entry
+// instead (recipes/reply.ts tells the agent; comments.put in core.ts applies it)
+export const CORRECT = "CORRECT:"
+
+// Owlit may rewrite its first entry: the comment is Owlit's and not a point a Go through carried over
+// (source), whose first entry is what someone said
+export const correctable = (comment: DocComment) => !!comment.entries[0] && isOwlit(comment.entries[0].by) && !comment.source
+
+// The rewritten entry a reply gives, or null when it isn't a correction
+export function correctionOf(text: string): string | null {
+  const t = text.trim()
+  return t.startsWith(CORRECT) ? t.slice(CORRECT.length).trim() || null : null
+}
+
+// The comment with its first entry rewritten: the old words kept as was and marked edited, which also
+// makes the comment new to the person again (the doc's Owlit dot)
+export function corrected(comment: DocComment, text: string, at: number): DocComment {
+  const [first, ...rest] = comment.entries
+  if (!first || first.text === text) return comment
+  return { ...comment, entries: [{ ...first, text, was: first.was ?? first.text, editedAt: at }, ...rest] }
 }

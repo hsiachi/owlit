@@ -434,7 +434,7 @@ function TOOLS(): ToolSpec[] {
     name: "owlit_help",
     touches: "read",
     description:
-      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts). Also how Owlit does a piece of work it is known for (going through a meeting against the docs, answering under its comment), to do it the same way when the user asks for it. Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
     inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic from the list, or a word to look for (optional)" } } },
     annotations: { readOnlyHint: true },
   },
