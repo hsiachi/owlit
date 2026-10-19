@@ -23,7 +23,8 @@ export interface Target {
   was?: unknown
   // The workspace files a write or an engine's request names (AgentFs.target)
   files?: string[]
-  // One of those files isn't the user's doc to change: owlit's own state
+  // One of those files isn't one of the user's docs: outside the workspace, owlit's own state, a
+  // dot-folder
   notDoc?: boolean
 }
 

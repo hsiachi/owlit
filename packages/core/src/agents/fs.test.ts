@@ -143,7 +143,7 @@ describe("agent fs", () => {
     symlinkSync(path.join(outside, "secret.txt"), path.join(root, "notes.md"))
     symlinkSync(outside, path.join(root, "away"))
     await expect(core.fs.read(path.join(root, "notes.md"))).rejects.toThrow("leads outside the workspace")
-    await expect(core.fs.write(path.join(root, "away/new.md"), "x")).rejects.toThrow("leads outside the workspace")
+    await expect(core.fs.write(path.join(root, "away/new.md"), "x")).rejects.toThrow("That file isn't one of the user's docs.")
   })
 
   it("writes a paper's note through the library, tells windows, and undoes it", async () => {

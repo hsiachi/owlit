@@ -648,6 +648,12 @@ export class Docs {
     return rel.split(path.sep).join("/")
   }
 
+  // Whether a workspace path is one of the user's docs, as written and where it really is
+  isDoc(rel: string) {
+    const real = this.realRel(rel)
+    return isDocsPath(rel) && real !== null && isDocsPath(real)
+  }
+
   // Whether a workspace path is owlit's own (library/, .owlit/) as written or where it really is, so a link
   // (state -> .owlit) doesn't get past
   isOwlits(rel: string) {

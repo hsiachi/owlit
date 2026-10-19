@@ -454,6 +454,17 @@ describe("turns", () => {
     expect(proposals).toMatchObject([{ id: wrote[0].id, hunks: [{ insert: "thirteen", removed: "twelve", before: "", after: " chars" }] }])
   })
 
+  it("refuses an edit outside the user's docs before any card, whatever the role", async () => {
+    const { send, updates, text, root } = await setup()
+    for (const file of ["../x.md", ".owlit/x.json", ".git/x.md"]) {
+      updates.length = 0
+      await send(`rewrite ${file} words`, { role: "coauthor" })
+      expect(text(), file).toBe("you chose no")
+      expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+      expect(existsSync(path.join(root, file))).toBe(false)
+    }
+  })
+
   it("writes files for the agent and tells clients", async () => {
     const { send, root, core } = await setup()
     const heard: unknown[] = []

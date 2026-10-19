@@ -53,7 +53,7 @@ export class AgentFs {
     // only the target's limits hold for it
     const role = chatId ? await this.options.roleOf?.(chatId) : undefined
     const decision = chatId ? decide({ caller, actor: await this.actorOf(caller), ...(role ? { role } : {}) }, "words", target) : offLimits(target)
-    if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, decision.refuse, { path: target.files?.[0] ?? file })
+    if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, decision.refuse, { path: file })
     const rel = target.files![0]!
     const claim = chatId ? this.options.claimOf?.(rel) : undefined
     const origin: Partial<ChangeOrigin> = claim && claim.chatId === chatId ? { via: claim.accepted ? "apply" : "tool", toolCallId: claim.toolCallId } : {}
@@ -75,13 +75,23 @@ export class AgentFs {
   }
 
   // The files a write or an engine's request names, as the policy's target (policy.ts): each resolved
-  // against the workspace (a path outside it fails here), and whether any is owlit's own state rather
-  // than one of the user's docs. A paper's note is the user's, like a doc.
+  // against the workspace, and whether all are the user's: inside the workspace and docs (not library/,
+  // .owlit/ or another dot-folder, as written or where a link leads), or a paper's note
   async target(paths: string[]): Promise<Target> {
-    const docs = this.workspace().docs
-    const library = this.workspace().library
-    const files = paths.map((p) => docs.resolve(p))
-    const notDoc = files.some((rel) => !library.noteOf(rel) && docs.isOwlits(rel))
+    const { docs, library } = this.workspace()
+    const files: string[] = []
+    let notDoc = false
+    for (const file of paths) {
+      let rel: string
+      try {
+        rel = docs.resolve(file)
+      } catch {
+        notDoc = true
+        continue
+      }
+      files.push(rel)
+      if (!library.noteOf(rel) && !docs.isDoc(rel)) notDoc = true
+    }
     return { what: "file", files, ...(notDoc ? { notDoc } : {}) }
   }
 
