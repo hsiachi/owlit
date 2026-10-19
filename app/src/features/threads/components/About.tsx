@@ -160,7 +160,8 @@ function Batch({ batch: b, first, askedIn }: { batch: ThreadBatch; first: boolea
   )
 }
 
-// What set the batch going and what it did: "Gathered · 10 papers", "Found more papers · +4 papers"
+// What set the batch going and what it did: "Gathered · 10 papers", "Found more papers · +4 papers",
+// "Read in full · the answers for 3 papers changed"
 function BatchTitle({ batch: b, first, askedIn }: { batch: ThreadBatch; first: boolean; askedIn?: string }) {
   const chat = useChatStore((s) => (b.chatId ? s.chats[b.chatId] : undefined))
   const added = b.added
@@ -171,7 +172,9 @@ function BatchTitle({ batch: b, first, askedIn }: { batch: ThreadBatch; first: b
         ? plural(added, { one: "# paper", other: "# papers" })
         : plural(added, { one: "+# paper", other: "+# papers" })
       : answered > 0
-        ? plural(answered, { one: "# answer", other: "# answers" })
+        ? b.trigger === "read"
+          ? plural(answered, { one: "the answers for # paper changed", other: "the answers for # papers changed" })
+          : plural(answered, { one: "# answer", other: "# answers" })
         : t({ message: "nothing new", comment: "a batch of Owlit's work on a thread that added nothing" })
   const column = b.columns[0]
   // The chat the question was asked in is named with the question; its first batch is the gathering

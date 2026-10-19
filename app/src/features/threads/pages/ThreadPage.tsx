@@ -39,7 +39,8 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const renaming = useThreadsUi((s) => s.renaming === threadId)
   const set = useThreadsUi((s) => s.set)
   // What changed since the user last looked carries the dot until they leave
-  const fresh = useVisitDots(threadId)
+  const visit = useVisitDots(threadId)
+  const fresh = visit.fresh
   const id = thread?.id
   const page = useRef<HTMLDivElement>(null)
   // Back where it was left, after the first layout; a link to one of its papers scrolls to that row instead
@@ -125,11 +126,11 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
             {/* What can be asked of the papers, in one place for both forms, before them, so a long list
                 doesn't bury it */}
             <ThreadActions thread={thread} />
-            {!table && <AnswerRows thread={thread} shown={shown} fresh={fresh} />}
+            {!table && <AnswerRows thread={thread} shown={shown} visit={visit} />}
           </div>
           {table && (
             <div className="mx-auto w-full max-w-6xl px-6">
-              <ThreadTable thread={thread} shown={shown} fresh={fresh} />
+              <ThreadTable thread={thread} shown={shown} visit={visit} />
             </div>
           )}
           <div className="mx-auto w-full max-w-3xl px-4">

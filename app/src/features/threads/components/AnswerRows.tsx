@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { itemId, type Paper, QUESTION_COLUMN, type Thread, type ThreadColumn, type ThreadRow, threadUri } from "@owlit/protocol"
+import { itemId, type Paper, QUESTION_COLUMN, readInFull, type Thread, type ThreadColumn, type ThreadRow, threadUri } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
 import { CitationHover } from "@/components/citation-card"
@@ -14,21 +14,21 @@ import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from
 import { regroupRow, removeRow, useThreadsStore } from "../store"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useThreadsUi } from "../ui-store"
-import { useSeenOnScreen } from "../seen"
+import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
 
 // The papers of a thread without columns, one line each: what the paper says about the question
 // first, the paper after it, named as the memo names it ("CiteSee · 2023"). Every answer is in ink: one from
 // the full text ends in the page it rests on, so an answer without a page is from the abstract, and grey
 // keeps meaning only "secondary" or "unread". The slot before it is Owlit's dot while the answer is new
 // since the user looked; their own reading is a half ring after the paper's name, on the thing it is about.
-export function AnswerRows({ thread, shown, fresh }: { thread: Thread; shown: Thread; fresh: (item: string) => boolean }) {
+export function AnswerRows({ thread, shown, visit }: { thread: Thread; shown: Thread; visit: VisitDots }) {
   const peek = useThreadsUi((s) => s.peek)
   if (!shown.rows.length) return null
   return (
     <div className="-mx-1.5 mt-8 flex flex-col">
       {shown.rows.map((row) => {
         const items = [itemId.row(row.id), itemId.cell(row.id, QUESTION_COLUMN)]
-        return <AnswerRow key={row.id} thread={thread} row={row} items={items} fresh={items.some(fresh)} open={peek === row.id} />
+        return <AnswerRow key={row.id} thread={thread} row={row} items={items} fresh={items.some(visit.fresh)} reread={readInFull(visit.changeOf(items[1]!))} open={peek === row.id} />
       })}
     </div>
   )
@@ -39,12 +39,15 @@ export function ReadingMark({ paper, className }: { paper: Paper | undefined; cl
   return <ReadingRing label={t`You've read some of it`} className={className} />
 }
 
-function AnswerRow({ thread, row, items, fresh, open }: { thread: Thread; row: ThreadRow; items: string[]; fresh: boolean; open: boolean }) {
+// reread: the dot's change is Owlit answering again from the full text: the page says so while the dot
+// lasts, and the opened row keeps the answer it replaced after
+function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: Thread; row: ThreadRow; items: string[]; fresh: boolean; reread: ReturnType<typeof readInFull>; open: boolean }) {
   const seenRef = useSeenOnScreen<HTMLDivElement>(thread.id, items)
   const set = useThreadsUi((s) => s.set)
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
   const answer = row.cells[QUESTION_COLUMN]
+  const was = useReadInFull(thread.id, itemId.cell(row.id, QUESTION_COLUMN), open)
   const toggle = () => set({ peek: open ? null : row.id })
   return (
     <div
@@ -77,10 +80,10 @@ function AnswerRow({ thread, row, items, fresh, open }: { thread: Thread; row: T
             </>
           )}
         </span>
-        {!open && answer?.depth === "full" && answer.passage && <PageLink paperId={row.id} passage={answer.passage} library={library} />}
+        {!open && answer?.depth === "full" && answer.passage && <PageLink paperId={row.id} passage={answer.passage} library={library} changed={fresh && !!reread} />}
       </div>
       <Unfold open={open}>
-        <RowPeek thread={thread} row={row} library={library} />
+        <RowPeek thread={thread} row={row} library={library} was={was === undefined ? reread : was} />
       </Unfold>
     </div>
   )
@@ -118,24 +121,41 @@ function GroupsMenu({ thread, row, grouping, here }: { thread: Thread; row: Thre
 }
 
 // The page an answer rests on, which opens the paper at those words (a paper read in full is in the
-// Library); on hover, the citation's card checks the words against the paper
-function PageLink({ paperId, passage, library }: { paperId: string; passage: { quote: string; page: number }; library: Paper | undefined }) {
+// Library); on hover, the citation's card checks the words against the paper. changed: the answer was
+// just written again from the full text, said in Owlit's colour where the page alone would be.
+function PageLink({ paperId, passage, library, changed }: { paperId: string; passage: { quote: string; page: number }; library: Paper | undefined; changed?: boolean }) {
   const navigate = useNavigate()
   const page = passage.page
+  const pageLabel = t({ message: `p. ${page}`, comment: "a page of a paper" })
+  const label = changed ? `${t({ message: "Changed after reading in full", comment: "chip on a thread cell Owlit answered again from the full text" })} · ${pageLabel}` : pageLabel
   return (
     <span className="shrink-0 text-detail">
       <CitationHover citation={{ paperId, page, quote: passage.quote, depth: "full" }}>
-        <MentionToken label={t({ message: `p. ${page}`, comment: "a page of a paper" })} title={null} onClick={library ? () => navigate(passageRoute(library.id, passage)) : undefined} />
+        <MentionToken label={label} title={null} className={changed ? "text-owlit" : undefined} onClick={library ? () => navigate(passageRoute(library.id, passage)) : undefined} />
       </CitationHover>
     </span>
+  )
+}
+
+// What Owlit's answer was before it read the paper in full, under the answer that replaced it
+export function WasLine({ was, className }: { was: ReturnType<typeof readInFull>; className?: string }) {
+  if (!was) return null
+  const text = was.was
+  const from = was.from === "title" ? t({ message: "from the title only", comment: "after “was: …”: what Owlit's earlier answer was written from" }) : t({ message: "from the abstract", comment: "after “was: …”: what Owlit's earlier answer was written from" })
+  return (
+    <p className={cn("text-detail leading-normal text-muted-foreground", className)}>
+      {t({ message: `was: ${text}`, comment: "Owlit's earlier answer, under the one that replaced it" })}
+      <span className="whitespace-nowrap"> · {from}</span>
+    </p>
   )
 }
 
 // A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
 // the Library: opening it, or adding it, brings it in, since it is then being used.
 // grouping: the shown grouping whose groups the card lists, when there is one; here: the group the row
-// was opened under
-export function RowPeek({ thread, row, grouping, here, library, className }: { thread: Thread; row: ThreadRow; grouping?: ThreadColumn; here?: string; library: Paper | undefined; className?: string }) {
+// was opened under; was: the answer Owlit replaced when it read the paper in full (the list's rows; a
+// table's cell says it on its own card)
+export function RowPeek({ thread, row, grouping, here, library, className, was }: { thread: Thread; row: ThreadRow; grouping?: ThreadColumn; here?: string; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
@@ -164,6 +184,7 @@ export function RowPeek({ thread, row, grouping, here, library, className }: { t
             )}
           </p>
         )}
+        {answer && !thread.overrides.edits[itemId.cell(row.id, QUESTION_COLUMN)] && <WasLine was={was ?? null} className="mt-1" />}
         {answer?.passage && (
           <Quote size="sm" className="mt-2">
             “{answer.passage.quote}” <span className="text-detail">{t({ message: `p. ${answer.passage.page}`, comment: "a page of a paper" })}</span>
