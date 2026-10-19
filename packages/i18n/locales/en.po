@@ -1447,6 +1447,11 @@ msgstr "{0, plural, one {Show # more} other {Show # more}}"
 msgid "in full"
 msgstr "in full"
 
+#. papers an answer was built from: N from the text (some of its pages or a section)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from the text"
+msgstr "from the text"
+
 #. papers an answer was built from: N from the digest
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "from the digest"
@@ -1465,6 +1470,16 @@ msgstr "without a PDF"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {From # paper} other {From # papers}}"
 msgstr "{papers, plural, one {From # paper} other {From # papers}}"
+
+#. one paper an answer was built from: 1 from pp. 4–5
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from pp. {pages}"
+msgstr "from pp. {pages}"
+
+#. one paper an answer was built from: 1 from p. 4
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from p. {pages}"
+msgstr "from p. {pages}"
 
 #. a helper agent's status
 #. a step that failed

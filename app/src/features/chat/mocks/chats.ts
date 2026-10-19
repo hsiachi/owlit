@@ -44,9 +44,10 @@ export const seedChats: Chat[] = [
             text: "- **Self-attention replaces recurrence.** The Transformer models token dependencies with multi-head attention alone, allowing full parallelism during training.\n- **Encoder–decoder with positional encodings.** Sinusoidal position signals give the model order information without recurrence.\n- **State of the art at lower cost.** It reached 28.4 BLEU on WMT14 En–De with far less training compute than prior models [Vaswani et al. 2017](owlit://library/p1#p8 \"On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models.\").\n- **What came after.** Larger versions of the same architecture learn tasks from a few examples [Brown et al. 2020](owlit://library/p2), and their loss falls smoothly with scale [Kaplan et al. 2020](owlit://library/p8); I went on the abstract for the first and have no text of the second.",
           },
         ],
-        // As core writes it when the turn ends: read in full, cited from its abstract, no text in owlit
+        // As core writes it when the turn ends: read in full, two pages read, cited from its abstract, no text in owlit
         readFrom: [
           { paperId: "p1", depth: "full" },
+          { paperId: "p3", depth: "text", pages: "4–5" },
           { paperId: "p2", depth: "abstract" },
           { paperId: "p8", depth: "none" },
         ],
