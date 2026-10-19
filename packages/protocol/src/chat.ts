@@ -152,6 +152,9 @@ export type MessagePart =
       agentId?: string
     }
   | { type: "plan"; entries: PlanEntry[] }
+  // Said by owlit, not the agent, while the reply runs: the agent has sent nothing since `since`. Gone
+  // with the agent's next word, and from the reply once it ends.
+  | { type: "notice"; notice: "silent"; since: number }
   // An agent the answering agent handed part of the work to, where it was handed out: its task as the
   // agent named it, how it is doing, and the report it handed back
   | { type: "agent"; agentId: string; title: string; status: AgentStatus; report?: string }
@@ -182,6 +185,8 @@ export type MessagePart =
 // or stopped with the answer
 export type AgentStatus = "working" | "done" | "failed" | "stopped"
 
+export type CutOff = "closed" | "switched"
+
 export type MessageStatus = "streaming" | "done" | "cancelled" | "error"
 
 export interface ChatMessage {
@@ -203,6 +208,9 @@ export interface ChatMessage {
   // 403 Request not allowed"), kept apart from the answer
   error?: string
   errorDetail?: string
+  // Set on a reply owlit itself cut off, by closing or by opening another workspace: not the person's own
+  // Stop and not the agent breaking, so it is said as where it stopped, with Retry
+  cutOff?: CutOff
   // What an answer was built from, set when its turn ends: each paper it read or cited, and how far
   // (core's view of the turn's library_read calls, not the agent's word)
   readFrom?: ReadFrom[]
@@ -393,6 +401,7 @@ export type SessionUpdate =
   | { type: "permission_resolved"; requestId: string; outcome: PermissionKind | "cancelled" }
   | { type: "question_request"; requestId: string; toolCallId?: string; questions: AgentQuestion[]; agentId?: string }
   | { type: "question_resolved"; requestId: string; outcome: "answered" | "skipped" | "cancelled"; answers?: Record<string, QuestionAnswer> }
+  | { type: "notice"; notice: "silent"; since: number }
 
 export type StopReason = "end_turn" | "cancelled" | "refusal" | "error"
 

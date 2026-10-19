@@ -22,6 +22,7 @@ import { useFileDrop } from "@/hooks/use-file-drop"
 import { fromDrop, openAttached, readerOf, useAttachments } from "../../lib/attachments"
 import type { Mentionable, PromptInput, SourceKind } from "@owlit/protocol"
 import { useResolvedSelection } from "../../use-selection"
+import { composerText } from "../../lib/composer-text"
 import { useComposerDrafts, useDraftKey } from "../../composer-drafts"
 import { AgentPicker } from "./AgentPicker"
 import { isUnavailable, problemSentence } from "../../lib/connector-status"
@@ -42,65 +43,65 @@ export interface ComposerProps {
   // since files attached before sending are already copied into that chat's folder
   onSubmit: (input: PromptInput, chatId: string) => void
   streaming?: boolean
-  // What the running turn waits on the user for: what they type then answers it (see the store's send)
+  // What the running turn waits on the user for: what they type then answers it (see the store's send);
+  // with nothing waiting, what they send while it runs goes when it ends
   waiting?: "permission" | "question"
   onCancel?: () => void
   autoFocus?: boolean
   placeholder?: string
   className?: string
-  // Shown above the input, e.g. the agent window's context chips
+  // Shown above the input, e.g. the agent window's context chips; before it in the one-line bar
   header?: React.ReactNode
+  // One line, the controls beside the input rather than under it: the ⌘J ask bar
+  bar?: boolean
+  // Esc in the input while nothing runs (the ask bar closes); what is typed stays in the draft
+  onEscape?: () => void
+  // Shown beside the controls while nothing is typed or attached (the ask bar's way back to the last chat)
+  idle?: React.ReactNode
 }
 
 // How long typing rests before the draft is written
 const SAVE_AFTER_MS = 300
 
-// Enter submits, Shift+Enter inserts a line break. Runs before the core keymap
-// (which would split the paragraph) and yields to the mention popup while open.
-const SubmitKeymap = Extension.create<{ onSubmit: () => void }>({
+// Enter always submits, as in Claude's own apps, lists or not; Shift+Enter is a new line, and in a list a
+// new item (on an empty item, the end of the list). Tab and Shift+Tab indent and outdent an item, and
+// Backspace at an item's start takes it out of the list. Runs before the core keymap (which would split
+// the paragraph) and yields to the mention popup while open; StarterKit's own list keymap stays off, since
+// it gives Enter to the list. Esc is the composer's (Stop, or onEscape) once the popup is closed.
+const SubmitKeymap = Extension.create<{ onSubmit: () => void; onEscape: () => boolean }>({
   name: "submitKeymap",
   priority: 1000,
-  addOptions: () => ({ onSubmit: () => {} }),
+  addOptions: () => ({ onSubmit: () => {}, onEscape: () => false }),
   addKeyboardShortcuts() {
+    const inItem = () => this.editor.isActive("listItem")
+    const emptyLine = () => this.editor.state.selection.$from.parent.content.size === 0
+    const atLineStart = () => this.editor.state.selection.empty && this.editor.state.selection.$from.parentOffset === 0
     return {
       Enter: () => {
         if (mentionPopup.open) return false
         this.options.onSubmit()
         return true
       },
-      "Shift-Enter": () => this.editor.commands.setHardBreak(),
+      "Shift-Enter": () => {
+        // A new paragraph rather than a line break, so "- " or "1. " can start a list on it; both are sent
+        // as one new line
+        if (!inItem()) return this.editor.commands.splitBlock()
+        return emptyLine() ? this.editor.commands.liftListItem("listItem") : this.editor.commands.splitListItem("listItem")
+      },
+      Tab: () => inItem() && !mentionPopup.open && (this.editor.commands.sinkListItem("listItem") || true),
+      "Shift-Tab": () => inItem() && !mentionPopup.open && (this.editor.commands.liftListItem("listItem") || true),
+      Backspace: () => inItem() && atLineStart() && this.editor.commands.liftListItem("listItem"),
+      Escape: () => !mentionPopup.open && this.options.onEscape(),
     }
   },
 })
 
-// Flatten the document into plain text plus the mentioned items. `known` holds mentions that @ doesn't
-// offer (a workspace file that isn't Markdown, made a mention by attaching it).
-function extract(editor: Editor, known: Mentionable[] = []): { text: string; mentions: Mentionable[] } {
-  const mentions: Mentionable[] = []
-  const lines: string[] = []
-  const offered = docMentionItems("")
-  editor.state.doc.forEach((block) => {
-    let line = ""
-    block.descendants((node) => {
-      if (node.type.name === "mention") {
-        const same = (x: Mentionable) => x.id === node.attrs.id && (!node.attrs.kind || x.kind === node.attrs.kind)
-        const m = offered.find(same) ?? known.find(same)
-        if (m && !mentions.some((x) => x.id === m.id)) mentions.push(m)
-        line += `@[${node.attrs.label}]`
-      } else if (node.isText) {
-        line += node.text
-      } else if (node.type.name === "hardBreak") {
-        line += "\n"
-      }
-      return true
-    })
-    lines.push(line)
-  })
-  return { text: lines.join("\n").trim(), mentions }
-}
+// What is typed, as the message's text and mentions. `known` holds mentions that @ doesn't offer (a
+// workspace file that isn't Markdown, made a mention by attaching it).
+const extract = (editor: Editor, known: Mentionable[] = []) => composerText(editor.state.doc, [...docMentionItems(""), ...known])
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header },
+  { chatId, onSubmit, streaming = false, waiting, onCancel, autoFocus, placeholder = t`Ask about your papers, docs or notes…`, className, header, bar = false, idle, onEscape },
   ref,
 ) {
   // What is typed waits with its chat (composer-drafts); a new chat's draft is the same in every place
@@ -118,19 +119,26 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   })
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
+  const escapeRef = useRef<() => boolean>(() => false)
   const { connector } = useResolvedSelection(chatId)
   const blocked = isUnavailable(connector)
-  // The hint says what typing does while Owlit waits; read through a ref, since the editor is made once
-  const hint = waiting === "permission" ? t`Or tell Owlit what to do instead…` : waiting === "question" ? t`Or type your own answer…` : placeholder
+  // The hint says what typing does while Owlit works or waits; read through a ref, since the editor is made
+  // once
+  const hint =
+    waiting === "permission"
+      ? t`Or say what to do instead…`
+      : waiting === "question"
+        ? t`Or type your own answer…`
+        : streaming
+          ? t`Next message, sent when Owlit finishes…`
+          : placeholder
   const hintRef = useRef(hint)
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         blockquote: false,
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
+        // Lists, by "- ", "* " or "1. " at a line's start; their keys are SubmitKeymap's
         listKeymap: false,
         codeBlock: false,
         heading: false,
@@ -147,11 +155,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       }),
       Placeholder.configure({ placeholder: () => hintRef.current }),
       WorkspaceMention,
-      SubmitKeymap.configure({ onSubmit: () => submitRef.current() }),
+      SubmitKeymap.configure({ onSubmit: () => submitRef.current(), onEscape: () => escapeRef.current() }),
     ],
     autofocus: autoFocus ? "end" : false,
     editorProps: {
-      attributes: { class: "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-body leading-6 outline-none" },
+      // The bar's line is as tall as its buttons' row (24px of text and 12px either side)
+      attributes: { class: bar ? "tiptap-composer max-h-40 overflow-y-auto px-1.5 py-3 text-body leading-6 outline-none" : "tiptap-composer max-h-60 min-h-14 overflow-y-auto px-4 py-3.5 text-body leading-6 outline-none" },
       handlePaste: (_view, event) => {
         const pasted = Array.from(event.clipboardData?.files ?? [])
         if (pasted.length === 0) return false
@@ -226,8 +235,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   const ready = files.some((f) => f.state === "ready")
   const typed = !isEmpty || ready
-  // A file still being copied holds Send for a moment, so the message never goes without it
-  const canSend = (!streaming || !!waiting) && !blocked && typed && !attachments.adding
+  // A file still being copied holds Send for a moment, so the message never goes without it. While Owlit
+  // works, Send queues the message (the store's send).
+  const canSend = !blocked && typed && !attachments.adding
 
   const submit = useCallback(() => {
     if (!editor || !canSend) return
@@ -240,7 +250,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   }, [editor, canSend, ready, onSubmit, attachments, target, chatId, key, write])
   useEffect(() => {
     submitRef.current = submit
-  }, [submit])
+    // While Owlit works, Esc is Stop, as in a terminal agent; otherwise the place's own (the bar closes)
+    escapeRef.current = () => {
+      const run = streaming ? onCancel : onEscape
+      if (!run) return false
+      run()
+      return true
+    }
+  }, [submit, onEscape, onCancel, streaming])
 
   const openMention = (kind: SourceKind | "all") => {
     if (!editor) return
@@ -262,6 +279,62 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     },
     openMention,
   }))
+
+  const attach = (
+    <>
+      <DropdownMenu>
+        <Tip label={t`Attach files or mention a paper, doc or note`}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label={t`Add attachments or context`}>
+              <PlusIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Tip>
+        {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
+        <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>{t`Attach files`}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {(["paper", "doc", "thread"] as SourceKind[]).map((kind) => {
+            const place = KIND_PLACE[kind]
+            return (
+              <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
+                {t`Add from ${place}`}
+              </DropdownMenuItem>
+            )
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          attachments.add(Array.from(e.target.files ?? []))
+          e.target.value = ""
+        }}
+      />
+    </>
+  )
+
+  const controls = (
+    <>
+      <AgentPicker chatId={chatId} />
+      {streaming && !typed ? (
+        <Tip label={t({ message: "Stop", comment: "verb: stop the agent's reply" })}>
+          <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label={t`Stop generating`}>
+            <SquareIcon className="size-3 fill-current" />
+          </Button>
+        </Tip>
+      ) : (
+        <Tip label={t({ message: "Send", comment: "verb: send the message" })} shortcut="send">
+          <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label={t`Send message`}>
+            <ArrowUpIcon />
+          </Button>
+        </Tip>
+      )}
+    </>
+  )
 
   return (
     <div
@@ -287,7 +360,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         </button>
       )}
 
-      {header && <div className="flex flex-wrap gap-1 px-2.5 pt-2.5">{header}</div>}
+      {header && !bar && <div className="flex flex-wrap gap-1 px-2.5 pt-2.5">{header}</div>}
 
       {files.length > 0 && (
         <div className="px-3 pt-3">
@@ -302,65 +375,31 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       )}
       <LargeFilesDialog files={attachments.large} onAnswer={attachments.answerLarge} />
 
-      {/* Click anywhere in the editor area to focus */}
-      <div className="cursor-text" onClick={() => editor?.commands.focus()}>
-        <EditorContent editor={editor} />
-      </div>
-
-      <div className="flex items-center gap-1 px-2.5 pb-2.5">
-        <DropdownMenu>
-          <Tip label={t`Attach files or mention a paper, doc or note`}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground" aria-label={t`Add attachments or context`}>
-                <PlusIcon />
-              </Button>
-            </DropdownMenuTrigger>
-          </Tip>
-          {/* Keep focus in the editor after picking an item so the mention popup stays usable */}
-          <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
-            <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
-              {t`Attach files`}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {(["paper", "doc", "thread"] as SourceKind[]).map((kind) => {
-              const place = KIND_PLACE[kind]
-              return (
-                <DropdownMenuItem key={kind} onSelect={() => setTimeout(() => openMention(kind), 0)}>
-                  {t`Add from ${place}`}
-                </DropdownMenuItem>
-              )
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            attachments.add(Array.from(e.target.files ?? []))
-            e.target.value = ""
-          }}
-        />
-
-        <div className="ml-auto flex items-center gap-1">
-          <AgentPicker chatId={chatId} />
-          {streaming && !(waiting && typed) ? (
-            <Tip label={t({ message: "Stop", comment: "verb: stop the agent's reply" })}>
-              <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label={t`Stop generating`}>
-                <SquareIcon className="size-3 fill-current" />
-              </Button>
-            </Tip>
-          ) : (
-            <Tip label={t({ message: "Send", comment: "verb: send the message" })} shortcut="send">
-              <Button size="icon-sm" className="rounded-full" disabled={!canSend} onClick={submit} aria-label={t`Send message`}>
-                <ArrowUpIcon />
-              </Button>
-            </Tip>
-          )}
+      {bar ? (
+        <div className="flex items-end gap-1 pr-2 pl-2.5">
+          <span className="flex h-12 shrink-0 items-center">{attach}</span>
+          {header && <span className="flex h-12 max-w-[40%] min-w-0 items-center">{header}</span>}
+          {/* Click anywhere in the editor area to focus */}
+          <div className="min-w-0 flex-1 cursor-text" onClick={() => editor?.commands.focus()}>
+            <EditorContent editor={editor} />
+          </div>
+          <span className="flex h-12 shrink-0 items-center gap-1">
+            {isEmpty && !files.length && idle}
+            {controls}
+          </span>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Click anywhere in the editor area to focus */}
+          <div className="cursor-text" onClick={() => editor?.commands.focus()}>
+            <EditorContent editor={editor} />
+          </div>
+          <div className="flex items-center gap-1 px-2.5 pb-2.5">
+            {attach}
+            <div className="ml-auto flex items-center gap-1">{controls}</div>
+          </div>
+        </>
+      )}
     </div>
   )
 })

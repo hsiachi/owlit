@@ -103,6 +103,11 @@ export class Docs {
   }
 
   // Whether you keep Owlit out of a doc, and what it went through there
+  // A Markdown file's text as owlit last saw it, before any write it hasn't heard of yet
+  knownText(rel: string): string | undefined {
+    return this.texts.get(rel)
+  }
+
   owlitOf(rel: string) {
     return this.owlit.get(this.check(rel))
   }

@@ -3,6 +3,8 @@
 //   "permission"       asks to run something, then says what the user chose
 //   "rewrite <path> <t>" asks to Write t (\n for a line break) over the whole file, as Claude Code does: the
 //                      diff has no old text; allowed, it writes the file itself
+//   "overwrite <path> <t>" Writes t over the whole file without asking, as Claude Code does in Co-author: the
+//                      tool call's diff, with no old text, comes before the write and again after it
 //   "read <path>"      reads a file through owlit and says how long it is
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
@@ -11,11 +13,13 @@
 //                      has it: one reads and reports what it found, the other asks to edit (on its own
 //                      session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
+//   "quiet"            says one word, then nothing until cancelled
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
+// FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
 // as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
 // FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back.
@@ -90,6 +94,7 @@ class FakeAgent implements acp.Agent {
 
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
     if (process.env.FAKE_ACP_AUTH === "required") throw acp.RequestError.authRequired()
+    if (process.env.FAKE_ACP_HANG === "session") await new Promise(() => {})
     const sessionId = randomUUID()
     const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [] }
     this.sessions.set(sessionId, session)
@@ -293,6 +298,17 @@ class FakeAgent implements acp.Agent {
         await say(`you chose ${chose}`)
         return { stopReason: "end_turn" }
       }
+      const overwrite = /overwrite (\S+) (.+)/.exec(text)
+      if (overwrite) {
+        const file = `${session.cwd}/${overwrite[1]}`
+        const content = overwrite[2]
+        const call = { toolCallId: "w2", content: [{ type: "diff" as const, path: file, oldText: null, newText: content }], rawInput: { file_path: file, content }, _meta: { claudeCode: { toolName: "Write" } } }
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", title: `Write ${overwrite[1]}`, kind: "edit", status: "pending", ...call } })
+        writeFileSync(file, content)
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", status: "completed", ...call } })
+        await say("written")
+        return { stopReason: "end_turn" }
+      }
       const read = /read (\S+)/.exec(text)
       if (read) {
         try {
@@ -323,6 +339,11 @@ class FakeAgent implements acp.Agent {
         await this.conn.writeTextFile({ sessionId: params.sessionId, path: `${session.cwd}/${write[1]}`, content: write[2] })
         await say("written")
         return { stopReason: "end_turn" }
+      }
+      if (text.includes("quiet")) {
+        await say("Hm.")
+        await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve()))
+        return { stopReason: "cancelled" }
       }
       if (text.includes("slow")) {
         for (let i = 0; i < 50; i++) {

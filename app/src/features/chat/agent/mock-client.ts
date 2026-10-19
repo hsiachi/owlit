@@ -1,9 +1,9 @@
-import { type AgentQuestion, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind } from "@owlit/protocol"
+import { type AgentQuestion, applyUpdate, type ChatMessage, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind, withoutAgentError, withoutNotice } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { myOwlit } from "@/lib/actors"
 import { mockCheckResults } from "../mocks/connectors"
-import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
+import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest, type RunningTurn } from "./client"
 import { addMockChange, mockEntry } from "../results"
 import { landMockProposal } from "@/app/seen"
 
@@ -30,6 +30,52 @@ const AUTO_ROLES = new Set<string>(["coauthor", "assistant"])
 export class MockAgentClient implements AgentClient {
   private pendingPermissions = new Map<string, (optionId: string) => void>()
   private pendingQuestions = new Map<string, (answers: Record<string, QuestionAnswer> | null) => void>()
+  // The turns running in this preview, each with its reply, as core keeps them in the desktop app
+  private turns = new Map<string, { controller: AbortController; message: ChatMessage }>()
+  private updated = new Set<(chatId: string, messageId: string, update: SessionUpdate) => void>()
+  private ended = new Set<(chatId: string, messageId: string, message: ChatMessage) => void>()
+
+  async prompt(req: PromptRequest): Promise<StopReason> {
+    if (this.turns.has(req.chatId)) throw new Error("This chat is still answering.")
+    const message: ChatMessage = { id: req.assistantMessageId, role: "assistant", createdAt: req.userMessage.createdAt + 1, parts: [], status: "streaming", connectorId: req.connectorId, modelId: req.modelId }
+    const turn = { controller: new AbortController(), message }
+    this.turns.set(req.chatId, turn)
+    const emit = (update: SessionUpdate) => {
+      turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
+      for (const listener of this.updated) listener(req.chatId, message.id, update)
+    }
+    const end = (patch: Partial<ChatMessage>) => {
+      this.turns.delete(req.chatId)
+      turn.message = withoutAgentError({ ...turn.message, parts: withoutNotice(turn.message.parts), finishedAt: Date.now(), ...patch })
+      for (const listener of this.ended) listener(req.chatId, message.id, turn.message)
+    }
+    try {
+      const stop = await this.run(req, emit, turn.controller.signal)
+      end({ status: stop === "cancelled" ? "cancelled" : "done" })
+      return stop
+    } catch (e) {
+      end({ status: "error", error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  }
+
+  cancel(chatId: string) {
+    this.turns.get(chatId)?.controller.abort()
+  }
+
+  async running(): Promise<RunningTurn[]> {
+    return [...this.turns].map(([chatId, { message }]) => ({ chatId, messageId: message.id, message }))
+  }
+
+  onUpdate(listener: (chatId: string, messageId: string, update: SessionUpdate) => void) {
+    this.updated.add(listener)
+    return () => void this.updated.delete(listener)
+  }
+
+  onEnded(listener: (chatId: string, messageId: string, message: ChatMessage) => void) {
+    this.ended.add(listener)
+    return () => void this.ended.delete(listener)
+  }
 
   async check(connector: Connector): Promise<Connector> {
     await new Promise((r) => setTimeout(r, 700))
@@ -52,11 +98,7 @@ export class MockAgentClient implements AgentClient {
     this.pendingQuestions.delete(requestId)
   }
 
-  async prompt(
-    req: PromptRequest,
-    emit: (u: SessionUpdate) => void,
-    signal: AbortSignal,
-  ): Promise<StopReason> {
+  private async run(req: PromptRequest, emit: (u: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
     const { text, mentions, attachments, context = [], selection } = req.input
     const mode: string = req.role ?? DEFAULT_ROLE
     // What the agent reads first: everything mentioned, plus what was on screen
@@ -85,6 +127,24 @@ export class MockAgentClient implements AgentClient {
       if (WANTS_FIND_AND_ADD.test(text)) return await this.findAndAdd(emit, signal, req.chatId)
       // Commands, web searches and pages, as Claude Code runs them, and a question for the user
       if (/\bweb\b/i.test(text)) return await this.webResearch(emit, signal)
+      // An agent that goes quiet: after a moment the reply says so, as core does after two minutes
+      if (/\bquiet\b/i.test(text)) {
+        await sleep(1500, signal)
+        emit({ type: "notice", notice: "silent", since: Date.now() - 2 * 60_000 })
+        await sleep(10 * 60_000, signal)
+        return "end_turn"
+      }
+      // Asked in Chinese, answered in Chinese, in bursts as Claude Code sends them
+      if (/\p{Script=Han}/u.test(text)) {
+        await sleep(300, signal)
+        for (let i = 0; i < CHINESE_ANSWER.length; i += 40) {
+          emit({ type: "agent_message_chunk", text: CHINESE_ANSWER.slice(i, i + 40) })
+          await sleep(400, signal)
+        }
+        return "end_turn"
+      }
+      // A command, as an engine asks before running one: the card decision 12 keeps
+      if (/\b(run|command)\b/i.test(text)) return await this.runCommand(emit, signal)
       if (/\b(ask me|questions?)\b/i.test(text)) return await this.askQuestions(emit, signal)
       // Lets the browser build show a reply that broke
       // A request the agent's service refused, said first as the answer's text, as Claude Code does
@@ -380,11 +440,29 @@ export class MockAgentClient implements AgentClient {
     return "end_turn"
   }
 
+  private async runCommand(emit: (u: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
+    const toolCallId = `tc-${crypto.randomUUID()}`
+    const command = "pdftotext papers/vaswani-2017.pdf -"
+    emit({ type: "tool_call", toolCallId, title: command, kind: "execute", status: "pending", tool: { name: "Bash", command } })
+    const outcome = await this.askPermission(emit, signal, toolCallId, command, "execute")
+    if (outcome.startsWith("reject")) {
+      emit({ type: "tool_call_update", toolCallId, status: "failed", content: "Not allowed." })
+      await this.stream(emit, signal, "All right, I won't run it.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    emit({ type: "tool_call_update", toolCallId, status: "in_progress" })
+    await sleep(900, signal)
+    emit({ type: "tool_call_update", toolCallId, status: "completed", content: "Attention Is All You Need\n…" })
+    await this.stream(emit, signal, "The text came out cleanly; the paper is 15 pages.", "agent_message_chunk", 14)
+    return "end_turn"
+  }
+
   private askPermission(
     emit: (u: SessionUpdate) => void,
     signal: AbortSignal,
     toolCallId: string,
     title: string,
+    kind: ToolKind = "edit",
   ): Promise<PermissionKind> {
     const requestId = `perm-${crypto.randomUUID()}`
     const options = [
@@ -392,7 +470,7 @@ export class MockAgentClient implements AgentClient {
       { optionId: "allow_always", name: "Always allow", kind: "allow_always" as const },
       { optionId: "reject_once", name: "Reject", kind: "reject_once" as const },
     ]
-    emit({ type: "permission_request", requestId, toolCallId, title, kind: "edit", options })
+    emit({ type: "permission_request", requestId, toolCallId, title, kind, options })
     return new Promise<PermissionKind>((resolve, reject) => {
       const onAbort = () => {
         this.pendingPermissions.delete(requestId)
@@ -423,6 +501,9 @@ export class MockAgentClient implements AgentClient {
     }
   }
 }
+
+const CHINESE_ANSWER =
+  "检索增强生成的效果主要取决于两件事：检索器能否找到真正相关的段落，以及模型如何使用这些段落。你库里的三篇论文给出了不同的答案。\n\n第一篇认为稠密检索在开放领域问题上明显优于稀疏检索，但在术语密集的科学文献中，两者的差距会显著缩小。第二篇发现，把检索结果按段落重新排序并附上简短的来源说明，可以让模型更少地编造引用。第三篇则提醒，现有基准大多只看最终答案是否正确，而忽略了答案依据的证据是否真实可查。\n\n如果你想写相关工作，可以按“检索质量、证据使用、评测方法”这三条线来组织。"
 
 function slug(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")

@@ -106,7 +106,7 @@ function ChatRow({ chat, active }: { chat: ChatListItem; active: boolean }) {
   )
 }
 
-// Second-column content for the Chat place: search, new chat, grouped history
+// Second-column content for the Chat place: new chat and the history grouped by when (⌘K searches chats)
 export function ChatListPanel() {
   const { chatId } = useParams()
   const chats = useChatList()

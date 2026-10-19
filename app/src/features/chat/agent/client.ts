@@ -7,9 +7,16 @@ export interface PromptRequest {
   role?: Role
   effortId?: string
   input: PromptInput
-  // The messages the turn adds, for a client that saves them itself
-  userMessage?: ChatMessage
-  assistantMessageId?: string
+  // The messages the turn adds: the person's, and the reply's id
+  userMessage: ChatMessage
+  assistantMessageId: string
+}
+
+// A turn running now, with its reply as it stands
+export interface RunningTurn {
+  chatId: string
+  messageId: string
+  message: ChatMessage
 }
 
 // The workspace files an agent may read and write. In ACP the client (owlit) serves these as
@@ -39,17 +46,21 @@ export const setWorkspaceNotes = (notes: WorkspaceNotes) => {
 export const getWorkspaceNotes = () => workspaceNotes
 
 // What the UI needs from a local agent: RpcAgentClient in the desktop app (ACP through core), the mock
-// in a plain browser.
+// in a plain browser. The client runs the turns and is their only record: the window learns of every
+// turn's updates and end through onUpdate and onEnded, whoever started it, and of the turns already
+// running through running().
 export interface AgentClient {
-  // Saves the turn's messages itself (core does, in the desktop app), so the store doesn't
-  readonly persistsMessages?: boolean
   // Probe whether the agent's command is installed and signed in
   check(connector: Connector): Promise<Connector>
-  prompt(
-    req: PromptRequest,
-    onUpdate: (update: SessionUpdate) => void,
-    signal: AbortSignal,
-  ): Promise<StopReason>
+  // Starts a turn; resolves with how it ended, after onEnded has said so. Rejects with the reason a turn
+  // broke, or couldn't start (then nothing was saved and onEnded says nothing).
+  prompt(req: PromptRequest): Promise<StopReason>
+  // Stops the chat's running turn, also while its agent is still starting
+  cancel(chatId: string): void
+  running(): Promise<RunningTurn[]>
+  onUpdate(listener: (chatId: string, messageId: string, update: SessionUpdate) => void): () => void
+  // A turn ended, with its reply as saved
+  onEnded(listener: (chatId: string, messageId: string, message: ChatMessage) => void): () => void
   respondPermission(chatId: string, requestId: string, optionId: string): void
   // Answers a question by question id; null skips it
   answerQuestion(chatId: string, requestId: string, answers: Record<string, QuestionAnswer> | null): void

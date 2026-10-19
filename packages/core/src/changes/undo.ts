@@ -5,6 +5,7 @@ import { sameJson } from "../util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { hunks, merge } from "./hunks.ts"
+import { proposalHunks } from "./proposals.ts"
 
 // A doc where the person sees it (agents/fs.ts): its open editor's text, else the disk's
 export interface DocAccess {
@@ -70,7 +71,8 @@ export class Undo {
     const before = first.action === "create" ? "" : await ws.changes.content(first.id)
     const after = await this.leftBy(ws, last).catch(() => undefined)
     if (before === null || after === undefined) return null
-    return editStats(first.target.path, before, after ?? "")
+    // Passages as the doc marks them, so a card can say how many of them the person undid there
+    return { ...editStats(first.target.path, before, after ?? ""), passages: proposalHunks(before, after ?? "").length }
   }
 
   // A doc's passages go back: the hunks from the text the entry left to the text before it, applied to the

@@ -8,7 +8,7 @@ import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
-import type { CutOff } from "./agents/failure.ts"
+import type { CutOff } from "@owlit/protocol"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
@@ -1239,6 +1239,7 @@ export class Core {
               changeAdded: (notification) => {
                 if (this.workspace?.root === root) this.notifier.notify("changes.added", notification)
               },
+              replyOf: (chatId, toolCallId) => this.turns.replyOf(chatId, toolCallId),
               memoryChanged: (lines) => {
                 if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
               },

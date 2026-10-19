@@ -20,6 +20,9 @@ function about(messages: ChatMessage[]) {
   return uris
 }
 
+// Whether one of the chat's questions was about this page, paper or doc
+export const chatIsAbout = (messages: ChatMessage[], uri: string) => about(messages).has(uri)
+
 // The latest chats with a question about this page, newest first, by id
 export function useChatsAbout(uri: string | undefined, max = 3) {
   return useChatStore(

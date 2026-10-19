@@ -683,6 +683,12 @@
 .tiptap-composer p {
   margin: 0;
 }
+/* Lists as an answer's are drawn (.markdown), without the space between blocks: a message is typed tight */
+.tiptap-composer ul, .tiptap-composer ol { margin: 0; padding-left: 1.5rem; }
+.tiptap-composer ul { list-style: disc; }
+.tiptap-composer ul ul { list-style: circle; }
+.tiptap-composer ol { list-style: decimal; }
+.tiptap-composer li > p { margin: 0; }
 .tiptap-composer p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;

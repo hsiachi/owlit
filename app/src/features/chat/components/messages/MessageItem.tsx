@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { type AttachmentFile, type ChatMessage, chatOfFile, type MessagePart, withoutAgentError } from "@owlit/protocol"
-import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
+import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react"
 import { CopyButton } from "@/components/copy-button"
 import { IconButton } from "@/components/icon-button"
 import { Quote } from "@/components/quote"
@@ -58,6 +58,27 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
   )
 }
 
+// The agent has sent nothing for a while (core's notice, after two minutes): one muted line under the
+// reply, the agent named as the chat's picker names it, with Stop beside it
+function SilenceLine({ chatId, since, connectorId }: { chatId: string; since: number; connectorId?: string }) {
+  const name = useChatStore((s) => s.connectors.find((c) => c.id === connectorId)?.name)
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
+  const minutes = Math.max(1, Math.floor((now - since) / 60_000))
+  return (
+    <div className="flex items-center gap-1.5 text-detail text-muted-foreground" role="status">
+      <span>{name ? t`No word from ${name} for ${minutes} min` : t`No word from the agent for ${minutes} min`}</span>
+      <span aria-hidden>·</span>
+      <Button variant="text" size="inline" onClick={() => useChatStore.getState().cancel(chatId)}>
+        {t({ message: "Stop", comment: "verb: stop the agent's reply" })}
+      </Button>
+    </div>
+  )
+}
+
 // Fold consecutive thoughts and tool calls into one steps block; everything else stays a part.
 // A permission or question belongs to its tool call's row (waiting, then its outcome), so the steps on
 // either side of it merge; its buttons are above the composer. The agents the answering agent handed work
@@ -65,7 +86,7 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
 type Segment =
   | { type: "steps"; key: string; parts: StepPart[] }
   | { type: "agents"; key: string; agents: AgentPart[] }
-  | { type: "part"; key: string; part: Exclude<MessagePart, StepPart | AgentPart> }
+  | { type: "part"; key: string; part: Exclude<MessagePart, StepPart | AgentPart | { type: "notice" }> }
 function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[]; asks: StepAsks; byAgent: Record<string, StepPart[]> } {
   const toolCallIds = new Set(parts.flatMap((p) => (p.type === "tool_call" ? [p.toolCallId] : [])))
   const asks: StepAsks = { outcomes: {}, questions: {} }
@@ -82,6 +103,8 @@ function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[
       ;(byAgent[p.agentId] ??= []).push(p)
       return
     }
+    // Drawn under the reply, apart from its parts (SilenceLine)
+    if (p.type === "notice") return
     if (p.type === "agent") {
       const last = out[out.length - 1]
       if (last?.type === "agents") last.agents.push(p)
@@ -148,6 +171,31 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
   )
 }
 
+// The person's next message, sent while Owlit worked: their bubble, faded, under the reply it waits for,
+// with a line saying when it goes and × to take it back
+export function QueuedMessage({ chatId }: { chatId: string }) {
+  const queued = useChatStore((s) => s.queued[chatId])
+  if (!queued) return null
+  return (
+    <Message align="end" className="text-body">
+      <MessageContent className="items-end gap-1.5">
+        {queued.attachments.length > 0 && <AttachmentList files={queued.attachments} size="xs" onOpen={openAttached} />}
+        {queued.text && (
+          <Bubble variant="outline" align="end" className="opacity-70">
+            <BubbleContent className="whitespace-pre-wrap">{renderWithMentions(queued.text, queued.mentions)}</BubbleContent>
+          </Bubble>
+        )}
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {t`Sends when Owlit finishes`}
+          <IconButton label={t`Don't send`} size="icon-xs" onClick={() => useChatStore.getState().unqueue(chatId)}>
+            <XIcon />
+          </IconButton>
+        </span>
+      </MessageContent>
+    </Message>
+  )
+}
+
 export function AssistantMessage({
   chatId,
   message: saved,
@@ -168,7 +216,8 @@ export function AssistantMessage({
   // A reply saved before the agent's error text was kept apart still has it as its last text
   const message = withoutAgentError(saved)
   const streaming = message.status === "streaming"
-  const last = message.parts[message.parts.length - 1]
+  // owlit's notice is drawn apart, so the reply's last part is the agent's
+  const last = message.parts.findLast((p) => p.type !== "notice")
   // Only the footer, drawn once the reply is done, uses the text
   const text = streaming ? "" : messageText(message)
   const { segments, asks, byAgent } = segment(message.parts, streaming)
@@ -186,6 +235,7 @@ export function AssistantMessage({
   const blockId = (key: string) => `${message.id}-${key}`
   // Words come on at an even pace while the answer is written; a stopped or broken one shows all it has
   const pace = streaming ? "live" : message.status === "done" ? "ending" : "off"
+  const silent = streaming ? message.parts.findLast((p) => p.type === "notice") : undefined
   return (
     <Message className="text-body">
       <MessageContent className="gap-3">
@@ -212,19 +262,32 @@ export function AssistantMessage({
             <span className="shimmer">{t`Working…`}</span>
           </div>
         )}
+        {silent && <SilenceLine chatId={chatId} since={silent.since} connectorId={message.connectorId} />}
         {!streaming && <ResultCard message={message} chatId={chatId} />}
-        {message.status === "error" && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
+        {message.status === "error" && !message.cutOff && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
           {/* A partial answer says so at all times, in the same muted tone (stopping was the user's
               choice, never red), since it may read as whole */}
           {message.status === "cancelled" && <span className="mr-0.5 text-xs font-normal text-muted-foreground">{t`Stopped, partial`}</span>}
+          {/* Cut off by owlit closing or a switch of workspace: said as where it stopped, in the same muted
+              tone (the person did it, nothing broke), with the way to ask again beside it */}
+          {message.cutOff && (
+            <span className="mr-0.5 flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+              {message.cutOff === "switched" ? t`Stopped when you switched workspace` : t`Stopped when owlit closed`}
+              {onRegenerate && (
+                <Button variant="text" size="inline" className="text-xs" onClick={onRegenerate}>
+                  {t({ message: "Retry", comment: "verb: send the question again" })}
+                </Button>
+              )}
+            </span>
+          )}
           {/* Which model answered and when it ended show with the actions on hover, so a long chat
               reads as the answers alone; they line up with the answer's left edge */}
           <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100">
             <span className="mr-1 text-xs font-normal text-muted-foreground">
-              {message.status === "cancelled" && "· "}
+              {(message.status === "cancelled" || message.cutOff) && "· "}
               {[modelName, timeStamp(message.finishedAt ?? message.createdAt)].filter(Boolean).join(" · ")}
             </span>
             {text && <CopyButton text={text} />}

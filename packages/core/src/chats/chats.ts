@@ -330,6 +330,7 @@ const cutOff = (m: ChatMessage): ChatMessage => ({
   ...m,
   status: "error",
   error: cutOffSentence("closed"),
+  cutOff: "closed",
   parts: m.parts.map((p) => (p.type === "permission" && !p.outcome ? { ...p, outcome: "cancelled" } : p)),
 })
 

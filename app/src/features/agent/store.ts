@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware"
 import { useChatStore } from "@/features/chat/store"
 import { useSeen } from "@/app/seen"
 import { chatStatus, useSeenStore } from "@/features/chat/status"
+import { chatIsAbout } from "./chats-about"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PageRect, PromptInput, QuotedSelection } from "@owlit/protocol"
@@ -60,7 +61,8 @@ interface AgentWindowState {
   // The docked panel's width, dragged from its left edge
   panelWidth: number
 
-  // Ask Owlit (⌘J, or on a selection): into the panel when it is open, else the ask bar for a new chat
+  // Ask Owlit (⌘J, or on a selection): into the panel when it is open, else the ask bar for a new chat. A
+  // passage from something the docked chat isn't about starts an empty chat in the panel instead.
   open: (selection?: QuotedSelection, rects?: { paperId: string; rects: PageRect[] }) => void
   // Ask Owlit on a comment: the docked panel with the passage, in the chat given or in a new one, never
   // in whatever chat happened to be docked
@@ -101,13 +103,18 @@ export const useAgentWindow = create<AgentWindowState>()(
       panelWidth: PANEL_WIDTH,
 
       open: (selection, rects) =>
-        set((s) => ({
-          stage: s.stage === "open" ? "open" : "bar",
-          selection: selection ?? s.selection,
-          selectionRects: selection ? (rects ?? null) : s.selectionRects,
-          fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
-          focusTick: s.focusTick + 1,
-        })),
+        set((s) => {
+          const docked = s.stage === "open" && s.chatId ? useChatStore.getState().chats[s.chatId] : undefined
+          const elsewhere = !!selection && !!docked?.messages.length && !chatIsAbout(docked.messages, selection.source.uri)
+          return {
+            stage: s.stage === "open" ? "open" : "bar",
+            selection: selection ?? s.selection,
+            selectionRects: selection ? (rects ?? null) : s.selectionRects,
+            fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
+            focusTick: s.focusTick + 1,
+            ...(elsewhere && { chatId: null, hiddenContext: null, hint: null }),
+          }
+        }),
       askIn: (chatId, selection) =>
         set((s) => ({ stage: "open", chatId, selection, selectionRects: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
       close: () => set({ stage: "closed", listShown: false, fromNote: null, hint: null }),
@@ -120,9 +127,10 @@ export const useAgentWindow = create<AgentWindowState>()(
       },
       follow: (chatId) => set((s) => (s.chatId === chatId ? s : { chatId, fromNote: null })),
       // From the panel's header: an empty chat in the panel itself, not the ask bar, so the conversation
-      // stays where the user is looking; sending starts it. The one left is in the header's menu.
-      newChat: () =>
-        set((s) => ({ stage: "open", chatId: null, selection: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
+      // stays where the user is looking; sending starts it. The one left is in the header's menu. A
+      // passage waiting to be asked about goes with it: New chat is how one leaves a chat about something
+      // else without selecting it again.
+      newChat: () => set((s) => ({ stage: "open", chatId: null, fromNote: s.selection ? s.fromNote : null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
       askHowTo: () =>
         set((s) => ({ stage: "bar", selection: null, fromNote: null, hiddenContext: null, hint: t`How do I… (about owlit)`, focusTick: s.focusTick + 1 })),
       showChat: (chatId) => set((s) => ({ chatId, stage: "open", fromNote: chatId === s.chatId ? s.fromNote : null, focusTick: s.focusTick + 1 })),

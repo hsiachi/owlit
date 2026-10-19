@@ -15,7 +15,7 @@ import { manageMemory } from "@/features/settings/memory"
 import { useThreadsStore } from "@/features/threads/store"
 import { labelOf, undoEntry, useChatChanges } from "../../results"
 import { countParts } from "../../lib/edit-counts"
-import { replyEntries, undoneBy } from "../../lib/reply-changes"
+import { partsUndone, replyEntries, undoneBy } from "../../lib/reply-changes"
 import { useChatStore } from "../../store"
 import { toastLeft } from "@/lib/changes"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -58,7 +58,7 @@ const FOLD_AFTER = 3
 
 // What the reply's edits to a file amounted to. Core reads it from its change log, which is the whole
 // change whatever the agent reported; without core (the browser preview) the reply's own diffs are summed.
-const statsCache = create<{ byKey: Record<string, EditStats | null>; load: (from: string, to: string) => void }>()((set, get) => ({
+const statsCache = create<{ byKey: Record<string, (EditStats & { passages?: number }) | null>; load: (from: string, to: string) => void }>()((set, get) => ({
   byKey: {},
   load: (from, to) => {
     const key = `${from}|${to}`
@@ -134,14 +134,19 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
     const file = fileAt(path)
     return file ? () => navigate(`/docs/${file.id}`) : undefined
   }
-  // A row's entries: undone once each is, Undo takes back the live ones and Redo the undos, newest first
-  const of = (list: Change[], name: string) => {
-    const live = list.filter((c) => !undoneBy(c.id, all)).reverse()
-    const undos = list.map((c) => undoneBy(c.id, all)).filter((c) => c !== undefined).sort((a, b) => b.at - a.at)
+  // A row's entries: undone once each is, Undo takes back the live ones and Redo the undos, newest first.
+  // A doc's passages undone one by one in the doc (`passages`: how many the row's edit has) count too: all
+  // of them, and the row is undone; some, and Undo is for what is left.
+  const of = (list: Change[], name: string, passages?: number) => {
+    const parts = list.flatMap((c) => (undoneBy(c.id, all) ? [] : partsUndone(c.id, all)))
+    const allParts = !!passages && parts.length >= passages
+    const live = allParts ? [] : list.filter((c) => !undoneBy(c.id, all)).reverse()
+    const undos = [...list.map((c) => undoneBy(c.id, all)).filter((c) => c !== undefined), ...(allParts ? parts : [])].sort((a, b) => b.at - a.at)
     return {
       undone: !live.length,
       undo: () => undoAll(live, name),
       ...(!live.length ? { redo: () => undoAll(undos, name) } : {}),
+      ...(parts.length && !allParts ? { partly: passages ? t`${parts.length} of ${passages} passages undone` : plural(parts.length, { one: "# passage undone", other: "# passages undone" }) } : {}),
     }
   }
   const rows: ResultRow[] = []
@@ -164,15 +169,20 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
     const notePaper = paperOfNotePath(path)
     const paper = labelOf(path)
     const name = notePaper ? t`Your note on ${paper}` : paper
+    const { partly, ...state } = of(entries, name, from || deleted ? undefined : (edit as { passages?: number } | undefined)?.passages)
     rows.push({
       key: `file:${path}`,
       kind: "doc",
       icon: notePaper ? KIND_ICON.paper : KIND_ICON.doc,
       name,
-      detail: from ? t({ message: `Moved from ${from}`, comment: "a doc the agent moved or renamed; its old path" }) : deleted ? t({ message: "Deleted", comment: "a doc the agent deleted, into the Trash" }) : edit ? <EditCounts stats={edit} /> : undefined,
-      stats: from || deleted ? undefined : edit,
+      detail: from
+        ? t({ message: `Moved from ${from}`, comment: "a doc the agent moved or renamed; its old path" })
+        : deleted
+          ? t({ message: "Deleted", comment: "a doc the agent deleted, into the Trash" })
+          : (partly ?? (edit ? <EditCounts stats={edit} /> : undefined)),
+      stats: from || deleted || partly ? undefined : edit,
       markdown: /\.(md|markdown)$/i.test(path),
-      ...of(entries, name),
+      ...state,
       view: notePaper ? () => navigate(`/library/${notePaper}`) : deleted ? undefined : openDoc(path),
     })
   }

@@ -7,7 +7,7 @@ import { Docs } from "../docs/docs.ts"
 import type { Host } from "../host.ts"
 import { Http } from "../net/http.ts"
 import { ChangeLog } from "../changes/log.ts"
-import { newWriteId, Recorder } from "../changes/record.ts"
+import { newWriteId, Recorder, type ReplyOrigin } from "../changes/record.ts"
 import { Members } from "../changes/members.ts"
 import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings.ts"
@@ -46,6 +46,8 @@ export interface WorkspaceOptions {
   profile?: () => Promise<ProfileSettings>
   // An entry was added to the change log
   changeAdded?: (notification: Notifications["changes.added"]) => void
+  // The chat reply a change belongs to (the change log's origin.replyId)
+  replyOf?: ReplyOrigin
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
@@ -93,6 +95,7 @@ export class Workspace {
       added: options.changeAdded,
       // A run ("<kind>:<task id>") reports in its task's session
       runOf: (run) => ({ chatId: this.tasks.get(run.slice(run.indexOf(":") + 1))?.chatId }),
+      replyOf: options.replyOf,
     })
     this.members = new Members(path.join(root, OWLIT_DIR))
     this.seen = new Seen(path.join(root, OWLIT_DIR))

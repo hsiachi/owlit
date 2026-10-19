@@ -264,7 +264,6 @@ msgstr "in the Library and Threads"
 
 #: app/src/app/shortcuts.ts
 #: app/src/components/selection-menu-items.tsx
-#: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
@@ -303,7 +302,6 @@ msgstr "in a doc, note or message"
 #. verb, in the keyboard shortcut list
 #. verb: send the message
 #: app/src/app/shortcuts.ts
-#: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Send"
 msgstr "Send"
@@ -431,6 +429,7 @@ msgstr "Owlit has a question"
 msgid "Owlit stopped"
 msgstr "Owlit stopped"
 
+#. verb: send the question again
 #. verb: send the question again
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/chat/components/messages/MessageItem.tsx
@@ -1007,8 +1006,8 @@ msgid "Owlit is waiting on you"
 msgstr "Owlit is waiting on you"
 
 #: app/src/features/chat/components/WaitingDock.tsx
-msgid "Or type below to say what to do instead"
-msgstr "Or type below to say what to do instead"
+msgid "Or type below what to do instead; it sends when Owlit finishes"
+msgstr "Or type below what to do instead; it sends when Owlit finishes"
 
 #: app/src/features/chat/components/WaitingDock.tsx
 msgid "Question {number}"
@@ -1199,23 +1198,16 @@ msgid "Ask about your papers, docs or notes…"
 msgstr "Ask about your papers, docs or notes…"
 
 #: app/src/features/chat/components/composer/Composer.tsx
-msgid "Or tell Owlit what to do instead…"
-msgstr "Or tell Owlit what to do instead…"
+msgid "Or say what to do instead…"
+msgstr "Or say what to do instead…"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Or type your own answer…"
 msgstr "Or type your own answer…"
 
-#. verb: fetch owlit's copy of the agent's adapter
-#. verb: fetch owlit's copy of the agent's adapter
-#. verb: fetch owlit's copy of the agent's adapter
-#. verb: set up the agent in Settings
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Set up"
-msgstr "Set up"
+msgid "Next message, sent when Owlit finishes…"
+msgstr "Next message, sent when Owlit finishes…"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Attach files or mention a paper, doc or note"
@@ -1237,7 +1229,9 @@ msgstr "Add from {place}"
 #. stop Owlit writing a paper's digest
 #. stop Owlit's work on a thread
 #. verb: stop the agent's reply
+#. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/threads/components/Work.tsx
@@ -1251,6 +1245,17 @@ msgstr "Stop generating"
 #: app/src/features/chat/components/composer/Composer.tsx
 msgid "Send message"
 msgstr "Send message"
+
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: fetch owlit's copy of the agent's adapter
+#. verb: set up the agent in Settings
+#: app/src/features/chat/components/composer/Composer.tsx
+#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/welcome/AgentCheck.tsx
+msgid "Set up"
+msgstr "Set up"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "owlit keeps a copy of each file you attach with the chat, inside the workspace, so the chat still has it when the original moves or changes."
@@ -1281,8 +1286,24 @@ msgid "Dismiss"
 msgstr "Dismiss"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "No word from {name} for {minutes} min"
+msgstr "No word from {name} for {minutes} min"
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "No word from the agent for {minutes} min"
+msgstr "No word from the agent for {minutes} min"
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Edit message"
 msgstr "Edit message"
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Sends when Owlit finishes"
+msgstr "Sends when Owlit finishes"
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Don't send"
+msgstr "Don't send"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Working…"
@@ -1291,6 +1312,14 @@ msgstr "Working…"
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Stopped, partial"
 msgstr "Stopped, partial"
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Stopped when you switched workspace"
+msgstr "Stopped when you switched workspace"
+
+#: app/src/features/chat/components/messages/MessageItem.tsx
+msgid "Stopped when owlit closed"
+msgstr "Stopped when owlit closed"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "Save as doc"
@@ -1313,6 +1342,16 @@ msgstr "Words added and removed"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Lines added and removed"
 msgstr "Lines added and removed"
+
+#. placeholder {0}: parts.length
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0} of {passages} passages undone"
+msgstr "{0} of {passages} passages undone"
+
+#. placeholder {0}: parts.length
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {# passage undone} other {# passages undone}}"
+msgstr "{0, plural, one {# passage undone} other {# passages undone}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/fs.ts
@@ -2455,6 +2494,11 @@ msgstr "Finished since you last looked"
 #: app/src/features/chat/status.ts
 msgid "Stopped with an error"
 msgstr "Stopped with an error"
+
+#: app/src/features/chat/store.ts
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr "Owlit was closed before it finished."
 
 #: app/src/features/chat/use-notify.ts
 msgid "In “{title}”"
@@ -7170,10 +7214,6 @@ msgstr "{name} ran into a problem."
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished, when you opened another workspace."
 msgstr "Owlit was closed before it finished, when you opened another workspace."
-
-#: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it finished."
-msgstr "Owlit was closed before it finished."
 
 #: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts

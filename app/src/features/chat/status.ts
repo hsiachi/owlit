@@ -94,10 +94,11 @@ export const callOf = (chat: Chat, toolCallId: string | undefined) =>
 export const optionFor = (options: PermissionOption[], allow: boolean) =>
   options.find((o) => o.kind === (allow ? "allow_once" : "reject_once")) ?? options.find((o) => o.kind.startsWith(allow ? "allow" : "reject"))
 
-// The chat's last reply, if it broke and the user hasn't dismissed it
+// The chat's last reply, if it broke and the user hasn't dismissed it. One owlit cut off by closing or by
+// opening another workspace didn't break: the person did that, and it says so on the reply alone.
 export function brokenReply(chat: Chat, dismissed: string | undefined): ChatMessage | undefined {
   const last = chat.messages[chat.messages.length - 1]
-  return last?.role === "assistant" && last.status === "error" && last.id !== dismissed ? last : undefined
+  return last?.role === "assistant" && last.status === "error" && !last.cutOff && last.id !== dismissed ? last : undefined
 }
 
 // The chat's broken reply, with a way to leave it as it is, while it still asks for the user

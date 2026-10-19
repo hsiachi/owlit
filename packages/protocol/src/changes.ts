@@ -29,6 +29,9 @@ export interface ChangeOrigin {
   via: "editor" | "tool" | "apply" | "watcher" | "auto"
   // The chat or run it came from
   chatId?: string
+  // The reply of that chat whose turn made it, when a turn was running (or its tool call was one of the
+  // turn's): a chat's result card attributes by it
+  replyId?: string
   toolCallId?: string
   // Shared by the entries of one write (the toolCallId when there is one)
   writeId?: string

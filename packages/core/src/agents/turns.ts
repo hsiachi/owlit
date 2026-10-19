@@ -8,6 +8,7 @@ import {
   parseOwlitUri,
   RpcErrorCode,
   type ChatMessage,
+  type CutOff,
   type MemoryLine,
   type ReadFrom,
   type Mentionable,
@@ -19,6 +20,7 @@ import {
   type SessionUpdate,
   type StopReason,
   withoutAgentError,
+  withoutNotice,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { readFile, stat } from "node:fs/promises"
@@ -30,7 +32,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import { messageOf } from "../util.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { cutOffSentence, failureOf, type CutOff } from "./failure.ts"
+import { cutOffSentence, failureOf } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
 import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
@@ -90,6 +92,11 @@ interface Turn {
   // Questions waiting for the user: answers by question id, null to skip, "cancel" when the turn stops
   questions: Map<string, (answers: Record<string, QuestionAnswer> | null | "cancel") => void>
   cancelled: boolean
+  // Resolves when the turn is cancelled, so a wait on the agent starting ends with it (startOrStop)
+  stopped: Promise<void>
+  stop: () => void
+  // The text each whole-file Write replaces, by tool call, read when its diff first came (withOldText)
+  replaced: Map<string, string>
   // Set when owlit, not the person, stopped it (reset): the reply says so instead of "stopped"
   cutOff?: CutOff
   // Shows an update in the chat and saves it in the answer; set once the turn runs
@@ -113,6 +120,8 @@ export class Turns {
   // Tool calls whose permission was answered with an allow: by the user, or by owlit for an edit that
   // lands as a proposal
   private accepted = new Set<string>()
+  // The reply each tool call belongs to, so a change seen on disk after its turn ended still names it
+  private callReplies = new Map<string, string>()
   // Chats whose Co-author turn runs, until when (a moment after it ends, as for claims): a change nobody
   // claimed meanwhile came while it worked
   private coauthoring = new Map<string, number>()
@@ -135,7 +144,9 @@ export class Turns {
       connectorId: req.connectorId,
       modelId: req.modelId,
     }
-    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, agentText: new Map() }
+    let stop = () => {}
+    const stopped = new Promise<void>((resolve) => (stop = resolve))
+    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, stopped, stop, replaced: new Map(), agentText: new Map() }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -153,27 +164,46 @@ export class Turns {
   private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn): Promise<StopReason> {
     await ws.chats.appendMessage(req.chatId, req.userMessage)
     await ws.chats.appendMessage(req.chatId, turn.message)
-    const emit = (update: SessionUpdate) => {
-      turn.heard++
+    const say = (update: SessionUpdate) => {
       turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
       this.options.notify(req.chatId, update, turn.message.id)
       void ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
     }
+    // After SILENT_MS with nothing from the agent the reply says so, unless the turn waits on the person;
+    // the next update takes the notice away and starts the count again
+    let silence: ReturnType<typeof setTimeout> | undefined
+    const listen = () => {
+      clearTimeout(silence)
+      const since = Date.now()
+      silence = setTimeout(() => {
+        if (!turn.permissions.size && !turn.questions.size) say({ type: "notice", notice: "silent", since })
+      }, SILENT_MS)
+    }
+    const emit = (update: SessionUpdate) => {
+      turn.heard++
+      if (update.type === "tool_call") this.callReplies.set(update.toolCallId, turn.message.id)
+      say(update)
+      listen()
+    }
     turn.emit = emit
+    listen()
     if (turn.role === "coauthor") this.coauthoring.set(req.chatId, Infinity)
-    const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string) => {
+    const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string, cutOff?: CutOff) => {
       // An agent of the agent's that hadn't finished won't go on once the answer has ended
       for (const p of turn.message.parts) {
         if (p.type === "agent" && p.status === "working") emit({ type: "agent_update", agentId: p.agentId, status: status === "done" && p.report ? "done" : "stopped" })
       }
       const answer = turn.message.parts.map((p) => (p.type === "text" ? p.text : "")).join("\n")
       const readFrom = (await this.options.readFrom?.(req.chatId, turn.message.createdAt, answer).catch(() => undefined)) ?? []
+      clearTimeout(silence)
       turn.message = withoutAgentError({
         ...turn.message,
+        parts: withoutNotice(turn.message.parts),
         status,
         finishedAt: Date.now(),
         ...(error ? { error } : {}),
         ...(errorDetail ? { errorDetail } : {}),
+        ...(cutOff ? { cutOff } : {}),
         ...(readFrom.length ? { readFrom } : {}),
       })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
@@ -183,14 +213,12 @@ export class Turns {
     const t0 = Date.now()
     const log = (what: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[turn ${req.chatId.slice(0, 8)}] ${what} +${Date.now() - t0}ms`)
     try {
-      const fresh = await this.session(req, ws)
+      const fresh = await startOrStop(turn, this.session(req, ws))
       log(`session ${fresh.history === null ? "ready" : "new, with history"}`)
       live = fresh.live
       live.turn = turn
-      await this.configure(live, req, fresh.guard)
+      await startOrStop(turn, this.configure(live, req, fresh.guard))
       log("configured")
-      // Stopped while the agent was starting: it isn't asked at all
-      if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
       // owlit's rules and the role: in a new session's first prompt, unless the agent takes them itself
       const preamble = fresh.created && !fresh.rulesInSystemPrompt
       const userName = preamble ? await this.options.userName?.() : undefined
@@ -215,7 +243,7 @@ export class Turns {
     } catch (error) {
       if (turn.cutOff) {
         const text = cutOffSentence(turn.cutOff)
-        await finish("error", text)
+        await finish("error", text, undefined, turn.cutOff)
         throw new RpcFailure(RpcErrorCode.InternalError, text)
       }
       if (turn.cancelled) {
@@ -223,10 +251,11 @@ export class Turns {
         return "cancelled"
       }
       const said = withoutAgentError({ ...turn.message, status: "error" }).errorDetail ?? ""
-      const { text, detail } = await failureOf(this.options.agents, req.connectorId, error, said)
-      await finish("error", text, detail)
+      const { text, detail, cutOff } = await failureOf(this.options.agents, req.connectorId, error, said)
+      await finish("error", text, detail, cutOff)
       throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
     } finally {
+      clearTimeout(silence)
       this.closePermissions(turn)
       if (live) live.turn = null
       this.letGo(req.chatId)
@@ -237,13 +266,21 @@ export class Turns {
     const turn = this.turns.get(chatId)
     if (!turn) return null
     turn.cancelled = true
+    // A turn still starting stops waiting for its agent at once (startOrStop)
+    turn.stop()
     // Questions still open are closed as cancelled, as ACP asks of a client that cancels
     this.closePermissions(turn)
-    // A turn still starting has no session yet: it sees `cancelled` before it asks the agent
+    // A turn still starting has no session yet: it never asks the agent
     for (const live of this.live.values()) {
       if (live.turn === turn) await live.proc.cancel({ sessionId: live.sessionId }).catch(() => undefined)
     }
     return null
+  }
+
+  // The reply a chat's change belongs to: the reply whose tool call made it, else the reply of the turn
+  // the chat is running
+  replyOf(chatId: string, toolCallId?: string): string | undefined {
+    return (toolCallId && this.callReplies.get(toolCallId)) || this.turns.get(chatId)?.message.id
   }
 
   // How many chats have a turn running or starting
@@ -280,6 +317,7 @@ export class Turns {
     }
     this.live.clear()
     this.claims.clear()
+    this.callReplies.clear()
     this.accepted.clear()
     this.coauthoring.clear()
   }
@@ -415,7 +453,7 @@ export class Turns {
         deliver((turn) => {
           if (agentId) return agentWork(turn, agentId, n.update, root)
           const update = toUpdate(n.update, root)
-          return update ? [update] : []
+          return update ? [withOldText(turn, update, n.update, (rel) => this.options.workspace()?.docs.knownText(rel))] : []
         })
       },
       // One of the agent's own agents started or changed state
@@ -579,6 +617,16 @@ export class Turns {
   }
 }
 
+// Starting the agent, opening the chat's session and setting its options can hang (an agent that never
+// answers initialize), and nothing in ACP can cancel them: a turn stopped meanwhile stops waiting at once
+// and never asks the agent. What the step does once it finishes is left to it (a session opened late is
+// kept for the next turn); its failure then is nobody's.
+async function startOrStop<T>(turn: Turn, step: Promise<T>): Promise<T> {
+  if (turn.cancelled) throw new Error("Stopped before the agent was asked.")
+  step.catch(() => undefined)
+  return Promise.race([step, turn.stopped.then((): never => { throw new Error("Stopped before the agent was asked.") })])
+}
+
 // The SDK can settle a prompt before it has handed over the updates the agent sent just ahead of its
 // answer. A turn ends once a few turns of the event loop bring nothing new.
 async function quiet(turn: Turn) {
@@ -602,6 +650,10 @@ export interface Claim {
 }
 
 const CLAIM_AFTER_MS = 5000
+
+// How long an agent may say nothing before the reply says so: longer than a slow tool (a web fetch, a long
+// read) usually takes, short enough that a hung agent is noticed before the person gives up on the chat
+export const SILENT_MS = 2 * 60_000
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()
@@ -720,6 +772,26 @@ async function withReplacedText(call: acp.ToolCallUpdate, root: string): Promise
   const replaced = await readFile(path.resolve(root, diff.path), "utf8").catch(() => null)
   if (replaced === null) return call
   return { ...call, content: call.content!.map((c) => (c === diff ? { ...diff, oldText: replaced } : c)) }
+}
+
+// The same for a Write's tool call as it streams, where no permission is asked (Co-author): its diff
+// comes again with every update of the call, without old text each time. The agent writes as soon as it
+// has announced the call, so the disk may already hold the new text when the announcement is heard; the
+// text it replaces is the doc's as owlit last saw it (Docs keeps it, and hears of the write only later).
+// Taken once per call, when its diff first comes; later updates of the call take it from there.
+function withOldText(turn: Turn, update: SessionUpdate, raw: acp.SessionUpdate, known: (rel: string) => string | undefined): SessionUpdate {
+  if ((update.type !== "tool_call" && update.type !== "tool_call_update") || !update.diff || update.diff.oldText) return update
+  const id = update.toolCallId
+  let replaced = turn.replaced.get(id)
+  if (replaced === undefined) {
+    const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === id)
+    const write = (raw.sessionUpdate === "tool_call" || raw.sessionUpdate === "tool_call_update" ? toolInfoOf(raw)?.name : undefined) ?? (announced?.type === "tool_call" ? announced.tool?.name : undefined)
+    if (write !== "Write") return update
+    // Nothing known (a new file, or one not Markdown): the diff stays a creation
+    replaced = known(update.diff.path) ?? ""
+    turn.replaced.set(id, replaced)
+  }
+  return replaced ? { ...update, diff: { ...update.diff, oldText: replaced } } : update
 }
 
 // owlit's errors reach the agent with their sentence, not as a bare "Internal error"

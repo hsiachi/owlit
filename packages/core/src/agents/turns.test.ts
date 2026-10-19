@@ -2,13 +2,13 @@ import type { RpcNotification, SessionUpdate } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
 import { until, testSearchPath } from "../test-util.ts"
 import { cannotRead, sendsPictures } from "./profiles.ts"
 import { RULES_VERSION } from "./rules.ts"
-import { attachmentBlocks, promptBlocks } from "./turns.ts"
+import { attachmentBlocks, promptBlocks, SILENT_MS } from "./turns.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
 const cores: Core[] = []
@@ -286,6 +286,14 @@ describe("turns", () => {
     expect(await diffOf("rewrite fresh.md new words")).toEqual({ path: "fresh.md", oldText: "", newText: "new words" })
   })
 
+  it("shows a Write made without asking as what it replaces, in every update of its call", async () => {
+    const { send, call } = await setup()
+    await call("docs.list")
+    await send("overwrite notes.md thirteen chars", { role: "coauthor" })
+    const step = (await call("chats.get", { id: "c1" })).messages[1].parts.find((p: any) => p.type === "tool_call")
+    expect(step).toMatchObject({ status: "completed", diff: { path: "notes.md", oldText: "twelve chars", newText: "thirteen chars" } })
+  })
+
   it("shows the agent's questions and passes on the answer, or a skip", async () => {
     const { send, updates, call, text } = await setup()
     let turn = send("a question for you")
@@ -389,7 +397,7 @@ describe("turns", () => {
     cores.push(next)
     await next.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
     const chat = await next.handle({ jsonrpc: "2.0", id: 2, method: "chats.get", params: { id: "c1" } })
-    expect((chat as { result: { messages: unknown[] } }).result.messages[1]).toMatchObject({ status: "error", error: "Owlit was closed before it finished." })
+    expect((chat as { result: { messages: unknown[] } }).result.messages[1]).toMatchObject({ status: "error", error: "Owlit was closed before it finished.", cutOff: "closed" })
   })
 
   it("says a turn cut off by opening another workspace was cut off by that", async () => {
@@ -400,6 +408,43 @@ describe("turns", () => {
     mkdirSync(other)
     await call("workspace.open", { path: other })
     expect((await turn).message).toBe("Owlit was closed before it finished, when you opened another workspace.")
+  })
+
+  it("stops a turn whose agent never finishes starting", async () => {
+    const { send, call } = await setup()
+    process.env.FAKE_ACP_HANG = "session"
+    try {
+      const turn = send("hello")
+      // The turn is there to stop as soon as it is asked for
+      await until(async () => (await call("agents.running")).length, { what: "the turn to start" })
+      await call("agents.cancel", { chatId: "c1" })
+      expect(await turn).toEqual({ stopReason: "cancelled" })
+      expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({ status: "cancelled" })
+      expect(await call("agents.running")).toEqual([])
+    } finally {
+      delete process.env.FAKE_ACP_HANG
+    }
+  })
+
+  it("says when the agent has sent nothing for a while, and leaves it out of the reply once it ends", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    try {
+      const { send, call, text, updates } = await setup()
+      const notices = () => updates.filter((u) => u.type === "notice")
+      const turn = send("quiet please")
+      await until(() => text(), { what: "the agent's first word" })
+      await vi.advanceTimersByTimeAsync(SILENT_MS - 1000)
+      expect(notices()).toEqual([])
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(notices()).toEqual([{ type: "notice", notice: "silent", since: expect.any(Number) }])
+      expect((await call("agents.running"))[0].message.parts.at(-1)).toMatchObject({ type: "notice" })
+      await call("agents.cancel", { chatId: "c1" })
+      await turn
+      // Not kept in the reply once it ended
+      expect((await call("chats.get", { id: "c1" })).messages[1].parts).toEqual([{ type: "text", text: "Hm." }])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("serves file reads inside the workspace and refuses the rest", async () => {
@@ -420,7 +465,7 @@ describe("turns", () => {
     await until(() => wrote.length, { what: "the change" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("rewritten by the agent")
     expect(wrote).toHaveLength(1)
-    expect(wrote[0]).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "watcher", chatId: "c1", toolCallId: "e1" } })
+    expect(wrote[0]).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "watcher", chatId: "c1", replyId: "a1", toolCallId: "e1" } })
     expect(readFileSync(path.join(root, ".owlit/versions", wrote[0].id), "utf8")).toBe("twelve chars")
     await call("changes.undo", { id: wrote[0].id })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
@@ -439,6 +484,8 @@ describe("turns", () => {
     expect(first.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(second.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(wrote).toHaveLength(2)
+    // Each change names the reply whose turn made it, for that reply's result card
+    expect(wrote.map((c) => c.origin.replyId)).toEqual([first.id, second.id])
   })
 
   it("records a change no tool call names as outside owlit, with the Co-author turn it came during as the only hint", async () => {
