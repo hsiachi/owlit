@@ -7,7 +7,7 @@ import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
 import { testSearchPath } from "../test-util.ts"
 
-// One cell of the role table changed: an Assistant may no longer change the user's words. Every route
+// One cell of the role table changed: an Assistant may not change the user's words. Every route
 // that decides what Owlit may do reads the same table, so each of them follows.
 vi.mock("@owlit/protocol", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@owlit/protocol")>()
