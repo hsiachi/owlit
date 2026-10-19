@@ -1,4 +1,4 @@
-import { itemId, placedKey, readInFull, shownThread, type Change, type ChatAbout, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
+import { itemId, placedKey, readInFull, RpcErrorCode, shownThread, type Change, type ChatAbout, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest"
 import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
 import { Seen } from "../changes/seen.ts"
+import { RpcFailure } from "../rpc/errors.ts"
 import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
 const papers: Record<string, ThreadPaper> = {
@@ -580,6 +581,20 @@ describe("Threads, Owlit's work in chats it starts", () => {
     const chat = (chatId: string) => started.find((c) => c.chatId === chatId)!
     return { ...ctx, started, chat, searched }
   }
+
+  it("leaves no empty thread when Gather's chat can't start, and says why", async () => {
+    const noAgent = new RpcFailure(RpcErrorCode.Unavailable, "No agent is set up for Owlit to work with. Set one up in Settings › Agents.")
+    const checked = withChats({ canStartChat: async () => Promise.reject(noAgent) })
+    await expect(checked.threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)).rejects.toBe(noAgent)
+    expect(await checked.threads.list()).toEqual([])
+    expect(await checked.changes.list()).toEqual([])
+
+    // Known only when the chat starts: the thread made for it goes again
+    const late = withChats({ startChat: async () => Promise.reject(noAgent) })
+    await expect(late.threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)).rejects.toBe(noAgent)
+    expect(await late.threads.list()).toEqual([])
+    expect(late.events.at(-1)).toMatchObject({ gone: true })
+  })
 
   it("tells its batches apart for About: a started chat's writes are one batch named by its recipe, then a chat's later question", async () => {
     const { threads, chat, searched } = withChats()

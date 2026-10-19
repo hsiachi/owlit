@@ -68,6 +68,8 @@ export interface ThreadsServices {
   changed?: (id: string, thread: Thread | null) => void
   // Starts a chat owlit starts for the person (core.ts startFor), on the agent Settings picks for its work
   startChat?: (start: { about: ChatAbout; title: string; recipe: string }) => Promise<Started>
+  // Throws the sentence that says why a chat can't start now (no agent is set up)
+  canStartChat?: () => Promise<unknown>
   // What a chat owlit started works on, by the chat's id; undefined for a chat the person typed into
   chatAbout?: (chatId: string) => Promise<ChatAbout | undefined>
 }
@@ -224,19 +226,26 @@ export class Threads {
   }
 
   // Owlit gathers papers for a question: the thread is there at once, titled by the question until
-  // Owlit names it, and a chat about it fills it
+  // Owlit names it, and a chat about it fills it. A chat that can't start leaves no empty thread: that is
+  // known before the thread is made, and one that still fails to start takes it away again.
   async gather(input: { question: string; project?: string; size: ThreadSize }, caller: Caller): Promise<ThreadStarted> {
+    const question = input.question.trim()
+    if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
+    await this.services.canStartChat?.()
     const thread = await this.serial.run(async () => {
       const now = Date.now()
-      const question = input.question.trim()
-      if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
       const c: Thread = { ...(await this.blank({ asked: question, title: question, project: input.project ?? "" }, now)), size: input.size }
       await this.save(c)
       await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id } }, { quiet: true })
       this.services.changed?.(c.id, c)
       return c
     })
-    return { thread, chatId: await this.begin(thread, "gather") }
+    try {
+      return { thread, chatId: await this.begin(thread, "gather") }
+    } catch (error) {
+      await this.delete(thread.id, caller)
+      throw error
+    }
   }
 
   // more: with what to look for this time when it isn't the thread's question, kept on the thread as one

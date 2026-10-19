@@ -1267,6 +1267,7 @@ export class Core {
                   if (this.workspace?.root !== root) throw new Error("The workspace closed.")
                   return this.startFor(start)
                 },
+                canStartChat: () => this.workAgent(),
               },
               profile: async () => (await this.settings.get()).profile,
               changeAdded: (notification) => {
