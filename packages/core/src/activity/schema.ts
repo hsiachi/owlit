@@ -15,7 +15,6 @@ const mark = z.discriminatedUnion("what", [
 export const activityEvent: z.ZodType<ActivityEvent> = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("paper.opened"), at, paperId: id }),
   z.object({ kind: z.literal("paper.closed"), at, paperId: id }),
-  z.object({ kind: z.literal("paper.page"), at, paperId: id, page }),
   z.object({ kind: z.literal("paper.focus"), at, paperId: id, view: z.enum(["digest", "pdf"]), seconds }),
   z.object({ kind: z.literal("paper.dwell"), at, paperId: id, page, seconds }),
   z.object({ kind: z.literal("paper.end"), at, paperId: id, view: z.enum(["digest", "pdf"]) }),
@@ -25,7 +24,6 @@ export const activityEvent: z.ZodType<ActivityEvent> = z.discriminatedUnion("kin
   z.object({ kind: z.literal("note.edited"), at, paperId: id }),
   z.object({ kind: z.literal("doc.opened"), at, path: id }),
   z.object({ kind: z.literal("doc.edited"), at, path: id }),
-  z.object({ kind: z.literal("chat.sent"), at, chatId: id }),
   z.object({ kind: z.literal("chat.ended"), at, chatId: id }),
 ])
 

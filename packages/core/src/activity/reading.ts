@@ -14,6 +14,7 @@ export interface PaperReading {
   pages: Record<number, number>
   // How many times it was opened
   visits: number
+  // The person's highlights still there: one they removed no longer counts
   highlights: number
   noted: boolean
   // Starred at some point, even if the star was taken off again
@@ -26,12 +27,12 @@ export interface PaperReading {
 
 // alias: where a paper that changed id (a local PDF that got its DOI) lives now
 export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: string) => string = (id) => id): Map<string, PaperReading> {
-  const papers = new Map<string, PaperReading & { opened: number; closed: number }>()
+  const papers = new Map<string, PaperReading & { opened: number; closed: number; highlighted: Set<string> }>()
   const paper = (id: string, at: number) => {
     const key = alias(id)
     let p = papers.get(key)
     if (!p) {
-      p = { paperId: key, pdfSeconds: 0, digestSeconds: 0, pages: {}, visits: 0, highlights: 0, noted: false, starred: false, firstAt: at, lastAt: at, digestEnd: false, opened: 0, closed: 0 }
+      p = { paperId: key, pdfSeconds: 0, digestSeconds: 0, pages: {}, visits: 0, highlights: 0, noted: false, starred: false, firstAt: at, lastAt: at, digestEnd: false, opened: 0, closed: 0, highlighted: new Set() }
       papers.set(key, p)
     }
     p.firstAt = Math.min(p.firstAt, at)
@@ -60,7 +61,10 @@ export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: stri
         if (e.view === "digest") paper(e.paperId, e.at).digestEnd = true
         break
       case "highlight.added":
-        paper(e.paperId, e.at).highlights++
+        paper(e.paperId, e.at).highlighted.add(e.highlightId)
+        break
+      case "highlight.removed":
+        paper(e.paperId, e.at).highlighted.delete(e.highlightId)
         break
       case "note.edited":
         paper(e.paperId, e.at).noted = true
@@ -73,7 +77,8 @@ export function readingOf(entries: Iterable<JournalEntry>, alias: (paperId: stri
     }
   }
   const out = new Map<string, PaperReading>()
-  for (const { opened, closed, ...p } of papers.values()) {
+  for (const { opened, closed, highlighted, ...p } of papers.values()) {
+    p.highlights = highlighted.size
     // Journals from before paper.opened was kept have only the closing
     p.visits = Math.max(opened, closed)
     out.set(p.paperId, p)
