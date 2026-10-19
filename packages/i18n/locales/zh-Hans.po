@@ -5455,6 +5455,10 @@ msgid "Read {read} of the {papers} papers in full; the rest are from their abstr
 msgstr "{papers} 篇里读了全文的有 {read} 篇，其余来自摘要。"
 
 #: app/src/features/threads/components/About.tsx
+msgid "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
+msgstr "{titles, plural, other {# 篇没有摘要，只来自标题。}}"
+
+#: app/src/features/threads/components/About.tsx
 msgid "Owlit watches for new papers on this question."
 msgstr "Owlit 会留意这个问题的新论文。"
 
@@ -5592,12 +5596,12 @@ msgid "Not in your Library"
 msgstr "不在你的文献库中"
 
 #: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
-msgstr "来自摘要"
-
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "From the title only"
 msgstr "仅来自标题"
+
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr "来自摘要"
 
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
@@ -5824,6 +5828,10 @@ msgstr "你改过"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Owlit, from the full text"
 msgstr "Owlit，来自全文"
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Owlit, from the title only"
+msgstr "Owlit，仅来自标题"
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Owlit, from the abstract"

@@ -28,7 +28,7 @@ function threadCsv(c: Thread) {
       const answer = r.cells[col.id]
       if (!answer) return ["", ""]
       const text = answer.rel ? `${answer.rel}: ${answer.text}` : answer.text
-      return [text, answer.depth === "full" ? `full text${answer.passage ? `, p. ${answer.passage.page}` : ""}` : "abstract"]
+      return [text, answer.depth === "full" ? `full text${answer.passage ? `, p. ${answer.passage.page}` : ""}` : answer.depth === "title" ? "title only" : "abstract"]
     }),
   ])
   return [head, ...lines].map((l) => l.map(cell).join(",")).join("\n") + "\n"

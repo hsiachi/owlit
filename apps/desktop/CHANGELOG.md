@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A thread answers the papers whose text is already in your library from the full text from the start. An answer from a paper's title only (it has no abstract) is greyed in the row and the table, counted in About, and written "title only" in the CSV.
 - Owlit writes a digest only when you ask: from the paper's Digest side, its menu, a chat, or by starring it. Opening a paper no longer starts one, and the setting "Digests for every paper" is gone.
 - A paper opens on the side you last read of it, the digest or the PDF, each where you left it; a digest you asked for opens as soon as it is ready.
 - A paper turns Read by itself when you reach its end: most of its pages read in the PDF, or its digest scrolled to the end after two minutes on it. A toast offers Undo, and a status you set back stays. A paper without a PDF turns Reading too, from its digest or abstract.

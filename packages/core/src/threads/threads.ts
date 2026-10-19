@@ -58,6 +58,8 @@ export interface ThreadsServices {
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
   // undefined when owlit has no text of the paper
   findPassage?: (paperId: string, quote: string) => Promise<number | null | undefined>
+  // Whether owlit has a paper's full text (its text.md), by any id it goes by
+  hasText?: (id: string, ids?: PaperIds) => Promise<boolean>
   // The library's id for a paper named by any id it goes by, undefined when it isn't in the library: a row
   // keeps the id the search gave, which often isn't the library's (Library.canonical)
   canonical?: (id: string, ids?: PaperIds) => Promise<string | undefined>
@@ -174,7 +176,7 @@ export class Threads {
     const agent = this.services.agent
     if (!agent) return []
     // A task per skill (initiative/skills.ts): the skill says what the session is told and which tools it gets
-    const run = <I>(skill: Skill<I>, input: (c: Thread, subject: string) => I, after?: (c: Thread) => Promise<void>) =>
+    const run = <I>(skill: Skill<I>, input: (c: Thread, subject: string) => I | Promise<I>, after?: (c: Thread) => Promise<void>) =>
       defineTask(skill.id, {
         lane: skill.lane,
         retries: 1,
@@ -183,24 +185,32 @@ export class Threads {
           if (!c) throw new TaskFailure("The thread is gone.")
           ctx.progress(0, undefined, skill.id)
           // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
-          const done = await agent(skill.instructions(input(c, ctx.task.subject)), ctx, skill.tools ?? NO_TOOLS, `${skill.id}:${ctx.task.id}`)
+          const done = await agent(skill.instructions(await input(c, ctx.task.subject)), ctx, skill.tools ?? NO_TOOLS, `${skill.id}:${ctx.task.id}`)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${skill.id} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
           await after?.(c)
         },
       })
     return [
-      run(gatherSkill, (thread) => ({ thread, size: thread.size ?? "few" })),
-      run(moreSkill, (thread) => ({ thread })),
-      run(fillSkill, (thread, subject) => {
+      run(gatherSkill, async (thread) => ({ thread, size: thread.size ?? "few", withText: await this.withText(thread) })),
+      run(moreSkill, async (thread) => ({ thread, withText: await this.withText(thread) })),
+      run(fillSkill, async (thread, subject) => {
         const column = thread.columns.find((col) => col.id === subject.split(":")[1])
         if (!column) throw new TaskFailure("The column is gone.")
-        return { thread, column }
+        return { thread, column, withText: await this.withText(thread) }
       }),
       run(readSkill, (thread) => ({ thread })),
       run(checkSkill, (thread) => ({ thread, since: thread.checkedAt ?? thread.createdAt }), (c) => this.checked(c.id)),
       // "<id>:<paper>": one row, answered again once the user read the paper in full
       run(rereadSkill, (thread, subject) => ({ thread, paperId: subject.slice(subject.indexOf(":") + 1) })),
     ]
+  }
+
+  // The thread's rows whose full text owlit has: Owlit answers those from it from the start
+  private async withText(c: Thread): Promise<string[]> {
+    const hasText = this.services.hasText
+    if (!hasText) return []
+    const has = await Promise.all(c.rows.map((r) => hasText(r.id, r.paper.ids)))
+    return c.rows.filter((_, i) => has[i]).map((r) => r.id)
   }
 
   // Owlit gathers papers for a question: the thread is there at once, titled by the question until
@@ -466,6 +476,8 @@ export class Threads {
           mark(itemId.row(r.id))
         } else if (r.foundBy && !row.foundBy) row.foundBy = r.foundBy
         let touched = false
+        // Whether the paper's record has an abstract, asked once per row and only for answers not from the full text
+        let abstract: boolean | undefined
         for (const [col, cell] of Object.entries(r.cells ?? {})) {
           if (!c.columns.some((have) => have.id === col)) {
             problems.push(`There is no column ${col}; add it under columns first.`)
@@ -491,8 +503,15 @@ export class Threads {
             }
             passage = { quote: passage.quote, page }
           }
+          // An answer "from the abstract" of a paper with none was from its title: stored so, for the memo,
+          // the cell and the export to say
+          let depth = cell.depth
+          if (depth === "abstract") {
+            abstract ??= !!(this.services.facts ? await this.services.facts(row.id, row.paper) : row.paper).abstract?.trim()
+            if (!abstract) depth = "title"
+          }
           const was = row.cells[col]
-          const next: ThreadCell = { ...cell, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
+          const next: ThreadCell = { ...cell, depth, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
           if (cell.depth !== "full") delete next.passage
           if (was && sameCell(was, next)) continue
           row.cells[col] = next

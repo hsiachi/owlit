@@ -5455,6 +5455,10 @@ msgid "Read {read} of the {papers} papers in full; the rest are from their abstr
 msgstr ""
 
 #: app/src/features/threads/components/About.tsx
+msgid "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
+msgstr ""
+
+#: app/src/features/threads/components/About.tsx
 msgid "Owlit watches for new papers on this question."
 msgstr ""
 
@@ -5592,11 +5596,11 @@ msgid "Not in your Library"
 msgstr ""
 
 #: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
+msgid "From the title only"
 msgstr ""
 
 #: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the title only"
+msgid "From the abstract"
 msgstr ""
 
 #. followed by the other groups of this thread that hold the paper
@@ -5823,6 +5827,10 @@ msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Owlit, from the full text"
+msgstr ""
+
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Owlit, from the title only"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx

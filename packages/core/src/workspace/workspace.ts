@@ -93,6 +93,10 @@ export class Workspace {
         const text = await readFile(path.join(paperDir(root, here), "text.md"), "utf8").catch(() => null)
         return text === null ? undefined : findQuote(text, quote)
       },
+      hasText: async (id, ids) => {
+        const here = await this.library.canonical(id, ids)
+        return !!here && (await stat(path.join(paperDir(root, here), "text.md")).then(() => true, () => false))
+      },
       searches: (by, since) => this.library.searchesBy(by, since),
       ...options.threads,
     })
