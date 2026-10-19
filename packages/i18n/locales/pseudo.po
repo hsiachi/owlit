@@ -5650,6 +5650,11 @@ msgstr ""
 msgid "Read in full"
 msgstr ""
 
+#. a batch of a thread: once the user read a paper in full, Owlit answered its row again from it
+#: app/src/features/threads/components/About.tsx
+msgid "Answered again from the full text"
+msgstr ""
+
 #. a batch of a thread: Owlit answered a column's question for every paper
 #: app/src/features/threads/components/About.tsx
 msgid "Answered “{column}”"
