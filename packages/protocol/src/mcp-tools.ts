@@ -133,7 +133,7 @@ function TOOLS(): ToolSpec[] {
   },
   {
     name: "library_add",
-    touches: "meta",
+    touches: "own",
     description:
       "Add papers to the user's library, as added by you: DOIs, arXiv ids, links to papers, or ids from library_search, library_related or library_journal; several in one call. Their metadata, PDFs and text follow by themselves. Says the library id of each.",
     inputSchema: {
@@ -392,7 +392,7 @@ function TOOLS(): ToolSpec[] {
   },
   {
     name: "thread_edit",
-    touches: "meta",
+    touches: "own",
     description: "Rename a thread when the user asks. A title the user gave the thread themselves stays. Deleting, splitting and merging threads are the user's, in owlit.",
     inputSchema: {
       type: "object",
