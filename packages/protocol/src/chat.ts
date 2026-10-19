@@ -254,6 +254,11 @@ export interface ChatAbout {
   kind: "paper" | "thread" | "doc" | "comment"
   // A paper's or thread's id, a doc's workspace path, a comment as <doc path>#<comment id>
   id: string
+  // The recipe the chat was started with (core's recipes/index.ts names them: "find-more", "ask-each"…),
+  // which the status line says in words; the thing it is about is kind and id alone (sameAbout)
+  recipe?: string
+  // The thread's column an ask-each or group recipe fills
+  column?: string
 }
 
 // A chat owlit started, as the thing it is about shows it: its last reply, streaming while its turn runs,

@@ -538,6 +538,12 @@ export class Core {
     }) as unknown as z.ZodType<ChatMessage>
     this.router.register("chats.list", noParams, "read", () => chats().list())
     this.router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
+    this.router.register("chats.tryAgain", z.object({ chatId }), "admin", async ({ chatId }) => {
+      const ws = this.requireWorkspace()
+      const started = await tryAgain(this.turns, ws.chats, chatId)
+      await this.announceStarted(ws, started.chatId)
+      return { chatId: started.chatId }
+    })
     this.router.register("chats.get", z.object({ id: chatId }), "read", ({ id }) => chats().get(id))
     this.router.register("chats.create", z.object({ chat: summary }), "admin", ({ chat }) => chats().create(chat))
     this.router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), "admin", ({ id, patch }) =>
@@ -1281,6 +1287,10 @@ export class Core {
                 },
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
+                },
+                startChat: (start) => {
+                  if (this.workspace?.root !== root) throw new Error("The workspace closed.")
+                  return this.startFor(start)
                 },
               },
               profile: async () => (await this.settings.get()).profile,

@@ -56,9 +56,9 @@ export async function gather(question: string, size: ThreadSize, project: string
     return undefined
   }
   try {
-    const c = await rpc.threads.gather({ question, size, ...(project ? { project } : {}) })
-    put(c)
-    return c
+    const { thread } = await rpc.threads.gather({ question, size, ...(project ? { project } : {}) })
+    put(thread)
+    return thread
   } catch (error) {
     toastError(error)
     return undefined
@@ -75,9 +75,9 @@ export async function startRun(id: string, run: "more" | "read", what?: string) 
 export async function groupAnotherWay(id: string, question: string): Promise<Thread | undefined> {
   if (!isDesktop) return void desktopOnly()
   try {
-    const c = await rpc.threads.group({ id, question })
-    put(c)
-    return c
+    const { thread } = await rpc.threads.group({ id, question })
+    put(thread)
+    return thread
   } catch (error) {
     toastError(error)
     return undefined
@@ -87,7 +87,7 @@ export async function groupAnotherWay(id: string, question: string): Promise<Thr
 export async function askEach(id: string, question: string) {
   if (!isDesktop) return desktopOnly()
   try {
-    put(await rpc.threads.ask({ id, question }))
+    put((await rpc.threads.ask({ id, question })).thread)
   } catch (error) {
     toastError(error)
   }

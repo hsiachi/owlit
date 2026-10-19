@@ -43,7 +43,7 @@ export function CompareDialog({ threadId, open, onOpenChange }: { threadId: stri
       return close()
     }
     try {
-      put(await rpc.threads.compare({ id: threadId, doc, sentences: picked }))
+      put((await rpc.threads.compare({ id: threadId, doc, sentences: picked })).thread)
       close()
     } catch (error) {
       toastError(error)

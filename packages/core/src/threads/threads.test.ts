@@ -1,12 +1,11 @@
-import { itemId, placedKey, readInFull, shownThread, type Change, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
+import { itemId, placedKey, readInFull, shownThread, type Change, type ChatAbout, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
 import { Seen } from "../changes/seen.ts"
-import { Scheduler, TaskStore } from "../tasks/index.ts"
 import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
 const papers: Record<string, ThreadPaper> = {
@@ -545,132 +544,161 @@ describe("uniqueId", () => {
   })
 })
 
-describe("Threads, Owlit's work in the background", () => {
-  function withRuns(services: ThreadsServices = {}) {
-    const prompts: { prompt: string; allow: string }[] = []
-    // What the run and a chat searched, as the Library logs it
+describe("Threads, Owlit's work in chats it starts", () => {
+  // A chat owlit starts about the thread: its agent writes the way it would through owlit-mcp, signed
+  // with the chat; done is its turn
+  function withChats(services: ThreadsServices = {}) {
+    const started: { chatId: string; about: ChatAbout; title: string; recipe: string; done: Promise<void> }[] = []
+    // What the chats and a typed chat searched, as the Library logs it
     const searched: { by: string; at: number; query: string; source: string; results: string[] }[] = []
     const ctx = setup({
       searches: async (by, since) => searched.filter((s) => s.by === by && s.at > since),
-      // The agent writes the way it would through owlit-mcp: a row and a title on the first write
-      agent: async (prompt, _signal, allow, run) => {
-        prompts.push({ prompt, allow: allow.source })
-        const id = /thread_write,? id ([\w-]+)/.exec(prompt)?.[1]
-        searched.push(
-          { by: `run:${run}`, at: Date.now(), query: "replay ratings validity", source: "openalex", results: ["doi-10.1145-1", "doi-10.1145-9"] },
-          { by: `run:${run}`, at: Date.now(), query: "cited_by of doi-10.1145-1", source: "openalex", results: ["doi-10.1145-8"] },
-        )
-        // Grouping: the groups first, then every paper in one, as the prompt says
-        const grouping = /The grouping: ([\w-]+)/.exec(prompt)?.[1]
-        if (id && grouping) {
-          await ctx.threads.write({ id, grouping, groups: [{ id: "ch1", name: "Chapter 1" }, { id: "ch2", name: "Chapter 2" }], run }, agent)
-          await ctx.threads.write({ id, grouping, rows: [{ id: "doi-10.1145-1", group: "ch1" }, { id: "doi-10.1145-2", group: "ch2" }], run }, agent)
+      chatAbout: async (chatId) => started.find((c) => c.chatId === chatId)?.about,
+      startChat: async ({ about, title, recipe }) => {
+        const chatId = `owlit-${started.length + 1}`
+        const by = { kind: "socket" as const, chatId }
+        const work = async () => {
+          const id = /thread_write,? id ([\w-]+)/.exec(recipe)?.[1]
+          searched.push(
+            { by: `chat:${chatId}`, at: Date.now(), query: "replay ratings validity", source: "openalex", results: ["doi-10.1145-1", "doi-10.1145-9"] },
+            { by: `chat:${chatId}`, at: Date.now(), query: "cited_by of doi-10.1145-1", source: "openalex", results: ["doi-10.1145-8"] },
+          )
+          // Grouping: the groups first, then every paper in one, as the recipe says
+          const grouping = /The grouping: ([\w-]+)/.exec(recipe)?.[1]
+          if (id && grouping) {
+            await ctx.threads.write({ id, grouping, groups: [{ id: "ch1", name: "Chapter 1" }, { id: "ch2", name: "Chapter 2" }], chatId }, by)
+            await ctx.threads.write({ id, grouping, rows: [{ id: "doi-10.1145-1", group: "ch1" }, { id: "doi-10.1145-2", group: "ch2" }], chatId }, by)
+          }
+          if (id && recipe.includes("gathering"))
+            await ctx.threads.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", chatId }, by)
         }
-        if (id && prompt.includes("gathering"))
-          await ctx.threads.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", run }, agent)
-        return { text: "Gathered one paper." }
+        const done = Promise.resolve().then(work)
+        started.push({ chatId, about, title, recipe, done })
+        return { chatId, messageId: `${chatId}-reply`, done: done.then(() => "end_turn" as const) }
       },
       ...services,
     })
-    const scheduler = new Scheduler({ store: new TaskStore(mkdtempSync(path.join(tmpdir(), "owlit-tasks-"))), definitions: ctx.threads.tasks(), retryDelay: () => 5 })
-    ctx.threads.attach(scheduler)
-    void scheduler.start()
-    return { ...ctx, scheduler, prompts, searched }
+    const chat = (chatId: string) => started.find((c) => c.chatId === chatId)!
+    return { ...ctx, started, chat, searched }
   }
 
-  it("tells its batches apart for About: the run's searches and note, then a chat's later question", async () => {
-    const { threads, scheduler, searched } = withRuns()
-    const c = await threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)
-    await scheduler.wait((await scheduler.list()).find((t) => t.subject === c.id)!.id)
+  it("tells its batches apart for About: a started chat's writes are one batch named by its recipe, then a chat's later question", async () => {
+    const { threads, chat, searched } = withChats()
+    const { thread: c, chatId } = await threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)
+    await chat(chatId).done
     searched.push({ by: "chat:c9", at: Date.now(), query: "lifelog video recall", source: "arxiv", results: ["doi-10.1145-2"] })
     await threads.write({ id: c.id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-2", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" }, agent)
 
-    const [gathered, chat, ...rest] = await threads.about(c.id)
+    const [gathered, typed, ...rest] = await threads.about(c.id)
     expect(rest).toEqual([])
     expect(gathered).toMatchObject({ trigger: "gather", added: 1, answered: 0, notes: ["Semantic Scholar wasn't reachable."] })
+    expect(gathered!.chatId).toBeUndefined()
     expect(gathered!.searches).toEqual([
       { kind: "search", query: "replay ratings validity", source: "openalex", found: 2, kept: 1 },
       { kind: "cited_by", query: "doi-10.1145-1", of: "Replay or Live? Validity of Retrospective Ratings", source: "openalex", found: 1, kept: 0 },
     ])
-    expect(chat).toMatchObject({ trigger: "chat", chatId: "c9", asked: "Does lifelog video help recall?", added: 1, searches: [{ query: "lifelog video recall", kept: 1 }] })
+    expect(typed).toMatchObject({ trigger: "chat", chatId: "c9", asked: "Does lifelog video help recall?", added: 1, searches: [{ query: "lifelog video recall", kept: 1 }] })
   })
 
-  it("starts a thread at once and fills it in the background", async () => {
-    const { threads, scheduler, prompts } = withRuns()
-    const c = await threads.gather({ question: "回放评价可靠吗？", project: "主动提醒研究", size: "few" }, window)
+  it("keeps a started chat's writes one batch however far apart, as Retry's turn in the same chat adds to it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      const { threads, chat } = withChats()
+      const { id } = await start(threads)
+      const { chatId } = await threads.start(id, "read", window)
+      await chat(chatId).done
+      const by = { kind: "socket" as const, chatId }
+      // The clock stands still under fake Date: a minute on, so these writes aren't the rows' arrival
+      vi.setSystemTime(Date.now() + 60_000)
+      await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }], chatId }, by)
+      vi.setSystemTime(Date.now() + 2 * 3_600_000)
+      await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "A third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }], chatId }, by)
+      const batches = await threads.about(id)
+      expect(batches.at(-1)).toMatchObject({ trigger: "read", answered: 2 })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("starts a thread at once and a chat about it that fills it, as Reviewer would, named by the thread", async () => {
+    const { threads, chat } = withChats()
+    const { thread: c, chatId } = await threads.gather({ question: "回放评价可靠吗？", project: "主动提醒研究", size: "few" }, window)
     expect(c).toMatchObject({ title: "回放评价可靠吗？", project: "主动提醒研究", size: "few", rows: [] })
-    const task = Object.values(await scheduler.list()).find((t) => t.subject === c.id)!
-    expect(task.kind).toBe("threads.gather")
-    expect((await scheduler.wait(task.id)).state).toBe("done")
+    expect(chat(chatId)).toMatchObject({ about: { kind: "thread", id: c.id, recipe: "gather" }, title: "回放评价可靠吗？" })
+    expect(chat(chatId).recipe).toMatch(/about ten papers/)
+    await chat(chatId).done
     const now = await threads.get(c.id)
     expect(now.title).toBe("Replay ratings")
     expect(now.rows.map((r) => r.id)).toEqual(["doi-10.1145-1"])
-    expect(prompts[0]?.prompt).toMatch(/about ten papers/)
-    expect(prompts[0]?.allow).toMatch(/library_\(search\|related\|journal\)/)
+  })
+
+  it("runs several at once: each button starts its own chat", async () => {
+    const { threads, started } = withChats()
+    const { id } = await start(threads)
+    const more = await threads.start(id, "more", window)
+    const asked = await threads.ask(id, "Method and sample", window)
+    expect(new Set([more.chatId, asked.chatId]).size).toBe(2)
+    expect(started.map((c) => c.about.recipe)).toEqual(["find-more", "ask-each"])
   })
 
   it("finds more papers for what the user asks this time, kept as a question asked, and reads only the rows with a PDF to be had", async () => {
-    const { threads, scheduler, prompts } = withRuns({ hasText: async (id) => id === "doi-10.1145-1" })
+    const { threads, chat } = withChats({ hasText: async (id) => id === "doi-10.1145-1" })
     const { id } = await start(threads, { rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }, { id: "doi-10.1145-2", cells: { q: { text: "Recovers more.", depth: "abstract" } }, paper: { title: "Two", authors: [], ids: {}, openPdf: true } }, { id: "doi-10.1145-3", cells: { q: { text: "No PDF.", depth: "abstract" } }, paper: { title: "Three", authors: [], ids: {} } }] })
     const more = await threads.start(id, "more", window, "the same model with and without retrieval")
-    await scheduler.wait(more.id)
-    expect(prompts[0]?.prompt).toMatch(/look for: «the same model with and without retrieval»/)
+    expect(chat(more.chatId).recipe).toMatch(/look for: «the same model with and without retrieval»/)
     expect((await threads.get(id)).alsoAsked?.map((a) => a.text)).toEqual(["the same model with and without retrieval"])
     // The question as it stands adds nothing and is looked for as before
-    await scheduler.wait((await threads.start(id, "more", window, "我的研究方法该怎么设计？")).id)
-    expect(prompts[1]?.prompt).not.toMatch(/look for/)
+    const again = await threads.start(id, "more", window, "我的研究方法该怎么设计？")
+    expect(chat(again.chatId).recipe).not.toMatch(/look for/)
     expect((await threads.get(id)).alsoAsked).toHaveLength(1)
     // Read in full: the rows answered from the abstract whose paper has text already or a free PDF
-    await scheduler.wait((await threads.start(id, "read", window)).id)
-    expect(prompts[2]?.prompt).toMatch(/reading in full 2 papers/)
-    expect(prompts[2]?.prompt).toMatch(/Read these rows, and no others: doi-10\.1145-1, doi-10\.1145-2\./)
+    const read = await threads.start(id, "read", window)
+    expect(chat(read.chatId).about.recipe).toBe("read-in-full")
+    expect(chat(read.chatId).recipe).toMatch(/reading in full 2 papers/)
+    expect(chat(read.chatId).recipe).toMatch(/Read these rows, and no others: doi-10\.1145-1, doi-10\.1145-2\./)
   })
 
   it("asks for answers from the full text from the start for the rows whose text owlit has", async () => {
-    const { threads, scheduler, prompts } = withRuns({ hasText: async (id) => id === "doi-10.1145-2" })
+    const { threads, chat } = withChats({ hasText: async (id) => id === "doi-10.1145-2" })
     const { id } = await start(threads)
-    const column = (await threads.ask(id, "Method and sample", window)).columns.at(-1)!
-    await scheduler.wait((await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!.id)
-    expect(prompts[0]?.prompt).toMatch(/full text in the user's library: doi-10\.1145-2\. Answer them from it/)
-    expect(prompts[0]?.prompt).not.toMatch(/doi-10\.1145-1/)
+    const { chatId } = await threads.ask(id, "Method and sample", window)
+    expect(chat(chatId).recipe).toMatch(/full text in the user's library: doi-10\.1145-2\. Answer them from it/)
+    expect(chat(chatId).recipe).not.toMatch(/doi-10\.1145-1/)
   })
 
-  it("adds a column and asks the agent to fill it, with only thread_write besides reading", async () => {
-    const { threads, scheduler, prompts } = withRuns()
+  it("adds a column and starts a chat that fills it, naming the column", async () => {
+    const { threads, chat } = withChats()
     const { id } = await start(threads)
-    const c = await threads.ask(id, "Method and sample", window)
+    const { thread: c, chatId } = await threads.ask(id, "Method and sample", window)
     const column = c.columns.at(-1)!
     expect(column).toMatchObject({ question: "Method and sample", kind: "ask" })
-    const task = (await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!
-    expect(task.kind).toBe("threads.fill")
-    await scheduler.wait(task.id)
-    expect(prompts[0]?.prompt).toMatch(new RegExp(`The column to fill: ${column.id} — «Method and sample»`))
-    expect(prompts[0]?.allow).not.toMatch(/library_add/)
+    expect(chat(chatId).about).toEqual({ kind: "thread", id, recipe: "ask-each", column: column.id })
+    expect(chat(chatId).recipe).toMatch(new RegExp(`The column to fill: ${column.id} — «Method and sample»`))
     // Asking the same again fills the same column
-    expect((await threads.ask(id, "Method  and sample", window)).columns).toHaveLength(2)
+    expect((await threads.ask(id, "Method  and sample", window)).thread.columns).toHaveLength(2)
   })
 
-  it("sets every paper against the user's sentences, in a column the agent fills", async () => {
-    const { threads, scheduler, prompts } = withRuns()
+  it("sets every paper against the user's sentences, in a column a chat fills", async () => {
+    const { threads, chat } = withChats()
     const { id } = await start(threads)
-    const c = await threads.compare(id, "System Design.md", ["Replay ratings run lower.", "Timing is one stage of four."], window)
+    const { thread: c, chatId } = await threads.compare(id, "System Design.md", ["Replay ratings run lower.", "Timing is one stage of four."], window)
     const column = c.columns.at(-1)!
     expect(column).toMatchObject({ kind: "compare", doc: "System Design.md", sentences: [{ id: "l1" }, { id: "l2" }] })
-    await scheduler.wait((await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!.id)
-    expect(prompts[0]?.prompt).toMatch(/- l2: «Timing is one stage of four\.»/)
+    expect(chat(chatId).recipe).toMatch(/- l2: «Timing is one stage of four\.»/)
     await threads.edit(id, { op: "hide", column: column.id, hidden: true }, window)
     expect((await threads.get(id)).columns.find((col) => col.id === column.id)?.hidden).toBe(true)
   })
 
-  it("groups the papers another way: a hidden grouping the agent fills, groups first; asked again, the user's moves stay", async () => {
-    const { threads, scheduler, prompts } = withRuns()
+  it("groups the papers another way: a hidden grouping a chat fills, groups first; asked again, the user's moves stay", async () => {
+    const { threads, chat } = withChats()
     const { id } = await start(threads, { groups: [{ id: "a", name: "A" }], rows: [{ id: "doi-10.1145-1", group: "a" }] })
-    const c = await threads.group(id, "the chapters of my story", window)
+    const { thread: c, chatId } = await threads.group(id, "the chapters of my story", window)
     const column = c.columns.at(-1)!
     expect(column).toMatchObject({ kind: "grouping", question: "the chapters of my story", hidden: true, groups: [] })
-    await scheduler.wait((await scheduler.list()).find((t) => t.subject === `${id}:${column.id}`)!.id)
-    expect(prompts[0]?.prompt).toMatch(/by «the chapters of my story»/)
-    expect(prompts[0]?.prompt).not.toMatch(/afresh/)
+    expect(chat(chatId).about).toMatchObject({ recipe: "group", column: column.id })
+    await chat(chatId).done
+    expect(chat(chatId).recipe).toMatch(/by «the chapters of my story»/)
+    expect(chat(chatId).recipe).not.toMatch(/afresh/)
     let now = shownThread(await threads.get(id))
     expect(now.columns.find((col) => col.id === column.id)?.groups?.map((g) => g.id)).toEqual(["ch1", "ch2"])
     expect(now.rows.map((r) => r.in)).toEqual([
@@ -679,12 +707,14 @@ describe("Threads, Owlit's work in the background", () => {
     ])
     // The user moves a paper in the new grouping, then asks for it again: the move stays
     await threads.edit(id, { op: "move", column: column.id, row: "doi-10.1145-1", group: "ch2", from: "ch1" }, window)
-    await scheduler.wait((await threads.fill(id, column.id)).id)
-    expect(prompts.at(-1)?.prompt).toMatch(/afresh/)
+    const again = await threads.fill(id, column.id)
+    await chat(again.chatId).done
+    expect(chat(again.chatId).about.recipe).toBe("group")
+    expect(chat(again.chatId).recipe).toMatch(/afresh/)
     now = shownThread(await threads.get(id))
     expect(now.rows.map((r) => r.in?.[column.id])).toEqual([["ch2"], ["ch2"]])
     // The same words again are the same grouping
-    expect((await threads.group(id, "the chapters  of my story", window)).columns.filter((col) => col.kind === "grouping")).toHaveLength(2)
+    expect((await threads.group(id, "the chapters  of my story", window)).thread.columns.filter((col) => col.kind === "grouping")).toHaveLength(2)
   })
 })
 
