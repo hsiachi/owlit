@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import {
   DEFAULT_NOTE_LANGUAGE,
   RpcErrorCode,
+  type DigestSource,
   type ThreadPaper,
   type FoundPaper,
   type FoundPapers,
@@ -107,7 +108,7 @@ export interface LibraryServices {
   // The user starred a paper (not an agent, not an import)
   starred?: (id: string) => void
   // A background agent run for a task: its session shows beside the paper (ctx.describe)
-  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string }>
+  agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string; pictures?: number }>
   // The language digests are written in: Settings' choice, else the system's
   noteLanguage?: () => Promise<string>
   // MinerU's settings, read at each use
@@ -640,7 +641,7 @@ export class Library {
           .slice(0, MAX_PICTURES)
           .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
         const prompt = digestSkill.instructions({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
-        const { text: answer, connectorId, model } = await agent(prompt, ctx, pictures)
+        const { text: answer, connectorId, model, pictures: seen } = await agent(prompt, ctx, pictures)
         const digest = cleanDigest(answer)
         if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
         await this.serial.run(async () => {
@@ -649,7 +650,16 @@ export class Library {
           ctx.signal.throwIfAborted()
           // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
           if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
-          const kept: DigestRecord = { version: 1, format: DIGEST_FORMAT, by: connectorId, ...(model ? { model } : {}), language, ...(drifted(digest, language) ? { drift: true } : {}), at: Date.now() }
+          const kept: DigestRecord = {
+            version: 1,
+            format: DIGEST_FORMAT,
+            by: connectorId,
+            ...(model ? { model } : {}),
+            language,
+            ...(drifted(digest, language) ? { drift: true } : {}),
+            ...(seen !== undefined ? { pictures: seen } : {}),
+            at: Date.now(),
+          }
           await writeFileAtomic(path.join(dir, "digest.md"), digest, { parents: false })
           await writeJsonAtomic(path.join(dir, "digest.json"), kept, { parents: false })
         })
@@ -750,6 +760,24 @@ export class Library {
     if (record?.format !== DIGEST_FORMAT) return { ...state, digestOutdated: "format" }
     const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
     return record.language && record.language !== language ? { ...state, digestOutdated: "language" } : state
+  }
+
+  // What the paper's digest was written from, for its header: digest.json and the text's pages
+  async digestSource(id: string): Promise<DigestSource> {
+    if (!(await readRecord(this.root, id))) throw notFound(id)
+    const dir = paperDir(this.root, id)
+    const record = await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)
+    const text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
+    const pages = text?.match(/<!-- page \d+ -->/g)?.length
+    // Whether the paper is written in Chinese characters, kana or hangul, from the start of its text
+    const sample = text?.replace(/<!-- page \d+ -->/g, "").replace(/\s/g, "").slice(0, 4000) ?? ""
+    const cjk = sample.match(/[぀-ヿ㐀-鿿가-힯]/g)?.length ?? 0
+    return {
+      ...(record?.pictures !== undefined ? { pictures: record.pictures } : {}),
+      ...(record?.language ? { language: record.language } : {}),
+      ...(pages ? { textPages: pages } : {}),
+      ...(sample.length >= 200 ? { cjkText: cjk / sample.length > 0.2 } : {}),
+    }
   }
 
   // The paper's digests (digest.md), or null when it has none

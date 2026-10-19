@@ -4,7 +4,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
+import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -435,6 +435,8 @@ export interface Methods {
   "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
   // The paper's digests (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
+  // What the digest was written from (digest.json, the text's pages), for its header
+  "library.digestSource": { params: { id: string }; result: DigestSource }
   // Brings in a library at once: a Zotero library (zotero.sqlite, the folder holding it, or a Better BibTeX JSON
   // export), a BibTeX file, or a folder of PDFs. Returns once it has started; the import.<source> task
   // shows the progress, and an interrupted import carries on when the workspace opens again. Papers the

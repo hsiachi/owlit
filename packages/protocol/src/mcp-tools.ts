@@ -161,7 +161,7 @@ export const OWLIT_TOOLS: ToolSpec[] = [
   {
     name: "docs_add_comment",
     description:
-      "Leave a comment on a passage of the user's doc, shown beside it, without changing the file. Use this for remarks, questions and suggestions instead of editing the doc. One comment per passage.",
+      "Leave a comment on a passage of the user's doc, shown beside it, without changing the file. Use this for remarks, questions and suggestions instead of editing the doc. One comment per passage. A claim about a paper cites it with the sentence it rests on as the link's title: [Author Year](owlit://library/<id>#p<page> \"sentence\").",
     inputSchema: {
       type: "object",
       properties: {

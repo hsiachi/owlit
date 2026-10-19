@@ -10,6 +10,10 @@ export const threadUri = (id: string, group?: string) => `owlit://threads/${id}$
 // A mention's Markdown, [label](uri), the label's brackets and backslashes escaped so any title survives
 // as link text; unescapeLabel takes a label back
 export const mentionLink = (label: string, uri: string) => `[${label.replace(/([[\]\\])/g, "\\$1")}](${uri})`
+// A claim about a paper as Owlit writes it everywhere (agents/rules.ts): the page in the fragment, the
+// sentence it rests on as the link's title
+export const citationLink = (label: string, id: string, passage: { quote: string; page: number }) =>
+  `${mentionLink(label, `owlit://library/${id}#p${passage.page}`).slice(0, -1)} "${passage.quote.replace(/["\\]/g, "\\$&")}")`
 export const unescapeLabel = (label: string) => label.replace(/\\([[\]\\])/g, "$1")
 
 export type OwlitUri =

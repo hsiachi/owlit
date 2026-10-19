@@ -9,8 +9,9 @@ export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim()
 // write. A thread with only the question's own column reads as a short list; adding a column makes it
 // a table.
 
-// How far Owlit read for an answer: the abstract only, or the full text (then it has a passage)
-export type AnswerDepth = "abstract" | "full"
+// How far Owlit read for an answer: the title only (the paper's record has no abstract), the abstract,
+// or the full text (then it has a passage)
+export type AnswerDepth = "title" | "abstract" | "full"
 
 // How a paper bears on a sentence of the user's, in a column that compares papers with a doc
 export type Relation = "supports" | "challenges" | "related"

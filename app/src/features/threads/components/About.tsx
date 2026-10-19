@@ -21,6 +21,7 @@ export function About({ thread: c }: { thread: Thread }) {
   const batches = useBatches(c)
   const rows = shown(c).rows
   const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
+  const titles = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "title")).length
   const papers = rows.length
   return (
     <section className="mt-12 max-w-[68ch]">
@@ -47,7 +48,12 @@ export function About({ thread: c }: { thread: Thread }) {
         </ol>
       )}
       <div className="mt-3 flex flex-col gap-0.5 text-detail text-muted-foreground">
-        {papers > 0 && <p>{t`Read ${read} of the ${papers} papers in full; the rest are from their abstracts.`}</p>}
+        {papers > 0 && (
+          <p>
+            {t`Read ${read} of the ${papers} papers in full; the rest are from their abstracts.`}
+            {titles > 0 && ` ${plural(titles, { one: "# had no abstract and is from its title only.", other: "# had no abstract and are from their titles only." })}`}
+          </p>
+        )}
         {c.watch && <p>{t`Owlit watches for new papers on this question.`}</p>}
       </div>
     </section>

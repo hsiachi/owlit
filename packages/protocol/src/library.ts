@@ -369,6 +369,17 @@ export interface TrashedPaper {
   removedAt: number
 }
 
+// What a paper's digest was written from, for its header. pictures: how many of its figures the agent
+// saw (0: it read the text alone; absent on digests from before owlit counted them). textPages: the pages
+// owlit has the text of, set against the PDF's. cjkText: the paper is written in Chinese characters, kana
+// or hangul, for the digest's language to be set against.
+export interface DigestSource {
+  pictures?: number
+  language?: string
+  textPages?: number
+  cjkText?: boolean
+}
+
 // library/papers/<id>/text.json: the paper's full text with where each line sits, so a passage can be
 // found and outlined on the page. Rects are PDF points from the page's top-left corner, as highlights
 // are. pdfium writes it in seconds; MinerU's version replaces it when it comes (better order, tables,

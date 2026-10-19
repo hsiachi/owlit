@@ -22,6 +22,9 @@ export interface DigestRecord {
   language?: string
   // Some part came out in another language than asked (the Summary drifts most): kept, not refused
   drift?: boolean
+  // How many of the paper's figures the agent saw as pictures (0: it read the text alone); absent on
+  // digests from before it was counted
+  pictures?: number
   at: number
   // The user asked for the note to be written again; set until the new one is written
   rewriteAsked?: number

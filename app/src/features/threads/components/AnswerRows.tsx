@@ -149,11 +149,11 @@ export function RowPeek({ thread, row, grouping, here, library, className }: { t
           {library ? t`In your Library` : t`Not in your Library`}
         </p>
         {answer && (
-          <p className="mt-2.5 text-sm leading-relaxed">
+          // An answer from the title only (the paper's record has no abstract) is thin: muted, and said so
+          <p className={cn("mt-2.5 text-sm leading-relaxed", answer.depth === "title" && "text-muted-foreground")}>
             {answer.text}
-            {/* A paper whose source gave no abstract was answered from its title: say so, not "abstract" */}
-            {answer.depth === "abstract" && (
-              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{facts.abstract ? t`From the abstract` : t`From the title only`}</span>
+            {answer.depth !== "full" && (
+              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{answer.depth === "title" ? t`From the title only` : t`From the abstract`}</span>
             )}
           </p>
         )}

@@ -1,4 +1,4 @@
-import { GROUPING_COLUMN, QUESTION_COLUMN, type Thread, type ThreadPaper, type ThreadRow } from "@owlit/protocol"
+import { type AnswerDepth, GROUPING_COLUMN, QUESTION_COLUMN, type Thread, type ThreadPaper, type ThreadRow } from "@owlit/protocol"
 import { DAY, HOUR } from "@/lib/time"
 
 // Threads for the browser preview. Most rows are papers of the Library's mock seed (p1…), as a paper
@@ -9,7 +9,7 @@ const now = Date.now()
 
 const lib = (title: string, authors: string[], year: number, venue?: string): ThreadPaper => ({ title, authors, ids: {}, year, ...(venue ? { venue } : {}) })
 
-function row(id: string, paper: ThreadPaper, answer: string, depth: "abstract" | "full", at: number, passage?: { quote: string; page: number }): ThreadRow {
+function row(id: string, paper: ThreadPaper, answer: string, depth: AnswerDepth, at: number, passage?: { quote: string; page: number }): ThreadRow {
   return { id, paper, cells: { [QUESTION_COLUMN]: { text: answer, depth, at, ...(passage ? { passage } : {}) } }, addedAt: at, foundBy: "search" }
 }
 
@@ -48,6 +48,14 @@ function readingTools(): Thread {
         "Adds plain-language section summaries for readers outside the field; readers found papers easier but not faster to read.",
         "abstract",
         now - 30 * 60_000,
+      ),
+      // A paper whose source gave no abstract: answered from its title only
+      row(
+        "doi-10.1145-3613904.3642000",
+        { title: "Skim Reading with Guided Highlights on Mobile", authors: ["Mina Lee"], ids: { doi: "10.1145/3613904.3642000" }, year: 2024, venue: "CHI" },
+        "Seems to bring guided highlights to skimming on phones.",
+        "title",
+        at,
       ),
     ],
     watch: false,
@@ -113,7 +121,8 @@ function nothingFound(): Thread {
 }
 
 // A bigger thread with columns and groups, as Owlit gathers for a venue. Sample rows for the preview,
-// not a real proceedings list.
+// not a real proceedings list; like a proceedings listing they have no abstracts, so what isn't from the
+// full text is from the title only.
 function venue(): Thread {
   const at = now - 26 * HOUR
   const asked = "UIST 2026 papers: which ones touch my reading-tools study?"
@@ -121,9 +130,9 @@ function venue(): Thread {
     id,
     paper: { title, authors, ids: { doi: `10.1145/${id}` }, year: 2026, venue: "UIST" },
     cells: {
-      [QUESTION_COLUMN]: { text: answer, depth: full ? "full" : "abstract", at, ...(full ? { passage: full } : {}) },
-      c2: { text: method, depth: full ? "full" : "abstract", at },
-      ...(rel ? { c3: { text: rel.text, rel: rel.rel, sentence: rel.sentence, depth: "abstract" as const, at } } : { c3: { text: "No bearing", depth: "abstract" as const, at } }),
+      [QUESTION_COLUMN]: { text: answer, depth: full ? "full" : "title", at, ...(full ? { passage: full } : {}) },
+      c2: { text: method, depth: full ? "full" : "title", at },
+      ...(rel ? { c3: { text: rel.text, rel: rel.rel, sentence: rel.sentence, depth: "title" as const, at } } : { c3: { text: "No bearing", depth: "title" as const, at } }),
     },
     addedAt: at,
     ...(group ? { in: { [GROUPING_COLUMN]: [group] } } : {}),

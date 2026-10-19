@@ -61,7 +61,7 @@ export function ThreadActions({ thread }: { thread: Thread }) {
   const { running } = useThreadWork(thread.id)
   const busy = (kind: string) => running.some((task) => task.kind === kind)
   const shown = shownOf(thread)
-  const abstractOnly = shown.rows.some((r) => Object.values(r.cells).every((cell) => cell.depth === "abstract"))
+  const abstractOnly = shown.rows.some((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
   const title = shown.title
   const asked = thread.asked.text
   const draft = () =>

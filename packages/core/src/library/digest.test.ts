@@ -155,6 +155,14 @@ describe("digests", () => {
     expect(digest).toContain("![Figure](figure-1)")
   })
 
+  it("records how many pictures the agent saw, for the header to say what the digest was written from", async () => {
+    const { call, addPaper, digestDone } = await setup()
+    await addPaper("doi-10.1-plain")
+    await call("library.requestDigest", { id: "doi-10.1-plain" })
+    await digestDone("doi-10.1-plain")
+    expect(await call("library.digestSource", { id: "doi-10.1-plain" })).toEqual({ pictures: 0, language: "en", textPages: 1 })
+  })
+
   it("waits for a paper's text before writing, and skips papers with nothing to read", async () => {
     const { root, call, workspace, addPaper, starredForNothing } = await setup()
     await addPaper("doi-10.1-none", false)

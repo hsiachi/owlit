@@ -751,6 +751,7 @@ export class Core {
     this.router.register("links.to", z.object({ uri: z.string().min(1) }), ({ uri }) => search().linksTo(uri))
     this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), ({ path }) => library().importPdf(path))
     this.router.register("library.digest", z.object({ id: paperId }), ({ id }) => library().digest(id))
+    this.router.register("library.digestSource", z.object({ id: paperId }), ({ id }) => library().digestSource(id))
     this.router.register("library.requestDigest", z.object({ id: paperId, rewrite: z.boolean().optional() }), async ({ id, rewrite }) => {
       await library().wantDigest(id, "asked", { rewrite })
       return null

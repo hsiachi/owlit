@@ -728,7 +728,8 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
             />
           </div>
         ) : (
-          <p className="mt-1.5 text-sm leading-relaxed">
+          // An answer from the title only is thin: muted, as the short list's peek draws it
+          <p className={cn("mt-1.5 text-sm leading-relaxed", cell.depth === "title" && !edit && "text-muted-foreground")}>
             {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
             {text}
           </p>
@@ -740,7 +741,7 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
           </Quote>
         )}
         <div className="mt-2.5 flex items-center gap-2 text-detail text-muted-foreground">
-          <span>{edit ? t`You edited this` : cell.depth === "full" ? t`Owlit, from the full text` : t`Owlit, from the abstract`}</span>
+          <span>{edit ? t`You edited this` : cell.depth === "full" ? t`Owlit, from the full text` : cell.depth === "title" ? t`Owlit, from the title only` : t`Owlit, from the abstract`}</span>
           <span className="flex-1" />
           {!editing && (
             <Button variant="text" size="inline" onClick={() => setEditing(true)}>
