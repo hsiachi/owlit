@@ -144,18 +144,18 @@ export function registerSettings({ router, settings, http, openExternal, systemL
     return view
   }
 
-  router.register("settings.get", noParams, async () => settingsView(await settings.get(), systemLanguages))
-  router.register("settings.update", z.object({ patch: patchSchema }), ({ patch }) => save((s) => applyPatch(s, patch)))
-  router.register("settings.setSecret", z.object({ name: secretName, value: z.string().trim().max(4096).nullable() }), ({ name, value }) =>
+  router.register("settings.get", noParams, "read", async () => settingsView(await settings.get(), systemLanguages))
+  router.register("settings.update", z.object({ patch: patchSchema }), "admin", ({ patch }) => save((s) => applyPatch(s, patch)))
+  router.register("settings.setSecret", z.object({ name: secretName, value: z.string().trim().max(4096).nullable() }), "admin", ({ name, value }) =>
     save((s) => {
       const [group, key] = SECRET_FIELDS[name]
       return { ...s, [group]: merge(s[group], { [key]: value }) }
     }),
   )
-  router.register("settings.check", z.object({ target: z.enum(["s2ApiKey", "openalexApiKey", "mineruToken", "elsevierApiKey", "wileyTdmToken", "mineruServer"]) }), async ({ target }) =>
+  router.register("settings.check", z.object({ target: z.enum(["s2ApiKey", "openalexApiKey", "mineruToken", "elsevierApiKey", "wileyTdmToken", "mineruServer"]) }), "admin", async ({ target }) =>
     check(http, await settings.get(), target),
   )
-  router.register("settings.setProxy", z.object({ preset: presetName.optional(), link: z.string().max(4096).optional() }), ({ preset, link }) => {
+  router.register("settings.setProxy", z.object({ preset: presetName.optional(), link: z.string().max(4096).optional() }), "admin", ({ preset, link }) => {
     let proxy: ProxySettings | null = null
     if (preset) proxy = { ...PROXY_PRESETS[preset].proxy }
     else if (link?.trim()) {
@@ -164,7 +164,7 @@ export function registerSettings({ router, settings, http, openExternal, systemL
     }
     return save((s) => ({ ...s, library: merge(s.library, { proxy }) }))
   })
-  router.register("settings.proxySignIn", noParams, async () => {
+  router.register("settings.proxySignIn", noParams, "admin", async () => {
     const proxy = (await settings.get()).library.proxy
     if (!proxy) throw new RpcFailure(RpcErrorCode.InvalidParams, t`No library proxy is set up.`)
     if (!openExternal) throw new RpcFailure(RpcErrorCode.Unavailable, t`Signing in needs the owlit desktop app.`)

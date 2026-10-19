@@ -15,11 +15,12 @@ import {
   type ThreadCell,
   type ThreadGroup,
   type ThreadRowWrite,
-  type ConsentAction,
+  type DocComment,
   type FoundPaper,
   type FoundPapers,
   type HighlightColor,
   type MemoryKind,
+  type ReadStatus,
   type Paper,
   type ExtensionWait,
   type PdfEnded,
@@ -84,7 +85,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
   // The chat this agent is answering in, so the window keeps it in view
   const asker = options.chatId ? { chatId: options.chatId } : {}
   // The tool call a change comes from, for the change log (the chat is the connection's, said at auth);
-  // the chat again for the methods that ask it as a param, like a removal's consent
+  // the chat again for the methods that take it as a param. Whether a change may be made at all is core's
+  // policy to decide, by the connection's chat and its role; a refusal comes back as the tool's answer.
   const writer = { ...asker, ...(toolCallId ? { toolCallId } : {}) }
   switch (tool) {
     case "library_list": {
@@ -182,9 +184,6 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_add": {
       const refs = [...new Set((args.refs as string[]).map((r) => r.trim()).filter(Boolean))]
       if (!refs.length) return "library_add needs at least one ref."
-      // One question for the lot: the user answers for the batch they asked for
-      const refused = await consent(owlit, options, "add_paper", refs.length === 1 ? `Add ${refs[0]} to the Library` : `Add ${refs.length} papers to the Library`)
-      if (refused) return refused
       const lines: string[] = []
       for (const ref of refs) {
         try {
@@ -205,9 +204,36 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_remove": {
       const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))]
       if (!ids.length) return "library_remove needs at least one id."
-      // Core asks the chat's role (and the user) first
       const done = await owlit.rpc.library.removeByAgent({ ids, ...writer })
       return [...done.removed.map((id) => `Removed ${id}.`), ...done.refused.map((r) => `Kept ${r.id}: ${r.why}.`)].join("\n")
+    }
+    case "library_update": {
+      const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))]
+      const patch = {
+        ...(typeof args.starred === "boolean" ? { starred: args.starred } : {}),
+        ...(optStr("status") ? { status: optStr("status") as ReadStatus } : {}),
+        ...(Array.isArray(args.tags) ? { tags: [...new Set((args.tags as string[]).map((t) => t.trim()).filter(Boolean))] } : {}),
+      }
+      if (!ids.length) return "library_update needs at least one id."
+      if (!Object.keys(patch).length) return "library_update needs starred, status or tags."
+      const lines: string[] = []
+      for (const id of ids) {
+        try {
+          const p = await owlit.rpc.library.update({ id, patch, ...writer })
+          lines.push(`${p.id}: ${[p.starred ? "starred" : "not starred", p.status, p.tags.length ? `tags ${p.tags.join(", ")}` : "no tags"].join(", ")}.`)
+        } catch (error) {
+          lines.push(`Couldn't change ${id}: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      return lines.join("\n")
+    }
+    case "library_unmark": {
+      const wanted = str("quote").replace(/\s+/g, " ").trim()
+      const highlights = await owlit.rpc.library.highlights({ id: str("id") })
+      const found = highlights.find((h) => h.text.replace(/\s+/g, " ").trim() === wanted)
+      if (!found) return `No highlight in ${str("id")} reads that way; quote the passage as you marked it.`
+      await owlit.rpc.library.removeHighlight({ paperId: str("id"), id: found.id, ...writer })
+      return `Removed the highlight on p. ${found.page + 1} of ${str("id")}.`
     }
     // Every note comes from the same background run, so all of them are written one way, in the
     // user's language, with the paper's figures; a chat's agent asks rather than writes its own
@@ -239,6 +265,30 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const moved = await owlit.rpc.agents.moveDoc({ path: str("path"), to: str("to"), ...writer })
       return `Moved ${str("path")} to ${moved.path}.`
     }
+    case "docs_comments": {
+      const comments = ((await owlit.rpc.comments.all())[str("path")] ?? []).filter((c) => !c.dismissedAt && !c.foldedAt)
+      if (!comments.length) return `There are no comments on ${str("path")}.`
+      const me = owlitOf(comments)
+      const who = (by: string) => (by === me ? "Owlit (you)" : by.startsWith("o_") ? "Owlit" : by === "other" ? "someone" : "the user")
+      return [...comments.filter((c) => !c.resolvedAt), ...comments.filter((c) => c.resolvedAt)]
+        .map((c) => [`- ${c.id}${c.resolvedAt ? " (resolved)" : ""} on "${c.quote.replace(/\s+/g, " ").slice(0, 80)}"`, ...c.entries.map((e) => `  ${who(e.by)}: ${e.text}`)].join("\n"))
+        .join("\n")
+    }
+    case "comments_reply":
+    case "comments_resolve": {
+      const comment = ((await owlit.rpc.comments.all())[str("path")] ?? []).find((c) => c.id === str("id"))
+      if (!comment) return `There is no comment ${str("id")} on ${str("path")}; docs_comments lists them.`
+      if (tool === "comments_resolve" && comment.resolvedAt) return `That comment is already resolved.`
+      const at = Date.now()
+      const entry = { id: randomUUID(), text: tool === "comments_reply" ? str("text") : str("reply"), at, ...(options.chatId ? { chatId: options.chatId } : {}) }
+      // Core signs the new entry as this agent's Owlit and decides, by the chat's role, whether it may
+      await owlit.rpc.comments.put({ path: str("path"), comment: { ...comment, entries: [...comment.entries, entry], ...(tool === "comments_resolve" ? { resolvedAt: at } : {}) }, ...writer })
+      return tool === "comments_reply" ? `Replied under the comment on "${comment.quote.slice(0, 60)}". The user sees it beside the doc.` : `Resolved the comment on "${comment.quote.slice(0, 60)}" with your reply. The user can reopen it with Undo.`
+    }
+    case "comments_remove": {
+      const removed = await owlit.rpc.comments.remove({ path: str("path"), id: str("id"), ...writer })
+      return removed ? `Removed your comment on "${removed.quote.slice(0, 60)}".` : `There is no comment ${str("id")} on ${str("path")}.`
+    }
     case "docs_add_comment": {
       const { content } = await owlit.rpc.docs.read({ path: str("path") })
       const anchor = anchorOf(content, str("quote"))
@@ -255,7 +305,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
         ],
         createdAt: at,
       }
-      await owlit.rpc.comments.add({ path: str("path"), comment, agent: { ...writer, ...(options.run ? { run: options.run } : {}) } })
+      await owlit.rpc.comments.add({ path: str("path"), comment, ...writer })
       return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":
@@ -307,6 +357,15 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
       const kept = done.userKept.length ? `\nKept as the user had it:\n${done.userKept.map((line) => `- ${line}`).join("\n")}` : ""
       return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${threadUri(done.id)}).${kept}`
+    }
+    case "thread_edit": {
+      if (args.title === undefined && typeof args.watch !== "boolean") return "thread_edit needs a title or watch."
+      // The title is Owlit's own, so it goes through a write of its own (a threads.edit rename is the
+      // user's rewrite, kept over Owlit's title); watching is one of the thread's settings
+      if (optStr("title")) await owlit.rpc.threads.write({ id: str("id"), title: str("title").trim(), ...writer })
+      if (typeof args.watch === "boolean") await owlit.rpc.threads.edit({ id: str("id"), edit: { op: "watch", on: args.watch }, ...writer })
+      const thread = shownThread(await owlit.rpc.threads.get({ id: str("id") }))
+      return `“${thread.title}” (${threadUri(thread.id)})${thread.watch ? ", watched" : ""}.`
     }
     case "memory_write": {
       const op = str("op") as "add" | "replace" | "remove"
@@ -440,15 +499,10 @@ function threadText(stored: Thread) {
   return lines.join("\n")
 }
 
-// The passage as it is in the doc, with a little text either side so it can be found again after edits
-// Asks owlit whether the chat's role lets the agent add papers, asking the user in the chat when it says
-// so: once for a whole library_add, which is one add per paper to core (the other changes core asks about
-// itself). Null to go ahead, or what to tell the agent. An agent outside owlit has no chat; its own
-// permission prompt for this tool is the user's say.
-async function consent(owlit: OwlitClient, options: OwlitMcpOptions, action: ConsentAction, title: string) {
-  if (!options.chatId) return null
-  const answer = await owlit.rpc.agents.consent({ chatId: options.chatId, action, title })
-  return answer.allowed ? null : `Not done: ${answer.reason ?? "the user said no."}`
+
+// This agent's Owlit, as its own entries in these comments name it; none when it hasn't written one
+function owlitOf(comments: DocComment[]): string | undefined {
+  return comments.flatMap((c) => c.entries).find((e) => e.by.startsWith("o_"))?.by
 }
 
 function anchorOf(content: string, quote: string) {

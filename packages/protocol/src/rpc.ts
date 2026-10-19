@@ -2,7 +2,7 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./
 import type { ArchiveSummary } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
-import type { ConsentAction, Role } from "./roles.ts"
+import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Absence, Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
@@ -181,10 +181,10 @@ export interface Methods {
   // deletes made through docs.* or outside owlit
   // Every doc's comments, by path, resolved ones included
   "comments.all": { params: void; result: Record<string, DocComment[]> }
-  // Starts a comment, or puts back one deleted
-  // agent: the comment is an agent's (owlit-mcp), recorded in the change log so the window can offer Undo
-  // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "meetings.goThrough:<task id>")
-  "comments.add": { params: { path: string; comment: CommentInput; agent?: { chatId?: string; run?: string; toolCallId?: string } }; result: null }
+  // Starts a comment, or puts back one deleted. Who writes it is the caller: from a program on the socket
+  // (owlit-mcp) it is Owlit's, recorded in the change log so the window can offer Undo; toolCallId names
+  // the agent's tool call
+  "comments.add": { params: { path: string; comment: CommentInput; toolCallId?: string }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
   "comments.put": { params: { path: string; comment: CommentInput }; result: DocComment | null }
@@ -316,12 +316,8 @@ export interface Methods {
     }
     result: { stopReason: StopReason }
   }
-  // Whether the agent of a chat may do something through owlit's own tools, by the chat's role: allowed,
-  // refused (with why, for the agent), or asked of the user in the chat first. owlit-mcp asks before
-  // deleting or moving docs and before adding papers.
-  "agents.consent": { params: { chatId: string; action: ConsentAction; title: string }; result: { allowed: boolean; reason?: string } }
-  // Deletes or moves the user's docs for an agent (owlit-mcp's docs_delete and docs_move, after consent),
-  // keeping each file's text so the chat offers Undo
+  // Deletes or moves the user's docs for an agent (owlit-mcp's docs_delete and docs_move; the chat's role
+  // decides, and the user is asked when it says so), keeping each file's text so the chat offers Undo
   "agents.deleteDocs": { params: { paths: string[]; chatId?: string; toolCallId?: string }; result: { deleted: string[] } }
   "agents.moveDoc": { params: { path: string; to: string; chatId?: string; toolCallId?: string }; result: { path: string } }
   // Stops the chat's running turn; questions it was waiting on close as cancelled

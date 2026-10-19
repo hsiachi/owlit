@@ -217,7 +217,7 @@ describe("keeping the library clean", () => {
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
   })
 
-  it("lets an agent take back only papers its chat added that the user hasn't touched, each a change", async () => {
+  it("lets an agent take back only papers Owlit added that the user hasn't touched, each a change", async () => {
     const { call, agent } = await setup({})
     const paper = (id: string) => ({ id, title: `Paper ${id}`, authors: [], ids: { doi: `10.9999/${id}` } })
     await agent("library.add", { paper: paper("doi-10.9999-a"), chatId: "c1" })
@@ -226,13 +226,15 @@ describe("keeping the library clean", () => {
     await call("library.update", { id: "doi-10.9999-b", patch: { tags: ["keep"] } })
     // A passage the agent marked itself doesn't make the paper the user's
     await call("library.putHighlight", { highlight: { id: "h", paperId: "doi-10.9999-a", page: 0, rects: [], text: "t", color: "yellow", createdAt: 1 }, chatId: "c1" })
-    expect(await agent("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
-    const done = await agent("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
-    expect(done.removed).toEqual(["doi-10.9999-a"])
-    expect(done.refused.map((r: { id: string }) => r.id)).toEqual(["doi-10.9999-b", "doi-10.9999-c"])
+    // The user's paper, or one they tagged, isn't Owlit's to take back: the policy says so before the library is asked
+    await expect(agent("library.removeByAgent", { ids: ["doi-10.9999-c"], chatId: "c1" })).rejects.toThrow(/Not done: That paper doi-10\.9999-c is the user's, not Owlit's/)
+    await expect(agent("library.removeByAgent", { ids: ["doi-10.9999-b"], chatId: "c1" })).rejects.toThrow(/Not done: The user has changed that paper since/)
+    // Another chat of the same person's Owlit is the same Owlit
+    const done = await agent("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })
+    expect(done).toEqual({ removed: ["doi-10.9999-a"], refused: [] })
     // The user's Undo puts it back
     const [removal] = await call("changes.list", { path: "doi-10.9999-a" })
-    expect(removal).toMatchObject({ actor: expect.stringMatching(/^o_/), action: "delete", target: { kind: "paper", path: "doi-10.9999-a" }, origin: { chatId: "c1" } })
+    expect(removal).toMatchObject({ actor: expect.stringMatching(/^o_/), action: "delete", target: { kind: "paper", path: "doi-10.9999-a" }, origin: { chatId: "c2" } })
     await call("changes.undo", { id: removal.id })
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual(["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"])
   })

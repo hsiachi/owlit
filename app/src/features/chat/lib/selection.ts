@@ -35,7 +35,7 @@ export function resolveSelection(connectors: Connector[], selection: Selection) 
 export function roleWords(role: Role): { name: string; description: string } {
   switch (role) {
     case "reviewer":
-      return { name: t({ message: "Reviewer", comment: "Owlit's role" }), description: t`Reads, answers and leaves comments. Never changes your files or library.` }
+      return { name: t({ message: "Reviewer", comment: "Owlit's role" }), description: t`Reads, answers and leaves comments. Never changes what is yours.` }
     case "assistant":
       return { name: t({ message: "Assistant", comment: "Owlit's role" }), description: t`Finds and adds papers, keeps its own notes. Your writing changes only when you apply it.` }
     case "coauthor":

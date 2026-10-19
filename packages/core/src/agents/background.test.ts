@@ -54,10 +54,12 @@ describe("what Owlit may write without being asked", () => {
   it("an agent's comments are signed as Owlit's whatever it says, and never go over one that is there", async () => {
     const { call } = await setup()
     const mcp: Caller = { kind: "socket", chatId: "chat-1" }
-    await call("comments.add", { path: "story.md", comment: comment("c1"), agent: { chatId: "chat-1" } }, mcp)
+    await call("comments.add", { path: "story.md", comment: comment("c1") }, mcp)
     // The user's own comment, then an agent trying to write over it
     await call("comments.add", { path: "story.md", comment: comment("c3") })
-    await expect(call("comments.add", { path: "story.md", comment: comment("c3"), agent: { chatId: "chat-1" } }, mcp)).rejects.toMatchObject({ message: "That comment is already there; an agent adds new ones." })
+    await expect(call("comments.add", { path: "story.md", comment: comment("c3") }, mcp)).rejects.toMatchObject({ message: "Not done: That comment is the user's, not Owlit's to change; name it in your answer and let them decide." })
+    // Nor over its own: a comment is added once
+    await expect(call("comments.add", { path: "story.md", comment: comment("c1") }, mcp)).rejects.toMatchObject({ message: "That comment is already there; an agent adds new ones." })
     const all = await call("comments.all")
     expect(Object.values(all).flat().map((c: any) => [c.id, c.entries[0].by.slice(0, 2)])).toEqual([
       ["c1", "o_"],
