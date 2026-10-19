@@ -99,14 +99,14 @@ describe("Recorder", () => {
     const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
     const said: Change[] = []
     const log = new ChangeLog(owlit)
-    return { said, log, recorder: new Recorder(log, { profile: async () => ({ id }), added: ({ change }) => said.push(change), now, runOf: (run) => (run === "meetings.goThrough:t1" ? { chatId: "run-chat" } : {}) }) }
+    return { said, log, recorder: new Recorder(log, { profile: async () => ({ id }), added: ({ change }) => said.push(change), now, runOf: (run) => (run === "threads.more:t1" ? { chatId: "run-chat" } : {}) }) }
   }
 
   it("names the actor by the caller", async () => {
     const { recorder: r } = recorder("1234abcd")
     expect(await r.actorOf({ kind: "window" })).toBe("p_1234abcd")
     expect(await r.actorOf({ kind: "socket", chatId: "c1" })).toBe("o_1234abcd")
-    expect(await r.actorOf({ kind: "socket", run: "meetings.goThrough:t1" })).toBe("o_1234abcd")
+    expect(await r.actorOf({ kind: "socket", run: "threads.more:t1" })).toBe("o_1234abcd")
     expect(await r.actorOf({ kind: "socket" })).toBe("other")
     expect(await r.actorOf({ kind: "owlit" })).toBe("o_1234abcd")
     // The watcher's change is Owlit's only when a tool call named the file; a running turn alone is a hint
@@ -120,7 +120,7 @@ describe("Recorder", () => {
     const applied = await r.doc({ kind: "watcher", chatId: "c1", toolCallId: "t1", accepted: true }, "a.md", "a", "b")
     const seen = await r.doc({ kind: "watcher", chatId: "c1", toolCallId: "t2" }, "a.md", "b", "c")
     const hinted = await r.doc({ kind: "watcher", chatId: "c1" }, "a.md", "c", "d")
-    const run = await r.record({ kind: "socket", run: "meetings.goThrough:t1" }, { action: "create", target: { kind: "comment", path: "a.md", part: "x" } })
+    const run = await r.record({ kind: "socket", run: "threads.more:t1" }, { action: "create", target: { kind: "comment", path: "a.md", part: "x" } })
     expect(applied).toMatchObject({ actor: "o_1234abcd", origin: { via: "apply", chatId: "c1", toolCallId: "t1", writeId: "t1" } })
     expect(seen).toMatchObject({ actor: "o_1234abcd", origin: { via: "watcher", toolCallId: "t2" } })
     expect(hinted).toMatchObject({ actor: "other", origin: { via: "watcher", chatId: "c1" } })

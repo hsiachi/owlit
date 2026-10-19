@@ -3,10 +3,9 @@ import { applyUpdate, type Chat, type ChatMessage, type SessionUpdate, type Task
 import { randomUUID } from "node:crypto"
 import type { Chats } from "../chats/chats.ts"
 
-// A scheduler task's agent run (Go through, a reply under Owlit's comment) has a body: a
-// session (a chat that no chat list shows) holding why it started, its steps and its result. A retry of
-// the same task adds to the same session. A digest and a thread's work are chats owlit starts instead
-// (chats.ts startFor).
+// A scheduler task's agent run has a body: a session (a chat that no chat list shows) holding why it
+// started, its steps and its result. A retry of the same task adds to the same session. Nothing starts
+// one any more: everything Owlit does is a chat owlit starts (chats.ts startFor).
 
 export interface RunWords {
   // The session's title: what the run does, by name
@@ -56,14 +55,7 @@ export async function openRun(
   }
 }
 
-// A doc as the app names it: its file name without .md
-const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i, "")
-
-// The words of a run, from its task: what it is about, by name, and what the user asked
-export function runWords(task: Task): RunWords {
-  if (task.kind === "docs.reply") {
-    const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))
-    return { title: t`Answered your reply in “${name}”`, why: t`You replied to Owlit's comment in “${name}”.` }
-  }
+// The words of a run, from its task
+export function runWords(_task: Task): RunWords {
   return { title: t`Background work`, why: t`You asked Owlit for this.` }
 }

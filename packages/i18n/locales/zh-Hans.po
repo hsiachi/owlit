@@ -7298,14 +7298,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "Answered your reply in “{name}”"
-msgstr "回复了你在“{name}”里的回复"
-
-#: packages/core/src/agents/runs.ts
-msgid "You replied to Owlit's comment in “{name}”."
-msgstr "你回复了 Owlit 在“{name}”里的评论。"
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr "这是你请 Owlit 做的事。"
 

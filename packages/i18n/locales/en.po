@@ -7298,14 +7298,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "Answered your reply in “{name}”"
-msgstr "Answered your reply in “{name}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You replied to Owlit's comment in “{name}”."
-msgstr "You replied to Owlit's comment in “{name}”."
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr "You asked Owlit for this."
 
