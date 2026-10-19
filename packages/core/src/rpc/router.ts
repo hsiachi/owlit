@@ -5,8 +5,10 @@ import {
   type ResultOf,
   type RpcRequest,
   type RpcResponse,
+  type Touches,
 } from "@owlit/protocol"
 import { z } from "zod"
+import type { Target, Who } from "../agents/policy.ts"
 import { invalidParams, RpcFailure, toRpcError } from "./errors.ts"
 
 // Who a request came from, as far as core can tell: the window (the person at it); a program on the
@@ -25,25 +27,51 @@ export const WINDOW: Caller = { kind: "window" }
 
 type Handler<M extends MethodName> = (params: ParamsOf<M>, caller: Caller) => ResultOf<M> | Promise<ResultOf<M>>
 
+// What a method touches (protocol's Touches), declared with it. A method whose class depends on what it
+// is asked to do (comments.put resolves a comment or edits an entry) gives a function of its params, of
+// whose thing the target is and of who asks; target looks the thing up, and is also what the policy's
+// own test reads (agents/policy.ts). title names the change in the Allow / Don't allow card when the role
+// asks the user.
+export interface Policy<M extends MethodName = MethodName> {
+  touches: Touches | ((params: ParamsOf<M>, target: Target, who: Who) => Touches)
+  target?: (params: ParamsOf<M>) => Promise<Target>
+  title?: (params: ParamsOf<M>) => string
+}
+
+// Decides before a handler runs whether this caller may make this call; throws (an RpcFailure) to refuse.
+// The window is never refused. Set by Core, which knows the chat's role and how to ask the user.
+export type Decide = (caller: Caller, method: string, params: unknown, policy: Policy) => Promise<void>
+
 interface Route {
   params: z.ZodType
+  policy: Policy
   handler: (params: unknown, caller: Caller) => unknown
 }
 
 // Methods that take no params accept a missing or empty params object
 export const noParams = z.union([z.undefined(), z.null(), z.object({}).strict()]).transform(() => undefined)
 
-// method → handler, with params checked against a schema before the handler sees them
+// method → handler, with params checked against a schema before the handler sees them, and the policy
+// applied between the two
 export class Router {
   private routes = new Map<string, Route>()
+  decide: Decide | null = null
 
-  register<M extends MethodName>(method: M, params: z.ZodType<ParamsOf<M>, any>, handler: Handler<M>) {
+  // policy: a class alone, or one with how to find its target and name the change
+  register<M extends MethodName>(method: M, params: z.ZodType<ParamsOf<M>, any>, policy: Touches | Policy<M>, handler: Handler<M>) {
     if (this.routes.has(method)) throw new Error(`${method} is registered twice`)
-    this.routes.set(method, { params, handler: handler as Route["handler"] })
+    this.routes.set(method, { params, policy: (typeof policy === "string" ? { touches: policy } : policy) as Policy, handler: handler as Route["handler"] })
   }
 
   has(method: string) {
     return this.routes.has(method)
+  }
+
+  // What a method declares it touches, when that is one class
+  touchesOf(method: string): Touches | "depends" | undefined {
+    const policy = this.routes.get(method)?.policy
+    if (!policy) return undefined
+    return typeof policy.touches === "function" ? "depends" : policy.touches
   }
 
   async handle(request: RpcRequest, caller: Caller): Promise<RpcResponse> {
@@ -58,6 +86,7 @@ export class Router {
       if (!parsed.success) {
         throw invalidParams(`${request.method} got parameters it can't use.`, { issues: parsed.error.issues })
       }
+      if (route.policy.touches !== "read" && this.decide) await this.decide(caller, request.method, parsed.data, route.policy)
       const result = await route.handler(parsed.data, caller)
       return { jsonrpc: "2.0", id: request.id, result: result ?? null }
     } catch (error) {

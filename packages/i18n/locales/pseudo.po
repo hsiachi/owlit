@@ -1735,7 +1735,7 @@ msgid "Reviewer"
 msgstr ""
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes your files or library."
+msgid "Reads, answers and leaves comments. Never changes what is yours."
 msgstr ""
 
 #. Owlit's role

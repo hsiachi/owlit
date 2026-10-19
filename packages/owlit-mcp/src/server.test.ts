@@ -463,4 +463,77 @@ describe("docs_read on a PDF", () => {
     writeFileSync(path.join(root, "broken.pdf"), "not a pdf")
     expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
   }, 30_000)
+
+  it("ends each tool's description with what the roles get", async () => {
+    const { mcp } = await setup()
+    const { tools } = await mcp.listTools()
+    const described = Object.fromEntries(tools.map((t) => [t.name, t.description ?? ""]))
+    expect(described.library_update).toMatch(/ Reviewer: refused\. Assistant: allowed, the user can undo it\. Co-author: allowed, the user can undo it\.$/)
+    expect(described.docs_delete).toMatch(/ Reviewer: refused\. Assistant: the user is asked\. Co-author: allowed, the user can undo it\.$/)
+    expect(described.comments_remove).toMatch(/ Allowed in every role; the user can undo it\.$/)
+    expect(described.library_list).not.toMatch(/Reviewer/)
+  })
+
+  it("replies to and resolves the user's comments as Assistant, and is refused as Reviewer", async () => {
+    const { root, call, tool } = await setup()
+    writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
+    const comment = { id: "c1", quote: "all you need", prefix: "Attention is ", suffix: ".", entries: [{ id: "e1", text: "Add the citation here?", at: 1 }], createdAt: 1 }
+    await call("comments.add", { path: "Draft.md", comment })
+    expect((await tool("docs_comments", { path: "Draft.md" })).text).toBe('- c1 on "all you need"\n  the user: Add the citation here?')
+
+    // The chat is a Reviewer's: the user's comment stays theirs, Owlit's own is Owlit's
+    await call("chats.create", { chat: { id: "chat-1", title: "t", createdAt: 1, updatedAt: 1, pinned: false, role: "reviewer" } })
+    expect(await tool("comments_resolve", { path: "Draft.md", id: "c1", reply: "Added it." })).toEqual({ isError: true, text: expect.stringMatching(/^Not done: Owlit works as Reviewer in this chat and changes nothing of the user's\./) })
+    expect(await tool("comments_reply", { path: "Draft.md", id: "c1", text: "Vaswani 2017." })).toMatchObject({ isError: true })
+    await tool("docs_add_comment", { path: "Draft.md", quote: "Attention", comment: "Spell it out?" })
+    const own = (await call("comments.all"))["Draft.md"].find((c: { id: string }) => c.id !== "c1")
+    expect((await tool("comments_reply", { path: "Draft.md", id: own.id, text: "Or keep it." })).text).toMatch(/^Replied under the comment/)
+    expect((await tool("comments_remove", { path: "Draft.md", id: own.id })).text).toMatch(/^Removed your comment/)
+    expect((await tool("comments_remove", { path: "Draft.md", id: "c1" })).text).toMatch(/^Not done: That comment is the user's/)
+
+    await call("chats.update", { id: "chat-1", patch: { role: "assistant" } })
+    expect((await tool("comments_reply", { path: "Draft.md", id: "c1", text: "Vaswani 2017, p. 2." })).text).toMatch(/^Replied under the comment on "all you need"/)
+    expect((await tool("comments_resolve", { path: "Draft.md", id: "c1", reply: "Added the citation." })).text).toMatch(/^Resolved the comment on "all you need" with your reply/)
+    const [resolved] = (await call("comments.all"))["Draft.md"]
+    expect(resolved).toMatchObject({ id: "c1", resolvedAt: expect.any(Number) })
+    expect(resolved.entries.map((e: { by: string; text: string }) => [e.by.slice(0, 2), e.text])).toEqual([
+      ["p_", "Add the citation here?"],
+      ["o_", "Vaswani 2017, p. 2."],
+      ["o_", "Added the citation."],
+    ])
+    expect((await tool("comments_resolve", { path: "Draft.md", id: "c1", reply: "Again." })).text).toBe("That comment is already resolved.")
+    expect((await tool("comments_resolve", { path: "Draft.md", id: "nope", reply: "x" })).text).toMatch(/^There is no comment nope/)
+    // Each as Owlit's, with Undo for the user
+    const changes = await call("changes.list", { target: { kind: "comment", path: "Draft.md" } })
+    expect(changes.filter((c: any) => c.target.part.startsWith("c1")).map((c: any) => [c.action, c.target.part, c.actor.slice(0, 2)])).toEqual([
+      ["create", `c1/${resolved.entries[2].id}`, "o_"],
+      ["update", "c1", "o_"],
+      ["create", `c1/${resolved.entries[1].id}`, "o_"],
+      ["create", "c1", "p_"],
+    ])
+  })
+
+  it("stars, tags and marks papers, renames a thread, and takes back its own highlight", async () => {
+    const { call, tool } = await setup()
+    await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
+    expect((await tool("library_update", { ids: ["arxiv-1706.03762"], starred: true, tags: ["baseline", "transformer"], status: "read" })).text).toBe("arxiv-1706.03762: starred, read, tags baseline, transformer.")
+    expect((await tool("library_update", { ids: ["arxiv-1706.03762"] })).text).toBe("library_update needs starred, status or tags.")
+    expect((await tool("library_update", { ids: ["arxiv-nope"], starred: true })).text).toMatch(/^Couldn't change arxiv-nope/)
+    expect((await call("library.list")).papers[0]).toMatchObject({ starred: true, status: "read", tags: ["baseline", "transformer"], addedBy: expect.stringMatching(/^p_/) })
+    expect((await call("changes.list", { path: "arxiv-1706.03762" })).map((c: any) => [c.target.part, c.actor.slice(0, 2)])).toEqual([["tags", "o_"], ["status", "o_"], ["starred", "o_"], [undefined, "p_"]])
+
+    const written = await tool("thread_write", { asked: "What do transformers replace?", title: "Transformers", rows: JSON.stringify([{ id: "arxiv-1706.03762", answer: "Recurrence.", depth: "abstract" }]) })
+    const id = written.text.match(/owlit:\/\/threads\/([\w-]+)/)![1]!
+    expect((await tool("thread_edit", { id, title: "Attention replaces recurrence" })).text).toBe(`“Attention replaces recurrence” (owlit://threads/${id}).`)
+    expect(await call("threads.get", { id })).toMatchObject({ title: "Attention replaces recurrence" })
+    expect((await tool("thread_edit", { id })).text).toBe("thread_edit needs title.")
+
+    // A highlight the chat's Owlit made (as ui_mark has the window make it), and one of the user's
+    await call("library.putHighlight", { highlight: { id: "h1", paperId: "arxiv-1706.03762", page: 1, rects: [], text: "Scaled dot-product\nattention.", color: "yellow", createdAt: 1 }, chatId: "chat-1" })
+    await call("library.putHighlight", { highlight: { id: "h2", paperId: "arxiv-1706.03762", page: 0, rects: [], text: "Recurrent models.", color: "green", createdAt: 2 } })
+    expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "Scaled dot-product attention." })).text).toBe("Removed the highlight on p. 2 of arxiv-1706.03762.")
+    expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "Recurrent models." })).text).toMatch(/^Not done: That highlight is the user's/)
+    expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "nowhere" })).text).toMatch(/^No highlight in arxiv-1706.03762 reads that way/)
+    expect((await call("library.highlights", { id: "arxiv-1706.03762" })).map((h: { id: string }) => h.id)).toEqual(["h2"])
+  })
 })

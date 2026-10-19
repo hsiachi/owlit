@@ -9,7 +9,7 @@ afterEach(() => {
 
 const failing = (error: unknown) => {
   const router = new Router()
-  router.register("docs.read", z.object({ path: z.string() }), async () => {
+  router.register("docs.read", z.object({ path: z.string() }), "read", async () => {
     throw error
   })
   return router.handle({ jsonrpc: "2.0", id: 1, method: "docs.read", params: { path: "writing/draft.md" } }, WINDOW)

@@ -50,7 +50,7 @@ describe("the workspace socket", () => {
   })
 
   it("sends notifications to every client that listens", async () => {
-    const { root, dir } = await running()
+    const { core, root, dir } = await running()
     const a = await connect(root, { dir })
     const b = await connect(root, { dir })
     const heard: string[] = []
@@ -58,7 +58,8 @@ describe("the workspace socket", () => {
     b.on("activity.status", () => heard.push("b"))
     // Each client's subscribe went out before this call on the same connection, so is in by its reply
     await Promise.all([a.call("core.ping"), b.call("core.ping")])
-    await a.call("activity.setEnabled", { enabled: false })
+    // The settings are the person's: changed from the window, heard on the socket
+    await core.handle({ jsonrpc: "2.0", id: 2, method: "activity.setEnabled", params: { enabled: false } })
     await eventually(() => expect(heard.sort()).toEqual(["a", "b"]))
     a.close()
     b.close()

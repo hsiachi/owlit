@@ -330,7 +330,6 @@ describe("Threads kept before groupings", () => {
         { id: "doi-10.1145-2", paper: papers["doi-10.1145-2"], cells: {}, addedAt: 1 },
       ],
       groups: [{ id: "eval", name: "Evaluation" }, { id: "rep", name: "Replay", parent: "eval" }],
-      watch: false,
       createdAt: 1,
       updatedAt: 1,
       overrides: { edits: { "group:eval": { text: "Evaluating", at: 2, was: "Evaluation" } }, removed: {} },
