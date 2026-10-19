@@ -1,4 +1,4 @@
-import { isMarkdown, isOpenComment, paperUri, parentPath, type DocComment, type DocOwlit, type EvaluationRecord } from "@owlit/protocol"
+import { isMarkdown, isOpenComment, isOwlit, isPerson, paperUri, parentPath, type DocComment, type DocOwlit, type EvaluationRecord } from "@owlit/protocol"
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { TYPING_MS, type Presence } from "./presence.ts"
@@ -21,16 +21,17 @@ export interface ReviewServices {
   // A background session for the task, with only these of owlit's tools beyond the read-only ones; runId
   // signs what it writes (docs_add_comment comes back to comment())
   agent: (prompt: string, ctx: TaskContext, tools: RegExp, runId: string) => Promise<{ text: string }>
-  // Writes one of Owlit's comments to the doc, as from the run's session; quiet, without a word in the
-  // window (a run made while the user was away)
-  write: (path: string, comment: DocComment, chatId: string | undefined, quiet: boolean) => Promise<void>
+  // Writes one of Owlit's comments to the doc, as the run's (run: "<kind>:<task id>"); quiet, without a
+  // word in the window (a run made while the user was away)
+  write: (path: string, comment: DocComment, run: string, quiet: boolean) => Promise<void>
   // Owlit looked at a doc (the chip's line), or went through it
   looked: (path: string, state: DocOwlit) => void
-  // Writes a new doc of Owlit's (a Go through's record), as an agent's write from the run's session:
-  // kept as a version, so the run offers Undo
-  writeRecord: (path: string, content: string, chatId: string | undefined) => Promise<void>
-  // One of Owlit's comments changed: it answered in it, added to it, or folded it away
-  replied: (path: string, comment: DocComment) => void
+  // Writes a new doc of Owlit's (a Go through's record), as an agent's write for the run: recorded in the
+  // change log, so the run offers Undo
+  writeRecord: (path: string, content: string, run: string) => Promise<void>
+  // Changes one of Owlit's comments, as the run's: it answered in it or added to it (new entries are
+  // signed by core), or folded it away on its own (auto)
+  put: (path: string, comment: DocComment, run: string, auto?: boolean) => Promise<void>
   record: (entry: EvaluationRecord) => void
   now?: () => number
   // The user's name, when they gave one (a Go through writes their own words as "you")
@@ -40,14 +41,13 @@ export interface ReviewServices {
 interface Held {
   path: string
   comment: DocComment
-  chatId?: string
+  // The run that made it, "<kind>:<task id>"
+  run: string
   // add: a new comment; put: one of Owlit's comments with something added to it; correct: one of
   // Owlit's comments with its first entry rewritten
   how: "add" | "put" | "correct"
   // Held for as long as the user is in the doc, not only while they type there
   pushed: boolean
-  // A Go through's comment: held until the record it points back to is written, and dropped if it never is
-  run?: string
 }
 
 // Runs nobody is waiting for, whose work waits while the user is in the doc at all
@@ -103,7 +103,7 @@ export class Reviews {
       const { text } = await this.services.agent(goThroughSkill.instructions({ path: rel, content, record, recordLabel: label, docs, today, user }), ctx, goThroughSkill.tools!, runId)
       const reading = cleanReading(text)
       if (!reading.startsWith("# ")) throw new Error("Owlit's reading didn't come out as one.")
-      await this.services.writeRecord(record, recordOf(reading, rel, chinese), ws.tasks.get(ctx.task.id)?.chatId)
+      await this.services.writeRecord(record, recordOf(reading, rel, chinese), runId)
       this.services.looked(rel, await ws.docs.setWentThrough(rel, { at: this.now(), record }))
     } finally {
       this.records.delete(runId)
@@ -121,7 +121,7 @@ export class Reviews {
     const source = this.records.get(runId)
     const signed = { ...comment, ...(source ? { source } : {}), entries: comment.entries.map((e) => ({ ...e, ...(chatId ? { chatId } : {}) })) }
     this.made.set(runId, (this.made.get(runId) ?? 0) + 1)
-    const held: Held = { path, comment: signed, chatId, how: "add", pushed: PUSHED.has(kindOf(runId)), ...(source ? { run: runId } : {}) }
+    const held: Held = { path, comment: signed, run: runId, how: "add", pushed: PUSHED.has(kindOf(runId)) }
     if (this.holds(held)) {
       this.hold(held)
       return "held"
@@ -144,7 +144,7 @@ export class Reviews {
   async stop() {
     clearTimeout(this.timer)
     this.timer = undefined
-    const held = this.held.filter((h) => !(h.run && this.records.has(h.run)))
+    const held = this.held.filter((h) => !this.records.has(h.run))
     this.held = []
     this.records.clear()
     this.made.clear()
@@ -171,7 +171,8 @@ export class Reviews {
   }
 
   private holds(h: Held) {
-    if (h.run && this.records.has(h.run)) return true
+    // A Go through's comment waits for the record it points back to
+    if (this.records.has(h.run)) return true
     const { presence } = this.services
     return h.pushed ? presence.inDoc(h.path) : presence.writingIn(h.path, this.now())
   }
@@ -182,7 +183,7 @@ export class Reviews {
   }
 
   private async write(h: Held) {
-    if (h.how === "add") return this.services.write(h.path, h.comment, h.chatId, h.pushed)
+    if (h.how === "add") return this.services.write(h.path, h.comment, h.run, h.pushed)
     const ws = this.services.workspace()
     if (!ws) return
     // As it is now: the user may have answered, resolved or dismissed it meanwhile
@@ -192,8 +193,7 @@ export class Reviews {
     // A correction rewrites the first entry as it is now, whatever was said under it meanwhile
     const first = h.comment.entries[0]
     const next = h.how === "correct" && first && correctable(now) ? corrected(now, first.text, first.editedAt ?? this.now()) : { ...now, entries: [...now.entries, ...added] }
-    await ws.docs.putComment(h.path, next)
-    this.services.replied(h.path, next)
+    await this.services.put(h.path, next, h.run)
   }
 
   private later() {
@@ -217,7 +217,8 @@ export class Reviews {
     const find = async () => (await ws.docs.listComments(rel)).find((c) => c.id === id)
     const comment = await find()
     // Gone, put away, or already answered: nothing to say
-    if (!comment || !isOpenComment(comment) || comment.entries.at(-1)?.by !== "you") return
+    const last = comment?.entries.at(-1)
+    if (!comment || !isOpenComment(comment) || !last || !isPerson(last.by)) return
     const { content } = await ws.docs.read(rel)
     const { text } = await this.services.agent(replySkill.instructions({ path: rel, content, comment }), ctx, replySkill.tools!, `${REPLY_RUN}:${ctx.task.id}`)
     const answer = text.trim()
@@ -228,12 +229,12 @@ export class Reviews {
     const chatId = ws.tasks.get(ctx.task.id)?.chatId
     // Shown wrong, Owlit says the right thing in its comment rather than under it; the replies stay
     const fixed = correctionOf(answer)
+    const by = await ws.recorder.actorOf({ kind: "owlit" })
     const replied: DocComment =
       fixed && correctable(now)
         ? corrected(now, fixed, this.now())
-        : { ...now, entries: [...now.entries, { id: randomUUID(), by: "owlit", text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }] }
-    await ws.docs.putComment(rel, replied)
-    this.services.replied(rel, replied)
+        : { ...now, entries: [...now.entries, { id: randomUUID(), by, text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }] }
+    await this.services.put(rel, replied, `${REPLY_RUN}:${ctx.task.id}`)
   }
 
   // One of Owlit's comments that leans on a paper the user has now read in full (subject
@@ -254,11 +255,12 @@ export class Reviews {
     if (!answer || /^still holds\.?$/i.test(answer)) return
     const chatId = ws.tasks.get(ctx.task.id)?.chatId
     const fixed = correctionOf(answer)
-    const entry = { id: randomUUID(), by: "owlit" as const, text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }
+    const run = `${RECHECK_RUN}:${ctx.task.id}`
+    const entry = { id: randomUUID(), by: await ws.recorder.actorOf({ kind: "owlit" }), text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }
     const held: Held =
       fixed && correctable(comment)
-        ? { path: rel, comment: corrected(comment, fixed, this.now()), chatId, how: "correct", pushed: true }
-        : { path: rel, comment: { ...comment, entries: [...comment.entries, entry] }, chatId, how: "put", pushed: true }
+        ? { path: rel, comment: corrected(comment, fixed, this.now()), run, how: "correct", pushed: true }
+        : { path: rel, comment: { ...comment, entries: [...comment.entries, entry] }, run, how: "put", pushed: true }
     if (this.holds(held)) this.hold(held)
     else await this.write(held)
   }
@@ -281,5 +283,5 @@ function commentSubject(subject: string) {
 // Owlit's open comments that lean on a paper: they link to it
 export function leaningOn(comments: readonly DocComment[], paperId: string) {
   const link = paperUri(paperId)
-  return comments.filter((c) => c.entries[0]?.by === "owlit" && isOpenComment(c) && c.entries.some((e) => e.by === "owlit" && (e.text.includes(`${link})`) || e.text.includes(`${link}#`))))
+  return comments.filter((c) => c.entries[0] && isOwlit(c.entries[0].by) && isOpenComment(c) && c.entries.some((e) => isOwlit(e.by) && (e.text.includes(`${link})`) || e.text.includes(`${link}#`))))
 }

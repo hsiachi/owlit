@@ -4,6 +4,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import { citationsIn } from "./wear.ts"
+import { knownProfile, ME } from "../test-util.ts"
 
 describe("citationsIn", () => {
   it("reads the paper, the page and the sentence given as the link's title", () => {
@@ -32,7 +33,7 @@ async function open() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-wear-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: knownProfile(path.join(base, "userData")) })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -59,9 +60,9 @@ describe("library.wear", () => {
     writeFileSync(
       path.join(root, ".owlit/journal.jsonl"),
       [
-        { kind: "paper.dwell", at: 1, paperId: "p1", page: 4, seconds: 30, actor: "user" },
-        { kind: "paper.dwell", at: 2, paperId: "p1", page: 4, seconds: 12, actor: "user" },
-        { kind: "paper.dwell", at: 3, paperId: "p2", page: 1, seconds: 9, actor: "user" },
+        { kind: "paper.dwell", at: 1, paperId: "p1", page: 4, seconds: 30, actor: ME },
+        { kind: "paper.dwell", at: 2, paperId: "p1", page: 4, seconds: 12, actor: ME },
+        { kind: "paper.dwell", at: 3, paperId: "p2", page: 1, seconds: 9, actor: ME },
       ]
         .map((e) => JSON.stringify(e))
         .join("\n") + "\n",
@@ -105,8 +106,8 @@ describe("library.wear, threads", () => {
       ],
       rows: [
         row("p1", {
-          q: { text: "Lower.", depth: "full", passage: { quote: "Replay ratings ran lower.", page: 5 } },
-          c2: { text: "Diary study.", depth: "full", passage: { quote: "We ran a diary study.", page: 2 } },
+          q: { text: "Lower.", depth: "full", passage: { quote: "Replay ratings ran lower.", page: 5 }, at: 30 },
+          c2: { text: "Diary study.", depth: "full", passage: { quote: "We ran a diary study.", page: 2 }, at: 40 },
         }),
         row("p2", { q: { text: "Same.", depth: "full", passage: { quote: "Not this paper.", page: 1 } } }),
         row("p3", { q: { text: "From the abstract.", depth: "abstract" } }),
@@ -115,9 +116,7 @@ describe("library.wear, threads", () => {
       watch: false,
       createdAt: 1,
       updatedAt: 40,
-      changedAt: { "cell:p1:q": 30 },
-      seenAt: 0,
-      yours: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
+      overrides: { edits: { "title": { text: "My replay papers", was: "Replay ratings", at: 35 } }, removed: { "row:p2": { text: "p2", at: 36 } } },
     }
     mkdirSync(path.join(root, ".owlit/threads/replay"), { recursive: true })
     writeFileSync(path.join(root, ".owlit/threads/replay/thread.json"), JSON.stringify(thread))

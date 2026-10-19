@@ -1,5 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { type CommentAnchor, type DocComment, findAnchor, isOpenComment, locateInMarkdown, type QuotedSelection } from "@owlit/protocol"
+import { type CommentAnchor, type DocComment, findAnchor, isOpenComment, isOwlit, locateInMarkdown, type PersonId, type QuotedSelection } from "@owlit/protocol"
+import { me, nameOf } from "@/lib/actors"
+import { capital } from "@/lib/words"
 import { newId } from "@/lib/id"
 import { rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
@@ -30,7 +32,7 @@ export interface CommentView {
 export interface EntryView {
   id: string
   who: "owlit" | "you" | "person"
-  // As signed: "Owlit", "You", a reader's name
+  // As signed: "Owlit", "You", a person's or a reader's name
   name: string
   text: string
   at: number
@@ -44,7 +46,7 @@ export interface EntryView {
 export const docKey = (id: string) => `c:${id}`
 export const threadKey = (rootId: string) => `r:${rootId}`
 
-function fromDoc(c: DocComment): CommentView {
+function fromDoc(c: DocComment, viewer: PersonId | undefined): CommentView {
   return {
     key: docKey(c.id),
     quote: c.quote,
@@ -55,16 +57,19 @@ function fromDoc(c: DocComment): CommentView {
       const at = findAnchor(text, c)
       return at === null ? null : { from: at, to: at + c.quote.length }
     },
-    entries: c.entries.map((e) => ({
-      id: e.id,
-      who: e.by,
-      name: e.by === "owlit" ? "Owlit" : t({ message: "You", comment: "who wrote a comment or reply: the user" }),
-      text: e.text,
-      at: e.at,
-      editedAt: e.editedAt,
-      ...(e.was ? { was: e.was } : {}),
-      editable: e.by === "you",
-    })),
+    entries: c.entries.map((e) => {
+      const who = e.by === viewer ? "you" : isOwlit(e.by) ? "owlit" : "person"
+      return {
+        id: e.id,
+        who,
+        name: who === "you" ? t({ message: "You", comment: "who wrote a comment or reply: the user" }) : capital(nameOf(e.by)),
+        text: e.text,
+        at: e.at,
+        editedAt: e.editedAt,
+        ...(e.was ? { was: e.was } : {}),
+        editable: who === "you",
+      }
+    }),
   }
 }
 
@@ -91,16 +96,16 @@ function fromThread(th: CommentThread): CommentView {
 }
 
 // The open comments on a doc, Owlit's, yours and readers', in the order they were started
-export function commentViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
-  const own = (docComments ?? []).filter(isOpenComment).map(fromDoc)
+export function commentViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0], viewer = me()): CommentView[] {
+  const own = (docComments ?? []).filter(isOpenComment).map((c) => fromDoc(c, viewer))
   return [...own, ...commentThreadsOf(readerComments).map(fromThread)].sort((a, b) => a.createdAt - b.createdAt)
 }
 
 // The ones put away, newest first, for the Resolved comments list
-export function resolvedViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0]): CommentView[] {
+export function resolvedViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0], viewer = me()): CommentView[] {
   // Dismissed ones are Owlit's memory of what not to say, not something to open again. Ones Owlit folded
   // away (their words changed, nobody answered) are history like resolved ones.
-  const own = (docComments ?? []).filter((c) => (c.resolvedAt || c.foldedAt) && !c.dismissedAt && c.entries.length).map(fromDoc)
+  const own = (docComments ?? []).filter((c) => (c.resolvedAt || c.foldedAt) && !c.dismissedAt && c.entries.length).map((c) => fromDoc(c, viewer))
   const at = (v: CommentView) => v.doc?.resolvedAt ?? v.doc?.foldedAt ?? v.createdAt
   return [...own, ...commentThreadsOf(readerComments, { resolved: true }).map(fromThread)].sort((a, b) => at(b) - at(a))
 }
@@ -112,7 +117,8 @@ const docComment = (fileId: string, id: string) => useDocsStore.getState().comme
 
 export function startComment(fileId: string, anchor: CommentAnchor, text: string) {
   const at = Date.now()
-  const comment: DocComment = { id: newId(), ...anchor, entries: [{ id: newId(), by: "you", text, at }], createdAt: at }
+  // Signed here so the comment shows as the person's at once; core signs it again
+  const comment: DocComment = { id: newId(), ...anchor, entries: [{ id: newId(), by: me() ?? "other", text, at }], createdAt: at }
   useDocsStore.getState().addComment(fileId, comment)
   return comment
 }
@@ -121,7 +127,7 @@ export function startComment(fileId: string, anchor: CommentAnchor, text: string
 export async function reply(fileId: string, view: CommentView, text: string) {
   if (view.doc) {
     const now = docComment(fileId, view.doc.id)
-    if (now) useDocsStore.getState().putComment(fileId, { ...now, entries: [...now.entries, { id: newId(), by: "you", text, at: Date.now() }] })
+    if (now) useDocsStore.getState().putComment(fileId, { ...now, entries: [...now.entries, { id: newId(), by: me() ?? "other", text, at: Date.now() }] })
     return
   }
   const path = pathOf(fileId)

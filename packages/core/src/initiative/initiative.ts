@@ -68,6 +68,9 @@ export class Initiative {
   private today: { day: string; count: number } | null = null
   // Counts reset(): an evaluation queued before one is about a workspace that has closed
   private epoch = 0
+  // The rule each task it queued came from, for the change log's origin.ruleId; held while core runs, so a
+  // run picked up again after a restart goes without it
+  private queuedBy = new Map<string, string>()
   private disposed = false
   // Where the user is, as their activity says; Owlit's comments wait on it (reviews.ts)
   readonly presence: Presence
@@ -94,8 +97,14 @@ export class Initiative {
     return this.chain
   }
 
+  // The rule that queued a task, if one did
+  ruleOf(taskId: string) {
+    return this.queuedBy.get(taskId)
+  }
+
   // The workspace is closing: what was queued was about it, and the next one starts afresh
   reset() {
+    this.queuedBy.clear()
     this.epoch++
     this.today = null
   }
@@ -135,6 +144,7 @@ export class Initiative {
       }
       try {
         const task = ws.tasks.enqueue(outcome.job.kind, outcome.job.subject, outcome.job.priority)
+        this.queuedBy.set(task.id, rule.id)
         if (rule.capped && this.today) this.today.count++
         this.record({ ...base, decision: "job", taskId: task.id })
       } catch (error) {

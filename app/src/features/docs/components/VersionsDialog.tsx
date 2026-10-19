@@ -1,45 +1,47 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useState } from "react"
-import type { VersionInfo } from "@owlit/protocol"
+import type { Change } from "@owlit/protocol"
 import { RowList, revealOnHover, rowClass } from "@/components/row-list"
 import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useChatStore } from "@/features/chat/store"
-import { dateTime } from "@/lib/time"
+import { nameOf } from "@/lib/actors"
+import { clock, dateTime } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
-import { undoChange } from "@/lib/versions"
+import { toastLeft, undoChange } from "@/lib/changes"
 import { displayName, type WorkspaceFile } from "../types"
 import { toastError, toastUndo } from "@/lib/toast"
 import { cn } from "@/lib/utils"
+import { capital } from "@/lib/words"
 
-// The doc as it was before each change an agent made to it (and before each undo, and another program's
-// text the user wrote over with Keep mine), newest first. Restore
-// puts that text back even if the doc changed since; the toast offers Undo.
+// Every change the log keeps for the doc, newest first, each named by who made it (a typing session is one
+// change). Undo takes that change back passage by passage, keeping what was written since; a passage that
+// was itself edited since stays, and the toast names it.
 export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFile; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [versions, setVersions] = useState<VersionInfo[] | null>(null)
+  const [changes, setChanges] = useState<Change[] | null>(null)
   const chats = useChatStore((s) => s.chats)
   const name = displayName(file.path)
 
   useEffect(() => {
     if (!open) return
     let live = true
-    rpc.versions
-      .list({ path: file.path })
-      // A version from before the doc existed would only delete it
-      .then((all) => live && setVersions(all.filter((v) => v.kind === "file" && v.existed !== false)))
-      .catch(() => live && setVersions([]))
+    rpc.changes
+      .list({ target: { kind: "doc", path: file.path } })
+      .then((all) => live && setChanges(all))
+      .catch(() => live && setChanges([]))
     return () => {
       live = false
     }
   }, [open, file.path])
 
-  const restore = (v: VersionInfo) =>
-    rpc.versions
-      .restore({ id: v.id, force: true })
-      .then(({ redoId }) => {
+  const restore = (c: Change) =>
+    rpc.changes
+      .undo({ id: c.id })
+      .then(({ change, left }) => {
         onOpenChange(false)
-        toastUndo(t`Version restored`, () => undoChange(redoId, name), { description: name })
+        if (left?.length) toastLeft(name, left)
+        toastUndo(t({ message: "Change undone", comment: "a toast: a change from a doc's Versions was taken back" }), () => undoChange(change.id, name), { description: name })
       })
       .catch(toastError)
 
@@ -49,25 +51,28 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
       <DialogContent className="sm:max-w-lg" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeading
           title={t`Versions of ${name}`}
-          about={t`The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since.`}
+          about={t`The changes made to this doc and who made them, kept for 30 days. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is.`}
         />
-        {versions && !versions.length && <p className="py-6 text-center text-sm text-muted-foreground">{t`Owlit hasn't changed this doc.`}</p>}
-        {!!versions?.length && (
+        {changes && !changes.length && <p className="py-6 text-center text-sm text-muted-foreground">{t`No changes to this doc are kept.`}</p>}
+        {!!changes?.length && (
           <RowList as="ul" className="max-h-96 overflow-y-auto">
-            {versions.map((v) => {
-              const chat = v.chatId ? chats[v.chatId] : undefined
-              const when = dateTime(v.at)
-              const title = chat?.title
+            {changes.map((c) => {
+              const chatId = c.origin.chatId
+              const when = c.until ? `${dateTime(c.at)}–${clock(c.until)}` : dateTime(c.at)
+              const title = chatId ? chats[chatId]?.title : undefined
+              const who = nameOf(c.actor)
               return (
-                <li key={v.id} className={cn("group/row flex h-11 items-center gap-3 pr-1 hover:bg-accent", rowClass)}>
+                <li key={c.id} className={cn("group/row flex h-11 items-center gap-3 pr-1 hover:bg-accent", rowClass)}>
                   <p className="flex min-w-0 flex-1 items-baseline gap-2">
-                    <span className="shrink-0 text-sm">{v.by === "undo" ? t`Before an undo` : v.by === "outside" ? t`From another program` : t`Before Owlit's edit`}</span>
+                    <span className="shrink-0 text-sm">
+                      {capital(said(c, who))}
+                    </span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {title ? t`${when} · from “${title}”` : v.chatId ? t`${when} · from a chat` : when}
+                      {title ? t`${when} · from “${title}”` : chatId ? t`${when} · from a chat` : when}
                     </span>
                   </p>
-                  <Button variant="ghost" size="sm" className={revealOnHover} onClick={() => restore(v)}>
-                    {t({ message: "Restore", comment: "verb: put this version of the doc back" })}
+                  <Button variant="ghost" size="sm" className={revealOnHover} onClick={() => restore(c)}>
+                    {t({ message: "Undo", comment: "verb: take back this change to the doc" })}
                   </Button>
                 </li>
               )
@@ -77,4 +82,12 @@ export function VersionsDialog({ file, open, onOpenChange }: { file: WorkspaceFi
       </DialogContent>
     </Dialog>
   )
+}
+
+// What a change did, by whom; who is you, a name, Owlit or outside owlit
+function said(c: Change, who: string) {
+  if (c.undoes) return t({ message: `Undone by ${who}`, comment: "a change in a doc's Versions; who is you, a name, Owlit or outside owlit" })
+  if (c.action === "create") return t({ message: `Made by ${who}`, comment: "a change in a doc's Versions: the doc was made; who is you, a name, Owlit or outside owlit" })
+  if (c.action === "delete") return t({ message: `Deleted by ${who}`, comment: "a change in a doc's Versions: the doc was deleted; who is you, a name, Owlit or outside owlit" })
+  return t({ message: `Changed by ${who}`, comment: "a change in a doc's Versions; who is you, a name, Owlit or outside owlit" })
 }

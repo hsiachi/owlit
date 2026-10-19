@@ -59,7 +59,7 @@ export class MockLibraryClient implements LibraryClient {
   async fetchPdf(paper: Paper): Promise<Pick<Paper, "pdf" | "pdfState">> {
     await delay(800)
     if (paper.ids.arxiv) return { pdf: { url: `https://arxiv.org/pdf/${paper.ids.arxiv}` } }
-    const look = { by: "owlit" as const, ended: "no-copy" as const, at: Date.now(), route: "unpaywall/repository" }
+    const look = { by: "search" as const, ended: "no-copy" as const, at: Date.now(), route: "unpaywall/repository" }
     return { pdfState: { state: "no-pdf", tried: [...(paper.pdfState?.tried ?? []), look], reason: look, nextLook: Date.now() + 24 * 60 * 60 * 1000 } }
   }
 }

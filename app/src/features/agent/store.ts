@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { useChatStore } from "@/features/chat/store"
+import { useSeen } from "@/app/seen"
 import { chatStatus, useSeenStore } from "@/features/chat/status"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -32,7 +33,7 @@ function leftAWhileAgo(chatId: string) {
   const chat = chats.chats[chatId]
   const seen = useSeenStore.getState()
   if (!chat || seen.viewing[chatId]) return false
-  if (chatStatus(chat, !!chats.streaming[chatId], seen.unseen[chatId], seen.dismissed[chatId]) !== "idle") return false
+  if (chatStatus(chat, !!chats.streaming[chatId], useSeen.getState().unseen.chats.includes(chatId), seen.dismissed[chatId]) !== "idle") return false
   return Date.now() - Math.max(chat.updatedAt, seen.seenAt[chatId] ?? 0) > LEFT_A_WHILE
 }
 

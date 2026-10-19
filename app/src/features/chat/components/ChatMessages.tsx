@@ -114,6 +114,7 @@ const MessageRow = memo(function MessageRow({
   if (message.role === "user") return run ? <RunReason message={message} /> : <UserMessage message={message} onEdit={onEdit} />
   return (
     <AssistantMessage
+      chatId={chatId}
       message={message}
       modelName={modelName}
       onRegenerate={canRegenerate ? () => regenerate(chatId, index) : undefined}

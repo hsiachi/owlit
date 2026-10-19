@@ -83,12 +83,16 @@ export class Docs {
   private changed: ((change: DocsChange) => void) | undefined
   // Every Markdown file's text as last seen, so a change made outside core still knows what was there
   private texts = new Map<string, string>()
-  // A Markdown file's text changed outside core (null: there was none / there is none now). Core uses it
-  // to keep what an agent overwrote when the agent writes the disk itself.
-  textChanged: ((rel: string, before: string | null, after: string | null) => void) | undefined
-  // A forced write is about to replace text another program left on disk; it keeps theirs first, and the
-  // write fails if it can't
-  overwriting: ((rel: string, theirs: string, mine: string) => Promise<unknown>) | undefined
+  // Paths core is writing for someone it records itself (an agent's write, an undo), whose change the
+  // reconcile that follows must not report as made outside
+  private writing = new Set<string>()
+  // A file's text changed outside core (null: there was none / there is none now): another program, an
+  // agent writing the disk itself. Awaited, so what it records lands before what core does next.
+  textChanged: ((rel: string, before: string | null, after: string | null) => unknown) | undefined
+  // The window saved a doc: its text before and after, once it is on disk, and where it is now (a doc
+  // named by its first line may have moved). Awaited, after any change made outside since the window
+  // last read the doc has been through textChanged.
+  saved: ((rel: string, before: string | null, after: string, at: string) => unknown) | undefined
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -221,8 +225,11 @@ export class Docs {
       if (info.mtimeMs !== expectedModifiedAt) {
         const theirs = await readFile(file, "utf8")
         if (!force) throw conflict({ path: rel, content: theirs, modifiedAt: info.mtimeMs })
-        if (theirs !== content) await this.overwriting?.(rel, theirs, content)
+        // Keep mine: the other program's text is reported as its own change first (the watcher may not
+        // have settled it yet), so the save stands on top of it rather than in its place
+        await this.reconcile([rel], true, false)
       }
+      const before = this.texts.get(rel) ?? (await this.readDisk(rel))
       await writeInPlace(file, content)
       // A doc that was never renamed by hand takes its name from its first line
       const follow = (await this.loadNames()).followFirstLine
@@ -232,6 +239,7 @@ export class Docs {
         if (to) at = await this.moveEntry(rel, to)
       }
       await this.settle([rel, at])
+      await this.saved?.(rel, before, content, at)
       return this.statAt(at)
     })
   }
@@ -384,9 +392,15 @@ export class Docs {
     })
   }
 
+  // Windows hear about a change core made for someone else; whoever asked for it records it
   private async tell(rel: string) {
-    const change = await this.reconcile([rel], true)
-    if (change) this.changed?.(change)
+    this.writing.add(rel)
+    try {
+      const change = await this.reconcile([rel], true)
+      if (change) this.changed?.(change)
+    } finally {
+      this.writing.delete(rel)
+    }
   }
 
   // ---- Comments on docs (./comments.ts), kept in step with the files they belong to ----
@@ -552,8 +566,8 @@ export class Docs {
         this.texts.delete(from!)
         this.texts.set(p, moved)
         if (external) {
-          this.textChanged?.(from!, moved, null)
-          this.textChanged?.(p, null, moved)
+          await this.outside(from!, moved, null)
+          await this.outside(p, null, moved)
         }
       }
     }
@@ -562,7 +576,7 @@ export class Docs {
       const before = this.texts.get(p)
       this.texts.delete(p)
       // A file whose text was never read can't be put back, so it isn't offered
-      if (external && before !== undefined) this.textChanged?.(p, before, null)
+      if (external && before !== undefined) await this.outside(p, before, null)
     }
     for (const p of new Set([...[...added].filter(([, e]) => !e.dir).map(([p]) => p), ...modified])) {
       if (!keepsText(p, this.snapshot.get(p))) continue
@@ -573,7 +587,7 @@ export class Docs {
       // A file that was there but whose text was never read: what it was is unknown, not "nothing"
       // (taking it for nothing would make Undo delete it)
       if (before === undefined && modified.has(p)) continue
-      if (external && before !== after) this.textChanged?.(p, before ?? null, after)
+      if (external && before !== after) await this.outside(p, before ?? null, after)
     }
     if (!report) return null
     const follow = (await this.loadNames()).followFirstLine
@@ -595,6 +609,10 @@ export class Docs {
     }
     for (const p of modified) change.changed.push(await this.fileAt(p, this.snapshot.get(p)!, follow))
     return change
+  }
+
+  private async outside(rel: string, before: string | null, after: string | null) {
+    if (!this.writing.has(rel)) await this.textChanged?.(rel, before, after)
   }
 
   // A file in the snapshot as clients see it, with its text when it is Markdown

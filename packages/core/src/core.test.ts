@@ -5,7 +5,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 import { Core } from "./core.ts"
-import { Router } from "./rpc/index.ts"
+import { Router, WINDOW } from "./rpc/index.ts"
 
 const userDataDir = mkdtempSync(path.join(tmpdir(), "owlit-core-"))
 const newCore = (options = {}) => new Core({ userDataDir, ...options })
@@ -63,11 +63,11 @@ describe("Router", () => {
       if (p.n < 0) throw new Error("negative")
       return { n: p.n }
     }) as never)
-    expect(await router.handle(request("core.version", { n: 2 }))).toMatchObject({ result: { n: 2 } })
-    expect(await router.handle(request("core.version", { n: "x" }))).toMatchObject({
+    expect(await router.handle(request("core.version", { n: 2 }), WINDOW)).toMatchObject({ result: { n: 2 } })
+    expect(await router.handle(request("core.version", { n: "x" }), WINDOW)).toMatchObject({
       error: { code: RpcErrorCode.InvalidParams },
     })
-    const failed = await router.handle(request("core.version", { n: -1 }))
+    const failed = await router.handle(request("core.version", { n: -1 }), WINDOW)
     expect(failed).toMatchObject({
       error: { code: RpcErrorCode.InternalError, message: "Something went wrong inside owlit.", data: { detail: "negative" } },
     })

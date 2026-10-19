@@ -4,9 +4,10 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { fullReadAt, readInFull, readJournal, readingOf, traceOf } from "./reading.ts"
+import { ME } from "../test-util.ts"
 
 const at = 1_790_000_000_000
-const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: "user" })
+const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: ME })
 
 describe("readingOf", () => {
   it("adds up time on the paper, by side, and on each page", () => {
@@ -36,10 +37,9 @@ describe("readingOf", () => {
     expect(papers.get("p")?.visits).toBe(2)
   })
 
-  it("ignores what agents did and follows a paper that changed id", () => {
+  it("follows a paper that changed id", () => {
     const papers = readingOf(
       [
-        { kind: "agent.wrote", at, path: "a.md", versionId: "v", actor: "agent" },
         user({ kind: "paper.focus", at, paperId: "local-abc", view: "pdf", seconds: 90 }),
         user({ kind: "paper.focus", at: at + 1, paperId: "doi-10.1-x", view: "pdf", seconds: 30 }),
       ],
@@ -54,7 +54,7 @@ describe("readJournal", () => {
   it("reads entries in order and skips a line cut short", async () => {
     const file = path.join(mkdtempSync(path.join(tmpdir(), "owlit-reading-")), "journal.jsonl")
     writeFileSync(file, [JSON.stringify(user({ kind: "paper.opened", at, paperId: "p" })), '{"kind":"paper.fo', ""].join("\n"))
-    expect(await readJournal(file)).toEqual([{ kind: "paper.opened", at, paperId: "p", actor: "user" }])
+    expect(await readJournal(file)).toEqual([{ kind: "paper.opened", at, paperId: "p", actor: ME }])
     expect(await readJournal(path.join(path.dirname(file), "missing.jsonl"))).toEqual([])
   })
 })

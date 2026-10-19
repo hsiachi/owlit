@@ -165,25 +165,6 @@ msgstr "前进"
 msgid "Every keyboard shortcut in owlit"
 msgstr "owlit 的全部键盘快捷键"
 
-#: app/src/app/agent-changes.ts
-msgid "Note added"
-msgstr "已添加笔记"
-
-#: app/src/app/agent-changes.ts
-msgid "Paper added"
-msgstr "已添加论文"
-
-#: app/src/app/agent-changes.ts
-msgid "Papers collected"
-msgstr "已收集论文"
-
-#. a line the agent now keeps in mind
-#. a toast: Owlit now keeps a line in mind about the user
-#: app/src/app/agent-changes.ts
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Remembered"
-msgstr "已记下"
-
 #. a toast: Owlit removed a line from what it keeps in mind
 #: app/src/app/agent-changes.ts
 msgid "No longer kept in mind"
@@ -194,9 +175,28 @@ msgstr "不再记着"
 msgid "Remembered, replacing a line"
 msgstr "已记下，替换了原来的一条"
 
+#. a line the agent now keeps in mind
+#. a toast: Owlit now keeps a line in mind about the user
+#: app/src/app/agent-changes.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered"
+msgstr "已记下"
+
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr "已移除论文"
+
+#: app/src/app/agent-changes.ts
+msgid "Paper added"
+msgstr "已添加论文"
+
+#: app/src/app/agent-changes.ts
+msgid "Note added"
+msgstr "已添加笔记"
+
+#: app/src/app/agent-changes.ts
+msgid "Papers collected"
+msgstr "已收集论文"
 
 #: app/src/app/app-links.ts
 msgid "Settings › {place}"
@@ -396,14 +396,16 @@ msgstr "关闭弹出框"
 #. verb, in the keyboard shortcut list
 #. verb: put back a line just removed from what Owlit keeps in mind
 #. verb: take back a change the agent made
+#. verb: take back this change to the doc
 #. verb: take back what was just done
 #. verb: take back what was just done
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
+#: app/src/lib/changes.ts
 #: app/src/lib/toast.ts
-#: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Undo"
 msgstr "撤销"
@@ -1298,16 +1300,15 @@ msgstr "增删的字数"
 msgid "Lines added and removed"
 msgstr "增删的行数"
 
-#. placeholder {0}: list.length
-#. placeholder {0}: openThreads.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: apps/share-web/src/App.tsx
-msgid "{0, plural, one {# comment} other {# comments}}"
-msgstr "{0, plural, other {# 条评论}}"
+#: app/src/features/docs/fs.ts
+msgid "Your note on {paper}"
+msgstr "你对 {paper} 的笔记"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Your note on {name}"
-msgstr "你的笔记：{name}"
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, other {# 条评论}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{updated, plural, one {# answer updated} other {# answers updated}}"
@@ -1394,14 +1395,14 @@ msgstr "{0, plural, other {改了 # 条记着的事}}"
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 #: apps/desktop/src/main.ts
 msgid "Redo"
 msgstr "重做"
 
 #. a change that was taken back
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 msgid "Undone"
 msgstr "已撤销"
 
@@ -2626,10 +2627,6 @@ msgstr "隐藏评论"
 msgid "Show comments"
 msgstr "显示评论"
 
-#: app/src/features/docs/comments/CommentsToggle.tsx
-msgid "{count, plural, one {# comment} other {# comments}}"
-msgstr "{count, plural, other {# 条评论}}"
-
 #. placeholder {0}: displayName(file.path)
 #: app/src/features/docs/comments/ResolvedComments.tsx
 msgid "Resolved comments on {0}"
@@ -2686,33 +2683,22 @@ msgstr "文件夹操作"
 msgid "No docs yet."
 msgstr "还没有文档。"
 
+#. a toast: a change from a doc's Versions was taken back
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Version restored"
-msgstr "已恢复该版本"
+msgid "Change undone"
+msgstr "已撤销这处改动"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Versions of {name}"
 msgstr "{name} 的版本"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
-msgstr "Owlit 每次修改这篇文档之前的文本，以及你保留自己的版本时其他程序写下的内容，保留 30 天。恢复会把它放回去，即使文档之后又改过。"
+msgid "The changes made to this doc and who made them, kept for 30 days. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is."
+msgstr "这篇文档的改动和改动人，保留 30 天。撤销会收回其中一处改动，之后写下的内容都会保留；之后又被改过的段落保持原样。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Owlit hasn't changed this doc."
-msgstr "Owlit 还没有改过这篇文档。"
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before an undo"
-msgstr "撤销之前"
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "From another program"
-msgstr "来自其他程序"
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before Owlit's edit"
-msgstr "Owlit 编辑之前"
+msgid "No changes to this doc are kept."
+msgstr "这篇文档没有保留任何改动。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from “{title}”"
@@ -2722,11 +2708,25 @@ msgstr "{when} · 来自“{title}”"
 msgid "{when} · from a chat"
 msgstr "{when} · 来自一个对话"
 
-#. verb: put this version of the doc back
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-#: app/src/features/library/components/RecentlyRemoved.tsx
-msgid "Restore"
-msgstr "恢复"
+msgid "Undone by {who}"
+msgstr "由{who}撤销"
+
+#. a change in a doc's Versions: the doc was made; who is you, a name, Owlit or outside owlit
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Made by {who}"
+msgstr "由{who}创建"
+
+#. a change in a doc's Versions: the doc was deleted; who is you, a name, Owlit or outside owlit
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Deleted by {who}"
+msgstr "由{who}删除"
+
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Changed by {who}"
+msgstr "由{who}改动"
 
 #: app/src/features/docs/disk.ts
 msgid "Couldn't save the change."
@@ -2799,14 +2799,11 @@ msgstr "没有这个名字的文档"
 msgid "Edit applied"
 msgstr "已应用修改"
 
-#: app/src/features/docs/fs.ts
-msgid "Your note on {paper}"
-msgstr "你对 {paper} 的笔记"
-
 #. placeholder {0}: p.total
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
+#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3164,20 +3161,6 @@ msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
 
-#. placeholder {0}: view.rows.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {New thread · # paper} other {New thread · # papers}}"
-msgstr "{0, plural, other {新脉络 · # 篇论文}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {# new paper} other {# new papers}}"
-msgstr "{added, plural, other {新增 # 篇论文}}"
-
-#. a thread Owlit changed without adding papers
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Changed"
-msgstr "有改动"
-
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left at {left}"
 msgstr "你 {left}离开后"
@@ -3191,8 +3174,55 @@ msgid "Finished {when}"
 msgstr "{when}完成"
 
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
-msgstr "{added, plural, other {Owlit 向你的文献库添加了 # 篇论文}}"
+msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
+msgstr "{more, plural, other {{shownNames}等另外 # 篇}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "New thread: {title}"
+msgstr "新脉络：{title}"
+
+#. placeholder {0}: line.added.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
+msgstr "{0, plural, other {{title} 新增 # 篇论文}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{title} changed"
+msgstr "{title} 有改动"
+
+#. placeholder {0}: titles.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
+msgstr "{0, plural, other {文献库新增 # 篇论文}}"
+
+#. placeholder {0}: line.count
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
+msgstr "{0, plural, other {{who} 在 {name} 留了 # 条评论}}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was made outside owlit"
+msgstr "{name} 在 owlit 之外新建"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} wrote {name}"
+msgstr "{who} 写了 {name}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was removed outside owlit"
+msgstr "{name} 在 owlit 之外被删除"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} removed {name}"
+msgstr "{who} 删除了 {name}"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was changed outside owlit"
+msgstr "{name} 在 owlit 之外被改动"
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} edited {name}"
+msgstr "{who} 编辑了 {name}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
@@ -3382,9 +3412,10 @@ msgstr "已复制高亮"
 msgid "Add to note"
 msgstr "添加到笔记"
 
+#. under a highlight; who is Owlit, a name or outside owlit
 #: app/src/features/library/components/HighlightsList.tsx
-msgid "Added by Owlit"
-msgstr "由 Owlit 添加"
+msgid "Added by {who}"
+msgstr "由{who}添加"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Highlight actions"
@@ -3799,6 +3830,10 @@ msgstr "{0, plural, other {最近移除的 # 篇论文}}"
 msgid "Removed {when}"
 msgstr "{when}移除"
 
+#: app/src/features/library/components/RecentlyRemoved.tsx
+msgid "Restore"
+msgstr "恢复"
+
 #: app/src/features/library/components/StatusMenu.tsx
 msgid "Reading status"
 msgstr "阅读状态"
@@ -4130,9 +4165,10 @@ msgstr "信息"
 msgid "No abstract."
 msgstr "无摘要。"
 
+#. when a paper was added, and who added it: Owlit, a name or outside owlit
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "{when} by Owlit"
-msgstr "{when}，由 Owlit 添加"
+msgid "{when} by {who}"
+msgstr "{when}，由{who}添加"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgctxt "label before the threads that hold this paper"
@@ -6396,6 +6432,30 @@ msgstr "选取…"
 msgid "Create"
 msgstr "创建"
 
+#. who made a change: the person reading
+#: app/src/lib/actors.ts
+msgid "you"
+msgstr "你"
+
+#. who made a change: another program, or someone owlit doesn't know
+#: app/src/lib/actors.ts
+msgid "outside owlit"
+msgstr "owlit 之外"
+
+#. who made a change: a person in the workspace who gave no name
+#: app/src/lib/actors.ts
+msgid "someone else"
+msgstr "其他人"
+
+#. after undoing a change to a doc
+#: app/src/lib/changes.ts
+msgid "Some passages were edited since and stay as they are"
+msgstr "有些段落之后被改过，保持原样"
+
+#: app/src/lib/changes.ts
+msgid "Redone"
+msgstr "已重做"
+
 #: app/src/lib/clipboard.ts
 msgid "Could not write to the clipboard"
 msgstr "无法写入剪贴板"
@@ -6426,10 +6486,6 @@ msgstr "{hours} 小时前"
 #: app/src/lib/time.ts
 msgid "yesterday"
 msgstr "昨天"
-
-#: app/src/lib/versions.ts
-msgid "Redone"
-msgstr "已重做"
 
 #: app/src/lib/words.ts
 msgctxt "the last thing in a list"
@@ -6962,6 +7018,11 @@ msgstr "引用的论文"
 msgid "Read only"
 msgstr "只能查看"
 
+#. placeholder {0}: openThreads.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {# 条评论}}"
+
 #: apps/share-web/src/App.tsx
 msgid "Comments"
 msgstr "评论"
@@ -7136,23 +7197,8 @@ msgid "{name} ran into a problem."
 msgstr "{name} 遇到了问题。"
 
 #: packages/core/src/agents/fs.ts
-msgid "That earlier version is no longer kept."
-msgstr "那个较早的版本已不再保留。"
-
-#: packages/core/src/agents/fs.ts
-msgid "That comment is already gone."
-msgstr "这条评论已经不在了。"
-
-#: packages/core/src/agents/fs.ts
-msgid "The note changed after the agent's edit, so owlit left it as it is."
-msgstr "智能体编辑后笔记又有了改动，所以 owlit 没有动它。"
-
-#: packages/core/src/agents/fs.ts
-msgid "{name} changed after the agent's edit, so owlit left it as it is."
-msgstr "智能体编辑后 {name} 又有了改动，所以 owlit 没有动它。"
-
-#: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts
+#: packages/core/src/changes/undo.ts
 #: packages/core/src/core.ts
 msgid "Open a folder as the workspace first."
 msgstr "请先打开一个文件夹作为工作区。"
@@ -7351,6 +7397,103 @@ msgstr "工具"
 msgid "The agent asks to go ahead"
 msgstr "智能体请求继续"
 
+#: packages/core/src/changes/undo.ts
+msgid "There is a doc at {name} again, so owlit left it as it is."
+msgstr "{name} 处又有了一篇文档，owlit 没有动它。"
+
+#: packages/core/src/changes/undo.ts
+msgid "{name} changed after it was made, so owlit left it where it is."
+msgstr "{name} 创建后又被改过，owlit 没有移走它。"
+
+#: packages/core/src/changes/undo.ts
+msgid "{name} is gone, so owlit couldn't put the change back."
+msgstr "{name} 已经不在了，owlit 无法撤销这处改动。"
+
+#: packages/core/src/changes/undo.ts
+msgid "Every passage of that change in {name} was edited since, so owlit left it as it is."
+msgstr "{name} 里这处改动涉及的段落之后都被改过，owlit 没有动它。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That paper is already gone from the library."
+msgstr "这篇论文已经不在文献库里了。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That paper is no longer in the trash."
+msgstr "这篇论文已经不在废纸篓里了。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That paper isn't in the library any more."
+msgstr "这篇论文已经不在文献库里了。"
+
+#: packages/core/src/changes/undo.ts
+msgid "The paper's {what} changed since, so owlit left it as it is."
+msgstr "这篇论文的{what}之后又被改过，owlit 没有动它。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment changed since, so owlit left it as it is."
+msgstr "这条评论之后又被改过，owlit 没有动它。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment is already gone."
+msgstr "这条评论已经不在了。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment is back already."
+msgstr "这条评论已经回来了。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment is gone."
+msgstr "这条评论已经不在了。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That change is no longer kept."
+msgstr "那次改动已不再保留。"
+
+#. a paper's field, in: The paper's star changed since
+#: packages/core/src/changes/undo.ts
+msgid "star"
+msgstr "星标"
+
+#. a paper's field: unread, reading or read
+#: packages/core/src/changes/undo.ts
+msgid "reading status"
+msgstr "阅读状态"
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "tags"
+msgstr "标签"
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "title"
+msgstr "标题"
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "authors"
+msgstr "作者"
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "year"
+msgstr "年份"
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "venue"
+msgstr "发表处"
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "abstract"
+msgstr "摘要"
+
+#. a paper's field: its kind or ids
+#: packages/core/src/changes/undo.ts
+msgid "details"
+msgstr "信息"
+
 #: packages/core/src/chats/attach.ts
 msgid "owlit can't read that file."
 msgstr "owlit 无法读取那个文件。"
@@ -7411,6 +7554,14 @@ msgstr "owlit 在这里无法用其他应用打开文件。"
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
 msgstr "owlit 已不再有那个文件。"
+
+#: packages/core/src/core.ts
+msgid "That paper isn't in the library."
+msgstr "那篇论文不在文献库里。"
+
+#: packages/core/src/core.ts
+msgid "That comment is already there."
+msgstr "那条评论已经在了。"
 
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
@@ -7650,8 +7801,8 @@ msgid "Write something to keep first."
 msgstr "先写下要记的内容。"
 
 #: packages/core/src/memory/memory.ts
-msgid "That line changed after Owlit wrote it, so owlit left it as it is."
-msgstr "这一条在 Owlit 写下之后被改过，owlit 没有动它。"
+msgid "That line changed since, so owlit left it as it is."
+msgstr "这一条之后又被改过，owlit 没有动它。"
 
 #: packages/core/src/net/http.ts
 msgid "{host}'s allowance is used up for now."
@@ -7865,6 +8016,14 @@ msgstr "这条脉络不是从别的脉络里分出来的。"
 #: packages/core/src/threads/threads.ts
 msgid "The thread these papers came from is gone."
 msgstr "这些论文原来所在的脉络已经不在了。"
+
+#: packages/core/src/threads/threads.ts
+msgid "That changed in the thread since, so owlit left it as it is."
+msgstr "这一项在脉络里之后又被改过，owlit 没有动它。"
+
+#: packages/core/src/threads/threads.ts
+msgid "That change holds the whole thread at once, so it can't be undone."
+msgstr "这处改动记录的是整条脉络，无法撤销。"
 
 #: packages/core/src/threads/threads.ts
 msgid "That thread is already here."

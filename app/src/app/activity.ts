@@ -4,7 +4,7 @@
 // Core journals the coarse ones (unless settings.activity.enabled is off) and hands all of them to live
 // listeners, Owlit's rules among them. Nothing is sent without the desktop app.
 
-import type { ActivityEvent, ChatMessage, PaperMark, PaperView } from "@owlit/protocol"
+import { isOwlit, type ActivityEvent, type ChatMessage, type PaperMark, type PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
 import { useBeside } from "@/features/agent/beside"
@@ -202,7 +202,7 @@ export function startActivity(router: typeof appRouter) {
     // A highlight Owlit made when asked is the user's to keep, but not something they marked themselves
     if (state.highlights !== prev.highlights) {
       for (const h of Object.values(state.highlights))
-        if (!prev.highlights[h.id] && h.addedBy !== "agent") emit({ kind: "highlight.added", paperId: h.paperId, highlightId: h.id })
+        if (!prev.highlights[h.id] && !isOwlit(h.addedBy)) emit({ kind: "highlight.added", paperId: h.paperId, highlightId: h.id })
       for (const h of Object.values(prev.highlights))
         if (!state.highlights[h.id]) emit({ kind: "highlight.removed", paperId: h.paperId, highlightId: h.id })
     }

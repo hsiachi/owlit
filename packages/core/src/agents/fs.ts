@@ -1,31 +1,26 @@
 import { t } from "@lingui/core/macro"
-import { asComment, editStats, RpcErrorCode, type AgentRecord, type DocComment } from "@owlit/protocol"
-import type { Journal } from "../activity/index.ts"
-import { sha1, type Version } from "../docs/versions.ts"
-import { RpcFailure } from "../rpc/index.ts"
+import { RpcErrorCode, type ChangeOrigin } from "@owlit/protocol"
+import { newWriteId } from "../changes/record.ts"
+import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { UiBridge } from "../ui/bridge.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import type { Claim } from "./turns.ts"
 
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[agent fs] ${line}`)
 
 interface AgentFsOptions {
   workspace: () => Workspace | null
   ui: UiBridge
-  journal: Journal
-  // An agent wrote a file that no window had open: windows offer Undo for it
-  wrote: (record: { path: string; versionId: string; chatId?: string }) => void
-  // An undo added or removed a note; windows show it
-  commentsChanged: (change: { path: string; changed?: DocComment; removed?: string }) => void
+  // The tool call claiming a file now (agents/turns.ts)
+  claimOf?: (rel: string) => Claim | undefined
 }
 
 // What agents read and write (ACP fs/read_text_file and fs/write_text_file). A doc open in a window is
 // read from and written through its editor, so the agent sees what the user sees and its edit is one
-// undoable change there; anything else goes to disk. Every write first keeps the file as it was
-// (.owlit/versions/) and is journaled as the agent's.
+// undoable change there; anything else goes to disk. Every write goes in the change log with the file
+// as it was, so it can be taken back (changes/undo.ts, which reads and writes docs the same way).
 export class AgentFs {
   private readonly options: AgentFsOptions
-  // Paths this class is writing right now, whose change on disk is already recorded
-  private writing = new Set<string>()
 
   constructor(options: AgentFsOptions) {
     this.options = options
@@ -44,69 +39,74 @@ export class AgentFs {
     return { content: lines.slice(start, limit === undefined ? undefined : start + limit).join("\n") }
   }
 
-  async write(file: string, content: string, chatId?: string) {
+  // An agent's ACP write, for the chat it runs in, or a write of Owlit's own for a run ("<kind>:<task id>").
+  // The chat's tool call that named the file says which call wrote it, and whether the user chose it (Apply).
+  async write(file: string, content: string, { chatId, run }: { chatId?: string; run?: string } = {}) {
     log(`write ${file} (${content.length} characters)`)
     const ws = this.workspace()
     const rel = ws.docs.resolve(file)
+    const caller: Caller = { kind: "owlit", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+    const claim = chatId ? this.options.claimOf?.(rel) : undefined
+    const origin: Partial<ChangeOrigin> = claim && claim.chatId === chatId ? { via: claim.accepted ? "apply" : "tool", toolCallId: claim.toolCallId } : {}
     // A paper's note is the user's, like a doc: the agent may change it when asked (the edit is shown in
     // the note first), and it goes through the library so open windows take it in
     const notePaper = ws.library.noteOf(rel)
     if (notePaper) {
       const before = (await ws.library.read(notePaper, "note")).text
-      const version = await ws.versions.saveFile(rel, before || null, content, { chatId })
-      this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
-      // Already kept above; the change the library then reports is not a second one
-      this.writing.add(rel)
-      try {
-        await ws.library.writeNoteFor(notePaper, content)
-      } finally {
-        this.writing.delete(rel)
-      }
-      this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
+      const change = await ws.recorder.doc(caller, rel, before || null, content, { origin }, { quiet: true })
+      await ws.library.writeNoteFor(notePaper, content)
+      ws.recorder.say(change)
       return
     }
     if (ws.docs.isOwlits(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't write it.`, { path: rel })
+    const before = await this.text(rel)
+    // Said once it is written, so the window that shows it has it
+    const change = await ws.recorder.doc(caller, rel, before, content, { origin }, { quiet: true })
+    await this.place(rel, content, change.id)
+    ws.recorder.say(change)
+  }
+
+  // A doc's text as the person sees it: its open editor's, else the disk's; null when there is none
+  async text(rel: string) {
+    return (await this.fromEditor(rel)) ?? (await this.workspace().docs.readDisk(rel))
+  }
+
+  // Writes a doc through the editor that has it open, as one step of its undo, else to disk. undo: an
+  // undo of a change in the log, which the editor applies without saying it as an agent's edit.
+  async place(rel: string, content: string, changeId: string, undo = false) {
     const holder = this.options.ui.holder(rel)
-    const before = (await this.fromEditor(rel)) ?? (await ws.docs.readDisk(rel))
-    const version = await ws.versions.saveFile(rel, before, content, { chatId })
-    const record: AgentRecord = { kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) }
-    this.options.journal.record(record)
     if (holder) {
       const applied = await this.options.ui
-        .request(holder, "fs.write", { path: rel, content, versionId: version.id })
+        .request(holder, "fs.write", { path: rel, content, changeId, ...(undo ? { undo } : {}) })
         .then((r) => r.applied)
         .catch(() => false)
       log(applied ? `  through the editor in window ${holder.slice(0, 8)}` : "  the window didn't take it; writing to disk")
       if (applied) return
     }
-    this.writing.add(rel)
-    try {
-      await ws.docs.writeTold(rel, content)
-    } finally {
-      this.writing.delete(rel)
-    }
-    this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
+    await this.workspace().docs.writeTold(rel, content)
   }
 
   // Deletes docs for an agent (owlit-mcp's docs_delete, once the chat's role allows it). Each file's text is
-  // kept first, so the chat offers Undo for it; the files themselves go to the Trash.
-  async remove(paths: string[], chatId?: string) {
+  // recorded first, so the chat offers Undo for it; the files themselves go to the Trash.
+  async remove(paths: string[], caller: Caller) {
     const ws = this.workspace()
+    const writeId = newWriteId()
     const done: string[] = []
     for (const file of paths) {
       const rel = this.docPath(file)
       const texts = await ws.docs.textsUnder(rel)
       await ws.docs.delete(rel, true)
-      for (const t of texts) await this.keep(t.path, t.content, null, chatId)
+      for (const t of texts) await this.keep(caller, t.path, t.content, null, writeId)
       done.push(rel)
     }
     return done
   }
 
-  // Moves or renames a doc or folder for an agent (owlit-mcp's docs_move). Kept as each file leaving its
-  // old place and arriving at the new one, so Undo puts it back.
-  async move(file: string, to: string, chatId?: string) {
+  // Moves or renames a doc or folder for an agent (owlit-mcp's docs_move). Recorded as each file leaving
+  // its old place and arriving at the new one, so Undo puts it back.
+  async move(file: string, to: string, caller: Caller) {
     const ws = this.workspace()
+    const writeId = newWriteId()
     const rel = this.docPath(file)
     const target = this.docPath(to)
     const texts = await ws.docs.textsUnder(rel)
@@ -120,8 +120,8 @@ export class AgentFs {
     if (parent(at) !== folder) at = (await ws.docs.move(at, folder, true)).path
     if (at.slice(at.lastIndexOf("/") + 1) !== name) at = (await ws.docs.rename(at, name, true)).path
     for (const t of texts) {
-      await this.keep(t.path, t.content, null, chatId)
-      await this.keep(at + t.path.slice(rel.length), null, t.content, chatId)
+      await this.keep(caller, t.path, t.content, null, writeId)
+      await this.keep(caller, at + t.path.slice(rel.length), null, t.content, writeId)
     }
     return at
   }
@@ -134,112 +134,8 @@ export class AgentFs {
     return rel
   }
 
-  private async keep(rel: string, before: string | null, after: string | null, chatId?: string) {
-    const version = await this.workspace().versions.saveFile(rel, before, after, { chatId })
-    this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
-    this.options.wrote({ path: rel, versionId: version.id, ...(chatId ? { chatId } : {}) })
-  }
-
-  // An agent that writes the disk itself (Claude Code does, not through ACP's fs): its change, seen by the
-  // watcher while one of its tool calls names the file, is kept and journaled the same way
-  async recordDirect(rel: string, before: string | null, after: string | null, chatId: string) {
-    if (this.writing.has(rel)) return
-    const ws = this.workspace()
-    log(`${rel} changed by the agent of chat ${chatId.slice(0, 8)}`)
-    const version = await ws.versions.saveFile(rel, before, after, { chatId })
-    this.options.journal.record({ kind: "agent.wrote", at: version.at, path: rel, versionId: version.id, chatId })
-    this.options.wrote({ path: rel, versionId: version.id, chatId })
-  }
-
-  // How much a run of an agent's writes to one file changed it: from the text before the first (`from`) to
-  // the text after the last (`to`), which the file's next version holds when one was kept since, and the
-  // file itself otherwise. Agents report their edits in pieces, if at all; these texts are what happened.
-  async stats(from: string, to: string) {
-    const ws = this.workspace()
-    const first = await ws.versions.get(from)
-    const last = to === from ? first : await ws.versions.get(to)
-    if (first?.kind !== "file" || last?.kind !== "file" || last.path !== first.path) return null
-    const all = (await ws.versions.list({ path: first.path })).reverse()
-    const next = all.slice(all.findIndex((v) => v.id === last.id) + 1).find((v) => v.kind === "file")
-    const after = last.deleted ? "" : next ? ((await ws.versions.get(next.id))?.content ?? null) : ((await this.fromEditor(first.path)) ?? (await ws.docs.readDisk(first.path)))
-    if (after === null) return null
-    return editStats(first.path, first.existed === false ? "" : first.content, after)
-  }
-
-  // Takes back what a version recorded: a file goes back to its text from before (one the agent created
-  // goes to the Trash), a note an agent left goes, a paper an agent added goes to .owlit/trash/. What it
-  // replaces is kept as a version too, so the undo can be undone (redoId). Unless forced, a file that
-  // changed since is left alone.
-  async restore(versionId: string, force = false): Promise<{ path: string; kind: Version["kind"]; redoId: string }> {
-    const ws = this.workspace()
-    const version = await ws.versions.get(versionId)
-    if (!version) throw new RpcFailure(RpcErrorCode.NotFound, t`That earlier version is no longer kept.`, { versionId })
-    const meta = { by: "undo" as const, ...(version.chatId ? { chatId: version.chatId } : {}) }
-
-    if (version.kind === "note") {
-      const comment = asComment(JSON.parse(version.content))
-      if (version.op === "added") {
-        // Taking back Owlit's comment takes the replies under it too; the redo brings them back
-        const removed = await ws.docs.removeComment(version.path, comment.id)
-        if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, t`That comment is already gone.`, { path: version.path })
-        const redo = await ws.versions.saveComment(version.path, removed, "removed", meta)
-        this.options.commentsChanged({ path: version.path, removed: comment.id })
-        return { path: version.path, kind: "note", redoId: redo.id }
-      }
-      await ws.docs.addComment(version.path, comment)
-      this.options.commentsChanged({ path: version.path, changed: comment })
-      const redo = await ws.versions.saveComment(version.path, comment, "added", meta)
-      return { path: version.path, kind: "note", redoId: redo.id }
-    }
-
-    if (version.kind === "paper") {
-      if (version.op === "added") await ws.library.remove([version.path])
-      else await ws.library.restore([version.path])
-      const redo = await ws.versions.savePaper(version.path, version.op === "added" ? "removed" : "added", meta)
-      return { path: version.path, kind: "paper", redoId: redo.id }
-    }
-
-    if (version.kind === "memory") {
-      const { redoId } = await ws.memory.restoreVersion(version.path, version.content, version.after, force, version.chatId ? { chatId: version.chatId } : {})
-      return { path: version.path, kind: "memory", redoId }
-    }
-
-    if (version.kind === "thread") {
-      const { redoId } = await ws.threads.restoreVersion(version.path, version.content, version.existed !== false, version.chatId ? { chatId: version.chatId } : {})
-      return { path: version.path, kind: "thread", redoId }
-    }
-
-    const notePaper = ws.library.noteOf(version.path)
-    if (notePaper) {
-      const now = (await ws.library.read(notePaper, "note")).text
-      if (sha1(now) !== version.after && !force) {
-        throw new RpcFailure(RpcErrorCode.Conflict, t`The note changed after the agent's edit, so owlit left it as it is.`, { path: version.path })
-      }
-      const redo = await ws.versions.saveFile(version.path, now || null, version.existed ? version.content : null, meta)
-      this.writing.add(version.path)
-      try {
-        await ws.library.writeNoteFor(notePaper, version.existed ? version.content : "")
-      } finally {
-        this.writing.delete(version.path)
-      }
-      return { path: version.path, kind: "file", redoId: redo.id }
-    }
-
-    const now = (await this.fromEditor(version.path)) ?? (await ws.docs.readDisk(version.path))
-    const untouched = version.deleted ? now === null : now !== null && sha1(now) === version.after
-    if (!untouched && !force) {
-      const name = version.path.split("/").pop() ?? version.path
-      throw new RpcFailure(RpcErrorCode.Conflict, t`${name} changed after the agent's edit, so owlit left it as it is.`, { path: version.path })
-    }
-    const redo = await ws.versions.saveFile(version.path, now, version.existed ? version.content : null, meta)
-    this.writing.add(version.path)
-    try {
-      if (version.existed) await ws.docs.writeTold(version.path, version.content)
-      else await ws.docs.removeTold(version.path)
-    } finally {
-      this.writing.delete(version.path)
-    }
-    return { path: version.path, kind: "file", redoId: redo.id }
+  private keep(caller: Caller, rel: string, before: string | null, after: string | null, writeId: string) {
+    return this.workspace().recorder.doc(caller, rel, before, after, { origin: { writeId } })
   }
 
   private workspace() {

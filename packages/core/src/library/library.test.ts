@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import { Http } from "../net/http.ts"
 import { eventually, until } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
@@ -29,13 +30,15 @@ async function setup(routes: Record<string, string | number>) {
   }) as unknown as typeof globalThis.fetch
   const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch }, retryBaseMs: 1 })
   cores.push(core)
-  const call = async (method: string, params?: unknown): Promise<any> => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  const call = async (method: string, params?: unknown, caller?: Caller): Promise<any> => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
+  // As owlit-mcp calls for a chat's agent, over the socket
+  const agent = (method: string, params: { chatId: string } & Record<string, unknown>) => call(method, params, { kind: "socket", chatId: params.chatId })
   await call("workspace.open", { path: root })
-  return { root, call, asked, core }
+  return { root, call, agent, asked, core }
 }
 
 const published = {
@@ -107,7 +110,7 @@ describe("library over RPC", () => {
     // Adding it asks the services, so the agent learns (and cites) the published year
     const { paper } = await call("library.resolve", { input: "doi-10.1145-3626772.3657891" })
     expect(paper).toMatchObject({ year: 2024, kind: "conference" })
-    await call("library.add", { paper, addedBy: "agent" })
+    await call("library.add", { paper })
     const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
     expect(record).toMatchObject({ year: 2024, kind: "conference", fields: { year: "openalex", title: "openalex" } })
   })
@@ -119,7 +122,7 @@ describe("library over RPC", () => {
     await call("library.searchOnline", { q: "newspaper question answering", source: "arxiv" })
     const { paper } = await call("library.resolve", { input: "doi-10.1145-3626772.3657891" })
     expect(paper).toMatchObject({ year: 2023 })
-    await call("library.add", { paper, addedBy: "agent" })
+    await call("library.add", { paper })
     // The services are back
     for (const key of ["api.openalex.org", "api.semanticscholar.org"]) delete routes[key]
     Object.assign(routes, published)
@@ -138,6 +141,38 @@ describe("library over RPC", () => {
   })
 })
 
+describe("the library in the change log", () => {
+  const paper = { id: "doi-10.9999-a", title: "Paper a", authors: [], ids: { doi: "10.9999/a" } }
+
+  it("records each field the window changes, sharing one writeId, and the person's adds and removals", async () => {
+    const { call } = await setup({})
+    await call("library.add", { paper })
+    await call("library.update", { id: paper.id, patch: { starred: true, tags: ["replay"], title: "Paper A", position: { page: 2, y: 0 } } })
+    await call("library.remove", { ids: [paper.id] })
+    const all = (await call("changes.list", { target: { kind: "paper", path: paper.id } })).reverse()
+    expect(all.map((c: any) => [c.action, c.target.part ?? null, c.actor.slice(0, 2), c.origin.via])).toEqual([
+      ["create", null, "p_", "editor"],
+      ["update", "overrides.title", "p_", "editor"],
+      ["update", "starred", "p_", "editor"],
+      ["update", "tags", "p_", "editor"],
+      ["delete", null, "p_", "editor"],
+    ])
+    expect(all[1]).toMatchObject({ before: "Paper a", after: "Paper A" })
+    expect(new Set(all.slice(1, 4).map((c: any) => c.origin.writeId)).size).toBe(1)
+  })
+
+  it("makes an opened paper reading on its own, as the person's change through owlit", async () => {
+    const { call } = await setup({})
+    await call("library.add", { paper })
+    const opened = await call("library.opened", { id: paper.id })
+    expect(opened).toMatchObject({ status: "reading", lastOpenedAt: expect.any(Number) })
+    // Opened again: only the time moves
+    await call("library.opened", { id: paper.id })
+    const status = await call("changes.list", { target: { kind: "paper", part: "status" } })
+    expect(status).toMatchObject([{ actor: expect.stringMatching(/^p_/), origin: { via: "auto" }, before: "unread", after: "reading" }])
+  })
+})
+
 describe("keeping the library clean", () => {
   const title = "Proactive behavior in voice assistants: A systematic review and conceptual model"
   const review = { id: "doi-10.1016-j.chbr.2024.100411", title, ids: { doi: "10.1016/j.chbr.2024.100411" }, year: 2024 }
@@ -151,14 +186,14 @@ describe("keeping the library clean", () => {
   const indexed = (call: (method: string, params?: unknown) => Promise<any>, inputs: string[]) =>
     until(async () => ((await call("library.known", { inputs })) as (string | null)[]).every(Boolean), { what: "the papers in the library's index" })
 
-  it("doesn't add a copy of a paper it has under a DOI, and keeps no version an agent could undo", async () => {
-    const { root, call } = await setup({})
+  it("doesn't add a copy of a paper it has under a DOI, and records no change an agent could undo", async () => {
+    const { root, call, agent } = await setup({})
     putPaper(root, review)
     await indexed(call, [review.ids.doi])
-    const added = await call("library.add", { paper: { id: "s2-d9b08e17", title, authors: [], ids: { s2: "d9b08e17" } }, addedBy: "agent", chatId: "c1" })
+    const added = await agent("library.add", { paper: { id: "s2-d9b08e17", title, authors: [], ids: { s2: "d9b08e17" } }, chatId: "c1" })
     expect(added.id).toBe(review.id)
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id)).toEqual([review.id])
-    expect(await call("versions.list", { path: review.id })).toEqual([])
+    expect(await call("changes.list", { path: review.id })).toEqual([])
   })
 
   it("folds a stray copy into the paper with the DOI once it is looked up again, its id kept as an alias", async () => {
@@ -182,23 +217,23 @@ describe("keeping the library clean", () => {
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
   })
 
-  it("lets an agent take back only papers its chat added that the user hasn't touched, as versions", async () => {
-    const { call } = await setup({})
+  it("lets an agent take back only papers its chat added that the user hasn't touched, each a change", async () => {
+    const { call, agent } = await setup({})
     const paper = (id: string) => ({ id, title: `Paper ${id}`, authors: [], ids: { doi: `10.9999/${id}` } })
-    await call("library.add", { paper: paper("doi-10.9999-a"), addedBy: "agent", chatId: "c1" })
-    await call("library.add", { paper: paper("doi-10.9999-b"), addedBy: "agent", chatId: "c1" })
-    await call("library.add", { paper: paper("doi-10.9999-c"), addedBy: "user" })
+    await agent("library.add", { paper: paper("doi-10.9999-a"), chatId: "c1" })
+    await agent("library.add", { paper: paper("doi-10.9999-b"), chatId: "c1" })
+    await call("library.add", { paper: paper("doi-10.9999-c") })
     await call("library.update", { id: "doi-10.9999-b", patch: { tags: ["keep"] } })
     // A passage the agent marked itself doesn't make the paper the user's
-    await call("library.putHighlight", { highlight: { id: "h", paperId: "doi-10.9999-a", page: 0, rects: [], text: "t", color: "yellow", addedBy: "agent", createdAt: 1 } })
-    expect(await call("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
-    const done = await call("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
+    await call("library.putHighlight", { highlight: { id: "h", paperId: "doi-10.9999-a", page: 0, rects: [], text: "t", color: "yellow", createdAt: 1 }, chatId: "c1" })
+    expect(await agent("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
+    const done = await agent("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
     expect(done.removed).toEqual(["doi-10.9999-a"])
     expect(done.refused.map((r: { id: string }) => r.id)).toEqual(["doi-10.9999-b", "doi-10.9999-c"])
     // The user's Undo puts it back
-    const [removal] = await call("versions.list", { path: "doi-10.9999-a" })
-    expect(removal).toMatchObject({ kind: "paper", op: "removed", chatId: "c1" })
-    await call("versions.restore", { id: removal.id })
+    const [removal] = await call("changes.list", { path: "doi-10.9999-a" })
+    expect(removal).toMatchObject({ actor: expect.stringMatching(/^o_/), action: "delete", target: { kind: "paper", path: "doi-10.9999-a" }, origin: { chatId: "c1" } })
+    await call("changes.undo", { id: removal.id })
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual(["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"])
   })
 
@@ -229,7 +264,7 @@ describe("keeping the library clean", () => {
     const { root, core } = await setup({})
     putPaper(root, { id: "arxiv-1706.03762", title: "Attention", ids: { arxiv: "1706.03762" } })
     const offline = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
-    writeFileSync(offline, JSON.stringify({ version: 2, state: "finding", tried: [{ by: "owlit", ended: "offline", at: Date.now() - 60_000 }], dropHere: "" }))
+    writeFileSync(offline, JSON.stringify({ version: 2, state: "finding", tried: [{ by: "search", ended: "offline", at: Date.now() - 60_000 }], dropHere: "" }))
     await core.dispose()
     // The first open looked at an empty library today; these papers came after it
     const workspaces = path.join(path.dirname(root), "userData/workspaces")
@@ -285,10 +320,10 @@ describe("library on disk", () => {
   it("adds a paper as paper.json and state.json, lists it, and keeps it across a restart", async () => {
     const { root, call, core } = await setup({ "export.arxiv.org": fixture("arxiv-1706.03762.xml") })
     const paper = await call("library.add", { paper: resolvedArxiv })
-    expect(paper).toMatchObject({ id: "arxiv-1706.03762", status: "unread", starred: false, addedBy: "user", tags: [] })
+    expect(paper).toMatchObject({ id: "arxiv-1706.03762", status: "unread", starred: false, addedBy: expect.stringMatching(/^p_/), tags: [] })
     expect(existsSync(path.join(root, "library/papers/arxiv-1706.03762/paper.json"))).toBe(true)
     const state = JSON.parse(readFileSync(path.join(root, ".owlit/papers/arxiv-1706.03762/state.json"), "utf8"))
-    expect(state).toMatchObject({ version: 1, addedBy: "user", status: "unread" })
+    expect(state).toMatchObject({ version: 1, addedBy: paper.addedBy, status: "unread" })
     // Added twice, by another of its ids: one paper
     expect((await call("library.add", { paper: { ...resolvedArxiv, id: undefined } })).id).toBe("arxiv-1706.03762")
     await core.dispose()
@@ -478,7 +513,8 @@ describe("library on disk", () => {
       { timeout: 4_000, interval: 1_000 },
     )
     const paper = heard.flatMap((c) => c.papers).find((p) => p.id === "arxiv-2408.00447")
-    expect(paper).toMatchObject({ title: "Dropped in by the CLI", status: "unread", addedBy: "user" })
+    // Nobody owlit knows added it
+    expect(paper).toMatchObject({ title: "Dropped in by the CLI", status: "unread", addedBy: "other" })
   })
 })
 

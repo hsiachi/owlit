@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
@@ -9,7 +9,8 @@ import { useTrail, workspaceKey } from "./trail"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { messageText } from "@/features/chat/lib/message-text"
-import type { Chat, ChatMessage } from "@owlit/protocol"
+import { isOwlit, type Change, type Chat, type ChatMessage } from "@owlit/protocol"
+import { listChanges, useSeen } from "@/app/seen"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats and papers.
 // A doc counts once written in, a chat once the user sent something, a paper once opened to read,
@@ -43,17 +44,6 @@ function paragraphAt(text: string, head: number) {
   return words || undefined
 }
 
-// The doc's file is saved a moment after Owlit's change reaches an open editor; a later change than that
-// was someone else's (an undo from the result card, another editor)
-const SAVED_WITHIN = 30_000
-
-// Whether the doc's last edit was Owlit's: "Owlit wrote" a doc it made that nobody has touched since,
-// "Owlit edited" one it changed last; else "edited", the user's own
-function owlitDid(createdAt: number, modifiedAt: number, owlitAt: number, userAt = 0): Did {
-  if (owlitAt < userAt || modifiedAt > owlitAt + SAVED_WITHIN) return "edited"
-  return !userAt && createdAt >= owlitAt - SAVED_WITHIN ? "owlit-wrote" : "owlit-edited"
-}
-
 const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
 
 // A chat's place: the same object while its title and the user's last message stay the same, so a
@@ -70,6 +60,27 @@ function chatPlace(c: Chat): Place[] {
   return [place]
 }
 
+// Each doc's newest entry in the change log, by path; asked again whenever something new came
+function useLastDocChanges() {
+  const unseen = useSeen((s) => s.unseen)
+  const [last, setLast] = useState<Map<string, Change>>(new Map())
+  useEffect(() => {
+    let live = true
+    listChanges({ target: { kind: "doc" } }).then(
+      (changes) => {
+        const byPath = new Map<string, Change>()
+        for (const c of changes) if (!byPath.has(c.target.path)) byPath.set(c.target.path, c)
+        if (live) setLast(byPath)
+      },
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+  }, [unseen])
+  return last
+}
+
 export function usePlaces(): Place[] {
   const files = useDocsStore((s) => s.files)
   const chatPlaces = useChatStore(useShallow((s) => Object.values(s.chats).flatMap(chatPlace)))
@@ -77,17 +88,19 @@ export function usePlaces(): Place[] {
   const highlights = useLibraryStore((s) => s.highlights)
   const notes = useLibraryStore((s) => s.notes)
   const marks = useTrail((s) => s.docs[workspaceKey()])
-  const owlitMarks = useTrail((s) => s.owlitDocs[workspaceKey()])
+  const lastChanges = useLastDocChanges()
 
   // One list per kind, so a streamed reply doesn't requote every doc
   const docPlaces = useMemo(() => {
     const out: Place[] = []
     const markByPath = new Map((marks ?? []).map((m) => [m.path, m]))
-    const owlitByPath = new Map((owlitMarks ?? []).map((m) => [m.path, m.at]))
     for (const f of Object.values(files)) {
       if (!isMarkdown(f.path)) continue
       const mark = markByPath.get(f.path)
-      const owlitAt = owlitByPath.get(f.path)
+      // The doc's last change was Owlit's, after the user last wrote in it: "Owlit wrote" one it made,
+      // "Owlit edited" one it changed
+      const last = lastChanges.get(f.path)
+      const owlit = last && isOwlit(last.actor) && last.at > (mark?.at ?? 0) ? last : undefined
       out.push({
         kind: "doc",
         key: `doc:${f.id}`,
@@ -97,17 +110,17 @@ export function usePlaces(): Place[] {
         to: `/docs/${f.id}`,
         // Without a cursor to go by, the end of the doc: drafts grow at the bottom
         words: f.content ? (mark ? paragraphAt(f.content, mark.head) : lastParagraph(f.content)) : undefined,
-        did: owlitAt !== undefined ? owlitDid(f.createdAt, f.modifiedAt, owlitAt, mark?.at) : "edited",
+        did: owlit ? (owlit.action === "create" ? "owlit-wrote" : "owlit-edited") : "edited",
       })
     }
     return out
-  }, [files, marks, owlitMarks])
+  }, [files, marks, lastChanges])
 
   const paperPlaces = useMemo(() => {
     const out: Place[] = []
     const lastMark = new Map<string, { at: number; words: string }>()
     for (const h of Object.values(highlights)) {
-      if (h.addedBy === "agent") continue
+      if (isOwlit(h.addedBy)) continue
       const words = h.comment ? `“${markdownPlain(h.text)}” ${h.comment}` : `“${markdownPlain(h.text)}”`
       if ((lastMark.get(h.paperId)?.at ?? 0) < h.createdAt) lastMark.set(h.paperId, { at: h.createdAt, words })
     }

@@ -63,7 +63,9 @@ async function setup(env: Record<string, string> = { OWLIT_ENGINE_FAUX: "1" }) {
   }
   const said = () => updates.splice(0).filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text).join("")
   const of = (method: string) => heard.filter((n) => n.method === method).map((n) => n.params as any)
-  return { start, send, updates, said, root, base, of }
+  // The changes windows were told of
+  const changed = () => of("changes.added").map((n) => n.change)
+  return { start, send, updates, said, root, base, of, changed }
 }
 
 describe("Owlit engine", () => {
@@ -173,7 +175,7 @@ describe("Owlit engine", () => {
     const waitFor = (updates: SessionUpdate[], type: string): Promise<any> => until(() => updates.find((u) => u.type === type), { timeout: 10_000, what: `a ${type}` })
 
     it("as Assistant, asks with the diff; Apply writes through owlit, Discard leaves the file", async () => {
-      const { start, send, said, updates, root, of } = await setup()
+      const { start, send, said, updates, root, changed } = await setup()
       const { call } = await start()
       await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
 
@@ -188,8 +190,8 @@ describe("Owlit engine", () => {
       await applying
       expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twenty chars")
       expect(said()).toBe("tool said: Changed notes.md.")
-      // Written through owlit: a version to undo, and the write is the chat's
-      expect(of("agent.wrote")).toEqual([expect.objectContaining({ path: "notes.md", chatId: "c1" })])
+      // Written through owlit: a change to undo, and the write is the chat's
+      expect(changed()).toMatchObject([{ target: { path: "notes.md" }, origin: { chatId: "c1" } }])
 
       updates.length = 0
       const discarding = send(call, edit("notes.md", "twenty", "ninety"), { role: "assistant" })
@@ -198,18 +200,18 @@ describe("Owlit engine", () => {
       await discarding
       expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twenty chars")
       expect(said()).toMatch(/^tool failed: The user didn't apply this change to notes\.md/)
-      expect(of("agent.wrote")).toHaveLength(1)
+      expect(changed()).toHaveLength(1)
     }, 30_000)
 
     it("as Co-author, writes without asking, still through owlit", async () => {
-      const { start, send, said, updates, root, of } = await setup()
+      const { start, send, said, updates, root, changed } = await setup()
       const { call } = await start()
       await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
       await send(call, `tool write_file ${JSON.stringify({ path: "plan.md", content: "# Plan\n" })}`, { role: "coauthor" })
       expect(updates.some((u) => u.type === "permission_request")).toBe(false)
       expect(readFileSync(path.join(root, "plan.md"), "utf8")).toBe("# Plan\n")
       expect(said()).toBe("tool said: Wrote plan.md.")
-      expect(of("agent.wrote")).toEqual([expect.objectContaining({ path: "plan.md", chatId: "c1" })])
+      expect(changed()).toMatchObject([{ action: "create", target: { path: "plan.md" }, origin: { chatId: "c1" } }])
     }, 30_000)
 
     it("hands work to agents of its own: each shown on its own, its edits asked for in its name", async () => {

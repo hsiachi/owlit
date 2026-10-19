@@ -1,20 +1,25 @@
 // The example workspace: a copy of the one shipped with the app, made where a new workspace would go, for
 // someone who wants to look around before bringing their own papers. Its times move up to just before now,
-// so its papers read as added lately and Home has something to continue.
+// so its papers read as added lately and Home has something to continue, and what its person and their
+// Owlit did (EXAMPLE_PERSON, EXAMPLE_OWLIT in the shipped files) becomes the opener's.
 
 import { existsSync } from "node:fs"
-import { cp, readdir, readFile, stat, utimes, writeFile } from "node:fs/promises"
+import { cp, readdir, readFile, rename, stat, utimes, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 const NAME = "Owlit Example"
+// The authors the shipped example's records name, swapped for the opener's ids when it is copied
+const EXAMPLE_PERSON = "p_example"
+const EXAMPLE_OWLIT = "o_example"
 const HOUR = 3_600_000
-// A field named for a time (at, addedAt), or a map of times named so (a thread's changedAt, by item), holding
+// A field named for a time (at, addedAt), or a map of times named so, holding
 // epoch milliseconds between 2017 and 2049: a timestamp, not a count or a page number
 const timeKey = (key: string) => /(^at|At)$/.test(key)
 const isTime = (value: unknown): value is number => typeof value === "number" && value > 1.5e12 && value < 2.5e12
 
-// The folder for the example in parent, copied from source unless an earlier copy is there to open again
-export async function copyExample(source: string, parent: string, now = Date.now()) {
+// The folder for the example in parent, copied from source unless an earlier copy is there to open again;
+// profileId: the opener's (settings' profile.id)
+export async function copyExample(source: string, parent: string, profileId: string, now = Date.now()) {
   let folder = path.join(parent, NAME)
   for (let n = 2; existsSync(folder); n++) {
     if (existsSync(path.join(folder, ".owlit", "workspace.json"))) return folder
@@ -22,7 +27,20 @@ export async function copyExample(source: string, parent: string, now = Date.now
   }
   await cp(source, folder, { recursive: true, errorOnExist: true, force: false })
   await moveTimes(folder, now)
+  await signAs(folder, profileId)
   return folder
+}
+
+async function signAs(folder: string, profileId: string) {
+  for (const file of await walk(path.join(folder, ".owlit"))) {
+    if (!/\.jsonl?$/.test(file)) continue
+    const text = await readFile(file, "utf8")
+    const signed = text.replaceAll(`"${EXAMPLE_PERSON}"`, `"p_${profileId}"`).replaceAll(`"${EXAMPLE_OWLIT}"`, `"o_${profileId}"`)
+    if (signed !== text) await writeFile(file, signed)
+  }
+  // What the example's person has seen (its threads looked at) is the opener's
+  const seen = path.join(folder, ".owlit", "seen")
+  if (existsSync(path.join(seen, `${EXAMPLE_PERSON}.json`))) await rename(path.join(seen, `${EXAMPLE_PERSON}.json`), path.join(seen, `p_${profileId}.json`))
 }
 
 // Shifts every timestamp in owlit's own records, and every file's modified time, by one amount, so the

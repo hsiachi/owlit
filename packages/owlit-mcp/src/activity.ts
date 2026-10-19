@@ -1,4 +1,4 @@
-import type { ActivityAnswer, ActivityItem, ActivityLine, ActivityQuery, ReadTrace } from "@owlit/protocol"
+import { isPerson, type ActivityAnswer, type ActivityItem, type ActivityLine, type ActivityQuery, type ReadTrace } from "@owlit/protocol"
 
 // activity_read's answer as the agent reads it: one fact per line, times in the user's clock, papers by
 // title and id so they can be cited, nothing interpreted.
@@ -90,13 +90,13 @@ function itemLine(item: ActivityItem): string {
 }
 
 function logLine(line: ActivityLine): string {
-  const who = line.actor === "user" ? "the user" : "an agent"
+  const who = isPerson(line.actor) ? "the user" : "an agent"
   const what = line.paper ? `${line.what} "${line.paper.title}" (${line.paper.id})` : line.doc ? `${line.what} the doc ${line.doc}` : line.chat ? `${line.what} "${line.chat.title}" (${line.chat.id})` : line.what
   const parts = [`${clock(line.at)} · ${who} ${what}`]
   if (line.seconds) parts.push(`for ${duration(line.seconds)}`)
   if (line.pages?.length) parts.push(pageRanges(line.pages))
   if (line.detail) parts.push(`(${line.detail})`)
-  if (line.actor === "agent" && line.chat) parts.push(`in the chat "${line.chat.title}" (${line.chat.id})`)
+  if (!isPerson(line.actor) && line.chat) parts.push(`in the chat "${line.chat.title}" (${line.chat.id})`)
   if (line.times) parts.push(`(${line.times} times)`)
   return parts.join(" ")
 }

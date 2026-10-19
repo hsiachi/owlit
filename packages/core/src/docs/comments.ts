@@ -1,4 +1,4 @@
-import { asComment, type CommentAnchor, type DocComment } from "@owlit/protocol"
+import type { ActorId, ChangeAction, CommentAnchor, CommentInput, DocComment } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { mkdir, readdir, rename, rm } from "node:fs/promises"
 import path from "node:path"
@@ -7,27 +7,21 @@ import { readJsonl, writeFileAtomic } from "../fs-util.ts"
 // The comments on docs, kept beside the files and never in them: .owlit/docs/comments/ mirrors the
 // workspace, so the comments on "writing/Related work.md" are in
 // .owlit/docs/comments/writing/Related work.md.jsonl, one comment per line. A mirror (rather than hashed
-// names) can be read by hand, and a folder's comments move with one rename. An older workspace has agents'
-// notes in .owlit/docs/notes/, one text each; that folder is renamed on first use and its lines read as
-// Owlit's comments. The caller (Docs) runs every call one at a time, alongside the file changes they
-// follow.
+// names) can be read by hand, and a folder's comments move with one rename. The caller (Docs) runs every
+// call one at a time, alongside the file changes they follow.
 export class Comments {
   private readonly dir: string
-  private readonly legacyDir: string
   private readonly trashDir: string
   // Comments moved to the trash by a delete, by the path deleted: where its mirror went
   private trashed = new Map<string, string>()
-  private migrated = false
 
   constructor(owlitDir: string) {
     this.dir = path.join(owlitDir, "docs", "comments")
-    this.legacyDir = path.join(owlitDir, "docs", "notes")
     this.trashDir = path.join(owlitDir, "trash")
   }
 
   // Every doc's comments, by path
   async all(): Promise<Record<string, DocComment[]>> {
-    await this.migrate()
     const found: Record<string, DocComment[]> = {}
     const entries = await readdir(this.dir, { recursive: true, withFileTypes: true }).catch(() => [])
     for (const entry of entries) {
@@ -41,7 +35,6 @@ export class Comments {
   }
 
   async list(rel: string) {
-    await this.migrate()
     return this.read(this.fileOf(rel))
   }
 
@@ -77,7 +70,6 @@ export class Comments {
 
   // A file or folder was renamed or moved: its comments follow
   async move(from: string, to: string) {
-    await this.migrate()
     for (const [src, dest] of [
       [this.fileOf(from), this.fileOf(to)],
       [this.mirrorOf(from), this.mirrorOf(to)],
@@ -90,7 +82,6 @@ export class Comments {
 
   // A file or folder was deleted in owlit: its comments go to .owlit/trash/, where Undo finds them
   async trash(rel: string) {
-    await this.migrate()
     const holder = path.join(this.trashDir, `${Date.now()}-comments`)
     let moved = false
     for (const [src, dest] of [
@@ -117,13 +108,6 @@ export class Comments {
     }
   }
 
-  // The notes folder from before comments becomes the comments folder; its lines are converted as read
-  private async migrate() {
-    if (this.migrated) return
-    this.migrated = true
-    if (existsSync(this.legacyDir) && !existsSync(this.dir)) await rename(this.legacyDir, this.dir).catch(() => undefined)
-  }
-
   private fileOf(rel: string) {
     return path.join(this.dir, ...`${rel}.jsonl`.split("/"))
   }
@@ -132,9 +116,8 @@ export class Comments {
     return path.join(this.dir, ...rel.split("/"))
   }
 
-  private async read(file: string): Promise<DocComment[]> {
-    const lines = await readJsonl<Parameters<typeof asComment>[0]>(file, () => console.error(`[core] skipping a comment that isn't JSON in ${file}`))
-    return lines.map(asComment)
+  private read(file: string): Promise<DocComment[]> {
+    return readJsonl<DocComment>(file, () => console.error(`[core] skipping a comment that isn't JSON in ${file}`))
   }
 
   private async save(rel: string, comments: DocComment[]) {
@@ -142,4 +125,30 @@ export class Comments {
     if (comments.length) await writeFileAtomic(file, comments.map((c) => JSON.stringify(c)).join("\n") + "\n")
     else await rm(file, { force: true })
   }
+}
+
+// A client's comment with each entry's author set by core: an entry the comment had keeps its own, a new
+// one is by the caller
+export function signed(comment: CommentInput, before: DocComment | null, by: ActorId): DocComment {
+  return { ...comment, entries: comment.entries.map((e) => ({ ...e, by: before?.entries.find((b) => b.id === e.id)?.by ?? by })) }
+}
+
+// How a comment changed, as change log entries: made or removed whole (part: its id); each entry added,
+// edited or removed (part: <comment>/<entry>); and its own fields (resolved, dismissed, folded, its
+// anchor) as an update of the comment without its entries
+export function commentChanges(before: DocComment | null, after: DocComment | null): { action: ChangeAction; part: string; before?: unknown; after?: unknown }[] {
+  if (!before && !after) return []
+  if (!before) return [{ action: "create", part: after!.id, after }]
+  if (!after) return [{ action: "delete", part: before.id, before }]
+  const out: { action: ChangeAction; part: string; before?: unknown; after?: unknown }[] = []
+  const { entries: was, ...own } = before
+  const { entries: now, ...next } = after
+  if (JSON.stringify(own) !== JSON.stringify(next)) out.push({ action: "update", part: after.id, before: own, after: next })
+  for (const e of now) {
+    const old = was.find((w) => w.id === e.id)
+    if (!old) out.push({ action: "create", part: `${after.id}/${e.id}`, after: e })
+    else if (JSON.stringify(old) !== JSON.stringify(e)) out.push({ action: "update", part: `${after.id}/${e.id}`, before: old, after: e })
+  }
+  for (const e of was) if (!now.some((n) => n.id === e.id)) out.push({ action: "delete", part: `${after.id}/${e.id}`, before: e })
+  return out
 }

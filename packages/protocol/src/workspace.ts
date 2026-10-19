@@ -65,6 +65,8 @@ export interface AppSettings {
 
 // Who the user is, as far as owlit needs to know
 export interface ProfileSettings {
+  // 8 hex, minted on first read: the person is p_<id> in the change log and their Owlit o_<id>
+  id?: string
   // What Owlit calls the user: in the Chat greeting, and in what agents are told
   name?: string
 }
@@ -158,8 +160,9 @@ export function isHiddenFromDocs(relativePath: string) {
 export interface UiActions {
   // The doc's text in its editor; null: not open after all
   "fs.read": { params: { path: string }; result: { content: string | null } }
-  // The agent's write, applied in the doc's editor; false: not open after all
-  "fs.write": { params: { path: string; content: string; versionId: string }; result: { applied: boolean } }
+  // The agent's write, applied in the doc's editor; false: not open after all. undo: an undo of a change
+  // in the log, applied without the toast an agent's edit gets
+  "fs.write": { params: { path: string; content: string; changeId: string; undo?: boolean }; result: { applied: boolean } }
   // Shows a paper, doc, chat or thread (an owlit:// link). chatId (on open, jump and mark) is
   // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
   open: { params: { uri: string; chatId?: string }; result: { title: string } }

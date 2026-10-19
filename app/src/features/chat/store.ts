@@ -7,7 +7,7 @@ import { agentClient } from "./agent"
 import * as disk from "./disk"
 import { builtInConnectors } from "./mocks/connectors"
 import { seedChats } from "./mocks/chats"
-import { optionFor, pendingAsk, useSeenStore } from "./status"
+import { optionFor, pendingAsk } from "./status"
 import { useAskDraft } from "./ask-draft"
 import { useComposerDrafts } from "./composer-drafts"
 import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
@@ -101,7 +101,6 @@ export const useChatStore = create<ChatState>()(
 
       deleteChat(id) {
         get().cancel(id)
-        useSeenStore.getState().forget(id)
         useComposerDrafts.getState().drop(id)
         const removed = get().chats[id]
         if (removed) deleted.set(id, removed)
@@ -241,7 +240,6 @@ export const useChatStore = create<ChatState>()(
           if (now && savesMessages()) disk.patchMessageOnDisk(chatId, now, final)
         }
 
-        let ended: TurnEnd = "finished"
         try {
           // A chat made just now must reach core before core can run a turn in it
           if (disk.onDisk) await disk.settled()
@@ -250,11 +248,9 @@ export const useChatStore = create<ChatState>()(
             (u) => patchAssistant((m) => ({ ...m, parts: applyUpdate(m.parts, u) })),
             controller.signal,
           )
-          if (stop === "cancelled") ended = "cancelled"
           // Unless the agent has already taken the reply up again (lateReply), which has the reply as it is
           if (!late.has(chatId)) patchAssistant((m) => ({ ...m, status: stop === "cancelled" ? "cancelled" : "done", finishedAt: Date.now() }), true)
         } catch (e) {
-          ended = "failed"
           // Core may say more than its sentence: how the agent's process ended, for Details
           const detail = (e as { data?: { detail?: unknown } }).data?.detail
           patchAssistant(
@@ -279,7 +275,7 @@ export const useChatStore = create<ChatState>()(
           over.delete(chatId)
           // The agent took the reply up again before its turn was over here: it runs on as that
           if (late.has(chatId)) followLate(chatId)
-          else turnOver(chatId, ended)
+          else turnOver(chatId)
           endTurn()
         }
       },
@@ -342,12 +338,9 @@ function patchMessage(chatId: string, messageId: string, fn: (m: ChatMessage) =>
   )
 }
 
-type TurnEnd = "finished" | "failed" | "cancelled"
-
-// A turn is over and the chat stops working. Work handed off goes on without anyone watching, so how it
-// ended waits on its row until seen.
-function turnOver(chatId: string, how: TurnEnd) {
-  if (useChatStore.getState().chats[chatId]) useSeenStore.getState().ended(chatId, how)
+// A turn is over and the chat stops working. Work handed off goes on without anyone watching, so a reply
+// that finished waits on its row until seen (app/seen.ts hears it end).
+function turnOver(chatId: string) {
   useChatStore.setState((s) => {
     const { [chatId]: _done, ...rest } = s.streaming
     return { streaming: rest }
@@ -392,7 +385,7 @@ function lateReply(chatId: string, message: ChatMessage) {
   if (inflight.get(chatId) !== run.controller) return
   inflight.delete(chatId)
   over.delete(chatId)
-  turnOver(chatId, message.status === "cancelled" ? "cancelled" : message.status === "error" ? "failed" : "finished")
+  turnOver(chatId)
   run.end()
 }
 

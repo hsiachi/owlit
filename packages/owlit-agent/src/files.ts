@@ -1,6 +1,6 @@
 // The engine's own file tools. Every read and write goes through ACP's file methods, which owlit serves:
 // owlit decides which files an agent may touch, reads an open editor's text rather than the disk, and
-// keeps a version of every write so it can be undone. Nothing here touches the disk itself.
+// records every write so it can be undone. Nothing here touches the disk itself.
 //
 // What a role lets the engine do with them:
 //   Reviewer   reads only; the edit tools aren't offered

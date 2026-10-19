@@ -11,9 +11,10 @@ import { useSelectionMenu } from "@/components/selection-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
+import { markSeen } from "@/app/seen"
 import { digestSourceNotes } from "../../lib/digest-source"
 import { toast } from "sonner"
-import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useDigestMarks, useWritingDigest, waitForDigest } from "../../digests"
+import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useWritingDigest, waitForDigest } from "../../digests"
 import { useLibraryStore } from "../../store"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: a form of the paper that
@@ -52,7 +53,7 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
   useEffect(() => {
     if (!shown) return
     const hide = showingDigest(paper.id)
-    const timer = setTimeout(() => useDigestMarks.getState().markSeen(paper.id), SEEN_AFTER_MS)
+    const timer = setTimeout(() => markSeen({ kind: "digest", paper: paper.id }), SEEN_AFTER_MS)
     return () => {
       hide()
       clearTimeout(timer)
@@ -218,7 +219,8 @@ const END_SLACK_PX = 96
 // No digest yet: Owlit writes one when asked, and the ask is here, where the digest will be
 function Offer({ paper }: { paper: Paper }) {
   const ask = () => {
-    useDigestMarks.getState().markAsked(paper.id)
+    // Asked for, the digest that comes is news
+    markSeen({ kind: "digest", paper: paper.id })
     waitForDigest(paper.id)
     void rpc.library.requestDigest({ id: paper.id, rewrite: false }).catch(() => toast.error(t`Couldn't ask for a digest.`))
   }

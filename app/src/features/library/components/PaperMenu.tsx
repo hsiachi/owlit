@@ -5,7 +5,8 @@ import { MenuItems, type MenuGroups } from "@/components/action-menu"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { usePaperActions } from "../actions"
-import { useDigestMarks, waitForDigest } from "../digests"
+import { markSeen } from "@/app/seen"
+import { waitForDigest } from "../digests"
 import { STATUS_ORDER, statusLabel } from "../lib/status"
 import { useLibraryStore } from "../store"
 import type { Paper } from "@owlit/protocol"
@@ -49,7 +50,8 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
     copy.push({
       label: single.hasDigest ? t`Rewrite the digest` : t`Write a digest`,
       onSelect: () => {
-        useDigestMarks.getState().markAsked(single.id)
+        // Asked for, the digest that comes is news even on a paper never opened
+        markSeen({ kind: "digest", paper: single.id })
         waitForDigest(single.id)
         void rpc.library.requestDigest({ id: single.id, rewrite: single.hasDigest }).catch(() => toast.error(t`Couldn't ask for a digest.`))
       },

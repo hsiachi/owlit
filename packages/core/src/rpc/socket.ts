@@ -5,12 +5,14 @@ import { chmod, rm, writeFile } from "node:fs/promises"
 import net from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import type { Caller } from "./router.ts"
 
 // The open workspace's JSON-RPC for programs other than the window (owlit-mcp, the CLI): a Unix socket
 // in the user's temp folder, $TMPDIR/owlit-<hash>.sock (the app data path is too long for a socket
 // name), and beside it owlit-<hash>.json naming the socket and a token made fresh at each start. Both are
-// the user's alone (0600). A client's first message is auth with that token; then requests and answers
-// go one JSON object per line, and notifications follow once it subscribes.
+// the user's alone (0600). A client's first message is auth with that token, and the chat or run it works
+// for when it is owlit-mcp; then requests and answers go one JSON object per line, and notifications
+// follow once it subscribes.
 
 export interface SocketPointer {
   version: 1
@@ -29,15 +31,33 @@ export const socketPaths = (workspace: string, dir = tmpdir()) => {
 }
 
 interface Endpoint {
-  handle(request: RpcRequest): Promise<RpcResponse>
+  handle(request: RpcRequest, caller: Caller): Promise<RpcResponse>
   onNotify(listener: (notification: RpcNotification) => void): () => void
 }
 
 interface Connection {
   socket: net.Socket
-  authed: boolean
+  // Who calls on this connection, from its auth; null until then
+  caller: Extract<Caller, { kind: "socket" }> | null
   // Topics this client asked to hear; null: none yet; empty set: all
   topics: Set<string> | null
+}
+
+const text = (value: unknown) => (typeof value === "string" && value ? value : undefined)
+
+// owlit-mcp names the chat or run it works for once, at auth; the CLI names neither
+function callerOf(auth: { chatId?: unknown; run?: unknown }): Extract<Caller, { kind: "socket" }> {
+  const chatId = text(auth.chatId)
+  const run = text(auth.run)
+  return { kind: "socket", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+}
+
+// The tool call a request is for changes with each call (Claude Code names it per MCP request), so it
+// comes in the call's params (agent: for comments.add)
+function withToolCall(caller: Extract<Caller, { kind: "socket" }>, request: RpcRequest): Caller {
+  const params = (request.params ?? {}) as { toolCallId?: unknown; agent?: { toolCallId?: unknown } }
+  const toolCallId = text(params.toolCallId) ?? text(params.agent?.toolCallId)
+  return toolCallId ? { ...caller, toolCallId } : caller
 }
 
 export class SocketServer {
@@ -62,7 +82,7 @@ export class SocketServer {
     const token = randomBytes(24).toString("hex")
     const connections = new Set<Connection>()
     const server = net.createServer((socket) => {
-      const connection: Connection = { socket, authed: false, topics: null }
+      const connection: Connection = { socket, caller: null, topics: null }
       connections.add(connection)
       socket.setEncoding("utf8")
       let buffer = ""
@@ -90,14 +110,14 @@ export class SocketServer {
         return
       }
       const reply = (result: unknown) => write(connection, { jsonrpc: "2.0", id: request.id, result })
-      if (!connection.authed) {
-        const offered = (request.params as { token?: string } | undefined)?.token
-        if (request.method !== "auth" || offered !== token) {
+      if (!connection.caller) {
+        const auth = (request.params ?? {}) as { token?: unknown; chatId?: unknown; run?: unknown }
+        if (request.method !== "auth" || auth.token !== token) {
           write(connection, { jsonrpc: "2.0", id: request.id ?? null, error: { code: RpcErrorCode.InvalidRequest, message: "owlit didn't recognise this client." } })
           connection.socket.end()
           return
         }
-        connection.authed = true
+        connection.caller = callerOf(auth)
         reply({ ok: true, workspace })
         return
       }
@@ -107,11 +127,11 @@ export class SocketServer {
         reply(null)
         return
       }
-      write(connection, await endpoint.handle(request))
+      write(connection, await endpoint.handle(request, withToolCall(connection.caller, request)))
     }
     const unsubscribe = endpoint.onNotify((notification) => {
       for (const connection of connections) {
-        if (!connection.authed || !connection.topics) continue
+        if (!connection.caller || !connection.topics) continue
         if (connection.topics.size && !connection.topics.has(notification.method as NotificationName)) continue
         write(connection, notification)
       }

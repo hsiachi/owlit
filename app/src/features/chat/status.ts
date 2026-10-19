@@ -2,22 +2,23 @@ import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { markSeen } from "@/app/seen"
 import { countDown, countUp } from "@/lib/counts"
 import type { Chat, ChatMessage, PermissionOption } from "@owlit/protocol"
+import { useChatStore } from "./store"
 import type { Part, ToolCall } from "./types"
 
 // Where a chat stands, for its row in the list, its header and Home's "Waiting on you". Handed-off work
 // has no list of its own: the chat list is that list, so every chat says whether something is happening.
 export type ChatStatus = "idle" | "working" | "waiting" | "finished" | "failed"
 
-// A reply that finished while the user wasn't looking at its chat keeps a mark until they open it; one the
-// user stopped never gets one, since they did that themselves. A broken reply is not a notice but a state
-// of the chat, read from the chat itself: it stays until the reply is run again or the user dismisses it,
-// so opening the chat to read the error doesn't take the problem off the list, the rail and Home.
-type Unseen = "finished"
+// A reply that finished while the user wasn't looking at its chat keeps a mark until they open it (core
+// compares the chat with the last message they saw ended, app/seen.ts); one the user stopped never gets
+// one, since they did that themselves. A broken reply is not a notice but a state of the chat, read from
+// the chat itself: it stays until the reply is run again or the user dismisses it, so opening the chat to
+// read the error doesn't take the problem off the list, the rail and Home.
 
 interface SeenState {
-  unseen: Record<string, Unseen>
   // The broken reply the user chose to leave as it is, per chat (its message id)
   dismissed: Record<string, string>
   // Chats on screen now (the Chat page or the docked agent window), counted since both can show one
@@ -25,9 +26,7 @@ interface SeenState {
   // When each chat was last on screen, for this run of the app: the agent panel goes by it to tell a
   // chat the person has just left from one they left a while ago
   seenAt: Record<string, number>
-  ended: (chatId: string, how: "finished" | "failed" | "cancelled") => void
   look: (chatId: string) => () => void
-  forget: (chatId: string) => void
   dismiss: (chatId: string, messageId: string) => void
 }
 
@@ -36,55 +35,45 @@ const pageShown = () => typeof document === "undefined" || document.visibilitySt
 export const useSeenStore = create<SeenState>()(
   persist(
     (set) => ({
-      unseen: {},
       dismissed: {},
       viewing: {},
       seenAt: {},
-      ended: (chatId, how) => {
-        if (how !== "finished" || chatOnScreen(chatId)) return
-        set((s) => ({ unseen: { ...s.unseen, [chatId]: how } }))
-      },
       look: (chatId) => {
-        set((s) => {
-          const { [chatId]: _seen, ...unseen } = s.unseen
-          return { viewing: countUp(s.viewing, chatId), unseen }
-        })
+        set((s) => ({ viewing: countUp(s.viewing, chatId) }))
         return () => set((s) => ({ viewing: countDown(s.viewing, chatId), seenAt: { ...s.seenAt, [chatId]: Date.now() } }))
       },
-      forget: (chatId) =>
-        set((s) => {
-          const { [chatId]: _gone, ...unseen } = s.unseen
-          return { unseen }
-        }),
       dismiss: (chatId, messageId) => set((s) => ({ dismissed: { ...s.dismissed, [chatId]: messageId } })),
     }),
-    // What is unseen or dismissed outlives a reload; what is on screen is worked out again. Marks saved
-    // as "failed" by earlier builds are dropped, since a broken reply is now read from the chat.
-    {
-      name: "owlit.chat-seen",
-      partialize: (s) => ({ unseen: s.unseen, dismissed: s.dismissed }),
-      merge: (saved, current) => {
-        const { unseen = {}, dismissed = {} } = (saved ?? {}) as { unseen?: Record<string, string>; dismissed?: Record<string, string> }
-        const finished = Object.fromEntries(Object.entries(unseen).filter(([, how]) => how === "finished")) as Record<string, Unseen>
-        return { ...current, unseen: finished, dismissed }
-      },
-    },
+    // What is dismissed outlives a reload; what is on screen is worked out again
+    { name: "owlit.chat-seen", partialize: (s) => ({ dismissed: s.dismissed }) },
   ),
 )
 
 // Whether the chat is on screen now (the Chat page or the docked agent window, in a window not hidden away)
 export const chatOnScreen = (chatId: string | undefined) => !!chatId && !!useSeenStore.getState().viewing[chatId] && pageShown()
 
-// The chat is on screen while this is mounted; coming back to the app with it showing counts as seeing it
+// The last message of a chat the person can have seen as it ends: theirs, or a reply no longer streaming
+export function lastEnded(chat: Pick<Chat, "messages"> | undefined) {
+  return chat?.messages.findLast((m) => m.role === "user" || m.status !== "streaming")?.id
+}
+
+// The chat is on screen while this is mounted: each message it shows ended is seen, and coming back to the
+// app with it showing counts as seeing it
 export function useLookAt(chatId: string | null | undefined) {
   useEffect(() => {
     if (!chatId) return
     const stop = useSeenStore.getState().look(chatId)
-    const onShow = () => pageShown() && useSeenStore.getState().forget(chatId)
-    document.addEventListener("visibilitychange", onShow)
+    const see = () => {
+      const message = lastEnded(useChatStore.getState().chats[chatId])
+      if (message && pageShown()) markSeen({ kind: "chat", id: chatId, message })
+    }
+    see()
+    const off = useChatStore.subscribe((s, prev) => s.chats[chatId] !== prev.chats[chatId] && see())
+    document.addEventListener("visibilitychange", see)
     return () => {
       stop()
-      document.removeEventListener("visibilitychange", onShow)
+      off()
+      document.removeEventListener("visibilitychange", see)
     }
   }, [chatId])
 }
@@ -119,10 +108,10 @@ export function useBrokenReply(chat: Chat | undefined) {
   return { messageId: broken.id, dismiss: () => useSeenStore.getState().dismiss(chat.id, broken.id) }
 }
 
-export function chatStatus(chat: Chat, streaming: boolean, unseen: Unseen | undefined, dismissed: string | undefined): ChatStatus {
+export function chatStatus(chat: Chat, streaming: boolean, unseen: boolean, dismissed: string | undefined): ChatStatus {
   if (streaming) return pendingAsk(chat) ? "waiting" : "working"
   if (brokenReply(chat, dismissed)) return "failed"
-  return unseen ?? "idle"
+  return unseen ? "finished" : "idle"
 }
 
 // What a chat waits on the user for: a permission or a question while it runs, or a broken reply left as

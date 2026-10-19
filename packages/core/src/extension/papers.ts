@@ -71,7 +71,7 @@ export async function addPaper(library: Library, body: AddPaperBody): Promise<{ 
     if (looked) {
       const existing = looked.existingId ? await library.get(looked.existingId) : undefined
       if (existing) return { paper: existing, existed: true }
-      return library.addNew(looked.paper, "user")
+      return library.addNew(looked.paper)
     }
   }
   // Nothing answered (offline, an id the services don't know): the page's own words stand in, and the
@@ -80,7 +80,7 @@ export async function addPaper(library: Library, body: AddPaperBody): Promise<{ 
   if (!title) throw new HttpFailure(400, "bad-request", t`This page doesn't say which paper it is.`)
   const own = { ...ids, ...(body.url && !ids.doi && !ids.arxiv ? { url: body.url } : {}) }
   const id = paperIdOf(own) ?? localIdOf({ url: body.url, title })!
-  return library.addNew(clean({ id, title, authors: body.authors ?? [], ids: own, year: body.year, venue: body.venue?.trim() || undefined }), "user")
+  return library.addNew(clean({ id, title, authors: body.authors ?? [], ids: own, year: body.year, venue: body.venue?.trim() || undefined }))
 }
 
 // Whether a file starts as a PDF does

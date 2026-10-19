@@ -6,6 +6,7 @@ import { interfaceLocale, noteLanguageFor, noteLanguageOfLocale, type Appearance
 import type { MessageDescriptor } from "@lingui/core"
 import { msg } from "@lingui/core/macro"
 import { create } from "zustand"
+import { setProfileId, WEB_PROFILE_ID } from "@/lib/actors"
 import { applyLocale, i18n } from "@/lib/i18n"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
@@ -69,6 +70,7 @@ export const showSection = (section: SettingsSection) => useSettings.setState({ 
 
 function receive(view: SettingsView) {
   useSettings.setState({ view })
+  setProfileId(view.profile.id)
   applyAppearance(view.appearance)
   applyLocale(view.locale)
 }
@@ -79,7 +81,7 @@ export async function updateSettings(patch: SettingsPatch) {
     const view = useSettings.getState().view
     const appearance = { ...(view?.appearance ?? storedAppearance()), ...patch.appearance }
     const name = patch.profile?.name === undefined ? view?.profile.name : patch.profile.name || undefined
-    receive({ ...webView(appearance), profile: name ? { name } : {} })
+    receive({ ...webView(appearance), profile: { id: WEB_PROFILE_ID, ...(name ? { name } : {}) } })
     return
   }
   receive(await rpc.settings.update({ patch }))
@@ -97,7 +99,7 @@ export async function setActivity(enabled: boolean) {
 function webView(appearance = storedAppearance()): SettingsView {
   const locale = interfaceLocale(appearance.language, navigator.languages)
   const digestLanguageSystem = appearance.language === "system" ? noteLanguageFor(navigator.languages) : noteLanguageOfLocale(locale)
-  return { appearance, locale, profile: {}, library: { digestLanguageSystem }, parsing: { auto: true }, secrets: {}, activity: { enabled: true }, onboarded: true }
+  return { appearance, locale, profile: { id: WEB_PROFILE_ID }, library: { digestLanguageSystem }, parsing: { auto: true }, secrets: {}, activity: { enabled: true }, onboarded: true }
 }
 
 export function startSettings() {

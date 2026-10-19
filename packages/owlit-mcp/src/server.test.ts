@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { Core } from "@owlit/core"
-import type { PdfTry, UiRequest } from "@owlit/protocol"
+import type { Notifications, PdfTry, UiRequest } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -71,13 +71,13 @@ describe("owlit-mcp", () => {
 describe("pdfFact", () => {
   // With a browser extension allowed, as most of these are read
   const fact = (p: Parameters<typeof pdfFact>[0]) => pdfFact(p, true)
-  const noPdf = (ended: PdfTry["ended"], by: PdfTry["by"] = "owlit") => ({ pdfState: { state: "no-pdf" as const, tried: [{ by, ended, at: 1 }], reason: { by, ended, at: 1 } } })
+  const noPdf = (ended: PdfTry["ended"], by: PdfTry["by"] = "search") => ({ pdfState: { state: "no-pdf" as const, tried: [{ by, ended, at: 1 }], reason: { by, ended, at: 1 } } })
 
   it("says nothing of a paper with its PDF, and that owlit is at it while it is finding", () => {
     expect(fact({ pdf: { url: "owlit-pdf://doi-10.1145-1" } })).toBe("")
     expect(fact({})).toBe("no PDF yet (owlit is looking)")
     expect(fact({ pdfState: { state: "finding", tried: [] } })).toBe("no PDF yet (owlit is looking)")
-    expect(fact({ pdfState: { state: "finding", tried: [{ by: "owlit", ended: "offline", at: 1 }], reason: { by: "owlit", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
+    expect(fact({ pdfState: { state: "finding", tried: [{ by: "search", ended: "offline", at: 1 }], reason: { by: "search", ended: "offline", at: 1 } } })).toBe("no PDF yet (waiting for the network)")
   })
 
   it("says what the extension in the user's browser waits for, and that one step covers every such paper", () => {
@@ -99,8 +99,8 @@ describe("pdfFact", () => {
 
   it("says why for each way a try can end, and what the user can do", () => {
     expect(fact(noPdf("no-copy"))).toMatch(/found no copy.*drop the PDF on the paper/)
-    expect(fact(noPdf("no-access", "you"))).toMatch(/offered access instead.*drop the PDF/)
-    expect(fact(noPdf("not-offered", "you"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
+    expect(fact(noPdf("no-access", "person"))).toMatch(/offered access instead.*drop the PDF/)
+    expect(fact(noPdf("not-offered", "person"))).toMatch(/library proxy doesn't offer this paper.*drop the PDF/)
     expect(fact(noPdf("not-there"))).toMatch(/no PDF at the paper's address.*drop the PDF/)
     expect(fact(noPdf("check"))).toMatch(/stopped owlit's own look with a check.*drop the PDF/)
     expect(fact(noPdf("sign-in"))).toMatch(/wanted a sign-in.*drop the PDF/)
@@ -149,7 +149,7 @@ describe("owlit-mcp", () => {
     expect(searches).toMatchObject([{ query: "historical newspapers question answering", source: "openalex", by: "chat:chat-1", results: ["doi-10.1145-3626772.3657891"] }])
     // What a search just found is added without asking the services again
     expect((await tool("library_add", { refs: ["doi-10.1145-3626772.3657891"] })).text).toMatch(/^Added doi-10\.1145-3626772\.3657891/)
-    expect((await call("library.list")).papers[0]).toMatchObject({ addedBy: "agent" })
+    expect((await call("library.list")).papers[0]).toMatchObject({ addedBy: expect.stringMatching(/^o_/) })
     routes["api.openalex.org/works/doi:10.1145"] = openalex
     expect((await tool("library_add", { refs: ["10.1145/3626772.3657891"] })).text).toMatch(/^Already in the library as doi-10\.1145-3626772\.3657891/)
     // and a search marks it as the library's, saying it has no PDF yet
@@ -289,7 +289,7 @@ describe("owlit-mcp", () => {
     expect(result.isError).toBe(false)
     expect(readFileSync(path.join(root, "Related work.md"), "utf8")).toBe(doc)
     const comments = await call("comments.all")
-    expect(comments["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", entries: [{ text: "Cite Vaswani 2017 here.", by: "owlit", chatId: "chat-1" }] }])
+    expect(comments["Related work.md"]).toMatchObject([{ quote: "attention\nis all you need", entries: [{ text: "Cite Vaswani 2017 here.", by: expect.stringMatching(/^o_/), chatId: "chat-1" }] }])
     // Windows hear of it, so the comment shows up in an open doc
     expect(told).toMatchObject([{ path: "Related work.md", comment: { entries: [{ text: "Cite Vaswani 2017 here." }] } }])
     expect((await tool("docs_add_comment", { path: "Related work.md", quote: "not in the doc", comment: "x" })).text).toMatch(/isn't in Related work\.md word for word/)
@@ -331,9 +331,9 @@ describe("owlit-mcp", () => {
 
   it("gathers papers into a thread, keeps what the user did, and adds to it later", async () => {
     const { root, core, call, tool } = await setup()
-    const changed: { kind: string; label: string; rows?: string[] }[] = []
+    const changed: Notifications["changes.added"][] = []
     core.onNotify((n) => {
-      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
     })
     expect((await tool("thread_list")).text).toBe("There are no threads yet.")
     await call("library.add", { paper: { id: "arxiv-2005.11401", title: "Retrieval-Augmented Generation", authors: ["Patrick Lewis"], ids: { arxiv: "2005.11401" }, year: 2020 } })
@@ -347,7 +347,7 @@ describe("owlit-mcp", () => {
     const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, note: "Semantic Scholar was not reachable." })
     const id = /owlit:\/\/threads\/([\w-]+)/.exec(wrote.text)![1]!
     expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/threads\/t-[0-9a-f]{6}\): added 1\./)
-    expect(changed).toMatchObject([{ kind: "thread", label: "检索粒度", created: true, rows: ["arxiv-2005.11401"] }])
+    expect(changed).toMatchObject([{ change: { action: "create", target: { kind: "thread" } }, label: "检索粒度", thread: { rows: ["arxiv-2005.11401"] } }])
     const c = await call("threads.get", { id })
     expect(c.rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
 
@@ -378,51 +378,60 @@ describe("owlit-mcp", () => {
     expect((await tool("thread_list")).text.split("\n")).toHaveLength(1)
   })
 
+  it("names the tool call Claude Code says a request is for in the change it makes", async () => {
+    const { root, call, mcp } = await setup()
+    writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
+    await mcp.callTool({ name: "docs_add_comment", arguments: { path: "Draft.md", quote: "all you need", comment: "Cite it." }, _meta: { "claudecode/toolUseId": "toolu_1" } })
+    const [change] = await call("changes.list", { target: { kind: "comment" } })
+    expect(change).toMatchObject({ actor: expect.stringMatching(/^o_/), origin: { via: "tool", chatId: "chat-1", toolCallId: "toolu_1", writeId: "toolu_1" } })
+  })
+
   it("lets the user undo an agent's comment and paper, and undo the undo", async () => {
     const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
     const { root, core, call, tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })
-    const changed: { kind: string; versionId: string; label: string; chatId?: string }[] = []
+    const changed: Notifications["changes.added"][] = []
     const removed: unknown[] = []
     core.onNotify((n) => {
-      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
       if (n.method === "comments.removed") removed.push(n.params)
     })
     writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
     await tool("docs_add_comment", { path: "Draft.md", quote: "all you need", comment: "Cite it." })
     await tool("library_add", { refs: ["10.1145/3626772.3657891"] })
+    // Owlit's, by the chat the tools were started for
     expect(changed).toMatchObject([
-      { kind: "note", label: "Draft", chatId: "chat-1" },
-      { kind: "paper", label: expect.stringMatching(/^ChroniclingAmericaQA/), chatId: "chat-1" },
+      { change: { actor: expect.stringMatching(/^o_/), action: "create", target: { kind: "comment", path: "Draft.md" }, origin: { via: "tool", chatId: "chat-1" } }, label: "Draft" },
+      { change: { actor: expect.stringMatching(/^o_/), action: "create", target: { kind: "paper" }, origin: { chatId: "chat-1" } }, label: expect.stringMatching(/^ChroniclingAmericaQA/) },
     ])
 
-    const note = await call("versions.restore", { id: changed[0].versionId })
+    const note = await call("changes.undo", { id: changed[0].change.id })
     expect((await call("comments.all"))["Draft.md"]).toBeUndefined()
     expect(removed).toMatchObject([{ path: "Draft.md" }])
-    await call("versions.restore", { id: note.redoId })
+    await call("changes.undo", { id: note.change.id })
     expect((await call("comments.all"))["Draft.md"]).toMatchObject([{ entries: [{ text: "Cite it." }] }])
 
-    const paper = await call("versions.restore", { id: changed[1].versionId })
+    const paper = await call("changes.undo", { id: changed[1].change.id })
     expect((await call("library.list")).papers).toEqual([])
-    await call("versions.restore", { id: paper.redoId })
-    expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: "agent" }])
+    await call("changes.undo", { id: paper.change.id })
+    expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: expect.stringMatching(/^o_/) }])
   })
 
   it("keeps a line in Owlit's memory for the chat, which Undo takes back", async () => {
     const { root, core, call, tool } = await setup()
-    const changed: { kind: string; op?: string; versionId: string; label: string; memory?: string; chatId?: string }[] = []
+    const changed: Notifications["changes.added"][] = []
     core.onNotify((n) => {
-      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
     })
     expect((await tool("memory_write", { op: "add", kind: "work", text: "Cite as (Author, Year)." })).text).toMatch(/^Kept as m1: "Cite as \(Author, Year\)\."/)
     expect((await tool("memory_write", { op: "replace", id: "m1", text: "Cite in APA 7." })).text).toMatch(/^Replaced m1: "Cite in APA 7\.".*replaces "Cite as/)
     expect((await tool("memory_write", { op: "remove", id: "m7" })).text).toMatch(/no line m7/)
     expect((await tool("memory_write", { op: "add", text: "No kind" })).text).toMatch(/needs kind/)
     expect(changed).toMatchObject([
-      { kind: "memory", label: "Cite as (Author, Year).", memory: "work", chatId: "chat-1" },
-      { kind: "memory", op: "updated", label: "Cite in APA 7.", chatId: "chat-1" },
+      { change: { action: "create", target: { kind: "memory", part: "m1" }, after: { kind: "work" }, origin: { chatId: "chat-1" } }, label: "Cite as (Author, Year)." },
+      { change: { action: "update", target: { kind: "memory", part: "m1" }, origin: { chatId: "chat-1" } }, label: "Cite in APA 7." },
     ])
     expect(readFileSync(path.join(root, ".owlit/memory.md"), "utf8")).toContain("- Cite in APA 7. <!-- m1 ·")
-    await call("versions.restore", { id: changed[1].versionId })
+    await call("changes.undo", { id: changed[1].change.id })
     expect((await call("memory.list")).lines).toMatchObject([{ id: "m1", text: "Cite as (Author, Year)." }])
   })
 

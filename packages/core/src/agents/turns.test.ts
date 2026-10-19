@@ -388,14 +388,14 @@ describe("turns", () => {
     const { send, root, core, call } = await setup()
     await call("docs.list")
     const wrote: any[] = []
-    core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
     await send("direct notes.md rewritten by the agent")
-    await until(() => wrote.length, { what: "agent.wrote" })
+    await until(() => wrote.length, { what: "the change" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("rewritten by the agent")
     expect(wrote).toHaveLength(1)
-    expect(wrote[0]).toMatchObject({ path: "notes.md", chatId: "c1" })
-    expect(readFileSync(path.join(root, ".owlit/versions", wrote[0].versionId), "utf8")).toBe("twelve chars")
-    await call("versions.restore", { id: wrote[0].versionId })
+    expect(wrote[0]).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "watcher", chatId: "c1", toolCallId: "e1" } })
+    expect(readFileSync(path.join(root, ".owlit/versions", wrote[0].id), "utf8")).toBe("twelve chars")
+    await call("changes.undo", { id: wrote[0].id })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
   })
 
@@ -403,27 +403,46 @@ describe("turns", () => {
     const { send, core, call } = await setup()
     await call("docs.list")
     const wrote: any[] = []
-    core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
     await send("direct notes.md first")
-    await until(() => wrote.length >= 1, { what: "the first agent.wrote" })
+    await until(() => wrote.length >= 1, { what: "the first change" })
     await send("direct notes.md second")
-    await until(() => wrote.length >= 2, { what: "the second agent.wrote" })
+    await until(() => wrote.length >= 2, { what: "the second change" })
     const [, first, , second] = (await call("chats.get", { id: "c1" })).messages
     expect(first.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(second.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(wrote).toHaveLength(2)
   })
 
-  it("keeps a Co-author's change that no tool call names, and nobody else's", async () => {
+  it("records a change no tool call names as outside owlit, with the Co-author turn it came during as the only hint", async () => {
     const { send, core, call } = await setup()
     await call("docs.list")
     const wrote: any[] = []
-    core.onNotify((n) => n.method === "agent.wrote" && wrote.push(n.params))
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
     await send("silent notes.md by an assistant's shell", { role: "assistant" })
-    // The co-author's change is the sentinel: once it is heard, one kept for the assistant's would have been too
+    await until(() => wrote.length, { what: "the assistant's change" })
     await send("silent notes.md by a co-author's shell", { role: "coauthor" })
-    await until(() => wrote.length, { what: "agent.wrote for the co-author's change" })
-    expect(wrote).toMatchObject([{ path: "notes.md", chatId: "c1" }])
+    await until(() => wrote.length >= 2, { what: "the co-author's change" })
+    expect(wrote[0]).toMatchObject({ actor: "other", target: { path: "notes.md" }, origin: { via: "watcher" } })
+    expect(wrote[0].origin.chatId).toBeUndefined()
+    // Never Owlit's: nothing says it wrote that, only that it was at work then
+    expect(wrote[1]).toMatchObject({ actor: "other", origin: { via: "watcher", chatId: "c1" } })
+    expect(wrote[1].origin.toolCallId).toBeUndefined()
+  })
+
+  it("signs a change the user allowed (Apply) as Owlit's, taken by them, with its tool call", async () => {
+    const { send, core, call, updates, root } = await setup()
+    await call("docs.list")
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
+    const turn = send("rewrite notes.md thirteen chars")
+    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
+    const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
+    await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "yes" })
+    await turn
+    await until(() => wrote.length, { what: "the applied change" })
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("thirteen chars")
+    expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
   })
 
   it("writes files for the agent and tells clients", async () => {

@@ -5,7 +5,7 @@ export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim()
 // A thread: papers Owlit gathered for a question, what each says about it (one cell per column), the
 // groups Owlit put them in, and a short memo of its reading. Owlit's own record, in
 // .owlit/threads/<id>/thread.json. Owlit writes it without asking; what the user did to it
-// (renamed it, rewrote a sentence or a cell, removed a row) is kept in `yours` and wins over every later
+// (renamed it, rewrote a sentence or a cell, removed a row) is kept in `overrides` and wins over every later
 // write. A thread with only the question's own column reads as a short list; adding a column makes it
 // a table.
 
@@ -49,7 +49,7 @@ export interface ThreadRow {
   paper: ThreadPaper
   // By column id
   cells: Record<string, ThreadCell>
-  // The groups Owlit put it in, by grouping column (group ids). The user's changes are in yours.placed.
+  // The groups Owlit put it in, by grouping column (group ids). The user's changes are in overrides.placed.
   in?: Record<string, string[]>
   // How it was found ("search: replay rating validity", "cited by doi-…")
   foundBy?: string
@@ -101,7 +101,7 @@ export interface ThreadAsked {
 
 // What the user did. Items are named by itemId(): "title", "memo:<id>", "cell:<paper>:<column>",
 // "row:<paper>", "group:<column>:<id>".
-export interface ThreadYours {
+export interface ThreadOverrides {
   // Rewritten by the user: shown instead of Owlit's text, kept through every later write
   edits: Record<string, { text: string; at: number; was: string }>
   // Removed by the user: never shown, and never brought back by a later write. A group removed is one
@@ -140,11 +140,7 @@ export interface Thread {
   size?: ThreadSize
   createdAt: number
   updatedAt: number
-  // When Owlit last changed each item, and when the user last looked: an item changed after seenAt
-  // carries Owlit's dot
-  changedAt: Record<string, number>
-  seenAt: number
-  yours: ThreadYours
+  overrides: ThreadOverrides
   // Kept separate from another thread: the rows as they were there (groups, every column) and the
   // question taken with them, so Undo can put them back
   splitFrom?: {
@@ -174,7 +170,7 @@ export const itemId = {
   group: (column: string, id: string) => `group:${column}:${id}`,
 }
 
-// One paper in one group of a grouping, as yours.placed keys it (paper ids have no colon)
+// One paper in one group of a grouping, as overrides.placed keys it (paper ids have no colon)
 export const placedKey = (column: string, paper: string, group: string) => `${column}:${paper}:${group}`
 
 export const groupingsOf = (c: Pick<Thread, "columns">) => c.columns.filter((col) => col.kind === "grouping")
@@ -184,8 +180,8 @@ export const groupingsOf = (c: Pick<Thread, "columns">) => c.columns.filter((col
 // sits under a top-level group whatever was merged where, so there are two levels at most; and a paper is
 // in what Owlit put it in, then what the user put it in or took it out of, latest last. A paper in a
 // subgroup is in its parent too, so it isn't also put in the parent itself.
-export function groupingView(c: Pick<Thread, "yours">, col: ThreadColumn) {
-  const { edits, removed, placed, merged } = c.yours
+export function groupingView(c: Pick<Thread, "overrides">, col: ThreadColumn) {
+  const { edits, removed, placed, merged } = c.overrides
   const defs = new Map((col.groups ?? []).map((g) => [g.id, g]))
   // Where a group's papers are now: itself, or where they went; undefined for nowhere
   const target = (id: string | undefined): string | undefined => {
@@ -259,7 +255,7 @@ export function groupingView(c: Pick<Thread, "yours">, col: ThreadColumn) {
 // The thread as the user sees it: their rewrites in place of Owlit's text, what they removed gone, and
 // each grouping as they left it (its groups in the column, each paper's in its row's `in`)
 export function shownThread(c: Thread): Thread {
-  const { edits, removed } = c.yours
+  const { edits, removed } = c.overrides
   const text = (id: string, owlit: string) => edits[id]?.text ?? owlit
   const views = groupingsOf(c).map((col) => ({ col, view: groupingView(c, col) }))
   return {
@@ -292,8 +288,6 @@ export interface ThreadSummary {
   columns: number
   createdAt: number
   updatedAt: number
-  // Owlit changed something since the user last looked, or they haven't looked at it yet
-  fresh: boolean
   watch: boolean
 }
 
@@ -307,7 +301,6 @@ export function summarize(c: Thread): ThreadSummary {
     columns: c.columns.filter((col) => col.id !== QUESTION_COLUMN && !col.hidden).length,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
-    fresh: c.seenAt === 0 || Object.values(c.changedAt).some((at) => at > c.seenAt),
     watch: c.watch,
   }
 }
@@ -345,6 +338,8 @@ export interface ThreadWrite {
   chatId?: string
   // The background run writing, as "<kind>:<task id>": its searches and writes are one batch
   run?: string
+  // The agent's tool call making this write, when its engine names it
+  toolCallId?: string
   docPath?: string
 }
 
@@ -412,8 +407,7 @@ export type ThreadEdit =
   // A column out of sight, or back
   | { op: "hide"; column: string; hidden: boolean }
   | { op: "project"; project: string }
-  | { op: "seen" }
-  // What the table is grouped by, remembered for the thread (yours.view)
+  // What the table is grouped by, remembered for the thread (overrides.view)
   | { op: "view"; groupBy: string }
 
 // Owlit's own text for an item, before the user's rewrite
@@ -444,23 +438,23 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       if (owlit === undefined) return { problem: "gone" }
       const text = (edit.op === "rename" ? edit.title : edit.text).trim()
       if (!text) return { problem: "empty" }
-      if (sameWords(text, owlit)) delete c.yours.edits[item]
-      else c.yours.edits[item] = { text, at: now, was: owlit }
+      if (sameWords(text, owlit)) delete c.overrides.edits[item]
+      else c.overrides.edits[item] = { text, at: now, was: owlit }
       return { items: [item] }
     }
     case "revert":
-      delete c.yours.edits[edit.item]
+      delete c.overrides.edits[edit.item]
       return { items: [edit.item] }
     case "remove": {
       const text = removedText(c, edit.item)
       if (text === undefined) return { problem: "gone" }
-      c.yours.removed[edit.item] = { text, at: now }
+      c.overrides.removed[edit.item] = { text, at: now }
       return { items: [edit.item] }
     }
     case "unremove":
-      delete c.yours.removed[edit.item]
+      delete c.overrides.removed[edit.item]
       return { items: [edit.item] }
-    // Groups change in yours, never in Owlit's grouping, so a later write of Owlit's can't undo them
+    // Groups change in overrides, never in Owlit's grouping, so a later write of Owlit's can't undo them
     case "place":
     case "move": {
       const row = c.rows.find((r) => r.id === edit.row)
@@ -469,7 +463,7 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       if (!col) return { problem: "group" }
       const view = groupingView(c, col)
       if (edit.group && !view.groups.some((g) => g.id === edit.group)) return { problem: "group" }
-      const put = (group: string, into: boolean) => (c.yours.placed[placedKey(col.id, row.id, group)] = { in: into, at: now })
+      const put = (group: string, into: boolean) => (c.overrides.placed[placedKey(col.id, row.id, group)] = { in: into, at: now })
       if (edit.op === "place") put(edit.group, edit.in)
       else {
         const out = edit.from === undefined ? view.of(row) : edit.from ? [edit.from] : []
@@ -481,12 +475,12 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
     case "unplace":
       for (const [group, p] of Object.entries(edit.placed)) {
         const key = placedKey(edit.column, edit.row, group)
-        if (p) c.yours.placed[key] = p
-        else delete c.yours.placed[key]
+        if (p) c.overrides.placed[key] = p
+        else delete c.overrides.placed[key]
       }
       return { items: [itemId.row(edit.row)] }
     case "unmerge":
-      delete c.yours.merged[`${edit.column}:${edit.group}`]
+      delete c.overrides.merged[`${edit.column}:${edit.group}`]
       return { items: [itemId.group(edit.column, edit.group)] }
     case "ungroup":
     case "merge": {
@@ -494,8 +488,8 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       const groups = col ? groupingView(c, col).groups : []
       const group = groups.find((g) => g.id === edit.group)
       if (!col || !group || (edit.op === "merge" && (edit.into === group.id || !groups.some((g) => g.id === edit.into)))) return { problem: "group" }
-      if (edit.op === "merge") c.yours.merged[`${col.id}:${group.id}`] = edit.into
-      else c.yours.removed[itemId.group(col.id, group.id)] = { text: group.name, at: now }
+      if (edit.op === "merge") c.overrides.merged[`${col.id}:${group.id}`] = edit.into
+      else c.overrides.removed[itemId.group(col.id, group.id)] = { text: group.name, at: now }
       return { items: [itemId.group(col.id, group.id)] }
     }
     case "watch":
@@ -511,21 +505,17 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       c.project = edit.project
       return { items: [] }
     case "view":
-      c.yours.view = { ...c.yours.view, groupBy: edit.groupBy }
-      return { items: [] }
-    case "seen":
-      // Covers every change so far, even one dated a moment ahead so that it got its dot
-      c.seenAt = Math.max(now, ...Object.values(c.changedAt))
+      c.overrides.view = { ...c.overrides.view, groupBy: edit.groupBy }
       return { items: [] }
   }
 }
 
 // A thread as version 1 kept it: one grouping in `groups`, each row's group on the row
-type ThreadV1 = Omit<Thread, "version" | "rows" | "yours" | "splitFrom"> & {
+type ThreadV1 = Omit<Thread, "version" | "rows" | "overrides" | "splitFrom"> & {
   version: 1
   groups: ThreadGroup[]
   rows: (Omit<ThreadRow, "in"> & { group?: string })[]
-  yours: Pick<ThreadYours, "edits" | "removed">
+  overrides: Pick<ThreadOverrides, "edits" | "removed">
   splitFrom?: { id: string; rows: (Omit<ThreadRow, "in"> & { group?: string })[]; asked?: ThreadAsked }
 }
 
@@ -551,8 +541,7 @@ export function upgradeThread(c: Thread | ThreadV1): Thread {
     version: 2,
     columns: col ? [...c.columns, { id: col, question: "Topic", kind: "grouping", hidden: true, groups }] : c.columns,
     rows: c.rows.map((r) => row(r, col)),
-    changedAt: rekey(c.changedAt),
-    yours: { edits: rekey(c.yours.edits), removed: rekey(c.yours.removed), placed: {}, merged: {} },
+    overrides: { edits: rekey(c.overrides.edits), removed: rekey(c.overrides.removed), placed: {}, merged: {} },
     ...(c.splitFrom ? { splitFrom: { ...c.splitFrom, rows: c.splitFrom.rows.map((r) => row(r, GROUPING_COLUMN)) } } : {}),
   }
 }

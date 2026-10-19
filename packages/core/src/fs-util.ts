@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto"
+import { createHash, randomBytes } from "node:crypto"
 import { statSync } from "node:fs"
 import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -12,6 +12,8 @@ export async function writeFileAtomic(file: string, data: string | Uint8Array, {
   await writeFile(tmp, data)
   await rename(tmp, file)
 }
+
+export const sha1 = (text: string) => createHash("sha1").update(text).digest("hex")
 
 export const writeJsonAtomic = (file: string, value: unknown, options?: { parents?: boolean }) =>
   writeFileAtomic(file, JSON.stringify(value, null, 2) + "\n", options)

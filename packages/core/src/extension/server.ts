@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OwlitIdentity, type PairAnswer, type PairStarted, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -37,8 +37,8 @@ export interface ExtensionHost {
   // This owlit's name as the menu bar says it: Owlit, or Owlit Dev (branch)
   name: string
   settings: SettingsStore
-  // The open workspace's name and library
-  workspace: () => { name: string; library: Library } | null
+  // The open workspace's name and library, and how a paper the person added from the browser is recorded
+  workspace: () => { name: string; library: Library; added: (paper: Paper) => Promise<unknown> } | null
   // An owlit window is open to ask the user in
   hasWindow: () => boolean
   changed: (view: ExtensionView) => void
@@ -355,6 +355,7 @@ export class ExtensionServer {
           const body = addBody.safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           const { paper, existed } = await addPaper(this.library(), body.data)
+          if (!existed) await this.host.workspace()?.added(paper)
           return { status: existed ? 200 : 201, body: { paper: shown(paper) } satisfies PaperAnswer }
         },
       },

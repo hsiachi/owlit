@@ -1,21 +1,23 @@
 import { plural, t } from "@lingui/core/macro"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { create } from "zustand"
-import { useShallow } from "zustand/react/shallow"
-import { type ChatMessage, editStats, type EditStats, type ReadFrom } from "@owlit/protocol"
+import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, shownThread, type ThreadAsked } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
-import { openEditor } from "@/features/docs/editors"
-import { fileAt, filesByPath, useDocsStore } from "@/features/docs/store"
+import { fileAt } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { manageMemory } from "@/features/settings/memory"
-import { redoResult, undoResult, useResultsStore, type AgentResult } from "../../results"
+import { useThreadsStore } from "@/features/threads/store"
+import { labelOf, undoEntry, useChatChanges } from "../../results"
 import { countParts } from "../../lib/edit-counts"
+import { replyEntries, undoneBy } from "../../lib/reply-changes"
+import { useChatStore } from "../../store"
+import { toastLeft } from "@/lib/changes"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { capital, joinActions } from "@/lib/words"
@@ -54,7 +56,7 @@ export interface ResultRow {
 
 const FOLD_AFTER = 3
 
-// What the reply's edits to a file amounted to. Core reads it from the versions it kept, which is the whole
+// What the reply's edits to a file amounted to. Core reads it from its change log, which is the whole
 // change whatever the agent reported; without core (the browser preview) the reply's own diffs are summed.
 const statsCache = create<{ byKey: Record<string, EditStats | null>; load: (from: string, to: string) => void }>()((set, get) => ({
   byKey: {},
@@ -62,8 +64,8 @@ const statsCache = create<{ byKey: Record<string, EditStats | null>; load: (from
     const key = `${from}|${to}`
     if (key in get().byKey) return
     set((s) => ({ byKey: { ...s.byKey, [key]: null } }))
-    void rpc.versions
-      .stats({ from, to })
+    void rpc.changes
+      .stats({ ids: [from, to] })
       .then((stats) => set((s) => ({ byKey: { ...s.byKey, [key]: stats } })))
       .catch(() => undefined)
   },
@@ -93,88 +95,36 @@ function EditCounts({ stats }: { stats: EditStats }) {
   )
 }
 
-// A doc's text as the reply left it, kept when the card undoes the reply's edits there (by message and
-// path). The row follows the doc: once it reads that way again, by Redo or by ⌘Z in the doc, the edit is
-// live again, whichever brought it back. `left` waits for the doc to move off that text first, since the
-// undo reaches the doc after its row is marked. Kept for this launch only; Redo itself doesn't need it.
-const appliedText = new Map<string, { text: string; left: boolean }>()
-const appliedKey = (messageId: string, path: string) => `${messageId}|${path}`
-
-function rememberApplied(messageId: string, path: string) {
-  const file = fileAt(path)
-  const text = file ? (openEditor(file.id)?.state.doc.toString() ?? file.content) : undefined
-  if (text !== undefined) appliedText.set(appliedKey(messageId, path), { text, left: false })
-}
-
-// Takes a row's changes back, newest first, so each restore finds the file as the next one left it
-async function undoResults(messageId: string, results: AgentResult[]) {
-  const done: Record<string, string | undefined> = {}
-  if (results[0]?.kind === "file") rememberApplied(messageId, results[0].path)
+// Takes entries back one at a time, in the order given (newest first, so each finds things as the next
+// one left them). A doc's passages edited since stay as they are, and a toast names them.
+async function undoAll(list: Change[], name: string) {
+  const left: string[] = []
   try {
-    for (const r of [...results].reverse()) {
-      if (r.undone) continue
-      done[r.versionId] = await undoResult(r.versionId)
-    }
+    for (const c of list) left.push(...((await undoEntry(c)) ?? []))
   } catch (error) {
     toastError(error)
-  } finally {
-    if (Object.keys(done).length) useResultsStore.getState().markUndone(messageId, done)
   }
+  if (left.length) toastLeft(name, left)
 }
 
-// Puts a row's changes back, oldest first: the reverse of the undo, so each finds the file as it left it
-async function redoResults(messageId: string, results: AgentResult[]) {
-  const done: string[] = []
-  try {
-    for (const r of results) {
-      if (!r.undone || !r.redoId) continue
-      await redoResult(r.redoId)
-      done.push(r.versionId)
-    }
-  } catch (error) {
-    toastError(error)
-  } finally {
-    if (done.length) {
-      appliedText.delete(appliedKey(messageId, results[0].path))
-      useResultsStore.getState().markRedone(messageId, done)
-    }
-  }
-}
+const EMPTY_MESSAGES: ChatMessage[] = []
 
-// Undone doc edits whose doc reads as the reply left it again come back as live rows
-function useFollowDocs(messageId: string, results: AgentResult[]) {
-  const paths = [...new Set(results.filter((r) => r.kind === "file" && r.undone && appliedText.has(appliedKey(messageId, r.path))).map((r) => r.path))]
-  const texts = useDocsStore(useShallow((s) => paths.map((p) => filesByPath(s.files).get(p)?.content)))
-  useEffect(() => {
-    paths.forEach((path, i) => {
-      const kept = appliedText.get(appliedKey(messageId, path))
-      if (!kept) return
-      if (texts[i] !== kept.text) {
-        kept.left = true
-        return
-      }
-      if (!kept.left) return
-      appliedText.delete(appliedKey(messageId, path))
-      useResultsStore.getState().markRedone(
-        messageId,
-        results.filter((r) => r.kind === "file" && r.path === path).map((r) => r.versionId),
-      )
-    })
-  })
-}
-
-function useResultRows(message: ChatMessage): ResultRow[] {
+function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   const navigate = useOpenFromChat()
-  const results = useResultsStore((s) => s.byMessage[message.id]) ?? []
-  useFollowDocs(message.id, results)
+  const all = useChatChanges(chatId)
+  const messages = useChatStore((s) => s.chats[chatId]?.messages) ?? EMPTY_MESSAGES
+  const library = useLibraryStore((s) => s.papers)
+  const threads = useThreadsStore((s) => s.threads)
+  const entries = useMemo(() => replyEntries(all, messages, message.id), [all, messages, message.id])
   const stats = statsCache((s) => s.byKey)
-  // Each file's first and last version from this reply, whose stats core is asked for once
-  const spans = isDesktop
-    ? [...new Map(results.filter((r) => r.kind === "file").map((r) => [r.path, r])).keys()].map((path) => {
-        const list = results.filter((r) => r.kind === "file" && r.path === path).sort((a, b) => a.at - b.at)
-        return { path, key: `${list[0].versionId}|${list.at(-1)!.versionId}`, from: list[0].versionId, to: list.at(-1)!.versionId }
-      })
-    : []
+  const byKind = (kind: Change["target"]["kind"]) => {
+    const map = new Map<string, Change[]>()
+    for (const c of entries) if (c.target.kind === kind) map.set(c.target.path, [...(map.get(c.target.path) ?? []), c])
+    return map
+  }
+  const docs = byKind("doc")
+  // Each doc's first and last change from this reply, whose stats core is asked for once
+  const spans = isDesktop ? [...docs].map(([path, list]) => ({ path, key: `${list[0].id}|${list.at(-1)!.id}`, from: list[0].id, to: list.at(-1)!.id })) : []
   const wanted = spans.map((s) => s.key).join(",")
   useEffect(() => {
     for (const s of spans) statsCache.getState().load(s.from, s.to)
@@ -184,58 +134,69 @@ function useResultRows(message: ChatMessage): ResultRow[] {
     const file = fileAt(path)
     return file ? () => navigate(`/docs/${file.id}`) : undefined
   }
-  const rows: ResultRow[] = []
-  const of = (list: AgentResult[]) => {
-    const undone = list.every((r) => r.undone)
+  // A row's entries: undone once each is, Undo takes back the live ones and Redo the undos, newest first
+  const of = (list: Change[], name: string) => {
+    const live = list.filter((c) => !undoneBy(c.id, all)).reverse()
+    const undos = list.map((c) => undoneBy(c.id, all)).filter((c) => c !== undefined).sort((a, b) => b.at - a.at)
     return {
-      undone,
-      undo: () => undoResults(message.id, list),
-      ...(undone && list.every((r) => r.redoId) ? { redo: () => redoResults(message.id, list) } : {}),
+      undone: !live.length,
+      undo: () => undoAll(live, name),
+      ...(!live.length ? { redo: () => undoAll(undos, name) } : {}),
     }
   }
-  for (const kind of ["file", "note"] as const) {
-    const byPath = new Map<string, AgentResult[]>()
-    for (const r of results) if (r.kind === kind) byPath.set(r.path, [...(byPath.get(r.path) ?? []), r])
-    for (const [path, list] of byPath) {
-      const name = list[0].label
-      if (kind === "note") {
-        rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(list.length, { one: "# comment", other: "# comments" }), ...of(list), view: openDoc(path) })
-        continue
-      }
-      const span = spans.find((s) => s.path === path)
-      const edit = span ? (stats[span.key] ?? undefined) : statsFromParts(message.parts, path)
-      // A paper's note is the user's own text, named by its paper and opened on the paper's page
-      const notePaper = paperOfNotePath(path)
-      rows.push({
-        key: `file:${path}`,
-        kind: "doc",
-        icon: notePaper ? KIND_ICON.paper : KIND_ICON.doc,
-        name: notePaper ? t`Your note on ${name}` : name,
-        detail: edit ? <EditCounts stats={edit} /> : undefined,
-        stats: edit,
-        markdown: /\.(md|markdown)$/i.test(path),
-        ...of(list),
-        view: notePaper ? () => navigate(`/library/${notePaper}`) : openDoc(path),
-      })
-    }
+  const rows: ResultRow[] = []
+  for (const [path, list] of docs) {
+    const span = spans.find((s) => s.path === path)
+    const edit = span ? (stats[span.key] ?? undefined) : statsFromParts(message.parts, path)
+    // A paper's note is the user's own text, named by its paper and opened on the paper's page
+    const notePaper = paperOfNotePath(path)
+    const paper = labelOf(path)
+    const name = notePaper ? t`Your note on ${paper}` : paper
+    rows.push({
+      key: `file:${path}`,
+      kind: "doc",
+      icon: notePaper ? KIND_ICON.paper : KIND_ICON.doc,
+      name,
+      detail: edit ? <EditCounts stats={edit} /> : undefined,
+      stats: edit,
+      markdown: /\.(md|markdown)$/i.test(path),
+      ...of(list, name),
+      view: notePaper ? () => navigate(`/library/${notePaper}`) : openDoc(path),
+    })
+  }
+  for (const [path, list] of byKind("comment")) {
+    const name = labelOf(path)
+    const count = list.filter((c) => c.action === "create" && !c.target.part?.includes("/")).length
+    rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(count, { one: "# comment", other: "# comments" }), ...of(list, name), view: openDoc(path) })
   }
   // Threads the reply gathered papers into, one row each however many writes it took
-  const byThread = new Map<string, AgentResult[]>()
-  for (const r of results) if (r.kind === "thread") byThread.set(r.path, [...(byThread.get(r.path) ?? []), r])
-  for (const [id, list] of byThread) {
-    const last = list.at(-1)!
-    const created = list.some((r) => r.created)
-    const rowIds = [...new Set(list.flatMap((r) => r.rows ?? []))]
+  for (const [id, list] of byKind("thread")) {
+    const thread = threads[id]
+    const created = list.some((c) => !c.target.part && c.action === "create")
+    const item = (c: Change, kind: string) => (c.target.part?.startsWith(`${kind}:`) ? c.target.part.split(":")[1] : undefined)
+    const rowIds = [...new Set(list.filter((c) => c.action === "create").map((c) => item(c, "row")).filter((r) => r !== undefined))]
     const papers = rowIds.length
-    const updated = list.reduce((n, r) => n + (r.updated ?? 0), 0)
+    const updated = new Set(list.map((c) => item(c, "cell")).filter((r) => r !== undefined && !rowIds.includes(r))).size
     const answers = updated ? plural(updated, { one: "# answer updated", other: "# answers updated" }) : undefined
-    const separate = last.separate
-    const asked = list.find((r) => r.asked)?.asked
+    const asked = (list.findLast((c) => c.target.part === "alsoAsked")?.after as { value?: ThreadAsked[] } | undefined)?.value?.at(-1)?.text
+    // Kept separate from the card: the person's split took these rows into a thread of their own, which
+    // stands until Undo (unsplit) deletes it
+    const split = all.find(
+      (s) =>
+        s.target.kind === "thread" &&
+        !s.target.part &&
+        s.action === "create" &&
+        s.target.path !== id &&
+        all.some((d) => d.origin.writeId === s.origin.writeId && d.target.path === id && d.action === "delete" && rowIds.includes(item(d, "row") ?? "")),
+    )
+    const separate = split && !all.some((d) => d.target.kind === "thread" && d.target.path === split.target.path && !d.target.part && d.action === "delete" && d.at >= split.at) ? split.target.path : undefined
+    const separateTitle = separate && threads[separate] ? shownThread(threads[separate]).title : undefined
+    const name = separateTitle ?? (thread ? shownThread(thread).title : id)
     rows.push({
       key: `thread:${id}`,
       kind: "thread",
       icon: KIND_ICON.thread,
-      name: separate ? separate.title : last.label,
+      name,
       created,
       papers,
       detail: separate ? (
@@ -252,58 +213,45 @@ function useResultRows(message: ChatMessage): ResultRow[] {
       ),
       // Kept separate, Undo puts the papers back where the reply wrote them
       ...(separate
-        ? {
-            undone: false,
-            undo: async () => {
-              try {
-                await rpc.threads.unsplit({ id: separate.id })
-                useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), null)
-              } catch (error) {
-                toastError(error)
-              }
-            },
-          }
-        : of(list)),
-      view: () => navigate(`/threads/${separate?.id ?? id}`),
+        ? { undone: false, undo: () => rpc.threads.unsplit({ id: separate, chatId }).then(() => undefined, toastError) }
+        : of(list, name)),
+      view: () => navigate(`/threads/${separate ?? id}`),
       // Owlit added to a thread whose question was close; the user may want these papers on their own
       ...(!created && !separate && rowIds.length && isDesktop
         ? {
             extra: {
               label: t({ message: "Keep it separate", comment: "make the papers the agent just added into a thread of their own" }),
-              run: async () => {
-                try {
-                  const c = await rpc.threads.split({ id, rows: rowIds, asked: asked ?? "" })
-                  useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), { id: c.id, title: c.title })
-                } catch (error) {
-                  toastError(error)
-                }
-              },
+              run: () => rpc.threads.split({ id, rows: rowIds, asked: asked ?? "", chatId }).then(() => undefined, toastError),
             },
           }
         : {}),
     })
   }
   // Edits to the user's own docs first: they matter most and must not fold away behind papers
-  for (const r of results.filter((r) => r.kind === "paper")) {
+  for (const c of entries.filter((c) => c.target.kind === "paper")) {
+    const removed = c.action === "delete"
+    const name = library[c.target.path]?.title ?? c.target.path
     // A paper the agent took back has nothing to open; Undo puts it back
-    const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
-    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
+    const view = removed ? undefined : () => navigate(`/library/${c.target.path}`)
+    rows.push({ key: `paper:${c.id}`, kind: "paper", icon: KIND_ICON.paper, name, detail: removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([c], name), view, removed })
   }
   // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
-  for (const r of results.filter((r) => r.kind === "memory")) {
+  for (const c of entries.filter((c) => c.target.kind === "memory")) {
+    const removed = c.action === "delete"
+    const name = ((c.after ?? c.before) as MemoryLine | undefined)?.text ?? ""
     rows.push({
-      key: `memory:${r.versionId}`,
+      key: `memory:${c.id}`,
       kind: "memory",
       icon: BookmarkIcon,
-      name: r.label,
-      detail: r.removed
+      name,
+      detail: removed
         ? t({ message: "Removed", comment: "a line the agent took out of what it keeps in mind" })
-        : r.replaced
+        : c.action === "update"
           ? t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
           : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
-      ...of([r]),
+      ...of([c], name),
       view: () => manageMemory(true),
-      removed: r.removed,
+      removed,
     })
   }
   return rows
@@ -376,8 +324,8 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
   )
 }
 
-export function ResultCard({ message }: { message: ChatMessage }) {
-  const rows = [...useResultRows(message), ...useDigestRows(message.parts)]
+export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: string }) {
+  const rows = [...useResultRows(message, chatId), ...useDigestRows(message.parts)]
   const [all, setAll] = useState(false)
   const built = message.readFrom ?? []
   if (!rows.length && !built.length) return null
@@ -399,7 +347,7 @@ export function ResultCard({ message }: { message: ChatMessage }) {
           <span className="min-w-0 truncate text-foreground">{summary(rows)}</span>
           <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
             {live.length > 1 && (
-              <Button variant="text" size="inline" onClick={() => void Promise.all(live.map((r) => r.undo!()))} className={SHOW_ON_HOVER}>
+              <Button variant="text" size="inline" onClick={() => void live.reduce((done, r) => done.then(() => r.undo!()), Promise.resolve())} className={SHOW_ON_HOVER}>
                 {t({ message: "Undo all", comment: "verb: take back every change of the reply" })}
               </Button>
             )}

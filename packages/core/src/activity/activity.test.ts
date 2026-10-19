@@ -5,6 +5,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { ActivityBus } from "./bus.ts"
+import { knownProfile, ME } from "../test-util.ts"
 
 const at = 1_790_000_000_000
 
@@ -68,7 +69,7 @@ async function openCore() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-activity-")))
   const ws = path.join(base, "ws")
   mkdirSync(ws)
-  const core = new Core({ userDataDir: path.join(base, "userData") })
+  const core = new Core({ userDataDir: knownProfile(path.join(base, "userData")) })
   cores.push(core)
   const call = async (method: string, params?: unknown) => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -103,7 +104,7 @@ describe("activity.emit and the journal", () => {
     // Closing a doc and going idle are kept for Owlit's rules, which wait on them; Owlit's own lines
     // (its rules' decisions on opening the paper) are its, not the user's
     const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "idle", "paper.closed", "doc.opened", "doc.closed"])
-    expect(lines().filter((l: { actor: string }) => l.actor === "user")).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: "user" })))
+    expect(lines().filter((l: { actor: string }) => l.actor === ME)).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: ME })))
   })
 
   it("passes every event to bus listeners", async () => {
@@ -130,7 +131,7 @@ describe("activity.emit and the journal", () => {
     await call("activity.emit", { event: { kind: "paper.opened", at, paperId: "arxiv-1" } })
     await core["journal"].flush()
     expect(heard).toEqual(["doc.edited", "paper.opened"])
-    expect(lines().filter((l: { actor: string }) => l.actor === "user")).toEqual([])
+    expect(lines().filter((l: { actor: string }) => l.actor === ME)).toEqual([])
     // The switch is a machine setting: it survives a restart
     const next = new Core({ userDataDir: core["options"].userDataDir })
     expect(await next.settings.get()).toMatchObject({ activity: { enabled: false } })

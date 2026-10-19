@@ -18,7 +18,8 @@ export interface ReaderApi {
   // Scroll to the top of a 0-based page
   showPage: (page: number) => void
   // Highlight a passage as an agent asked to, then jump to it; null if not found
-  markPassage: (p: PassageTarget, color: HighlightColor) => Promise<Highlight | null>
+  // For the agent of chatId (ui.mark)
+  markPassage: (p: PassageTarget, color: HighlightColor, chatId?: string) => Promise<Highlight | null>
 }
 
 // A passage outlined in the PDF: the box around its lines. `pulse` rings it twice and lets it go.

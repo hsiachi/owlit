@@ -1,3 +1,4 @@
+import { WEB_ME, WEB_OWLIT } from "@/lib/actors"
 import type { DocComment, WorkspaceFile } from "../types"
 
 const HOUR = 3_600_000
@@ -133,7 +134,7 @@ export const seedComments: Record<string, DocComment[]> = {
       entries: [
         {
           id: "n2-1",
-          by: "owlit",
+          by: WEB_OWLIT,
           agent: "Claude Code",
           text: "“Only” holds for the arithmetic and symbolic tasks; on commonsense ones the gains are small at any size. “Mostly at scale, for multi-step tasks” would match the paper.",
           at: ago(2 * DAY + HOUR),
@@ -141,7 +142,7 @@ export const seedComments: Record<string, DocComment[]> = {
           was: "“Only” is stronger than the paper: the threshold varies by task. “Mostly at scale” would hold, or cite a second source.",
           editedAt: ago(DAY - HOUR),
         },
-        { id: "n2-2", by: "you", text: "Which tasks break the pattern?", at: ago(DAY) },
+        { id: "n2-2", by: WEB_ME, text: "Which tasks break the pattern?", at: ago(DAY) },
       ],
       createdAt: ago(2 * DAY + HOUR),
     },
@@ -153,7 +154,7 @@ export const seedComments: Record<string, DocComment[]> = {
       entries: [
         {
           id: "n1-1",
-          by: "owlit",
+          by: WEB_OWLIT,
           agent: "Claude Code",
           text: "\u201cNo work has compared\u201d goes further than your reading can show. Narrow it to the studies you've read, or search further before you submit.",
           at: ago(2 * DAY),

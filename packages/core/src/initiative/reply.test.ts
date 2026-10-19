@@ -5,6 +5,7 @@ import type { McpServer } from "@agentclientprotocol/sdk"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import { eventually, until } from "../test-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { correctionOf } from "./review.ts"
@@ -27,8 +28,8 @@ async function setup(agent: (prompt: string) => Promise<string>) {
   const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
   const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: [] } })
   cores.push(core)
-  const call: Call = async (method, params) => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  const call: Call = async (method, params, caller) => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
@@ -42,30 +43,31 @@ async function setup(agent: (prompt: string) => Promise<string>) {
   return { call, workspace, journal }
 }
 
-type Call = (method: string, params?: unknown) => Promise<any>
+type Call = (method: string, params?: unknown, caller?: Caller) => Promise<any>
 
-// One of Owlit's comments, as a run's docs_add_comment sends it to core
+// One of Owlit's comments, as a run's docs_add_comment sends it to core, on the socket
+const RUN = "meetings.goThrough:t0"
 const leave = (call: Call, quote: string, text: string) =>
-  call("comments.add", {
-    path: "story.md",
-    agent: { run: "meetings.goThrough:t0" },
-    comment: { id: `c-${quote.length}`, quote, prefix: "", suffix: "", entries: [{ id: `e-${quote.length}`, by: "owlit", text, at: Date.now() }], createdAt: Date.now() },
-  })
+  call(
+    "comments.add",
+    { path: "story.md", agent: { run: RUN }, comment: { id: `c-${quote.length}`, quote, prefix: "", suffix: "", entries: [{ id: `e-${quote.length}`, text, at: Date.now() }], createdAt: Date.now() } },
+    { kind: "socket", run: RUN },
+  )
 
 describe("A reply under Owlit's comment", () => {
   it("is answered by Owlit in the comment, as a run the user asked for; a dismissed comment is put away", { timeout: 20_000 }, async () => {
     const { call, workspace, journal } = await setup(async (prompt) => (prompt.includes("the user has replied") ? "The week-long gap is in their Table 2." : "Nothing to add."))
     await leave(call, "Replay ratings track the live ones.", "They drift apart after a week.")
     const [comment] = Object.values(await call("comments.all")).flat() as any[]
-    expect(comment).toMatchObject({ quote: "Replay ratings track the live ones.", entries: [{ by: "owlit" }] })
+    expect(comment).toMatchObject({ quote: "Replay ratings track the live ones.", entries: [{ by: expect.stringMatching(/^o_/) }] })
 
-    await call("comments.put", { path: "story.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", by: "you", text: "Where does it say so?", at: Date.now() }] } })
+    await call("comments.put", { path: "story.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", text: "Where does it say so?", at: Date.now() }] } })
     await until(() => workspace.tasks.list().some((t) => t.kind === "docs.reply" && t.state === "done"), { timeout: 10_000, what: "the reply" })
     const answered = (Object.values(await call("comments.all")).flat() as any[])[0]
-    expect(answered.entries.map((e: any) => [e.by, e.text])).toEqual([
-      ["owlit", "They drift apart after a week."],
-      ["you", "Where does it say so?"],
-      ["owlit", "The week-long gap is in their Table 2."],
+    expect(answered.entries.map((e: any) => [e.by.slice(0, 2), e.text])).toEqual([
+      ["o_", "They drift apart after a week."],
+      ["p_", "Where does it say so?"],
+      ["o_", "The week-long gap is in their Table 2."],
     ])
     expect(workspace.tasks.list().find((t) => t.kind === "docs.reply")).toMatchObject({ priority: "asked", subject: `story.md#${comment.id}` })
     // The run is a session, not one of the user's chats
@@ -85,12 +87,12 @@ describe("A reply under Owlit's comment", () => {
     })
     await leave(call, "Replay ratings track the live ones.", "They never track the live ones.")
     const [comment] = Object.values(await call("comments.all")).flat() as any[]
-    await call("comments.put", { path: "story.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", by: "you", text: "Table 2 shows they do for a week.", at: Date.now() }] } })
+    await call("comments.put", { path: "story.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", text: "Table 2 shows they do for a week.", at: Date.now() }] } })
     await until(() => workspace.tasks.list().some((t) => t.kind === "docs.reply" && t.state === "done"), { timeout: 10_000, what: "the reply" })
     const fixed = (Object.values(await call("comments.all")).flat() as any[])[0]
     expect(fixed.entries).toMatchObject([
-      { by: "owlit", text: "They track the live ones for a week, then drift apart.", was: "They never track the live ones.", editedAt: expect.any(Number) },
-      { by: "you", text: "Table 2 shows they do for a week." },
+      { by: expect.stringMatching(/^o_/), text: "They track the live ones for a week, then drift apart.", was: "They never track the live ones.", editedAt: expect.any(Number) },
+      { by: expect.stringMatching(/^p_/), text: "Table 2 shows they do for a week." },
     ])
   })
 })

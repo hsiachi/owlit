@@ -165,25 +165,6 @@ msgstr ""
 msgid "Every keyboard shortcut in owlit"
 msgstr ""
 
-#: app/src/app/agent-changes.ts
-msgid "Note added"
-msgstr ""
-
-#: app/src/app/agent-changes.ts
-msgid "Paper added"
-msgstr ""
-
-#: app/src/app/agent-changes.ts
-msgid "Papers collected"
-msgstr ""
-
-#. a line the agent now keeps in mind
-#. a toast: Owlit now keeps a line in mind about the user
-#: app/src/app/agent-changes.ts
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Remembered"
-msgstr ""
-
 #. a toast: Owlit removed a line from what it keeps in mind
 #: app/src/app/agent-changes.ts
 msgid "No longer kept in mind"
@@ -194,8 +175,27 @@ msgstr ""
 msgid "Remembered, replacing a line"
 msgstr ""
 
+#. a line the agent now keeps in mind
+#. a toast: Owlit now keeps a line in mind about the user
+#: app/src/app/agent-changes.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered"
+msgstr ""
+
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Paper added"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Note added"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Papers collected"
 msgstr ""
 
 #: app/src/app/app-links.ts
@@ -396,14 +396,16 @@ msgstr ""
 #. verb, in the keyboard shortcut list
 #. verb: put back a line just removed from what Owlit keeps in mind
 #. verb: take back a change the agent made
+#. verb: take back this change to the doc
 #. verb: take back what was just done
 #. verb: take back what was just done
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
+#: app/src/lib/changes.ts
 #: app/src/lib/toast.ts
-#: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Undo"
 msgstr ""
@@ -1298,15 +1300,14 @@ msgstr ""
 msgid "Lines added and removed"
 msgstr ""
 
-#. placeholder {0}: list.length
-#. placeholder {0}: openThreads.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: apps/share-web/src/App.tsx
-msgid "{0, plural, one {# comment} other {# comments}}"
+#: app/src/features/docs/fs.ts
+msgid "Your note on {paper}"
 msgstr ""
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Your note on {name}"
+#: app/src/features/docs/comments/CommentsToggle.tsx
+msgid "{count, plural, one {# comment} other {# comments}}"
 msgstr ""
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1394,14 +1395,14 @@ msgstr ""
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 #: apps/desktop/src/main.ts
 msgid "Redo"
 msgstr ""
 
 #. a change that was taken back
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 msgid "Undone"
 msgstr ""
 
@@ -2626,10 +2627,6 @@ msgstr ""
 msgid "Show comments"
 msgstr ""
 
-#: app/src/features/docs/comments/CommentsToggle.tsx
-msgid "{count, plural, one {# comment} other {# comments}}"
-msgstr ""
-
 #. placeholder {0}: displayName(file.path)
 #: app/src/features/docs/comments/ResolvedComments.tsx
 msgid "Resolved comments on {0}"
@@ -2686,8 +2683,9 @@ msgstr ""
 msgid "No docs yet."
 msgstr ""
 
+#. a toast: a change from a doc's Versions was taken back
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Version restored"
+msgid "Change undone"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -2695,23 +2693,11 @@ msgid "Versions of {name}"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
+msgid "The changes made to this doc and who made them, kept for 30 days. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is."
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Owlit hasn't changed this doc."
-msgstr ""
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before an undo"
-msgstr ""
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "From another program"
-msgstr ""
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before Owlit's edit"
+msgid "No changes to this doc are kept."
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -2722,10 +2708,24 @@ msgstr ""
 msgid "{when} · from a chat"
 msgstr ""
 
-#. verb: put this version of the doc back
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-#: app/src/features/library/components/RecentlyRemoved.tsx
-msgid "Restore"
+msgid "Undone by {who}"
+msgstr ""
+
+#. a change in a doc's Versions: the doc was made; who is you, a name, Owlit or outside owlit
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Made by {who}"
+msgstr ""
+
+#. a change in a doc's Versions: the doc was deleted; who is you, a name, Owlit or outside owlit
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Deleted by {who}"
+msgstr ""
+
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "Changed by {who}"
 msgstr ""
 
 #: app/src/features/docs/disk.ts
@@ -2799,14 +2799,11 @@ msgstr ""
 msgid "Edit applied"
 msgstr ""
 
-#: app/src/features/docs/fs.ts
-msgid "Your note on {paper}"
-msgstr ""
-
 #. placeholder {0}: p.total
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
+#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -3164,20 +3161,6 @@ msgstr ""
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr ""
 
-#. placeholder {0}: view.rows.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {New thread · # paper} other {New thread · # papers}}"
-msgstr ""
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {# new paper} other {# new papers}}"
-msgstr ""
-
-#. a thread Owlit changed without adding papers
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Changed"
-msgstr ""
-
 #: app/src/features/home/SinceYouLeft.tsx
 msgid "Since you left at {left}"
 msgstr ""
@@ -3191,7 +3174,54 @@ msgid "Finished {when}"
 msgstr ""
 
 #: app/src/features/home/SinceYouLeft.tsx
-msgid "{added, plural, one {Owlit added # paper to your Library} other {Owlit added # papers to your Library}}"
+msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "New thread: {title}"
+msgstr ""
+
+#. placeholder {0}: line.added.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{title} changed"
+msgstr ""
+
+#. placeholder {0}: titles.length
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
+msgstr ""
+
+#. placeholder {0}: line.count
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was made outside owlit"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} wrote {name}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was removed outside owlit"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} removed {name}"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{name} was changed outside owlit"
+msgstr ""
+
+#: app/src/features/home/SinceYouLeft.tsx
+msgid "{who} edited {name}"
 msgstr ""
 
 #: app/src/features/home/WaitingOnYou.tsx
@@ -3382,8 +3412,9 @@ msgstr ""
 msgid "Add to note"
 msgstr ""
 
+#. under a highlight; who is Owlit, a name or outside owlit
 #: app/src/features/library/components/HighlightsList.tsx
-msgid "Added by Owlit"
+msgid "Added by {who}"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
@@ -3799,6 +3830,10 @@ msgstr ""
 msgid "Removed {when}"
 msgstr ""
 
+#: app/src/features/library/components/RecentlyRemoved.tsx
+msgid "Restore"
+msgstr ""
+
 #: app/src/features/library/components/StatusMenu.tsx
 msgid "Reading status"
 msgstr ""
@@ -4130,8 +4165,9 @@ msgstr ""
 msgid "No abstract."
 msgstr ""
 
+#. when a paper was added, and who added it: Owlit, a name or outside owlit
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "{when} by Owlit"
+msgid "{when} by {who}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -6396,6 +6432,30 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
+#. who made a change: the person reading
+#: app/src/lib/actors.ts
+msgid "you"
+msgstr ""
+
+#. who made a change: another program, or someone owlit doesn't know
+#: app/src/lib/actors.ts
+msgid "outside owlit"
+msgstr ""
+
+#. who made a change: a person in the workspace who gave no name
+#: app/src/lib/actors.ts
+msgid "someone else"
+msgstr ""
+
+#. after undoing a change to a doc
+#: app/src/lib/changes.ts
+msgid "Some passages were edited since and stay as they are"
+msgstr ""
+
+#: app/src/lib/changes.ts
+msgid "Redone"
+msgstr ""
+
 #: app/src/lib/clipboard.ts
 msgid "Could not write to the clipboard"
 msgstr ""
@@ -6425,10 +6485,6 @@ msgstr ""
 
 #: app/src/lib/time.ts
 msgid "yesterday"
-msgstr ""
-
-#: app/src/lib/versions.ts
-msgid "Redone"
 msgstr ""
 
 #: app/src/lib/words.ts
@@ -6962,6 +7018,11 @@ msgstr ""
 msgid "Read only"
 msgstr ""
 
+#. placeholder {0}: openThreads.length
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr ""
+
 #: apps/share-web/src/App.tsx
 msgid "Comments"
 msgstr ""
@@ -7136,23 +7197,8 @@ msgid "{name} ran into a problem."
 msgstr ""
 
 #: packages/core/src/agents/fs.ts
-msgid "That earlier version is no longer kept."
-msgstr ""
-
-#: packages/core/src/agents/fs.ts
-msgid "That comment is already gone."
-msgstr ""
-
-#: packages/core/src/agents/fs.ts
-msgid "The note changed after the agent's edit, so owlit left it as it is."
-msgstr ""
-
-#: packages/core/src/agents/fs.ts
-msgid "{name} changed after the agent's edit, so owlit left it as it is."
-msgstr ""
-
-#: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts
+#: packages/core/src/changes/undo.ts
 #: packages/core/src/core.ts
 msgid "Open a folder as the workspace first."
 msgstr ""
@@ -7351,6 +7397,103 @@ msgstr ""
 msgid "The agent asks to go ahead"
 msgstr ""
 
+#: packages/core/src/changes/undo.ts
+msgid "There is a doc at {name} again, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "{name} changed after it was made, so owlit left it where it is."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "{name} is gone, so owlit couldn't put the change back."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "Every passage of that change in {name} was edited since, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That paper is already gone from the library."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That paper is no longer in the trash."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That paper isn't in the library any more."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "The paper's {what} changed since, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment changed since, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment is already gone."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment is back already."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That comment is gone."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That change is no longer kept."
+msgstr ""
+
+#. a paper's field, in: The paper's star changed since
+#: packages/core/src/changes/undo.ts
+msgid "star"
+msgstr ""
+
+#. a paper's field: unread, reading or read
+#: packages/core/src/changes/undo.ts
+msgid "reading status"
+msgstr ""
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "tags"
+msgstr ""
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "title"
+msgstr ""
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "authors"
+msgstr ""
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "year"
+msgstr ""
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "venue"
+msgstr ""
+
+#. a paper's field
+#: packages/core/src/changes/undo.ts
+msgid "abstract"
+msgstr ""
+
+#. a paper's field: its kind or ids
+#: packages/core/src/changes/undo.ts
+msgid "details"
+msgstr ""
+
 #: packages/core/src/chats/attach.ts
 msgid "owlit can't read that file."
 msgstr ""
@@ -7410,6 +7553,14 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "owlit no longer has that file."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "That paper isn't in the library."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "That comment is already there."
 msgstr ""
 
 #: packages/core/src/core.ts
@@ -7650,7 +7801,7 @@ msgid "Write something to keep first."
 msgstr ""
 
 #: packages/core/src/memory/memory.ts
-msgid "That line changed after Owlit wrote it, so owlit left it as it is."
+msgid "That line changed since, so owlit left it as it is."
 msgstr ""
 
 #: packages/core/src/net/http.ts
@@ -7864,6 +8015,14 @@ msgstr ""
 
 #: packages/core/src/threads/threads.ts
 msgid "The thread these papers came from is gone."
+msgstr ""
+
+#: packages/core/src/threads/threads.ts
+msgid "That changed in the thread since, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/threads/threads.ts
+msgid "That change holds the whole thread at once, so it can't be undone."
 msgstr ""
 
 #: packages/core/src/threads/threads.ts

@@ -246,10 +246,12 @@ describe("the extension's port", () => {
   })
 
   it("adds a paper from the page's own words when nothing resolves", async () => {
-    const { request, pair } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
+    const { request, pair, call } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
     const token = await pair()
     const added = await request("/papers", { token, body: { doi: "10.9999/unknown.1", title: "A Paper Nobody Indexed Yet", authors: ["A. Writer"], year: 2026 } })
     expect(added.body.paper).toMatchObject({ id: "doi-10.9999-unknown.1", title: "A Paper Nobody Indexed Yet", hasPdf: false })
+    // The person's addition, which they can undo
+    expect(await call("changes.list", { path: "doi-10.9999-unknown.1" })).toMatchObject([{ actor: expect.stringMatching(/^p_/), action: "create", target: { kind: "paper" } }])
     expect((await request("/papers", { token, body: { url: "https://example.org/nothing" } })).body).toMatchObject({ reason: "bad-request" })
   })
 
@@ -435,7 +437,7 @@ describe("the extension's port", () => {
       const sent = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
       expect(sent).toMatchObject({ status: 409, body: { reason: "has-pdf", paper: { id, hasPdf: true } } })
       expect(readFileSync(path.join(root, "library/papers", id, "paper.pdf"))).toEqual(theirs)
-      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "you", ended: "pdf" })
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "person", ended: "pdf" })
       expect(server.work.paperOf(item.id)).toBeUndefined()
     })
 
@@ -489,15 +491,15 @@ describe("the extension's port", () => {
       // Minutes ago, so no daily look is due for any of them
       const at = (minutes: number) => Date.now() - minutes * 60_000
       // owlit's own routes found no copy, before any extension was connected (an older one first)
-      acquired(s.root, newer.id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: at(20) }])
-      acquired(s.root, older.id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: at(30) }])
+      acquired(s.root, newer.id, "no-pdf", [{ by: "search", ended: "no-copy", at: at(20) }])
+      acquired(s.root, older.id, "no-pdf", [{ by: "search", ended: "no-copy", at: at(30) }])
       // Waiting at its site for the user's sign-in when owlit quit
-      acquired(s.root, signIn.id, "finding", [{ by: "owlit", ended: "no-copy", at: at(40) }, { by: "extension", ended: "sign-in", at: at(10), host: "journals.sagepub.com" }])
+      acquired(s.root, signIn.id, "finding", [{ by: "search", ended: "no-copy", at: at(40) }, { by: "extension", ended: "sign-in", at: at(10), host: "journals.sagepub.com" }])
       // The extension already saw the paywall: left to the back-off look
-      acquired(s.root, judged.id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: at(50) }, { by: "extension", ended: "no-access", at: at(45) }])
+      acquired(s.root, judged.id, "no-pdf", [{ by: "search", ended: "no-copy", at: at(50) }, { by: "extension", ended: "no-access", at: at(45) }])
       // Has its PDF
       writeFileSync(path.join(s.root, "library/papers", had.id, "paper.pdf"), pdfOf([had.doi]))
-      acquired(s.root, had.id, "have-it", [{ by: "owlit", ended: "no-copy", at: at(60) }, { by: "you", ended: "pdf", at: at(59) }])
+      acquired(s.root, had.id, "have-it", [{ by: "search", ended: "no-copy", at: at(60) }, { by: "person", ended: "pdf", at: at(59) }])
       const token = await s.pair()
       const order: string[] = []
       for (let i = 0; i < 3; i++) {
@@ -518,13 +520,13 @@ describe("the extension's port", () => {
     it("hands the daily look's miss to the extension, as Look again does", async () => {
       const { root, request, token, core } = await connected()
       // The extension found no copy before; the back-off look is due again
-      acquired(root, id, "no-pdf", [{ by: "owlit", ended: "no-copy", at: 1 }, { by: "extension", ended: "no-copy", at: 2 }])
+      acquired(root, id, "no-pdf", [{ by: "search", ended: "no-copy", at: 1 }, { by: "extension", ended: "no-copy", at: 2 }])
       const workspace = (core as unknown as { workspace: { tasks: { enqueue(kind: string, subject: string, priority: string): { id: string }; wait(id: string): Promise<unknown> } } }).workspace
       // What the daily look queues for a paper whose look is due
       await workspace.tasks.wait(workspace.tasks.enqueue("paper.pdf", id, "background").id)
       const [item] = (await request("/work", { token })).body.work
       expect(item).toMatchObject({ paperId: id, host: "sagepub.com" })
-      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "owlit", ended: "no-copy" })
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "search", ended: "no-copy" })
     })
 
     it("leaves a paper to owlit's own ways while no extension asks for work", async () => {

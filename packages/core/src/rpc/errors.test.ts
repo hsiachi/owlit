@@ -1,6 +1,6 @@
 import { RpcErrorCode } from "@owlit/protocol"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { Router } from "./router.ts"
+import { Router, WINDOW } from "./router.ts"
 import { z } from "zod"
 
 afterEach(() => {
@@ -12,7 +12,7 @@ const failing = (error: unknown) => {
   router.register("docs.read", z.object({ path: z.string() }), async () => {
     throw error
   })
-  return router.handle({ jsonrpc: "2.0", id: 1, method: "docs.read", params: { path: "writing/draft.md" } })
+  return router.handle({ jsonrpc: "2.0", id: 1, method: "docs.read", params: { path: "writing/draft.md" } }, WINDOW)
 }
 
 const errnoError = (code: string, file: string) => Object.assign(new Error(`${code}: operation failed, rename '${file}'`), { code, path: file })

@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useThreadsStore } from "@/features/threads/store"
 import { threadHolding, shown } from "@/features/threads/lib"
-import { type Mentionable, type Paper, paperUri, parseOwlitUri, type Thread, threadUri } from "@owlit/protocol"
+import { isOwlit, type Mentionable, type Paper, paperUri, parseOwlitUri, type Thread, threadUri } from "@owlit/protocol"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
@@ -93,7 +93,7 @@ function paperOf(id: string, papers = useLibraryStore.getState().papers, aliases
 export function paperUnread(uri: string, papers = useLibraryStore.getState().papers, aliases = useLibraryStore.getState().aliases): boolean {
   const u = parseOwlitUri(uri)
   const paper = u?.kind === "paper" ? paperOf(u.id, papers, aliases) : undefined
-  return paper?.addedBy === "agent" && paper.status === "unread"
+  return !!paper?.addedBy && isOwlit(paper.addedBy) && paper.status === "unread"
 }
 
 // The same, kept current as the paper is read

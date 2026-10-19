@@ -97,7 +97,7 @@ export function startUiHandlers(router: typeof appRouter) {
     if (t.kind !== "paper") throw new Error("Only passages in a paper can be highlighted.")
     await show(uri, chatId)
     const api = await pdfReader(t.id)
-    const h = await api.markPassage(quoteTarget(quote), color ?? "yellow")
+    const h = await api.markPassage(quoteTarget(quote), color ?? "yellow", chatId)
     if (!h) throw new Error(`That passage isn't in ${t.title}'s PDF word for word; quote it as library_read gives it.`)
     return { title: t.title, highlightId: h.id, page: h.page + 1 }
   })

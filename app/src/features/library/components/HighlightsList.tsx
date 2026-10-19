@@ -1,4 +1,5 @@
 import { t } from "@lingui/core/macro"
+import { nameOf, useMe } from "@/lib/actors"
 import { useEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
 import { cn, scrollMotion } from "@/lib/utils"
@@ -65,6 +66,8 @@ export function HighlightsList({ paperId, hasPdf, onAddToNote }: { paperId: stri
 }
 
 function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; onAddToNote: () => void }) {
+  const viewer = useMe()
+  const who = nameOf(h.addedBy)
   const active = useReaderStore((s) => s.activeId === h.id)
   const focused = useReaderStore((s) => s.focusId === h.id)
   const updateHighlight = useLibraryStore((s) => s.updateHighlight)
@@ -116,7 +119,7 @@ function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; on
             <span className="line-clamp-4 text-sm leading-relaxed">{h.text}</span>
           </span>
           {h.comment && <span className="mt-1 block pl-[13px] text-sm leading-relaxed whitespace-pre-wrap text-foreground">{h.comment}</span>}
-          {h.addedBy === "agent" && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">{t`Added by Owlit`}</span>}
+          {h.addedBy !== viewer && <span className="mt-1 block pl-[13px] text-xs text-muted-foreground">{t({ message: `Added by ${who}`, comment: "under a highlight; who is Owlit, a name or outside owlit" })}</span>}
         </button>
         <RowMenuButton groups={menu} label={t`Highlight actions`} className="absolute top-1.5 right-1.5" />
       </li>

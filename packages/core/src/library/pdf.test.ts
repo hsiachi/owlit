@@ -119,7 +119,7 @@ describe("paper.pdf", () => {
     const paper = await call("library.fetchPdf", { id: "arxiv-1706.03762" })
     expect(paper.pdf.url).toBe("owlit-file://workspace/library/papers/arxiv-1706.03762/paper.pdf")
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/arxiv-1706.03762/acquisition.json"), "utf8"))
-    expect(acquisition).toMatchObject({ version: 2, state: "have-it", route: "arxiv", tried: [{ by: "owlit", ended: "pdf", route: "arxiv" }] })
+    expect(acquisition).toMatchObject({ version: 2, state: "have-it", route: "arxiv", tried: [{ by: "search", ended: "pdf", route: "arxiv" }] })
   })
 
   it("records no PDF with every route tried when the publisher wants a login", async () => {
@@ -131,7 +131,7 @@ describe("paper.pdf", () => {
     await call("library.add", { paper: { id: "doi-10.1145-1", title: "Paywalled", authors: [], ids: { doi: "10.1145/1" } } })
     const paper = await call("library.fetchPdf", { id: "doi-10.1145-1" })
     expect(paper.pdf).toBeUndefined()
-    expect(paper.pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "owlit", ended: "no-copy", route: "publisher:acm" }], reason: { ended: "no-copy" } })
+    expect(paper.pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "search", ended: "no-copy", route: "publisher:acm" }], reason: { ended: "no-copy" } })
     // The next look, a day after this one
     expect(paper.pdfState.nextLook - paper.pdfState.tried[0].at).toBe(24 * 60 * 60 * 1000)
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-1/acquisition.json"), "utf8"))
@@ -143,7 +143,7 @@ describe("paper.pdf", () => {
     const attached = await call("library.attachPdf", { id: "doi-10.1145-1", path: file })
     expect(attached.pdf.url).toMatch(/paper\.pdf$/)
     expect(attached.pdfState).toBeUndefined()
-    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-1/acquisition.json"), "utf8"))).toMatchObject({ state: "have-it", route: "dropped", tried: [{ ended: "no-copy" }, { by: "you", ended: "pdf", route: "dropped" }] })
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-1/acquisition.json"), "utf8"))).toMatchObject({ state: "have-it", route: "dropped", tried: [{ ended: "no-copy" }, { by: "person", ended: "pdf", route: "dropped" }] })
     writeFileSync(file, "not a pdf")
     await expect(call("library.attachPdf", { id: "doi-10.1145-1", path: file })).rejects.toThrow("That file isn't a PDF.")
   })
@@ -153,7 +153,7 @@ describe("paper.pdf", () => {
     await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
     await call("library.fetchPdf", { id: "doi-10.9999-x" })
     // Unpaywall wasn't asked without a contact email, so it isn't named
-    expect((await call("library.list")).papers[0].pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "owlit", ended: "no-copy" }] })
+    expect((await call("library.list")).papers[0].pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "search", ended: "no-copy" }] })
     expect((await call("library.list")).papers[0].pdfState.tried[0].route).toBeUndefined()
   })
 
@@ -163,7 +163,7 @@ describe("paper.pdf", () => {
     await call("library.fetchPdf", { id: "doi-10.9999-x" })
     // A record whose PDF is in place, and no paper.pdf beside it
     const file = path.join(root, "library/papers/doi-10.9999-x/acquisition.json")
-    const had = { version: 2, state: "have-it", tried: [{ by: "you", ended: "pdf", at: Date.now() - 60_000, route: "dropped" }], dropHere: "" }
+    const had = { version: 2, state: "have-it", tried: [{ by: "person", ended: "pdf", at: Date.now() - 60_000, route: "dropped" }], dropHere: "" }
     writeFileSync(file, JSON.stringify(had))
     const paper = (await call("library.list")).papers[0]
     // Shown as gone, with a look due now
@@ -182,7 +182,7 @@ describe("paper.pdf", () => {
     const file = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
     await eventually(() => expect(existsSync(file)).toBe(true))
     const paper = (await call("library.list")).papers[0]
-    expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "owlit", ended: "offline" } })
+    expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "search", ended: "offline" } })
     expect(paper.pdfState.nextLook).toBeUndefined()
     const acquisition = JSON.parse(readFileSync(file, "utf8"))
     expect(acquisition.state).toBe("finding")
@@ -336,7 +336,7 @@ describe("a repository's page instead of its PDF", () => {
     await call("library.fetchPdf", { id: paper.id }).catch(() => undefined)
     const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))
     expect(acquisition.state).toBe("no-pdf")
-    expect(acquisition.tried).toContainEqual(expect.objectContaining({ by: "owlit", ended: "no-copy", route: "unpaywall/repository:page" }))
+    expect(acquisition.tried).toContainEqual(expect.objectContaining({ by: "search", ended: "no-copy", route: "unpaywall/repository:page" }))
     expect(existsSync(path.join(root, "library/papers", paper.id, "paper.pdf"))).toBe(false)
   })
 
@@ -349,7 +349,7 @@ describe("a repository's page instead of its PDF", () => {
 
 describe("looking again for a paper without a PDF", () => {
   const day = 24 * 60 * 60 * 1000
-  const noPdf = (at: number, looks?: number) => ({ state: "no-pdf" as const, tried: [{ by: "owlit" as const, ended: "no-copy" as const, at }], looks })
+  const noPdf = (at: number, looks?: number) => ({ state: "no-pdf" as const, tried: [{ by: "search" as const, ended: "no-copy" as const, at }], looks })
   it("waits longer each time nothing came: 1, 3, 7, then 30 days", () => {
     const now = 100 * day
     expect(lookDue(noPdf(now - day, 1), now)).toBe(true)
@@ -364,7 +364,7 @@ describe("looking again for a paper without a PDF", () => {
 
   it("goes again at once for a paper whose look reached nothing, and leaves one being looked for", () => {
     const now = 100 * day
-    expect(lookDue({ state: "finding", tried: [{ by: "owlit", ended: "offline", at: now - 60_000 }] }, now)).toBe(true)
+    expect(lookDue({ state: "finding", tried: [{ by: "search", ended: "offline", at: now - 60_000 }] }, now)).toBe(true)
     expect(lookDue({ state: "finding", tried: [] }, now)).toBe(false)
   })
 })

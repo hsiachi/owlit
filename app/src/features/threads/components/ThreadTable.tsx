@@ -9,6 +9,7 @@ import { ChoiceMenu } from "@/components/choice-menu"
 import { citationCardSurface } from "@/components/citation"
 import { CitationCard } from "@/components/citation-card"
 import { NoteDot } from "@/components/marks"
+import { useSeenOnScreen } from "../seen"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { RenameInput } from "@/components/rename-input"
@@ -68,7 +69,7 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
     .join(" · ")
 }
 
-export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; shown: Thread; seenBefore: number }) {
+export function ThreadTable({ thread, shown, fresh }: { thread: Thread; shown: Thread; fresh: (item: string) => boolean }) {
   // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
   // nothing to group by until it is done
   const filling = useTasksStore(
@@ -81,10 +82,10 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
   const columns = shown.columns.filter((c) => !c.hidden || (c.kind === "grouping" && filling.includes(c.id)))
   const compare = columns.find((c) => c.kind === "compare")
   const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length && !filling.includes(c.id))
-  // What the table is grouped by is remembered for the thread (yours.view); one that isn't there (a
+  // What the table is grouped by is remembered for the thread (overrides.view); one that isn't there (a
   // grouping still being worked out, a comparison hidden) gives way to the first grouping
   const [chosen, setChosen] = useState<GroupBy>()
-  const want = chosen ?? (thread.yours.view?.groupBy as GroupBy | undefined)
+  const want = chosen ?? (thread.overrides.view?.groupBy as GroupBy | undefined)
   const groupBy: GroupBy =
     want === "none" ||
     (want?.startsWith("grouping:") && groupings.some((c) => c.id === want.slice(9))) ||
@@ -303,7 +304,7 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
                           // needs no saying
                           sentenceShown={(c) => groupBy !== `column:${c.id}` && (c.sentences?.length ?? 0) > 1}
                           indent={s.label ? s.depth + 1 : 0}
-                          seenBefore={seenBefore}
+                          fresh={fresh}
                           open={isOpen(s, r.id)}
                           onOpen={() => {
                             useThreadsUi.getState().set({ peek: null })
@@ -453,8 +454,8 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
 function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn }) {
   const filling = useTasksStore((s) => tasksFor(s.byId, `${thread.id}:${column.id}`).some((task) => task.kind === "threads.fill" && !isTaskFinished(task)))
   // A grouping counts the papers Owlit has put in a group so far
-  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.yours.removed[itemId.row(r.id)]).length
-  const of = thread.rows.filter((r) => !thread.yours.removed[itemId.row(r.id)]).length
+  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.overrides.removed[itemId.row(r.id)]).length
+  const of = thread.rows.filter((r) => !thread.overrides.removed[itemId.row(r.id)]).length
   const label = columnLabel(column)
   const progress = filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>
   if (column.id === QUESTION_COLUMN)
@@ -584,7 +585,7 @@ function TableRow({
   columns,
   sentenceShown,
   indent,
-  seenBefore,
+  fresh: isFresh,
   open,
   onOpen,
 }: {
@@ -598,16 +599,17 @@ function TableRow({
   columns: ThreadColumn[]
   sentenceShown: (column: ThreadColumn) => boolean
   indent: number
-  seenBefore: number
+  fresh: (item: string) => boolean
   open: boolean
   onOpen: () => void
 }) {
   const library = useLibraryPaper(row)
   const facts = paperFacts(row, library)
-  const fresh = (thread.changedAt[itemId.row(row.id)] ?? 0) > seenBefore
+  const fresh = isFresh(itemId.row(row.id))
+  const seenRef = useSeenOnScreen<HTMLTableRowElement>(thread.id, [itemId.row(row.id), ...columns.map((c) => itemId.cell(row.id, c.id))])
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
-    <tr id={first ? `row-${row.id}` : undefined} data-place={place} className="group/row">
+    <tr ref={seenRef} id={first ? `row-${row.id}` : undefined} data-place={place} className="group/row">
       <td className={cn(td, pinnedCell, pinnedEdge, "cursor-default text-sm")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>
@@ -651,7 +653,7 @@ function TableRow({
           {c.kind === "grouping" ? (
             <GroupsCell column={c} row={row} />
           ) : (
-            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={(thread.changedAt[itemId.cell(row.id, c.id)] ?? 0) > seenBefore} showSentence={sentenceShown(c)} libraryId={library?.id} />
+            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={isFresh(itemId.cell(row.id, c.id))} showSentence={sentenceShown(c)} libraryId={library?.id} />
           )}
         </td>
       ))}
@@ -685,7 +687,7 @@ function Cell({ thread, row, column, cell, fresh, showSentence, libraryId }: { t
   const navigate = useNavigate()
   if (!cell) return <span className="text-muted-foreground/60">…</span>
   const item = itemId.cell(row.id, column.id)
-  const edit = thread.yours.edits[item]
+  const edit = thread.overrides.edits[item]
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
   const text = edit?.text ?? cell.text
   const page = cell.depth === "full" && cell.passage && !edit ? cell.passage.page : undefined

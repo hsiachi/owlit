@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs"
+import path from "node:path"
 import { vi } from "vitest"
 
 // Waiting in tests: poll a condition instead of sleeping a fixed time, and always fail when it never holds.
@@ -27,3 +29,12 @@ export const eventually = <T>(check: () => T | Promise<T>, timeout = WAIT.timeou
 // Core's searchPath for tests that start agents: this process's PATH, so the developer's login shell
 // (~/.zshrc, up to 10 s) doesn't run inside a test
 export const testSearchPath = async () => process.env.PATH ?? ""
+
+// A user data folder whose profile has a known id, so the person is p_1234abcd and their Owlit o_1234abcd
+export const ME = "p_1234abcd" as const
+export const MY_OWLIT = "o_1234abcd" as const
+export function knownProfile(userDataDir: string) {
+  mkdirSync(userDataDir, { recursive: true })
+  writeFileSync(path.join(userDataDir, "settings.json"), JSON.stringify({ profile: { id: "1234abcd" } }))
+  return userDataDir
+}

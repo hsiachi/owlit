@@ -313,6 +313,8 @@ export const OWLIT_TOOLS: ToolSpec[] = [
         paper: { type: "string", description: "of: the paper's library id" },
         doc: { type: "string", description: "of: the doc's path in the workspace" },
         chat: { type: "string", description: "of: the chat's id" },
+        // Words for the agent asking, not actor ids: core reads user as the person's id and agent as an
+        // Owlit's (activity/query.ts)
         actor: { type: "string", enum: ["user", "agent"], description: "log only: only what the user did, or only what agents did" },
         limit: { type: "number", description: "At most this many items or lines (default 10, log 100, never more than 200)" },
       },

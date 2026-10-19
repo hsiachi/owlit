@@ -3,9 +3,9 @@ import { MEMORY_MAX_CHARS, MEMORY_MAX_LINES, RpcErrorCode, type ClaudeNote, type
 import { readdir, readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import { sha1, type Versions } from "../docs/versions.ts"
+import type { RecordInput, Recorder } from "../changes/record.ts"
 import { ignoreMissing, readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
-import { RpcFailure } from "../rpc/index.ts"
+import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { Serial } from "../util.ts"
 
 // Owlit's memory of the user, one per workspace, in .owlit/memory.md: how they want Owlit to work, and
@@ -101,22 +101,23 @@ export interface MemoryChange {
   // The line as it is now; null when it was removed
   line: MemoryLine | null
   before: MemoryLine | null
-  versionId?: string
+  // The change log's entry; absent when nothing changed
+  changeId?: string
 }
 
 export class Memory {
   readonly file: string
   private readonly sidecar: string
   private readonly root: string
-  private readonly versions: Versions
+  private readonly recorder: Recorder
   private readonly changed: (lines: MemoryLine[]) => void
   private readonly serial = new Serial()
 
-  constructor(owlitDir: string, root: string, versions: Versions, changed: (lines: MemoryLine[]) => void = () => undefined) {
+  constructor(owlitDir: string, root: string, recorder: Recorder, changed: (lines: MemoryLine[]) => void = () => undefined) {
     this.file = path.join(owlitDir, FILE)
     this.sidecar = path.join(owlitDir, SIDECAR)
     this.root = root
-    this.versions = versions
+    this.recorder = recorder
     this.changed = changed
   }
 
@@ -129,9 +130,10 @@ export class Memory {
   }
 
   // An agent's change (owlit-mcp's memory_write). What it sends back is said to the agent, so it is plain
-  // English and says how to do better when the change can't be made. Each change is kept as a version, so
-  // the chat's result row can undo it.
-  agentWrite(op: MemoryOp, meta: { chatId?: string } = {}): Promise<MemoryChange> {
+  // English and says how to do better when the change can't be made. Each change goes in the change log,
+  // so the chat's result row can undo it.
+  agentWrite(op: MemoryOp, caller: Caller): Promise<MemoryChange> {
+    const chatId = caller.kind === "window" ? undefined : caller.chatId
     return this.serial.run(async () => {
       const lines = await this.list()
       const now = Date.now()
@@ -143,7 +145,7 @@ export class Memory {
         if (lines.length >= MEMORY_MAX_LINES) {
           throw new RpcFailure(RpcErrorCode.InvalidParams, `The memory is full (${MEMORY_MAX_LINES} lines). Replace or merge lines instead of adding one.`)
         }
-        const line: MemoryLine = { id: nextId(lines), kind: op.kind, text, at: now, ...(meta.chatId ? { chatId: meta.chatId } : {}) }
+        const line: MemoryLine = { id: nextId(lines), kind: op.kind, text, at: now, ...(chatId ? { chatId } : {}) }
         lines.push(line)
         change = { line, before: null }
       } else {
@@ -154,62 +156,78 @@ export class Memory {
           lines.splice(i, 1)
           change = { line: null, before }
         } else {
-          const line: MemoryLine = { ...before, kind: op.kind ?? before.kind, text: checked(op.text), at: now, ...(meta.chatId ? { chatId: meta.chatId } : {}) }
+          const line: MemoryLine = { ...before, kind: op.kind ?? before.kind, text: checked(op.text), at: now, ...(chatId ? { chatId } : {}) }
           lines[i] = line
           change = { line, before }
         }
       }
-      const version = await this.versions.saveMemory(change.line?.id ?? change.before!.id, change.before, change.line?.text ?? null, meta)
+      const entry = await this.record(caller, change.before, change.line)
       await this.save(lines)
-      return { ...change, versionId: version.id }
+      return { ...change, changeId: entry.id }
     })
   }
 
   // The user's own change, from Settings: a new line (no id), a line edited, or a removed one put back
-  put(input: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }): Promise<MemoryLine[]> {
+  put(input: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }, caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
       const lines = await this.list()
       const text = oneLine(input.text)
       if (!text) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something to keep first.`)
       const i = input.id ? lines.findIndex((l) => l.id === input.id) : -1
-      if (i >= 0) {
-        lines[i] = { ...lines[i], kind: input.kind, text, at: lines[i].text === text ? lines[i].at : Date.now() }
-      } else {
-        // A line removed a moment ago comes back as it was, under its own id
-        lines.push({ id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(input.chatId ? { chatId: input.chatId } : {}) })
-      }
+      const before = i >= 0 ? lines[i]! : null
+      // A line removed a moment ago comes back as it was, under its own id
+      const line: MemoryLine = before
+        ? { ...before, kind: input.kind, text, at: before.text === text ? before.at : Date.now() }
+        : { id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(input.chatId ? { chatId: input.chatId } : {}) }
+      if (before) lines[i] = line
+      else lines.push(line)
+      if (JSON.stringify(before) !== JSON.stringify(line)) await this.record(caller, before, line)
       await this.save(lines)
       return lines
     })
   }
 
-  remove(id: string): Promise<MemoryLine[]> {
+  remove(id: string, caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
-      const lines = (await this.list()).filter((l) => l.id !== id)
+      const all = await this.list()
+      const before = all.find((l) => l.id === id)
+      const lines = all.filter((l) => l !== before)
+      if (before) await this.record(caller, before, null)
       await this.save(lines)
       return lines
     })
   }
 
-  // Undo of an agent's change (versions.restore): the line goes back to what it was before, wherever it
-  // is now in the list. What it replaces is kept as a version too, so the undo can be undone. A line the
-  // user changed since is left alone unless forced.
-  restoreVersion(id: string, content: string, after: string | undefined, force: boolean, meta: { chatId?: string }) {
+  // Undo of a line's entry (changes/undo.ts): the line goes back to `to` wherever it is now in the list,
+  // but only while its text is still what the entry left (`expect`)
+  setLine(id: string, to: MemoryLine | null, expect: MemoryLine | null, caller: Caller, extra: Pick<RecordInput, "origin" | "undoes">) {
     return this.serial.run(async () => {
       const lines = await this.list()
       const i = lines.findIndex((l) => l.id === id)
       const now = i >= 0 ? lines[i] : null
-      if (!force && after !== undefined && sha1(now?.text ?? "") !== after) {
-        throw new RpcFailure(RpcErrorCode.Conflict, t`That line changed after Owlit wrote it, so owlit left it as it is.`, { id })
-      }
-      const before = JSON.parse(content) as { before: MemoryLine | null }
-      const redo = await this.versions.saveMemory(id, now, before.before?.text ?? null, { ...meta, by: "undo" })
-      if (before.before && i >= 0) lines[i] = before.before
-      else if (before.before) lines.push(before.before)
+      if ((now?.text ?? null) !== (expect?.text ?? null)) throw new RpcFailure(RpcErrorCode.Conflict, t`That line changed since, so owlit left it as it is.`, { id })
+      if (to && i >= 0) lines[i] = to
+      else if (to) lines.push(to)
       else if (i >= 0) lines.splice(i, 1)
+      const entry = await this.record(caller, now, to, extra)
       await this.save(lines)
-      return { redoId: redo.id }
+      return entry
     })
+  }
+
+  private record(caller: Caller, before: MemoryLine | null, after: MemoryLine | null, extra: Pick<RecordInput, "origin" | "undoes"> = {}) {
+    const line = (after ?? before)!
+    return this.recorder.record(
+      caller,
+      {
+        action: before === null ? "create" : after === null ? "delete" : "update",
+        target: { kind: "memory", path: "memory", part: line.id },
+        ...(before ? { before } : {}),
+        ...(after ? { after } : {}),
+        ...extra,
+      },
+      { label: line.text },
+    )
   }
 
   // ---- What Claude Code kept for this folder before
@@ -232,12 +250,15 @@ export class Memory {
 
   // Keeps the chosen notes as lines (edited first, if the user did) and remembers every note named as
   // decided, kept or not, so none is offered again
-  decideClaudeNotes(keep: { file: string; kind: MemoryKind; text: string }[], drop: string[]): Promise<MemoryLine[]> {
+  decideClaudeNotes(keep: { file: string; kind: MemoryKind; text: string }[], drop: string[], caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
       const lines = await this.list()
       for (const note of keep) {
         const text = oneLine(note.text)
-        if (text && !lines.some((l) => sameText(l.text, text)) && lines.length < MEMORY_MAX_LINES) lines.push({ id: nextId(lines), kind: note.kind, text, at: Date.now() })
+        if (!text || lines.some((l) => sameText(l.text, text)) || lines.length >= MEMORY_MAX_LINES) continue
+        const line: MemoryLine = { id: nextId(lines), kind: note.kind, text, at: Date.now() }
+        lines.push(line)
+        await this.record(caller, null, line)
       }
       const sidecar = (await readJson<{ claudeCode?: Record<string, string> }>(this.sidecar).catch(() => undefined)) ?? {}
       const claudeCode = { ...sidecar.claudeCode }

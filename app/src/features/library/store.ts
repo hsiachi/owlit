@@ -1,3 +1,4 @@
+import { me, myOwlit } from "@/lib/actors"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
@@ -21,6 +22,7 @@ interface LibraryState {
   highlights: Record<string, Highlight>
   notes: Record<string, PaperNote>
 
+  // addedBy: the person at this window unless given; core signs it again
   addPaper: (resolved: ResolvedPaper, addedBy?: Paper["addedBy"]) => Paper
   updatePaper: (id: string, patch: Partial<Omit<Paper, "id">>) => void
   // Returns what was removed so the caller can offer undo
@@ -32,15 +34,16 @@ interface LibraryState {
   setTags: (id: string, tags: string[]) => void
   addTag: (ids: string[], tag: string) => void
   removeTag: (ids: string[], tag: string) => void
-  // Called once the person has really read in the paper (lib/reading.ts says when): records the time
-  // Up next orders by and moves unread → reading
+  // dev:web's stand-in for core's library.opened (disk.ts markReading): records the time Up next orders
+  // by and moves unread → reading
   markReading: (id: string) => void
   setPosition: (id: string, position: ReadingPosition) => void
   // The side of the paper being read (the digest or the PDF), kept so it reopens there
   setView: (id: string, view: PaperView) => void
   setDigestPosition: (id: string, position: DigestPosition) => void
 
-  addHighlight: (h: Omit<Highlight, "id" | "createdAt">) => Highlight
+  // chatId: the chat whose agent asked for the mark (ui.mark), so it shows as Owlit's and core signs it so
+  addHighlight: (h: Omit<Highlight, "id" | "createdAt" | "addedBy">, chatId?: string) => Highlight
   updateHighlight: (id: string, patch: Partial<Pick<Highlight, "color" | "comment">>) => void
   // Returns what was removed so the caller can offer undo
   removeHighlight: (id: string) => Highlight | undefined
@@ -71,6 +74,9 @@ export const paperById = (papers: Record<string, Paper>, aliases: Record<string,
 // A removed paper's highlights and note, held until the session ends so Undo brings them back too
 const removedWith = new Map<string, { highlights: Highlight[]; note?: PaperNote }>()
 
+// Highlights an agent asked for (ui.mark), by highlight id: the chat, until it has gone to core
+export const markedFor = new Map<string, string>()
+
 export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
@@ -79,7 +85,7 @@ export const useLibraryStore = create<LibraryState>()(
       highlights: {},
       notes: {},
 
-      addPaper: (resolved, addedBy = "user") => {
+      addPaper: (resolved, addedBy = me() ?? "other") => {
         const paper: Paper = {
           // The library's id when a lookup gave one (doi-…, arxiv-…)
           id: resolved.id ?? newId(),
@@ -158,8 +164,9 @@ export const useLibraryStore = create<LibraryState>()(
 
       setDigestPosition: (id, position) => set((s) => patchPapers(s, [id], (p) => (p.digestPosition?.y === position.y ? undefined : { digestPosition: position }))),
 
-      addHighlight: (h) => {
-        const highlight: Highlight = { ...h, id: newId(), createdAt: Date.now() }
+      addHighlight: (h, chatId) => {
+        const highlight: Highlight = { ...h, id: newId(), createdAt: Date.now(), addedBy: chatId ? myOwlit() : (me() ?? "other") }
+        if (chatId) markedFor.set(highlight.id, chatId)
         set((s) => ({ highlights: { ...s.highlights, [highlight.id]: highlight }, lastColor: highlight.color }))
         return highlight
       },

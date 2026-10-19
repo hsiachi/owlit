@@ -4,6 +4,11 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A doc's Versions lists every change and who made it: your edits, Owlit's and another program's. Undo, there or under an answer, puts back just the passage that change touched and keeps what you wrote since; a passage you edited after it stays, and owlit says which. In a thread Undo takes back the rows and answers one write added, on a paper one field.
+- Keep mine, when a doc changed on disk while you edited it, keeps the other program's text in Versions, under yours. A change another program makes while Owlit works no longer passes for Owlit's.
+- Since you left counts from when you left, also when owlit was closed, and names what changed: the papers added to each thread, the docs Owlit wrote or edited, the comments it left.
+- A doc shows a thin line beside the paragraphs Owlit or another program changed since you last looked, with who and when on hover.
+- The dots on threads, comments, chats and digests, and the result card under an answer with its Undo, survive a restart and agree across windows; a background run's changes can be undone from its chat.
 - When a recheck or your reply shows one of Owlit's comments was wrong, Owlit corrects the comment itself instead of only saying so underneath: it reads "edited", shows what it first said ("was: …"), and is new to you again; your replies stay.
 - A thread's About names the batch Owlit answered again after you read a paper in full: "Answered again from the full text".
 - Clicking a citation in a doc opens the paper beside the doc, at the cited sentence, where Owlit's panel docks: with its page, the Digest | PDF switch, its full page and Close. Esc puts it away and the cursor back at the citation; ⇧⌘J brings Owlit back in its place; ⌘-click, or a window narrower than 1100px, opens the paper's own page as before. Reading it there counts as reading the paper.
@@ -27,7 +32,6 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.
 - A comment Owlit held while you were typing lands in the workspace it was made in when you switch to another, never in a doc of the same name there.
-- Keep mine, when a doc changed on disk while you edited it, keeps the other program's text: it is in the doc's Versions, as From another program.
 - Turning off Remember what I do in owlit stops the record of what you do, but no longer stops digests for papers you open or Owlit's look at docs you open.
 - Since you left lists Owlit's work that started before you left and finished after.
 - Choosing a language during the first launch keeps you on that step, and Settings opened before a workspace no longer shows an error.

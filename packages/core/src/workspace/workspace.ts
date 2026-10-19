@@ -1,15 +1,19 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type MemoryLine, type PaperIds, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { RpcErrorCode, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
 import { Docs } from "../docs/docs.ts"
 import type { Host } from "../host.ts"
 import { Http } from "../net/http.ts"
-import { Versions } from "../docs/versions.ts"
+import { ChangeLog } from "../changes/log.ts"
+import { newWriteId, Recorder } from "../changes/record.ts"
+import { Members } from "../changes/members.ts"
+import { Seen } from "../changes/seen.ts"
+import { SettingsStore } from "../settings.ts"
 import { Memory } from "../memory/memory.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
-import { RpcFailure } from "../rpc/index.ts"
+import { RpcFailure, WINDOW } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Threads, type ThreadsServices } from "../threads/threads.ts"
@@ -37,6 +41,13 @@ export interface WorkspaceOptions {
   tasks?: WorkspaceTasks
   // Owlit's memory changed, by anyone
   memoryChanged?: (lines: MemoryLine[]) => void
+  // The profile of the person using this owlit (with its id); read from the app data's settings when
+  // not given
+  profile?: () => Promise<ProfileSettings>
+  // An entry was added to the change log
+  changeAdded?: (notification: Notifications["changes.added"]) => void
+  // The initiative rule that queued a task, if one did
+  ruleOf?: (taskId: string) => string | undefined
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
@@ -58,7 +69,10 @@ export class Workspace {
   readonly root: string
   readonly dataDir: string
   readonly docs: Docs
-  readonly versions: Versions
+  readonly changes: ChangeLog
+  readonly recorder: Recorder
+  readonly members: Members
+  readonly seen: Seen
   readonly chats: Chats
   readonly library: Library
   readonly tasks: Scheduler
@@ -68,21 +82,48 @@ export class Workspace {
   readonly shares: Shares
   private release: () => Promise<void>
 
-  private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions) {
+  private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions, profile: () => Promise<ProfileSettings>) {
     const { host = {}, tasks = {} } = options
     this.root = root
     this.dataDir = dataDir
     this.info = { path: root, name: path.basename(root) }
     this.release = release
     this.docs = new Docs(root, path.join(root, OWLIT_DIR), host)
-    this.versions = new Versions(path.join(root, OWLIT_DIR))
-    // Keep mine in a conflict: the other program's text stays in the doc's Versions
-    this.docs.overwriting = (rel, theirs, mine) => this.versions.saveFile(rel, theirs, mine, { by: "outside" })
+    this.changes = new ChangeLog(path.join(root, OWLIT_DIR))
+    this.recorder = new Recorder(this.changes, {
+      profile,
+      added: options.changeAdded,
+      // A run ("<kind>:<task id>") reports in its task's session
+      runOf: (run) => {
+        const taskId = run.slice(run.indexOf(":") + 1)
+        const ruleId = options.ruleOf?.(taskId)
+        return { chatId: this.tasks.get(taskId)?.chatId, ...(ruleId ? { ruleId } : {}) }
+      },
+    })
+    this.members = new Members(path.join(root, OWLIT_DIR))
+    this.seen = new Seen(path.join(root, OWLIT_DIR))
+    // The window's saves; a doc that followed its first line to a new name is recorded as leaving the old
+    // one and arriving at the new
+    this.docs.saved = async (rel, before, after, at) => {
+      await this.recorder.saved(WINDOW, rel, before, after)
+      if (at === rel) return
+      const writeId = newWriteId()
+      await this.recorder.doc(WINDOW, rel, after, null, { origin: { writeId } }, { quiet: true })
+      await this.recorder.doc(WINDOW, at, null, after, { origin: { writeId } }, { quiet: true })
+    }
     this.chats = new Chats(path.join(root, OWLIT_DIR))
-    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.versions, options.memoryChanged)
-    this.library = new Library(root, dataDir, options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) })
+    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged)
+    this.library = new Library(root, dataDir, {
+      ...(options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) }),
+      person: () => this.recorder.actorOf(WINDOW),
+      // The person's import, one change however many papers it brings
+      imported: (paper, importId) =>
+        void this.recorder
+          .record(WINDOW, { action: "create", target: { kind: "paper", path: paper.id }, origin: { writeId: importId } }, { label: paper.title, quiet: true })
+          .catch((error) => console.error("[core] couldn't record an imported paper", error)),
+    })
     this.search = new SearchIndex(root, dataDir, this.library)
-    this.threads = new Threads(path.join(root, OWLIT_DIR), { versions: this.versions }, {
+    this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
       canonical: (id, ids) => this.library.canonical(id, ids),
@@ -135,8 +176,9 @@ export class Workspace {
     return !!here && (await stat(path.join(paperDir(this.root, here), "text.md")).then(() => true, () => false))
   }
 
-  // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
-  // left unfinished (running them unless asked not to yet). Creates nothing else inside the folder.
+  // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists, adds the person to
+  // .owlit/members.json and picks up the tasks left unfinished (running them unless asked not to yet).
+  // Creates nothing else inside the folder.
   static async open(folder: string, userDataDir: string, options: WorkspaceOptions = {}) {
     const root = await resolveFolder(folder)
     const dataDir = workspaceDataDir(userDataDir, root)
@@ -155,11 +197,14 @@ export class Workspace {
     }
     try {
       await ensureWorkspaceFile(root)
-      const workspace = new Workspace(root, dataDir, release, options)
+      const settings = options.profile ? undefined : new SettingsStore(userDataDir)
+      const profile = options.profile ?? (() => settings!.get().then((s) => s.profile))
+      const workspace = new Workspace(root, dataDir, release, options, profile)
+      await workspace.members.ensure(await profile())
       await workspace.tasks.load()
       if (options.tasks?.start !== false) await workspace.tasks.start()
-      // Versions past the keep rules go when the workspace opens
-      void workspace.versions.cleanup().catch((error) => console.error("[core] couldn't clean up versions", error))
+      // Changes past the keep rules go when the workspace opens
+      void workspace.changes.cleanup().catch((error) => console.error("[core] couldn't clean up the change log", error))
       workspace.search.attach(() => workspace.tasks.debounce("index.sync", "workspace", SETTLE_MS))
       return workspace
     } catch (error) {

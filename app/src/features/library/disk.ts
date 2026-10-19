@@ -6,7 +6,7 @@ import { toastError, toastUndo } from "@/lib/toast"
 import { followCore } from "@/lib/follow-core"
 import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
-import { useLibraryStore } from "./store"
+import { markedFor, useLibraryStore } from "./store"
 
 // The library store's link to the workspace (library/papers/ and .owlit/papers/, through core). The
 // store changes at once; this module watches it and sends each difference to core, in order: a paper
@@ -94,6 +94,13 @@ function takePaper(paper: Paper) {
   takeFromCore(() => useLibraryStore.setState((s) => ({ papers: { ...s.papers, [paper.id]: paper } })))
 }
 
+// The person read in a paper (lib/reading.ts says when): core moves its last-read time, and an unread
+// paper to Reading on its own
+export function markReading(id: string) {
+  if (!onDisk) return useLibraryStore.getState().markReading(id)
+  enqueue(async () => takePaper(await rpc.library.opened({ id })))
+}
+
 // A PDF on disk imported by core (recognised, kept in the workspace) and taken into the store
 export async function importPdf(path: string) {
   const imported = await rpc.library.importPdf({ path })
@@ -159,7 +166,6 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
     enqueue(async () => {
       const saved = await rpc.library.add({
         paper: { id: paper.id, title: paper.title, authors: paper.authors, ids: paper.ids, year: paper.year, venue: paper.venue, abstract: paper.abstract, kind: paper.kind },
-        addedBy: paper.addedBy,
       })
       // Core knew it under another id: the store follows core
       if (saved.id !== paper.id) {
@@ -195,7 +201,12 @@ function papersChanged(next: Record<string, Paper>, prev: Record<string, Paper>)
 }
 
 function highlightsChanged(next: Record<string, Highlight>, prev: Record<string, Highlight>, papers: Record<string, Paper>) {
-  for (const h of Object.values(next)) if (prev[h.id] !== h) enqueue(() => rpc.library.putHighlight({ highlight: h }))
+  for (const h of Object.values(next)) {
+    if (prev[h.id] === h) continue
+    const chatId = markedFor.get(h.id)
+    markedFor.delete(h.id)
+    enqueue(() => rpc.library.putHighlight({ highlight: h, ...(chatId ? { chatId } : {}) }))
+  }
   for (const h of Object.values(prev)) {
     // A removed paper takes its highlights to the trash with it
     if (!next[h.id] && papers[h.paperId]) enqueue(() => rpc.library.removeHighlight({ paperId: h.paperId, id: h.id }))

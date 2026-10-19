@@ -1,3 +1,4 @@
+import type { ActorId } from "./changes.ts"
 import type { PaperView } from "./activity.ts"
 
 // Library domain types. A paper is one record: facts about it plus the user's judgement
@@ -40,11 +41,12 @@ export interface PaperPdf {
 // the user allows it there (an optional host permission, asked for from the extension's own button).
 export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "no-permission"
 
-// One try, by owlit's own looks, the user (a file they dropped or chose) or the browser extension.
+// One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)
+// or the browser extension.
 // route is owlit's name for the way ("arxiv", "unpaywall/repository", "publisher:acm", "browser:acm");
 // host and title are the page it ended on.
 export interface PdfTry {
-  by: "owlit" | "you" | "extension"
+  by: "search" | "person" | "extension"
   ended: PdfEnded
   at: number
   host?: string
@@ -91,8 +93,8 @@ export interface Paper {
   // read and shown as it is, never worked out again
   pdfState?: PdfState
   addedAt: number
-  // "agent" + unread is the Inbox view, once agents can add papers
-  addedBy: "user" | "agent"
+  // Who added it, set by core from the caller; whether Owlit may take it back depends on it
+  addedBy: ActorId
   starred: boolean
   // unread on add; reading is set once the person has read in it (not on a mere open); read is manual
   status: ReadStatus
@@ -195,8 +197,8 @@ export interface Highlight {
   text: string
   color: HighlightColor
   comment?: string
-  // Absent: the user's own
-  addedBy?: "agent"
+  // Set by core from whoever added it
+  addedBy: ActorId
   createdAt: number
 }
 

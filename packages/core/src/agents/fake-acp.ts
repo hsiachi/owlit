@@ -2,7 +2,7 @@
 // Run with node (types are stripped). What it does depends on the prompt's text:
 //   "permission"       asks to run something, then says what the user chose
 //   "rewrite <path> <t>" asks to Write t (\n for a line break) over the whole file, as Claude Code does: the
-//                      diff has no old text
+//                      diff has no old text; allowed, it writes the file itself
 //   "read <path>"      reads a file through owlit and says how long it is
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
@@ -323,7 +323,11 @@ class FakeAgent implements acp.Agent {
             { optionId: "no", name: "Reject", kind: "reject_once" },
           ],
         })
-        await say(`you chose ${answer.outcome.outcome === "selected" ? answer.outcome.optionId : "cancelled"}`)
+        const chose = answer.outcome.outcome === "selected" ? answer.outcome.optionId : "cancelled"
+        // Allowed, it writes the file itself, as Claude Code does after the user's Apply
+        if (chose === "yes") writeFileSync(file, content)
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "w1", status: chose === "yes" ? "completed" : "failed" } })
+        await say(`you chose ${chose}`)
         return { stopReason: "end_turn" }
       }
       const read = /read (\S+)/.exec(text)

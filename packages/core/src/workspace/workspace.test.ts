@@ -42,13 +42,22 @@ function tree(dir: string): string[] {
 }
 
 describe("workspace.open", () => {
-  it("creates only .owlit/workspace.json in an empty folder", async () => {
+  it("creates only .owlit/workspace.json, the members and the opener's seen marks in an empty folder", async () => {
     const { call, folder } = setup()
     const empty = folder("empty")
     const info = await call("workspace.open", { path: empty })
     expect(info).toEqual({ path: empty, name: "empty" })
-    expect(tree(empty)).toEqual([path.join(".owlit", "workspace.json")])
+    const { profile } = (await call("settings.get")) as { profile: { id: string } }
+    expect(tree(empty).sort()).toEqual([path.join(".owlit", "members.json"), path.join(".owlit", "seen", `p_${profile.id}.json`), path.join(".owlit", "workspace.json")])
     expect(JSON.parse(readFileSync(path.join(empty, ".owlit/workspace.json"), "utf8"))).toEqual({ version: 1, layout: {} })
+    // The person who opened it and their Owlit, by the profile's id
+    expect(JSON.parse(readFileSync(path.join(empty, ".owlit/members.json"), "utf8"))).toEqual({
+      [`p_${profile.id}`]: { kind: "person" },
+      [`o_${profile.id}`]: { kind: "assistant", of: `p_${profile.id}` },
+    })
+    // A name given later reaches the roster of the open workspace
+    await call("settings.update", { patch: { profile: { name: "Xia" } } })
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(path.join(empty, ".owlit/members.json"), "utf8"))[`p_${profile.id}`]).toEqual({ kind: "person", name: "Xia" }))
   })
 
   it("keeps an existing workspace.json as it is", async () => {

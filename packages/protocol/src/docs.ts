@@ -1,3 +1,5 @@
+import type { ActorId } from "./changes.ts"
+
 // Docs are the files of the workspace folder, read and written by core. Paths are workspace-relative and
 // "/"-separated; contents are kept exactly as they are on disk, byte for byte.
 
@@ -70,7 +72,8 @@ export interface DocComment {
 
 export interface CommentEntry {
   id: string
-  by: "you" | "owlit"
+  // Set by core from whoever wrote it, never by the client
+  by: ActorId
   // Owlit's entries: which agent wrote it ("Claude Code"); the app names it Owlit
   agent?: string
   text: string
@@ -84,45 +87,11 @@ export interface CommentEntry {
 
 export type CommentAnchor = Pick<DocComment, "quote" | "prefix" | "suffix">
 
-// A note as agents left them before comments: one text, no replies. Still read, as an Owlit comment.
-interface LegacyNote extends CommentAnchor {
-  id: string
-  text: string
-  by: string
-  chatId?: string
-  createdAt: number
-}
-
-export function asComment(value: DocComment | LegacyNote): DocComment {
-  if ("entries" in value && Array.isArray(value.entries)) return value
-  const note = value as LegacyNote
-  const entry: CommentEntry = { id: note.id, by: "owlit", agent: note.by, text: note.text, at: note.createdAt, ...(note.chatId ? { chatId: note.chatId } : {}) }
-  return { id: note.id, quote: note.quote, prefix: note.prefix, suffix: note.suffix, entries: [entry], createdAt: note.createdAt }
-}
+// A comment as a client sends it: core sets each new entry's author, so by is left out or ignored
+export type CommentInput = Omit<DocComment, "entries"> & { entries: (Omit<CommentEntry, "by"> & { by?: ActorId })[] }
 
 // Still open: not resolved, and with something said
 export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && !c.foldedAt && c.entries.length > 0
-
-// A version kept so an agent's change can be taken back (.owlit/versions/): a doc's text
-// before a write, a note an agent left, a paper an agent added, a thread before an agent wrote to it.
-// An undo keeps what it replaced as a
-// version too (by "undo"), so it can be undone in turn. Another program's text the user chose to write
-// over (Keep mine) is kept too (by "outside").
-export interface VersionInfo {
-  id: string
-  kind: "file" | "note" | "paper" | "thread" | "memory"
-  // file: workspace-relative path; note: the doc's path; paper: the paper's id; thread: its id; memory:
-  // the line's id
-  path: string
-  at: number
-  chatId?: string
-  by: "agent" | "undo" | "outside"
-  // file: the change created or deleted the file
-  existed?: boolean
-  deleted?: true
-  // note and paper
-  op?: "added" | "removed"
-}
 
 // What owlit keeps about Owlit and one of your docs (.owlit/docs/owlit.json, moving with the doc):
 // whether you keep Owlit out of it, and what it went through there
