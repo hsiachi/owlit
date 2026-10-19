@@ -4,9 +4,17 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A reply survives closing or reloading the window: open it again and the reply is still live, with Stop and whatever it waits on you for, and it ends where you can see it.
+- Type while Owlit works and your message waits under the reply ("Sends when Owlit finishes", × to take it back), then goes when the reply ends. With a command waiting on you, typing answers it Don't allow and Owlit carries on with your words next; files and mentions in the composer go with your message.
+- Chinese answers come on word by word, as English ones do, instead of in lumps.
+- Stop works at once, even while the agent is still starting, and Esc in the composer stops too. After two minutes with no word from the agent, the reply says so ("No word from Claude Code for 2 min") with Stop.
+- The composer takes lists: "- ", "* " or "1. " at a line's start begins one, Shift+Enter adds an item (on an empty one, ends the list), Tab indents. Enter still sends, and the list goes as Markdown.
+- The ⌘J ask bar is the same composer as everywhere else: @-mentions, the agent and role pickers, and what you typed is still there after Esc.
+- Ask Owlit on a passage from a paper or doc the docked chat isn't about starts a new chat in the panel, and New chat keeps the passage.
+- Retrying a broken reply no longer puts its edits on the card of the answer before it, and a Write step in a chat counts what it changed, as the card does.
 - Keep Owlit out of a doc now holds: Owlit can't edit, delete, move or comment on that doc, in any role and on every agent.
 - An edit Owlit asks to make outside your docs (outside the workspace, in owlit's own folders, in a hidden folder) is refused before it lands, in every role.
-- A reply cut off because you quit owlit or opened another workspace says so ("Owlit was closed before it finished") instead of looking as if you pressed Stop.
+- A reply cut off because you quit owlit or opened another workspace says so ("Stopped when owlit closed", "Stopped when you switched workspace") with Retry, instead of looking as if you pressed Stop.
 - In a Reviewer chat, Owlit can reply under your comments; resolving them still needs Assistant or Co-author.
 - Memory lines you wrote or changed in Settings stay yours: Owlit adds lines and changes its own, but no longer rewrites or removes yours.
 - In Assistant, an agent's request to run a command is refused instead of asking you; Co-author still asks.
