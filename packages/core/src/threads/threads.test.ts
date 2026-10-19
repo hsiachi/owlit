@@ -1,4 +1,4 @@
-import { itemId, placedKey, shownThread, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
+import { itemId, placedKey, shownThread, type Change, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -339,7 +339,7 @@ describe("Threads, a close question", () => {
     const { id } = await start(threads)
     await threads.write({ id, asked: "回放评价和当场评价，偏差方向有没有研究？", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower in retrospect.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
     expect((await threads.get(id)).alsoAsked).toMatchObject([{ text: "回放评价和当场评价，偏差方向有没有研究？", chatId: "chat-2" }])
-    expect(wrote.at(-1)).toMatchObject({ change: { action: "update" }, thread: { rows: ["doi-10.1145-3"], asked: "回放评价和当场评价，偏差方向有没有研究？" } })
+    expect(wrote.at(-1)).toMatchObject({ change: { action: "create", target: { kind: "thread", path: id, part: "alsoAsked" } }, thread: { rows: ["doi-10.1145-3"], asked: "回放评价和当场评价，偏差方向有没有研究？" } })
   })
 
   it("keeps it separate: the added rows become a thread of their own", async () => {
@@ -410,33 +410,68 @@ describe("Threads, the user's side", () => {
   })
 })
 
+// What changes/undo.ts does with a thread's entry
+const undo = (threads: Threads, e: Change) => {
+  const extra = { undoes: e.id }
+  return e.target.part ? threads.setItem(e.target.path, e.target.part, e.before, e.after, window, extra) : threads.undoWhole(e, window, extra)
+}
+// One write's entries, newest first, as the result card undoes them
+const writeOf = async (changes: ChangeLog, id: string, chatId: string) => {
+  const mine = (await changes.list({ path: id, chatId })).filter((c) => !c.undoes)
+  return mine.filter((c) => c.origin.writeId === mine[0]!.origin.writeId)
+}
+
 describe("Threads, undo", () => {
-  it("takes back an agent's write and keeps what the user did since", async () => {
-    const { threads, changes } = setup()
+  it("takes back an agent's write item by item, keeping what the user and a later write did since", async () => {
+    const { threads, changes, wrote } = setup()
     const { id } = await start(threads)
     await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
     await threads.edit(id, { op: "rename", title: "Replay as a method" }, window)
-    const [rename, last] = await changes.list({ path: id })
-    // The user's rename is its own entry, item by item; the agent's write is a snapshot of the thread
-    expect(rename).toMatchObject({ actor: "p_1234abcd", action: "update", target: { kind: "thread", path: id, part: "title" }, origin: { via: "editor" } })
-    expect(rename!.after).toMatchObject({ value: "回放式标注作为研究方法", edit: { text: "Replay as a method" } })
-    expect(last).toMatchObject({ actor: "o_1234abcd", action: "update", target: { kind: "thread", path: id }, origin: { via: "tool", chatId: "chat-2" } })
-    await threads.undo(last!, await changes.content(last!.id), window)
-    const c = await threads.get(id)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6, from the abstract.", depth: "abstract" } } }], chatId: "chat-3" }, agent)
+    const second = await writeOf(changes, id, "chat-2")
+    // One entry per item the write changed, both sides inline, one writeId, said once
+    expect(second.map((c) => [c.actor, c.action, c.target.part])).toEqual([
+      ["o_1234abcd", "create", "cell:doi-10.1145-3:q"],
+      ["o_1234abcd", "create", "row:doi-10.1145-3"],
+    ])
+    expect(second[1]!.after).toMatchObject({ value: { id: "doi-10.1145-3", paper: papers["doi-10.1145-3"] } })
+    expect(wrote.filter((n) => n.change.origin.chatId === "chat-2")).toHaveLength(1)
+    const undos = []
+    for (const e of second) undos.push(await undo(threads, e))
+    let c = await threads.get(id)
     expect(c.rows.map((r) => r.id)).toEqual(["doi-10.1145-1", "doi-10.1145-2"])
+    expect(c.rows[0]!.cells.q?.text).toBe("Lower by 0.6, from the abstract.")
     expect(shownThread(c).title).toBe("Replay as a method")
+    // Redo: the undos undone, newest first, bring the row back with its answer
+    for (const u of undos.reverse()) await undo(threads, u)
+    c = await threads.get(id)
+    expect(c.rows.map((r) => [r.id, r.cells.q?.text])).toEqual([
+      ["doi-10.1145-1", "Lower by 0.6, from the abstract."],
+      ["doi-10.1145-2", "Own explanations recover more."],
+      ["doi-10.1145-3", "Lower."],
+    ])
   })
 
-  it("puts a thread an agent started into the trash", async () => {
+  it("leaves an item the user changed since", async () => {
     const { threads, changes } = setup()
     const { id } = await start(threads)
-    const first = (await changes.list({ path: id })).at(-1)!
-    expect(first.action).toBe("create")
-    expect(await changes.content(first.id)).toBeNull()
-    const undo = await threads.undo(first, null, window)
-    expect(undo).toMatchObject({ actor: "p_1234abcd", action: "delete", undoes: first.id })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
+    await threads.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-3", "q"), text: "Lower, I think." }, window)
+    const [cell] = await writeOf(changes, id, "chat-2")
+    await expect(undo(threads, cell!)).rejects.toThrow("That changed in the thread since, so owlit left it as it is.")
+    expect((await threads.get(id)).rows.map((r) => r.id)).toContain("doi-10.1145-3")
+  })
+
+  it("puts a thread an agent started into the trash, and back", async () => {
+    const { threads, changes } = setup()
+    const { id } = await start(threads)
+    const [first, ...rest] = (await changes.list({ path: id })).reverse()
+    expect(first).toMatchObject({ action: "create", target: { kind: "thread", path: id } })
+    expect(rest).toEqual([])
+    const undone = await undo(threads, first!)
+    expect(undone).toMatchObject({ actor: "p_1234abcd", action: "delete", undoes: first!.id })
     expect(await threads.list()).toEqual([])
-    await threads.undo(undo, await changes.content(undo.id), window)
+    await undo(threads, undone)
     expect((await threads.list()).map((c) => c.id)).toEqual([id])
   })
 })

@@ -246,10 +246,12 @@ describe("the extension's port", () => {
   })
 
   it("adds a paper from the page's own words when nothing resolves", async () => {
-    const { request, pair } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
+    const { request, pair, call } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
     const token = await pair()
     const added = await request("/papers", { token, body: { doi: "10.9999/unknown.1", title: "A Paper Nobody Indexed Yet", authors: ["A. Writer"], year: 2026 } })
     expect(added.body.paper).toMatchObject({ id: "doi-10.9999-unknown.1", title: "A Paper Nobody Indexed Yet", hasPdf: false })
+    // The person's addition, which they can undo
+    expect(await call("changes.list", { path: "doi-10.9999-unknown.1" })).toMatchObject([{ actor: expect.stringMatching(/^p_/), action: "create", target: { kind: "paper" } }])
     expect((await request("/papers", { token, body: { url: "https://example.org/nothing" } })).body).toMatchObject({ reason: "bad-request" })
   })
 

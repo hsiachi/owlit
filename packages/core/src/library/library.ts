@@ -111,6 +111,8 @@ export interface LibraryServices {
   person?: () => Promise<ActorId>
   // A background agent session: one prompt, with pictures for an agent that sees them, and its answer
   // (digests). model is the one chosen for background work, when one is.
+  // An import of the person's added a paper (importId: which one)
+  imported?: (paper: Paper, importId: string) => void
   // The user starred a paper (not an agent, not an import)
   starred?: (id: string) => void
   // A paper joined the library one at a time, not by an agent and not in a batch import: the user added
@@ -208,14 +210,19 @@ export class Library {
     this.index = new PaperIndex(root)
     this.imports = new Imports(dataDir, {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
-      add: (paper, extra) => this.addNew(paper, undefined, "background", extra),
-      addPdf: (file, extra) => this.importPdf(file, { priority: "background", ...extra }),
+      add: async (paper, { importId, ...extra }) => this.importedBy(importId, await this.addNew(paper, undefined, "background", extra)),
+      addPdf: async (file, { importId, ...extra }) => this.importedBy(importId, await this.importPdf(file, { priority: "background", ...extra })),
       resolve: (title) => this.byTitle(title),
       parsingOn: async () => {
         const settings = (await this.services.parsing?.()) ?? {}
         return !!settings.service && !(settings.service === "cloud" && !settings.token) && settings.auto !== false
       },
     })
+  }
+
+  private importedBy(importId: string, done: { paper: Paper; existed: boolean }) {
+    if (!done.existed) this.services.imported?.(done.paper, importId)
+    return done
   }
 
   // The scheduler that runs this library's tasks (paper.metadata and what follows an add)

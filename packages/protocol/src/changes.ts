@@ -33,7 +33,7 @@ export interface ChangeOrigin {
 }
 
 export interface Change {
-  // <at>-<rand>-<path>; also the name of the file holding a doc's or thread's text from before
+  // <at>-<rand>-<path>; also the name of the file holding a doc's text from before
   id: string
   at: number
   // A folded session's last save
@@ -42,8 +42,8 @@ export interface Change {
   action: ChangeAction
   target: ChangeTarget
   origin: ChangeOrigin
-  // The value on each side, inline for small targets (a comment, a memory line); a doc's or thread's
-  // text from before is in the file named by id instead
+  // The value on each side, inline for everything but a doc (a comment, a paper's field, a thread's
+  // item, a memory line); a doc's text from before is in the file named by id instead
   before?: unknown
   after?: unknown
   // A doc's sha1 after the change, to tell whether it changed since

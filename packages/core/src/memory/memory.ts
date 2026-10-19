@@ -1,9 +1,9 @@
 import { t } from "@lingui/core/macro"
-import { MEMORY_MAX_CHARS, MEMORY_MAX_LINES, RpcErrorCode, type Change, type ClaudeNote, type MemoryKind, type MemoryLine } from "@owlit/protocol"
+import { MEMORY_MAX_CHARS, MEMORY_MAX_LINES, RpcErrorCode, type ClaudeNote, type MemoryKind, type MemoryLine } from "@owlit/protocol"
 import { readdir, readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import type { Recorder } from "../changes/record.ts"
+import type { RecordInput, Recorder } from "../changes/record.ts"
 import { ignoreMissing, readJson, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { Serial } from "../util.ts"
@@ -198,30 +198,24 @@ export class Memory {
     })
   }
 
-  // Undo of a change in the log: the line goes back to what it was before, wherever it is now in the
-  // list, recorded as a change that undoes it (so the undo can be undone). A line changed since is left
-  // alone unless forced.
-  undo(change: Change, caller: Caller, force: boolean) {
+  // Undo of a line's entry (changes/undo.ts): the line goes back to `to` wherever it is now in the list,
+  // but only while its text is still what the entry left (`expect`)
+  setLine(id: string, to: MemoryLine | null, expect: MemoryLine | null, caller: Caller, extra: Pick<RecordInput, "origin" | "undoes">) {
     return this.serial.run(async () => {
-      const id = change.target.part!
       const lines = await this.list()
       const i = lines.findIndex((l) => l.id === id)
       const now = i >= 0 ? lines[i] : null
-      const after = (change.after as MemoryLine | undefined) ?? null
-      if (!force && (now?.text ?? null) !== (after?.text ?? null)) {
-        throw new RpcFailure(RpcErrorCode.Conflict, t`That line changed after Owlit wrote it, so owlit left it as it is.`, { id })
-      }
-      const before = (change.before as MemoryLine | undefined) ?? null
-      if (before && i >= 0) lines[i] = before
-      else if (before) lines.push(before)
+      if ((now?.text ?? null) !== (expect?.text ?? null)) throw new RpcFailure(RpcErrorCode.Conflict, t`That line changed since, so owlit left it as it is.`, { id })
+      if (to && i >= 0) lines[i] = to
+      else if (to) lines.push(to)
       else if (i >= 0) lines.splice(i, 1)
-      const entry = await this.record(caller, now, before, change.id)
+      const entry = await this.record(caller, now, to, extra)
       await this.save(lines)
       return entry
     })
   }
 
-  private record(caller: Caller, before: MemoryLine | null, after: MemoryLine | null, undoes?: string) {
+  private record(caller: Caller, before: MemoryLine | null, after: MemoryLine | null, extra: Pick<RecordInput, "origin" | "undoes"> = {}) {
     const line = (after ?? before)!
     return this.recorder.record(
       caller,
@@ -230,7 +224,7 @@ export class Memory {
         target: { kind: "memory", path: "memory", part: line.id },
         ...(before ? { before } : {}),
         ...(after ? { after } : {}),
-        ...(undoes ? { undoes } : {}),
+        ...extra,
       },
       { label: line.text },
     )

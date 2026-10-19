@@ -4,7 +4,7 @@ import { useLibraryStore } from "@/features/library/store"
 import { myOwlit } from "@/lib/actors"
 import { mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
-import { recordResult, setMockUndo } from "../results"
+import { addMockChange, mockEntry } from "../results"
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -170,12 +170,10 @@ export class MockAgentClient implements AgentClient {
     await step("Read 6 abstracts", "read", 2500, "Kept 3", 2)
     const added = FOUND.map((p) => useLibraryStore.getState().addPaper(p, myOwlit()))
     for (const paper of added) {
-      const changeId = `mock-${crypto.randomUUID()}`
-      setMockUndo(changeId, () => {
+      addMockChange(mockEntry(chatId, { kind: "paper", path: paper.id }), () => {
         const gone = useLibraryStore.getState().removePapers([paper.id])
         return () => useLibraryStore.getState().restorePapers(gone)
       })
-      recordResult(chatId, { kind: "paper", changeId, path: paper.id, label: paper.title, at: Date.now() })
     }
     await step(`Added ${added.length} papers to the Library`, "other", 400, added.map((p) => p.title).join("\n"), 3)
     await this.stream(emit, signal, FOUND_ANSWER, "agent_message_chunk", 12)

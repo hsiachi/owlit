@@ -165,8 +165,9 @@ export function isHiddenFromDocs(relativePath: string) {
 export interface UiActions {
   // The doc's text in its editor; null: not open after all
   "fs.read": { params: { path: string }; result: { content: string | null } }
-  // The agent's write, applied in the doc's editor; false: not open after all
-  "fs.write": { params: { path: string; content: string; changeId: string }; result: { applied: boolean } }
+  // The agent's write, applied in the doc's editor; false: not open after all. undo: an undo of a change
+  // in the log, applied without the toast an agent's edit gets
+  "fs.write": { params: { path: string; content: string; changeId: string; undo?: boolean }; result: { applied: boolean } }
   // Shows a paper, doc, chat or thread (an owlit:// link). chatId (on open, jump and mark) is
   // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
   open: { params: { uri: string; chatId?: string }; result: { title: string } }

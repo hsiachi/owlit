@@ -17,6 +17,7 @@
     "@lingui/core": "6.9.1",
     "@owlit/i18n": "workspace:*",
     "@owlit/protocol": "workspace:*",
+    "diff": "8.0.4",
     "zod": "4.6.5"
   },
   "devDependencies": {

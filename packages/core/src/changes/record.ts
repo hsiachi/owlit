@@ -15,7 +15,7 @@ export interface RecordInput {
   after?: unknown
   afterHash?: string
   undoes?: string
-  // A doc's or thread's text from before, kept in its own file rather than inline
+  // A doc's text from before, kept in its own file rather than inline
   content?: string
 }
 
@@ -91,7 +91,8 @@ export class Recorder {
   }
 
   // The person's save of a doc in the editor. Saves on one doc with no other author's entry between them
-  // and less than FOLD_MS apart are one entry: the first save appends it, later ones move its until and
+  // and less than FOLD_MS apart are one entry (an update: a new doc's first session is its own, so undoing
+  // it doesn't take the doc away): the first save appends it, later ones move its until and
   // afterHash, and its file keeps the text from before the first. A save that writes what the doc's newest
   // entry already left is that entry coming back through an open editor (an agent's edit the window took
   // in), and records nothing. Said nowhere: the person saw it as they typed.
@@ -102,7 +103,7 @@ export class Recorder {
       if (before === after || last?.afterHash === afterHash) return null
       const actor = await this.actorOf(caller)
       const at = this.now()
-      if (last && last.actor === actor && last.origin.via === "editor" && !last.undoes && last.action !== "delete" && at - (last.until ?? last.at) < FOLD_MS) {
+      if (last && last.actor === actor && last.origin.via === "editor" && !last.undoes && last.action === "update" && at - (last.until ?? last.at) < FOLD_MS) {
         const folded: Change = { ...last, until: at, afterHash }
         await this.log.replace(folded)
         this.newest.set(rel, folded)

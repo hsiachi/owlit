@@ -10,6 +10,7 @@ import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, rea
 import { Agents } from "./agents/agents.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
+import { Undo } from "./changes/undo.ts"
 import { Turns } from "./agents/turns.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
@@ -125,6 +126,7 @@ export class Core {
   private turns: Turns
   private ui: UiBridge
   readonly fs: AgentFs
+  readonly undo: Undo
   private journal: Journal
   private router = new Router()
   private notifier = new Notifier()
@@ -193,7 +195,11 @@ export class Core {
             version: this.version().version,
             name: (options.extension === true ? undefined : options.extension.name) ?? "Owlit",
             settings: this.settings,
-            workspace: () => (this.workspace ? { name: this.workspace.info.name, library: this.workspace.library } : null),
+            workspace: () => {
+              const ws = this.workspace
+              if (!ws) return null
+              return { name: ws.info.name, library: ws.library, added: (p: Paper) => ws.recorder.record(WINDOW, { action: "create", target: { kind: "paper", path: p.id } }, { label: p.title, quiet: true }) }
+            },
             hasWindow: () => this.ui.hasWindow(),
             changed: (view) => this.notifier.notify("extension.changed", view),
             openInBrowser: options.host?.openInBrowser ?? (options.host?.openExternal && ((url) => options.host!.openExternal!(url))),
@@ -206,6 +212,10 @@ export class Core {
       workspace: () => this.workspace,
       ui: this.ui,
       claimOf: (rel) => this.turns.claimOf(rel),
+    })
+    this.undo = new Undo({
+      workspace: () => this.workspace,
+      docs: { text: (rel) => this.fs.text(rel), write: (rel, content, changeId) => this.fs.place(rel, content, changeId, true) },
       commentsChanged: ({ path, changed, removed }) => {
         if (changed) this.notifier.notify("comments.changed", { path, comment: changed })
         if (removed) this.notifier.notify("comments.removed", { path, id: removed })
@@ -648,8 +658,8 @@ export class Core {
       z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }),
       ({ keep, drop }, caller) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop, caller),
     )
-    this.router.register("changes.undo", z.object({ id: z.string().min(1), force: z.boolean().optional() }), async ({ id, force }, caller) => ({ change: await this.fs.undo(id, caller, force) }))
-    this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), ({ ids }) => this.fs.stats(ids))
+    this.router.register("changes.undo", z.object({ id: z.string().min(1) }), ({ id }, caller) => this.undo.undo(id, caller))
+    this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), ({ ids }) => this.undo.stats(ids))
     const actor = z.custom<ActorId>((v) => typeof v === "string" && /^([po]_[0-9a-f]+|other)$/.test(v))
     this.router.register(
       "changes.list",
@@ -970,10 +980,10 @@ export class Core {
     )
     this.router.register(
       "threads.split",
-      z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string(), group: z.object({ column: z.string().min(1), id: z.string().min(1) }).optional() }),
-      ({ id, rows, asked, group }, caller) => threads().split(id, rows, asked, group, caller),
+      z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string(), group: z.object({ column: z.string().min(1), id: z.string().min(1) }).optional(), chatId: z.string().optional() }),
+      ({ id, rows, asked, group, chatId }, caller) => threads().split(id, rows, asked, group, caller, chatId),
     )
-    this.router.register("threads.unsplit", z.object({ id: z.string().min(1) }), ({ id }, caller) => threads().unsplit(id, caller))
+    this.router.register("threads.unsplit", z.object({ id: z.string().min(1), chatId: z.string().optional() }), ({ id, chatId }, caller) => threads().unsplit(id, caller, chatId))
     this.router.register("threads.about", z.object({ id: z.string().min(1) }), ({ id }) => threads().about(id))
     this.router.register(
       "threads.gather",

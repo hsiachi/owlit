@@ -45,7 +45,8 @@ interface ImportRecord {
   dismissed?: boolean
 }
 
-type Extra = { tags?: string[]; imported: { parse: boolean } }
+// importId: the import adding it, whose papers are one change in the log
+type Extra = { tags?: string[]; imported: { parse: boolean }; importId: string }
 
 // What an import needs from the library
 export interface ImportHost {
@@ -240,7 +241,7 @@ export class Imports {
 
   // One entry: skipped when the library has it, else added from what the source says
   private async addOne(entry: ImportEntry, record: ImportRecord, interrupted: boolean): Promise<Outcome> {
-    const extra: Extra = { ...(record.collectionsAsTags && entry.tags?.length ? { tags: entry.tags } : {}), imported: { parse: record.parse !== false } }
+    const extra: Extra = { ...(record.collectionsAsTags && entry.tags?.length ? { tags: entry.tags } : {}), imported: { parse: record.parse !== false }, importId: record.id }
     // Found in the library: there before, unless this import added it just before owlit stopped
     const ours = (id: string): Outcome => ({ result: interrupted ? "added" : "existed", id })
     try {

@@ -1,4 +1,4 @@
-import { MEMORY_MAX_LINES, type MemoryLine } from "@owlit/protocol"
+import { MEMORY_MAX_LINES, type Change, type MemoryLine } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -19,6 +19,9 @@ function setUp() {
 
 const chat = (chatId: string) => ({ kind: "socket" as const, chatId })
 const window = { kind: "window" as const }
+
+// What changes/undo.ts does with a memory line's entry
+const undo = (memory: Memory, e: Change) => memory.setLine(e.target.part!, (e.before as MemoryLine | undefined) ?? null, (e.after as MemoryLine | undefined) ?? null, window, { undoes: e.id })
 
 const configDir = process.env.CLAUDE_CONFIG_DIR
 afterEach(() => {
@@ -56,16 +59,16 @@ describe("Memory", () => {
     expect(entry.before).toMatchObject({ text: "Answer in Chinese." })
 
     // Undo puts the old line back, and the undo can be undone
-    const undo = await memory.undo(entry, window, false)
-    expect(undo).toMatchObject({ actor: "p_1234abcd", undoes: entry.id })
+    const undone = await undo(memory, entry)
+    expect(undone).toMatchObject({ actor: "p_1234abcd", undoes: entry.id })
     expect((await memory.list())[0].text).toBe("Answer in Chinese.")
-    await memory.undo(undo, window, false)
+    await undo(memory, undone)
     expect((await memory.list())[0].text).toBe("Answer in the language I write in.")
 
     const removed = await memory.agentWrite({ op: "remove", id: "m1" }, chat("c2"))
     expect(removed.line).toBeNull()
     expect(await memory.list()).toEqual([])
-    await memory.undo((await changes.get(removed.changeId!))!, window, false)
+    await undo(memory, (await changes.get(removed.changeId!))!)
     expect(await memory.list()).toMatchObject([{ id: "m1", text: "Answer in the language I write in." }])
     expect(heard.length).toBeGreaterThan(4)
   })
@@ -74,7 +77,7 @@ describe("Memory", () => {
     const { memory, changes } = setUp()
     const { changeId } = await memory.agentWrite({ op: "add", kind: "about", text: "I study proactive agents." }, chat("c1"))
     await memory.put({ id: "m1", kind: "about", text: "I study proactive agents for ADHD." }, window)
-    await expect(memory.undo((await changes.get(changeId!))!, window, false)).rejects.toThrow(/changed after Owlit wrote it/)
+    await expect(undo(memory, (await changes.get(changeId!))!)).rejects.toThrow(/changed since/)
   })
 
   it("tells the agent what went wrong in words it can act on", async () => {

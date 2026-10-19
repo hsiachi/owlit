@@ -222,10 +222,11 @@ export interface Methods {
   "threads.edit": { params: { id: string; edit: ThreadEdit }; result: Thread }
   // Keep it separate: the rows an agent added to this thread become a thread of their own, for
   // the question they were found for; or a group's rows (group), copied where they are in other groups too
-  "threads.split": { params: { id: string; rows: string[]; asked: string; group?: { column: string; id: string } }; result: Thread }
+  // chatId: the chat whose result card asked, which then finds the split in the change log
+  "threads.split": { params: { id: string; rows: string[]; asked: string; group?: { column: string; id: string }; chatId?: string }; result: Thread }
   // Undo of a split: the rows go back where they came from, as they were there, and this thread to
   // the trash; the thread they went back to
-  "threads.unsplit": { params: { id: string }; result: Thread }
+  "threads.unsplit": { params: { id: string; chatId?: string }; result: Thread }
   // Owlit's work on the thread in batches, oldest first, for About
   "threads.about": { params: { id: string }; result: ThreadBatch[] }
   // Owlit gathers papers for a question, in the background: the thread is there at once (empty,
@@ -349,8 +350,9 @@ export interface Methods {
   "ui.jump": { params: UiActions["jump"]["params"]; result: UiActions["jump"]["result"] }
   "ui.mark": { params: UiActions["mark"]["params"]; result: UiActions["mark"]["result"] }
   // Takes back one change of the log by appending its reverse (undoes); redo is the undo of the undo.
-  // A doc or memory line that changed since is refused with Conflict unless forced.
-  "changes.undo": { params: { id: string; force?: boolean }; result: { change: Change } }
+  // A doc goes back passage by passage: left names those that were edited since and stay as they are.
+  // Anything else that changed since is refused with Conflict.
+  "changes.undo": { params: { id: string }; result: { change: Change; left?: string[] } }
   // How much a run of changes to one doc changed it, from before the first to after the last; null when
   // they aren't one doc's or are no longer kept
   "changes.stats": { params: { ids: string[] }; result: EditStats | null }

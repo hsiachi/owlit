@@ -113,6 +113,11 @@ export class Workspace {
     this.library = new Library(root, dataDir, {
       ...(options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) }),
       person: () => this.recorder.actorOf(WINDOW),
+      // The person's import, one change however many papers it brings
+      imported: (paper, importId) =>
+        void this.recorder
+          .record(WINDOW, { action: "create", target: { kind: "paper", path: paper.id }, origin: { writeId: importId } }, { label: paper.title, quiet: true })
+          .catch((error) => console.error("[core] couldn't record an imported paper", error)),
     })
     this.search = new SearchIndex(root, dataDir, this.library)
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder }, {

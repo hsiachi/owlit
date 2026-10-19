@@ -149,12 +149,14 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
 }
 
 export function AssistantMessage({
+  chatId,
   message: saved,
   modelName,
   onRegenerate,
   onDismiss,
   onSaveAsDoc,
 }: {
+  chatId: string
   message: ChatMessage
   modelName?: string
   onRegenerate?: () => void
@@ -210,7 +212,7 @@ export function AssistantMessage({
             <span className="shimmer">{t`Working…`}</span>
           </div>
         )}
-        {!streaming && <ResultCard message={message} />}
+        {!streaming && <ResultCard message={message} chatId={chatId} />}
         {message.status === "error" && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
       </MessageContent>
       {!streaming && (

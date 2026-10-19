@@ -1,7 +1,6 @@
 import { t } from "@lingui/core/macro"
-import { editStats, RpcErrorCode, type Change, type ChangeOrigin, type DocComment } from "@owlit/protocol"
+import { RpcErrorCode, type ChangeOrigin } from "@owlit/protocol"
 import { newWriteId } from "../changes/record.ts"
-import { sha1 } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { UiBridge } from "../ui/bridge.ts"
 import type { Workspace } from "../workspace/workspace.ts"
@@ -12,8 +11,6 @@ const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[agen
 interface AgentFsOptions {
   workspace: () => Workspace | null
   ui: UiBridge
-  // An undo added or removed a comment; windows show it
-  commentsChanged: (change: { path: string; changed?: DocComment; removed?: string }) => void
   // The tool call claiming a file now (agents/turns.ts)
   claimOf?: (rel: string) => Claim | undefined
 }
@@ -21,7 +18,7 @@ interface AgentFsOptions {
 // What agents read and write (ACP fs/read_text_file and fs/write_text_file). A doc open in a window is
 // read from and written through its editor, so the agent sees what the user sees and its edit is one
 // undoable change there; anything else goes to disk. Every write goes in the change log with the file
-// as it was, so it can be taken back.
+// as it was, so it can be taken back (changes/undo.ts, which reads and writes docs the same way).
 export class AgentFs {
   private readonly options: AgentFsOptions
 
@@ -62,20 +59,31 @@ export class AgentFs {
       return
     }
     if (ws.docs.isOwlits(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't write it.`, { path: rel })
-    const holder = this.options.ui.holder(rel)
-    const before = (await this.fromEditor(rel)) ?? (await ws.docs.readDisk(rel))
-    // Said only once it reaches the disk: an editor that takes it shows the edit itself
+    const before = await this.text(rel)
+    // Said once it is written, so the window that shows it has it
     const change = await ws.recorder.doc(caller, rel, before, content, { origin }, { quiet: true })
+    await this.place(rel, content, change.id)
+    ws.recorder.say(change)
+  }
+
+  // A doc's text as the person sees it: its open editor's, else the disk's; null when there is none
+  async text(rel: string) {
+    return (await this.fromEditor(rel)) ?? (await this.workspace().docs.readDisk(rel))
+  }
+
+  // Writes a doc through the editor that has it open, as one step of its undo, else to disk. undo: an
+  // undo of a change in the log, which the editor applies without saying it as an agent's edit.
+  async place(rel: string, content: string, changeId: string, undo = false) {
+    const holder = this.options.ui.holder(rel)
     if (holder) {
       const applied = await this.options.ui
-        .request(holder, "fs.write", { path: rel, content, changeId: change.id })
+        .request(holder, "fs.write", { path: rel, content, changeId, ...(undo ? { undo } : {}) })
         .then((r) => r.applied)
         .catch(() => false)
       log(applied ? `  through the editor in window ${holder.slice(0, 8)}` : "  the window didn't take it; writing to disk")
       if (applied) return
     }
-    await ws.docs.writeTold(rel, content)
-    ws.recorder.say(change)
+    await this.workspace().docs.writeTold(rel, content)
   }
 
   // Deletes docs for an agent (owlit-mcp's docs_delete, once the chat's role allows it). Each file's text is
@@ -128,83 +136,6 @@ export class AgentFs {
 
   private keep(caller: Caller, rel: string, before: string | null, after: string | null, writeId: string) {
     return this.workspace().recorder.doc(caller, rel, before, after, { origin: { writeId } })
-  }
-
-  // How much a run of changes to one doc changed it: from the text before the first to the text after
-  // the last, which the doc's next entry holds when there is one since, and the file itself otherwise.
-  // Agents report their edits in pieces, if at all; these texts are what happened.
-  async stats(ids: string[]) {
-    const ws = this.workspace()
-    const first = await ws.changes.get(ids[0])
-    const last = ids.length > 1 ? await ws.changes.get(ids.at(-1)!) : first
-    if (first?.target.kind !== "doc" || last?.target.kind !== "doc" || last.target.path !== first.target.path) return null
-    const path = first.target.path
-    const before = first.action === "create" ? "" : await ws.changes.content(first.id)
-    if (before === null) return null
-    const all = (await ws.changes.list({ target: { kind: "doc", path } })).reverse()
-    const next = all.slice(all.findIndex((c) => c.id === last.id) + 1)[0]
-    const after =
-      last.action === "delete" ? "" : next ? (next.action === "create" ? "" : await ws.changes.content(next.id)) : ((await this.fromEditor(path)) ?? (await ws.docs.readDisk(path)))
-    if (after === null) return null
-    return editStats(path, before, after)
-  }
-
-  // Takes back one change of the log, recorded as a change that undoes it, so the undo can be undone in
-  // turn: a doc goes back to its text from before (one the change created goes to the Trash), a comment
-  // an agent left goes, a paper an agent added goes to .owlit/trash/. Unless forced, a doc that changed
-  // since is left alone.
-  async undo(id: string, caller: Caller, force = false): Promise<Change> {
-    const ws = this.workspace()
-    const change = await ws.changes.get(id)
-    if (!change) throw new RpcFailure(RpcErrorCode.NotFound, t`That change is no longer kept.`, { id })
-    const { target } = change
-    const undoes = change.id
-
-    if (target.kind === "comment") {
-      if (change.action === "create") {
-        // Taking back Owlit's comment takes the replies under it too; the redo brings them back
-        const removed = await ws.docs.removeComment(target.path, (change.after as DocComment).id)
-        if (!removed) throw new RpcFailure(RpcErrorCode.Conflict, t`That comment is already gone.`, { path: target.path })
-        this.options.commentsChanged({ path: target.path, removed: removed.id })
-        return ws.recorder.record(caller, { action: "delete", target, before: removed, undoes })
-      }
-      const comment = change.before as DocComment
-      await ws.docs.addComment(target.path, comment)
-      this.options.commentsChanged({ path: target.path, changed: comment })
-      return ws.recorder.record(caller, { action: "create", target, after: comment, undoes })
-    }
-
-    if (target.kind === "paper") {
-      if (change.action === "create") await ws.library.remove([target.path])
-      else await ws.library.restore([target.path])
-      return ws.recorder.record(caller, { action: change.action === "create" ? "delete" : "create", target, undoes })
-    }
-
-    if (target.kind === "memory") return ws.memory.undo(change, caller, force)
-    if (target.kind === "thread") return ws.threads.undo(change, await ws.changes.content(change.id), caller)
-
-    const before = change.action === "create" ? null : await ws.changes.content(change.id)
-    if (change.action !== "create" && before === null) throw new RpcFailure(RpcErrorCode.NotFound, t`That change is no longer kept.`, { id })
-    const notePaper = ws.library.noteOf(target.path)
-    if (notePaper) {
-      const now = (await ws.library.read(notePaper, "note")).text
-      if (sha1(now) !== change.afterHash && !force) {
-        throw new RpcFailure(RpcErrorCode.Conflict, t`The note changed after the agent's edit, so owlit left it as it is.`, { path: target.path })
-      }
-      const undo = await ws.recorder.doc(caller, target.path, now || null, before, { undoes })
-      await ws.library.writeNoteFor(notePaper, before ?? "")
-      return undo
-    }
-
-    const now = (await this.fromEditor(target.path)) ?? (await ws.docs.readDisk(target.path))
-    const untouched = change.action === "delete" ? now === null : now !== null && sha1(now) === change.afterHash
-    if (!untouched && !force) {
-      const name = target.path.split("/").pop() ?? target.path
-      throw new RpcFailure(RpcErrorCode.Conflict, t`${name} changed after the agent's edit, so owlit left it as it is.`, { path: target.path })
-    }
-    const undo = await ws.recorder.doc(caller, target.path, now, before, { undoes })
-    await (before !== null ? ws.docs.writeTold(target.path, before) : ws.docs.removeTold(target.path))
-    return undo
   }
 
   private workspace() {

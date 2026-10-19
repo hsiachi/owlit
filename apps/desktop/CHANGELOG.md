@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Undo takes back a change at its own size: in a doc, the passages Owlit changed, keeping what you wrote since (a passage you edited after it stays, and Owlit says which), and the same from a doc's Versions; in a thread, the rows and answers one write added, keeping a later write's rows. The result card under an answer reads what Owlit did from the workspace, so it keeps its Undo after you close the window, and a background run's changes can be undone from its chat. Papers you import or add from the browser can be undone too.
 - Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
 - When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.

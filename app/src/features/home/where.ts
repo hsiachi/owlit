@@ -43,17 +43,6 @@ function paragraphAt(text: string, head: number) {
   return words || undefined
 }
 
-// The doc's file is saved a moment after Owlit's change reaches an open editor; a later change than that
-// was someone else's (an undo from the result card, another editor)
-const SAVED_WITHIN = 30_000
-
-// Whether the doc's last edit was Owlit's: "Owlit wrote" a doc it made that nobody has touched since,
-// "Owlit edited" one it changed last; else "edited", the user's own
-function owlitDid(createdAt: number, modifiedAt: number, owlitAt: number, userAt = 0): Did {
-  if (owlitAt < userAt || modifiedAt > owlitAt + SAVED_WITHIN) return "edited"
-  return !userAt && createdAt >= owlitAt - SAVED_WITHIN ? "owlit-wrote" : "owlit-edited"
-}
-
 const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
 
 // A chat's place: the same object while its title and the user's last message stay the same, so a
@@ -77,17 +66,14 @@ export function usePlaces(): Place[] {
   const highlights = useLibraryStore((s) => s.highlights)
   const notes = useLibraryStore((s) => s.notes)
   const marks = useTrail((s) => s.docs[workspaceKey()])
-  const owlitMarks = useTrail((s) => s.owlitDocs[workspaceKey()])
 
   // One list per kind, so a streamed reply doesn't requote every doc
   const docPlaces = useMemo(() => {
     const out: Place[] = []
     const markByPath = new Map((marks ?? []).map((m) => [m.path, m]))
-    const owlitByPath = new Map((owlitMarks ?? []).map((m) => [m.path, m.at]))
     for (const f of Object.values(files)) {
       if (!isMarkdown(f.path)) continue
       const mark = markByPath.get(f.path)
-      const owlitAt = owlitByPath.get(f.path)
       out.push({
         kind: "doc",
         key: `doc:${f.id}`,
@@ -97,11 +83,11 @@ export function usePlaces(): Place[] {
         to: `/docs/${f.id}`,
         // Without a cursor to go by, the end of the doc: drafts grow at the bottom
         words: f.content ? (mark ? paragraphAt(f.content, mark.head) : lastParagraph(f.content)) : undefined,
-        did: owlitAt !== undefined ? owlitDid(f.createdAt, f.modifiedAt, owlitAt, mark?.at) : "edited",
+        did: "edited",
       })
     }
     return out
-  }, [files, marks, owlitMarks])
+  }, [files, marks])
 
   const paperPlaces = useMemo(() => {
     const out: Place[] = []

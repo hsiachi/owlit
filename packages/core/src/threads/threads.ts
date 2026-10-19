@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro"
 import {
   applyThreadEdit,
   type Change,
+  type ChangeOrigin,
   GROUPING_COLUMN,
   groupingView,
   threadOfSubject,
@@ -16,6 +17,7 @@ import {
   type ThreadCell,
   type ThreadEdit,
   type ThreadGroup,
+  type ThreadOverrides,
   type ThreadSearch,
   type ThreadPaper,
   type ThreadSize,
@@ -27,15 +29,14 @@ import {
   upgradeThread,
 } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
-import { newWriteId } from "../changes/record.ts"
 import { mkdir, readdir, rename } from "node:fs/promises"
 import path from "node:path"
-import type { Recorder } from "../changes/record.ts"
+import { newWriteId, type RecordInput, type Recorder } from "../changes/record.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, relateSkill, rereadSkill, type Skill } from "../initiative/skills.ts"
-import { Serial } from "../util.ts"
+import { sameJson, Serial } from "../util.ts"
 
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
 //
@@ -44,10 +45,9 @@ import { Serial } from "../util.ts"
 //                     rests on (About)
 //
 // Owlit writes its own record without asking, but never over the user: a rewrite of theirs stays word for
-// word whatever Owlit writes later, and what they removed stays out. Every agent write goes in the change
-// log with the thread as it was before, so the window can offer Undo like for any agent change; an undo
-// takes back what Owlit did and keeps what the user did since. The user's own changes go in the log one
-// item at a time, with the item on each side.
+// word whatever Owlit writes later, and what they removed stays out. Every change, Owlit's and the user's,
+// goes in the change log one item at a time (a row, a cell, a group, a memo sentence, the title), with the
+// item on each side, so an undo puts back that item alone and leaves what was done to others since.
 
 export interface ThreadsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
@@ -351,7 +351,6 @@ export class Threads {
       if (!existing && !input.title?.trim()) problems.push("A new thread needs a title: a short, neutral name for what it gathers.")
       if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
 
-      const before = existing ? JSON.stringify(existing) : null
       const c: Thread = existing ? structuredClone(existing) : await this.blank(input, now)
       const fresh = !existing
       // Until the user has looked at the thread once, all of it is new: nothing in it gets a dot of its
@@ -373,7 +372,7 @@ export class Threads {
       const asked = input.asked?.trim()
       if (existing && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
         c.alsoAsked = [...(c.alsoAsked ?? []), { text: asked, at: now, ...(input.chatId ? { chatId: input.chatId } : {}) }]
-        changed.add("asked")
+        changed.add("alsoAsked")
       }
       if (input.sources?.length) c.sources = [...new Set([...c.sources, ...input.sources])]
 
@@ -458,6 +457,7 @@ export class Threads {
           if (!row.in?.[col.id] || kept?.length === row.in[col.id]!.length) continue
           if (kept?.length) row.in[col.id] = kept
           else delete row.in[col.id]
+          changed.add(itemId.row(row.id))
         }
       }
       const view = col ? groupingView(c, col) : undefined
@@ -484,7 +484,10 @@ export class Threads {
           c.rows.push(row)
           added.push(r.id)
           mark(itemId.row(r.id))
-        } else if (r.foundBy && !row.foundBy) row.foundBy = r.foundBy
+        } else if (r.foundBy && !row.foundBy) {
+          row.foundBy = r.foundBy
+          changed.add(itemId.row(r.id))
+        }
         let touched = false
         for (const [col, cell] of Object.entries(r.cells ?? {})) {
           if (!c.columns.some((have) => have.id === col)) {
@@ -588,18 +591,20 @@ export class Threads {
         ...(input.why ? { why: input.why } : {}),
         items: [...changed],
         ...(added.length ? { added } : {}),
-        ...(asked && changed.has("asked") ? { asked } : {}),
+        ...(asked && changed.has("alsoAsked") ? { asked } : {}),
         ...(input.note?.trim() ? { note: input.note.trim() } : {}),
         ...(searches.length ? { searches } : {}),
       })
       this.services.changed?.(c.id, c)
       const title = shownThread(c).title
-      // Said only for a chat, which shows it under the answer; a run's write is shown with the run
-      await this.recorder.record(
-        caller,
-        { action: fresh ? "create" : "update", target: { kind: "thread", path: c.id }, ...(input.chatId ? { origin: { chatId: input.chatId } } : {}), ...(before !== null ? { content: before } : {}) },
-        { label: title, thread: { rows: added, updated, ...(asked ? { asked } : {}) }, quiet: !input.chatId },
-      )
+      // One write is one undo on the chat's card: its entries share the tool call's id, or one of their own
+      const origin = { writeId: (caller.kind !== "window" && caller.toolCallId) || newWriteId(), ...(input.chatId ? { chatId: input.chatId } : {}) }
+      const entries = fresh
+        ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })]
+        : await this.recordItems(caller, existing!, c, [...changed], origin)
+      // Said once per write and only for a chat, which shows it under the answer; a run's write is shown
+      // with the run
+      if (input.chatId && entries[0]) this.recorder.say(entries[0], { label: title, thread: { rows: added, updated, ...(asked ? { asked } : {}) } })
       return { id: c.id, title, added: added.length, updated, left, userKept }
     })
   }
@@ -634,7 +639,8 @@ export class Threads {
   // there is no memo yet, since Owlit's reading was of the other thread. Made from a group (Make it a
   // thread of its own), the group leaves the thread, and a paper that is in another of its groups too
   // stays there as well: it is copied, not moved.
-  split(id: string, rowIds: string[], asked: string, group: { column: string; id: string } | undefined, caller: Caller) {
+  // chatId: the chat whose result card asked for it, which then finds the split in the log
+  split(id: string, rowIds: string[], asked: string, group: { column: string; id: string } | undefined, caller: Caller, chatId?: string) {
     return this.serial.run(async () => {
       const from = await this.get(id)
       const was = structuredClone(from)
@@ -669,9 +675,9 @@ export class Threads {
       from.updatedAt = now
       await this.save(c)
       await this.save(from)
-      const writeId = newWriteId()
-      await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin: { writeId } }, { quiet: true })
-      await this.recordItems(caller, was, from, [...rows.map((r) => itemId.row(r.id)), ...(group ? [itemId.group(group.column, group.id)] : [])], writeId)
+      const origin = { writeId: newWriteId(), ...(chatId ? { chatId } : {}) }
+      await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })
+      await this.recordItems(caller, was, from, [...rows.map((r) => itemId.row(r.id)), ...(group ? [itemId.group(group.column, group.id)] : [])], origin)
       this.services.changed?.(from.id, from)
       this.services.changed?.(c.id, c)
       return c
@@ -680,7 +686,7 @@ export class Threads {
 
   // Undo of split(): the rows go back as they were in the thread they came from, with what the user
   // wrote in their answers since; one they removed here stays out, and so does one already back there
-  unsplit(id: string, caller: Caller) {
+  unsplit(id: string, caller: Caller, chatId?: string) {
     return this.serial.run(async () => {
       const c = await this.get(id)
       if (!c.splitFrom) throw new RpcFailure(RpcErrorCode.NotFound, t`This thread wasn't kept separate from another.`)
@@ -709,9 +715,9 @@ export class Threads {
       from.updatedAt = now
       await this.save(from)
       await this.toTrash(c.id, now)
-      const writeId = newWriteId()
-      await this.recordItems(caller, was, from, [...back.map((r) => itemId.row(r.id)), ...(c.splitFrom.group ? [itemId.group(c.splitFrom.group.column, c.splitFrom.group.id)] : [])], writeId)
-      await this.recorder.record(caller, { action: "delete", target: { kind: "thread", path: c.id }, origin: { writeId } }, { quiet: true })
+      const origin = { writeId: newWriteId(), ...(chatId ? { chatId } : {}) }
+      await this.recordItems(caller, was, from, [...back.map((r) => itemId.row(r.id)), ...(c.splitFrom.group ? [itemId.group(c.splitFrom.group.column, c.splitFrom.group.id)] : [])], origin)
+      await this.recorder.record(caller, { action: "delete", target: { kind: "thread", path: c.id }, origin }, { quiet: true })
       this.services.changed?.(c.id, null)
       this.services.changed?.(from.id, from)
       return from
@@ -731,42 +737,45 @@ export class Threads {
 
   undelete(id: string, caller: Caller) {
     return this.serial.run(async () => {
-      if (await this.load(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That thread is already here.`, { id })
-      const suffix = `-thread-${id}`
-      const entry = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix)).sort().reverse()[0]
-      if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread is no longer in the trash.`, { id })
-      await mkdir(this.dir, { recursive: true })
-      await rename(path.join(this.trashDir, entry), path.join(this.dir, id))
-      const c = await this.get(id)
+      const c = await this.fromTrash(id)
       await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: id } }, { quiet: true })
       this.services.changed?.(id, c)
       return c
     })
   }
 
-  // Undo of a write in the change log (content: the thread as it was before it): the thread goes back,
-  // with what the user did since kept (their rewrites and removals are theirs, not the agent's). A write
-  // that started the thread is undone by putting the thread in the trash. The undo is recorded as a
-  // change that undoes the write, so it can be undone in turn.
-  undo(change: Change, content: string | null, caller: Caller) {
+  // Undo of one item's entry (changes/undo.ts): the item goes back to `to`, but only while it still is
+  // `expect`, what the entry left; recorded as the change that undoes the entry
+  setItem(id: string, item: string, to: unknown, expect: unknown, caller: Caller, extra: Pick<RecordInput, "origin" | "undoes">) {
+    return this.serial.run(async () => {
+      const c = await this.load(id)
+      if (!c) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread isn't here any more.`, { id })
+      const now = itemOf(c, item)
+      // A row's paper is read through the Library's facts and saved so by the user's edits: what it
+      // says doesn't make the row another one
+      const bare = (v: unknown) => (item.startsWith("row:") && (v as { value?: object } | undefined)?.value ? { ...(v as object), value: { ...(v as { value: object }).value, paper: undefined } } : v)
+      if (!sameJson(bare(now), bare(expect))) throw new RpcFailure(RpcErrorCode.Conflict, t`That changed in the thread since, so owlit left it as it is.`, { id, item })
+      if (!putItem(c, item, to)) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the thread any more.`, { id, item })
+      c.updatedAt = Date.now()
+      await this.save(c)
+      this.services.changed?.(c.id, c)
+      const action = now === undefined ? "create" : to === undefined ? "delete" : "update"
+      return this.recorder.record(caller, { action, target: { kind: "thread", path: id, part: item }, ...extra, ...(now !== undefined ? { before: now } : {}), ...(to !== undefined ? { after: to } : {}) })
+    })
+  }
+
+  // Undo of a whole thread's entry: one that started it puts it in the trash, one that deleted it brings it
+  // back from there
+  undoWhole(change: Change, caller: Caller, extra: Pick<RecordInput, "origin" | "undoes">) {
     return this.serial.run(async () => {
       const id = change.target.path
-      const now = await this.load(id)
-      if (content === null) {
-        if (now) await this.toTrash(id)
+      if (change.action === "update") throw new RpcFailure(RpcErrorCode.Conflict, t`That change was kept before owlit undid threads by item, so it can't be undone.`, { id })
+      if (change.action === "create") {
+        if (!(await this.load(id))) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread isn't here any more.`, { id })
+        await this.toTrash(id)
         this.services.changed?.(id, null)
-      } else {
-        const back = upgradeThread(JSON.parse(content))
-        const c: Thread = { ...back, overrides: now?.overrides ?? back.overrides, seenAt: now?.seenAt ?? back.seenAt, watch: now?.watch ?? back.watch, updatedAt: Date.now() }
-        await this.save(c)
-        this.services.changed?.(id, c)
-      }
-      return this.recorder.record(caller, {
-        action: !now ? "create" : content === null ? "delete" : "update",
-        target: { kind: "thread", path: id },
-        undoes: change.id,
-        ...(now ? { content: JSON.stringify(now) } : {}),
-      })
+      } else this.services.changed?.(id, await this.fromTrash(id))
+      return this.recorder.record(caller, { action: change.action === "create" ? "delete" : "create", target: { kind: "thread", path: id }, ...extra })
     })
   }
 
@@ -832,19 +841,23 @@ export class Threads {
 
   // ---- Inside ----
 
-  // The user's change to these items, an entry for each that changed, sharing one writeId
-  private async recordItems(caller: Caller, before: Thread, after: Thread, items: string[], writeId = newWriteId()) {
+  // A change to these items, an entry for each that changed, sharing one writeId
+  private async recordItems(caller: Caller, before: Thread, after: Thread, items: string[], origin: Partial<ChangeOrigin> = { writeId: newWriteId() }) {
+    const entries: Change[] = []
     for (const item of new Set(items)) {
       const was = itemOf(before, item)
       const now = itemOf(after, item)
-      if (JSON.stringify(was) === JSON.stringify(now)) continue
+      if (sameJson(was, now)) continue
       const action = was === undefined ? "create" : now === undefined ? "delete" : "update"
-      await this.recorder.record(
-        caller,
-        { action, target: { kind: "thread", path: after.id, part: item }, origin: { writeId }, ...(was !== undefined ? { before: was } : {}), ...(now !== undefined ? { after: now } : {}) },
-        { quiet: true },
+      entries.push(
+        await this.recorder.record(
+          caller,
+          { action, target: { kind: "thread", path: after.id, part: item }, origin, ...(was !== undefined ? { before: was } : {}), ...(now !== undefined ? { after: now } : {}) },
+          { quiet: true },
+        ),
       )
     }
+    return entries
   }
 
   private async blank(input: ThreadWrite, now: number): Promise<Thread> {
@@ -881,6 +894,17 @@ export class Threads {
     return upgradeThread(raw)
   }
 
+  // The latest of this thread in .owlit/trash, back in its place
+  private async fromTrash(id: string) {
+    if (await this.load(id)) throw new RpcFailure(RpcErrorCode.Conflict, t`That thread is already here.`, { id })
+    const suffix = `-thread-${id}`
+    const entry = (await readdir(this.trashDir).catch(() => [] as string[])).filter((n) => n.endsWith(suffix)).sort().reverse()[0]
+    if (!entry) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread is no longer in the trash.`, { id })
+    await mkdir(this.dir, { recursive: true })
+    await rename(path.join(this.trashDir, entry), path.join(this.dir, id))
+    return this.get(id)
+  }
+
   // Into .owlit/trash as <when>-thread-<id>, where undelete finds the latest
   private async toTrash(id: string, at = Date.now()) {
     await mkdir(this.trashDir, { recursive: true })
@@ -902,23 +926,33 @@ export class Threads {
 }
 
 // One item of a thread as the change log keeps it: Owlit's value, and the user's rewrite or removal of it
-// that wins over that value. Items are named as itemId() names them, plus column:<id>, asked, and the
-// thread's watch and project settings. undefined when the thread has nothing of it.
+// that wins over that value. Items are named as itemId() names them, plus column:<id>, alsoAsked, and the
+// thread's watch and project settings. A row is kept without its cells and a column without its groups:
+// those are items of their own. undefined when the thread has nothing of it.
 function itemOf(c: Thread, item: string): unknown {
   const [kind, a, b] = item.split(":")
   const o = c.overrides
   let value: unknown
   if (item === itemId.title()) value = c.title
   else if (item === "asked") value = c.asked
+  else if (item === "alsoAsked") value = c.alsoAsked
   else if (item === "watch") value = c.watch
   else if (item === "project") value = c.project
   else if (kind === "memo") value = c.memo.find((s) => s.id === a)
   else if (kind === "cell") value = c.rows.find((r) => r.id === a)?.cells[b!]
-  else if (kind === "column") value = c.columns.find((col) => col.id === a)
-  else if (kind === "row") {
+  else if (kind === "column") {
+    const col = c.columns.find((col) => col.id === a)
+    if (col) {
+      const { groups: _groups, ...rest } = col
+      value = rest
+    }
+  } else if (kind === "row") {
     const row = c.rows.find((r) => r.id === a)
     const placed = Object.fromEntries(Object.entries(o.placed).filter(([key]) => key.split(":")[1] === a))
-    value = row && (Object.keys(placed).length ? { ...row, placed } : row)
+    if (row) {
+      const { cells: _cells, ...rest } = row
+      value = Object.keys(placed).length ? { ...rest, placed } : rest
+    }
   } else if (kind === "group") {
     const group = c.columns.find((col) => col.id === a)?.groups?.find((g) => g.id === b)
     const merged = o.merged[`${a}:${b}`]
@@ -929,6 +963,59 @@ function itemOf(c: Thread, item: string): unknown {
   if (value === undefined && !edit && !removed) return undefined
   return { ...(value !== undefined ? { value } : {}), ...(edit ? { edit } : {}), ...(removed ? { removed } : {}) }
 }
+
+// Sets one item to what itemOf gave for it (undefined: none of it), so itemOf reads that back. False when
+// the item needs a row or grouping the thread no longer has.
+function putItem(c: Thread, item: string, to: unknown): boolean {
+  const { value, edit, removed } = (to ?? {}) as { value?: any; edit?: ThreadOverrides["edits"][string]; removed?: ThreadOverrides["removed"][string] }
+  const [kind, a, b] = item.split(":")
+  const o = c.overrides
+  const put = <T extends { id: string }>(list: T[], id: string | undefined, next: T | undefined) => {
+    const at = list.findIndex((x) => x.id === id)
+    if (!next) return list.filter((x) => x.id !== id)
+    if (at < 0) return [...list, next]
+    return list.map((x, i) => (i === at ? next : x))
+  }
+  if (kind === "cell" || kind === "group") {
+    const row = kind === "cell" ? c.rows.find((r) => r.id === a) : undefined
+    const col = kind === "group" ? c.columns.find((x) => x.id === a && x.kind === "grouping") : undefined
+    if (kind === "cell" && !row) return value === undefined
+    if (kind === "group" && !col) return value === undefined
+    if (row) {
+      if (value) row.cells[b!] = value
+      else delete row.cells[b!]
+    }
+    if (col) {
+      const { merged, ...group } = (value ?? {}) as ThreadGroup & { merged?: string }
+      col.groups = put(col.groups ?? [], b, value ? group : undefined)
+      if (merged !== undefined) o.merged[`${a}:${b}`] = merged
+      else delete o.merged[`${a}:${b}`]
+    }
+  } else if (item === itemId.title()) c.title = value ?? c.title
+  else if (item === "asked") c.asked = value ?? c.asked
+  else if (item === "alsoAsked") {
+    if (value) c.alsoAsked = value
+    else delete c.alsoAsked
+  } else if (item === "watch") c.watch = !!value
+  else if (item === "project") c.project = value ?? ""
+  else if (kind === "memo") c.memo = put(c.memo, a, value)
+  else if (kind === "column") {
+    const was = c.columns.find((col) => col.id === a)
+    c.columns = put(c.columns, a, value && { ...value, ...(was?.groups ? { groups: was.groups } : value.kind === "grouping" ? { groups: [] } : {}) })
+  } else if (kind === "row") {
+    const was = c.rows.find((r) => r.id === a)
+    const { placed, ...row } = (value ?? {}) as ThreadRow & { placed?: ThreadOverrides["placed"] }
+    c.rows = put(c.rows, a, value ? { ...row, cells: was?.cells ?? {} } : undefined)
+    for (const key of Object.keys(o.placed)) if (key.split(":")[1] === a) delete o.placed[key]
+    Object.assign(o.placed, placed ?? {})
+  }
+  if (edit) o.edits[item] = edit
+  else delete o.edits[item]
+  if (removed) o.removed[item] = removed
+  else delete o.removed[item]
+  return true
+}
+
 
 // The groups a row is put in, as Owlit wrote them: each through check (the group it now stands for, or
 // null to leave it out), each once, and not a group whose subgroup is there too

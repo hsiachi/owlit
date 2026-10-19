@@ -1,5 +1,5 @@
 import type { Change, RpcNotification, UiRequest } from "@owlit/protocol"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -62,43 +62,6 @@ describe("agent fs", () => {
     expect(await call("changes.stats", { ids: [first] })).toEqual({ unit: "words", added: 2, removed: 0, rewritten: false })
   })
 
-  it("undoes a change by recording its reverse, unless the file changed since", async () => {
-    const { core, root, call, log } = await setup()
-    await core.fs.write(path.join(root, "a.md"), "agent text")
-    const [write] = await log("a.md")
-    const { change: undone } = await call("changes.undo", { id: write.id })
-    expect(undone).toMatchObject({ actor: expect.stringMatching(/^p_/), action: "update", target: { kind: "doc", path: "a.md" }, origin: { via: "editor" }, undoes: write.id })
-    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
-    // The undo can be undone, and that too
-    const { change: redone } = await call("changes.undo", { id: undone.id })
-    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("agent text")
-    await call("changes.undo", { id: redone.id })
-    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
-    await core.fs.write(path.join(root, "a.md"), "second")
-    const second = (await log("a.md")).at(-1)!.id
-    writeFileSync(path.join(root, "a.md"), "the user typed more")
-    const error = await call("changes.undo", { id: second }).catch((e) => e)
-    expect(error.message).toBe("a.md changed after the agent's edit, so owlit left it as it is.")
-    // A restore the user chose from the doc's versions goes ahead, keeping what was there
-    const { change: forced } = await call("changes.undo", { id: second, force: true })
-    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
-    await call("changes.undo", { id: forced.id, force: true })
-    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("the user typed more")
-    // Every change and every undo is in the log, each undo naming the change it takes back
-    const all = await log("a.md")
-    expect(all.map((c) => (c.undoes ? all.findIndex((u) => u.id === c.undoes) : c.actor.slice(0, 2)))).toEqual(["o_", 0, 1, 2, "o_", 4, 5])
-  })
-
-  it("undoes a file the agent created by moving it to the Trash", async () => {
-    const { core, root, call, log } = await setup()
-    await core.fs.write(path.join(root, "notes/new.md"), "made by the agent")
-    const [write] = await log("notes/new.md")
-    expect(write.action).toBe("create")
-    const { change } = await call("changes.undo", { id: write.id })
-    expect(change.action).toBe("delete")
-    expect(existsSync(path.join(root, "notes/new.md"))).toBe(false)
-  })
-
   it("reads and writes an open doc through the window that has it", async () => {
     const { core, root, call, added } = await setup()
     const asked: UiRequest[] = []
@@ -114,10 +77,10 @@ describe("agent fs", () => {
     await core.fs.write(path.join(root, "a.md"), "agent text", { chatId: "c" })
     expect(asked.map((r) => r.method)).toEqual(["fs.read", "fs.read", "fs.write"])
     expect(asked[2]).toMatchObject({ clientId: "w1", params: { path: "a.md", content: "agent text" } })
-    // The window applied it: core left the disk alone and offered no Undo of its own
+    // The window applied it: core left the disk alone, and says the change once
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
-    expect(added()).toEqual([])
     const changeId = (asked[2].params as { changeId: string }).changeId
+    expect(added().map((c) => c.id)).toEqual([changeId])
     expect(readFileSync(path.join(root, ".owlit/versions", changeId), "utf8")).toBe("typed in the editor")
   })
 

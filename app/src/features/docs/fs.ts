@@ -15,7 +15,6 @@ import { fileAt, perFiles, useDocsStore } from "./store"
 import { displayName, docUri, isMarkdown, type WorkspaceFile } from "./types"
 import { chatOnScreen, labelOf } from "@/features/chat/results"
 import { toastUndo } from "@/lib/toast"
-import { markOwlitEdit } from "@/features/home/trail"
 
 // What [[wikilinks]] can name: each doc by its name and by its path, the first doc keeping a name
 const linkNames = perFiles((files) => {
@@ -83,24 +82,28 @@ setWorkspaceFs({
     if (!file) {
       const created = useDocsStore.getState().createDocAt(path, content)
       if (!created) throw new Error(`Can't write ${path}`)
-      markOwlitEdit(created.path)
       return
     }
     if (!applyAgentEdit(file, content)) useDocsStore.getState().writeDoc(file.id, content)
-    markOwlitEdit(file.path)
   },
 })
 
+// Core's changes an editor here took in and said with its own toast
+const saidHere = new Set<string>()
+
 // An agent's edit to an open doc: one change in its editor (the cursor stays, ⌘Z takes it back) and a
 // toast with Undo. Once the doc has been closed its editor's history is gone, so Undo takes back core's
-// change (desktop) or puts back the text from before, if nothing changed since. False when not open.
-function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string) {
+// change (desktop) or puts back the text from before, if nothing changed since. An undo of a change in
+// core's log (quiet) is the same one step, said by whoever asked for it. False when not open.
+function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string, quiet = false) {
   const view = openEditor(file.id)
   if (!view) return false
   const before = view.state.doc.toString()
   const change = spanChange(before, content)
   if (change.from === change.to && !change.insert) return true
   view.dispatch({ changes: change, userEvent: "input.agent" })
+  if (quiet) return true
+  if (changeId) saidHere.add(changeId)
   const after = view.state.doc.toString()
   toastUndo(
     t`Edit applied`,
@@ -142,11 +145,9 @@ if (isDesktop) {
     const view = file ? openEditor(file.id) : undefined
     return { content: view ? view.state.doc.toString() : null }
   })
-  registerUiHandler("fs.write", ({ path, content, changeId }) => {
+  registerUiHandler("fs.write", ({ path, content, changeId, undo }) => {
     const file = fileAt(path)
-    const applied = !!file && applyAgentEdit(file, content, changeId)
-    if (applied) markOwlitEdit(file.path)
-    return { applied }
+    return { applied: !!file && applyAgentEdit(file, content, changeId, undo) }
   })
 
   // An undo took a comment an agent left away
@@ -165,11 +166,12 @@ if (isDesktop) {
     }))
   })
 
-  // Owlit changed a doc no window had open: core wrote it; the text itself arrives as docs.changed
+  // Owlit changed a doc: the text itself arrives as docs.changed, or went through an editor here, which
+  // said it already
   onNotify("changes.added", ({ change }) => {
     if (change.target.kind !== "doc" || !isOwlit(change.actor) || change.undoes) return
     const { path } = change.target
-    markOwlitEdit(path)
+    if (saidHere.delete(change.id)) return
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(change.origin.chatId)) return
     const paper = labelOf(path)

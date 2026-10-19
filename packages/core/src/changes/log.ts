@@ -13,7 +13,7 @@ const CLEANUP_EVERY = 100
 export const changeId = (at: number, targetPath: string) => `${at}-${Math.random().toString(36).slice(2, 6)}-${targetPath.replace(/[/\\]/g, "__").slice(-80)}`
 
 // .owlit/versions/: one line per change in index.jsonl, and beside it a file named by the entry's id
-// holding a doc's (or thread's) text from before the change, when there was one
+// holding a doc's text from before the change, when there was one
 export class ChangeLog {
   private readonly dir: string
   private appended = 0
