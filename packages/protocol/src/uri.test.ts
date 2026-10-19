@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { threadUri, docUri, MENTION_LINK, paperUri, parseOwlitUri } from "./uri.ts"
+import { citationLink, threadUri, docUri, linkTitleText, MENTION_LINK, paperUri, parseOwlitUri } from "./uri.ts"
 
 describe("parseOwlitUri", () => {
   it.each([
@@ -27,3 +27,15 @@ describe("MENTION_LINK", () => {
     expect(MENTION_LINK.exec("[p. 3](owlit://highlight/h1)")).toBeNull()
   })
 })
+
+describe("a citation's link", () => {
+  it("carries its sentence as the title, and gives it back word for word", () => {
+    const quote = 'The model said "no" \\ twice.'
+    const link = citationLink("p. 4", "doi-10.1-x", { quote, page: 4 })
+    expect(link).toBe('[p. 4](owlit://library/doi-10.1-x#p4 "The model said \\"no\\" \\\\ twice.")')
+    const title = /\((\S+) (".*")\)$/.exec(link)!
+    expect(parseOwlitUri(title[1]!)).toEqual({ kind: "paper", id: "doi-10.1-x", page: 4 })
+    expect(linkTitleText(title[2]!)).toBe(quote)
+  })
+})
+

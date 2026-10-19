@@ -467,6 +467,68 @@ msgstr "Owlit finished since you last looked"
 msgid "{label}: {choice}"
 msgstr "{label}: {choice}"
 
+#. a paper's reading status
+#. reading status of a paper: finished reading (past participle)
+#. reading status of a paper: finished reading (past participle)
+#: app/src/components/citation-card.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read"
+msgstr "Read"
+
+#: app/src/components/citation-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Not in your Library"
+msgstr "Not in your Library"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the title only"
+msgstr "Owlit, from the title only"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the abstract"
+msgstr "Owlit, from the abstract"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the full text"
+msgstr "Owlit, from the full text"
+
+#: app/src/components/citation-card.tsx
+msgid "No abstract in owlit."
+msgstr "No abstract in owlit."
+
+#. a page of a paper
+#. a page of a paper
+#. a page of a paper
+#. a page of a paper
+#. chip: a passage quoted from this page of the paper
+#: app/src/components/citation-card.tsx
+#: app/src/features/agent/page-context.ts
+#: app/src/features/library/reader/WearStrip.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "p. {page}"
+msgstr "p. {page}"
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit couldn't find this sentence in the paper"
+msgstr "Owlit couldn't find this sentence in the paper"
+
+#: app/src/components/citation-card.tsx
+msgid "The paper's text isn't in owlit"
+msgstr "The paper's text isn't in owlit"
+
+#: app/src/components/citation-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr "From the abstract"
+
+#. the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6
+#: app/src/components/citation-card.tsx
+msgid "You: {trace}"
+msgstr "You: {trace}"
+
 #. verb
 #. verb: copy the large files into the workspace
 #. verb: copy the sign-in command
@@ -674,17 +736,6 @@ msgstr "Note"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr "Digest"
-
-#. a page of a paper
-#. a page of a paper
-#. a page of a paper
-#. chip: a passage quoted from this page of the paper
-#: app/src/features/agent/page-context.ts
-#: app/src/features/library/reader/WearStrip.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "p. {page}"
-msgstr "p. {page}"
 
 #. chip: a passage the user selected
 #: app/src/features/agent/page-context.ts
@@ -3602,14 +3653,6 @@ msgstr "Starred"
 msgid "Unread"
 msgstr "Unread"
 
-#. reading status of a paper: finished reading (past participle)
-#. reading status of a paper: finished reading (past participle)
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Read"
-msgstr "Read"
-
 #. filter chip: papers owlit has no PDF of
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -5608,16 +5651,8 @@ msgid "Removed from {0}"
 msgstr "Removed from {0}"
 
 #: app/src/features/threads/components/AnswerRows.tsx
-msgid "Not in your Library"
-msgstr "Not in your Library"
-
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "From the title only"
 msgstr "From the title only"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
-msgstr "From the abstract"
 
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
@@ -5840,18 +5875,6 @@ msgstr "Paper actions"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "You edited this"
 msgstr "You edited this"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the full text"
-msgstr "Owlit, from the full text"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the title only"
-msgstr "Owlit, from the title only"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the abstract"
-msgstr "Owlit, from the abstract"
 
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx

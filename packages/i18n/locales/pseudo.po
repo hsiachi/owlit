@@ -467,6 +467,68 @@ msgstr ""
 msgid "{label}: {choice}"
 msgstr ""
 
+#. a paper's reading status
+#. reading status of a paper: finished reading (past participle)
+#. reading status of a paper: finished reading (past participle)
+#: app/src/components/citation-card.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Not in your Library"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the title only"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the abstract"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit, from the full text"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+msgid "No abstract in owlit."
+msgstr ""
+
+#. a page of a paper
+#. a page of a paper
+#. a page of a paper
+#. a page of a paper
+#. chip: a passage quoted from this page of the paper
+#: app/src/components/citation-card.tsx
+#: app/src/features/agent/page-context.ts
+#: app/src/features/library/reader/WearStrip.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "p. {page}"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+msgid "Owlit couldn't find this sentence in the paper"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+msgid "The paper's text isn't in owlit"
+msgstr ""
+
+#: app/src/components/citation-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr ""
+
+#. the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6
+#: app/src/components/citation-card.tsx
+msgid "You: {trace}"
+msgstr ""
+
 #. verb
 #. verb: copy the large files into the workspace
 #. verb: copy the sign-in command
@@ -673,17 +735,6 @@ msgstr ""
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
-msgstr ""
-
-#. a page of a paper
-#. a page of a paper
-#. a page of a paper
-#. chip: a passage quoted from this page of the paper
-#: app/src/features/agent/page-context.ts
-#: app/src/features/library/reader/WearStrip.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "p. {page}"
 msgstr ""
 
 #. chip: a passage the user selected
@@ -3602,14 +3653,6 @@ msgstr ""
 msgid "Unread"
 msgstr ""
 
-#. reading status of a paper: finished reading (past participle)
-#. reading status of a paper: finished reading (past participle)
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Read"
-msgstr ""
-
 #. filter chip: papers owlit has no PDF of
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -5608,15 +5651,7 @@ msgid "Removed from {0}"
 msgstr ""
 
 #: app/src/features/threads/components/AnswerRows.tsx
-msgid "Not in your Library"
-msgstr ""
-
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "From the title only"
-msgstr ""
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
 msgstr ""
 
 #. followed by the other groups of this thread that hold the paper
@@ -5839,18 +5874,6 @@ msgstr ""
 
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "You edited this"
-msgstr ""
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the full text"
-msgstr ""
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the title only"
-msgstr ""
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Owlit, from the abstract"
 msgstr ""
 
 #. placeholder {0}: cell.passage.page

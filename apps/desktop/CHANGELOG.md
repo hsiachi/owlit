@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Resting on a citation of a paper, in a chat, a doc, a comment or a thread's page, shows a card: the paper, the sentence the claim rests on, its page, what Owlit read, how far you read it, and "Owlit couldn't find this sentence in the paper" when it isn't there. A thread cell's popover is the same card with Rewrite under it.
 - Owlit cites papers with the sentence it rests on in its comments, replies and Go through, as it does in chats, and a thread exported as a doc keeps each answer's sentence with its page.
 - A thread answers the papers whose text is already in your library from the full text from the start. An answer from a paper's title only (it has no abstract) is greyed in the row and the table, counted in About, and written "title only" in the CSV.
 - A digest's header says when it was read from the text without the figures, from fewer pages than the PDF has, or in another language than the paper's.

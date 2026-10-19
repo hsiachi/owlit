@@ -12,20 +12,18 @@ export function MentionToken({
   className,
   title,
   unread,
-  quote,
   onClick,
 }: {
   label: React.ReactNode
   variant?: "field" | "inline"
   className?: string
-  title?: string
+  // null: no hover text of its own, as a citation's card says it all
+  title?: string | null
   unread?: boolean
-  // The sentence of the paper a citation rests on, shown under the title on hover
-  quote?: string
   onClick?: () => void
 }) {
-  if (unread) title = title ? `${title} · ${unreadHint()}` : unreadHint()
-  if (quote) title = `${title ?? ""}\n“${quote}”`.trim()
+  if (unread && title !== null) title = title ? `${title} · ${unreadHint()}` : unreadHint()
+  const hover = title ?? undefined
   const look = cn(
     "inline-flex max-w-80 items-baseline rounded-[0.3em] px-[0.2em] align-baseline transition-colors",
     unread ? "text-mention-unread" : "text-mention",
@@ -35,12 +33,12 @@ export function MentionToken({
   const text = <span className="min-w-0 truncate">{label}</span>
   if (!onClick)
     return (
-      <span title={title} className={look}>
+      <span title={hover} className={look}>
         {text}
       </span>
     )
   return (
-    <button type="button" title={title} onClick={onClick} className={cn(look, "cursor-pointer outline-none focus-key:bg-mention/10")}>
+    <button type="button" title={hover} onClick={onClick} className={cn(look, "cursor-pointer outline-none focus-key:bg-mention/10")}>
       {text}
     </button>
   )

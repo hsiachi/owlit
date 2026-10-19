@@ -17,6 +17,7 @@ import { useLibraryStore } from "@/features/library/store"
 import { freshDocIds, useDocsStore } from "../store"
 import { type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
+import { DocCitationHover } from "./citation-hover"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
@@ -276,5 +277,10 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id])
 
-  return <div ref={host} className="min-h-full" />
+  return (
+    <>
+      <div ref={host} className="min-h-full" />
+      <DocCitationHover host={host} />
+    </>
+  )
 }
