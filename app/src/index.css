@@ -661,6 +661,16 @@
 .suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
 .suggest-discard:hover { background: var(--accent); color: var(--foreground); }
 .suggest-apply { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
+/* Owlit's landed passages (editor/proposals.ts): the same marks, with Keep · Undo after each passage
+   seen on hover of its lines (or by keyboard), and the counting line above the first, which the rule
+   joins to the passage under it */
+.proposal-head { margin: 0 0 4px; }
+.proposal-head::before { top: 0; bottom: -4px; }
+.proposal-acts { display: inline-flex; gap: 2px; margin-left: 0.4em; vertical-align: baseline; font-size: 12px; line-height: 1.2; color: var(--muted-foreground); opacity: 0; transition: opacity var(--t-mark) var(--ease); }
+.suggest-line:hover .proposal-acts, .proposal-acts:focus-within { opacity: 1; }
+.proposal-acts button { padding: 1px 6px; border-radius: 6px; cursor: default; }
+.proposal-acts button:hover { background: var(--accent); color: var(--foreground); }
+@media (prefers-reduced-motion: reduce) { .proposal-acts { transition: none; } }
 /* A quote's page link back to its highlight: part of the quote, not a call to action */
 .markdown a[href^="owlit://highlight/"] {
   color: inherit;

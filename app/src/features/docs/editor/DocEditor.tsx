@@ -30,6 +30,7 @@ import { agentSuggestions, setPendingEdits } from "./suggestions"
 import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { blockPreview } from "./block-preview"
 import { changedSince } from "./changed-since"
+import { proposalMarks } from "./proposals"
 import { followChangedSince } from "../changed"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
@@ -183,6 +184,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
           agentSuggestions(respondToEdit, setDrawn),
           changedSince,
+          proposalMarks(() => seen?.seen()),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),

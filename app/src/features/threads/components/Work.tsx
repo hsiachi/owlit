@@ -1,4 +1,4 @@
-import { t } from "@lingui/core/macro"
+import { plural, t } from "@lingui/core/macro"
 import type { Thread } from "@owlit/protocol"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -8,8 +8,14 @@ import { Tip } from "@/components/tip"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cancelTask, resumeTask } from "@/features/tasks/store"
-import { shown as shownOf } from "../lib"
+import { useLibraryStore } from "@/features/library/store"
+import { libraryPaperOf, shown as shownOf } from "../lib"
 import { askEach, runWords, startRun, useThreadWork } from "../runs"
+
+// What a paper read in full costs in the agent's time, roughly: one turn that adds it, reads the parts
+// that matter and rewrites its answers. Said on the button's hover so the run's size is known before it
+// starts; it is a guess, not a measurement.
+const MINUTES_PER_PAPER = 0.8
 
 // What Owlit is doing on the thread, one muted line under the title while it works (its words
 // shimmer) with Stop, or why it stopped with Retry. Nothing when it isn't working.
@@ -47,13 +53,28 @@ export function WorkLine({ thread }: { thread: Thread }) {
 
 // What the user can ask of the thread, as plain text buttons under the memo, the same for a list and a
 // table. Each one runs in the background; while it runs, its button rests. With no papers there is nothing
-// to ask of each or to draft from: only searching further, here or with a wider question in a chat.
+// to ask of each or to draft from: only searching further, here or with a wider question in a chat. The
+// two that run at once say their size first: Read N in full counts the papers it will read (and on hover
+// how long, and how many have no PDF and are left out), Find more papers asks what to look for.
 export function ThreadActions({ thread }: { thread: Thread }) {
   const navigate = useNavigate()
   const { running } = useThreadWork(thread.id)
   const busy = (kind: string) => running.some((task) => task.kind === kind)
   const shown = shownOf(thread)
-  const abstractOnly = shown.rows.some((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
+  // The rows a Read in full run would read, as core counts them (threads.ts toRead): answered from the
+  // abstract or title, with a free PDF known or the paper's text in the Library already
+  const papers = useLibraryStore((s) => s.papers)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const fromAbstract = shown.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
+  const toRead = fromAbstract.filter((r) => r.paper.openPdf || !!libraryPaperOf(r, papers, aliases)?.pdf).length
+  const noPdf = fromAbstract.length - toRead
+  const minutes = Math.max(1, Math.round(toRead * MINUTES_PER_PAPER))
+  const readTip = [
+    plural(minutes, { one: "About # minute with your agent", other: "About # minutes with your agent" }),
+    noPdf > 0 && plural(noPdf, { one: "# has no PDF and is left out", other: "# have no PDF and are left out" }),
+  ]
+    .filter(Boolean)
+    .join(" · ")
   const title = shown.title
   const asked = thread.asked.text
   const draft = () =>
@@ -65,9 +86,7 @@ export function ThreadActions({ thread }: { thread: Thread }) {
   if (empty && busy("threads.gather")) return null
   return (
     <div className="mt-4 -ml-1.5 flex flex-wrap items-center gap-1">
-      <Button variant="text" size="inline" disabled={busy("threads.more") || busy("threads.gather")} title={t`Searches further and adds papers to this thread`} onClick={() => void startRun(thread.id, "more")}>
-        {t`Find more papers`}
-      </Button>
+      <FindMore thread={thread} disabled={busy("threads.more") || busy("threads.gather")} />
       {empty ? (
         <Button variant="text" size="inline" title={t`Owlit suggests broader or neighbouring questions in a chat`} onClick={widen}>
           {t`Widen the question…`}
@@ -75,9 +94,9 @@ export function ThreadActions({ thread }: { thread: Thread }) {
       ) : (
         <>
           <AskEach thread={thread} />
-          {abstractOnly && (
-            <Button variant="text" size="inline" disabled={busy("threads.read")} title={t`Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library`} onClick={() => void startRun(thread.id, "read")}>
-              {t`Read all in full`}
+          {fromAbstract.length > 0 && (
+            <Button variant="text" size="inline" disabled={busy("threads.read") || toRead === 0} title={toRead ? readTip : t`None of the papers answered from their abstracts has a PDF to read`} onClick={() => void startRun(thread.id, "read")}>
+              {plural(toRead, { one: "Read # in full", other: "Read # in full" })}
             </Button>
           )}
           <Button variant="text" size="inline" title={t`Owlit proposes an outline in a chat first`} onClick={draft}>
@@ -86,6 +105,55 @@ export function ThreadActions({ thread }: { thread: Thread }) {
         </>
       )}
     </div>
+  )
+}
+
+// Find more papers…: what to look for this time, prefilled with the thread's question, since a search
+// further usually has a narrower target than the question as it stands
+function FindMore({ thread, disabled }: { thread: Thread; disabled: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [what, setWhat] = useState("")
+  const find = () => {
+    if (!what.trim()) return
+    setOpen(false)
+    void startRun(thread.id, "more", what.trim())
+  }
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setWhat(thread.asked.text)
+        setOpen(next)
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button variant="text" size="inline" disabled={disabled} title={t`Searches further and adds papers to this thread`} className="data-[state=open]:bg-muted data-[state=open]:text-foreground">
+          {t`Find more papers…`}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 gap-0 p-1.5">
+        <label className="px-2.5 pt-1 pb-1.5 text-detail text-muted-foreground" htmlFor={`find-more-${thread.id}`}>
+          {t`What to look for`}
+        </label>
+        <input
+          id={`find-more-${thread.id}`}
+          autoFocus
+          value={what}
+          onChange={(e) => setWhat(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && find()}
+          onFocus={(e) => e.target.select()}
+          className="mb-1 h-9 w-full rounded-lg border bg-card px-2.5 text-sm outline-none focus:border-foreground/30"
+        />
+        <div className="flex items-center justify-end gap-1 px-0.5 pt-1 pb-0.5">
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            {t`Cancel`}
+          </Button>
+          <Button size="sm" disabled={!what.trim()} onClick={find}>
+            {t({ message: "Find", comment: "button: start finding more papers for a thread" })}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

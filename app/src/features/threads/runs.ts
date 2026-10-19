@@ -65,9 +65,10 @@ export async function gather(question: string, size: ThreadSize, project: string
   }
 }
 
-export async function startRun(id: string, run: "more" | "read") {
+// what: for more, what to look for this time
+export async function startRun(id: string, run: "more" | "read", what?: string) {
   if (!isDesktop) return desktopOnly()
-  await rpc.threads.run({ id, run }).catch(toastError)
+  await rpc.threads.run({ id, run, ...(what ? { what } : {}) }).catch(toastError)
 }
 
 // Group another way: a new grouping Owlit works out in the background; the thread with it

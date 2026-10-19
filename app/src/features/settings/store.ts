@@ -27,6 +27,7 @@ export type SettingsSection = (typeof SECTIONS)[number]["id"]
 const GROUPS = {
   profile: { section: "owlit", label: null },
   memory: { section: "owlit", label: msg`What Owlit keeps in mind` },
+  roles: { section: "owlit", label: msg`What Owlit may do` },
   background: { section: "owlit", label: msg`Background work` },
   privacy: { section: "owlit", label: msg`Privacy` },
   updates: { section: "owlit", label: msg`Updates` },

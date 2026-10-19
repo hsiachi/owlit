@@ -4,7 +4,8 @@
 //
 // What a role lets the engine do with them:
 //   Reviewer   reads only; the edit tools aren't offered
-//   Assistant  asks first, with the diff, which owlit draws in place for the user to apply or discard
+//   Assistant  tells owlit first, with the diff, as a permission request owlit answers at once: the edit
+//              lands as a proposal, marked in the doc with Undo per passage, and the chat shows the diff
 //   Co-author  writes without asking
 
 import type * as acp from "@agentclientprotocol/sdk"
@@ -23,7 +24,7 @@ export interface FileContext {
   role: Role
 }
 
-// The user turned an edit down; the model is told so, plainly, and goes on without it
+// The edit didn't go through (the turn was stopped while it waited); the model is told so, plainly
 class Declined extends Error {}
 
 // oxlint-disable-next-line no-explicit-any -- tools of different parameter types in one list, as the agent holds them
@@ -34,7 +35,8 @@ export function fileTools(ctx: FileContext): { tools: AgentTool<any>[]; infos: M
   // A file that doesn't exist yet reads as empty, for a new doc
   const readOrEmpty = (p: string) => read(p).catch(() => "")
 
-  // Ask (Assistant) with the change as a diff, then write through owlit
+  // As Assistant, say the change as a diff first (owlit allows it at once and records what is written
+  // next as this call's), then write through owlit
   const change = async (toolCallId: string, title: string, p: string, oldText: string, newText: string) => {
     const file = absolute(p)
     if (ctx.role === "assistant") {
@@ -46,7 +48,7 @@ export function fileTools(ctx: FileContext): { tools: AgentTool<any>[]; infos: M
           { optionId: "discard", name: "Discard", kind: "reject_once" },
         ],
       })
-      if (answer.outcome.outcome !== "selected" || answer.outcome.optionId !== "apply") throw new Declined(`The user didn't apply this change to ${shown(p)}. Don't make it another way; ask what they want instead.`)
+      if (answer.outcome.outcome !== "selected" || answer.outcome.optionId !== "apply") throw new Declined(`This change to ${shown(p)} didn't go through. Don't make it another way; ask the user what they want instead.`)
     }
     await ctx.conn.writeTextFile({ sessionId: ctx.sessionId, path: file, content: newText })
   }
@@ -81,7 +83,7 @@ export function fileTools(ctx: FileContext): { tools: AgentTool<any>[]; infos: M
     label: "Edit a file",
     description:
       "Change a text file in the workspace by replacing one exact passage. old_text must appear in the file exactly once (copy it from read_file without the line numbers); include enough around it to make it unique." +
-      (ctx.role === "assistant" ? " The user sees the change in place and applies or discards it." : ""),
+      (ctx.role === "assistant" ? " The change lands at once, marked in the doc; the user may undo it, so change one passage per call." : ""),
     parameters: editParams,
     // One change at a time: each is read, shown and written before the next
     executionMode: "sequential",
@@ -105,7 +107,7 @@ export function fileTools(ctx: FileContext): { tools: AgentTool<any>[]; infos: M
     label: "Write a file",
     description:
       "Write a whole text file in the workspace: a new Markdown doc, or a file you are replacing entirely. Prefer edit_file for changes to an existing file." +
-      (ctx.role === "assistant" ? " The user sees it first and applies or discards it." : ""),
+      (ctx.role === "assistant" ? " It lands at once, marked in the doc; the user may undo any part." : ""),
     parameters: writeParams,
     executionMode: "sequential",
     execute: async (toolCallId, { path: p, content }) => {

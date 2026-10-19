@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type DocComment, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type ToolKind, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type DocComment, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -12,6 +12,7 @@ import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
 import { docPassages } from "./changes/passages.ts"
+import { docProposals } from "./changes/proposals.ts"
 import { Turns } from "./agents/turns.ts"
 import { ReadLog, readFromOf } from "./agents/read-from.ts"
 import { Updates } from "./updates/updates.ts"
@@ -281,7 +282,7 @@ export class Core {
         .catch((error) => console.error("[core] couldn't tell whether a paper was read in full", error))
     })
 
-    this.router.decide = (caller, method, params, policy) => this.police(caller, method, params, policy)
+    this.router.decide = (caller, _method, params, policy) => this.police(caller, params, policy)
 
 
     this.router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
@@ -417,7 +418,7 @@ export class Core {
     })
     this.router.register(
       "docs.create",
-      z.object({ path: rel, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), { touches: "words", title: ({ path }) => `Create ${nameOf(path)}` },
+      z.object({ path: rel, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), "words",
       async ({ path, content, ...options }, caller) => {
         const made = await docs().create(path, content, options)
         await this.requireWorkspace().recorder.doc(caller, made.path, null, content, {}, { quiet: true })
@@ -426,22 +427,22 @@ export class Core {
     )
     this.router.register(
       "docs.write",
-      z.object({ path: rel, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }), { touches: "words", title: ({ path }) => `Change ${nameOf(path)}` },
+      z.object({ path: rel, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }), "words",
       ({ path, content, expectedModifiedAt, force }) => docs().write(path, content, expectedModifiedAt, force),
     )
-    this.router.register("docs.rename", z.object({ path: rel, name: z.string() }), { touches: "structure", title: ({ path, name }) => `Rename ${nameOf(path)} to ${name}` }, ({ path, name }, caller) => this.movingDocs(path, caller, () => docs().rename(path, name)))
-    this.router.register("docs.move", z.object({ path: rel, folder: z.string() }), { touches: "structure", title: ({ path, folder }) => `Move ${nameOf(path)} to ${folder || "the top"}` }, ({ path, folder }, caller) => this.movingDocs(path, caller, () => docs().move(path, folder)))
-    this.router.register("docs.delete", z.object({ path: rel }), { touches: "structure", title: ({ path }) => `Delete ${nameOf(path)}` }, async ({ path }, caller) => {
+    this.router.register("docs.rename", z.object({ path: rel, name: z.string() }), "structure", ({ path, name }, caller) => this.movingDocs(path, caller, () => docs().rename(path, name)))
+    this.router.register("docs.move", z.object({ path: rel, folder: z.string() }), "structure", ({ path, folder }, caller) => this.movingDocs(path, caller, () => docs().move(path, folder)))
+    this.router.register("docs.delete", z.object({ path: rel }), "structure", async ({ path }, caller) => {
       const texts = await docs().textsUnder(path)
       await docs().delete(path)
       const writeId = newWriteId()
       for (const t of texts) await this.requireWorkspace().recorder.doc(caller, t.path, t.content, null, { origin: { writeId } }, { quiet: true })
       return null
     })
-    this.router.register("docs.createFolder", z.object({ path: rel }), { touches: "structure", title: ({ path }) => `Create the folder ${nameOf(path)}` }, ({ path }) => docs().createFolder(path))
+    this.router.register("docs.createFolder", z.object({ path: rel }), "structure", ({ path }) => docs().createFolder(path))
     this.router.register(
       "docs.restore",
-      z.object({ files: z.array(z.object({ id: z.string(), path: rel, content: z.string() })), folders: z.array(rel) }), { touches: "structure", title: ({ files }) => `Put back ${files.length === 1 ? nameOf(files[0]!.path) : `${files.length} docs`}` },
+      z.object({ files: z.array(z.object({ id: z.string(), path: rel, content: z.string() })), folders: z.array(rel) }), "structure",
       async ({ files, folders }, caller) => {
         const restored = await docs().restore(files, folders)
         const writeId = newWriteId()
@@ -561,8 +562,8 @@ export class Core {
         return { stopReason: await this.turns.prompt(req) }
       },
     )
-    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), { touches: "structure", title: ({ paths }) => `Delete ${paths.map(nameOf).join(", ")}` }, async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
-    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), { touches: "structure", title: ({ path, to }) => `Move ${nameOf(path)} to ${to}` }, async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
+    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), "structure", async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
+    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), "structure", async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
     this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), "read", ({ clientId, paths }) =>
       this.ui.setOpenDocs(clientId, paths),
     )
@@ -649,6 +650,9 @@ export class Core {
       const { content } = await ws.docs.read(rel)
       return docPassages(ws.changes, rel, hash, content, me)
     })
+    this.router.register("changes.proposals", z.object({ path: rel, text: z.string(), hash: z.string().min(1).optional(), since: z.number().optional() }), "read", ({ path, text, hash, since }) =>
+      docProposals(this.requireWorkspace().changes, path, text, { ...(hash !== undefined ? { hash } : {}), ...(since !== undefined ? { since } : {}) }),
+    )
     const seenKind = z.enum(["docs", "threads", "chats", "comments", "digests"])
     this.router.register("seen.get", z.object({ kinds: z.array(seenKind).optional() }), "read", async ({ kinds }, caller) => this.requireWorkspace().seen.get(await this.personAt(caller), kinds))
     const at = { at: z.number().optional() }
@@ -732,7 +736,7 @@ export class Core {
     this.router.register(
       "library.update",
       z.object({ id: paperId, patch }),
-      { touches: ({ patch }) => ((Object.keys(patch) as (keyof PaperPatch)[]).some((f) => DETAILS.has(f)) ? "words" : "meta"), title: ({ id }) => `Edit the details of ${id}` },
+      { touches: ({ patch }) => ((Object.keys(patch) as (keyof PaperPatch)[]).some((f) => DETAILS.has(f)) ? "words" : "meta") },
       ({ id, patch }, caller) => this.updatePaper(id, patch, caller),
     )
     // The reader opened a paper: its status follows on its own, the person's all the same (via auto)
@@ -741,7 +745,7 @@ export class Core {
       if (!paper) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the library.`)
       return this.updatePaper(id, { lastOpenedAt: Date.now(), ...(paper.status === "unread" ? { status: "reading" as const } : {}) }, caller, { via: "auto" })
     })
-    this.router.register("library.remove", z.object({ ids: z.array(paperId) }), { touches: "structure", title: ({ ids }) => `Remove ${ids.length === 1 ? ids[0] : `${ids.length} papers`} from the Library` }, async ({ ids }, caller) => {
+    this.router.register("library.remove", z.object({ ids: z.array(paperId) }), "structure", async ({ ids }, caller) => {
       const ws = this.requireWorkspace()
       const titles = new Map(await Promise.all(ids.map(async (id) => [id, (await ws.library.get(id))?.title] as const)))
       await library().remove(ids)
@@ -760,7 +764,7 @@ export class Core {
       for (const id of done.removed) await ws.recorder.record(caller, { action: "delete", target: { kind: "paper", path: id }, origin: { writeId } }, { label: titles.get(id) ?? id })
       return done
     })
-    this.router.register("library.restore", z.object({ ids: z.array(paperId) }), { touches: "structure", title: ({ ids }) => `Put back ${ids.length === 1 ? ids[0] : `${ids.length} papers`}` }, async ({ ids }, caller) => {
+    this.router.register("library.restore", z.object({ ids: z.array(paperId) }), "structure", async ({ ids }, caller) => {
       const ws = this.requireWorkspace()
       const here = new Set((await Promise.all(ids.map(async (id) => ((await ws.library.get(id)) ? id : null)))).filter(Boolean))
       const restored = await library().restore(ids)
@@ -789,7 +793,6 @@ export class Core {
     const HIGHLIGHT_PUT: Policy<"library.putHighlight"> = {
       touches: (_params, target, who) => (target.by === undefined || target.by === who.actor ? "own" : "words"),
       target: ({ highlight }) => highlightTarget(highlight.paperId, highlight.id),
-      title: ({ highlight }) => `Change a highlight in ${highlight.paperId}`,
     }
     this.router.register("library.putHighlight", z.object({ highlight, chatId: z.string().optional() }), HIGHLIGHT_PUT, async ({ highlight, chatId }, caller) => {
       const by: Caller = chatId ? { kind: "owlit", chatId } : caller
@@ -907,7 +910,7 @@ export class Core {
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), "meta", ({ id, path }) =>
       library().attachPdf(id, path),
     )
-    this.router.register("library.setNote", z.object({ paperId, content: z.string() }), { touches: "words", title: ({ paperId }) => `Change the note on ${paperId}` }, async ({ paperId, content }, caller) => {
+    this.router.register("library.setNote", z.object({ paperId, content: z.string() }), "words", async ({ paperId, content }, caller) => {
       const before = (await library().read(paperId, "note")).text
       const note = await library().setNote(paperId, content)
       await this.requireWorkspace().recorder.saved(caller, noteRelPath(paperId), before || null, content)
@@ -1000,23 +1003,22 @@ export class Core {
       // or merges its parts is its structure
       {
         touches: ({ edit }) => (edit.op === "rename" || edit.op === "hide" || edit.op === "project" || edit.op === "view" ? "meta" : edit.op === "rewrite" ? "words" : "structure"),
-        title: ({ edit }) => (edit.op === "rewrite" ? "Rewrite part of the thread" : "Change the thread"),
       },
       ({ id, edit }, caller) => threads().edit(id, edit, caller),
     )
     this.router.register(
       "threads.split",
-      z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string(), group: z.object({ column: z.string().min(1), id: z.string().min(1) }).optional(), chatId: z.string().optional() }), { touches: "structure", title: () => "Split the thread" },
+      z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string(), group: z.object({ column: z.string().min(1), id: z.string().min(1) }).optional(), chatId: z.string().optional() }), "structure",
       ({ id, rows, asked, group, chatId }, caller) => threads().split(id, rows, asked, group, caller, chatId),
     )
-    this.router.register("threads.unsplit", z.object({ id: z.string().min(1), chatId: z.string().optional() }), { touches: "structure", title: () => "Undo the split" }, ({ id, chatId }, caller) => threads().unsplit(id, caller, chatId))
+    this.router.register("threads.unsplit", z.object({ id: z.string().min(1), chatId: z.string().optional() }), "structure", ({ id, chatId }, caller) => threads().unsplit(id, caller, chatId))
     this.router.register("threads.about", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().about(id))
     this.router.register(
       "threads.gather",
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }), "own",
       (params, caller) => threads().gather(params, caller),
     )
-    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]) }), "own", ({ id, run }) => threads().start(id, run))
+    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, run, what }, caller) => threads().start(id, run, caller, what))
     this.router.register(
       "threads.compare",
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }), "own",
@@ -1025,8 +1027,8 @@ export class Core {
     this.router.register("threads.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), "own", ({ id, column }) => threads().fill(id, column))
     this.router.register("threads.group", z.object({ id: z.string().min(1), question: z.string().min(1) }), "own", ({ id, question }, caller) => threads().group(id, question, caller))
     this.router.register("threads.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), "own", ({ id, question }, caller) => threads().ask(id, question, caller))
-    this.router.register("threads.delete", z.object({ id: z.string().min(1) }), { touches: "structure", title: () => "Delete the thread" }, ({ id }, caller) => threads().delete(id, caller))
-    this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), { touches: "structure", title: () => "Put back the thread" }, ({ id }, caller) => threads().undelete(id, caller))
+    this.router.register("threads.delete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().delete(id, caller))
+    this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
     this.router.register("comments.all", noParams, "read", () => docs().commentsAll())
     // A comment is whoever started it (its first entry); others: who replied under it
     const commentTarget = async (path: string, id: string, replies = false): Promise<Target> => {
@@ -1058,7 +1060,6 @@ export class Core {
     const COMMENT_PUT: Policy<"comments.put"> = {
       touches: ({ comment }, target, who) => commentTouches(comment, target, who),
       target: ({ path, comment }) => commentTarget(path, comment.id),
-      title: ({ path }) => `Change a comment in ${nameOf(path)}`,
     }
     this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
       const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
@@ -1086,7 +1087,7 @@ export class Core {
       await this.recordComment(caller, path, removed, null)
       return removed
     })
-    this.router.register("comments.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), { touches: "words", title: ({ path }) => `Move the comments in ${nameOf(path)}` }, ({ path, moved }) =>
+    this.router.register("comments.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), "words", ({ path, moved }) =>
       docs().reanchorComments(path, moved),
     )
 
@@ -1367,9 +1368,9 @@ export class Core {
   }
 
   // The router's policy (agents/policy.ts) for one call: who asks, by the change log's name for them and
-  // the chat's role; whose thing the target is; then allow, refuse with what to tell the agent, or ask the
-  // user in the chat. The window is never asked or refused.
-  private async police(caller: Caller, method: string, params: unknown, policy: Policy) {
+  // the chat's role; whose thing the target is; then allow, or refuse with what to tell the agent. The
+  // window is never refused.
+  private async police(caller: Caller, params: unknown, policy: Policy) {
     if (caller.kind === "window") return
     const ws = this.requireWorkspace()
     const target = policy.target ? await policy.target(params as never) : {}
@@ -1377,11 +1378,7 @@ export class Core {
     const who: Who = { caller, actor: await ws.recorder.actorOf(caller), ...(chatId ? { role: await this.turns.roleOf(chatId) } : {}) }
     const touches = typeof policy.touches === "function" ? policy.touches(params as never, target, who) : policy.touches
     const decision = decide(who, touches, target)
-    if (decision === "allow") return
-    if (typeof decision === "object") throw new RpcFailure(RpcErrorCode.Forbidden, `Not done: ${decision.refuse}`)
-    // ask comes with a role, so with a chat
-    const { allowed, reason } = await this.turns.askUser(chatId!, policy.title?.(params as never) ?? `Change ${method.split(".")[0]}`, askKind(method))
-    if (!allowed) throw new RpcFailure(RpcErrorCode.Forbidden, `Not done: ${reason}`)
+    if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, `Not done: ${decision.refuse}`)
   }
 
   // Whose papers these are: who added them (a person's or an outside addition names the owner before an
@@ -1538,9 +1535,7 @@ export class Core {
   }
 }
 
-const nameOf = (p: string) => p.split("/").filter(Boolean).pop() ?? p
 
 // The card's icon for a change the policy asks about, from what the method does
-const askKind = (method: string): ToolKind => (/delete|remove/i.test(method) ? "delete" : /move|rename|split/i.test(method) ? "move" : "edit")
 
 const toInfo = (folder: string): WorkspaceInfo => ({ path: folder, name: folder.slice(folder.lastIndexOf("/") + 1) })

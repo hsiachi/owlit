@@ -22,6 +22,7 @@ import { isUnavailable, statusLabel } from "../../lib/connector-status"
 import { ConnectorStatusChip } from "../ConnectorStatusChip"
 import { useResolvedSelection } from "../../use-selection"
 import { roleWords } from "../../lib/selection"
+import { RoleLines } from "@/components/role-lines"
 import { openSettings } from "@/features/settings/store"
 import { useAfterWait } from "@/hooks/use-after-wait"
 
@@ -56,7 +57,7 @@ function RadioItem({
   checked: boolean
   onSelect: () => void
   title: React.ReactNode
-  description?: string
+  description?: React.ReactNode
   // Small chip at the right edge, e.g. an agent's status
   trailing?: React.ReactNode
   muted?: boolean
@@ -65,7 +66,7 @@ function RadioItem({
     <DropdownMenuItem onSelect={onSelect} className={cn("gap-3", muted && "text-muted-foreground")}>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-center gap-1.5">{title}</span>
-        {description && <span className="text-xs text-muted-foreground">{description}</span>}
+        {description && <span className="text-xs leading-4 text-muted-foreground">{description}</span>}
       </span>
       {/* Right edge holds the check or the trailing chip, so both line up flush right */}
       {checked ? <CheckIcon className="size-4 shrink-0" /> : trailing}
@@ -160,17 +161,17 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
       )}
 
       {/* The role is Owlit's own, not the agent's: every agent offers the same three. Named in full even
-          in a narrow composer, since a role reads as its name. */}
+          in a narrow composer, since a role reads as its name. It belongs to this chat: the menu says
+          so once the chat exists. */}
       <DropdownMenu>
         <PickerButton aria-label={t`Choose how Owlit works`} tip={roleSaid.description} className="shrink-0">
           {roleSaid.name}
         </PickerButton>
-        <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuLabel>{t`Owlit works as`}</DropdownMenuLabel>
-          {ROLES.map((r) => {
-            const said = roleWords(r.id)
-            return <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={said.name} description={said.description} />
-          })}
+        <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuLabel>{chatId ? t`In this chat, Owlit works as` : t`Owlit works as`}</DropdownMenuLabel>
+          {ROLES.map((r) => (
+            <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={roleWords(r.id).name} description={<RoleLines role={r.id} />} />
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

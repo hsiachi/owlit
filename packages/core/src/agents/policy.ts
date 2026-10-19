@@ -3,9 +3,10 @@ import type { Caller } from "../rpc/router.ts"
 
 // One decision for everything a person or their Owlit asks of core: whether this caller may make a call
 // that touches this class, on this target. The person at the window is never policed. A chat's agent gets
-// the role's answer from protocol's ROLE_TABLE; a caller with no chat (a background run, the CLI, an agent
-// outside owlit) has nobody to ask, so only read and own go through. own is decided on the target: a thing
-// is Owlit's while Owlit made it and nobody else has touched it since.
+// the role's answer from protocol's ROLE_TABLE, where propose lands like allow (the change log marks it
+// and offers Undo; nothing here waits on the person); a caller with no chat (a background run, the CLI,
+// an agent outside owlit) has nobody behind it, so only read and own go through. own is decided on the
+// target: a thing is Owlit's while Owlit made it and nobody else has touched it since.
 
 // Whose thing a call's target is, as its record says
 export interface Target {
@@ -29,7 +30,7 @@ export interface Who {
   role?: Role
 }
 
-export type Decision = "allow" | "ask" | { refuse: string }
+export type Decision = "allow" | { refuse: string }
 
 // Said to the agent, word for word, as the tool's answer (core puts "Not done: " before it)
 const REVIEWER = "Owlit works as Reviewer in this chat and changes nothing of the user's. Describe the change in your answer instead; if the user wants it made, they can choose Assistant or Co-author in the composer."
@@ -43,9 +44,8 @@ export function decide(who: Who, touches: Touches, target: Target = {}): Decisio
   if (touches === "own") return own(who.actor, target)
   if (touches === "admin") return { refuse: ADMIN }
   if (!who.role) return { refuse: who.caller.kind === "socket" && who.caller.run ? RUN : COMMAND }
-  const answer = ROLE_TABLE[touches][who.role]
-  if (answer === "refuse") return { refuse: REVIEWER }
-  return answer
+  if (ROLE_TABLE[touches][who.role] === "refuse") return { refuse: REVIEWER }
+  return "allow"
 }
 
 // Owlit's own thing: made by this caller, or not there yet, and untouched by anyone else since

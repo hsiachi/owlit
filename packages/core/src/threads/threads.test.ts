@@ -609,6 +609,23 @@ describe("Threads, Owlit's work in the background", () => {
     expect(prompts[0]?.allow).toMatch(/library_\(search\|related\|journal\)/)
   })
 
+  it("finds more papers for what the user asks this time, kept as a question asked, and reads only the rows with a PDF to be had", async () => {
+    const { threads, scheduler, prompts } = withRuns({ hasText: async (id) => id === "doi-10.1145-1" })
+    const { id } = await start(threads, { rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }, { id: "doi-10.1145-2", cells: { q: { text: "Recovers more.", depth: "abstract" } }, paper: { title: "Two", authors: [], ids: {}, openPdf: true } }, { id: "doi-10.1145-3", cells: { q: { text: "No PDF.", depth: "abstract" } }, paper: { title: "Three", authors: [], ids: {} } }] })
+    const more = await threads.start(id, "more", window, "the same model with and without retrieval")
+    await scheduler.wait(more.id)
+    expect(prompts[0]?.prompt).toMatch(/look for: «the same model with and without retrieval»/)
+    expect((await threads.get(id)).alsoAsked?.map((a) => a.text)).toEqual(["the same model with and without retrieval"])
+    // The question as it stands adds nothing and is looked for as before
+    await scheduler.wait((await threads.start(id, "more", window, "我的研究方法该怎么设计？")).id)
+    expect(prompts[1]?.prompt).not.toMatch(/look for/)
+    expect((await threads.get(id)).alsoAsked).toHaveLength(1)
+    // Read in full: the rows answered from the abstract whose paper has text already or a free PDF
+    await scheduler.wait((await threads.start(id, "read", window)).id)
+    expect(prompts[2]?.prompt).toMatch(/reading in full 2 papers/)
+    expect(prompts[2]?.prompt).toMatch(/Read these rows, and no others: doi-10\.1145-1, doi-10\.1145-2\./)
+  })
+
   it("asks for answers from the full text from the start for the rows whose text owlit has", async () => {
     const { threads, scheduler, prompts } = withRuns({ hasText: async (id) => id === "doi-10.1145-2" })
     const { id } = await start(threads)

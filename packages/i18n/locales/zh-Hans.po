@@ -399,9 +399,11 @@ msgstr "关闭弹出框"
 #. verb: take back this change to the doc
 #. verb: take back what was just done
 #. verb: take back what was just done
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
+#: app/src/features/docs/editor/proposals.ts
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
@@ -635,6 +637,7 @@ msgstr "评论"
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/threads/components/CompareDialog.tsx
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -915,6 +918,11 @@ msgstr "还没有对话。"
 msgid "Messages"
 msgstr "消息"
 
+#. placeholder {0}: roleName(roleOf(chat).id)
+#: app/src/features/chat/components/ChatMessages.tsx
+msgid "In this chat, Owlit works as {0}"
+msgstr "这个对话里，Owlit 作为{0}"
+
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 msgid "Not signed in"
 msgstr "未登录"
@@ -1130,6 +1138,10 @@ msgid "Choose how Owlit works"
 msgstr "选择 Owlit 的工作方式"
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "In this chat, Owlit works as"
+msgstr "这个对话里，Owlit 作为"
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Owlit works as"
 msgstr "Owlit 的角色"
 
@@ -1307,6 +1319,16 @@ msgstr "增删的行数"
 msgid "Your note on {paper}"
 msgstr "你对 {paper} 的笔记"
 
+#. a doc the agent moved or renamed; its old path
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Moved from {from}"
+msgstr "从 {from} 移来"
+
+#. a doc the agent deleted, into the Trash
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Deleted"
+msgstr "已删除"
+
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "{count, plural, one {# comment} other {# comments}}"
@@ -1409,7 +1431,9 @@ msgid "Undone"
 msgstr "已撤销"
 
 #. verb: take back every change of the reply
+#. verb: undo every passage Owlit changed
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/editor/proposals.ts
 msgid "Undo all"
 msgstr "全部撤销"
 
@@ -1735,19 +1759,11 @@ msgstr "更早"
 msgid "Reviewer"
 msgstr "审阅者"
 
-#: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes what is yours."
-msgstr "阅读、回答并留下批注。不会改动属于你的任何东西。"
-
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 #: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
 msgstr "助理"
-
-#: app/src/features/chat/lib/selection.ts
-msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
-msgstr "查找并添加论文，记自己的笔记。只有你采纳后，你的文稿才会改动。"
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
@@ -1755,8 +1771,40 @@ msgid "Co-author"
 msgstr "合著者"
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
-msgstr "还能编辑你的文档，并在这个工作区中运行命令。每处改动都可以撤销。"
+msgid "Reads your workspace"
+msgstr "读取你的工作区"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Keeps its own comments, threads, memory and highlights"
+msgstr "保有自己的评论、脉络、记忆和高亮"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Stars, tags and sorts papers, with Undo"
+msgstr "给论文加星、打标签、标记状态，可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never changes your writing"
+msgstr "从不改动你写的文字"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs as marked proposals; undo any part"
+msgstr "改动你的文档时以标记的提议落下，任一处都可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs; undo any part"
+msgstr "改动你的文档，任一处都可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Moves or deletes into the Trash, with Undo"
+msgstr "移动或删除文档，进废纸篓，可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Runs commands in this workspace; what they change outside your docs has no Undo"
+msgstr "在这个工作区里运行命令；命令在文档之外改动的东西无法撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never runs commands"
+msgstr "从不运行命令"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"
@@ -2784,6 +2832,35 @@ msgstr "前置元数据"
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
 msgstr "没有这个名字的文档"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep this passage (⌘⏎)"
+msgstr "保留这一处（⌘⏎）"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Undo this passage (⌘⌫)"
+msgstr "撤销这一处（⌘⌫）"
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#. verb: keep a passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep"
+msgstr "保留"
+
+#. placeholder {0}: this.count
+#: app/src/features/docs/editor/proposals.ts
+msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+msgstr "{0, plural, other {Owlit 改了 # 处}}"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
+msgstr "Owlit 的改动就这样落下；任一处都可撤销，也可以在文档菜单里让 Owlit 别碰这篇"
+
+#. verb: keep every passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep all"
+msgstr "全部保留"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -4503,6 +4580,14 @@ msgid "Where this paper was read"
 msgstr "这篇论文读过的地方"
 
 #: app/src/features/onboarding/AgentChoice.tsx
+msgid "As Assistant, its usual role, Owlit"
+msgstr "作为助理（它平常的角色），Owlit 会"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命令）在输入框里选，只对当前这个对话生效。"
+
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr "Owlit 用的智能体"
 
@@ -5082,10 +5167,14 @@ msgstr "Claude Code 在这个文件夹里记过这些关于你的事。保留 Ow
 msgid "Drop"
 msgstr "不要"
 
-#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep"
-msgstr "保留"
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "What Owlit may do"
+msgstr "Owlit 可以做什么"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
+msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命令）在输入框里选，只对当前这个对话生效。智能体会读取工作区里的哪些内容，见“隐私”。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
@@ -5094,13 +5183,13 @@ msgid "Background work"
 msgstr "后台任务"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
+msgstr "owlit 记下的东西留在这个工作区里，除了交给智能体之外不会发往任何地方。智能体会读这个工作区里的文件、通过 owlit 读你的论文，以及在“记住我做了什么”开着时读你在 owlit 里做过的事；工作区文件夹之外的一概不读。Claude Code 由它的沙箱管住这一点；Codex 管不住。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 msgid "Privacy"
 msgstr "隐私"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere."
-msgstr "owlit 记住的内容只保存在这个工作区，绝不会发送到任何地方。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
@@ -5842,20 +5931,20 @@ msgid "Owlit stopped."
 msgstr "Owlit 停下了。"
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
+msgstr "{minutes, plural, other {你的智能体大约要 # 分钟}}"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
+msgstr "{noPdf, plural, other {# 篇没有 PDF，不读}}"
+
+#: app/src/features/threads/components/Work.tsx
 msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
 msgstr "根据脉络“{title}”起草一份文献综述。先给出提纲，等我确认后再写。"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
 msgstr "“{asked}”什么都没找到。帮我把问题放宽一些：建议几个更宽或相近的问题去搜。"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr "继续检索，把论文加进这条脉络"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers"
-msgstr "找更多论文"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Owlit suggests broader or neighbouring questions in a chat"
@@ -5866,12 +5955,12 @@ msgid "Widen the question…"
 msgstr "放宽问题…"
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
-msgstr "把只读过摘要的论文读全文（有 PDF 的），它们会加入你的文献库"
+msgid "None of the papers answered from their abstracts has a PDF to read"
+msgstr "按摘要作答的论文都没有可读的 PDF"
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Read all in full"
-msgstr "全部读全文"
+msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
+msgstr "{toRead, plural, other {通读 # 篇}}"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Owlit proposes an outline in a chat first"
@@ -5880,6 +5969,23 @@ msgstr "Owlit 会先在对话里给出提纲"
 #: app/src/features/threads/components/Work.tsx
 msgid "Draft a review…"
 msgstr "起草综述…"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Searches further and adds papers to this thread"
+msgstr "继续检索，把论文加进这条脉络"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Find more papers…"
+msgstr "再找些论文…"
+
+#: app/src/features/threads/components/Work.tsx
+msgid "What to look for"
+msgstr "要找什么"
+
+#. button: start finding more papers for a thread
+#: app/src/features/threads/components/Work.tsx
+msgid "Find"
+msgstr "找"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Method and sample"

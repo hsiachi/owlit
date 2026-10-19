@@ -93,7 +93,7 @@ export class Background {
     const reports: HelperReports = { agentText: new Map() }
     // Agents that ask before each of owlit's tools are held to READ_ONLY when they ask, below; one that
     // calls them itself is told which it may offer (backgroundMeta)
-    const _meta = backgroundMeta(connectorId, [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])])
+    const _meta = backgroundMeta(connectorId, [READ_ONLY.source, ...(run.allow ? [run.allow.source] : [])], run.root)
     const session = await proc.newSession(
       { cwd: run.root, mcpServers: run.mcpServers, ...(_meta ? { _meta } : {}) },
       {

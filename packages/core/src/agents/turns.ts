@@ -18,11 +18,9 @@ import {
   type Role,
   type SessionUpdate,
   type StopReason,
-  type ToolKind,
   withoutAgentError,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
-import { realpathSync } from "node:fs"
 import { readFile, stat } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 import path from "node:path"
@@ -33,7 +31,7 @@ import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { failureOf } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
-import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
+import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
@@ -106,7 +104,8 @@ export class Turns {
   // Files tool calls edit, move or delete, by path: the latest call to name each, until a moment after it
   // completed (the watcher hears about its writes a little later)
   private claims = new Map<string, Claim>()
-  // Tool calls whose permission the user answered with an allow
+  // Tool calls whose permission was answered with an allow: by the user, or by owlit for an edit that
+  // lands as a proposal
   private accepted = new Set<string>()
   // Chats whose Co-author turn runs, until when (a moment after it ends, as for claims): a change nobody
   // claimed meanwhile came while it worked
@@ -240,10 +239,7 @@ export class Turns {
       if (!pending) continue
       // What the agent writes for this call next is the user's choice (Apply): "Owlit, taken by you"
       const kind = pending.options.find((o) => o.optionId === optionId)?.kind
-      if (kind === "allow_once" || kind === "allow_always") {
-        this.accepted.add(pending.toolCallId)
-        for (const claim of this.claims.values()) if (claim.toolCallId === pending.toolCallId) claim.accepted = true
-      }
+      if (kind === "allow_once" || kind === "allow_always") this.accept(pending.toolCallId)
       pending.resolve({ outcome: { outcome: "selected", optionId } })
       return null
     }
@@ -298,15 +294,6 @@ export class Turns {
   async roleOf(chatId: string): Promise<Role> {
     const turn = this.turns.get(chatId)
     return turn ? turn.role : ((await this.options.workspace()?.chats.get(chatId).catch(() => null))?.role ?? DEFAULT_ROLE)
-  }
-
-  // Asks the user in the chat whether Owlit may make a change (the policy's ask): the Allow / Don't allow
-  // card. Between turns nobody is there to ask, so the answer is no, with why for the agent.
-  async askUser(chatId: string, title: string, kind: ToolKind): Promise<{ allowed: boolean; reason?: string }> {
-    const turn = this.turns.get(chatId)
-    if (!turn || turn.cancelled) return { allowed: false, reason: "This chat isn't answering any more, so the user couldn't be asked." }
-    const allowed = await this.ask(turn, title, kind)
-    return allowed ? { allowed } : { allowed, reason: "The user said no." }
   }
 
   // ---- inside ----
@@ -424,7 +411,8 @@ export class Turns {
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
         }
         // What the role doesn't allow is refused before the user sees it
-        if (answerFor(turn.role, toKind(r.toolCall.kind)) === "reject") {
+        const answer = answerFor(turn.role, toKind(r.toolCall.kind))
+        if (answer === "reject") {
           const reject = r.options.find((o) => o.kind === "reject_once") ?? r.options.find((o) => o.kind === "reject_always")
           return reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } }
         }
@@ -439,6 +427,18 @@ export class Turns {
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
         const by = agentId ? { agentId } : {}
         const announce: SessionUpdate = { type: "tool_call", toolCallId, title: title ?? t({ message: "Tool", comment: "a step in a chat whose tool the agent did not name" }), kind: toKind(toolCall.kind), status: "pending", ...toolContent(toolCall, root), ...by }
+        // An edit that lands as a proposal: allowed before the user sees a card, and taken as accepted so
+        // the write the agent makes next is recorded as Owlit's with this tool call (seenBy in core.ts).
+        // The step still shows the diff in the chat; the doc shows the landed passages marked.
+        if (answer === "allow") {
+          const allow = r.options.find((o) => o.kind === "allow_once") ?? r.options.find((o) => o.kind === "allow_always")
+          if (allow) {
+            this.accept(toolCallId)
+            emit(announce)
+            this.claim(turn, announce)
+            return { outcome: { outcome: "selected", optionId: allow.optionId } }
+          }
+        }
         emit(announce)
         // Its file is claimed now, so an Apply marks the claim whatever order the agent's updates come in
         this.claim(turn, announce)
@@ -516,6 +516,12 @@ export class Turns {
     if (this.coauthoring.get(chatId) === Infinity) this.coauthoring.set(chatId, Date.now() + CLAIM_AFTER_MS)
   }
 
+  // The call's edit is allowed before it writes: its claims, made already or still to come, say so
+  private accept(toolCallId: string) {
+    this.accepted.add(toolCallId)
+    for (const claim of this.claims.values()) if (claim.toolCallId === toolCallId) claim.accepted = true
+  }
+
   // A tool call that edits, moves or deletes workspace files claims them while it runs, and until a moment
   // after it completes
   private claim(turn: Turn, update: SessionUpdate) {
@@ -529,34 +535,6 @@ export class Turns {
       if (p.startsWith("/") || this.claims.get(p)?.toolCallId === toolCallId) continue
       this.claims.set(p, { chatId: turn.chatId, toolCallId, ...(this.accepted.has(toolCallId) ? { accepted: true } : {}), until })
     }
-  }
-
-  // A question of owlit's own (not the agent's) in the chat: a tool call with the permission card, Allow
-  // or Don't allow, answered like any other
-  private ask(turn: Turn, title: string, kind: ToolKind): Promise<boolean> {
-    const emit = turn.emit
-    if (!emit) return Promise.resolve(false)
-    const toolCallId = `owlit-${randomUUID()}`
-    const requestId = randomUUID()
-    const options: acp.PermissionOption[] = [
-      { optionId: "allow", name: "Allow", kind: "allow_once" },
-      { optionId: "reject", name: "Don't allow", kind: "reject_once" },
-    ]
-    emit({ type: "tool_call", toolCallId, title, kind, status: "pending" })
-    emit({ type: "permission_request", requestId, toolCallId, title, kind, options: options.map((o) => ({ optionId: o.optionId, name: o.name, kind: o.kind as PermissionKind })) })
-    return new Promise((resolve) => {
-      turn.permissions.set(requestId, {
-        toolCallId,
-        options,
-        resolve: (response) => {
-          turn.permissions.delete(requestId)
-          const allowed = response.outcome.outcome === "selected" && response.outcome.optionId === "allow"
-          emit({ type: "permission_resolved", requestId, outcome: response.outcome.outcome === "selected" ? (allowed ? "allow_once" : "reject_once") : "cancelled" })
-          emit({ type: "tool_call_update", toolCallId, status: allowed ? "completed" : "failed" })
-          resolve(allowed)
-        },
-      })
-    })
   }
 
   private closePermissions(turn: Turn) {
@@ -582,23 +560,12 @@ async function quiet(turn: Turn) {
 export interface Claim {
   chatId: string
   toolCallId: string
-  // The user allowed this call's edit (Apply)
+  // The call's edit was allowed before it wrote: by the user (Apply), or by owlit as a proposal
   accepted?: boolean
   until: number
 }
 
 const CLAIM_AFTER_MS = 5000
-
-// The workspace as the agent may see it: as given and as the disk resolves it (/tmp is /private/tmp)
-function roots(root: string) {
-  let real = root
-  try {
-    real = realpathSync(root)
-  } catch {
-    // Gone or unreadable: the path as given still names it
-  }
-  return [...new Set([root, real])]
-}
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()

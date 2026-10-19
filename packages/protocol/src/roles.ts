@@ -2,10 +2,10 @@
 // runs underneath; core turns each into that agent's own controls (agents/roles.ts).
 export type Role = "reviewer" | "assistant" | "coauthor"
 
-export const ROLES: { id: Role; name: string; description: string }[] = [
-  { id: "reviewer", name: "Reviewer", description: "Reads, answers and leaves comments. Never changes what is yours." },
-  { id: "assistant", name: "Assistant", description: "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it." },
-  { id: "coauthor", name: "Co-author", description: "Also edits your docs and runs commands in this workspace. Every change can be undone." },
+export const ROLES: { id: Role; name: string }[] = [
+  { id: "reviewer", name: "Reviewer" },
+  { id: "assistant", name: "Assistant" },
+  { id: "coauthor", name: "Co-author" },
 ]
 
 export const DEFAULT_ROLE: Role = "assistant"
@@ -18,16 +18,19 @@ export const DEFAULT_ROLE: Role = "assistant"
 // structure: delete or move a person's thing. admin: the workspace, settings, agents, sharing, chats.
 export type Touches = "read" | "own" | "meta" | "words" | "structure" | "admin"
 
-export type RoleAnswer = "allow" | "ask" | "refuse"
+// propose: the change is made at once and recorded as Owlit's, marked until the person has seen it, with
+// Undo per passage or row; nothing waits on a card. It differs from allow only in what the person is
+// promised: the change is a proposal they may take back in part, not a decision made for them.
+export type RoleAnswer = "allow" | "propose" | "refuse"
 
 // What each role may do with each class, through owlit's own tools; the person at the window is never
-// policed. ask: the user is asked in the chat (refused between turns, when nobody is there to ask).
+// policed. Nothing asks: a change either lands (shown and undoable) or is refused with why.
 export const ROLE_TABLE: Record<Touches, Record<Role, RoleAnswer>> = {
   read: { reviewer: "allow", assistant: "allow", coauthor: "allow" },
   own: { reviewer: "allow", assistant: "allow", coauthor: "allow" },
   meta: { reviewer: "refuse", assistant: "allow", coauthor: "allow" },
-  words: { reviewer: "refuse", assistant: "ask", coauthor: "allow" },
-  structure: { reviewer: "refuse", assistant: "ask", coauthor: "allow" },
+  words: { reviewer: "refuse", assistant: "propose", coauthor: "allow" },
+  structure: { reviewer: "refuse", assistant: "propose", coauthor: "allow" },
   admin: { reviewer: "refuse", assistant: "refuse", coauthor: "refuse" },
 }
 
@@ -38,7 +41,25 @@ export function roleLine(touches: Touches): string {
   if (touches === "admin") return "Refused in every role."
   const say = (role: Role) => {
     const answer = ROLE_TABLE[touches][role]
-    return answer === "allow" ? "allowed, the user can undo it" : answer === "ask" ? "the user is asked" : "refused"
+    return answer === "allow" ? "allowed, the user can undo it" : answer === "propose" ? "lands as a proposal the user sees marked and may undo in part" : "refused"
   }
   return `Reviewer: ${say("reviewer")}. Assistant: ${say("assistant")}. Co-author: ${say("coauthor")}.`
+}
+
+// Whether the role's agent may run commands: the engine's own controls hold it (core/agents/profiles.ts)
+export const RUNS_COMMANDS: Record<Role, boolean> = { reviewer: false, assistant: false, coauthor: true }
+
+// What a role may do, one sentence a class, read off the table, in the words the agent hears (its role
+// note). The app says the same sentences in the interface's language, for the person, from the same
+// table (app/src/features/chat/lib/selection.ts), so the product and the code promise one thing; a
+// sentence changed here changes there.
+export function roleSentences(role: Role): string[] {
+  const out = ["Reads the user's workspace", "Keeps its own comments, threads, memory and highlights"]
+  if (ROLE_TABLE.meta[role] !== "refuse") out.push("Stars, tags and sorts the user's papers, with Undo")
+  const words = ROLE_TABLE.words[role]
+  out.push(words === "refuse" ? "Never changes the user's writing" : words === "propose" ? "Edits the user's docs as marked proposals; they may undo any part" : "Edits the user's docs; they may undo any part")
+  if (ROLE_TABLE.structure[role] !== "refuse") out.push("Moves or deletes docs into the Trash, with Undo")
+  if (RUNS_COMMANDS[role]) out.push("Runs commands in this workspace; what they change outside the user's docs has no Undo")
+  else if (words !== "refuse") out.push("Never runs commands")
+  return out
 }

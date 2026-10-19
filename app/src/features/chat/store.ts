@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { applyUpdate, DEFAULT_ROLE, withoutAgentError } from "@owlit/protocol"
+import { applyUpdate, DEFAULT_ROLE, type Role, withoutAgentError } from "@owlit/protocol"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { agentClient } from "./agent"
 import * as disk from "./disk"
@@ -11,7 +11,7 @@ import { optionFor, pendingAsk } from "./status"
 import { useAskDraft } from "./ask-draft"
 import { useComposerDrafts } from "./composer-drafts"
 import { connectorSlice, watchConnectors, withConnector, type ConnectorSlice } from "./connectors"
-import { resolveSelection, selectionOf, type Selection } from "./lib/selection"
+import { resolveSelection, roleOf, selectionOf, type Selection } from "./lib/selection"
 import { titleFrom } from "./lib/title"
 import type { Chat, ChatMessage, PromptInput, QuestionAnswer } from "@owlit/protocol"
 
@@ -32,6 +32,9 @@ export interface ChatState extends ConnectorSlice {
   // Whether the workspace's chat list has been read
   chatsLoaded: boolean
   selection: Selection
+  // The role the composer holds for the chat it is about to start (a new chat starts as Assistant;
+  // picking another before the first message gives the new chat that one); not kept across restarts
+  newChatRole: Role
   // Chat ids with a running turn
   streaming: Record<string, true>
 
@@ -45,6 +48,8 @@ export interface ChatState extends ConnectorSlice {
   togglePin: (id: string) => void
   setSelection: (patch: Partial<Selection>) => void
   setChatSelection: (chatId: string, patch: Partial<Selection>) => void
+  // The role of one chat, or of the chat about to start when there is none
+  setChatRole: (chatId: string | undefined, role: Role) => void
 
   send: (chatId: string, input: PromptInput) => Promise<void>
   cancel: (chatId: string) => void
@@ -69,13 +74,13 @@ export const useChatStore = create<ChatState>()(
       selection: {
         connectorId: builtInConnectors[0].id,
         modelId: builtInConnectors[0].defaultModelId,
-        role: DEFAULT_ROLE,
         effortId: builtInConnectors[0].defaultEffortId,
       },
+      newChatRole: DEFAULT_ROLE,
       streaming: {},
 
       createChat(init) {
-        const { selection } = get()
+        const { selection, newChatRole } = get()
         const now = Date.now()
         const chat: Chat = {
           id: crypto.randomUUID(),
@@ -86,12 +91,13 @@ export const useChatStore = create<ChatState>()(
           pinned: false,
           connectorId: selection.connectorId,
           modelId: selection.modelId,
-          role: selection.role,
+          role: newChatRole,
           effortId: selection.effortId,
           ...init,
           messages: [],
         }
-        set((s) => ({ chats: { ...s.chats, [chat.id]: chat } }))
+        // The role picked for this chat went with it; the next one starts as Assistant again
+        set((s) => ({ chats: { ...s.chats, [chat.id]: chat }, newChatRole: DEFAULT_ROLE }))
         if (disk.onDisk) {
           const { messages: _none, ...summary } = chat
           disk.createChatOnDisk(summary)
@@ -144,7 +150,7 @@ export const useChatStore = create<ChatState>()(
       setSelection(patch) {
         set((s) => {
           const next = { ...s.selection, ...patch }
-          // Changing connector resets model and effort to its defaults; the role is Owlit's and stays
+          // Changing connector resets model and effort to its defaults
           if (patch.connectorId && patch.connectorId !== s.selection.connectorId) {
             const c = s.connectors.find((x) => x.id === patch.connectorId)
             next.modelId = c?.defaultModelId
@@ -157,9 +163,15 @@ export const useChatStore = create<ChatState>()(
       setChatSelection(chatId, patch) {
         get().setSelection(patch)
         if (!get().chats[chatId]) return
-        const { connectorId, modelId, role, effortId } = get().selection
-        set((s) => patchChat(s, chatId, (c) => ({ ...c, connectorId, modelId, role, effortId })))
-        if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, role, effortId })
+        const { connectorId, modelId, effortId } = get().selection
+        set((s) => patchChat(s, chatId, (c) => ({ ...c, connectorId, modelId, effortId })))
+        if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, effortId })
+      },
+
+      setChatRole(chatId, role) {
+        if (!chatId || !get().chats[chatId]) return set({ newChatRole: role })
+        set((s) => patchChat(s, chatId, (c) => ({ ...c, role })))
+        if (disk.onDisk) disk.updateChatOnDisk(chatId, { role })
       },
 
       async send(chatId, input) {
@@ -183,7 +195,8 @@ export const useChatStore = create<ChatState>()(
         // owlit doesn't show) is the agent's own default. Until core has listed the agents there is nothing
         // to check the chat's choice against, and it goes as it is.
         const selection = selectionOf(chat, state.selection)
-        const { connector, model, effort, role } = resolveSelection(state.connectors, selection)
+        const { connector, model, effort } = resolveSelection(state.connectors, selection)
+        const role = roleOf(chat)
         const connectorId = connector?.id ?? selection.connectorId
         const modelId = connector ? model?.id : selection.modelId
         const effortId = connector ? effort?.id : selection.effortId
@@ -320,10 +333,10 @@ export const useChatStore = create<ChatState>()(
             { ...c, messages: c.messages.map((m) => (m.status === "streaming" ? { ...m, status: "cancelled" as const } : m)) },
           ]),
         )
-        // A selection saved before roles existed has a mode instead; the role starts at its default
-        const { modeId: _mode, ...saved } = (p.selection ?? {}) as Partial<Selection> & { modeId?: string }
-        const selection = { ...current.selection, ...saved, role: saved.role ?? current.selection.role }
-        return { ...current, ...p, selection, connectors, chats }
+        // A selection saved by an earlier owlit may carry a mode or a role; neither is kept
+        const { modeId: _mode, role: _role, ...saved } = (p.selection ?? {}) as Partial<Selection> & { modeId?: string; role?: string }
+        const selection = { ...current.selection, ...saved }
+        return { ...current, ...p, selection, connectors, chats, newChatRole: current.newChatRole }
       },
     },
   ),

@@ -30,16 +30,14 @@ type Handler<M extends MethodName> = (params: ParamsOf<M>, caller: Caller) => Re
 // What a method touches (protocol's Touches), declared with it. A method whose class depends on what it
 // is asked to do (comments.put resolves a comment or edits an entry) gives a function of its params, of
 // whose thing the target is and of who asks; target looks the thing up, and is also what the policy's
-// own test reads (agents/policy.ts). title names the change in the Allow / Don't allow card when the role
-// asks the user.
+// own test reads (agents/policy.ts).
 export interface Policy<M extends MethodName = MethodName> {
   touches: Touches | ((params: ParamsOf<M>, target: Target, who: Who) => Touches)
   target?: (params: ParamsOf<M>) => Promise<Target>
-  title?: (params: ParamsOf<M>) => string
 }
 
 // Decides before a handler runs whether this caller may make this call; throws (an RpcFailure) to refuse.
-// The window is never refused. Set by Core, which knows the chat's role and how to ask the user.
+// The window is never refused. Set by Core, which knows the chat's role.
 export type Decide = (caller: Caller, method: string, params: unknown, policy: Policy) => Promise<void>
 
 interface Route {

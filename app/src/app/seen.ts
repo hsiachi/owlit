@@ -2,14 +2,16 @@
 // changes.unseen): every "new" mark in the window reads this one store. A mark the window makes shows at
 // once and goes to core; core's answer, asked again whenever something could have changed, replaces it.
 
-import { applySeen, unseenOf, type Change, type ChangedPassage, type ChangeFilter, type SeenMark, type SeenMarks, type Unseen } from "@owlit/protocol"
+import { applySeen, unseenOf, type Change, type ChangedPassage, type ChangeFilter, type Proposal, type SeenMark, type SeenMarks, type Unseen } from "@owlit/protocol"
 import { create } from "zustand"
+import { getWorkspaceFs } from "@/features/chat/agent/client"
+import { addMockChange } from "@/features/chat/results"
 import { useChatStore } from "@/features/chat/store"
 import { useLibraryStore } from "@/features/library/store"
-import { me, WEB_ME } from "@/lib/actors"
+import { me, WEB_ME, WEB_OWLIT } from "@/lib/actors"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
-import { MOCK_CHANGES, MOCK_MARKS, MOCK_PASSAGES } from "./seen-mock"
+import { MOCK_CHANGES, MOCK_MARKS, MOCK_PASSAGES, MOCK_PROPOSALS } from "./seen-mock"
 
 interface SeenState {
   // Core's marks have come (the browser preview's are there from the start)
@@ -114,6 +116,27 @@ export function listChanges(filter: ChangeFilter): Promise<Change[]> {
 export function changedPassages(path: string, hash: string): Promise<ChangedPassage[]> {
   if (!isDesktop) return Promise.resolve(MOCK_PASSAGES[path] ?? [])
   return rpc.changes.since({ path, hash })
+}
+
+// Owlit's standing changes to a doc since the text whose sha1 is hash (else since the person's marks
+// began), as passages to mark in the doc; text: the doc as the editor has it
+export function proposalsOf(path: string, text: string, hash: string | undefined): Promise<Proposal[]> {
+  if (!isDesktop) return Promise.resolve(MOCK_PROPOSALS[path] ?? [])
+  return rpc.changes.proposals({ path, text, ...(hash ? { hash } : { since: useSeen.getState().marks.since }) })
+}
+
+// The browser preview's mock agent landed an edit in a doc: one passage for the doc to mark, and the
+// change for the chat's card and the doc's unseen dot
+export function landMockProposal(chatId: string, path: string, before: string, after: string, removed: string, insert: string) {
+  const at = after.indexOf(insert)
+  const change: Change = { id: `mock-${crypto.randomUUID()}`, at: Date.now(), actor: WEB_OWLIT, action: "update", target: { kind: "doc", path }, origin: { via: "apply", chatId } }
+  MOCK_PROPOSALS[path] = [...(MOCK_PROPOSALS[path] ?? []), { id: change.id, at: change.at, actor: WEB_OWLIT, hunks: [{ insert, removed, before: after.slice(Math.max(0, at - 24), at), after: after.slice(at + insert.length, at + insert.length + 24) }] }]
+  MOCK_CHANGES.unshift(change)
+  addMockChange(change, () => {
+    void getWorkspaceFs()?.writeTextFile(path, before)
+    return () => void getWorkspaceFs()?.writeTextFile(path, after)
+  })
+  refresh()
 }
 
 export function startSeen() {

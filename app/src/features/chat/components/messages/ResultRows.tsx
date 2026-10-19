@@ -145,7 +145,19 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
     }
   }
   const rows: ResultRow[] = []
+  // A doc moved or renamed is its old path deleted and its new one created in one write: one row, at the
+  // new path, whose Undo takes both back
+  const movedFrom = new Map<string, string>()
   for (const [path, list] of docs) {
+    const create = list.find((c) => c.action === "create")
+    const from = create && [...docs].find(([other, l]) => other !== path && l.some((c) => c.action === "delete" && c.origin.writeId === create.origin.writeId))
+    if (from) movedFrom.set(path, from[0])
+  }
+  for (const [path, list] of docs) {
+    if ([...movedFrom.values()].includes(path)) continue
+    const from = movedFrom.get(path)
+    const entries = from ? [...list, ...(docs.get(from) ?? [])] : list
+    const deleted = !from && list.every((c) => c.action === "delete")
     const span = spans.find((s) => s.path === path)
     const edit = span ? (stats[span.key] ?? undefined) : statsFromParts(message.parts, path)
     // A paper's note is the user's own text, named by its paper and opened on the paper's page
@@ -157,11 +169,11 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
       kind: "doc",
       icon: notePaper ? KIND_ICON.paper : KIND_ICON.doc,
       name,
-      detail: edit ? <EditCounts stats={edit} /> : undefined,
-      stats: edit,
+      detail: from ? t({ message: `Moved from ${from}`, comment: "a doc the agent moved or renamed; its old path" }) : deleted ? t({ message: "Deleted", comment: "a doc the agent deleted, into the Trash" }) : edit ? <EditCounts stats={edit} /> : undefined,
+      stats: from || deleted ? undefined : edit,
       markdown: /\.(md|markdown)$/i.test(path),
-      ...of(list, name),
-      view: notePaper ? () => navigate(`/library/${notePaper}`) : openDoc(path),
+      ...of(entries, name),
+      view: notePaper ? () => navigate(`/library/${notePaper}`) : deleted ? undefined : openDoc(path),
     })
   }
   for (const [path, list] of byKind("comment")) {

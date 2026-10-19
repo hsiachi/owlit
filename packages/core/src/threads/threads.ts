@@ -158,6 +158,9 @@ export class Threads {
     this.scheduler = tasks
   }
 
+  // What the next Find more papers run on each thread looks for, when it isn't the question
+  private readonly lookFor = new Map<string, string>()
+
   // ---- Owlit's work in the background ----
 
   // The task kinds, when there is an agent to run them
@@ -180,14 +183,24 @@ export class Threads {
       })
     return [
       run(gatherSkill, async (thread) => ({ thread, size: thread.size ?? "few", withText: await this.withText(thread) })),
-      run(moreSkill, async (thread) => ({ thread, withText: await this.withText(thread) })),
+      run(moreSkill, async (thread) => ({ thread, withText: await this.withText(thread), ...(this.lookFor.get(thread.id) ? { lookFor: this.lookFor.get(thread.id) } : {}) })),
       run(fillSkill, async (thread, subject) => {
         const column = thread.columns.find((col) => col.id === subject.split(":")[1])
         if (!column) throw new TaskFailure("The column is gone.")
         return { thread, column, withText: await this.withText(thread) }
       }),
-      run(readSkill, (thread) => ({ thread })),
+      run(readSkill, async (thread) => ({ thread, toRead: await this.toRead(thread) })),
     ]
+  }
+
+  // The rows a Read in full run reads: answered from their abstracts or titles, with a PDF to be had (a
+  // free one the search found, or the paper's text in the library already). The thread's button counts
+  // the same rows (app/src/features/threads/components/Work.tsx), so it says what the run will do.
+  async toRead(c: Thread): Promise<string[]> {
+    const rows = c.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
+    const hasText = this.services.hasText
+    const can = await Promise.all(rows.map(async (r) => r.paper.openPdf || (hasText ? await hasText(r.id, r.paper.ids) : false)))
+    return rows.filter((_, i) => can[i]).map((r) => r.id)
   }
 
   // The thread's rows whose full text owlit has: Owlit answers those from it from the start
@@ -214,9 +227,26 @@ export class Threads {
     })
   }
 
-  async start(id: string, run: "more" | "read") {
-    await this.get(id)
-    return this.queue(`threads.${run}`, id, "asked")
+  // more: with what to look for this time when it isn't the thread's question, kept on the thread as one
+  // more question asked (About shows it) and told to the run that starts next; a run that starts after a
+  // restart looks for the question as it stands, since a task carries nothing but its subject
+  start(id: string, run: "more" | "read", caller: Caller, what?: string) {
+    return this.serial.run(async () => {
+      const c = await this.get(id)
+      const asked = what?.trim()
+      if (run === "more" && asked && !sameWords(asked, c.asked.text)) {
+        if (!c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
+          const before = structuredClone(c)
+          c.alsoAsked = [...(c.alsoAsked ?? []), { text: asked, at: Date.now() }]
+          c.updatedAt = Date.now()
+          await this.save(c)
+          await this.recordItems(caller, before, c, ["alsoAsked"])
+          this.services.changed?.(c.id, c)
+        }
+        this.lookFor.set(id, asked)
+      } else this.lookFor.delete(id)
+      return this.queue(`threads.${run}`, id, "asked")
+    })
   }
 
   // A new column: one question for every paper, answered in the background

@@ -399,9 +399,11 @@ msgstr ""
 #. verb: take back this change to the doc
 #. verb: take back what was just done
 #. verb: take back what was just done
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
+#: app/src/features/docs/editor/proposals.ts
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
@@ -635,6 +637,7 @@ msgstr ""
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: app/src/features/threads/components/CompareDialog.tsx
+#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -915,6 +918,11 @@ msgstr ""
 msgid "Messages"
 msgstr ""
 
+#. placeholder {0}: roleName(roleOf(chat).id)
+#: app/src/features/chat/components/ChatMessages.tsx
+msgid "In this chat, Owlit works as {0}"
+msgstr ""
+
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 msgid "Not signed in"
 msgstr ""
@@ -1130,6 +1138,10 @@ msgid "Choose how Owlit works"
 msgstr ""
 
 #: app/src/features/chat/components/composer/AgentPicker.tsx
+msgid "In this chat, Owlit works as"
+msgstr ""
+
+#: app/src/features/chat/components/composer/AgentPicker.tsx
 msgid "Owlit works as"
 msgstr ""
 
@@ -1307,6 +1319,16 @@ msgstr ""
 msgid "Your note on {paper}"
 msgstr ""
 
+#. a doc the agent moved or renamed; its old path
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Moved from {from}"
+msgstr ""
+
+#. a doc the agent deleted, into the Trash
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Deleted"
+msgstr ""
+
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "{count, plural, one {# comment} other {# comments}}"
@@ -1409,7 +1431,9 @@ msgid "Undone"
 msgstr ""
 
 #. verb: take back every change of the reply
+#. verb: undo every passage Owlit changed
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/editor/proposals.ts
 msgid "Undo all"
 msgstr ""
 
@@ -1735,18 +1759,10 @@ msgstr ""
 msgid "Reviewer"
 msgstr ""
 
-#: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes what is yours."
-msgstr ""
-
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 #: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
-msgstr ""
-
-#: app/src/features/chat/lib/selection.ts
-msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
 msgstr ""
 
 #. Owlit's role
@@ -1755,7 +1771,39 @@ msgid "Co-author"
 msgstr ""
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
+msgid "Reads your workspace"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Keeps its own comments, threads, memory and highlights"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Stars, tags and sorts papers, with Undo"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never changes your writing"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs as marked proposals; undo any part"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs; undo any part"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Moves or deletes into the Trash, with Undo"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Runs commands in this workspace; what they change outside your docs has no Undo"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never runs commands"
 msgstr ""
 
 #: app/src/features/chat/lib/starters.ts
@@ -2783,6 +2831,35 @@ msgstr ""
 
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep this passage (⌘⏎)"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Undo this passage (⌘⌫)"
+msgstr ""
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#. verb: keep a passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep"
+msgstr ""
+
+#. placeholder {0}: this.count
+#: app/src/features/docs/editor/proposals.ts
+msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
+msgstr ""
+
+#. verb: keep every passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep all"
 msgstr ""
 
 #: app/src/features/docs/fs.ts
@@ -4503,6 +4580,14 @@ msgid "Where this paper was read"
 msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
+msgid "As Assistant, its usual role, Owlit"
+msgstr ""
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr ""
+
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr ""
 
@@ -5082,9 +5167,13 @@ msgstr ""
 msgid "Drop"
 msgstr ""
 
-#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep"
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "What Owlit may do"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5094,12 +5183,12 @@ msgid "Background work"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/settings/store.ts
-msgid "Privacy"
+msgid "What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere."
+#: app/src/features/settings/store.ts
+msgid "Privacy"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -5842,19 +5931,19 @@ msgid "Owlit stopped."
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
+msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
 msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
@@ -5866,11 +5955,11 @@ msgid "Widen the question…"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Reads in full the papers answered from their abstracts, where there's a PDF; they join your Library"
+msgid "None of the papers answered from their abstracts has a PDF to read"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
-msgid "Read all in full"
+msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
@@ -5879,6 +5968,23 @@ msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
 msgid "Draft a review…"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Searches further and adds papers to this thread"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "Find more papers…"
+msgstr ""
+
+#: app/src/features/threads/components/Work.tsx
+msgid "What to look for"
+msgstr ""
+
+#. button: start finding more papers for a thread
+#: app/src/features/threads/components/Work.tsx
+msgid "Find"
 msgstr ""
 
 #: app/src/features/threads/components/Work.tsx
