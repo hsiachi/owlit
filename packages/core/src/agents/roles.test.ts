@@ -62,11 +62,13 @@ describe("roles", () => {
     expect(guardFor("gemini-cli", "assistant", ["/w"])).toEqual({ modes: [] })
   })
 
-  it("refuses a Reviewer's changes and leaves the rest to the user", () => {
+  it("refuses a Reviewer's changes, lets an Assistant's edits land as proposals, and leaves the rest to the user", () => {
     expect(answerFor("reviewer", "edit")).toBe("reject")
     expect(answerFor("reviewer", "execute")).toBe("reject")
     expect(answerFor("reviewer", "fetch")).toBe("ask")
-    expect(answerFor("assistant", "edit")).toBe("ask")
+    expect(answerFor("assistant", "edit")).toBe("allow")
+    expect(answerFor("assistant", "delete")).toBe("allow")
+    expect(answerFor("assistant", "execute")).toBe("ask")
     expect(answerFor("coauthor", "execute")).toBe("ask")
   })
 })

@@ -25,7 +25,7 @@ describe("decide", () => {
         const decision = decide(inChat(role), touches, {})
         const expected = ROLE_TABLE[touches][role]
         if (expected === "refuse") expect(decision, `${touches} as ${role}`).toHaveProperty("refuse")
-        else expect(decision, `${touches} as ${role}`).toBe(expected)
+        else expect(decision, `${touches} as ${role}`).toBe("allow")
       }
     }
     expect(decide(inChat("reviewer"), "meta", {})).toEqual({ refuse: expect.stringMatching(/^Owlit works as Reviewer in this chat and changes nothing of the user's/) })
@@ -129,8 +129,12 @@ describe("the router's policy", () => {
     await call("chats.update", { id: "c1", patch: { role: "assistant" } })
     expect((await call("library.update", { id: "doi-10.9-a", patch: { tags: ["baseline"] } }, mcp)).tags).toEqual(["baseline"])
     expect((await call("changes.list", { path: "doi-10.9-a" }))[0]).toMatchObject({ actor: MY_OWLIT, target: { part: "tags" }, origin: { chatId: "c1" } })
-    // Its details are the person's words, asked for; between turns nobody can be asked
-    await expect(call("library.update", { id: "doi-10.9-a", patch: { title: "Other" } }, mcp)).rejects.toThrow(/couldn't be asked/)
+    // Its details are the person's words: as Assistant the change lands as a proposal, recorded with Undo
+    expect((await call("library.update", { id: "doi-10.9-a", patch: { title: "Other" } }, mcp)).title).toBe("Other")
+    const proposed = (await call("changes.list", { path: "doi-10.9-a" }))[0]
+    expect(proposed).toMatchObject({ actor: MY_OWLIT, target: { part: "overrides.title" } })
+    await call("changes.undo", { id: proposed.id })
+    expect((await call("library.list")).papers[0].title).toBe("Paper doi-10.9-a")
   })
 
   it("decides own on what the log and the records say is Owlit's", async () => {

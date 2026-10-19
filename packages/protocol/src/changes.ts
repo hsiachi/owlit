@@ -22,9 +22,9 @@ export interface ChangeTarget {
 }
 
 export interface ChangeOrigin {
-  // editor: a window's save or op; tool: an agent through owlit's fs or tools; apply: the user
-  // accepting an agent's proposed edit; watcher: a change seen on disk; auto: something the app did on
-  // its own on the actor's action
+  // editor: a window's save or op; tool: an agent through owlit's fs or tools; apply: an agent's edit
+  // allowed before it wrote, by the user or by owlit as a proposal; watcher: a change seen on disk; auto:
+  // something the app did on its own on the actor's action
   via: "editor" | "tool" | "apply" | "watcher" | "auto"
   // The chat or run it came from
   chatId?: string
@@ -110,6 +110,25 @@ export interface Unseen {
   changes: Change[]
   chats: string[]
   digests: string[]
+}
+
+// changes.proposals: one of Owlit's changes to a doc since the text the person last had on screen, as
+// the passages it replaced, so the doc can mark each and offer Keep and Undo on it
+export interface Proposal {
+  id: string
+  at: number
+  actor: ActorId
+  hunks: ProposalHunk[]
+}
+
+// One passage of a proposal, as the text it put in and the text it took out, with the words either side
+// of it in the text it left, so an editor can find it in the doc as it reads now (the words stop at the
+// neighbouring passages, so one passage undone doesn't lose the next)
+export interface ProposalHunk {
+  insert: string
+  removed: string
+  before: string
+  after: string
 }
 
 // changes.since: a paragraph of a doc as it reads now that someone other than the person wrote since

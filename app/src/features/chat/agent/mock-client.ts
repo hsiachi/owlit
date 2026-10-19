@@ -5,6 +5,7 @@ import { myOwlit } from "@/lib/actors"
 import { mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest } from "./client"
 import { addMockChange, mockEntry } from "../results"
+import { landMockProposal } from "@/app/seen"
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -20,7 +21,9 @@ const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortEr
 
 // A Reviewer never writes; a Co-author writes without asking; an Assistant asks first
 const READ_ONLY_ROLES = new Set<string>(["reviewer"])
-const AUTO_ROLES = new Set<string>(["coauthor"])
+// Roles whose edits land without a card: a Co-author's as its own, an Assistant's as proposals the doc
+// marks (core answers the agent's request at once; here the edit is simply made and marked)
+const AUTO_ROLES = new Set<string>(["coauthor", "assistant"])
 
 // Simulates an ACP agent turn: thinking, tool calls, an optional permission
 // request, and a streamed markdown answer. Enough to exercise every UI state.
@@ -75,7 +78,7 @@ export class MockAgentClient implements AgentClient {
 
       // Asked from a doc about a passage: rewrite it in place, or find papers behind it
       if (selection?.source.kind === "doc") {
-        if (WANTS_REWRITE.test(text)) return await this.proposeEdit(emit, signal, selection, mode)
+        if (WANTS_REWRITE.test(text)) return await this.proposeEdit(emit, signal, selection, mode, req.chatId)
         if (WANTS_SUPPORT.test(text)) return await this.findSupport(emit, signal, selection)
       }
       // Handed-off work: search outside, add what fits, and say what changed under the answer
@@ -222,7 +225,7 @@ export class MockAgentClient implements AgentClient {
   }
 
   // An edit to the doc the passage came from: shown as a diff, written only once allowed
-  private async proposeEdit(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection, mode: string): Promise<StopReason> {
+  private async proposeEdit(emit: (u: SessionUpdate) => void, signal: AbortSignal, selection: QuotedSelection, mode: string, chatId: string): Promise<StopReason> {
     const fs = getWorkspaceFs()
     const path = docPath(selection.source.uri)
     const before = path && fs ? await fs.readTextFile(path) : null
@@ -257,7 +260,9 @@ export class MockAgentClient implements AgentClient {
       emit({ type: "tool_call_update", toolCallId, status: "failed", content: "The passage changed before the edit could be applied." })
       return "end_turn"
     }
-    await fs.writeTextFile(path, replacePassage(now, selection, rewritten.text))
+    const after = replacePassage(now, selection, rewritten.text)
+    await fs.writeTextFile(path, after)
+    if (mode === "assistant") landMockProposal(chatId, path, now, after, selection.text, rewritten.text)
     emit({ type: "tool_call_update", toolCallId, status: "completed", content: `Replaced 1 passage in ${path}` })
     return "end_turn"
   }

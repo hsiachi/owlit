@@ -399,9 +399,11 @@ msgstr ""
 #. verb: take back this change to the doc
 #. verb: take back what was just done
 #. verb: take back what was just done
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
+#: app/src/features/docs/editor/proposals.ts
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
@@ -1306,6 +1308,16 @@ msgstr ""
 msgid "Your note on {paper}"
 msgstr ""
 
+#. a doc the agent moved or renamed; its old path
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Moved from {from}"
+msgstr ""
+
+#. a doc the agent deleted, into the Trash
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Deleted"
+msgstr ""
+
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "{count, plural, one {# comment} other {# comments}}"
@@ -1408,7 +1420,9 @@ msgid "Undone"
 msgstr ""
 
 #. verb: take back every change of the reply
+#. verb: undo every passage Owlit changed
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/editor/proposals.ts
 msgid "Undo all"
 msgstr ""
 
@@ -2782,6 +2796,31 @@ msgstr ""
 
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep this passage (⌘⏎)"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Undo this passage (⌘⌫)"
+msgstr ""
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#. verb: keep a passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep"
+msgstr ""
+
+#. placeholder {0}: this.count
+#: app/src/features/docs/editor/proposals.ts
+msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+msgstr ""
+
+#. verb: keep every passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep all"
 msgstr ""
 
 #: app/src/features/docs/fs.ts
@@ -5079,11 +5118,6 @@ msgstr ""
 #. verb: don't keep a note Claude Code had kept
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
-msgstr ""
-
-#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx

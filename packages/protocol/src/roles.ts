@@ -18,16 +18,19 @@ export const DEFAULT_ROLE: Role = "assistant"
 // structure: delete or move a person's thing. admin: the workspace, settings, agents, sharing, chats.
 export type Touches = "read" | "own" | "meta" | "words" | "structure" | "admin"
 
-export type RoleAnswer = "allow" | "ask" | "refuse"
+// propose: the change is made at once and recorded as Owlit's, marked until the person has seen it, with
+// Undo per passage or row; nothing waits on a card. It differs from allow only in what the person is
+// promised: the change is a proposal they may take back in part, not a decision made for them.
+export type RoleAnswer = "allow" | "propose" | "refuse"
 
 // What each role may do with each class, through owlit's own tools; the person at the window is never
-// policed. ask: the user is asked in the chat (refused between turns, when nobody is there to ask).
+// policed. Nothing asks: a change either lands (shown and undoable) or is refused with why.
 export const ROLE_TABLE: Record<Touches, Record<Role, RoleAnswer>> = {
   read: { reviewer: "allow", assistant: "allow", coauthor: "allow" },
   own: { reviewer: "allow", assistant: "allow", coauthor: "allow" },
   meta: { reviewer: "refuse", assistant: "allow", coauthor: "allow" },
-  words: { reviewer: "refuse", assistant: "ask", coauthor: "allow" },
-  structure: { reviewer: "refuse", assistant: "ask", coauthor: "allow" },
+  words: { reviewer: "refuse", assistant: "propose", coauthor: "allow" },
+  structure: { reviewer: "refuse", assistant: "propose", coauthor: "allow" },
   admin: { reviewer: "refuse", assistant: "refuse", coauthor: "refuse" },
 }
 
@@ -38,7 +41,7 @@ export function roleLine(touches: Touches): string {
   if (touches === "admin") return "Refused in every role."
   const say = (role: Role) => {
     const answer = ROLE_TABLE[touches][role]
-    return answer === "allow" ? "allowed, the user can undo it" : answer === "ask" ? "the user is asked" : "refused"
+    return answer === "allow" ? "allowed, the user can undo it" : answer === "propose" ? "lands as a proposal the user sees marked and may undo in part" : "refused"
   }
   return `Reviewer: ${say("reviewer")}. Assistant: ${say("assistant")}. Co-author: ${say("coauthor")}.`
 }

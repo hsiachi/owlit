@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
+import type { Change, ChangedPassage, ChangeFilter, Proposal, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -309,7 +309,7 @@ export interface Methods {
     result: { stopReason: StopReason }
   }
   // Deletes or moves the user's docs for an agent (owlit-mcp's docs_delete and docs_move; the chat's role
-  // decides, and the user is asked when it says so), keeping each file's text so the chat offers Undo
+  // decides), keeping each file's text so the chat offers Undo
   "agents.deleteDocs": { params: { paths: string[]; chatId?: string; toolCallId?: string }; result: { deleted: string[] } }
   "agents.moveDoc": { params: { path: string; to: string; chatId?: string; toolCallId?: string }; result: { path: string } }
   // Stops the chat's running turn; questions it was waiting on close as cancelled
@@ -350,6 +350,9 @@ export interface Methods {
   // The paragraphs of a doc someone else wrote since the text whose sha1 is hash (the person's mark when
   // a visit began); none when the log no longer knows that text
   "changes.since": { params: { path: string; hash: string }; result: ChangedPassage[] }
+  // text: the doc as the window has it (its editor may be ahead of the disk); hash: the text the person
+  // last had on screen, else since: when their marks began
+  "changes.proposals": { params: { path: string; text: string; hash?: string; since?: number }; result: Proposal[] }
 
   // ---- Seen: what the window's person last looked at; refused to anyone else (an agent has no seen)
   // kinds: only those (all when absent)

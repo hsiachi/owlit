@@ -469,7 +469,7 @@ describe("docs_read on a PDF", () => {
     const { tools } = await mcp.listTools()
     const described = Object.fromEntries(tools.map((t) => [t.name, t.description ?? ""]))
     expect(described.library_update).toMatch(/ Reviewer: refused\. Assistant: allowed, the user can undo it\. Co-author: allowed, the user can undo it\.$/)
-    expect(described.docs_delete).toMatch(/ Reviewer: refused\. Assistant: the user is asked\. Co-author: allowed, the user can undo it\.$/)
+    expect(described.docs_delete).toMatch(/ Reviewer: refused\. Assistant: lands as a proposal the user sees marked and may undo in part\. Co-author: allowed, the user can undo it\.$/)
     expect(described.comments_remove).toMatch(/ Allowed in every role; the user can undo it\.$/)
     expect(described.library_list).not.toMatch(/Reviewer/)
   })

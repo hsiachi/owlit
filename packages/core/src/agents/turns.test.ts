@@ -212,29 +212,28 @@ describe("turns", () => {
     expect((await call("library.list")).papers[0].starred).toBe(false)
   })
 
-  it("asks the user in the chat for what the role says to ask, as a tool call with the card; between turns nobody can be asked", async () => {
+  it("lands an Assistant's delete at once, with Undo, in a turn or between turns", async () => {
     const { send, updates, call, root } = await setup()
     const mcp: Caller = { kind: "socket", chatId: "c1" }
     await call("chats.update", { id: "c1", patch: { role: "assistant" } })
-    await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)).rejects.toThrow(/Not done: This chat isn't answering any more, so the user couldn't be asked\./)
-    // During an Assistant's turn a delete is asked in the chat
-    const turn = send("slow please", { role: "assistant" })
-    // The turn is under way once the agent says something (a cold start takes longer than any fixed wait)
-    await until(() => updates.some((u) => u.type === "agent_message_chunk"), { what: "a agent_message_chunk" })
-    const asked = call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)
-    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
-    const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
-    expect(ask).toMatchObject({ title: "Delete notes.md", kind: "delete" })
-    await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "allow" })
-    expect(await asked).toEqual({ deleted: ["notes.md"] })
+    expect(await call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)).toEqual({ deleted: ["notes.md"] })
     expect(existsSync(path.join(root, "notes.md"))).toBe(false)
+    const deleted = (await call("changes.list", { chatId: "c1" }))[0]
+    expect(deleted).toMatchObject({ actor: expect.stringMatching(/^o_/), action: "delete", target: { kind: "doc", path: "notes.md" } })
+    await call("changes.undo", { id: deleted.id })
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+    // During a turn too, with no card
+    const turn = send("slow please", { role: "assistant" })
+    await until(() => updates.some((u) => u.type === "agent_message_chunk"), { what: "a agent_message_chunk" })
+    expect(await call("agents.moveDoc", { path: "notes.md", to: "kept.md" }, mcp)).toEqual({ path: "kept.md" })
+    expect(updates.some((u) => u.type === "permission_request")).toBe(false)
     await call("agents.cancel", { chatId: "c1" })
     await turn
   })
 
   it("keeps an agent's own agents apart: their steps, their questions and their reports", async () => {
     const { send, updates, call, text } = await setup()
-    const turn = send("use agents")
+    const turn = send("use agents", { role: "coauthor" })
     await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     // The question comes from the agent's own session, and says which agent asks
@@ -278,7 +277,7 @@ describe("turns", () => {
     const { send, updates, call } = await setup()
     const diffOf = async (text: string) => {
       updates.length = 0
-      const turn = send(text)
+      const turn = send(text, { role: "coauthor" })
       await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
       const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
       const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === ask.toolCallId) as Extract<SessionUpdate, { type: "tool_call" }>
@@ -434,7 +433,7 @@ describe("turns", () => {
     await call("docs.list")
     const wrote: any[] = []
     core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
-    const turn = send("rewrite notes.md thirteen chars")
+    const turn = send("rewrite notes.md thirteen chars", { role: "coauthor" })
     await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "yes" })
@@ -442,6 +441,23 @@ describe("turns", () => {
     await until(() => wrote.length, { what: "the applied change" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("thirteen chars")
     expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
+  })
+
+  it("lands an Assistant's edit as a proposal: allowed before any card, signed Owlit's with its tool call, its passages for the doc to mark", async () => {
+    const { send, core, call, updates, root, text } = await setup()
+    await call("docs.list")
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
+    await send("rewrite notes.md thirteen chars", { role: "assistant" })
+    expect(text()).toBe("you chose yes")
+    expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+    // The step is in the chat with what it changed
+    expect(updates.find((u) => u.type === "tool_call" && u.toolCallId === "w1")).toMatchObject({ kind: "edit", diff: { path: "notes.md", oldText: "twelve chars", newText: "thirteen chars" } })
+    await until(() => wrote.length, { what: "the landed change" })
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("thirteen chars")
+    expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
+    const proposals = await call("changes.proposals", { path: "notes.md", text: "thirteen chars", since: 0 })
+    expect(proposals).toMatchObject([{ id: wrote[0].id, hunks: [{ insert: "thirteen", removed: "twelve", before: "", after: " chars" }] }])
   })
 
   it("writes files for the agent and tells clients", async () => {

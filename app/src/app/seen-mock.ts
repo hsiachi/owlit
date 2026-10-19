@@ -1,4 +1,4 @@
-import { itemId, type Change, type ChangedPassage, type SeenMarks } from "@owlit/protocol"
+import { itemId, type Change, type ChangedPassage, type Proposal, type SeenMarks } from "@owlit/protocol"
 import { seedComments, seedFiles } from "@/features/docs/mocks/seed"
 import { seedThreads } from "@/features/threads/mocks/seed"
 import { WEB_OWLIT } from "@/lib/actors"
@@ -40,3 +40,10 @@ export const MOCK_MARKS: SeenMarks = {
 }
 
 export const MOCK_PASSAGES: Record<string, ChangedPassage[]> = { [relatedWork.path]: [{ text: retrieval, actor: WEB_OWLIT, at: now - 2 * HOUR }] }
+
+// The same paragraph as the passage Owlit's edit landed, with the words either side as core gives them;
+// the mock agent adds to this as it edits (chat/agent/mock-client.ts)
+const at = relatedWork.content!.indexOf(retrieval)
+export const MOCK_PROPOSALS: Record<string, Proposal[]> = {
+  [relatedWork.path]: [{ id: "mock-proposal", at: now - 2 * HOUR, actor: WEB_OWLIT, hunks: [{ insert: retrieval, removed: "", before: relatedWork.content!.slice(at - 24, at), after: relatedWork.content!.slice(at + retrieval.length, at + retrieval.length + 24) }] }],
+}

@@ -399,9 +399,11 @@ msgstr "关闭弹出框"
 #. verb: take back this change to the doc
 #. verb: take back what was just done
 #. verb: take back what was just done
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
+#: app/src/features/docs/editor/proposals.ts
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
@@ -1306,6 +1308,16 @@ msgstr "增删的行数"
 msgid "Your note on {paper}"
 msgstr "你对 {paper} 的笔记"
 
+#. a doc the agent moved or renamed; its old path
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Moved from {from}"
+msgstr "从 {from} 移来"
+
+#. a doc the agent deleted, into the Trash
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Deleted"
+msgstr "已删除"
+
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "{count, plural, one {# comment} other {# comments}}"
@@ -1408,7 +1420,9 @@ msgid "Undone"
 msgstr "已撤销"
 
 #. verb: take back every change of the reply
+#. verb: undo every passage Owlit changed
 #: app/src/features/chat/components/messages/ResultRows.tsx
+#: app/src/features/docs/editor/proposals.ts
 msgid "Undo all"
 msgstr "全部撤销"
 
@@ -2783,6 +2797,31 @@ msgstr "前置元数据"
 #: app/src/features/docs/editor/live-preview.ts
 msgid "No doc with this name"
 msgstr "没有这个名字的文档"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep this passage (⌘⏎)"
+msgstr "保留这一处（⌘⏎）"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Undo this passage (⌘⌫)"
+msgstr "撤销这一处（⌘⌫）"
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#. verb: keep a passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep"
+msgstr "保留"
+
+#. placeholder {0}: this.count
+#: app/src/features/docs/editor/proposals.ts
+msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+msgstr "{0, plural, other {Owlit 改了 # 处}}"
+
+#. verb: keep every passage Owlit changed
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep all"
+msgstr "全部保留"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -5080,11 +5119,6 @@ msgstr "Claude Code 在这个文件夹里记过这些关于你的事。保留 Ow
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
 msgstr "不要"
-
-#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep"
-msgstr "保留"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
