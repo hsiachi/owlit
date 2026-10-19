@@ -1032,14 +1032,17 @@ export class Core {
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
     this.router.register("comments.all", noParams, "read", () => docs().commentsAll())
     // A comment is whoever started it (its first entry); others: who replied under it
-    const commentTarget = async (path: string, id: string, replies = false): Promise<Target> => {
+    // adding: a comment or reply made on the doc, which the user may have kept Owlit out of
+    const commentTarget = async (path: string, id: string, { replies = false, adding = false } = {}): Promise<Target> => {
+      const out = adding && (await docs().owlitOf(path)).out ? { out: true } : {}
       const was = (await docs().listComments(path)).find((c) => c.id === id)
-      if (!was) return { what: "comment" }
+      if (!was) return { what: "comment", ...out }
       const by = was.entries[0]?.by
-      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}) }
+      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}), ...out }
     }
-    const ownComment: Policy<"comments.add" | "comments.dismiss"> = { touches: "own", target: ({ path, ...p }) => commentTarget(path, "comment" in p ? p.comment.id : p.id) }
-    this.router.register("comments.add", z.object({ path: rel, comment: commentSchema }), ownComment, async ({ path, comment }, caller) => {
+    const ownComment: Policy<"comments.dismiss"> = { touches: "own", target: ({ path, id }) => commentTarget(path, id) }
+    const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id, { adding: true }) }
+    this.router.register("comments.add", z.object({ path: rel, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
       const agent = caller.kind !== "window"
       // Never over an existing comment (add replaces one with the same id)
       if ((await docs().listComments(path)).some((c) => c.id === comment.id)) throw new RpcFailure(RpcErrorCode.Conflict, agent ? "That comment is already there; an agent adds new ones." : t`That comment is already there.`)
@@ -1060,7 +1063,7 @@ export class Core {
     })
     const COMMENT_PUT: Policy<"comments.put"> = {
       touches: ({ comment }, target, who) => commentTouches(comment, target, who),
-      target: ({ path, comment }) => commentTarget(path, comment.id),
+      target: ({ path, comment }) => commentTarget(path, comment.id, { adding: true }),
     }
     this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
       const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
@@ -1083,7 +1086,7 @@ export class Core {
       await this.putComment(path, dismissed, caller, {}, true)
       return dismissed
     })
-    this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, true) }, async ({ path, id }, caller) => {
+    this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
       const removed = await docs().removeComment(path, id)
       await this.recordComment(caller, path, removed, null)
       return removed

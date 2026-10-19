@@ -26,6 +26,9 @@ export interface Target {
   // One of those files isn't one of the user's docs: outside the workspace, owlit's own state, a
   // dot-folder
   notDoc?: boolean
+  // The user keeps Owlit out of the doc (docs/owlit.ts DocOwlit.out): its words, and comments on it,
+  // are theirs alone
+  out?: boolean
 }
 
 export interface Who {
@@ -44,6 +47,7 @@ const ADMIN = "owlit's workspace, settings, chats, sharing and agents are the us
 const RUN = "Owlit works on its own here, with nobody to ask, and changes nothing of the user's."
 const COMMAND = "owlit's command can't change the user's workspace; use the app."
 const NOT_A_DOC = "That file isn't one of the user's docs."
+const KEPT_OUT = "The user keeps Owlit out of this doc: read it if you need to, but don't change it or comment on it."
 
 export function decide(who: Who, touches: Touches, target: Target = {}): Decision {
   if (who.caller.kind === "window") return "allow"
@@ -58,9 +62,11 @@ export function decide(who: Who, touches: Touches, target: Target = {}): Decisio
 }
 
 // What no caller but the person may do to a target, whatever its role or its class: change a file that
-// isn't the user's doc. Core's own writes for a run (Owlit's record of a Go through) answer to this alone.
+// isn't the user's doc, or change or comment on a doc they keep Owlit out of. Core's own writes for a
+// run (Owlit's record of a Go through) answer to this alone.
 export function offLimits(target: Target): Decision {
   if (target.notDoc) return { refuse: NOT_A_DOC }
+  if (target.out) return { refuse: KEPT_OUT }
   return "allow"
 }
 

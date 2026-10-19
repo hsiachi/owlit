@@ -76,11 +76,13 @@ export class AgentFs {
 
   // The files a write or an engine's request names, as the policy's target (policy.ts): each resolved
   // against the workspace, and whether all are the user's: inside the workspace and docs (not library/,
-  // .owlit/ or another dot-folder, as written or where a link leads), or a paper's note
+  // .owlit/ or another dot-folder, as written or where a link leads), or a paper's note; and whether the
+  // user keeps Owlit out of one of the docs
   async target(paths: string[]): Promise<Target> {
     const { docs, library } = this.workspace()
     const files: string[] = []
     let notDoc = false
+    let out = false
     for (const file of paths) {
       let rel: string
       try {
@@ -90,9 +92,11 @@ export class AgentFs {
         continue
       }
       files.push(rel)
-      if (!library.noteOf(rel) && !docs.isDoc(rel)) notDoc = true
+      if (library.noteOf(rel)) continue
+      if (!docs.isDoc(rel)) notDoc = true
+      else if ((await docs.owlitOf(rel)).out) out = true
     }
-    return { what: "file", files, ...(notDoc ? { notDoc } : {}) }
+    return { what: "file", files, ...(notDoc ? { notDoc } : {}), ...(out ? { out } : {}) }
   }
 
   // The caller as the change log names it
