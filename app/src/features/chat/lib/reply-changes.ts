@@ -1,10 +1,10 @@
 import { isOwlit, type Change, type ChatMessage } from "@owlit/protocol"
 
 // Which of a chat's changes a reply made: Owlit's entries (not undos) that name it as their reply. An
-// entry that names none (recorded before entries did) is the reply's when it came from when the reply
-// started until the next one did, so a change the watcher saw a moment after the reply ended is still its
-// own. By name, a reply taken out of the chat (a broken one, retried) takes its entries with it rather
-// than handing them to the reply before. all: the chat's entries, any order.
+// entry that names no reply is the reply's when it came from when the reply started until the next one
+// did, so a change the watcher saw a moment after the reply ended is still its own. By name, a reply
+// taken out of the chat (a broken one, retried) takes its entries with it rather than handing them to the
+// reply before. all: the chat's entries, any order.
 export function replyEntries(all: Change[], messages: ChatMessage[], messageId: string): Change[] {
   const replies = messages.filter((m) => m.role === "assistant")
   const i = replies.findIndex((m) => m.id === messageId)

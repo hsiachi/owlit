@@ -56,7 +56,7 @@ describe("partsUndone", () => {
     expect(partsUndone("e", all).map((c) => c.id)).toEqual(["p2", "p1"])
     // A passage undone is not the edit undone
     expect(undoneBy("e", all)).toBeUndefined()
-    // A passage put back again no longer counts
+    // A passage put back again isn't counted
     const back = entry("back", 4, { actor: "p_1234abcd", undoes: "p1", target: { kind: "doc", path: "a.md", part: "passage:0" } })
     expect(partsUndone("e", [back, ...all]).map((c) => c.id)).toEqual(["p2"])
   })

@@ -242,8 +242,8 @@ export const useChatStore = create<ChatState>()(
         }))
         if (disk.onDisk && isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
 
-        // The reply grows and ends through the client's onUpdate and onEnded (watchTurns); the call's own
-        // result only matters when nothing said the turn ended
+        // The reply grows and ends through the client's onUpdate and onEnded (followUpdate, turnEnded); the
+        // call's own result only matters when nothing said the turn ended
         let ending: Partial<ChatMessage>
         try {
           // A chat made just now must reach core before core can run a turn in it
