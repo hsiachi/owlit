@@ -6,6 +6,7 @@ describe("guide", () => {
     const list = guide()
     expect(list).toMatch(/^How to use owlit\. Ask for one topic:\n- workspace: The workspace\n/)
     expect(list).toMatch(/owlit:\/\/settings\/proxy/)
+    expect(list).toMatch(/\nRecipes: .*\n- gather: .*\n- find-more: .*\n- ask-each: .*\n- group: .*\n- read-in-full: /s)
   })
 
   it("gives one topic by its id or by a word in it", () => {

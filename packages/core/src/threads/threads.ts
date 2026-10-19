@@ -15,6 +15,7 @@ import {
   type Thread,
   type ThreadBatch,
   type ThreadCell,
+  type ThreadColumn,
   type ThreadEdit,
   type ThreadGroup,
   type ThreadOverrides,
@@ -37,6 +38,7 @@ import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { fillSkill, gatherSkill, moreSkill, readSkill, type Skill } from "../initiative/skills.ts"
 import { sameJson, Serial } from "../util.ts"
+import { THREAD_RECIPES } from "../recipes/threads.ts"
 
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
 //
@@ -182,7 +184,7 @@ export class Threads {
         },
       })
     return [
-      run(gatherSkill, async (thread) => ({ thread, size: thread.size ?? "few", withText: await this.withText(thread) })),
+      run(gatherSkill, async (thread) => ({ thread, withText: await this.withText(thread) })),
       run(moreSkill, async (thread) => ({ thread, withText: await this.withText(thread), ...(this.lookFor.get(thread.id) ? { lookFor: this.lookFor.get(thread.id) } : {}) })),
       run(fillSkill, async (thread, subject) => {
         const column = thread.columns.find((col) => col.id === subject.split(":")[1])
@@ -201,6 +203,33 @@ export class Threads {
     const hasText = this.services.hasText
     const can = await Promise.all(rows.map(async (r) => r.paper.openPdf || (hasText ? await hasText(r.id, r.paper.ids) : false)))
     return rows.filter((_, i) => can[i]).map((r) => r.id)
+  }
+
+  // A recipe written out for this thread (recipes/threads.ts). column: the column ask-each or group fills,
+  // by its id or its question; lookFor: what find-more looks for this time
+  async recipe(name: keyof typeof THREAD_RECIPES, id: string, opts: { column?: string; lookFor?: string } = {}): Promise<string> {
+    const c = await this.get(id)
+    let column: ThreadColumn | undefined
+    if (name === "ask-each" || name === "group") {
+      const grouping = name === "group"
+      const want = opts.column?.trim() ?? ""
+      column = c.columns.find((col) => (col.kind === "grouping") === grouping && (col.id === want || sameWords(col.question, want)))
+      if (!column)
+        throw new RpcFailure(
+          RpcErrorCode.InvalidParams,
+          grouping
+            ? `There is no grouping "${want}" in thread ${id}: start it with thread_write new_grouping, then ask for this recipe with its id.`
+            : `There is no column "${want}" in thread ${id}: add the question with thread_write columns, then ask for this recipe with its id.`,
+        )
+    }
+    const lookFor = opts.lookFor?.trim()
+    return THREAD_RECIPES[name].text({
+      thread: c,
+      withText: await this.withText(c),
+      toRead: name === "read-in-full" ? await this.toRead(c) : [],
+      ...(lookFor && !sameWords(lookFor, c.asked.text) ? { lookFor } : {}),
+      ...(column ? { column } : {}),
+    })
   }
 
   // The thread's rows whose full text owlit has: Owlit answers those from it from the start

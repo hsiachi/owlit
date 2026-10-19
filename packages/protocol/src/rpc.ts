@@ -281,7 +281,7 @@ export interface Methods {
   // What every agent owlit runs is told about owlit (owlit-mcp's instructions, a new session's preamble)
   "agents.rules": { params: void; result: string }
   // How to use owlit, for an agent asked about owlit itself: the list of topics, or one topic
-  "agents.guide": { params: { topic?: string }; result: string }
+  "agents.guide": { params: { topic?: string; thread?: string; column?: string; lookFor?: string }; result: string }
   // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
   "agents.check": { params: { id: string }; result: Connector }
   // Fetches owlit's own copy of the agent's adapter (or a newer one) into owlit's data folder; returns at

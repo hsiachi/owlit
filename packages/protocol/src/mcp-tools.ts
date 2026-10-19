@@ -434,8 +434,16 @@ function TOOLS(): ToolSpec[] {
     name: "owlit_help",
     touches: "read",
     description:
-      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts). Without a topic, lists the topics; with one, gives it, with how to link the user to a Settings section.",
-    inputSchema: { type: "object", properties: { topic: { type: "string", description: "A topic from the list, or a word to look for (optional)" } } },
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts), and the recipes: how owlit's own buttons do a piece of work (gather, find-more, ask-each, group, read-in-full on a thread), written out for the thread you name, to read before doing that work in this chat. Without a topic, lists the topics and recipes; with one, gives it, with how to link the user to a Settings section.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "A topic or recipe from the list, or a word to look for (optional)" },
+        thread: { type: "string", description: "For a recipe: the thread's id" },
+        column: { type: "string", description: "For ask-each and group: the column's or grouping's id, or its question" },
+        look_for: { type: "string", description: "For find-more: what to look for this time, when it isn't the thread's question" },
+      },
+    },
     annotations: { readOnlyHint: true },
   },
   {

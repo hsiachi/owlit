@@ -28,6 +28,7 @@ import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
+import { isRecipe } from "./recipes/index.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
 import { startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
@@ -302,7 +303,16 @@ export class Core {
     this.router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
     this.router.register("agents.rules", noParams, "read", () => AGENT_RULES)
-    this.router.register("agents.guide", z.object({ topic: z.string().optional() }), "read", ({ topic }) => guide(topic))
+    this.router.register(
+      "agents.guide",
+      z.object({ topic: z.string().optional(), thread: z.string().optional(), column: z.string().optional(), lookFor: z.string().optional() }), "read",
+      async ({ topic, thread, column, lookFor }) => {
+        const name = topic?.trim().toLowerCase() ?? ""
+        if (!isRecipe(name)) return guide(topic)
+        if (!thread) return `The recipe ${name} is written out for one thread: give thread, its id (thread_list has them).`
+        return this.requireWorkspace().threads.recipe(name, thread, { ...(column ? { column } : {}), ...(lookFor ? { lookFor } : {}) })
+      },
+    )
     this.router.register("core.version", noParams, "read", () => this.version())
     this.router.register("core.diagnostics", noParams, "read", () => this.diagnostics())
     this.router.register("extension.get", noParams, "read", async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [] })

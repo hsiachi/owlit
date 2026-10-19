@@ -688,6 +688,20 @@ describe("Threads, Owlit's work in the background", () => {
   })
 })
 
+describe("Threads.recipe", () => {
+  it("writes a recipe out for one thread: what to look for, the rows to read, the column to fill", async () => {
+    const { threads } = setup({ hasText: async (id) => id === "doi-10.1145-1" })
+    const { id } = await start(threads, { rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }, { id: "doi-10.1145-3", cells: { q: { text: "No PDF.", depth: "abstract" } }, paper: { title: "Three", authors: [], ids: {} } }] })
+    expect(await threads.recipe("find-more", id, { lookFor: "lifelog video" })).toMatch(/look for: «lifelog video»/)
+    // The thread's own question is no "this time"
+    expect(await threads.recipe("find-more", id, { lookFor: "我的研究方法该怎么设计？" })).not.toMatch(/look for/)
+    expect(await threads.recipe("read-in-full", id)).toMatch(/Read these rows, and no others: doi-10\.1145-1\./)
+    await threads.write({ id, columns: [{ id: "m", question: "Method and sample" }] }, agent)
+    expect(await threads.recipe("ask-each", id, { column: "Method  and sample" })).toMatch(/The column to fill: m — «Method and sample»/)
+    await expect(threads.recipe("group", id, { column: "m" })).rejects.toThrow(/no grouping "m".*new_grouping/)
+  })
+})
+
 describe("Threads, the user's changes in the log", () => {
   it("records each item the user changed, with both sides, and no line in the history", async () => {
     const { threads, changes, owlit } = setup()
