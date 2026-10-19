@@ -480,7 +480,7 @@ describe("docs_read on a PDF", () => {
     expect(described.library_list).not.toMatch(/Reviewer/)
   })
 
-  it("replies to and resolves the user's comments as Assistant, and is refused as Reviewer", async () => {
+  it("replies to the user's comments in every role, and resolves them as Assistant, not as Reviewer", async () => {
     const { root, call, tool } = await setup()
     writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
     const comment = { id: "c1", quote: "all you need", prefix: "Attention is ", suffix: ".", entries: [{ id: "e1", text: "Add the citation here?", at: 1 }], createdAt: 1 }
@@ -490,7 +490,8 @@ describe("docs_read on a PDF", () => {
     // The chat is a Reviewer's: the user's comment stays theirs, Owlit's own is Owlit's
     await call("chats.update", { id: "chat-1", patch: { role: "reviewer" } })
     expect(await tool("comments_resolve", { path: "Draft.md", id: "c1", reply: "Added it." })).toEqual({ isError: true, text: expect.stringMatching(/^Not done: Owlit works as Reviewer in this chat and changes nothing of the user's\./) })
-    expect(await tool("comments_reply", { path: "Draft.md", id: "c1", text: "Vaswani 2017." })).toMatchObject({ isError: true })
+    // A reply adds an entry of Owlit's own and changes nothing of the user's: a Reviewer's to make
+    expect((await tool("comments_reply", { path: "Draft.md", id: "c1", text: "Vaswani 2017." })).text).toMatch(/^Replied under the comment on "all you need"/)
     await tool("docs_add_comment", { path: "Draft.md", quote: "Attention", comment: "Spell it out?" })
     const own = (await call("comments.all"))["Draft.md"].find((c: { id: string }) => c.id !== "c1")
     expect((await tool("comments_reply", { path: "Draft.md", id: own.id, text: "Or keep it." })).text).toMatch(/^Replied under the comment/)
@@ -504,6 +505,7 @@ describe("docs_read on a PDF", () => {
     expect(resolved).toMatchObject({ id: "c1", resolvedAt: expect.any(Number) })
     expect(resolved.entries.map((e: { by: string; text: string }) => [e.by.slice(0, 2), e.text])).toEqual([
       ["p_", "Add the citation here?"],
+      ["o_", "Vaswani 2017."],
       ["o_", "Vaswani 2017, p. 2."],
       ["o_", "Added the citation."],
     ])
@@ -512,8 +514,9 @@ describe("docs_read on a PDF", () => {
     // Each as Owlit's, with Undo for the user
     const changes = await call("changes.list", { target: { kind: "comment", path: "Draft.md" } })
     expect(changes.filter((c: any) => c.target.part.startsWith("c1")).map((c: any) => [c.action, c.target.part, c.actor.slice(0, 2)])).toEqual([
-      ["create", `c1/${resolved.entries[2].id}`, "o_"],
+      ["create", `c1/${resolved.entries[3].id}`, "o_"],
       ["update", "c1", "o_"],
+      ["create", `c1/${resolved.entries[2].id}`, "o_"],
       ["create", `c1/${resolved.entries[1].id}`, "o_"],
       ["create", "c1", "p_"],
     ])

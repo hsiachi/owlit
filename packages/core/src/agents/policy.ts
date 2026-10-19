@@ -98,9 +98,11 @@ function own(actor: ActorId, target: Target): Decision {
   return "allow"
 }
 
-// The class of a change to a comment: the comment itself when it is new; an entry of the caller's own, or
-// a reply under someone else's comment, and resolving it, are its marks (meta); editing or removing
-// another's entry, or changing anything else of their comment, is their words
+// The class of a change to a comment: the comment itself when it is new, and an entry the caller adds
+// (a reply, under anyone's comment), are the caller's own: a reply changes nothing of the person's.
+// Resolving someone else's comment is its marks (meta); editing or removing another's entry, or changing
+// anything else of their comment, is their words. The router's target for a reply alone is the new entry
+// (replyOnly), so own lets every role reply.
 export function commentTouches(input: CommentInput, target: Target, who: Who): Touches {
   const was = target.was as DocComment | undefined
   if (!was) return "own"
@@ -111,7 +113,7 @@ export function commentTouches(input: CommentInput, target: Target, who: Who): T
   }
   for (const e of input.entries) {
     const old = was.entries.find((w) => w.id === e.id)
-    if (!old) raise(mine ? "own" : "meta")
+    if (!old) raise("own")
     else if (old.text !== e.text || old.editedAt !== e.editedAt) raise(old.by === who.actor ? "own" : "words")
   }
   for (const old of was.entries) if (!input.entries.some((e) => e.id === old.id)) raise(old.by === who.actor ? "own" : "words")
@@ -120,6 +122,17 @@ export function commentTouches(input: CommentInput, target: Target, who: Who): T
   if (resolvedWas !== resolvedNow) raise(mine ? "own" : "meta")
   if (JSON.stringify(restWas) !== JSON.stringify(restNow)) raise(mine ? "own" : "words")
   return worst
+}
+
+// Whether a change to a comment only adds entries, changing nothing that was there
+export function replyOnly(input: CommentInput, was: DocComment): boolean {
+  const { entries: now, ...restNow } = input
+  const { entries: before, ...restWas } = was
+  if (JSON.stringify(restNow) !== JSON.stringify(restWas)) return false
+  return before.every((old) => {
+    const e = now.find((n) => n.id === old.id)
+    return !!e && e.text === old.text && e.editedAt === old.editedAt
+  })
 }
 
 const RANK: Record<Touches, number> = { read: 0, own: 1, meta: 2, words: 3, structure: 4, admin: 5 }

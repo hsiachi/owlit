@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
 import { knownProfile, ME, MY_OWLIT } from "../test-util.ts"
-import { commentTouches, decide, type Who } from "./policy.ts"
+import { commentTouches, decide, replyOnly, type Who } from "./policy.ts"
 
 const CLASSES: Touches[] = ["read", "own", "meta", "words", "structure", "admin"]
 const ROLE_IDS: Role[] = ["reviewer", "assistant", "coauthor"]
@@ -75,9 +75,15 @@ describe("commentTouches", () => {
     expect(commentTouches({ ...mine, entries: [{ ...mine.entries[0]!, text: "Cite it, p. 4." }] }, target(mine), owlit)).toBe("own")
   })
 
-  it("is meta to reply under a person's comment or resolve it, and words to touch their entries", () => {
-    expect(commentTouches({ ...theirs, entries: [...theirs.entries, { id: "r", text: "Yes.", at: 2 }] }, target(theirs), owlit)).toBe("meta")
+  it("is own to reply under a person's comment, meta to resolve it, and words to touch their entries", () => {
+    const reply = { ...theirs, entries: [...theirs.entries, { id: "r", text: "Yes.", at: 2 }] }
+    expect(commentTouches(reply, target(theirs), owlit)).toBe("own")
+    // The router's target for a reply alone is the new entry, which is the caller's to make
+    expect(replyOnly(reply, theirs)).toBe(true)
+    expect(decide(inChat("reviewer"), commentTouches(reply, { what: "reply", was: theirs }, inChat("reviewer")), { what: "reply", was: theirs })).toBe("allow")
     expect(commentTouches({ ...theirs, resolvedAt: 3, entries: [...theirs.entries, { id: "r", text: "Done.", at: 2 }] }, target(theirs), owlit)).toBe("meta")
+    expect(replyOnly({ ...theirs, resolvedAt: 3, entries: [...theirs.entries, { id: "r", text: "Done.", at: 2 }] }, theirs)).toBe(false)
+    expect(replyOnly({ ...theirs, entries: [{ ...theirs.entries[0]!, text: "changed" }, { id: "r", text: "Yes.", at: 2 }] }, theirs)).toBe(false)
     expect(commentTouches({ ...theirs, entries: [{ ...theirs.entries[0]!, text: "changed" }] }, target(theirs), owlit)).toBe("words")
     expect(commentTouches({ ...theirs, entries: [] }, target(theirs), owlit)).toBe("words")
     expect(commentTouches({ ...theirs, quote: "other words" }, target(theirs), owlit)).toBe("words")
@@ -143,6 +149,11 @@ describe("the router's policy", () => {
     await call("comments.add", { path: "notes.md", comment })
     // A Reviewer may not remove the person's comment, nor undo their change, but may take back its own
     await expect(call("comments.remove", { path: "notes.md", id: "n1" }, mcp)).rejects.toThrow(/^Not done: That comment is the user's/)
+    // It may answer the person under their comment, and not resolve it
+    await call("comments.put", { path: "notes.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", text: "It is, on p. 3.", at: 2 }] } }, mcp)
+    expect((await call("comments.all"))["notes.md"][0].entries.map((e: { by: string }) => e.by)).toEqual([ME, MY_OWLIT])
+    const replied = (await call("comments.all"))["notes.md"][0]
+    await expect(call("comments.put", { path: "notes.md", comment: { ...replied, resolvedAt: 3 } }, mcp)).rejects.toThrow(/^Not done: Owlit works as Reviewer/)
     await call("comments.add", { path: "notes.md", comment: { ...comment, id: "n2", entries: [{ id: "e2", text: "Cite it.", at: 2 }] } }, mcp)
     const [made] = await call("changes.list", { target: { kind: "comment", path: "notes.md", part: "n2" } })
     expect(made.actor).toBe(MY_OWLIT)

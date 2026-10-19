@@ -19,7 +19,7 @@ import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure, WINDOW, type Caller, type Policy } from "./rpc/index.ts"
-import { commentTouches, decide, type Target, type Who } from "./agents/policy.ts"
+import { commentTouches, decide, replyOnly, type Target, type Who } from "./agents/policy.ts"
 import { newWriteId } from "./changes/record.ts"
 import { commentChanges, signed } from "./docs/comments.ts"
 import { readMemory } from "./memory/memory.ts"
@@ -1064,7 +1064,12 @@ export class Core {
     })
     const COMMENT_PUT: Policy<"comments.put"> = {
       touches: ({ comment }, target, who) => commentTouches(comment, target, who),
-      target: ({ path, comment }) => commentTarget(path, comment.id, { adding: true }),
+      target: async ({ path, comment }) => {
+        const target = await commentTarget(path, comment.id, { adding: true })
+        // A reply alone is a new entry of the caller's, whoever started the comment
+        if (target.was && replyOnly(comment, target.was as DocComment)) return { what: "reply", was: target.was, ...(target.out ? { out: true } : {}) }
+        return target
+      },
     }
     this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
       const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
