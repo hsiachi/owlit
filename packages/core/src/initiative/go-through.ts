@@ -80,13 +80,14 @@ Leave out a list with nothing in it. Six to eight items is many; with more, the 
     `Then land each point and open question in the doc it is about, with docs_add_comment, on the exact words it is about (quote them word for word, a sentence or less; a point about something missing goes on the nearest heading):
 - comment: who said what, in your words, mentioning the record as ${recordLink}, e.g. "时英天在 ${recordLink} 上建议……你当场同意了。" Never write in a speaker's name or voice.
 - own: only when you have something to add of your own (where the doc already says it, what the point would break elsewhere, something in their library or a thread, a view worth having), one to three sentences; leave it out otherwise. A point in the user's own words usually has none.
+- A paper you name in either is cited with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").
 Don't pre-write changes to the doc, and don't comment on the material itself. To-do items stay in the reading.`,
   ].join("\n\n")
 }
 
 export const goThroughSkill = defineSkill<GoThroughInput>({
   id: "meetings.goThrough",
-  format: 1,
+  format: 2,
   lane: "agent",
   tools: /^(library_(search|related)|docs_add_comment)$/,
   writes: ["record", "comment"],

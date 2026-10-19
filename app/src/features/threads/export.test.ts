@@ -23,4 +23,11 @@ describe("a thread exported as a doc", () => {
     const cells = (l: string) => l.replace(/\\\|/g, "").split("|").length
     expect(new Set(md.split("\n").filter((l) => l.startsWith("|")).map(cells)).size).toBe(1)
   })
+
+  it("cites an answer read in full with its page and the sentence it rests on", () => {
+    const c = all.find((c) => c.rows.some((r) => r.cells.q?.passage))!
+    const row = c.rows.find((r) => r.cells.q?.passage)!
+    const { quote, page } = row.cells.q!.passage!
+    expect(threadMarkdown(c)).toContain(`(owlit://library/${row.id}#p${page} "${quote}")`)
+  })
 })

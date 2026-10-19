@@ -4675,10 +4675,13 @@ msgstr "你改过"
 
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. placeholder {0}: answer.passage.page
+#. placeholder {0}: cell.passage.page
 #. placeholder {0}: row.page
 #: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "第 {0} 页"
 

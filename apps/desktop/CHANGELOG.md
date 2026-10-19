@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Owlit cites papers with the sentence it rests on in its comments, replies and Go through, as it does in chats, and a thread exported as a doc keeps each answer's sentence with its page.
 - A thread answers the papers whose text is already in your library from the full text from the start. An answer from a paper's title only (it has no abstract) is greyed in the row and the table, counted in About, and written "title only" in the CSV.
 - Owlit writes a digest only when you ask: from the paper's Digest side, its menu, a chat, or by starring it. Opening a paper no longer starts one, and the setting "Digests for every paper" is gone.
 - A paper opens on the side you last read of it, the digest or the PDF, each where you left it; a digest you asked for opens as soon as it is ready.

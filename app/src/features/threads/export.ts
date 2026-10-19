@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Thread, type ThreadColumn, type ThreadRow } from "@owlit/protocol"
+import { citationLink, cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Thread, type ThreadColumn, type ThreadRow } from "@owlit/protocol"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
@@ -49,8 +49,8 @@ const mdCell = (s: string) => s.replace(/\s*\n+\s*/g, " ").replace(/\|/g, "\\|")
 
 // The thread as a doc of the user's to write from: its title, the memo, and a table per group of
 // the papers with every answer. Papers and the thread stay owlit:// links, so they show as mentions
-// and open; an answer read in full ends with its page. Taken as it is now: the doc doesn't follow later
-// changes to the thread.
+// and open; an answer read in full ends with its page, cited with the sentence it rests on. Taken as it
+// is now: the doc doesn't follow later changes to the thread.
 export function threadMarkdown(c: Thread, now = new Date()) {
   const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   const head = `| ${[t({ message: "Paper", comment: "table header in an exported thread" }), ...columns.map(columnLabel)].map(mdCell).join(" | ")} |`
@@ -62,7 +62,8 @@ export function threadMarkdown(c: Thread, now = new Date()) {
       if (!cell?.text) return ""
       const sentence = col.kind === "compare" ? col.sentences?.find((s) => s.id === cell.sentence) : undefined
       const text = `${cell.rel ? `${relWord(cell.rel)}${sentence ? ` “${sentence.text}”` : ""}: ` : ""}${cell.text}`
-      return cell.depth === "full" && cell.passage ? `${text} (p. ${cell.passage.page})` : text
+      // The page is a citation with the sentence it rests on, so the doc's reader can check it
+      return cell.depth === "full" && cell.passage ? `${text} (${citationLink(t({ message: `p. ${cell.passage.page}`, comment: "a page of a paper" }), r.id, cell.passage)})` : text
     })
     return `| ${[paper, ...answers].map(mdCell).join(" | ")} |`
   }
