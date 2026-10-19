@@ -1,7 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
-import { isTaskFinished, itemId, QUESTION_COLUMN, readInFull, sameWords, threadOfSubject, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
+import { itemId, QUESTION_COLUMN, readInFull, sameWords, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
-import { useShallow } from "zustand/react/shallow"
 import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
@@ -19,14 +18,13 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { displayName } from "@/features/docs/types"
-import { tasksFor, tasksOfKind, useTasksStore } from "@/features/tasks/store"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { cn, scrollMotion } from "@/lib/utils"
 import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
 import { editThread, put, regroupRow } from "../store"
 import { ReadingMark, RowPeek, WasLine } from "./AnswerRows"
-import { groupAnotherWay } from "../runs"
+import { askAgain, groupAnotherWay, useThreadWork } from "../work"
 import { useThreadsUi } from "../ui-store"
 import { AskEach } from "./Work"
 
@@ -72,13 +70,7 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
 export function ThreadTable({ thread, shown, visit }: { thread: Thread; shown: Thread; visit: VisitDots }) {
   // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
   // nothing to group by until it is done
-  const filling = useTasksStore(
-    useShallow((s) =>
-      tasksOfKind(s.byId, "threads.fill")
-        .filter((task) => !isTaskFinished(task) && threadOfSubject(task.subject) === thread.id)
-        .map((task) => task.subject.slice(task.subject.indexOf(":") + 1)),
-    ),
-  )
+  const filling = useThreadWork(thread.id).running.flatMap((chat) => (chat.about.column ? [chat.about.column] : []))
   const columns = shown.columns.filter((c) => !c.hidden || (c.kind === "grouping" && filling.includes(c.id)))
   const compare = columns.find((c) => c.kind === "compare")
   const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length && !filling.includes(c.id))
@@ -452,7 +444,7 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
 
 // A column's name, with what can be done to it; while Owlit fills it, how far it got
 function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn }) {
-  const filling = useTasksStore((s) => tasksFor(s.byId, `${thread.id}:${column.id}`).some((task) => task.kind === "threads.fill" && !isTaskFinished(task)))
+  const filling = useThreadWork(thread.id).running.some((chat) => chat.about.column === column.id)
   // A grouping counts the papers Owlit has put in a group so far
   const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.overrides.removed[itemId.row(r.id)]).length
   const of = thread.rows.filter((r) => !thread.overrides.removed[itemId.row(r.id)]).length
@@ -480,12 +472,6 @@ function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn
       </DropdownMenuContent>
     </DropdownMenu>
   )
-}
-
-// Fills what the column still lacks; the answers there stay, and the user's own stay whatever happens
-async function askAgain(id: string, column: string) {
-  if (!isDesktop) return
-  await rpc.threads.fill({ id, column }).catch(toastError)
 }
 
 function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thread: Thread; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {

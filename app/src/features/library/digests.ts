@@ -7,7 +7,7 @@ import { notifyWhenAway } from "@/lib/notify"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
 import { useDigestUnseen } from "@/app/seen"
-import { aboutKey, asking, heardStarted, standOf, stopStarted, useStand, useStarted } from "@/features/chat/started"
+import { aboutKey, asking, mockStarted, standOf, stopStarted, useStand, useStarted } from "@/features/chat/started"
 import { useLibraryStore } from "./store"
 
 // Where a paper's digest stands for the user, on the ladder of states (DESIGN.md, rule 3): being written,
@@ -52,7 +52,7 @@ export function stopDigest(paperId: string) {
 // Starts Owlit writing the paper's digest, saying so when that failed; resolves to whether it was started
 export async function askDigest(paper: Paper, rewrite: boolean): Promise<boolean> {
   const about = digestAbout(paper.id)
-  if (!isDesktop) return mockDigest(about)
+  if (!isDesktop) return (mockStarted(about), true)
   asking(about, true)
   try {
     const asked = await rpc.library.requestDigest({ id: paper.id, rewrite })
@@ -72,21 +72,6 @@ export function retryDigest(paper: Paper) {
   waitForDigest(paper.id)
   return askDigest(paper, !!paper.hasDigest)
 }
-
-// Without core (pnpm dev:web) a digest asked for is written for a few seconds and then cut off, so both
-// the line that says it is being written and the one that says why it stopped can be seen
-function mockDigest(about: ChatAbout) {
-  const chatId = `mock-${aboutKey(about)}`
-  const reply = { id: `${chatId}-${Date.now()}`, role: "assistant" as const, parts: [], createdAt: Date.now() }
-  heardStarted({ chatId, about, reply: { ...reply, status: "streaming" } })
-  setTimeout(() => {
-    if (useStarted.getState().byAbout[aboutKey(about)]?.reply?.id !== reply.id) return
-    heardStarted({ chatId, about, reply: { ...reply, status: "error", error: t`Owlit was closed before it finished.`, cutOff: "closed", finishedAt: Date.now() } })
-  }, MOCK_WRITING_MS)
-  return Promise.resolve(true)
-}
-
-const MOCK_WRITING_MS = 4000
 
 // ---- Telling the one waiting ----
 

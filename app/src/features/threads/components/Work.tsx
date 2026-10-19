@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Tip } from "@/components/tip"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cancelTask, resumeTask } from "@/features/tasks/store"
+import { stopChat, tryAgain } from "@/features/chat/started"
 import { useLibraryStore } from "@/features/library/store"
 import { libraryPaperOf, shown as shownOf } from "../lib"
-import { askEach, runWords, startRun, useThreadWork } from "../runs"
+import { askEach, startRun, useThreadWork, workWords } from "../work"
 
 // What a paper read in full costs in the agent's time, roughly: one turn that adds it, reads the parts
 // that matter and rewrites its answers. Said on the button's hover so the run's size is known before it
@@ -18,31 +18,34 @@ import { askEach, runWords, startRun, useThreadWork } from "../runs"
 const MINUTES_PER_PAPER = 0.8
 
 // What Owlit is doing on the thread, one muted line under the title while it works (its words
-// shimmer) with Stop, or why it stopped with Retry. Nothing when it isn't working.
+// shimmer) with Stop, or why it stopped with Retry. Nothing when it isn't working. Several chats can work
+// on the thread at once: the line says the earliest, and how many more.
 export function WorkLine({ thread }: { thread: Thread }) {
-  const { running, broken } = useThreadWork(thread.id)
-  const task = running[0]
-  if (task) {
+  const { running, failed } = useThreadWork(thread.id)
+  const chat = running[0]
+  if (chat) {
     const papers = shownOf(thread).rows.length
+    const more = running.length - 1
     return (
       <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
-        <span className="shimmer">{runWords(task, thread)}</span>
-        {task.kind === "threads.gather" && papers > 0 && <span>{t`${papers} so far`}</span>}
-        <Button variant="text" size="inline" onClick={() => void cancelTask(task.id)}>
+        <span className="shimmer">{workWords(chat, thread)}</span>
+        {chat.about.recipe === "gather" && papers > 0 && <span>{t`${papers} so far`}</span>}
+        {more > 0 && <span>{plural(more, { one: "and # more", other: "and # more" })}</span>}
+        <Button variant="text" size="inline" onClick={() => stopChat(chat)}>
           {t({ message: "Stop", comment: "stop Owlit's work on a thread" })}
         </Button>
       </p>
     )
   }
-  if (broken) {
-    const why = broken.error ?? ""
+  if (failed) {
+    const why = failed.reply.error ?? ""
     return (
       <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
         <span className="text-destructive">{t`Owlit stopped.`}</span>
         <span className="min-w-0 truncate" title={why}>
           {why}
         </span>
-        <Button variant="text" size="inline" onClick={() => void resumeTask(broken.id)}>
+        <Button variant="text" size="inline" onClick={() => void tryAgain(failed.chatId)}>
           {t`Retry`}
         </Button>
       </p>
@@ -52,16 +55,16 @@ export function WorkLine({ thread }: { thread: Thread }) {
 }
 
 // What the user can ask of the thread, as plain text buttons under the memo, the same for a list and a
-// table. Each one runs in the background; while it runs, its button rests. With no papers there is nothing
+// table. Each one starts a chat about the thread; while it works, its button rests. With no papers there is nothing
 // to ask of each or to draft from: only searching further, here or with a wider question in a chat. The
 // two that run at once say their size first: Read N in full counts the papers it will read (and on hover
 // how long, and how many have no PDF and are left out), Find more papers asks what to look for.
 export function ThreadActions({ thread }: { thread: Thread }) {
   const navigate = useNavigate()
   const { running } = useThreadWork(thread.id)
-  const busy = (kind: string) => running.some((task) => task.kind === kind)
+  const busy = (recipe: string) => running.some((chat) => chat.about.recipe === recipe)
   const shown = shownOf(thread)
-  // The rows a Read in full run would read, as core counts them (threads.ts toRead): answered from the
+  // The rows Read in full would read, as core counts them (threads.ts toRead): answered from the
   // abstract or title, with a free PDF known or the paper's text in the Library already
   const papers = useLibraryStore((s) => s.papers)
   const aliases = useLibraryStore((s) => s.aliases)
@@ -83,10 +86,10 @@ export function ThreadActions({ thread }: { thread: Thread }) {
     navigate("/chat", { state: { starter: t`Nothing came up for “${asked}”. Help me widen the question: suggest broader or neighbouring questions to search.` } })
   const empty = !shown.rows.length
   // While the first gather runs, an empty thread is only not filled yet
-  if (empty && busy("threads.gather")) return null
+  if (empty && busy("gather")) return null
   return (
     <div className="mt-4 -ml-1.5 flex flex-wrap items-center gap-1">
-      <FindMore thread={thread} disabled={busy("threads.more") || busy("threads.gather")} />
+      <FindMore thread={thread} disabled={busy("find-more") || busy("gather")} />
       {empty ? (
         <Button variant="text" size="inline" title={t`Owlit suggests broader or neighbouring questions in a chat`} onClick={widen}>
           {t`Widen the question…`}
@@ -95,7 +98,7 @@ export function ThreadActions({ thread }: { thread: Thread }) {
         <>
           <AskEach thread={thread} />
           {fromAbstract.length > 0 && (
-            <Button variant="text" size="inline" disabled={busy("threads.read") || toRead === 0} title={toRead ? readTip : t`None of the papers answered from their abstracts has a PDF to read`} onClick={() => void startRun(thread.id, "read")}>
+            <Button variant="text" size="inline" disabled={busy("read-in-full") || toRead === 0} title={toRead ? readTip : t`None of the papers answered from their abstracts has a PDF to read`} onClick={() => void startRun(thread.id, "read")}>
               {plural(toRead, { one: "Read # in full", other: "Read # in full" })}
             </Button>
           )}
