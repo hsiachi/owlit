@@ -3,13 +3,14 @@ import { create } from "zustand"
 import { quoteTarget } from "./reader/passages"
 import { whenReaderReady, type ReaderApi } from "./reader/reader-store"
 import { useLibraryStore } from "./store"
-import type { Highlight } from "@owlit/protocol"
+import type { Highlight, Paper, PaperView } from "@owlit/protocol"
 
-export type PaperView = "digest" | "pdf"
+export type { PaperView }
 
-// The digest or the PDF, for the paper last opened. A paper with a digest opens on it, since most of the
-// time the digest is enough; the choice holds until the next paper. Kept outside the page so that going
-// to a place in the paper from anywhere (showInPaper) can turn it to the PDF, even before the page is open.
+// The digest or the PDF, for the paper last opened: the side the user last read of this paper, which the
+// paper keeps (state.json) so it reopens there, and the PDF until they have chosen. A digest they asked
+// for and haven't seen yet opens on the digest, since they asked. Kept outside the page so that going to
+// a place in the paper from anywhere (showInPaper) can turn it to the PDF, even before the page is open.
 interface PaperViewState {
   paperId: string | null
   view: PaperView
@@ -19,19 +20,24 @@ interface PaperViewState {
 export const usePaperView = create<PaperViewState>()((set) => ({
   paperId: null,
   view: "pdf",
-  setView: (paperId, view) => set({ paperId, view }),
+  setView: (paperId, view) => {
+    set({ paperId, view })
+    useLibraryStore.getState().setView(paperId, view)
+  },
 }))
 
-// What the paper's page shows
-export function usePaperViewOf(paperId: string, hasDigest: boolean, known: boolean): PaperView {
+// What the paper's page shows; fresh: a digest the user asked for and hasn't seen
+export function usePaperViewOf(paperId: string, paper: Paper | undefined, fresh: boolean): PaperView {
   const chosen = usePaperView((s) => (s.paperId === paperId ? s.view : null))
+  const known = !!paper
+  const opensOn: PaperView = fresh ? "digest" : (paper?.view ?? "pdf")
   // Settled when the paper opens: a digest that arrives while the PDF is being read doesn't take its place
   // (once the library has the paper: after a reload it arrives a moment later)
   useEffect(() => {
-    if (known) usePaperView.setState((s) => (s.paperId === paperId ? s : { paperId, view: hasDigest ? "digest" : "pdf" }))
+    if (known) usePaperView.setState((s) => (s.paperId === paperId ? s : { paperId, view: opensOn }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId, known])
-  return chosen ?? (hasDigest ? "digest" : "pdf")
+  return chosen ?? opensOn
 }
 
 // The paper's reader with its PDF in view, once it has laid out its pages. The PDF stays loaded under the

@@ -76,7 +76,7 @@ export function PaperPage() {
   const writing = useWritingDigest(paperId)
   const digestState = useDigestState(paper ?? NO_PAPER)
   const hasDigest = !!paper?.hasDigest
-  const view = usePaperViewOf(paperId, hasDigest, !!paper)
+  const view = usePaperViewOf(paperId, paper, digestState === "new")
   const showView = (next: PaperView) => usePaperView.getState().setView(paperId, next)
   // Which side is being read, for the reading time core keeps (app/activity.ts)
   const hasPdf = !!paper?.pdf
@@ -95,9 +95,9 @@ export function PaperPage() {
   if (!paper) return <NotFound title={t`This paper is not in the library`} detail={t`It may have been removed.`} back={{ label: t`Back to library`, to: "/library" }} />
 
   const go = (id: string | null) => id && navigate(`/library/${id}`, { replace: true })
-  // Only once there is a digest, or one on its way, is there anything to choose; a run that broke keeps
-  // the switch, so its Retry stays where the user looked for the digest
-  const choosing = hasDigest || writing || digestState === "failed"
+  // There is something to choose once the paper has text to digest: the Digest side then holds the
+  // digest, or the offer to write one, or a run's Retry where the user looked for it
+  const choosing = hasDigest || writing || digestState === "failed" || !!paper.pdf || !!paper.text
   // A digest that arrived while the PDF was being read: Owlit's dot on the switch until it is seen
   const views = paperViews().map((v) => (v.value === "digest" && view === "pdf" && digestState === "new" ? { ...v, dot: true } : v))
   const position = idx + 1
@@ -157,9 +157,9 @@ const paperViews = (): { value: PaperView; label: string }[] => [
   { value: "pdf", label: "PDF" },
 ]
 
-// All papers, kept as they were while only reading positions move. A position changes at every scroll
-// pause and nothing on this page follows it (the reader reads its paper's once, in position.ts), so a
-// move neither redraws the page nor sorts the library again for previous / next.
+// All papers, kept as they were while only reading positions (in the PDF or the digest) move. A position
+// changes at every scroll pause and nothing on this page follows it (the reader and the digest read their
+// paper's once), so a move neither redraws the page nor sorts the library again for previous / next.
 function usePapersAtRest() {
   return useLibraryStore(useMemo(() => papersAtRest(), []))
 }
@@ -183,6 +183,7 @@ function onlyPositionsMoved(next: Record<string, Paper>, prev: Record<string, Pa
     if (!b) return false
     const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof Paper)[])
     keys.delete("position")
+    keys.delete("digestPosition")
     return [...keys].every((k) => a[k] === b[k])
   })
 }

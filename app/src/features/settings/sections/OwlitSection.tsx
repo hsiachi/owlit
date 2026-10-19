@@ -1,8 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
-import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES, type InitiativeMode } from "@owlit/protocol"
+import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { isDesktop } from "@/lib/rpc"
-import { setInitiative, useInitiativeSettings } from "../initiative"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
@@ -15,13 +14,15 @@ import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
 import { KeptInMindRow } from "./Memory"
 
-// What Owlit calls you, what it keeps in mind about you, the work it does when nobody is waiting, and
-// what it records of what you do.
+// What Owlit calls you, what it keeps in mind about you, the agent for its background work, and what it
+// records of what you do. Owlit works on its own only to keep up with you (threads you asked it to watch,
+// a paper's rows and comments once you read it in full, digests you star or ask for), and that is not a
+// setting.
 // The agent for background work sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
 export function OwlitSection() {
-  // What Owlit keeps in mind and On its own belong to a workspace: on the welcome page and in the first
-  // launch there is none to ask, and they aren't shown
+  // What Owlit keeps in mind belongs to a workspace: on the welcome page and in the first launch there is
+  // none to ask, and it isn't shown
   const workspace = useWorkspace((s) => !!s.current)
   return (
     <>
@@ -31,11 +32,6 @@ export function OwlitSection() {
           {(workspace || !isDesktop) && <KeptInMindRow />}
         </List>
       </Group>
-      {isDesktop && workspace && (
-        <Group id="on-its-own" label={t`On its own`} note={t`Owlit comments on its own, never edits. Your docs change only when you ask.`}>
-          <OnItsOwn />
-        </Group>
-      )}
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
       </Group>
@@ -70,27 +66,6 @@ export function NameRow({ className }: { className?: string }) {
         />
       }
     />
-  )
-}
-
-// How far Owlit goes in this workspace without being asked. Off, it only keeps up what it already keeps
-// (digests, watched threads), which it did before the dial existed.
-function OnItsOwn() {
-  const { mode } = useInitiativeSettings()
-  const options: { value: InitiativeMode; label: string }[] = [
-    { value: "off", label: t({ message: "Off", comment: "Owlit does nothing on its own beyond its upkeep" }) },
-    { value: "onOpen", label: t`When I open things` },
-    { value: "away", label: t`Also while I'm away` },
-  ]
-  const help: Record<InitiativeMode, string> = {
-    off: t`Owlit works only when you ask, apart from digests and the threads you asked it to watch.`,
-    onOpen: t`When you open a doc that changed since Owlit last looked, it reads it and comments where it has something to say.`,
-    away: t`Also looks while you're away, and leaves what it found for when you're back.`,
-  }
-  return (
-    <List>
-      <Row name={t`Owlit on its own`} help={help[mode]} control={<Picker label={t`Owlit on its own`} value={mode} options={options} onChange={(next) => setInitiative({ mode: next })} />} />
-    </List>
   )
 }
 
@@ -133,12 +108,6 @@ function BackgroundWork() {
         />
       )}
       <LanguageRow />
-      <Row
-        name={t`Digests for every paper`}
-        help={t`Otherwise only for papers you open or star.`}
-        info={t`On, a big import keeps the agent busy for a while.`}
-        control={<Switch checked={view?.library.digestEveryPaper ?? false} onCheckedChange={(on) => void updateSettings({ library: { digestEveryPaper: on } })} aria-label={t`Digests for every paper`} />}
-      />
     </List>
   )
 }
