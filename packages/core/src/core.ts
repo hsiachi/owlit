@@ -1535,8 +1535,8 @@ export class Core {
     return answer
   }
 
-  // The digest's chat, once the paper's text and figures are read (waits: they weren't yet, and reading
-  // them left nothing to read is a failure, since the asker was told it would start)
+  // The digest's chat, once the paper's text and figures are read. waits: they weren't yet; if reading
+  // them left nothing to read, that is a failure, since the asker was told the chat would start.
   private async startDigest(ws: Workspace, id: string, rewrite: boolean, waits: boolean): Promise<DigestAsked> {
     const about = { kind: "paper", id } as const
     const work = await ws.library.digestWork(id, rewrite)

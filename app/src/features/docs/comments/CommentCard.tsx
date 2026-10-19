@@ -358,8 +358,8 @@ function ReplyField({ view, autoFocus, onReply }: { view: CommentView; autoFocus
   const hint = view.thread
     ? { icon: <LinkIcon />, text: t`${startedBy.name} sees replies on the shared page.` }
     : startedBy.who === "owlit"
-      ? // Owlit answers under its own comments, in the chat about the comment (the card's replying line); an edit
-        // to the doc is asked for in a chat, from the feather
+      ? // Owlit answers under its own comments, in the chat about the comment (the card's replying
+        // line); an edit to the doc is asked for in a chat, from the feather
         { icon: <OwlitMark />, text: t`Owlit answers here. To have it change the doc, use the feather above.` }
       : null
   return (
