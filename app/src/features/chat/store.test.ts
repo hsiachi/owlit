@@ -30,6 +30,8 @@ vi.mock("@/lib/rpc", () => ({ isDesktop: false, rpc: {}, onNotify: () => () => {
 vi.mock("./agent", () => ({ agentClient: client.agentClient }))
 vi.mock("./mocks/chats", () => ({ seedChats: [] }))
 vi.mock("@/app/seen", () => ({ markSeen: () => {} }))
+const asked = vi.hoisted(() => ({ typed: [] as string[] }))
+vi.mock("./ask-draft", () => ({ useAskDraft: { getState: () => ({ type: (_chatId: string, _ask: unknown, text: string) => asked.typed.push(text) }) } }))
 
 const { adoptRunning, followUpdate, turnEnded, useChatStore, withHeld } = await import("./store.ts")
 const { chatStatus } = await import("./status.ts")
@@ -44,8 +46,24 @@ beforeEach(() => {
   client.prompts.length = 0
   client.calls.cancel.length = 0
   client.calls.respond.length = 0
-  useChatStore.setState({ chats: {}, streaming: {} })
+  asked.typed.length = 0
+  useChatStore.setState({ chats: {}, streaming: {}, queued: {} })
 })
+
+const input = (text: string, extra: object = {}) => ({ text, mentions: [], attachments: [], ...extra })
+
+// A chat whose turn runs, its reply waiting on what `parts` ask
+async function running(parts: ChatMessage["parts"] = []) {
+  useChatStore.setState({ chats: { c1: chat("c1", []) } })
+  void useChatStore.getState().send("c1", input("one"))
+  await vi.waitFor(() => expect(client.prompts).toHaveLength(1))
+  const turn = client.prompts[0]!
+  for (const p of parts) {
+    if (p.type === "permission") client.update("c1", turn.messageId, { type: "permission_request", requestId: p.requestId, toolCallId: p.toolCallId, title: p.title, kind: p.kind, options: p.options })
+    if (p.type === "question") client.update("c1", turn.messageId, { type: "question_request", requestId: p.requestId, questions: p.questions })
+  }
+  return turn
+}
 
 describe("the chat store mirrors the client's turns", () => {
   it("takes up a turn that was running when the window opened, follows it and ends it", () => {
@@ -88,6 +106,40 @@ describe("the chat store mirrors the client's turns", () => {
     await sent
     expect(useChatStore.getState().streaming).toEqual({})
     expect(messageOf("c1", client.prompts[0]!.messageId)?.status).toBe("cancelled")
+  })
+
+  it("queues what is sent while Owlit works, joins a second message to it, and sends it when the turn ends", async () => {
+    const turn = await running()
+    await useChatStore.getState().send("c1", input("two"))
+    await useChatStore.getState().send("c1", input("three"))
+    expect(client.prompts).toHaveLength(1)
+    expect(useChatStore.getState().queued.c1?.text).toBe("two\n\nthree")
+    client.end("c1", turn.messageId, reply(turn.messageId, { status: "done" }))
+    await vi.waitFor(() => expect(client.prompts).toHaveLength(2))
+    expect(client.prompts[1]!.text).toBe("two\n\nthree")
+    expect(useChatStore.getState().queued).toEqual({})
+  })
+
+  it("answers a waiting command with Don't allow and keeps the turn, the words going next", async () => {
+    const options = [
+      { optionId: "yes", name: "Allow", kind: "allow_once" as const },
+      { optionId: "no", name: "Reject", kind: "reject_once" as const },
+    ]
+    const turn = await running([{ type: "permission", requestId: "r1", toolCallId: "t1", title: "Run pdftotext", kind: "execute", options }])
+    await useChatStore.getState().send("c1", input("use library_read instead"))
+    expect(client.calls.respond).toEqual([["r1", "no"]])
+    expect(client.calls.cancel).toEqual([])
+    expect(useChatStore.getState().streaming.c1).toBe(turn.messageId)
+    expect(useChatStore.getState().queued.c1?.text).toBe("use library_read instead")
+  })
+
+  it("answers a waiting question with the words, and sends the files and mentions with the next message", async () => {
+    await running([{ type: "question", requestId: "q1", questions: [{ id: "q", question: "Which?", options: [], allowsText: true }] }])
+    const mention = { id: "d1", kind: "doc" as const, uri: "owlit://docs/rw.md", title: "rw.md" }
+    const file = { id: "f1", name: "notes.pdf", size: 1, mimeType: "application/pdf" }
+    await useChatStore.getState().send("c1", input("the second, see @[rw.md]", { mentions: [mention], attachments: [file] }))
+    expect(asked.typed).toEqual(["the second, see rw.md"])
+    expect(useChatStore.getState().queued.c1).toMatchObject({ text: "@[rw.md]", mentions: [mention], attachments: [file] })
   })
 
   it("stops through the client", () => {

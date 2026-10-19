@@ -42,7 +42,8 @@ export interface ComposerProps {
   // since files attached before sending are already copied into that chat's folder
   onSubmit: (input: PromptInput, chatId: string) => void
   streaming?: boolean
-  // What the running turn waits on the user for: what they type then answers it (see the store's send)
+  // What the running turn waits on the user for: what they type then answers it (see the store's send);
+  // with nothing waiting, what they send while it runs goes when it ends
   waiting?: "permission" | "question"
   onCancel?: () => void
   autoFocus?: boolean
@@ -120,8 +121,16 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const submitRef = useRef<() => void>(() => {})
   const { connector } = useResolvedSelection(chatId)
   const blocked = isUnavailable(connector)
-  // The hint says what typing does while Owlit waits; read through a ref, since the editor is made once
-  const hint = waiting === "permission" ? t`Or tell Owlit what to do instead…` : waiting === "question" ? t`Or type your own answer…` : placeholder
+  // The hint says what typing does while Owlit works or waits; read through a ref, since the editor is made
+  // once
+  const hint =
+    waiting === "permission"
+      ? t`Or say what to do instead; it sends when Owlit finishes…`
+      : waiting === "question"
+        ? t`Or type your own answer…`
+        : streaming
+          ? t`Your next message; it sends when Owlit finishes…`
+          : placeholder
   const hintRef = useRef(hint)
 
   const editor = useEditor({
@@ -226,8 +235,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   const ready = files.some((f) => f.state === "ready")
   const typed = !isEmpty || ready
-  // A file still being copied holds Send for a moment, so the message never goes without it
-  const canSend = (!streaming || !!waiting) && !blocked && typed && !attachments.adding
+  // A file still being copied holds Send for a moment, so the message never goes without it. While Owlit
+  // works, Send queues the message (the store's send).
+  const canSend = !blocked && typed && !attachments.adding
 
   const submit = useCallback(() => {
     if (!editor || !canSend) return
@@ -346,7 +356,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
         <div className="ml-auto flex items-center gap-1">
           <AgentPicker chatId={chatId} />
-          {streaming && !(waiting && typed) ? (
+          {streaming && !typed ? (
             <Tip label={t({ message: "Stop", comment: "verb: stop the agent's reply" })}>
               <Button size="icon-sm" className="rounded-full" onClick={onCancel} aria-label={t`Stop generating`}>
                 <SquareIcon className="size-3 fill-current" />

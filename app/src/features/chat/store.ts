@@ -19,9 +19,6 @@ import type { RunningTurn } from "./agent/client"
 // Chats deleted in this window, for Undo in the browser build (the desktop app's are in .owlit/trash/)
 const deleted = new Map<string, Chat>()
 
-// What the person sent while a turn ran, sent once it ends
-const afterEnd = new Map<string, PromptInput>()
-
 // In the desktop app chats live in the workspace (.owlit/chats/, through ./disk); in a plain browser
 // (pnpm dev:web) seeded chats are kept in localStorage as before.
 export interface ChatState extends ConnectorSlice {
@@ -36,6 +33,8 @@ export interface ChatState extends ConnectorSlice {
   // in the desktop app), which are the only record of what runs: set when a turn is sent or found running,
   // cleared when the client says it ended.
   streaming: Record<string, string>
+  // What the person sent while a chat's turn ran, one message per chat: sent when the turn ends
+  queued: Record<string, PromptInput>
 
   createChat: (init?: Partial<Pick<Chat, "id" | "connectorId" | "modelId" | "role" | "effortId">>) => Chat
   deleteChat: (id: string) => void
@@ -50,7 +49,10 @@ export interface ChatState extends ConnectorSlice {
   // The role of one chat, or of the chat about to start when there is none
   setChatRole: (chatId: string | undefined, role: Role) => void
 
+  // Starts a turn; while one runs, answers what it waits on or queues the message for when it ends
   send: (chatId: string, input: PromptInput) => Promise<void>
+  // Takes back the message queued for when the turn ends
+  unqueue: (chatId: string) => void
   cancel: (chatId: string) => void
   respondPermission: (chatId: string, requestId: string, optionId: string) => void
   // Takes messages out of a chat, here and on disk
@@ -77,6 +79,7 @@ export const useChatStore = create<ChatState>()(
       },
       newChatRole: DEFAULT_ROLE,
       streaming: {},
+      queued: {},
 
       createChat(init) {
         const { selection, newChatRole } = get()
@@ -105,6 +108,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       deleteChat(id) {
+        get().unqueue(id)
         get().cancel(id)
         useComposerDrafts.getState().drop(id)
         const removed = get().chats[id]
@@ -178,16 +182,21 @@ export const useChatStore = create<ChatState>()(
         const chat = state.chats[chatId]
         if (!chat) return
         if (state.streaming[chatId]) {
-          // While Owlit waits on the user, what they type answers it. To a question it is their own
-          // answer; to a permission it means "no, do this instead": the request is refused, the turn
-          // stopped, and the message sent once it has.
+          // While Owlit works, what the person sends is their next message, sent when the turn ends; the
+          // turn goes on. Waiting on a question, their words are their own answer to it, and any files
+          // and mentions go as the next message. Waiting on a command, it means "no, do this instead":
+          // the request is refused and the words go next (decision 12: Don't allow never stops a turn).
           const ask = pendingAsk(chat)
-          if (ask?.type === "question") return useAskDraft.getState().type(chatId, ask, input.text)
-          if (ask?.type !== "permission") throw new Error(t`Owlit is still answering in this chat.`)
-          const reject = optionFor(ask.options, false)
-          if (reject) get().respondPermission(chatId, ask.requestId, reject.optionId)
-          afterEnd.set(chatId, input)
-          return get().cancel(chatId)
+          if (ask?.type === "question" && input.text.trim()) {
+            useAskDraft.getState().type(chatId, ask, input.text.replace(MENTION, "$1"))
+            if (!input.attachments.length && !input.mentions.length) return
+            input = { ...input, text: input.text.match(MENTION)?.join(" ") ?? "" }
+          } else if (ask?.type === "permission") {
+            const reject = optionFor(ask.options, false)
+            if (reject) get().respondPermission(chatId, ask.requestId, reject.optionId)
+          }
+          set((s) => ({ queued: { ...s.queued, [chatId]: joined(s.queued[chatId], input) } }))
+          return
         }
         // What the pickers show: a model the agent no longer lists (such as Claude Code's "default", which
         // owlit doesn't show) is the agent's own default. Until core has listed the agents there is nothing
@@ -249,8 +258,16 @@ export const useChatStore = create<ChatState>()(
         if (runs(chatId, assistantMsg.id)) await settle(chatId, assistantMsg.id, ending)
       },
 
+      unqueue(chatId) {
+        set((s) => {
+          if (!s.queued[chatId]) return s
+          const { [chatId]: _gone, ...rest } = s.queued
+          return { queued: rest }
+        })
+      },
+
+      // A message queued meanwhile still goes once the turn has stopped: "stop, and do this instead"
       cancel(chatId) {
-        afterEnd.delete(chatId)
         agentClient.cancel(chatId)
       },
 
@@ -348,9 +365,9 @@ export function turnEnded(chatId: string, messageId: string, message: ChatMessag
     const { [chatId]: _done, ...rest } = s.streaming
     return { ...replaced, streaming: rest }
   })
-  const next = afterEnd.get(chatId)
+  const next = useChatStore.getState().queued[chatId]
   if (!wasRunning || !next) return
-  afterEnd.delete(chatId)
+  useChatStore.getState().unqueue(chatId)
   void useChatStore.getState().send(chatId, next)
 }
 
@@ -382,10 +399,25 @@ export function withHeld(chatId: string, messages: ChatMessage[]): ChatMessage[]
   return out
 }
 
-// Another workspace: nothing of the last one's turns is followed or sent
+// Another workspace: nothing of the last one's turns is followed
 export function forgetTurns() {
   held.clear()
-  afterEnd.clear()
+}
+
+// A mention as the composer writes it into the text: @[label]
+const MENTION = /@\[([^\]]+)\]/g
+
+// A second message sent while the first still waits joins it, so nothing typed is lost and one goes
+function joined(queued: PromptInput | undefined, input: PromptInput): PromptInput {
+  if (!queued) return input
+  return {
+    ...queued,
+    text: [queued.text, input.text].filter((x) => x.trim()).join("\n\n"),
+    mentions: [...queued.mentions, ...input.mentions.filter((m) => !queued.mentions.some((x) => x.uri === m.uri))],
+    attachments: [...queued.attachments, ...input.attachments],
+    context: queued.context ?? input.context,
+    selection: queued.selection ?? input.selection,
+  }
 }
 
 // The turn's call returned and nothing said it ended (core refused it before it began, or the notice was

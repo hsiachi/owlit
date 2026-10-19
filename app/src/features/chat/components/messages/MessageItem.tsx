@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { type AttachmentFile, type ChatMessage, chatOfFile, type MessagePart, withoutAgentError } from "@owlit/protocol"
-import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon } from "lucide-react"
+import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react"
 import { CopyButton } from "@/components/copy-button"
 import { IconButton } from "@/components/icon-button"
 import { Quote } from "@/components/quote"
@@ -144,6 +144,31 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
           </IconButton>
         )}
       </MessageFooter>
+    </Message>
+  )
+}
+
+// The person's next message, sent while Owlit worked: their bubble, faded, under the reply it waits for,
+// with a line saying when it goes and × to take it back
+export function QueuedMessage({ chatId }: { chatId: string }) {
+  const queued = useChatStore((s) => s.queued[chatId])
+  if (!queued) return null
+  return (
+    <Message align="end" className="text-body">
+      <MessageContent className="items-end gap-1.5">
+        {queued.attachments.length > 0 && <AttachmentList files={queued.attachments} size="xs" onOpen={openAttached} />}
+        {queued.text && (
+          <Bubble variant="outline" align="end" className="opacity-70">
+            <BubbleContent className="whitespace-pre-wrap">{renderWithMentions(queued.text, queued.mentions)}</BubbleContent>
+          </Bubble>
+        )}
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {t`Sends when Owlit finishes`}
+          <IconButton label={t`Don't send`} size="icon-xs" onClick={() => useChatStore.getState().unqueue(chatId)}>
+            <XIcon />
+          </IconButton>
+        </span>
+      </MessageContent>
     </Message>
   )
 }

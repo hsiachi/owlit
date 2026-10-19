@@ -74,7 +74,7 @@ if (onDisk) {
   onWorkspaceOpened(() => {
     queue.reset()
     forgetTurns()
-    useChatStore.setState({ chats: {}, streaming: {}, chatsLoaded: false })
+    useChatStore.setState({ chats: {}, streaming: {}, queued: {}, chatsLoaded: false })
     enqueue(load)
   })
   // Opening another workspace drops the queue, so what is queued goes to core first

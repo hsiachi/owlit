@@ -17,7 +17,7 @@ import { useBrokenReply, useSeenStore } from "../status"
 import { regenerate } from "../lib/regenerate"
 import { modelNameOf, roleName, roleOf } from "../lib/selection"
 import { DEFAULT_ROLE, type Chat, type ChatMessage } from "@owlit/protocol"
-import { AssistantMessage, UserMessage } from "./messages/MessageItem"
+import { AssistantMessage, QueuedMessage, UserMessage } from "./messages/MessageItem"
 
 // A chat's messages, on the Chat page or in the docked agent panel (`panel`): the same conversation at
 // two sizes. `onEdit` puts a sent question back in the composer; `seek` is a message to bring up, once
@@ -38,6 +38,7 @@ export function ChatMessages({
   onSought?: () => void
 }) {
   const connectors = useChatStore((s) => s.connectors)
+  const queued = useChatStore((s) => !!s.queued[chat.id])
   const broken = useBrokenReply(chat)
   return (
     // One scroller per chat, so switching chats opens the next one at its end
@@ -70,6 +71,11 @@ export function ChatMessages({
                 />
               </MessageScrollerItem>
             ))}
+            {queued && (
+              <MessageScrollerItem key="queued" className="pb-7 [content-visibility:visible]">
+                <QueuedMessage chatId={chat.id} />
+              </MessageScrollerItem>
+            )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
         {/* Floats above the text like a menu would: popover surface and a soft shadow */}

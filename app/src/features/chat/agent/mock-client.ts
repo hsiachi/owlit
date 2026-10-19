@@ -127,6 +127,8 @@ export class MockAgentClient implements AgentClient {
       if (WANTS_FIND_AND_ADD.test(text)) return await this.findAndAdd(emit, signal, req.chatId)
       // Commands, web searches and pages, as Claude Code runs them, and a question for the user
       if (/\bweb\b/i.test(text)) return await this.webResearch(emit, signal)
+      // A command, as an engine asks before running one: the card decision 12 keeps
+      if (/\b(run|command)\b/i.test(text)) return await this.runCommand(emit, signal)
       if (/\b(ask me|questions?)\b/i.test(text)) return await this.askQuestions(emit, signal)
       // Lets the browser build show a reply that broke
       // A request the agent's service refused, said first as the answer's text, as Claude Code does
@@ -422,11 +424,29 @@ export class MockAgentClient implements AgentClient {
     return "end_turn"
   }
 
+  private async runCommand(emit: (u: SessionUpdate) => void, signal: AbortSignal): Promise<StopReason> {
+    const toolCallId = `tc-${crypto.randomUUID()}`
+    const command = "pdftotext papers/vaswani-2017.pdf -"
+    emit({ type: "tool_call", toolCallId, title: command, kind: "execute", status: "pending", tool: { name: "Bash", command } })
+    const outcome = await this.askPermission(emit, signal, toolCallId, command, "execute")
+    if (outcome.startsWith("reject")) {
+      emit({ type: "tool_call_update", toolCallId, status: "failed", content: "Not allowed." })
+      await this.stream(emit, signal, "All right, I won't run it.", "agent_message_chunk", 14)
+      return "end_turn"
+    }
+    emit({ type: "tool_call_update", toolCallId, status: "in_progress" })
+    await sleep(900, signal)
+    emit({ type: "tool_call_update", toolCallId, status: "completed", content: "Attention Is All You Need\n…" })
+    await this.stream(emit, signal, "The text came out cleanly; the paper is 15 pages.", "agent_message_chunk", 14)
+    return "end_turn"
+  }
+
   private askPermission(
     emit: (u: SessionUpdate) => void,
     signal: AbortSignal,
     toolCallId: string,
     title: string,
+    kind: ToolKind = "edit",
   ): Promise<PermissionKind> {
     const requestId = `perm-${crypto.randomUUID()}`
     const options = [
@@ -434,7 +454,7 @@ export class MockAgentClient implements AgentClient {
       { optionId: "allow_always", name: "Always allow", kind: "allow_always" as const },
       { optionId: "reject_once", name: "Reject", kind: "reject_once" as const },
     ]
-    emit({ type: "permission_request", requestId, toolCallId, title, kind: "edit", options })
+    emit({ type: "permission_request", requestId, toolCallId, title, kind, options })
     return new Promise<PermissionKind>((resolve, reject) => {
       const onAbort = () => {
         this.pendingPermissions.delete(requestId)
