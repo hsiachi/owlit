@@ -100,6 +100,11 @@ describe("docs.write", () => {
     expect(error.data).toMatchObject({ path: "a.md", content: "theirs" })
     await call("docs.write", { path: "a.md", content: "mine", expectedModifiedAt: 0, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("mine")
+    // Keep mine doesn't lose theirs: it is a version of the doc, and restoring it brings it back
+    const versions = await call("versions.list", { path: "a.md" })
+    expect(versions.map((v: any) => [v.kind, v.by])).toEqual([["file", "outside"]])
+    await call("versions.restore", { id: versions[0].id, force: true })
+    expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("theirs")
   })
 
   it("writes through a symlink and keeps permissions", async () => {

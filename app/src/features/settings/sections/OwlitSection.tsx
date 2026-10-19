@@ -9,6 +9,7 @@ import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { checkForUpdates, restartToUpdate, setAutoUpdate, useUpdates } from "@/features/updates/store"
 import { ago } from "@/lib/time"
+import { useWorkspace } from "@/lib/workspace"
 import { toastError } from "@/lib/toast"
 import { CommitInput, Group, List, Picker, Row } from "../parts"
 import { setActivity, updateSettings, useSettings } from "../store"
@@ -19,15 +20,18 @@ import { KeptInMindRow } from "./Memory"
 // The agent for background work sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
 export function OwlitSection() {
+  // What Owlit keeps in mind and On its own belong to a workspace: on the welcome page and in the first
+  // launch there is none to ask, and they aren't shown
+  const workspace = useWorkspace((s) => !!s.current)
   return (
     <>
       <Group id="profile">
         <List>
           <NameRow />
-          <KeptInMindRow />
+          {(workspace || !isDesktop) && <KeptInMindRow />}
         </List>
       </Group>
-      {isDesktop && (
+      {isDesktop && workspace && (
         <Group id="on-its-own" label={t`On its own`} note={t`Owlit comments on its own, never edits. Your docs change only when you ask.`}>
           <OnItsOwn />
         </Group>
@@ -247,7 +251,7 @@ function MemoryRow() {
     <List>
       <Row
         name={t`Remember what I do in owlit`}
-        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work.`}
+        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look.`}
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>

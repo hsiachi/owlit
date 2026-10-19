@@ -10,12 +10,13 @@ export class Journal {
   private unsubscribe: () => void
   private file: () => string | null
 
-  // file: where the journal of the open workspace lives, or null when none is open
-  constructor(bus: ActivityBus, file: () => string | null) {
+  // file: where the journal of the open workspace lives, or null when none is open. recording: whether the
+  // user lets owlit note what they do; off, their events still reach every other listener (Owlit's rules)
+  constructor(bus: ActivityBus, file: () => string | null, recording: () => boolean = () => true) {
     this.file = file
     this.unsubscribe = bus.subscribe(JOURNALED_KINDS, (event) => {
       const target = file()
-      if (target) this.append(target, { ...event, actor: "user" })
+      if (target && recording()) this.append(target, { ...event, actor: "user" })
     })
   }
 

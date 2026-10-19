@@ -327,7 +327,7 @@ export function openOnDisk(path: string) {
 
 // The file changed on disk since this window last saw it: the user's text isn't saved, and they choose.
 // Reload takes the disk's text (one change in the editor, so ⌘Z brings theirs back); Keep mine writes
-// theirs over it.
+// theirs over it, and core keeps the disk's text as a version of the doc.
 function conflicted(id: string, disk: DocConflict) {
   const file = useDocsStore.getState().files[id]
   if (!file) return
@@ -366,6 +366,7 @@ function conflicted(id: string, disk: DocConflict) {
           const content = useDocsStore.getState().files[id]?.content
           if (!at || content === undefined) return
           remember(await rpc.docs.write({ path: at.path, content, expectedModifiedAt: at.modifiedAt, force: true }), content)
+          toast(t`Kept your version of ${name}`, { description: t`The text from disk is in the doc's Versions.` })
         }),
     },
   })

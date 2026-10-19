@@ -151,7 +151,10 @@ export function RowPeek({ thread, row, grouping, here, library, className }: { t
         {answer && (
           <p className="mt-2.5 text-sm leading-relaxed">
             {answer.text}
-            {answer.depth === "abstract" && <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{t`From the abstract`}</span>}
+            {/* A paper whose source gave no abstract was answered from its title: say so, not "abstract" */}
+            {answer.depth === "abstract" && (
+              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{facts.abstract ? t`From the abstract` : t`From the title only`}</span>
+            )}
           </p>
         )}
         {answer?.passage && (

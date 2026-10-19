@@ -22,8 +22,9 @@ export interface Version {
   path: string
   at: number
   chatId?: string
-  // agent: a change an agent made; undo: the state an undo replaced, so the undo can be undone
-  by: "agent" | "undo"
+  // agent: a change an agent made; undo: the state an undo replaced, so the undo can be undone; outside:
+  // another program's text the user wrote over with theirs (Keep mine)
+  by: "agent" | "undo" | "outside"
   // file and thread: whether it existed before; restoring a version of one that didn't removes it
   existed?: boolean
   // file and memory: sha1 of what was written, so a restore can tell whether anyone changed it since

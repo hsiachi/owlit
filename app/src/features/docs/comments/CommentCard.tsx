@@ -307,10 +307,19 @@ function AskedLine({ commentKey }: { commentKey: string }) {
   )
 }
 
+// Replies typed and not sent, by comment: a card collapses (scrolled away, another one opened) and
+// unmounts its field, and what was typed must still be there when it opens again
+const replyDrafts = new Map<string, string>()
+
 // The reply field, always at the bottom: it adds to the whole comment. Who hears it is said once there is
 // something to send.
 function ReplyField({ view, autoFocus, onReply }: { view: CommentView; autoFocus?: boolean; onReply: (text: string) => Promise<void> | void }) {
-  const [text, setText] = useState("")
+  const [text, setDraft] = useState(() => replyDrafts.get(view.key) ?? "")
+  const setText = (next: string) => {
+    if (next) replyDrafts.set(view.key, next)
+    else replyDrafts.delete(view.key)
+    setDraft(next)
+  }
   const [sending, setSending] = useState(false)
   const send = async () => {
     const said = text.trim()

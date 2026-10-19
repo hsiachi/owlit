@@ -115,7 +115,7 @@ describe("activity.emit and the journal", () => {
     expect(heard).toEqual(["paper.page"])
   })
 
-  it("drops everything while turned off, and says so to clients", async () => {
+  it("journals nothing while turned off, but the rules still hear, and says so to clients", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
     const notes: RpcNotification[] = []
@@ -127,9 +127,10 @@ describe("activity.emit and the journal", () => {
     const heard: string[] = []
     core.activity.subscribe((e) => heard.push(e.kind))
     await call("activity.emit", { event: { kind: "doc.edited", at, path: "a.md" } })
+    await call("activity.emit", { event: { kind: "paper.opened", at, paperId: "arxiv-1" } })
     await core["journal"].flush()
-    expect(heard).toEqual([])
-    expect(lines()).toEqual([])
+    expect(heard).toEqual(["doc.edited", "paper.opened"])
+    expect(lines().filter((l: { actor: string }) => l.actor === "user")).toEqual([])
     // The switch is a machine setting: it survives a restart
     const next = new Core({ userDataDir: core["options"].userDataDir })
     expect(await next.settings.get()).toMatchObject({ activity: { enabled: false } })

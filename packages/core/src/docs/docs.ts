@@ -86,6 +86,9 @@ export class Docs {
   // A Markdown file's text changed outside core (null: there was none / there is none now). Core uses it
   // to keep what an agent overwrote when the agent writes the disk itself.
   textChanged: ((rel: string, before: string | null, after: string | null) => void) | undefined
+  // A forced write is about to replace text another program left on disk; it keeps theirs first, and the
+  // write fails if it can't
+  overwriting: ((rel: string, theirs: string, mine: string) => Promise<unknown>) | undefined
   // A file appeared that core didn't write (Finder, a sync, an agent's own file tools), not a rename
   appeared: ((rel: string) => void) | undefined
 
@@ -234,8 +237,10 @@ export class Docs {
       const file = this.abs(rel)
       const info = await stat(file).catch(() => null)
       if (!info) throw conflict({ path: rel, content: null, modifiedAt: null })
-      if (!force && info.mtimeMs !== expectedModifiedAt) {
-        throw conflict({ path: rel, content: await readFile(file, "utf8"), modifiedAt: info.mtimeMs })
+      if (info.mtimeMs !== expectedModifiedAt) {
+        const theirs = await readFile(file, "utf8")
+        if (!force) throw conflict({ path: rel, content: theirs, modifiedAt: info.mtimeMs })
+        if (theirs !== content) await this.overwriting?.(rel, theirs, content)
       }
       await writeInPlace(file, content)
       // A doc that was never renamed by hand takes its name from its first line

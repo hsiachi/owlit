@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Thread, ThreadColumn, ThreadRow } from "@owlit/protocol"
-import { groupSections, memoParts, plainMemo, relinkMemo, shortTitle } from "./lib"
+import { groupSections, memoParts, plainMemo, relinkMemo, sentencesOf, shortTitle } from "./lib"
 
 describe("a paper's short title", () => {
   it("is the name before a colon or dash", () => {
@@ -63,5 +63,23 @@ describe("a grouping's groups in the table", () => {
     expect(count("b")).toEqual(["p2"])
     expect(groups.map((g) => [g.group.id, g.depth])).toEqual([["a", 0], ["a1", 1], ["a2", 1], ["b", 0]])
     expect(loose.map((r) => r.id)).toEqual(["p4"])
+  })
+})
+
+describe("a doc's sentences for Compare", () => {
+  it("doesn't split at et al., an initial or a link's label", () => {
+    const doc = "Retrieval reduces hallucination in long answers, as [Lewis et al. 2020](owlit://paper/a) showed. But Shi et al. found the opposite in J. Smith's data!"
+    expect(sentencesOf(doc)).toEqual([
+      "Retrieval reduces hallucination in long answers, as Lewis et al. 2020 showed.",
+      "But Shi et al. found the opposite in J. Smith's data!",
+    ])
+  })
+
+  it("splits Chinese at its full stops and keeps short Chinese sentences", () => {
+    expect(sentencesOf("检索能减少幻觉。但长答案仍会出错！好的")).toEqual(["检索能减少幻觉。", "但长答案仍会出错！"])
+  })
+
+  it("takes off headings and list marks and leaves out very short pieces", () => {
+    expect(sentencesOf("# Related work\n- Short one.\n- A list item that says enough.")).toEqual(["Related work", "A list item that says enough."])
   })
 })

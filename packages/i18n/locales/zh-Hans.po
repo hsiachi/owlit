@@ -2625,8 +2625,8 @@ msgid "Versions of {name}"
 msgstr "{name} 的版本"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
-msgstr "Owlit 每次修改这篇文档之前的文本，保留 30 天。即使文档之后又有改动，恢复也会把它放回去。"
+msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
+msgstr "Owlit 每次修改这篇文档之前的文本，以及你保留自己的版本时其他程序写下的内容，保留 30 天。恢复会把它放回去，即使文档之后又改过。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Owlit hasn't changed this doc."
@@ -2635,6 +2635,10 @@ msgstr "Owlit 还没有改过这篇文档。"
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before an undo"
 msgstr "撤销之前"
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "From another program"
+msgstr "来自其他程序"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before Owlit's edit"
@@ -2696,6 +2700,14 @@ msgstr "重新载入"
 #: app/src/features/docs/disk.ts
 msgid "Keep mine"
 msgstr "保留我的"
+
+#: app/src/features/docs/disk.ts
+msgid "Kept your version of {name}"
+msgstr "已保留你的 {name}"
+
+#: app/src/features/docs/disk.ts
+msgid "The text from disk is in the doc's Versions."
+msgstr "磁盘上的文本在这篇文档的版本里。"
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
@@ -3274,6 +3286,10 @@ msgstr "第 {page} 页"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Select text in the PDF to highlight it."
 msgstr "在 PDF 中选中文本即可高亮。"
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "This paper has no PDF yet. Highlights are made in the PDF."
+msgstr "这篇论文还没有 PDF。高亮要在 PDF 中做。"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Color"
@@ -5216,8 +5232,8 @@ msgid "Remember what I do in owlit"
 msgstr "记住我在 owlit 中的操作"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
-msgstr "你在这个工作区里读了什么、写了什么、问了什么，会记在 .owlit/journal.jsonl 里，好让 Owlit 跟上你的工作。"
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
+msgstr "你在这个工作区里读、写和问的内容会记在 .owlit/journal.jsonl 中，让 Owlit 跟上你的工作。关闭后什么都不记，但打开论文或文档时，导读和 Owlit 的查看照常进行。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Tsinghua University"
@@ -5584,6 +5600,10 @@ msgstr "不在你的文献库中"
 msgid "From the abstract"
 msgstr "来自摘要"
 
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the title only"
+msgstr "仅来自标题"
+
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5619,6 +5639,11 @@ msgstr "换一篇文档"
 #: app/src/features/threads/components/CompareDialog.tsx
 msgid "Compare"
 msgstr "对照"
+
+#: app/src/features/threads/components/Memo.tsx
+#: app/src/features/threads/store.ts
+msgid "Removed from the thread"
+msgstr "已从脉络移除"
 
 #: app/src/features/threads/components/Memo.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -6051,10 +6076,6 @@ msgstr "Owlit 在桌面版里处理脉络。"
 #: app/src/features/threads/runs.ts
 msgid "Owlit gathers papers in the desktop app."
 msgstr "Owlit 在桌面版里收集论文。"
-
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
-msgstr "已从脉络移除"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"

@@ -10,29 +10,11 @@ import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { desktopOnly } from "../runs"
+import { sentencesOf } from "../lib"
 import { put } from "../store"
 
 // At most this many sentences in one comparison: each becomes a group when the table is grouped by them
 const MOST = 12
-
-// A doc's sentences, as the user might want them weighed: its lines split at sentence ends, headings and
-// list marks taken off, very short pieces left out
-function sentencesOf(markdown: string): string[] {
-  const out: string[] = []
-  for (const raw of markdown.split("\n")) {
-    const line = raw
-      .replace(/^\s*(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)/, "")
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-      .replace(/[*_`]/g, "")
-      .trim()
-    if (!line) continue
-    for (const piece of line.split(/(?<=[.!?。！？])\s*/)) {
-      const s = piece.trim()
-      if (s.length >= 12) out.push(s)
-    }
-  }
-  return out
-}
 
 // Compare with a doc…: the user picks a doc of theirs, then the sentences to set every paper against.
 // The column is theirs; Owlit fills it in the background.

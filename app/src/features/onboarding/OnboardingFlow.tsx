@@ -16,6 +16,7 @@ import { LanguageRow, NameRow } from "@/features/settings/sections/OwlitSection"
 import { ProxyGroup } from "@/features/settings/sections/ProxyGroup"
 import { useSettings } from "@/features/settings/store"
 import { tourWhenExampleOpens } from "@/features/tour/store"
+import { useFlowPlace } from "@/features/onboarding/store"
 import { AgentChoice } from "@/features/onboarding/AgentChoice"
 import { EXAMPLE_PAPERS } from "@/features/onboarding/content"
 import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, CollectDemo, WriteDemo, type DemoPlace } from "@/features/onboarding/demos"
@@ -42,25 +43,25 @@ const FIRST: StepId[] = ["welcome", ...INTRO, "you", "agent", "look", "start"]
 
 export function OnboardingFlow({ mode = "first", onClose }: { mode?: "first" | "replay"; onClose?: () => void }) {
   const steps = mode === "first" ? FIRST : INTRO
-  const [index, setIndex] = useState(0)
-  const [seen, setSeen] = useState(0)
-  const [welcomed, setWelcomed] = useState(false)
+  const { index, seen, welcomed } = useFlowPlace((s) => s[mode])
+  const place = useFlowPlace((s) => s.set)
+  const setWelcomed = (welcomed: boolean) => place(mode, { welcomed })
+  const close = () => onClose?.()
   const controlsRoom = useControlsRoom((s) => s.room)
   const step = steps[index]
   const last = index === steps.length - 1
 
   const go = (next: number) => {
     const to = Math.max(0, Math.min(steps.length - 1, next))
-    setIndex(to)
-    setSeen((s) => Math.max(s, to))
+    place(mode, { index: to, seen: Math.max(seen, to) })
   }
-  const forward = () => (last ? onClose?.() : go(index + 1))
+  const forward = () => (last ? close() : go(index + 1))
 
   // ← and → move between steps, Enter goes on, Esc leaves the replay; not while typing in a field
   useWindowKeydown((e) => {
     const target = e.target instanceof Element ? e.target : null
     if (isTyping(e.target) || target?.closest("[role=menu], [role=dialog]")) return
-    if (e.key === "Escape" && mode === "replay") onClose?.()
+    if (e.key === "Escape" && mode === "replay") close()
     if (step === "welcome" || step === "start") return
     if (e.key === "ArrowRight" || (e.key === "Enter" && !target?.closest("button"))) forward()
     if (e.key === "ArrowLeft") go(index - 1)
@@ -72,7 +73,7 @@ export function OnboardingFlow({ mode = "first", onClose }: { mode?: "first" | "
         {/* Moves the window, as the app's top bar does; the traffic lights sit at its left */}
         <div className="app-drag h-10 shrink-0" style={controlsRoom ? { paddingLeft: controlsRoom } : undefined} />
         {mode === "replay" && (
-          <IconButton label={t`Close`} className="absolute top-2 right-3" onClick={onClose}>
+          <IconButton label={t`Close`} className="absolute top-2 right-3" onClick={close}>
             <XIcon />
           </IconButton>
         )}

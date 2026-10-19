@@ -153,7 +153,12 @@ export class Core {
     this.settings = new SettingsStore(options.userDataDir, options.host?.secrets)
     this.http = new Http({ fetch: options.host?.fetch, userAgent: `owlit/${options.appVersion ?? CORE_VERSION}`, retryBaseMs: options.retryBaseMs })
     limitMetadataHosts(this.http)
-    this.journal = new Journal(this.activity, () => this.workspace?.owlitPath("journal.jsonl") ?? null)
+    // activity.emit reads the settings before it publishes, so they are always loaded by then
+    this.journal = new Journal(
+      this.activity,
+      () => this.workspace?.owlitPath("journal.jsonl") ?? null,
+      () => this.settings.peek()?.activity.enabled ?? true,
+    )
     const resolveProxy = options.host?.resolveProxy
     this.agents = new Agents({
       settings: this.settings,
@@ -351,8 +356,10 @@ export class Core {
       this.requireWorkspace().setLayout(patch),
     )
 
+    // Turned off, the journal keeps nothing (see Journal), but Owlit's rules still hear what the user opens
     this.router.register("activity.emit", z.object({ event: activityEvent }), async ({ event }) => {
-      if (this.workspace && (await this.settings.get()).activity.enabled) this.activity.publish(event)
+      await this.settings.get()
+      if (this.workspace) this.activity.publish(event)
       return null
     })
     this.router.register("activity.status", noParams, async () => (await this.settings.get()).activity)

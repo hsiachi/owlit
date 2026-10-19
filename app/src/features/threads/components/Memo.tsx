@@ -13,20 +13,30 @@ import { editThread, removeItem } from "../store"
 
 // A sentence of Owlit's (or the user's rewrite of one), with the papers and groups it names as mentions.
 // A paper that is a row of the thread opens that row in place (onRow); others go where they live.
-export function MemoText({ text, onRow }: { text: string; onRow?: (paperId: string) => boolean }) {
+export function MemoText({ text, onRow, removed }: { text: string; onRow?: (paperId: string) => boolean; removed?: (paperId: string) => boolean }) {
   return (
     <>
-      {memoParts(text).map((p, i) => (typeof p === "string" ? p : <MemoMention key={i} label={p.label} uri={p.uri} onRow={onRow} />))}
+      {memoParts(text).map((p, i) => (typeof p === "string" ? p : <MemoMention key={i} label={p.label} uri={p.uri} onRow={onRow} removed={removed} />))}
     </>
   )
 }
 
-// A paper not read yet is lighter until it is, as in docs and chat
-function MemoMention({ label, uri, onRow }: { label: string; uri: string; onRow?: (paperId: string) => boolean }) {
+// A paper not read yet is lighter until it is, as in docs and chat. One the user took out of the thread is
+// struck through: Owlit's sentence still leans on it until Owlit or the user rewrites it.
+function MemoMention({ label, uri, onRow, removed }: { label: string; uri: string; onRow?: (paperId: string) => boolean; removed?: (paperId: string) => boolean }) {
   const navigate = useNavigate()
   const unread = usePaperUnread(uri)
   const u = parseOwlitUri(uri)
   const route = mentionRoute(uri)
+  if (u?.kind === "paper" && removed?.(u.id))
+    return (
+      <MentionToken
+        label={label}
+        title={`${mentionTitle(uri) ?? label} · ${t`Removed from the thread`}`}
+        className="text-muted-foreground line-through"
+        onClick={route ? () => navigate(route) : undefined}
+      />
+    )
   const open = u?.kind === "paper" && onRow ? () => onRow(u.id) || (route && navigate(route)) : route ? () => navigate(route) : undefined
   return <MentionToken label={label} title={mentionTitle(uri) ?? label} unread={unread} onClick={open} />
 }
@@ -68,7 +78,7 @@ export function Memo({ thread, shown, seenBefore, onRow }: { thread: Thread; sho
               </div>
             ) : (
               <span className={cn("min-w-0 flex-1 pr-7")}>
-                <MemoText text={s.text} onRow={onRow} />
+                <MemoText text={s.text} onRow={onRow} removed={(paper) => !!thread.yours.removed[itemId.row(paper)]} />
                 {edit && (
                   <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground" title={t`Was: ${plainMemo(edit.was).plain}`}>
                     {t({ message: "you edited", comment: "after a sentence of Owlit's that the user rewrote" })}

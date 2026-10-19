@@ -2,7 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import { isTaskFinished, itemId, QUESTION_COLUMN, sameWords, threadOfSubject, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { useShallow } from "zustand/react/shallow"
-import { Fragment, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { ChoiceMenu } from "@/components/choice-menu"
@@ -157,6 +157,15 @@ export function ThreadTable({ thread, shown, seenBefore }: { thread: Thread; sho
       cell?.addEventListener("animationend", () => cell.classList.remove("animate-place-ring"), { once: true })
     })
   }
+  // A row asked for from elsewhere that its group hides (folded, or past the first SHOWN) unfolds the group
+  // and shows it whole, as jump does, or the link would open nothing
+  const askedAt = asked ? places.get(asked)?.[0] : undefined
+  const askedHidden = !!askedAt && (folded.has(askedAt.key) || (!all.has(askedAt.key) && sortRows(askedAt.rows).findIndex((r) => r.id === asked) >= SHOWN))
+  useEffect(() => {
+    if (asked && askedAt && askedHidden) jump(askedAt, asked)
+    // Only when a row is asked for: folding its group again afterwards is the user's to do
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asked])
   // A row's ⋯ in a grouping: one more group, another group instead of this one, or out of this one
   const rowMenu = (s: Section, r: ThreadRow): MenuGroups | undefined => {
     if (!grouping) return undefined

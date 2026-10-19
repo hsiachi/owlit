@@ -2625,8 +2625,8 @@ msgid "Versions of {name}"
 msgstr "Versions of {name}"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
-msgstr "The text from before each change Owlit made to this doc, kept for 30 days. Restore puts it back even if the doc changed since."
+msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
+msgstr "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Owlit hasn't changed this doc."
@@ -2635,6 +2635,10 @@ msgstr "Owlit hasn't changed this doc."
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before an undo"
 msgstr "Before an undo"
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "From another program"
+msgstr "From another program"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "Before Owlit's edit"
@@ -2696,6 +2700,14 @@ msgstr "Reload"
 #: app/src/features/docs/disk.ts
 msgid "Keep mine"
 msgstr "Keep mine"
+
+#: app/src/features/docs/disk.ts
+msgid "Kept your version of {name}"
+msgstr "Kept your version of {name}"
+
+#: app/src/features/docs/disk.ts
+msgid "The text from disk is in the doc's Versions."
+msgstr "The text from disk is in the doc's Versions."
 
 #: app/src/features/docs/editor/DocEditor.tsx
 msgid "Doc text"
@@ -3274,6 +3286,10 @@ msgstr "Page {page}"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Select text in the PDF to highlight it."
 msgstr "Select text in the PDF to highlight it."
+
+#: app/src/features/library/components/HighlightsList.tsx
+msgid "This paper has no PDF yet. Highlights are made in the PDF."
+msgstr "This paper has no PDF yet. Highlights are made in the PDF."
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Color"
@@ -5216,8 +5232,8 @@ msgid "Remember what I do in owlit"
 msgstr "Remember what I do in owlit"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
-msgstr "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work."
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
+msgstr "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Tsinghua University"
@@ -5584,6 +5600,10 @@ msgstr "Not in your Library"
 msgid "From the abstract"
 msgstr "From the abstract"
 
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the title only"
+msgstr "From the title only"
+
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5619,6 +5639,11 @@ msgstr "Another doc"
 #: app/src/features/threads/components/CompareDialog.tsx
 msgid "Compare"
 msgstr "Compare"
+
+#: app/src/features/threads/components/Memo.tsx
+#: app/src/features/threads/store.ts
+msgid "Removed from the thread"
+msgstr "Removed from the thread"
 
 #: app/src/features/threads/components/Memo.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -6051,10 +6076,6 @@ msgstr "Owlit works on threads in the desktop app."
 #: app/src/features/threads/runs.ts
 msgid "Owlit gathers papers in the desktop app."
 msgstr "Owlit gathers papers in the desktop app."
-
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
-msgstr "Removed from the thread"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"

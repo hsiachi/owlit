@@ -203,7 +203,12 @@ export class Chats {
   async patchMessage(id: string, message: ChatMessage, final = false) {
     const chat = await this.get(id)
     if (!chat.messages.some((m) => m.id === message.id)) throw notFound(`${id}/${message.id}`)
-    this.bodies.set(id, { ...chat, messages: chat.messages.map((m) => (m.id === message.id ? clean(message) : m)) })
+    // A finished answer moves updatedAt to its end: runsSince stops at the first chat not updated since,
+    // and a run that started before then but ended after must still be found
+    const updatedAt = Math.max(chat.updatedAt, message.finishedAt ?? 0)
+    const next = { ...chat, updatedAt, messages: chat.messages.map((m) => (m.id === message.id ? clean(message) : m)) }
+    this.bodies.set(id, next)
+    if (updatedAt !== chat.updatedAt) (await this.loadIndex()).set(id, summaryOf(next))
     await this.write(id, final)
     return null
   }

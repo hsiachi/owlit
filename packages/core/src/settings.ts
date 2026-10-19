@@ -58,6 +58,11 @@ export class SettingsStore {
     return this.value
   }
 
+  // The settings as last read, for a listener that can't wait; undefined before the first get()
+  peek(): AppSettings | undefined {
+    return this.value
+  }
+
   async update(change: (settings: AppSettings) => AppSettings) {
     this.value = change(await this.get())
     await writeJsonAtomic(this.file, this.seal(this.value))
