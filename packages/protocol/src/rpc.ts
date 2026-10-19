@@ -449,10 +449,11 @@ export interface Methods {
   // refused, since its proceedings can't be listed yet.
   "library.journal": { params: { journal: string; year: string; query?: string; offset?: number; limit?: number; by?: string }; result: FoundPapers }
   "library.highlights": { params: { id: string }; result: Highlight[] }
-  // Starts Owlit writing a paper's digest in a chat about the paper (Chat.about), once the paper's text is
-  // read: the chat's id (one already writing it, when there is), or why none is written. rewrite: replace
-  // the digest the paper has.
-  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: { chatId: string } | { heldBack: "has-digest" | "nothing-to-read" } }
+  // Starts Owlit writing a paper's digest in a chat about the paper (Chat.about): the chat's id (one
+  // already writing it, when there is); gettingText while the paper's text or figures are read first,
+  // after which the chat starts (or chats.notStarted says why it couldn't); or why none is written.
+  // rewrite: replace the digest the paper has.
+  "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: { chatId: string } | { gettingText: true } | { heldBack: "has-digest" | "nothing-to-read" } }
   // An agent's digest of a paper (library_write_digest): what goes under its Summary and its Details;
   // owlit adds the title and the headings, and replaces a digest already there
   "library.writeDigest": { params: { id: string; summary: string; details: string; chatId?: string; toolCallId?: string }; result: { id: string } }
@@ -556,6 +557,9 @@ export interface Notifications {
   // whole, as core has it (the first message says what it was asked; the last reply is "streaming" while
   // it runs)
   "chats.turn": { chat: Chat }
+  // Work owlit was asked to start a chat for, and answered for at once, couldn't start (a digest whose
+  // paper's text couldn't be read, no agent set up): the sentence that says why
+  "chats.notStarted": { about: ChatAbout; error: string }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest
   // A note was added to a doc, by a window or by an agent over owlit-mcp; a window that already has it

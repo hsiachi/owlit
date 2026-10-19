@@ -29,7 +29,7 @@ import { ExtensionServer, type ExtensionServerOptions } from "./extension/server
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { isRecipe, RECIPES } from "./recipes/index.ts"
-import { askAgain, startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
+import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
 import { MATERIAL } from "./recipes/go-through.ts"
 import { goThroughWork } from "./docs/go-through.ts"
@@ -43,6 +43,7 @@ import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { isMissing, sha1 } from "./fs-util.ts"
+import { messageOf } from "./util.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
@@ -138,7 +139,8 @@ export class Core {
   private switching: Promise<unknown> = Promise.resolve()
   // Opens under way; while any is, the window waits rather than showing the welcome page
   private opening = 0
-  // Digests asked for whose chat hasn't started yet (the paper's text is being read), by workspace and paper
+  // Digests asked for whose chat hasn't started yet (the paper's text may be read first), by workspace and
+  // paper: what asking answers meanwhile
   private digestAsks = new Map<string, Promise<DigestAsked>>()
   // Replies under Owlit's comments being answered, by workspace and comment: the last one's answer
   private replies = new Map<string, Promise<void>>()
@@ -522,7 +524,7 @@ export class Core {
     this.router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
     this.router.register("chats.tryAgain", z.object({ chatId }), "admin", async ({ chatId }) => {
       const ws = this.requireWorkspace()
-      const started = await tryAgain(this.turns, ws.chats, chatId)
+      const started = await tryAgain(this.turns, ws.chats, chatId, await this.workAgent())
       await this.announceStarted(ws, started.chatId)
       return { chatId: started.chatId }
     })
@@ -1499,8 +1501,11 @@ export class Core {
   }
 
   // Owlit writing a paper's digest: a chat about the paper, whose agent writes it with
-  // library_write_digest. A digest already being written (or asked for while the paper's text is read)
-  // is that one; after one that broke or was stopped, Retry is a new turn in its chat.
+  // library_write_digest. A digest already being written is that one. When the paper's text or figures
+  // have to be read first, this answers at once (gettingText) and the chat starts once they are; one
+  // that can't start then is told to every window (chats.notStarted). After one that broke or was
+  // stopped, Retry is a new turn in its chat, on the agent Settings picks now, when its recipe is the
+  // same; a recipe that changed since (another language, a newer way of writing) is a new chat.
   private async requestDigest(name: string, rewrite = false): Promise<DigestAsked> {
     const ws = this.requireWorkspace()
     const id = (await ws.library.canonical(name)) ?? name
@@ -1510,21 +1515,48 @@ export class Core {
     const key = `${ws.root}\0${id}`
     const asking = this.digestAsks.get(key)
     if (asking) return asking
-    const asked = (async (): Promise<DigestAsked> => {
-      const work = await ws.library.digestWork(id, rewrite)
-      if ("heldBack" in work) return work
-      const { title } = work
-      const last = await ws.chats.latestAbout(about)
-      const reply = last && (await ws.chats.get(last.id)).messages.at(-1)
-      const started =
-        reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming"
-          ? await tryAgain(this.turns, ws.chats, last!.id).then(async (s) => (await this.announceStarted(ws, s.chatId), s))
-          : await this.startFor({ about, title: t`Digest of “${title}”`, recipe: work.recipe, texts: [{ text: work.text, from: `The paper's full text, from library/papers/${id}/text.md,` }], pictures: work.pictures })
-      void started.done.then((stop) => this.digestEnded(ws, id, started, stop))
-      return { chatId: started.chatId }
-    })().finally(() => this.digestAsks.delete(key))
-    this.digestAsks.set(key, asked)
-    return asked
+    // Kept until the chat started or couldn't, so asking again meanwhile has the same answer
+    const answer = (async (): Promise<DigestAsked> => {
+      const ready = await ws.library.digestReady(id, rewrite)
+      if ("heldBack" in ready) return ready
+      const started = this.startDigest(ws, id, rewrite, ready.waits).finally(() => this.digestAsks.delete(key))
+      if (!ready.waits) return started
+      void started.catch((error: unknown) => {
+        if (this.workspace === ws) this.notifier.notify("chats.notStarted", { about, error: messageOf(error) })
+      })
+      return { gettingText: true }
+    })()
+    this.digestAsks.set(key, answer)
+    void answer.then(
+      (answered) => "heldBack" in answered && this.digestAsks.delete(key),
+      () => this.digestAsks.delete(key),
+    )
+    return answer
+  }
+
+  // The digest's chat, once the paper's text and figures are read (waits: they weren't yet, and reading
+  // them left nothing to read is a failure, since the asker was told it would start)
+  private async startDigest(ws: Workspace, id: string, rewrite: boolean, waits: boolean): Promise<DigestAsked> {
+    const about = { kind: "paper", id } as const
+    const work = await ws.library.digestWork(id, rewrite)
+    if ("heldBack" in work) {
+      if (waits && work.heldBack === "nothing-to-read") throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit couldn't get this paper's text to read.`, { id })
+      return work
+    }
+    const { title } = work
+    const texts = [{ text: work.text, from: `The paper's full text, from library/papers/${id}/text.md,` }]
+    const last = await ws.chats.latestAbout(about)
+    const chat = last && (await ws.chats.get(last.id))
+    const reply = chat?.messages.at(-1)
+    const broke = reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming"
+    const first = chat?.messages[0]?.parts[0]
+    const sameRecipe = first?.type === "text" && first.text === startedWith({ recipe: work.recipe, texts })
+    const started =
+      chat && broke && sameRecipe
+        ? await tryAgain(this.turns, ws.chats, chat.id, await this.workAgent()).then(async (s) => (await this.announceStarted(ws, s.chatId), s))
+        : await this.startFor({ about, title: t`Digest of “${title}”`, recipe: work.recipe, texts, pictures: work.pictures })
+    void started.done.then((stop) => this.digestEnded(ws, id, started, stop))
+    return { chatId: started.chatId }
   }
 
   // A digest's turn that finished without writing it says so on its reply, as a failure, with Retry
@@ -1565,7 +1597,7 @@ export class Core {
     const chat = await ws.chats.latestAbout(about)
     let started: Started
     if (chat) {
-      started = await askAgain(this.turns, ws.chats, chat.id, recipe)
+      started = await askAgain(this.turns, ws.chats, chat.id, recipe, await this.workAgent())
       await this.announceStarted(ws, started.chatId)
     } else {
       const name = path.split("/").pop()!.replace(/\.md$/i, "")
@@ -1600,7 +1632,7 @@ export class Core {
       const reply = last && (await ws.chats.get(last.id)).messages.at(-1)
       let started: Started
       if (reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming") {
-        started = await tryAgain(this.turns, ws.chats, last!.id)
+        started = await tryAgain(this.turns, ws.chats, last!.id, await this.workAgent())
         await this.announceStarted(ws, started.chatId)
       } else {
         const user = (await this.settings.get()).profile.name?.trim() || undefined
@@ -1651,10 +1683,7 @@ export class Core {
   // hears it begin (chats.turn) and end (chats.turn again, after chat.ended).
   async startFor(start: Omit<StartFor, "connectorId" | "modelId">): Promise<Started> {
     const ws = this.requireWorkspace()
-    const { connectorId: chosen, models } = await this.handedAgent()
-    const connectorId = await this.agents.forWork(chosen)
-    const modelId = models?.[connectorId]
-    const started = await startFor(this.turns, ws.chats, { ...start, connectorId, ...(modelId ? { modelId } : {}) })
+    const started = await startFor(this.turns, ws.chats, { ...start, ...(await this.workAgent()) })
     await this.announceStarted(ws, started.chatId)
     return started
   }
@@ -1703,10 +1732,13 @@ export class Core {
     this.taskChanges.flush()
   }
 
-  // The agent (and its model) Settings chooses for the tasks the person hands Owlit
-  private async handedAgent() {
+  // The agent (and its model) Settings chooses for the tasks the person hands Owlit, as it is now: the
+  // first that is set up when none is chosen
+  private async workAgent(): Promise<TurnAgent> {
     const { connectors } = await this.settings.get()
-    return { connectorId: connectors.background, models: connectors.backgroundModels }
+    const connectorId = await this.agents.forWork(connectors.background)
+    const modelId = connectors.backgroundModels?.[connectorId]
+    return { connectorId, ...(modelId ? { modelId } : {}) }
   }
 
   // owlit-mcp for an agent session in this workspace, for one chat. The secret in OWLIT_SESSION is what

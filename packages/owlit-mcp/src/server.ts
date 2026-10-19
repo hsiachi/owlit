@@ -250,6 +250,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const id = str("id")
       const asked = await owlit.rpc.library.requestDigest({ id })
       if ("chatId" in asked) return `Owlit is writing a digest for ${id}; it appears on the paper's page when done.`
+      if ("gettingText" in asked) return `owlit is reading the text of ${id} first; then Owlit writes its digest, which appears on the paper's page when done.`
       if (asked.heldBack === "has-digest") return `${id} has a digest already; read it with library_read part=digest.`
       return `No digest: the paper has no PDF or text in owlit.`
     }

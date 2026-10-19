@@ -4263,6 +4263,10 @@ msgid "Show more"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is getting the text…"
+msgstr ""
+
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper…"
 msgstr ""
 
@@ -7505,6 +7509,10 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Owlit couldn't get this paper's text to read."
 msgstr ""
 
 #: packages/core/src/core.ts

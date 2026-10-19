@@ -69,6 +69,13 @@ export function heardStarted(chat: StartedChat) {
   })
 }
 
+// Work core couldn't start a chat for after answering that it would (chats.notStarted): failed, with the
+// sentence that says why. It has no chat, so its Retry asks for the work again rather than a new turn.
+export function notStarted(about: ChatAbout, error: string) {
+  const now = Date.now()
+  heardStarted({ chatId: "", about, reply: { id: `not-started-${now}`, role: "assistant", parts: [], createdAt: now, finishedAt: now, status: "error", error } })
+}
+
 // Asked for: running as far as the person can tell until core starts the chat or says it won't
 export function asking(about: ChatAbout, on: boolean) {
   const key = aboutKey(about)
@@ -132,6 +139,7 @@ export function startStartedChats() {
     useStarted.setState({ byAbout: {}, running: {}, asking: {} })
     await follow.load().catch((error: unknown) => console.warn("[owlit] couldn't list the chats owlit started", error))
   }
+  onNotify("chats.notStarted", ({ about, error }) => follow.hear(() => notStarted(about, error)))
   onNotify("chats.turn", ({ chat }) => {
     if (!chat.about) return
     const about = chat.about

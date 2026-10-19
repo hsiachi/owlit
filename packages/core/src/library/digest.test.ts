@@ -1,12 +1,13 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import type { Chat } from "@owlit/protocol"
+import type { Chat, RpcNotification } from "@owlit/protocol"
 import { afterEach, describe, expect, it } from "vitest"
 import { TRY_AGAIN } from "../chats/chats.ts"
 import { Core } from "../core.ts"
 import { until, testSearchPath } from "../test-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import { makePdf, paragraph } from "./text/make-pdf.ts"
 
 const fake = path.join(import.meta.dirname, "../agents/fake-acp.ts")
 
@@ -27,6 +28,8 @@ async function setup({ tools = true } = {}) {
   const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
   const core = new Core({ userDataDir: path.join(base, "userData"), ...(tools ? { socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: ["--socket-dir", socketDir] } } : {}), searchPath: testSearchPath })
   cores.push(core)
+  const heard: RpcNotification[] = []
+  core.onNotify((n) => heard.push(n))
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
@@ -55,7 +58,7 @@ async function setup({ tools = true } = {}) {
     expect(asked).toEqual({ chatId: expect.any(String) })
     return ended(asked.chatId)
   }
-  return { root, call, workspace, addPaper, ask, ended }
+  return { root, call, workspace, addPaper, ask, ended, heard }
 }
 
 describe("digests", () => {
@@ -177,5 +180,38 @@ describe("digests", () => {
     await call("agents.cancel", { chatId: a.chatId })
     const chat = await ended(a.chatId)
     expect(chat.messages.at(-1)).toMatchObject({ status: "cancelled" })
+  })
+
+  it("answers at once while the paper's text is read, and starts the chat once it is", async () => {
+    const { root, call, workspace, addPaper, ended } = await setup()
+    await addPaper("doi-10.1-pdf", false)
+    // Put there by hand, so nothing has read it yet
+    writeFileSync(path.join(root, "library/papers/doi-10.1-pdf/paper.pdf"), makePdf([paragraph(72, 100, ["The text the digest is written from, long enough to count."])]))
+    expect(await call("library.requestDigest", { id: "doi-10.1-pdf" })).toEqual({ gettingText: true })
+    const started = await until(async () => (await workspace.chats.latestAbout({ kind: "paper", id: "doi-10.1-pdf" }))?.id, { what: "the digest's chat to start" })
+    expect((await ended(started)).messages.at(-1)).toMatchObject({ status: "done" })
+    expect(readFileSync(path.join(root, "library/papers/doi-10.1-pdf/text.md"), "utf8")).toContain("The text the digest is written from")
+    expect(existsSync(path.join(root, "library/papers/doi-10.1-pdf/digest.md"))).toBe(true)
+  })
+
+  it("tells every window when the chat can't start once the text is read", async () => {
+    const { root, call, workspace, addPaper, heard } = await setup()
+    await addPaper("doi-10.1-broken", false)
+    writeFileSync(path.join(root, "library/papers/doi-10.1-broken/paper.pdf"), "%PDF-1.4\n%%EOF\n")
+    expect(await call("library.requestDigest", { id: "doi-10.1-broken" })).toEqual({ gettingText: true })
+    const told = await until(() => heard.find((n) => n.method === "chats.notStarted"), { timeout: 60_000, what: "the chat not starting" })
+    expect(told.params).toEqual({ about: { kind: "paper", id: "doi-10.1-broken" }, error: "Owlit couldn't get this paper's text to read." })
+    expect(await workspace.chats.latestAbout({ kind: "paper", id: "doi-10.1-broken" })).toBeUndefined()
+  }, 70_000)
+
+  it("starts a new chat on Retry when the language changed since the one that broke", async () => {
+    process.env.FAKE_ACP_LIMIT = "You've hit your session limit · resets 2:20am (Asia/Shanghai)"
+    const { call, addPaper, ask } = await setup()
+    await addPaper("doi-10.1-lang")
+    const failed = await ask("doi-10.1-lang")
+    await call("settings.update", { patch: { library: { digestLanguage: "ja" } } })
+    const again = await ask("doi-10.1-lang")
+    expect(again.id).not.toBe(failed.id)
+    expect(again.messages[0]!.parts[0]).toMatchObject({ text: expect.stringContaining("Japanese") })
   })
 })

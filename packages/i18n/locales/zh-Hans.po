@@ -4263,6 +4263,10 @@ msgid "Show more"
 msgstr "显示更多"
 
 #: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is getting the text…"
+msgstr "Owlit 正在获取正文…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
 msgid "Owlit is reading this paper…"
 msgstr "Owlit 正在阅读这篇论文…"
 
@@ -7506,6 +7510,10 @@ msgstr "那条评论已经在了。"
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "那条评论已经不在了。"
+
+#: packages/core/src/core.ts
+msgid "Owlit couldn't get this paper's text to read."
+msgstr "Owlit 没能拿到这篇论文的正文。"
 
 #: packages/core/src/core.ts
 msgid "Digest of “{title}”"

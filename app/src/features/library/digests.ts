@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import type { ChatAbout, Paper } from "@owlit/protocol"
+import { isTaskFinished, type ChatAbout, type Paper } from "@owlit/protocol"
 import { toast } from "sonner"
 import { notifyWhenAway } from "@/lib/notify"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -9,6 +9,7 @@ import { routeSubject } from "@/app/route-subject"
 import { useDigestUnseen } from "@/app/seen"
 import { aboutKey, asking, mockStarted, standOf, stopStarted, useStand, useStarted } from "@/features/chat/started"
 import { useLibraryStore } from "./store"
+import { tasksFor, useTasksStore } from "@/features/tasks/store"
 
 // Where a paper's digest stands for the user, on the ladder of states (DESIGN.md, rule 3): being written,
 // new since they last looked, or stopped. A digest is written in a chat owlit starts about the paper
@@ -49,14 +50,25 @@ export function stopDigest(paperId: string) {
   stopStarted(digestAbout(paperId))
 }
 
-// Starts Owlit writing the paper's digest, saying so when that failed; resolves to whether it was started
+// Owlit is getting the paper's text (or its figures) before its digest's chat can start: asked for, no
+// chat yet, and the paper has no text or a task that reads it is still on the scheduler
+export function useGettingText(paper: Paper) {
+  const asked = useStand(digestAbout(paper.id))
+  const reading = useTasksStore((s) => tasksFor(s.byId, paper.id).some((task) => !isTaskFinished(task) && READS_TEXT.has(task.kind)))
+  return asked?.state === "running" && !asked.chatId && (!paper.text || reading)
+}
+
+const READS_TEXT = new Set(["paper.text", "paper.parse", "paper.figures"])
+
+// Starts Owlit writing the paper's digest, saying so when that failed; resolves to whether it was asked
+// for (its chat may start only once the paper's text is read)
 export async function askDigest(paper: Paper, rewrite: boolean): Promise<boolean> {
   const about = digestAbout(paper.id)
-  if (!isDesktop) return (mockStarted(about), true)
+  if (!isDesktop) return (mockDigest(paper), true)
   asking(about, true)
   try {
     const asked = await rpc.library.requestDigest({ id: paper.id, rewrite })
-    if ("chatId" in asked) return true
+    if ("chatId" in asked || "gettingText" in asked) return true
     asking(about, false)
     if (asked.heldBack === "nothing-to-read") toast.error(t`This paper has no PDF or text for Owlit to read.`)
     return false
@@ -67,7 +79,19 @@ export async function askDigest(paper: Paper, rewrite: boolean): Promise<boolean
   }
 }
 
-// Asks for the digest again (Retry: a new turn in the chat that broke), and waits for it
+// Without core (pnpm dev:web) a paper with no text has it read for a moment first, so the line that says
+// so can be seen
+function mockDigest(paper: Paper) {
+  const about = digestAbout(paper.id)
+  if (paper.text) return mockStarted(about)
+  asking(about, true)
+  setTimeout(() => mockStarted(about), MOCK_TEXT_MS)
+}
+
+const MOCK_TEXT_MS = 3000
+
+// Asks for the digest again (Retry: a new turn in the chat that broke, or a new chat when the recipe
+// changed since), and waits for it
 export function retryDigest(paper: Paper) {
   waitForDigest(paper.id)
   return askDigest(paper, !!paper.hasDigest)

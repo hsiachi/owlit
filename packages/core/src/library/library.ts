@@ -644,6 +644,18 @@ export class Library {
     })
   }
 
+  // Whether a digest of the paper may be written now, has to wait for the paper's text or figures (a
+  // scheduler task digestWork runs and waits on), or isn't written at all (digestWork's heldBack)
+  async digestReady(name: string, rewrite = false): Promise<{ waits: boolean } | { heldBack: "has-digest" | "nothing-to-read" }> {
+    const id = await this.here(name)
+    const dir = paperDir(this.root, id)
+    if (!rewrite && (await exists(path.join(dir, "digest.md")))) return { heldBack: "has-digest" }
+    const pdf = await hasPdfFile(this.root, id)
+    const text = await exists(path.join(dir, "text.md"))
+    if (!text && !(pdf && this.scheduler?.knows("paper.text"))) return { heldBack: "nothing-to-read" }
+    return { waits: !text || this.figuresDue(await readFigures(this.root, id), pdf) }
+  }
+
   // What Owlit's digest of a paper is written from, once the paper's text is read and its figures looked
   // for (each a scheduler task, run now when it is missing): the recipe, the pictures and the text. Or
   // why none is written: the paper has a digest and no rewrite was asked for (one written another way
@@ -659,11 +671,10 @@ export class Library {
       text = await readFile(path.join(dir, "text.md"), "utf8").catch(() => null)
     }
     if (text === null) return { heldBack: "nothing-to-read" }
-    // The figures first, so the note can show them. Looking for them never fails (paper.figures notes
-    // what went wrong); one that failed a while ago is tried again.
+    // The figures first, so the note can show them
     let figures = await readFigures(this.root, id)
-    if ((!figures || (figures.error && Date.now() - figures.at > FIGURES_RETRY_MS)) && pdf && this.scheduler?.knows("paper.figures")) {
-      await this.scheduler.run("paper.figures", id)
+    if (this.figuresDue(figures, pdf)) {
+      await this.scheduler?.run("paper.figures", id)
       figures = await readFigures(this.root, id)
     }
     const record = await readRecord(this.root, id)
@@ -675,6 +686,12 @@ export class Library {
       .map((p) => ({ name: `${p.figure.id}${path.extname(p.figure.file) || ".png"}`, mimeType: p.mimeType, data: p.data }))
     const prompt = digestPrompt({ id, record, text, language, figures: figures?.figures ?? [], pictures: pictures.length > 0 })
     return { id, title: (await this.get(id))?.title ?? record.title, recipe: prompt.recipe, text: prompt.text, pictures }
+  }
+
+  // Looking for the figures never fails (paper.figures notes what went wrong); one that failed a while
+  // ago is tried again
+  private figuresDue(figures: Awaited<ReturnType<typeof readFigures>>, pdf: boolean) {
+    return (!figures || (!!figures.error && Date.now() - figures.at > FIGURES_RETRY_MS)) && pdf && !!this.scheduler?.knows("paper.figures")
   }
 
   // A paper's figures and tables as pictures, for its digest

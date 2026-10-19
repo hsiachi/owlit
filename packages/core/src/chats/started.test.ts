@@ -112,6 +112,21 @@ describe("chats owlit starts", () => {
     expect(chat.messages[3]).toMatchObject({ status: "done" })
   })
 
+  it("retries on the agent Settings chooses now, in the same chat", async () => {
+    const { core, call } = await setup()
+    const first = await core.startFor({ about, title: "A digest", recipe: "refuse me" })
+    expect(await first.done).toBe("error")
+    const other = await call("agents.add", { name: "Fake two", command: `"${process.execPath}" "${fake}"` })
+    await core.settings.update((s) => ({ ...s, connectors: { ...s.connectors, background: other.id } }))
+    expect(await call("chats.tryAgain", { chatId: first.chatId })).toEqual({ chatId: first.chatId })
+    const chat: Chat = await until(async () => {
+      const c: Chat = await call("chats.get", { id: first.chatId })
+      return c.messages.length === 4 && c.messages[3]!.status === "done" ? c : undefined
+    }, { what: "the retry to end" })
+    expect(chat.connectorId).toBe(other.id)
+    expect(chat.messages[3]).toMatchObject({ connectorId: other.id })
+  })
+
   it("runs on the agent and model Settings chooses for the work owlit starts", async () => {
     const { core, call, agent } = await setup()
     await call("settings.update", { patch: { backgroundModel: { agent: agent.id, model: "large" } } })
