@@ -1401,6 +1401,11 @@ msgstr "已更新"
 msgid "Keep it separate"
 msgstr "单独成集"
 
+#. the agent wrote or rewrote a paper's digest
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Wrote its digest"
+msgstr "写了它的导读"
+
 #. a line the agent took out of what it keeps in mind
 #. a paper the agent took out of the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1445,7 +1450,12 @@ msgstr "{0, plural, other {新建了 # 条脉络}}"
 msgid "{0, plural, one {added a paper to a thread} other {added # papers to threads}}"
 msgstr "{0, plural, other {往脉络里加了 # 篇论文}}"
 
-#. placeholder {0}: n("digest")
+#. placeholder {0}: wrote(rows)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{0, plural, one {wrote a digest} other {wrote # digests}}"
+msgstr "{0, plural, other {写了 # 份导读}}"
+
+#. placeholder {0}: n("digest") - wrote(rows)
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr "{0, plural, other {请求了 # 份导读}}"
@@ -7151,6 +7161,10 @@ msgid "The comment couldn't be saved. Try again."
 msgstr "评论没能保存，请重试。"
 
 #: packages/core/src/agents/agents.ts
+msgid "No agent is set up for Owlit to work with. Set one up in Settings › Agents."
+msgstr "还没有可供 Owlit 使用的智能体。请在“设置 › 智能体”中设置一个。"
+
+#: packages/core/src/agents/agents.ts
 msgid "The command is empty."
 msgstr "命令为空。"
 
@@ -7387,6 +7401,10 @@ msgstr "这篇论文已经不在文献库里了。"
 #: packages/core/src/changes/undo.ts
 msgid "The paper's {what} changed since, so owlit left it as it is."
 msgstr "这篇论文的{what}之后又被改过，owlit 没有动它。"
+
+#: packages/core/src/changes/undo.ts
+msgid "The paper's digest changed since, so owlit left it as it is."
+msgstr "这篇论文的导读之后又被改过，owlit 没有动它。"
 
 #: packages/core/src/changes/undo.ts
 msgid "That comment changed since, so owlit left it as it is."

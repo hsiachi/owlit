@@ -206,8 +206,8 @@ class FakeAgent implements acp.Agent {
         throw acp.RequestError.internalError(undefined, process.env.FAKE_ACP_LIMIT)
       }
       if (text.includes("writing a literature note")) {
-        // Says back what it was given (the language, the pictures it saw), so tests can tell
-        const title = text.match(/starting with "# ([^"]+)"/)?.[1] ?? "Paper"
+        // Writes back what it was given (the language, the pictures it saw), so tests can tell
+        const id = text.match(/library_write_digest, id (\S+):/)?.[1] ?? "?"
         const language = text.match(/Language of the note:\n([^.]+)\./)?.[1] ?? "?"
         const pictures = params.prompt.filter((b) => b.type === "image").length
         const figure = text.match(/^- (figure-\d+) \(p\. \d+\)/m)?.[1]
@@ -221,13 +221,16 @@ class FakeAgent implements acp.Agent {
           })
           await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "read1", status: "completed" } })
         }
-        await say(
-          "```markdown\n# " +
-            title +
-            `\n\n## Summary\n\n- **Background**: Written in ${language}, having seen ${pictures} pictures.\n- **Key Findings**: What it found (p. 1).\n\n` +
-            (figure ? `![Figure](${figure})\n\n` : "") +
-            "## Details\n\n### What it measured\nHow it goes about it, in a sentence long enough to count.\n\n### The boundary of the conclusion\nWhat it leaves open.\n```",
-        )
+        const summary = `- **Background**: Written in ${language}, having seen ${pictures} pictures.\n- **Key Findings**: What it found (p. 1).` + (figure ? `\n\n![Figure](${figure})` : "")
+        const details = "### What it measured\nHow it goes about it, in a sentence long enough to count.\n\n### The boundary of the conclusion\nWhat it leaves open."
+        if (!session.owlit) {
+          await say("I can't reach owlit's tools to write the digest.")
+          return { stopReason: "end_turn" }
+        }
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", toolCallId: "digest1", title: "mcp__owlit__library_write_digest", kind: "other", status: "in_progress" } })
+        await callOwlit(session.owlit, "library.writeDigest", { id, summary, details })
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "digest1", status: "completed" } })
+        await say("The digest is written.")
         return { stopReason: "end_turn" }
       }
       const call = /^call ([\w.]+) (\{.*\})$/s.exec(text)

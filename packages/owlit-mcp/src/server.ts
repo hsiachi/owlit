@@ -254,6 +254,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       await owlit.rpc.library.requestDigest({ id })
       return `Owlit is writing a digest for ${id}; it appears on the paper's page when done.`
     }
+    case "library_write_digest": {
+      const done = await owlit.rpc.library.writeDigest({ id: str("id"), summary: str("summary"), details: str("details"), ...writer })
+      return `Wrote the digest of ${done.id}; it shows on the paper's page.`
+    }
     case "docs_list": {
       const { files } = await owlit.rpc.docs.list()
       const docs = files.filter((f) => f.path.toLowerCase().endsWith(".md"))

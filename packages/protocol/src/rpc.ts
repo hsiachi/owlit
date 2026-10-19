@@ -446,6 +446,9 @@ export interface Methods {
   // note there to be written again (a newer way of writing, another language); without it a paper that
   // has one is left as it is.
   "library.requestDigest": { params: { id: string; rewrite?: boolean }; result: null }
+  // An agent's digest of a paper (library_write_digest): what goes under its Summary and its Details;
+  // owlit adds the title and the headings, and replaces a digest already there
+  "library.writeDigest": { params: { id: string; summary: string; details: string; chatId?: string; toolCallId?: string }; result: { id: string } }
   // The paper's figures and tables as pictures, for its digest
   "library.figures": { params: { id: string }; result: PaperFigure[] }
   // A page of the paper's PDF as a small picture (base64), for a glance at a page a note points at

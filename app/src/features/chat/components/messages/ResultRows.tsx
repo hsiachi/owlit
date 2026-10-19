@@ -251,8 +251,13 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   }
   // Edits to the user's own docs first: they matter most and must not fold away behind papers
   for (const c of entries.filter((c) => c.target.kind === "paper")) {
-    const removed = c.action === "delete"
     const name = library[c.target.path]?.title ?? c.target.path
+    // A digest the agent wrote with library_write_digest (asked-for ones are useDigestRows')
+    if (c.target.part === "digest") {
+      rows.push({ key: `${WROTE_DIGEST}${c.id}`, kind: "digest", icon: KIND_ICON.paper, name, detail: t({ message: "Wrote its digest", comment: "the agent wrote or rewrote a paper's digest" }), ...of([c], name), view: () => navigate(`/library/${c.target.path}`) })
+      continue
+    }
+    const removed = c.action === "delete"
     // A paper the agent took back has nothing to open; Undo puts it back
     const view = removed ? undefined : () => navigate(`/library/${c.target.path}`)
     rows.push({ key: `paper:${c.id}`, kind: "paper", icon: KIND_ICON.paper, name, detail: removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([c], name), view, removed })
@@ -279,6 +284,9 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   return rows
 }
 
+// The key a row for a digest the agent wrote starts with, apart from the digests it asked for
+const WROTE_DIGEST = "wrote-digest:"
+const wrote = (rows: ResultRow[]) => rows.filter((r) => r.kind === "digest" && r.key.startsWith(WROTE_DIGEST)).length
 const added = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && !r.removed).length
 const removed = (rows: ResultRow[]) => rows.filter((r) => r.kind === "paper" && r.removed).length
 const started = (rows: ResultRow[]) => rows.filter((r) => r.kind === "thread" && r.created).length
@@ -297,7 +305,8 @@ function summary(rows: ResultRow[]) {
     n("note") && plural(n("note"), { one: "left comments on a doc", other: "left comments on # docs" }),
     started(rows) && plural(started(rows), { one: "started a thread", other: "started # threads" }),
     gathered(rows) && plural(gathered(rows), { one: "added a paper to a thread", other: "added # papers to threads" }),
-    n("digest") && plural(n("digest"), { one: "asked for a digest", other: "asked for # digests" }),
+    wrote(rows) && plural(wrote(rows), { one: "wrote a digest", other: "wrote # digests" }),
+    n("digest") - wrote(rows) && plural(n("digest") - wrote(rows), { one: "asked for a digest", other: "asked for # digests" }),
     n("memory") && plural(n("memory"), { one: "changed what it keeps in mind", other: "changed # lines it keeps in mind" }),
   ].filter(Boolean) as string[]
   return capital(joinActions(said))

@@ -8,7 +8,6 @@ import { Core } from "../core.ts"
 import { TaskStore } from "../tasks/index.ts"
 import { until, testSearchPath } from "../test-util.ts"
 import { workspaceDataDir, type Workspace } from "../workspace/workspace.ts"
-import { cleanDigest } from "./library.ts"
 
 const fake = path.join(import.meta.dirname, "../agents/fake-acp.ts")
 
@@ -24,7 +23,10 @@ async function setup() {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-digest-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
-  const core = new Core({ userDataDir: path.join(base, "userData"), searchPath: testSearchPath })
+  // A short folder: a Unix socket's path has to fit in about a hundred bytes. With the socket up, the
+  // fake agent writes the digest with owlit's tool, as owlit-mcp lets an agent
+  const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
+  const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: ["--socket-dir", socketDir] }, searchPath: testSearchPath })
   cores.push(core)
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -83,7 +85,7 @@ describe("digests", () => {
     expect(run).toMatchObject({ startedBy: "owlit", run: { taskId: task.id, kind: "paper.digest", subject: "doi-10.1-r" }, title: "Digest of “Paper doi-10.1-r”" })
     expect(run.messages[0]).toMatchObject({ role: "user", parts: [{ type: "text", text: "You asked for a digest of “Paper doi-10.1-r”." }] })
     // The note itself is the paper's; the session says it was written
-    expect(run.messages[1]).toMatchObject({ role: "assistant", status: "done", parts: [{ type: "text", text: "The digest is written: [Paper doi-10.1-r](owlit://library/doi-10.1-r)" }] })
+    expect(run.messages[1]).toMatchObject({ role: "assistant", status: "done", parts: expect.arrayContaining([{ type: "text", text: "The digest is written: [Paper doi-10.1-r](owlit://library/doi-10.1-r)" }]) })
     expect(await call("chats.list")).toEqual([])
   })
 
@@ -169,6 +171,35 @@ describe("digests", () => {
   })
 })
 
+describe("library_write_digest", () => {
+  it("writes the note under the paper's title as Owlit's, in the chat that wrote it, and Undo takes it back", async () => {
+    const { root, call, workspace, addPaper } = await setup()
+    await addPaper("doi-10.1-w")
+    const file = path.join(root, "library/papers/doi-10.1-w/digest.md")
+    const write = (summary: string) => JSON.stringify({ id: "doi-10.1-w", summary, details: "## Details\n\n### A part\nIts words." })
+    const core = cores.at(-1)!
+    const first = await core.startFor({ about: { kind: "paper", id: "doi-10.1-w" }, title: "Digest", recipe: `call library.writeDigest ${write("## Summary\n\n- **Background**: First.")}` })
+    expect(await first.done).toBe("end_turn")
+    expect(readFileSync(file, "utf8")).toBe("# Paper doi-10.1-w\n\n## Summary\n\n- **Background**: First.\n\n## Details\n\n### A part\nIts words.\n")
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-w/digest.json"), "utf8"))).toMatchObject({ format: 2, language: "en", by: expect.stringMatching(/^custom-/) })
+    const [created] = await workspace.changes.list({ target: { kind: "paper", part: "digest" } })
+    expect(created).toMatchObject({ action: "create", actor: expect.stringMatching(/^o_/), origin: { chatId: first.chatId, replyId: first.messageId } })
+
+    const second = await core.startFor({ about: { kind: "paper", id: "doi-10.1-w" }, title: "Digest", recipe: `call library.writeDigest ${write("- **Background**: Second.")}` })
+    await second.done
+    expect(readFileSync(file, "utf8")).toContain("Second.")
+    const [replaced] = await workspace.changes.list({ target: { kind: "paper", part: "digest" } })
+    expect(replaced).toMatchObject({ action: "update", origin: { chatId: second.chatId } })
+
+    // Back to the first, then away altogether
+    await call("changes.undo", { id: replaced.id })
+    expect(readFileSync(file, "utf8")).toContain("First.")
+    await call("changes.undo", { id: created.id })
+    expect(existsSync(file)).toBe(false)
+    expect(existsSync(path.join(root, "library/papers/doi-10.1-w/digest.json"))).toBe(false)
+  })
+})
+
 describe("background runs at open", () => {
   it("start only once owlit's tools are reachable: a digest left queued gets owlit-mcp", async () => {
     const { root, addPaper } = await setup()
@@ -184,7 +215,8 @@ describe("background runs at open", () => {
     const runs: unknown[] = []
     vi.spyOn(Background.prototype, "run").mockImplementation(async (run) => {
       runs.push(run.mcpServers)
-      return { text: `# Paper doi-10.1-left\n\n## Summary\n\n${"- A line of the note.\n".repeat(12)}`, connectorId: "fake" }
+      await (core as unknown as { workspace: Workspace }).workspace.library.writeDigest("doi-10.1-left", { summary: "- A line of the note.", details: "### A part\nIts words." }, { by: "fake" })
+      return { text: "Written.", connectorId: "fake" }
     })
     // A short folder: a Unix socket's path has to fit in about a hundred bytes
     const socketDir = realpathSync(mkdtempSync(path.join(tmpdir(), "s-")))
@@ -193,13 +225,6 @@ describe("background runs at open", () => {
     await core.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
     const workspace = (core as unknown as { workspace: Workspace }).workspace
     expect(await workspace.tasks.wait("left-digest")).toMatchObject({ state: "done" })
-    expect(runs).toEqual([[expect.objectContaining({ name: "owlit", command: "owlit-mcp", args: ["--workspace", root] })]])
-  })
-})
-
-describe("cleanDigest", () => {
-  it("drops a code fence and words before the title", () => {
-    expect(cleanDigest("Here it is:\n# T\n\n## Question\nQ.")).toBe("# T\n\n## Question\nQ.\n")
-    expect(cleanDigest("```markdown\n# T\n\nBody\n```")).toBe("# T\n\nBody\n")
+    expect(runs).toEqual([[expect.objectContaining({ name: "owlit", command: "owlit-mcp", args: ["--workspace", root, "--run", "paper.digest:left-digest"] })]])
   })
 })

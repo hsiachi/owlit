@@ -45,7 +45,7 @@ import { serveWorkspaceFile } from "./files/serve.ts"
 import { attachFile, chatFile } from "./chats/attach.ts"
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
-import { isMissing } from "./fs-util.ts"
+import { isMissing, sha1 } from "./fs-util.ts"
 import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskFailure, TaskThrottle, type TaskContext, type TaskDefinition } from "./tasks/index.ts"
 import { copyExample } from "./workspace/example.ts"
@@ -858,6 +858,37 @@ export class Core {
       await library().wantDigest(id, "asked", { rewrite })
       return null
     })
+    this.router.register(
+      "library.writeDigest",
+      z.object({ id: z.string().min(1), summary: z.string(), details: z.string() }),
+      "own",
+      async ({ id, summary, details }, caller) => {
+        const ws = this.requireWorkspace()
+        const chatId = caller.kind === "window" ? undefined : caller.chatId
+        // The agent and model of the turn that writes it, and the pictures that chat sent, when it is the
+        // chat about this paper
+        const turn = chatId ? this.turns.inFlight().find((t) => t.chatId === chatId) : undefined
+        const chat = chatId ? await ws.chats.get(chatId).catch(() => null) : null
+        const canonical = (await ws.library.canonical(id)) ?? id
+        const pictures = chatId && chat?.about?.kind === "paper" && chat.about.id === canonical ? this.turns.picturesSent(chatId) : undefined
+        const by = turn?.message.connectorId ?? chat?.connectorId ?? "unknown"
+        const model = turn?.message.modelId ?? chat?.modelId
+        const done = await ws.library.writeDigest(id, { summary, details }, { by, ...(model ? { model } : {}), ...(pictures !== undefined ? { pictures } : {}) })
+        await ws.recorder.record(
+          caller,
+          {
+            action: done.before === null ? "create" : "update",
+            target: { kind: "paper", path: done.id, part: "digest" },
+            ...(done.beforeRecord ? { before: done.beforeRecord } : {}),
+            after: done.record,
+            afterHash: sha1(done.text),
+            ...(done.before !== null ? { content: done.before } : {}),
+          },
+          { label: done.title },
+        )
+        return { id: done.id }
+      },
+    )
     this.router.register("library.figures", z.object({ id: paperId }), "read", ({ id }) => library().figures(id))
     this.router.register("library.pagePicture", z.object({ id: paperId, page: z.number().int().min(0) }), "read", ({ id, page }) => library().pagePicture(id, page))
     this.router.register(
@@ -1221,8 +1252,13 @@ export class Core {
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
-                agent: async (prompt, ctx, pictures) =>
-                  this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers: this.mcpServers(root), signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
+                agent: async (prompt, ctx, pictures) => {
+                  // The digest is written with library_write_digest, signed by the run
+                  const run = `${ctx.task.kind}:${ctx.task.id}`
+                  const mcpServers = this.mcpServers(root, undefined, run)
+                  if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
+                  return this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow: /^library_write_digest$/, run })
+                },
                 noteLanguage: async () => {
                   const settings = await this.settings.get()
                   const chosen = settings.library.digestLanguage

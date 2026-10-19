@@ -2,8 +2,8 @@ import { noteLanguageName, writesCjk, type PaperRecord } from "@owlit/protocol"
 import type { FigureRecord } from "../figures/figures.ts"
 import { digestInstructions } from "./instructions.ts"
 
-// A digest: one background agent session reads the paper's full text (and sees its figures, when
-// it can) and answers with the note, Markdown in a fixed shape (instructions.ts). The note is written
+// A digest: an agent reads the paper's full text (and sees its figures, when it can) and writes the
+// note with library_write_digest, Markdown in a fixed shape (instructions.ts). The note is written
 // once for every question to come, not for one: that is what makes it worth writing.
 
 // The way notes are written now. A note written another way (an older owlit, pitta) is still a note;
@@ -74,7 +74,7 @@ export function digestPrompt(input: { id: string; record: PaperRecord; text: str
   return [
     instructions,
     "",
-    `Answer with the note alone, starting with "# ${record.title}", and nothing before or after it. The paper is ${id} in the user's library.`,
+    `The paper is ${id} in the user's library. Write the note with library_write_digest, id ${id}: summary is everything under "## Summary" and details everything under "## Details", each without its heading; owlit adds the title "# ${record.title}" and the two headings. Then say in one short sentence that it is written. Don't add anything to the library and don't change anything else.`,
     "",
     "Here is the full text of the paper, as parsed from its PDF.",
     "",

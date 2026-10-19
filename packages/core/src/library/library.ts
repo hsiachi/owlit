@@ -655,26 +655,14 @@ export class Library {
           .slice(0, MAX_PICTURES)
           .map((p) => ({ label: `${p.figure.id} (${p.figure.label}, p. ${p.figure.page + 1})`, data: p.data.toString("base64"), mimeType: p.mimeType }))
         const prompt = digestSkill.instructions({ id, record, text, language, figures: listed, pictures: pictures.length > 0 })
-        const { text: answer, connectorId, model, pictures: seen } = await agent(prompt, ctx, pictures)
-        const digest = cleanDigest(answer)
-        if (!digest.startsWith("# ") || digest.length < 200) throw new Error("The agent's note didn't look like a digest.")
+        const started = Date.now()
+        const { connectorId, model, pictures: seen } = await agent(prompt, ctx, pictures)
         await this.serial.run(async () => {
-          // The paper moved to a DOI or went to the trash while the agent wrote (both cancel under this
-          // lock): the note isn't written into a folder that is no longer there
           ctx.signal.throwIfAborted()
-          // Written meanwhile (an import brought one) and not asked to be replaced: the one there stays
-          if (!rewrite && (await exists(path.join(dir, "digest.md")))) return
-          const kept: DigestRecord = {
-            version: 1,
-            format: DIGEST_FORMAT,
-            by: connectorId,
-            ...(model ? { model } : {}),
-            language,
-            ...(drifted(digest, language) ? { drift: true } : {}),
-            ...(seen !== undefined ? { pictures: seen } : {}),
-            at: Date.now(),
-          }
-          await writeFileAtomic(path.join(dir, "digest.md"), digest, { parents: false })
+          const record = await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)
+          if (!record || record.at < started) throw new Error("Owlit finished without writing the digest.")
+          // The run's agent, which its tool call couldn't name
+          const kept: DigestRecord = { ...record, by: connectorId, ...(model ? { model } : {}), ...(seen !== undefined ? { pictures: seen } : {}) }
           await writeJsonAtomic(path.join(dir, "digest.json"), kept, { parents: false })
         })
         await this.announce([id])
@@ -792,6 +780,54 @@ export class Library {
       ...(pages ? { textPages: pages } : {}),
       ...(sample.length >= 200 ? { cjkText: cjk / sample.length > 0.2 } : {}),
     }
+  }
+
+  // An agent's digest of a paper (library_write_digest): the two sections the digest prompt asks for,
+  // under the paper's title, with what digest.json records beside it. A digest already there is
+  // replaced; what it was comes back, for the change log and its Undo. id: any id the paper goes by.
+  async writeDigest(name: string, sections: { summary: string; details: string }, by: Pick<DigestRecord, "by" | "model" | "pictures">): Promise<DigestWritten> {
+    const id = await this.here(name)
+    const summary = sectionBody(sections.summary, "Summary")
+    const details = sectionBody(sections.details, "Details")
+    // Said to the agent, so plain English
+    if (!summary || !details) throw new RpcFailure(RpcErrorCode.InvalidParams, "library_write_digest needs both the summary and the details.")
+    const title = (await this.get(id))?.title ?? id
+    const text = `# ${title}\n\n## Summary\n\n${summary}\n\n## Details\n\n${details}\n`
+    const language = (await this.services.noteLanguage?.()) ?? DEFAULT_NOTE_LANGUAGE
+    const record: DigestRecord = {
+      version: 1,
+      format: DIGEST_FORMAT,
+      by: by.by,
+      ...(by.model ? { model: by.model } : {}),
+      language,
+      ...(drifted(text, language) ? { drift: true } : {}),
+      ...(by.pictures !== undefined ? { pictures: by.pictures } : {}),
+      at: Date.now(),
+    }
+    const was = await this.putDigest(id, text, record)
+    return { id, title, text, record, ...was }
+  }
+
+  // Puts a digest in place, or takes it away (text null), under the library's lock; what was there before
+  async putDigest(id: string, text: string | null, record: DigestRecord | null): Promise<{ before: string | null; beforeRecord: DigestRecord | null }> {
+    const was = await this.serial.run(async () => {
+      // A paper moved to another id or gone to the trash meanwhile: its old folder isn't made again
+      if (!(await readRecord(this.root, id))) throw notFound(id)
+      const dir = paperDir(this.root, id)
+      const before = await readFile(path.join(dir, "digest.md"), "utf8").catch(() => null)
+      const beforeRecord = (await readJson<DigestRecord>(path.join(dir, "digest.json")).catch(() => undefined)) ?? null
+      if (text === null) {
+        await rm(path.join(dir, "digest.md"), { force: true })
+        await rm(path.join(dir, "digest.json"), { force: true })
+      } else {
+        await writeFileAtomic(path.join(dir, "digest.md"), text, { parents: false })
+        if (record) await writeJsonAtomic(path.join(dir, "digest.json"), record, { parents: false })
+        else await rm(path.join(dir, "digest.json"), { force: true })
+      }
+      return { before, beforeRecord }
+    })
+    await this.announce([id])
+    return was
   }
 
   // The paper's digests (digest.md), or null when it has none
@@ -1845,16 +1881,20 @@ export function pickFromText(markdown: string, where: { pages?: string; section?
   return { text: markdown, pages }
 }
 
-// The note as Markdown: without a code fence around it or words before its title
-export function cleanDigest(answer: string) {
-  let text = answer.trim()
-  const fenced = text.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/)
-  if (fenced) text = fenced[1].trim()
-  const title = text.search(/^# /m)
-  if (title > 0) {
-    text = text.slice(title)
-    // A note fenced after words before it: the fence's end is left over
-    text = text.replace(/\n```\s*$/, "").trim()
-  }
-  return text + "\n"
+export interface DigestWritten {
+  // The library's own id for the paper
+  id: string
+  title: string
+  text: string
+  record: DigestRecord
+  before: string | null
+  beforeRecord: DigestRecord | null
+}
+
+// A section as an agent passed it, without the heading owlit adds or a code fence around it
+function sectionBody(text: string, heading: string) {
+  let body = text.trim()
+  const fenced = body.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/)
+  if (fenced) body = fenced[1]!.trim()
+  return body.replace(/^# [^\n]*\n+/, "").replace(new RegExp(`^##\\s*${heading}\\s*\n+`, "i"), "").trim()
 }
