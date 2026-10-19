@@ -11,6 +11,7 @@ import { Agents } from "./agents/agents.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Turns } from "./agents/turns.ts"
+import { ReadLog, readFromOf } from "./agents/read-from.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
@@ -121,6 +122,8 @@ export class Core {
   readonly activity = new ActivityBus()
   readonly agents: Agents
   private turns: Turns
+  // What agents read of the library, by who asked, for what an answer was built from
+  private readonly reads = new ReadLog()
   private ui: UiBridge
   readonly fs: AgentFs
   private journal: Journal
@@ -221,6 +224,11 @@ export class Core {
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],
+      readFrom: async (chatId, since, answer) => {
+        const ws = this.workspace
+        if (!ws) return []
+        return readFromOf(this.reads.since(`chat:${chatId}`, since), answer, async (id) => (await ws.library.canonical(id)) ?? id, (id) => ws.hasText(id))
+      },
     })
     this.background = new Background(this.agents)
     this.updates = new Updates({
@@ -760,8 +768,13 @@ export class Core {
     this.router.register("library.pagePicture", z.object({ id: paperId, page: z.number().int().min(0) }), ({ id, page }) => library().pagePicture(id, page))
     this.router.register(
       "library.read",
-      z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional() }),
-      ({ id, part, pages, section }) => library().read(id, part, { pages, section }),
+      z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional(), asker: z.string().optional() }),
+      async ({ id, part, pages, section, asker }) => {
+        const read = await library().read(id, part, { pages, section })
+        // Only what was there to read counts as read
+        if (asker && read.text.trim()) this.reads.record({ asker, paperId: id, part, ...(pages ? { pages } : {}), at: Date.now() })
+        return read
+      },
     )
     const year = z.string().max(20).optional()
     const sort = z.enum(["relevance", "citations", "newest"]).optional()

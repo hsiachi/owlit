@@ -109,12 +109,14 @@ export function CitationCard({ citation, footer }: { citation: Citation; footer?
   const route = mentionRoute(paperUri(library?.id ?? citation.paperId))
   // The page where the sentence was found wins over the one the link named; an answer not from the full text has none
   const page = depth && depth !== "full" ? undefined : typeof check === "object" && check ? check.found : check === "missing" ? undefined : citation.page
+  // A cell's depth is a stored fact; a sentence in a link only claims the full text, which a paper owlit
+  // has no text of can't back, so then the no-text line stands alone
   const source =
     depth === "title"
       ? t`Owlit, from the title only`
       : depth === "abstract"
         ? t`Owlit, from the abstract`
-        : depth === "full" || quote
+        : depth === "full" || (quote && check !== "no-text")
           ? t`Owlit, from the full text`
           : null
   return (

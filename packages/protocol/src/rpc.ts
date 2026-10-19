@@ -408,7 +408,9 @@ export interface Methods {
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
   // Part of a paper as text: the full text (pages "3-5" or the section under a heading), the digest or
   // the user's note. pages: how many the paper has.
-  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string }; result: { text: string; pages?: number } }
+  // asker: who reads, as library.searchOnline's by ("chat:<id>", "run:<id>"), so a chat's answer can say
+  // what it was built from
+  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number } }
   // Papers out in the world for a query, from one source (OpenAlex unless asked); inLibrary when the
   // library has one already. A filter the source can't apply is refused. Each search, and each of the
   // two below, is kept in .owlit/searches.jsonl.

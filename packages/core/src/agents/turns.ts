@@ -10,6 +10,7 @@ import {
   type ChatMessage,
   type ConsentAction,
   type MemoryLine,
+  type ReadFrom,
   type Mentionable,
   type ParamsOf,
   type PermissionKind,
@@ -58,6 +59,8 @@ interface TurnsOptions {
   userName?: () => Promise<string | undefined>
   // Owlit's memory of the user, read before every prompt (memory.ts)
   memory?: () => Promise<MemoryLine[]>
+  // What an answer was built from: the papers the chat's turn read since it started, and those its text cites
+  readFrom?: (chatId: string, since: number, answer: string) => Promise<ReadFrom[]>
 }
 
 // A session of one chat on one agent, as owlit knows it
@@ -179,7 +182,16 @@ export class Turns {
       for (const p of turn.message.parts) {
         if (p.type === "agent" && p.status === "working") emit({ type: "agent_update", agentId: p.agentId, status: status === "done" && p.report ? "done" : "stopped" })
       }
-      turn.message = withoutAgentError({ ...turn.message, status, finishedAt: Date.now(), ...(error ? { error } : {}), ...(errorDetail ? { errorDetail } : {}) })
+      const answer = turn.message.parts.map((p) => (p.type === "text" ? p.text : "")).join("\n")
+      const readFrom = (await this.options.readFrom?.(req.chatId, turn.message.createdAt, answer).catch(() => undefined)) ?? []
+      turn.message = withoutAgentError({
+        ...turn.message,
+        status,
+        finishedAt: Date.now(),
+        ...(error ? { error } : {}),
+        ...(errorDetail ? { errorDetail } : {}),
+        ...(readFrom.length ? { readFrom } : {}),
+      })
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
     }
     turn.finish = finish
