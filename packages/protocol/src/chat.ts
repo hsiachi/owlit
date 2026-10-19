@@ -152,6 +152,9 @@ export type MessagePart =
       agentId?: string
     }
   | { type: "plan"; entries: PlanEntry[] }
+  // Said by owlit, not the agent, while the reply runs: the agent has sent nothing since `since`. Gone
+  // with the agent's next word, and from the reply once it ends.
+  | { type: "notice"; notice: "silent"; since: number }
   // An agent the answering agent handed part of the work to, where it was handed out: its task as the
   // agent named it, how it is doing, and the report it handed back
   | { type: "agent"; agentId: string; title: string; status: AgentStatus; report?: string }
@@ -398,6 +401,7 @@ export type SessionUpdate =
   | { type: "permission_resolved"; requestId: string; outcome: PermissionKind | "cancelled" }
   | { type: "question_request"; requestId: string; toolCallId?: string; questions: AgentQuestion[]; agentId?: string }
   | { type: "question_resolved"; requestId: string; outcome: "answered" | "skipped" | "cancelled"; answers?: Record<string, QuestionAnswer> }
+  | { type: "notice"; notice: "silent"; since: number }
 
 export type StopReason = "end_turn" | "cancelled" | "refusal" | "error"
 

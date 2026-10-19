@@ -15,8 +15,16 @@ export function withoutAgentError(message: ChatMessage): ChatMessage {
   return { ...message, parts: message.parts.slice(0, -1), errorDetail: message.errorDetail ?? said }
 }
 
-// Fold one streamed update into the assistant message's parts
+// Fold one streamed update into the assistant message's parts. owlit's notice of a silent agent is one at
+// most, kept last, and goes with anything the agent sends.
 export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart[] {
+  if (u.type === "notice") return [...withoutNotice(parts), { type: "notice", notice: u.notice, since: u.since }]
+  return fold(withoutNotice(parts), u)
+}
+
+export const withoutNotice = (parts: MessagePart[]) => (parts.some((p) => p.type === "notice") ? parts.filter((p) => p.type !== "notice") : parts)
+
+function fold(parts: MessagePart[], u: Exclude<SessionUpdate, { type: "notice" }>): MessagePart[] {
   const last = parts[parts.length - 1]
   switch (u.type) {
     case "agent_message_chunk":
@@ -29,7 +37,7 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
       return [...parts, { type: "thought", text: u.text }]
     case "tool_call":
       // A tool call announced again (an agent may, and owlit does before asking permission for it) is merged
-      if (parts.some((p) => p.type === "tool_call" && p.toolCallId === u.toolCallId)) return applyUpdate(parts, { ...u, type: "tool_call_update" })
+      if (parts.some((p) => p.type === "tool_call" && p.toolCallId === u.toolCallId)) return fold(parts, { ...u, type: "tool_call_update" })
       return [...parts, { type: "tool_call", toolCallId: u.toolCallId, title: u.title, kind: u.kind, status: u.status, content: u.content, locations: u.locations, diff: u.diff, tool: u.tool, ...(u.agentId ? { agentId: u.agentId } : {}) }]
     case "tool_call_update":
       return parts.map((p) =>
@@ -44,7 +52,7 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
     }
     case "agent_started":
       // Announced again (a session replaying its history) it keeps its place
-      if (parts.some((p) => p.type === "agent" && p.agentId === u.agentId)) return applyUpdate(parts, { type: "agent_update", agentId: u.agentId, title: u.title })
+      if (parts.some((p) => p.type === "agent" && p.agentId === u.agentId)) return fold(parts, { type: "agent_update", agentId: u.agentId, title: u.title })
       return [...parts, { type: "agent", agentId: u.agentId, title: u.title, status: "working" }]
     case "agent_update":
       return parts.map((p) =>

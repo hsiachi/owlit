@@ -20,6 +20,7 @@ import {
   type SessionUpdate,
   type StopReason,
   withoutAgentError,
+  withoutNotice,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { readFile, stat } from "node:fs/promises"
@@ -159,13 +160,28 @@ export class Turns {
   private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn): Promise<StopReason> {
     await ws.chats.appendMessage(req.chatId, req.userMessage)
     await ws.chats.appendMessage(req.chatId, turn.message)
-    const emit = (update: SessionUpdate) => {
-      turn.heard++
+    const say = (update: SessionUpdate) => {
       turn.message = { ...turn.message, parts: applyUpdate(turn.message.parts, update) }
       this.options.notify(req.chatId, update, turn.message.id)
       void ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
     }
+    // After SILENT_MS with nothing from the agent the reply says so, unless the turn waits on the person;
+    // the next update takes the notice away and starts the count again
+    let silence: ReturnType<typeof setTimeout> | undefined
+    const listen = () => {
+      clearTimeout(silence)
+      const since = Date.now()
+      silence = setTimeout(() => {
+        if (!turn.permissions.size && !turn.questions.size) say({ type: "notice", notice: "silent", since })
+      }, SILENT_MS)
+    }
+    const emit = (update: SessionUpdate) => {
+      turn.heard++
+      say(update)
+      listen()
+    }
     turn.emit = emit
+    listen()
     if (turn.role === "coauthor") this.coauthoring.set(req.chatId, Infinity)
     const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string, cutOff?: CutOff) => {
       // An agent of the agent's that hadn't finished won't go on once the answer has ended
@@ -174,8 +190,10 @@ export class Turns {
       }
       const answer = turn.message.parts.map((p) => (p.type === "text" ? p.text : "")).join("\n")
       const readFrom = (await this.options.readFrom?.(req.chatId, turn.message.createdAt, answer).catch(() => undefined)) ?? []
+      clearTimeout(silence)
       turn.message = withoutAgentError({
         ...turn.message,
+        parts: withoutNotice(turn.message.parts),
         status,
         finishedAt: Date.now(),
         ...(error ? { error } : {}),
@@ -232,6 +250,7 @@ export class Turns {
       await finish("error", text, detail, cutOff)
       throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
     } finally {
+      clearTimeout(silence)
       this.closePermissions(turn)
       if (live) live.turn = null
       this.letGo(req.chatId)
@@ -619,6 +638,10 @@ export interface Claim {
 }
 
 const CLAIM_AFTER_MS = 5000
+
+// How long an agent may say nothing before the reply says so: longer than a slow tool (a web fetch, a long
+// read) usually takes, short enough that a hung agent is noticed before the person gives up on the chat
+export const SILENT_MS = 2 * 60_000
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()

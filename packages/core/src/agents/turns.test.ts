@@ -2,13 +2,13 @@ import type { RpcNotification, SessionUpdate } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
 import { until, testSearchPath } from "../test-util.ts"
 import { cannotRead, sendsPictures } from "./profiles.ts"
 import { RULES_VERSION } from "./rules.ts"
-import { attachmentBlocks, promptBlocks } from "./turns.ts"
+import { attachmentBlocks, promptBlocks, SILENT_MS } from "./turns.ts"
 
 const fake = path.join(import.meta.dirname, "fake-acp.ts")
 const cores: Core[] = []
@@ -415,6 +415,27 @@ describe("turns", () => {
       expect(await call("agents.running")).toEqual([])
     } finally {
       delete process.env.FAKE_ACP_HANG
+    }
+  })
+
+  it("says when the agent has sent nothing for a while, and leaves it out of the reply once it ends", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    try {
+      const { send, call, text, updates } = await setup()
+      const notices = () => updates.filter((u) => u.type === "notice")
+      const turn = send("quiet please")
+      await until(() => text(), { what: "the agent's first word" })
+      await vi.advanceTimersByTimeAsync(SILENT_MS - 1000)
+      expect(notices()).toEqual([])
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(notices()).toEqual([{ type: "notice", notice: "silent", since: expect.any(Number) }])
+      expect((await call("agents.running"))[0].message.parts.at(-1)).toMatchObject({ type: "notice" })
+      await call("agents.cancel", { chatId: "c1" })
+      await turn
+      // Not kept in the reply once it ended
+      expect((await call("chats.get", { id: "c1" })).messages[1].parts).toEqual([{ type: "text", text: "Hm." }])
+    } finally {
+      vi.useRealTimers()
     }
   })
 

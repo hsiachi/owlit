@@ -11,6 +11,7 @@
 //                      has it: one reads and reports what it found, the other asks to edit (on its own
 //                      session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
+//   "quiet"            says one word, then nothing until cancelled
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
@@ -325,6 +326,11 @@ class FakeAgent implements acp.Agent {
         await this.conn.writeTextFile({ sessionId: params.sessionId, path: `${session.cwd}/${write[1]}`, content: write[2] })
         await say("written")
         return { stopReason: "end_turn" }
+      }
+      if (text.includes("quiet")) {
+        await say("Hm.")
+        await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve()))
+        return { stopReason: "cancelled" }
       }
       if (text.includes("slow")) {
         for (let i = 0; i < 50; i++) {

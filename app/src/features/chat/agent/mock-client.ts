@@ -1,4 +1,4 @@
-import { type AgentQuestion, applyUpdate, type ChatMessage, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind, withoutAgentError } from "@owlit/protocol"
+import { type AgentQuestion, applyUpdate, type ChatMessage, type Connector, DEFAULT_ROLE, type Mentionable, paperUri, parseOwlitUri, type PermissionKind, type QuestionAnswer, type QuotedSelection, type SessionUpdate, type StopReason, type ToolInfo, type ToolKind, withoutAgentError, withoutNotice } from "@owlit/protocol"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { myOwlit } from "@/lib/actors"
@@ -46,7 +46,7 @@ export class MockAgentClient implements AgentClient {
     }
     const end = (patch: Partial<ChatMessage>) => {
       this.turns.delete(req.chatId)
-      turn.message = withoutAgentError({ ...turn.message, finishedAt: Date.now(), ...patch })
+      turn.message = withoutAgentError({ ...turn.message, parts: withoutNotice(turn.message.parts), finishedAt: Date.now(), ...patch })
       for (const listener of this.ended) listener(req.chatId, message.id, turn.message)
     }
     try {
@@ -127,6 +127,13 @@ export class MockAgentClient implements AgentClient {
       if (WANTS_FIND_AND_ADD.test(text)) return await this.findAndAdd(emit, signal, req.chatId)
       // Commands, web searches and pages, as Claude Code runs them, and a question for the user
       if (/\bweb\b/i.test(text)) return await this.webResearch(emit, signal)
+      // An agent that goes quiet: after a moment the reply says so, as core does after two minutes
+      if (/\bquiet\b/i.test(text)) {
+        await sleep(1500, signal)
+        emit({ type: "notice", notice: "silent", since: Date.now() - 2 * 60_000 })
+        await sleep(10 * 60_000, signal)
+        return "end_turn"
+      }
       // Asked in Chinese, answered in Chinese, in bursts as Claude Code sends them
       if (/\p{Script=Han}/u.test(text)) {
         await sleep(300, signal)
