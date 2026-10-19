@@ -15,6 +15,7 @@ import { type PaperGroup } from "../lib/filter"
 import { pdfWait, pdfWord } from "../lib/pdf-wait"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
 import { statusLabel } from "../lib/status"
+import { useTraceTitle } from "../lib/trace"
 import { tagsFirst } from "../lib/tags"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
@@ -104,6 +105,7 @@ const noPdfWord = (p: Paper) => pdfWord(pdfWait(p))
 // one place and the ring comes or goes without moving the row.
 function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState }) {
   const label = paper.status === "reading" ? statusLabel("reading") : undefined
+  const trace = useTraceTitle(paper)
   if (digest) {
     return (
       <span className="grid size-4 shrink-0 place-items-center">
@@ -112,7 +114,7 @@ function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState 
     )
   }
   return (
-    <span className="grid size-4 shrink-0 place-items-center" title={label}>
+    <span className="grid size-4 shrink-0 place-items-center" title={label && trace.title ? `${label} · ${trace.title}` : label} onPointerEnter={label ? trace.ask : undefined}>
       {paper.status === "reading" && <ReadingRing />}
       {label && <span className="sr-only">{label}</span>}
     </span>
@@ -253,6 +255,8 @@ const TableRow = memo(TableRowView, (a, b) => {
 function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holding }: TableRowProps) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
+  // How far the person got, on hover of the Status cell
+  const trace = useTraceTitle(paper)
   const tags = tagsFirst(paper.tags, tagFilter)
   // Square cells with a hairline under each row (none under the last, nor over an open card), as in answer
   // tables. Cells hold their text at the top, so an open row's wrapped title keeps its first line in place.
@@ -315,7 +319,7 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
         )}
         {/* Unread is the default, so it says nothing */}
         {columns.has("status") && (
-          <td className={td}>
+          <td className={td} title={trace.title} onPointerEnter={trace.ask}>
             {/* A publisher waiting on the user (or one that turned them away) says so before the reading
                 status, as the list row does */}
             {noPdfWord(paper) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}

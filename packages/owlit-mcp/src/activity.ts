@@ -1,4 +1,4 @@
-import type { ActivityAnswer, ActivityItem, ActivityLine, ActivityQuery } from "@owlit/protocol"
+import type { ActivityAnswer, ActivityItem, ActivityLine, ActivityQuery, ReadTrace } from "@owlit/protocol"
 
 // activity_read's answer as the agent reads it: one fact per line, times in the user's clock, papers by
 // title and id so they can be cited, nothing interpreted.
@@ -54,6 +54,17 @@ export function pageRanges(pages: number[]) {
 
 const times = (n: number, one: string, many: string) => (n === 1 ? one : many.replace("#", String(n)))
 
+// How far the user got, over the paper's whole history: "read in full", "looked at: 12 min, pp. 1–6",
+// "looked at: the digest, 3 min", "not opened here"
+export function traceText(trace: ReadTrace) {
+  if (trace.state === "read") return "read in full"
+  if (trace.state === "none") return "not opened here"
+  const parts: string[] = []
+  if (trace.pdfSeconds) parts.push(`${duration(trace.pdfSeconds)}${trace.pages.length ? `, ${pageRanges(trace.pages)}` : ""}`)
+  if (trace.digestSeconds) parts.push(`the digest, ${duration(trace.digestSeconds)}`)
+  return parts.length ? `looked at: ${parts.join("; ")}` : "looked at"
+}
+
 function itemLine(item: ActivityItem): string {
   if (item.kind === "paper") {
     const facts: string[] = [`last ${clock(item.last)}`, times(item.visits, "opened once", "opened # times")]
@@ -65,7 +76,7 @@ function itemLine(item: ActivityItem): string {
     if (item.starred !== undefined) facts.push(item.starred ? "starred it" : "took its star off")
     if (item.status) facts.push(`set it to ${item.status}`)
     if (item.tags) facts.push(item.tags.length ? `tagged it ${item.tags.join(", ")}` : "took its tags off")
-    facts.push(item.read ? "read" : "not read yet")
+    facts.push(traceText(item.trace))
     return `- paper ${item.id} · "${item.title}" · ${facts.join(" · ")}`
   }
   if (item.kind === "doc") {

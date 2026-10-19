@@ -35,7 +35,7 @@ export function PaperQuickActions({ paper, align, afterRemove }: { paper: Paper;
   const setStarred = useLibraryStore((s) => s.setStarred)
   return (
     <>
-      <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} align={align} />
+      <StatusMenu paper={paper} onChange={(s) => setStatus([paper.id], s)} align={align} />
       <StarButton starred={paper.starred} onToggle={() => setStarred([paper.id], !paper.starred)} />
       <DropdownMenu>
         <MenuButton label={t`More actions`} />

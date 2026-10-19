@@ -1,10 +1,10 @@
-import type { ActivityAnswer, ActivityEvent, ActivityQuery } from "./activity.ts"
+import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
 import type { ArchiveSummary } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
 import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
-import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
+import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
@@ -455,6 +455,8 @@ export interface Methods {
   "library.dismissImport": { params: { id: string }; result: null }
   // The paper's full text, line by line with where each sits (text.json), or null before it is read
   "library.wear": { params: { id: string }; result: PaperWear }
+  // How far the user got with each paper, from the journal: for the status's hover
+  "library.trace": { params: { ids: string[] }; result: Record<string, ReadTrace> }
   "library.text": { params: { id: string }; result: PaperText | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with pdfState saying what was tried.
@@ -557,6 +559,9 @@ export interface Notifications {
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are
   "library.changed": LibraryChange
+  // Core set a paper Read because the user reached its end (the change itself comes as library.changed);
+  // from: its status before, for Undo
+  "library.readToEnd": { paperId: string; from: ReadStatus }
   // A paper's note changed outside the window (an agent's edit, another program); null when it was emptied
   "library.noteChanged": { paperId: string; note: PaperNote | null }
   // A thread changed (an agent wrote to it, the user changed it in another window, an undo); null:

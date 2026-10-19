@@ -1,12 +1,12 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type BuildInfo, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type BuildInfo, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
-import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal } from "./activity/index.ts"
+import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
@@ -259,14 +259,25 @@ export class Core {
     this.activity.subscribe((event) => {
       if (event.kind === "doc.closed" || event.kind === "doc.opened" || event.kind === "idle") void this.reviews.land()
     })
-    // A visit to a paper ended: if it made the paper read in full, the rules hear it once it is on disk
+    // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down
+    // from what the person set: Read is the top) and the rules hear it, once it is on disk
     this.activity.subscribe("paper.closed", (event) => {
       const ws = this.workspace
       if (!ws) return
       void this.journal
         .flush()
         .then(() => becameReadInFull(ws, event.paperId, event.at))
-        .then((full) => full && this.workspace === ws && this.initiative.observe({ kind: "paper.read", at: Date.now(), paperId: event.paperId }))
+        .then(async (full) => {
+          if (!full || this.workspace !== ws) return
+          const paper = await ws.library.get(event.paperId)
+          if (paper && paper.status !== "read") {
+            const read = await ws.library.update(paper.id, { status: "read" })
+            if (this.workspace !== ws) return
+            this.notifier.notify("library.changed", { papers: [read], removed: [] })
+            this.notifier.notify("library.readToEnd", { paperId: read.id, from: paper.status })
+          }
+          this.initiative.observe({ kind: "paper.read", at: Date.now(), paperId: event.paperId })
+        })
         .catch((error) => console.error("[core] couldn't tell whether a paper was read in full", error))
     })
 
@@ -362,7 +373,8 @@ export class Core {
       const titles = new Map(papers.map((p) => [p.id, p.title]))
       const chatTitles = new Map(chats.map((c) => [c.id, c.title]))
       const alias = (id: string) => aliases[id] ?? id
-      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias })
+      const statuses = new Map(papers.map((p) => [p.id, p.status]))
+      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias, status: (id) => statuses.get(id) })
       // A paper's history also says which of its sentences Owlit's answers rested on
       if (query.mode === "of" && query.paper) {
         const { cited } = await wearOf(query.paper, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases })
@@ -808,6 +820,15 @@ export class Core {
     this.router.register("library.wear", z.object({ id: paperId }), async ({ id }) => {
       const ws = this.requireWorkspace()
       return wearOf(id, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
+    })
+    this.router.register("library.trace", z.object({ ids: z.array(paperId).max(500) }), async ({ ids }) => {
+      const ws = this.requireWorkspace()
+      await this.journal.flush()
+      const [aliases, entries] = await Promise.all([ws.library.aliases(), readJournal(ws.owlitPath("journal.jsonl")).catch(() => [])])
+      const readings = readingOf(entries, (id) => aliases[id] ?? id)
+      const out: Record<string, ReadTrace> = {}
+      for (const id of ids) out[id] = traceOf(readings.get(aliases[id] ?? id), (await ws.library.get(id))?.status)
+      return out
     })
     this.router.register("library.fetchPdf", z.object({ id: paperId }), ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), ({ id, path }) =>

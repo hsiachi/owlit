@@ -7,7 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 // A choice behind a plain-text trigger ("Unread ▾", "Recently added ▾", a Settings picker): a ghost button
 // in regular weight that fills while open, and a words-only menu as wide as its longest item with a muted
 // check on the chosen one. `trigger` stands in for the chosen label where there is no one value (Mark as,
-// on several papers); `icon` stands in for the chevron (Settings' pickers show up-down chevrons).
+// on several papers); `icon` stands in for the chevron (Settings' pickers show up-down chevrons). `hint` is
+// the trigger's hover text, and `onHint` asks for it as the pointer or focus arrives.
 export function ChoiceMenu<T extends string>({
   value,
   options,
@@ -18,6 +19,8 @@ export function ChoiceMenu<T extends string>({
   align = "end",
   side,
   className,
+  hint,
+  onHint,
 }: {
   value?: T
   options: readonly { value: T; label: string }[]
@@ -28,6 +31,8 @@ export function ChoiceMenu<T extends string>({
   align?: "start" | "end"
   side?: "top" | "bottom"
   className?: string
+  hint?: string
+  onHint?: () => void
 }) {
   // A value the options don't hold (a model gone from its agent) shows as the first
   const current = value === undefined ? undefined : (options.find((o) => o.value === value) ?? options[0])
@@ -39,6 +44,10 @@ export function ChoiceMenu<T extends string>({
           variant="ghost"
           size="sm"
           aria-label={choice ? t({ message: `${label}: ${choice}`, comment: "a menu's name, then what is chosen in it" }) : label}
+          title={hint}
+          aria-description={hint}
+          onPointerEnter={onHint}
+          onFocus={onHint}
           className={cn("font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground", className)}
         >
           {trigger ?? current?.label ?? label}

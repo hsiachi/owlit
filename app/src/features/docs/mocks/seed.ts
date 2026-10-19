@@ -5,7 +5,8 @@ const DAY = 24 * HOUR
 const now = Date.now()
 const ago = (ms: number) => now - ms
 
-// A small workspace about tool use in language models. Citations point at the Library's mock papers p1–p8.
+// A small workspace about tool use in language models. Citations point at the Library's mock papers p1–p8, and
+// p12, one Owlit added that nobody opened (drawn lighter)
 const relatedWork = `# Related work
 
 ## Reasoning before acting
@@ -16,7 +17,7 @@ Prompting a model to write out intermediate steps improves multi-step problems w
 
 [Yao et al. 2022](owlit://library/p7) interleave reasoning traces with actions, so the model can look things up mid-thought instead of guessing. [Schick et al. 2023](owlit://library/p6) go further and let the model decide *when* to call an API, learning this from its own filtered samples.
 
-Retrieval is the oldest form of this idea. [Lewis et al. 2020](owlit://library/p4) attach a dense retriever to a generator and train them together; the model's knowledge then lives partly outside its weights.
+Retrieval is the oldest form of this idea. [Lewis et al. 2020](owlit://library/p4) attach a dense retriever to a generator and train them together; the model's knowledge then lives partly outside its weights. Reading tools take the same turn ([Lo et al. 2024](owlit://library/p12)).
 
 To our knowledge, no work has compared learned tool calls with retrieval on the same tasks.
 `
