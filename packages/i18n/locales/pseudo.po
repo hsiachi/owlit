@@ -433,6 +433,7 @@ msgstr ""
 #. verb: send the question again
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -2560,6 +2561,18 @@ msgid "Stop going through"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
+msgid "Owlit is going through…"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Retry going through"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit couldn't go through it."
+msgstr ""
+
+#: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
 msgstr ""
 
@@ -2625,6 +2638,10 @@ msgstr ""
 #. placeholder {1}: ago(last.at, { inSentence: true })
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} replied {1}"
+msgstr ""
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit couldn't answer."
 msgstr ""
 
 #. Owlit is writing its answer to the user's reply on a comment
@@ -7281,22 +7298,6 @@ msgid "{name} exited with code {code}"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "Went through “{name}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered your reply in “{name}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You replied to Owlit's comment in “{name}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr ""
 
@@ -7517,6 +7518,26 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Answering your reply in “{name}”"
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without answering in the comment."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "There is nothing in it to go through."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Going through “{name}”"
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing its reading."
 msgstr ""
 
 #: packages/core/src/docs/docs.ts

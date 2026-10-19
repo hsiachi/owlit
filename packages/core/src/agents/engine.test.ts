@@ -1,3 +1,4 @@
+import { Background } from "./background.ts"
 import type { RpcNotification, SessionUpdate } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -235,7 +236,7 @@ describe("Owlit engine", () => {
       const { start, root } = await setup()
       const { core, call } = await start()
       const run = (prompt: string, extra: object = {}) =>
-        (core as any).background.run({ prompt, root, mcpServers: (core as any).mcpServers(root), signal: new AbortController().signal, connectorId: ENGINE_ID, ...extra })
+        new Background((core as any).agents, (core as any).fs).run({ prompt, root, mcpServers: (core as any).mcpServers(root), signal: new AbortController().signal, connectorId: ENGINE_ID, ...extra })
 
       expect((await run("tool docs_list")).text).toMatch(/^tool said: .*notes\.md/)
       // Writing a margin note or a file isn't for a background run

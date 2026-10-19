@@ -433,6 +433,7 @@ msgstr "Owlit 已停止"
 #. verb: send the question again
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -2560,6 +2561,18 @@ msgid "Stop going through"
 msgstr "停止过这一遍"
 
 #: app/src/features/docs/actions.ts
+msgid "Owlit is going through…"
+msgstr "Owlit 正在过这一遍…"
+
+#: app/src/features/docs/actions.ts
+msgid "Retry going through"
+msgstr "重试过这一遍"
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit couldn't go through it."
+msgstr "Owlit 没能把它过完。"
+
+#: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
 msgstr "对照你的文稿过一遍"
 
@@ -2626,6 +2639,10 @@ msgstr "{replies, plural, other {# 条回复}}"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} replied {1}"
 msgstr "{0} {1}回复"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit couldn't answer."
+msgstr "Owlit 没能回复。"
 
 #. Owlit is writing its answer to the user's reply on a comment
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -7281,22 +7298,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "Went through “{name}”"
-msgstr "过了一遍“{name}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr "你请 Owlit 把“{name}”过一遍。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered your reply in “{name}”"
-msgstr "回复了你在“{name}”里的回复"
-
-#: packages/core/src/agents/runs.ts
-msgid "You replied to Owlit's comment in “{name}”."
-msgstr "你回复了 Owlit 在“{name}”里的评论。"
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr "这是你请 Owlit 做的事。"
 
@@ -7518,6 +7519,26 @@ msgstr "“{title}”的导读"
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."
 msgstr "Owlit 结束了，但没有写出导读。"
+
+#: packages/core/src/core.ts
+msgid "Answering your reply in “{name}”"
+msgstr "回复你在“{name}”里的回复"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without answering in the comment."
+msgstr "Owlit 结束了，但没有在评论里回复。"
+
+#: packages/core/src/core.ts
+msgid "There is nothing in it to go through."
+msgstr "里面没有可以过的内容。"
+
+#: packages/core/src/core.ts
+msgid "Going through “{name}”"
+msgstr "把“{name}”过一遍"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing its reading."
+msgstr "Owlit 结束了，但没有写出解读。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

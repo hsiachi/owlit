@@ -12,7 +12,7 @@ import { failureOf } from "./failure.ts"
 import { agentNotice, agentWork, toKind, toUpdate, type HelperReports } from "./updates.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
-// whose answer is the result (Go through, a reply), or whose work goes through owlit's tools (a thread). Nobody is
+// whose answer is the result, or whose work goes through owlit's tools. Nobody is
 // there to answer questions. What the agent asks to do with its own tools is decided by the policy, as a
 // chat's is (roles.ts answerFor), for a run with a Reviewer's role: it changes nothing of the user's and
 // runs no commands, and anything left to a person is refused. owlit's own tools are held to the run's

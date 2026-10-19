@@ -13,7 +13,7 @@ import { Tip } from "@/components/tip"
 import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
 import { onDisk, openOnDisk } from "../disk"
-import { useNewOwlitComments } from "../owlit"
+import { useGoingThrough, useNewOwlitComments } from "../owlit"
 import { useDocsStore } from "../store"
 import { useShareStore } from "../share/store"
 import { parentPath } from "../types"
@@ -36,6 +36,8 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
   const shared = useShareStore((s) => !!s.byPath[node.file.path])
   // Owlit left comments here the user hasn't seen (its chip on the doc carries the same dot)
   const fresh = useNewOwlitComments(node.file).length > 0
+  // The row's menu is built as it draws, and says where Owlit going through the doc stands
+  useGoingThrough(node.file.path)
 
   if (renaming)
     return (

@@ -94,10 +94,8 @@ export type CommentInput = Omit<DocComment, "entries"> & { entries: (Omit<Commen
 export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && !c.foldedAt && c.entries.length > 0
 
 // What owlit keeps about Owlit and one of your docs (.owlit/docs/owlit.json, moving with the doc):
-// whether you keep Owlit out of it, and what it went through there
+// whether you keep Owlit out of it
 export interface DocOwlit {
   // When you chose Keep Owlit out; absent while Owlit is let in (the default)
   out?: number
-  // Material Owlit went through (a meeting's transcript, reviews): when, and the record it wrote
-  wentThrough?: { at: number; record: string }
 }

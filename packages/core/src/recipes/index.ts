@@ -1,4 +1,6 @@
 import type { ChatAbout } from "@owlit/protocol"
+import { goThrough } from "./go-through.ts"
+import { reply } from "./reply.ts"
 import { THREAD_RECIPES } from "./threads.ts"
 
 // The recipes: what Owlit is told for each piece of work owlit offers as a button. A chat owlit starts for
@@ -14,7 +16,7 @@ export interface Recipe<I> {
   text: (input: I) => string
 }
 
-export const RECIPES = { ...THREAD_RECIPES }
+export const RECIPES = { ...THREAD_RECIPES, "go-through": goThrough, reply }
 
 export type RecipeName = keyof typeof RECIPES
 

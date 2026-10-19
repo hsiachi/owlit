@@ -119,11 +119,6 @@ export class Docs {
     })
   }
 
-  // Owlit went through this material (a meeting's transcript, reviews) and wrote record
-  setWentThrough(rel: string, wentThrough: { at: number; record: string }) {
-    return this.serial.run(() => this.owlit.setWentThrough(this.check(rel), wentThrough))
-  }
-
   // In turn with the watcher's reads: a change it heard but hasn't read yet is read (and told) first,
   // so an agent's edit can't slip into the listing without its version being kept
   list(): Promise<DocsListing> {

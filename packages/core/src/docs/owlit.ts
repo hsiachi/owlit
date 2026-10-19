@@ -7,9 +7,10 @@ interface OwlitFile {
   docs: Record<string, DocOwlit>
 }
 
-// .owlit/docs/owlit.json: what owlit keeps about Owlit and each of your docs (kept out or not, what it
-// went through), by path. Docs moves an entry with its doc and drops it with a deleted one. Keys an
-// older build wrote for a doc (its last look) are dropped as the entry is next written.
+// .owlit/docs/owlit.json: what owlit keeps about Owlit and each of your docs (kept out or not), by path.
+// Docs moves an entry with its doc and drops it with a deleted one. Keys an older build wrote for a doc
+// (its last look, what it went through) are dropped when the file is read, and so from the file the
+// next time it is written.
 export class DocsOwlit {
   private readonly file: string
   private stored: OwlitFile | undefined
@@ -27,10 +28,6 @@ export class DocsOwlit {
       const { out: _was, ...rest } = entry
       return out ? { ...rest, out: entry.out ?? Date.now() } : rest
     })
-  }
-
-  setWentThrough(rel: string, wentThrough: { at: number; record: string }) {
-    return this.change(rel, (entry) => ({ ...entry, wentThrough }))
   }
 
   // A doc or folder moved: the entries under it follow
@@ -64,7 +61,8 @@ export class DocsOwlit {
   private async load() {
     if (!this.stored) {
       const stored = await readJson<OwlitFile>(this.file).catch(() => undefined)
-      this.stored = { version: 1, docs: stored?.docs ?? {} }
+      const docs = Object.entries(stored?.docs ?? {}).flatMap(([rel, entry]) => (entry.out ? [[rel, { out: entry.out }] as const] : []))
+      this.stored = { version: 1, docs: Object.fromEntries(docs) }
     }
     return this.stored
   }

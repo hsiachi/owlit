@@ -160,12 +160,12 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit and a doc: kept out or let in, and what it went through there
+  // Owlit and a doc: kept out or let in
   "docs.owlit": { params: { path: string }; result: DocOwlit }
   // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
-  // the user's docs: a record beside it, and the points as comments where they belong; the task that
-  // does it
-  "docs.goThrough": { params: { path: string }; result: Task }
+  // the user's docs, in a chat owlit starts about it (or a new turn in the one that broke): a record
+  // beside it, and the points as comments where they belong
+  "docs.goThrough": { params: { path: string }; result: { chatId: string } }
   "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected
@@ -319,6 +319,9 @@ export interface Methods {
   // decides), keeping each file's text so the chat offers Undo
   "agents.deleteDocs": { params: { paths: string[]; chatId?: string; toolCallId?: string }; result: { deleted: string[] } }
   "agents.moveDoc": { params: { path: string; to: string; chatId?: string; toolCallId?: string }; result: { path: string } }
+  // Writes a doc of Owlit's own for an agent (owlit-mcp's docs_write): a new Markdown file, or one only
+  // Owlit has changed since it made it; recorded as the agent's, so the chat offers Undo
+  "agents.writeDoc": { params: { path: string; content: string; chatId?: string; toolCallId?: string }; result: { path: string; created: boolean } }
   // Stops the chat's running turn; questions it was waiting on close as cancelled
   "agents.cancel": { params: { chatId: string }; result: null }
   // The turns running or starting now, each with its reply as it stands: for a window that opens while

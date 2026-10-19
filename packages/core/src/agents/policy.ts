@@ -8,6 +8,12 @@ import type { Caller } from "../rpc/router.ts"
 // and offers Undo; nothing here waits on the person); a caller with no chat (a background run, the CLI,
 // an agent outside owlit) has nobody behind it, so only read and own go through. own is decided on the
 // target: a thing is Owlit's while Owlit made it and nobody else has touched it since.
+// That holds for a doc as well: one Owlit writes with owlit's docs_write (a Go through's record) is its
+// own in every role, Reviewer included, until someone else changes it, and no role writes the person's
+// doc that way. Owlit's own docs go through that tool and not the engine's Write: Claude Code's
+// Reviewer has no edit tools at all and Codex's runs read-only (profiles.ts), so only owlit's tool is
+// the same on every engine, and core sees whose the doc is before anything lands. An engine's own edit
+// stays words, whatever file it names.
 
 // Whose thing a call's target is, as its record says
 export interface Target {

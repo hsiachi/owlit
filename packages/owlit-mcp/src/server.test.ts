@@ -11,6 +11,7 @@ import { pdfFact } from "./server.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 const fixtures = path.join(import.meta.dirname, "../../core/src/library/fixtures")
+const FAKE_AGENT = path.join(import.meta.dirname, "../../core/src/agents/fake-acp.ts")
 
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => {
@@ -480,11 +481,14 @@ describe("docs_read on a PDF", () => {
   }, 30_000)
 
   it("starts a Go through of the material the agent names", async () => {
-    const { root, call, tool } = await setup()
+    const { root, core, call, tool } = await setup()
+    // The work owlit starts runs on the fake agent, never on an agent this Mac happens to have
+    const agent = await call("agents.add", { name: "Fake", command: `"${process.execPath}" "${FAKE_AGENT}"` })
+    await core.settings.update((s) => ({ ...s, connectors: { ...s.connectors, background: agent.id } }))
     mkdirSync(path.join(root, "Meetings"))
     writeFileSync(path.join(root, "Meetings/Weekly.md"), "# Weekly\n\nAna: start the story from the task.\n")
-    expect((await tool("docs_go_through", { path: "Meetings/Weekly.md" })).text).toMatch(/^Owlit is going through Meetings\/Weekly\.md in the background\./)
-    expect((await call("tasks.list")).map((t: { kind: string; subject: string }) => [t.kind, t.subject])).toContainEqual(["meetings.goThrough", "Meetings/Weekly.md"])
+    expect((await tool("docs_go_through", { path: "Meetings/Weekly.md" })).text).toMatch(/^Owlit is going through Meetings\/Weekly\.md in a chat of its own\./)
+    expect(await call("chats.startedFor", { kind: "doc" })).toMatchObject([{ about: { kind: "doc", id: "Meetings/Weekly.md" } }])
     expect((await tool("docs_go_through", { path: "Meetings/slides.pdf" })).isError).toBe(true)
   })
 

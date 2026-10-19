@@ -285,11 +285,25 @@ function TOOLS(): ToolSpec[] {
     name: "docs_go_through",
     touches: "own",
     description:
-      "Have Owlit go through material from people against the user's docs: a meeting's transcript or minutes, reviews, someone's comments on a draft, an email of points, the user's own notes. It runs in the background: Owlit reads the material and the docs it is about, writes a reading (what the material changes: points, open questions, to-dos) as a doc beside the material, or in Meetings/ for a file attached to this chat, and leaves each point as a comment on the doc it is about. Markdown or plain text only. Use it when the user asks you to go through such material, rather than doing it yourself in the chat.",
+      "Have Owlit go through material from people against the user's docs: a meeting's transcript or minutes, reviews, someone's comments on a draft, an email of points, the user's own notes. It runs in a chat owlit starts for the user beside this one: Owlit reads the material and the docs it is about, writes a reading (what the material changes: points, open questions, to-dos) as a doc beside the material, or in Meetings/ for a file attached to this chat, and leaves each point as a comment on the doc it is about. Markdown or plain text only. Use it when the user asks you to go through such material, rather than doing it yourself in the chat.",
     inputSchema: {
       type: "object",
       properties: { path: { type: "string", description: "Workspace-relative path of the material, a .md or .txt doc or a file attached to this chat (.owlit/chats/<id>/files/<name>)" } },
       required: ["path"],
+    },
+  },
+  {
+    name: "docs_write",
+    touches: "own",
+    description:
+      "Write a doc of your own, whole: a new Markdown file in the workspace (a reading, a record of work you were asked to keep), or one you wrote earlier that nobody else has changed since. Never for the user's docs: edit those with your file-editing tool, when your role lets you. The user sees it among their docs and can undo it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Workspace-relative path of a new doc, e.g. 'Meetings/Weekly · reading.md'" },
+        content: { type: "string", description: "The whole doc, Markdown" },
+      },
+      required: ["path", "content"],
     },
   },
   {
@@ -434,7 +448,7 @@ function TOOLS(): ToolSpec[] {
     name: "owlit_help",
     touches: "read",
     description:
-      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts), and the recipes: how owlit's own buttons do a piece of work (gather, find-more, ask-each, group, read-in-full on a thread), written out for the thread you name, to read before doing that work in this chat. Without a topic, lists the topics and recipes; with one, gives it, with how to link the user to a Settings section.",
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts), and the recipes: how owlit's own buttons do a piece of work (gather, find-more, ask-each, group, read-in-full on a thread, written out for the thread you name; go-through for material against the docs, and reply under your comment), to read before doing that work in this chat. Without a topic, lists the topics and recipes; with one, gives it, with how to link the user to a Settings section.",
     inputSchema: {
       type: "object",
       properties: {

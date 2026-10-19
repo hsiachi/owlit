@@ -433,6 +433,7 @@ msgstr "Owlit stopped"
 #. verb: send the question again
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/chat/components/messages/MessageItem.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -2560,6 +2561,18 @@ msgid "Stop going through"
 msgstr "Stop going through"
 
 #: app/src/features/docs/actions.ts
+msgid "Owlit is going through…"
+msgstr "Owlit is going through…"
+
+#: app/src/features/docs/actions.ts
+msgid "Retry going through"
+msgstr "Retry going through"
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit couldn't go through it."
+msgstr "Owlit couldn't go through it."
+
+#: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
 msgstr "Go through against your docs"
 
@@ -2626,6 +2639,10 @@ msgstr "{replies, plural, one {# reply} other {# replies}}"
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "{0} replied {1}"
 msgstr "{0} replied {1}"
+
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "Owlit couldn't answer."
+msgstr "Owlit couldn't answer."
 
 #. Owlit is writing its answer to the user's reply on a comment
 #: app/src/features/docs/comments/CommentCard.tsx
@@ -7281,22 +7298,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "Went through “{name}”"
-msgstr "Went through “{name}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr "You asked Owlit to go through “{name}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered your reply in “{name}”"
-msgstr "Answered your reply in “{name}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You replied to Owlit's comment in “{name}”."
-msgstr "You replied to Owlit's comment in “{name}”."
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked Owlit for this."
 msgstr "You asked Owlit for this."
 
@@ -7518,6 +7519,26 @@ msgstr "Digest of “{title}”"
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."
 msgstr "Owlit finished without writing the digest."
+
+#: packages/core/src/core.ts
+msgid "Answering your reply in “{name}”"
+msgstr "Answering your reply in “{name}”"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without answering in the comment."
+msgstr "Owlit finished without answering in the comment."
+
+#: packages/core/src/core.ts
+msgid "There is nothing in it to go through."
+msgstr "There is nothing in it to go through."
+
+#: packages/core/src/core.ts
+msgid "Going through “{name}”"
+msgstr "Going through “{name}”"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing its reading."
+msgstr "Owlit finished without writing its reading."
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

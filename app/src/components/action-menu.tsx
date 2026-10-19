@@ -38,6 +38,11 @@ export interface MenuAction {
   checked?: boolean
   // A small mark before the label (a highlight's colour dot)
   mark?: React.ReactNode
+  // A muted line under the label, wrapped: where the work the row acts on stands (Owlit at it, or why it
+  // stopped), on the row that stops it or tries it again. working: it shimmers (DESIGN.md, the working
+  // rung).
+  detail?: string
+  working?: boolean
   // A submenu, and its width
   children?: MenuAction[]
   childrenClassName?: string
@@ -88,7 +93,14 @@ function renderItem(a: MenuAction, k: Kit) {
       onSelect={run && a.afterClose ? () => setTimeout(run, 0) : run}
     >
       {a.mark}
-      <span className="truncate">{a.label}</span>
+      {a.detail ? (
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate">{a.label}</span>
+          <span className={cn("text-xs text-muted-foreground", a.working && "shimmer")}>{a.detail}</span>
+        </span>
+      ) : (
+        <span className="truncate">{a.label}</span>
+      )}
       {a.checked && <CheckIcon className="ml-auto text-muted-foreground" />}
     </k.Item>
   )
