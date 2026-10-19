@@ -1803,8 +1803,8 @@ msgid "Runs commands in this workspace; what they change outside your docs has n
 msgstr "Runs commands in this workspace; what they change outside your docs has no Undo"
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Never runs commands"
-msgstr "Never runs commands"
+msgid "Never changes anything with commands"
+msgstr "Never changes anything with commands"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"

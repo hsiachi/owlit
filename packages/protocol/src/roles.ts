@@ -46,7 +46,8 @@ export function roleLine(touches: Touches): string {
   return `Reviewer: ${say("reviewer")}. Assistant: ${say("assistant")}. Co-author: ${say("coauthor")}.`
 }
 
-// Whether the role's agent may run commands: the engine's own controls hold it (core/agents/profiles.ts)
+// Whether the role's agent may change things with commands; every role may run read-only ones inside the
+// sandbox. The engine's own controls hold it (core/agents/profiles.ts).
 export const RUNS_COMMANDS: Record<Role, boolean> = { reviewer: false, assistant: false, coauthor: true }
 
 // What a role may do, one sentence a class, read off the table, in the words the agent hears (its role
@@ -62,7 +63,7 @@ export function roleSentences(role: Role, { commands = true }: { commands?: bool
   if (ROLE_TABLE.structure[role] !== "refuse") out.push("Moves or deletes docs into the Trash, with Undo")
   if (!commands) return out
   if (RUNS_COMMANDS[role]) out.push("Runs commands in this workspace; what they change outside the user's docs has no Undo")
-  else if (words !== "refuse") out.push("Never runs commands")
+  else if (words !== "refuse") out.push("Never changes anything with commands")
   return out
 }
 

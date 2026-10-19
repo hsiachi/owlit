@@ -55,7 +55,7 @@ export function roleLines(role: Role): string[] {
   out.push(words === "refuse" ? t`Never changes your writing` : words === "propose" ? t`Edits your docs as marked proposals; undo any part` : t`Edits your docs; undo any part`)
   if (ROLE_TABLE.structure[role] !== "refuse") out.push(t`Moves or deletes into the Trash, with Undo`)
   if (RUNS_COMMANDS[role]) out.push(t`Runs commands in this workspace; what they change outside your docs has no Undo`)
-  else if (words !== "refuse") out.push(t`Never runs commands`)
+  else if (words !== "refuse") out.push(t`Never changes anything with commands`)
   return out
 }
 

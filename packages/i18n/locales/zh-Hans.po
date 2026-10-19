@@ -1803,8 +1803,8 @@ msgid "Runs commands in this workspace; what they change outside your docs has n
 msgstr "在这个工作区里运行命令；命令在文档之外改动的东西无法撤销"
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Never runs commands"
-msgstr "从不运行命令"
+msgid "Never changes anything with commands"
+msgstr "从不用命令改动任何东西"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"
