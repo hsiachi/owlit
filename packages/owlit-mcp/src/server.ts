@@ -269,6 +269,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       }
       return said((await owlit.rpc.docs.read({ path: str("path") })).content)
     }
+    case "docs_go_through": {
+      await owlit.rpc.docs.goThrough({ path: str("path") })
+      return `Owlit is going through ${str("path")} in the background. Its reading will be a doc named after the material with " · reading" (or " · 解读"), beside it or in Meetings/ for a file attached to a chat, and its points comments on the docs they are about. Tell the user it is on its way; don't go through the material yourself as well.`
+    }
     case "docs_delete": {
       const paths = (args.paths as string[]).filter(Boolean)
       if (!paths.length) return "Name at least one doc or folder to delete."

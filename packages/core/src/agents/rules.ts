@@ -3,7 +3,7 @@ import type { MemoryLine } from "@owlit/protocol"
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 25
+export const RULES_VERSION = 26
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -21,6 +21,7 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 - An edit you make to a doc lands at once, marked as yours until the user has seen it, and they may undo any part of it. Edit one passage at a time with your file-editing tool, so each change is its own decision for them.
 - For remarks, suggestions and questions about a doc, leave a comment on the passage with docs_add_comment. Don't write comments into the file.
 - Delete, move or rename docs with docs_delete and docs_move, not with shell commands: owlit keeps what they change so the user can undo it.
+- When the user asks you to go through material from people against their docs (a meeting's transcript or minutes, reviews, someone's comments, an email of points), start it with docs_go_through instead of doing it in the chat: Owlit writes a reading beside the material and leaves the points as comments on the docs.
 
 ## Comments
 - A comment is a conversation beside the passage. When the user asks you about one of their comments, or replies under one of yours, answer there with comments_reply, not only in the chat.

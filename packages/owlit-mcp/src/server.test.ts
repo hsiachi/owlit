@@ -473,6 +473,15 @@ describe("docs_read on a PDF", () => {
     expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
   }, 30_000)
 
+  it("starts a Go through of the material the agent names", async () => {
+    const { root, call, tool } = await setup()
+    mkdirSync(path.join(root, "Meetings"))
+    writeFileSync(path.join(root, "Meetings/Weekly.md"), "# Weekly\n\nAna: start the story from the task.\n")
+    expect((await tool("docs_go_through", { path: "Meetings/Weekly.md" })).text).toMatch(/^Owlit is going through Meetings\/Weekly\.md in the background\./)
+    expect((await call("tasks.list")).map((t: { kind: string; subject: string }) => [t.kind, t.subject])).toContainEqual(["meetings.goThrough", "Meetings/Weekly.md"])
+    expect((await tool("docs_go_through", { path: "Meetings/slides.pdf" })).isError).toBe(true)
+  })
+
   it("names the tool and the parameter core couldn't use", async () => {
     const { tool } = await setup()
     expect(await tool("library_search", { query: "replay", limit: 100 })).toEqual({ isError: true, text: expect.stringMatching(/^library_search got parameters it can't use: limit: .*50\.$/) })
