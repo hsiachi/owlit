@@ -30,7 +30,7 @@ import { RpcFailure } from "../rpc/index.ts"
 import { messageOf } from "../util.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { failureOf } from "./failure.ts"
+import { cutOffSentence, failureOf, type CutOff } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
 import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
@@ -88,6 +88,8 @@ interface Turn {
   // Questions waiting for the user: answers by question id, null to skip, "cancel" when the turn stops
   questions: Map<string, (answers: Record<string, QuestionAnswer> | null | "cancel") => void>
   cancelled: boolean
+  // Set when owlit, not the person, stopped it (reset): the reply says so instead of "stopped"
+  cutOff?: CutOff
   // Shows an update in the chat and saves it in the answer; set once the turn runs
   emit?: (update: SessionUpdate) => void
   // What each of the agent's own agents said as text: its report
@@ -198,10 +200,16 @@ export class Turns {
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
       await quiet(turn)
+      if (turn.cutOff) throw new Error("Cut off by owlit.")
       const stop: StopReason = turn.cancelled || response.stopReason === "cancelled" ? "cancelled" : response.stopReason === "refusal" ? "refusal" : "end_turn"
       await finish(stop === "cancelled" ? "cancelled" : "done")
       return stop
     } catch (error) {
+      if (turn.cutOff) {
+        const text = cutOffSentence(turn.cutOff)
+        await finish("error", text)
+        throw new RpcFailure(RpcErrorCode.InternalError, text)
+      }
       if (turn.cancelled) {
         await finish("cancelled")
         return "cancelled"
@@ -256,9 +264,12 @@ export class Turns {
   }
 
   // Forgets the sessions of a workspace that closed, stopping its turns first: nothing could answer their
-  // questions or stop them once they are forgotten
-  reset() {
-    for (const chatId of [...this.turns.keys()]) void this.cancel(chatId)
+  // questions or stop them once they are forgotten. why: what each reply says it was cut off by.
+  reset(why: CutOff) {
+    for (const [chatId, turn] of [...this.turns]) {
+      turn.cutOff = why
+      void this.cancel(chatId)
+    }
     this.live.clear()
     this.claims.clear()
     this.accepted.clear()

@@ -7160,16 +7160,20 @@ msgid "owlit doesn't know that agent."
 msgstr "owlit doesn't know that agent."
 
 #: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it could finish."
-msgstr "Owlit was closed before it could finish."
-
-#: packages/core/src/agents/failure.ts
 msgid "{name} quit unexpectedly. It starts again with the next message."
 msgstr "{name} quit unexpectedly. It starts again with the next message."
 
 #: packages/core/src/agents/failure.ts
 msgid "{name} ran into a problem."
 msgstr "{name} ran into a problem."
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished, when you opened another workspace."
+msgstr "Owlit was closed before it finished, when you opened another workspace."
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr "Owlit was closed before it finished."
 
 #: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts

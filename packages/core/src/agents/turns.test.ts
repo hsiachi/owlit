@@ -359,15 +359,32 @@ describe("turns", () => {
     expect(await send("again")).toEqual({ stopReason: "end_turn" })
   })
 
-  it("says a turn cut off by owlit closing was closed, not that the agent broke", async () => {
-    const { send, call, core, text } = await setup()
+  it("says a turn cut off by owlit closing was closed, not that the agent broke or the person stopped it", async () => {
+    const { send, core, text, root } = await setup()
     const turn = send("slow please").catch((e) => e)
     // Wait for the agent to be talking, not for a set time: starting it can take longer under load
     await until(() => text(), { what: "the agent to start talking" })
-    core.agents.dispose()
+    // As quitting does: the workspace's turns are reset, then the agents close
+    await core.dispose()
     const error = await turn
-    expect(error.message).toBe("Owlit was closed before it could finish.")
-    expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({ status: "error", error: error.message })
+    expect(error.message).toBe("Owlit was closed before it finished.")
+    // The reply says so when the chat is read again, whether it was saved before the workspace let go or
+    // is found still streaming
+    const next = new Core({ userDataDir: path.join(path.dirname(root), "userData"), searchPath: testSearchPath })
+    cores.push(next)
+    await next.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const chat = await next.handle({ jsonrpc: "2.0", id: 2, method: "chats.get", params: { id: "c1" } })
+    expect((chat as { result: { messages: unknown[] } }).result.messages[1]).toMatchObject({ status: "error", error: "Owlit was closed before it finished." })
+  })
+
+  it("says a turn cut off by opening another workspace was cut off by that", async () => {
+    const { send, call, text, root } = await setup()
+    const turn = send("slow please").catch((e) => e)
+    await until(() => text(), { what: "the agent to start talking" })
+    const other = path.join(path.dirname(root), "other")
+    mkdirSync(other)
+    await call("workspace.open", { path: other })
+    expect((await turn).message).toBe("Owlit was closed before it finished, when you opened another workspace.")
   })
 
   it("serves file reads inside the workspace and refuses the rest", async () => {

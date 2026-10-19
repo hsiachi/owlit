@@ -8,6 +8,7 @@ import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
+import type { CutOff } from "./agents/failure.ts"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
@@ -1295,7 +1296,7 @@ export class Core {
           throw error
         }
       }
-      if (this.workspace && this.workspace !== next) await this.stopWorkspace(this.workspace)
+      if (this.workspace && this.workspace !== next) await this.stopWorkspace(this.workspace, "switched")
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
@@ -1466,7 +1467,7 @@ export class Core {
     this.started = false
     await this.updates.dispose()
     await this.switching
-    if (this.workspace) await this.stopWorkspace(this.workspace)
+    if (this.workspace) await this.stopWorkspace(this.workspace, "closed")
     this.workspace = null
     // After the workspace's background tasks: a run cut off by its agent closing would count as a failed
     // try, where one stopped by closing stays running, to run again next time
@@ -1479,9 +1480,9 @@ export class Core {
   // another one or closes. Each step runs even if one before it failed: a switch still goes ahead, and
   // the workspace's lock is still released. ws is still this.workspace throughout, so nothing that stops
   // late can reach the next one.
-  private async stopWorkspace(ws: Workspace) {
+  private async stopWorkspace(ws: Workspace, why: CutOff) {
     const steps: [string, () => unknown][] = [
-      ["chat turns", () => this.turns.reset()],
+      ["chat turns", () => this.turns.reset(why)],
       ["the window's requests", () => this.ui.reset()],
       // Before the agents they run on close (dispose closes them after this)
       ["background tasks", () => ws.tasks.dispose()],

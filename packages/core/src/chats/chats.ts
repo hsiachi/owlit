@@ -5,6 +5,7 @@ import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/p
 import path from "node:path"
 import { ignoreMissing, readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { cutOffSentence } from "../agents/failure.ts"
 import { messageOf, Serial } from "../util.ts"
 
 // How often a streaming chat is written while its messages keep changing
@@ -323,10 +324,12 @@ function summaryOf(chat: Chat | ChatFile): ChatSummary {
   return { id, title, createdAt, updatedAt, pinned, connectorId, modelId, ...(role ? { role } : {}), effortId, ...(sessions ? { sessions } : {}), ...(startedBy ? { startedBy, run } : {}) }
 }
 
-// A turn that never finished: cancelled, and any question it was waiting on closed with it
+// A turn that never finished, because owlit stopped before its reply was saved: said as owlit closing,
+// not as the person's Stop, and any question it was waiting on closed with it
 const cutOff = (m: ChatMessage): ChatMessage => ({
   ...m,
-  status: "cancelled",
+  status: "error",
+  error: cutOffSentence("closed"),
   parts: m.parts.map((p) => (p.type === "permission" && !p.outcome ? { ...p, outcome: "cancelled" } : p)),
 })
 
