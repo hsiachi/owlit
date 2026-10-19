@@ -94,7 +94,7 @@ interface Entry {
   // Prerequisites that already ran for this task: requiring one again means it can't be made
   satisfied: Set<string>
   // Stopped to make way for something more urgent: queued again, not counted as a try
-  preempted?: { notBefore?: number }
+  preempted?: boolean
 }
 
 const key = (kind: string, subject: string) => `${kind}\u0000${subject}`
@@ -347,22 +347,13 @@ export class Scheduler {
   }
 
   // Stops the newest background run in a lane, to run again from the start later
-  private preemptOne(lane: TaskLane, notBefore?: number, which: (task: Task) => boolean = () => true) {
+  private preemptOne(lane: TaskLane) {
     const running = [...this.entries.values()]
-      .filter((e) => e.holdsSlot && e.task.lane === lane && e.task.priority === "background" && !e.preempted && which(e.task))
+      .filter((e) => e.holdsSlot && e.task.lane === lane && e.task.priority === "background" && !e.preempted)
       .sort((a, b) => (b.task.startedAt ?? 0) - (a.task.startedAt ?? 0))[0]
-    if (!running) return false
-    running.preempted = { notBefore }
+    if (!running) return
+    running.preempted = true
     running.controller?.abort(new DOMException("Something more urgent needed the lane.", "AbortError"))
-    return true
-  }
-
-  // Background runs of a kind step aside for work outside the scheduler that needs their agent now (a
-  // chat being answered), and wait ms before running again from the start
-  yieldTo(lane: TaskLane, which: (task: Task) => boolean, ms: number) {
-    while (this.preemptOne(lane, Date.now() + ms, which)) {
-      // each call stops one
-    }
   }
 
   private inUse(lane: TaskLane) {
@@ -450,7 +441,7 @@ export class Scheduler {
       // Cancelled while it ran; its lane is free only now
     } else if (preempted && error !== null) {
       // Made way for something more urgent: not a try
-      this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, progress: undefined, notBefore: preempted.notBefore })
+      this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, progress: undefined })
     } else if (error instanceof Blocked) {
       // Waiting on another task is not a try
       this.update(entry, { state: "queued", attempts: entry.task.attempts - 1, blockedOn: error.on })

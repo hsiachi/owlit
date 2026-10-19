@@ -29,7 +29,7 @@ import { sinceLines, type SinceLine } from "./since-lines"
 // work finished meanwhile and that the user hasn't opened since (the jobs they handed off before leaving),
 // then what others changed meanwhile as the change log has it, one line per place, naming the things
 // (since-lines.ts). After any time away, however short, the runs Owlit finished meanwhile come first (a
-// digest, a comment it looked at again), one row each, which open what the run worked on, and a line for
+// digest, a Go through), one row each, which open what the run worked on, and a line for
 // the PDFs that came through the user's browser meanwhile. A run on a thread says so in the thread's own
 // line, so it has none of its own.
 

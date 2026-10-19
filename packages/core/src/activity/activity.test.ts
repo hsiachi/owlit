@@ -101,10 +101,9 @@ describe("activity.emit and the journal", () => {
     ]
     for (const event of events) await call("activity.emit", { event })
     await core["journal"].flush()
-    // Closing a doc and going idle are kept for Owlit's rules, which wait on them; Owlit's own lines
-    // (its rules' decisions on opening the paper) are its, not the user's
+    // Closing a doc and going idle are kept too: when the user was here
     const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "idle", "paper.closed", "doc.opened", "doc.closed"])
-    expect(lines().filter((l: { actor: string }) => l.actor === ME)).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: ME })))
+    expect(lines()).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: ME })))
   })
 
   it("passes every event to bus listeners", async () => {
@@ -116,7 +115,7 @@ describe("activity.emit and the journal", () => {
     expect(heard).toEqual(["paper.page"])
   })
 
-  it("journals nothing while turned off, but the rules still hear, and says so to clients", async () => {
+  it("journals nothing while turned off, but listeners still hear, and says so to clients", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
     const notes: RpcNotification[] = []

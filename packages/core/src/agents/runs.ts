@@ -66,18 +66,11 @@ export async function openRun(
 // A doc as the app names it: its file name without .md
 const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i, "")
 
-// The words of a run, from its task: what it is about, by name, and who started it
+// The words of a run, from its task: what it is about, by name, and what the user asked
 export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
   if (task.kind === "paper.digest") {
     const title = (await ws.library.get(task.subject).catch(() => undefined))?.title ?? task.subject
-    const why = task.priority === "asked" ? t`You asked for a digest of “${title}”.` : t`“${title}” has no digest yet.`
-    return { doing: t`Writing the digest of “${title}”`, done: t`Digest of “${title}”`, why, result: `${t`The digest is written:`} ${mentionLink(title, paperUri(task.subject))}` }
-  }
-  if (task.kind === "docs.recheck") {
-    const bar = task.subject.lastIndexOf("|")
-    const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#", bar)))
-    const title = (await ws.library.get(task.subject.slice(bar + 1)).catch(() => undefined))?.title ?? t`a paper`
-    return { doing: t`Checking a comment in “${name}” against “${title}”`, done: t`Checked a comment in “${name}” against “${title}”`, why: t`You read “${title}” in full, and Owlit's comment in “${name}” leans on it.` }
+    return { doing: t`Writing the digest of “${title}”`, done: t`Digest of “${title}”`, why: t`You asked for a digest of “${title}”.`, result: `${t`The digest is written:`} ${mentionLink(title, paperUri(task.subject))}` }
   }
   if (task.kind === "meetings.goThrough") {
     const name = docName(task.subject)
@@ -90,7 +83,6 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
   if (task.kind.startsWith("threads.")) {
     const thread = await ws.threads.get(threadOfSubject(task.subject)).catch(() => undefined)
     const title = thread?.title ?? t`a thread`
-    const asked = task.priority !== "background"
     switch (task.kind) {
       case "threads.gather":
         return { doing: t`Gathering papers for “${title}”`, done: t`Gathered papers for “${title}”`, why: t`You asked Owlit to gather papers: “${thread?.asked.text ?? title}”.` }
@@ -102,17 +94,7 @@ export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
       }
       case "threads.read":
         return { doing: t`Reading the papers in “${title}”`, done: t`Read the papers in “${title}”`, why: t`You asked Owlit to read the papers in “${title}”.` }
-      case "threads.reread": {
-        const paper = (await ws.library.get(task.subject.slice(task.subject.indexOf(":") + 1)).catch(() => undefined))?.title ?? t`a paper`
-        return { doing: t`Answering “${paper}” again in “${title}”`, done: t`Answered “${paper}” again in “${title}”`, why: t`You read “${paper}” in full; its answers in “${title}” came from its abstract.` }
-      }
-      case "threads.check":
-        return {
-          doing: t`Checking “${title}” for new papers`,
-          done: t`Checked “${title}” for new papers`,
-          why: asked ? t`You asked Owlit to check “${title}” for new papers.` : t`You asked Owlit to watch “${title}”, and a day has passed since it last looked.`,
-        }
     }
   }
-  return { doing: t`Working in the background`, done: t`Background work`, why: t`Owlit started this on its own.` }
+  return { doing: t`Working in the background`, done: t`Background work`, why: t`You asked Owlit for this.` }
 }

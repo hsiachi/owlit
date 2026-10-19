@@ -22,7 +22,6 @@ export function useDoingLine(task: Task | undefined): string {
   // Named as core names them, so both say the same words
   const title = paperTitle ?? threadTitle
   if (task?.kind === "paper.digest" && title) return t`Writing the digest of “${title}”`
-  if (task?.kind === "threads.check" && title) return t`Checking “${title}” for new papers`
   if (title) return t`Working on “${title}”`
   return t`Working in the background`
 }

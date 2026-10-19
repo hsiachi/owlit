@@ -29,8 +29,6 @@ export interface ChangeOrigin {
   // The chat or run it came from
   chatId?: string
   toolCallId?: string
-  // The initiative rule that started the run
-  ruleId?: string
   // Shared by the entries of one write (the toolCallId when there is one)
   writeId?: string
 }

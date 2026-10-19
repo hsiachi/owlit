@@ -1,5 +1,4 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
-import type { ArchiveSummary } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
@@ -110,11 +109,6 @@ export interface Methods {
   "workspace.clearRecent": { params: void; result: null }
   // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
   // window's chat, …)
-  // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
-  "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
-  // Everything Owlit did on its own here (what it heard, each decision, what you did with its work, its
-  // runs) as one archive in a new folder outside the workspace, from since (ms) on
-  "archive.export": { params: { to: string; since?: number }; result: ArchiveSummary }
   "workspace.layout":{ params: void; result: Record<string, unknown> }
   // Merges into the layout; a key set to null is removed
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
@@ -190,7 +184,7 @@ export interface Methods {
   "comments.put": { params: { path: string; comment: CommentInput }; result: DocComment | null }
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
-  // One of Owlit's comments the user doesn't want; journaled as feedback.dismiss
+  // One of Owlit's comments the user doesn't want, put away for good
   "comments.dismiss": { params: { path: string; id: string }; result: DocComment }
   // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
   "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
@@ -231,7 +225,7 @@ export interface Methods {
   "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: Thread }
   // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full, check
   // for new papers now
-  "threads.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
+  "threads.run": { params: { id: string; run: "more" | "read" }; result: Task }
   // A new column: a question Owlit answers for every paper
   "threads.ask": { params: { id: string; question: string }; result: Thread }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)

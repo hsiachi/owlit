@@ -132,9 +132,6 @@ export interface Thread {
   memo: MemoSentence[]
   columns: ThreadColumn[]
   rows: ThreadRow[]
-  // Look for new papers now and then (off unless the user turns it on), and when Owlit last did
-  watch: boolean
-  checkedAt?: number
   // How many papers the user asked for when they started it from the Threads page: about ten, or
   // as many as the question takes (a venue's proceedings)
   size?: ThreadSize
@@ -157,8 +154,8 @@ export interface Thread {
 export type ThreadSize = "few" | "many"
 
 // Work Owlit does on a thread in the background, as task kinds; the task's subject is the
-// thread's id, "<id>:<column>" for filling a column, or "<id>:<paper>" for answering one row again
-export const THREAD_RUNS = ["threads.gather", "threads.more", "threads.fill", "threads.read", "threads.check", "threads.reread"] as const
+// thread's id, or "<id>:<column>" for filling a column
+export const THREAD_RUNS = ["threads.gather", "threads.more", "threads.fill", "threads.read"] as const
 export type ThreadRun = (typeof THREAD_RUNS)[number]
 export const threadOfSubject = (subject: string) => subject.split(":")[0]!
 
@@ -288,7 +285,6 @@ export interface ThreadSummary {
   columns: number
   createdAt: number
   updatedAt: number
-  watch: boolean
 }
 
 export function summarize(c: Thread): ThreadSummary {
@@ -301,7 +297,6 @@ export function summarize(c: Thread): ThreadSummary {
     columns: c.columns.filter((col) => col.id !== QUESTION_COLUMN && !col.hidden).length,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
-    watch: c.watch,
   }
 }
 
@@ -347,9 +342,9 @@ export interface ThreadWrite {
 // the searches it made and what it said it couldn't reach. Worked out from the thread's history.
 export interface ThreadBatch {
   at: number
-  // Its first gathering, Find more papers, a watch check, reading in full, a column, a chat, or Owlit
-  // without saying (threads from before batches were recorded)
-  trigger: "gather" | "more" | "check" | "read" | "reread" | "fill" | "chat" | "agent"
+  // Its first gathering, Find more papers, reading in full, a column, a chat, or Owlit without saying
+  // (threads from before batches were recorded)
+  trigger: "gather" | "more" | "read" | "fill" | "chat" | "agent"
   chatId?: string
   // A later question in a chat that Owlit answered by adding here
   asked?: string
@@ -403,7 +398,6 @@ export type ThreadEdit =
   | { op: "ungroup"; column: string; group: string }
   | { op: "merge"; column: string; group: string; into: string }
   | { op: "unmerge"; column: string; group: string }
-  | { op: "watch"; on: boolean }
   // A column out of sight, or back
   | { op: "hide"; column: string; hidden: boolean }
   | { op: "project"; project: string }
@@ -492,9 +486,6 @@ export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { ite
       else c.overrides.removed[itemId.group(col.id, group.id)] = { text: group.name, at: now }
       return { items: [itemId.group(col.id, group.id)] }
     }
-    case "watch":
-      c.watch = edit.on
-      return { items: [] }
     case "hide": {
       const column = c.columns.find((col) => col.id === edit.column)
       if (!column || column.id === QUESTION_COLUMN) return { problem: "gone" }

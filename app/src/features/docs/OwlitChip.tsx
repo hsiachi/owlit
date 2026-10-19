@@ -6,7 +6,7 @@ import { NoteDot } from "@/components/marks"
 import { OwlitMark } from "@/components/owlit-mark"
 import { Tip } from "@/components/tip"
 import { Button } from "@/components/ui/button"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { isDesktop } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
 import { useAgentWindow } from "@/features/agent/store"
 import { RunsHover } from "@/features/runs/components"
@@ -32,14 +32,11 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
   const fresh = useNewOwlitComments(file)
   const shown = useDocsUiStore((s) => s.commentsShown)
 
-  // Comments on screen a moment are seen: the dot goes, and Owlit hears they were
+  // Comments on screen a moment are seen: the dot goes
   const count = fresh.length
   useEffect(() => {
     if (!count || !shown) return
-    const timer = setTimeout(() => {
-      markSeen({ kind: "comments", path: file.path })
-      void rpc.initiative.feedback({ what: "seen", subject: file.path, detail: { comments: count } }).catch(() => undefined)
-    }, SEEN_AFTER_MS)
+    const timer = setTimeout(() => markSeen({ kind: "comments", path: file.path }), SEEN_AFTER_MS)
     return () => clearTimeout(timer)
   }, [count, shown, file.path])
 

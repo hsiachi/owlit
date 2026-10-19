@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { fullReadAt, readInFull, readJournal, readingOf, traceOf } from "./reading.ts"
-import { ME } from "../test-util.ts"
+import { ME, MY_OWLIT } from "../test-util.ts"
 
 const at = 1_790_000_000_000
 const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: ME })
@@ -56,6 +56,19 @@ describe("readJournal", () => {
     writeFileSync(file, [JSON.stringify(user({ kind: "paper.opened", at, paperId: "p" })), '{"kind":"paper.fo', ""].join("\n"))
     expect(await readJournal(file)).toEqual([{ kind: "paper.opened", at, paperId: "p", actor: ME }])
     expect(await readJournal(path.join(path.dirname(file), "missing.jsonl"))).toEqual([])
+  })
+
+  it("skips the kinds owlit doesn't write, which older journals hold", async () => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "owlit-reading-")), "journal.jsonl")
+    const opened = user({ kind: "paper.opened", at, paperId: "p" })
+    const old = [
+      { kind: "evaluation", at: at + 1, rule: "paper.readInFull", subject: "p", decision: "job", taskId: "t1", cause: "paper.read", causeAt: at, actor: MY_OWLIT },
+      { kind: "rule.looked", at: at + 1, rule: "paper.readInFull", cause: "paper.read", causeAt: at, reads: [], actor: MY_OWLIT },
+      { kind: "paper.read", at, paperId: "p", actor: MY_OWLIT },
+      { kind: "feedback.dismiss", at: at + 2, subject: "a.md", detail: { comment: "c1" }, actor: ME },
+    ]
+    writeFileSync(file, [opened, ...old].map((e) => JSON.stringify(e)).join("\n") + "\n")
+    expect(await readJournal(file)).toEqual([opened])
   })
 })
 

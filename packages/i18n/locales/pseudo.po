@@ -4856,21 +4856,16 @@ msgid "Stop all"
 msgstr ""
 
 #: app/src/features/runs/components.tsx
-msgid "Owlit is doing this on its own."
+msgid "Owlit is working on this."
 msgstr ""
 
 #: app/src/features/runs/components.tsx
-msgid "Owlit did this on its own."
+msgid "Owlit did this."
 msgstr ""
 
 #: app/src/features/runs/hooks.ts
 #: packages/core/src/agents/runs.ts
 msgid "Writing the digest of “{title}”"
-msgstr ""
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Checking “{title}” for new papers"
 msgstr ""
 
 #: app/src/features/runs/hooks.ts
@@ -5370,7 +5365,7 @@ msgid "Remember what I do in owlit"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted."
 msgstr ""
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
@@ -5602,10 +5597,6 @@ msgid "{titles, plural, one {# had no abstract and is from its title only.} othe
 msgstr ""
 
 #: app/src/features/threads/components/About.tsx
-msgid "Owlit watches for new papers on this question."
-msgstr ""
-
-#: app/src/features/threads/components/About.tsx
 msgid "a chat"
 msgstr ""
 
@@ -5676,19 +5667,9 @@ msgstr ""
 msgid "Found more papers"
 msgstr ""
 
-#. a batch of a thread: Owlit's watch looked for new papers
-#: app/src/features/threads/components/About.tsx
-msgid "Checked for new papers"
-msgstr ""
-
 #. a batch of a thread: Owlit read the papers' full texts
 #: app/src/features/threads/components/About.tsx
 msgid "Read in full"
-msgstr ""
-
-#. a batch of a thread: once the user read a paper in full, Owlit answered its row again from it
-#: app/src/features/threads/components/About.tsx
-msgid "Answered again from the full text"
 msgstr ""
 
 #. a batch of a thread: Owlit answered a column's question for every paper
@@ -5802,11 +5783,6 @@ msgstr ""
 
 #: app/src/features/threads/components/Memo.tsx
 msgid "Sentence actions"
-msgstr ""
-
-#. menu switch: Owlit looks for new papers on this thread's question now and then
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Watch for new papers"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadMenu.tsx
@@ -6190,14 +6166,6 @@ msgstr ""
 
 #: app/src/features/threads/runs.ts
 msgid "Reading papers in full…"
-msgstr ""
-
-#: app/src/features/threads/runs.ts
-msgid "Looking for new papers…"
-msgstr ""
-
-#: app/src/features/threads/runs.ts
-msgid "Answering a paper again from its full text…"
 msgstr ""
 
 #: app/src/features/threads/runs.ts
@@ -7228,35 +7196,15 @@ msgid "{name} exited with code {code}"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "You asked for a digest of “{title}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "“{title}” has no digest yet."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
 msgid "Digest of “{title}”"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
+msgid "You asked for a digest of “{title}”."
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
 msgid "The digest is written:"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "a paper"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Checking a comment in “{name}” against “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Checked a comment in “{name}” against “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
@@ -7337,31 +7285,7 @@ msgid "You asked Owlit to read the papers in “{title}”."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "Answering “{paper}” again in “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered “{paper}” again in “{title}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You read “{paper}” in full; its answers in “{title}” came from its abstract."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Checked “{title}” for new papers"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to check “{title}” for new papers."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to watch “{title}”, and a day has passed since it last looked."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Owlit started this on its own."
+msgid "You asked Owlit for this."
 msgstr ""
 
 #: packages/core/src/agents/setup.ts

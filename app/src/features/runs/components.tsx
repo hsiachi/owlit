@@ -121,13 +121,13 @@ export function RunReason({ message }: { message: ChatMessage }) {
   )
 }
 
-// Where a chat has its composer, a run has this: who started it, and Stop while it works. A run is
-// Owlit's own; to take it further, ask in a chat of yours.
+// Where a chat has its composer, a run has this: Owlit at work, and Stop while it works. A run is work
+// you asked Owlit for; to take it further, ask in a chat of yours.
 export function RunFooter({ run, working, className }: { run: Chat; working: boolean; className?: string }) {
   return (
     <div className={cn("flex shrink-0 items-center gap-2 border-t-[0.5px] px-4 py-3 text-detail text-muted-foreground", className)}>
       <OwlitMark className="size-3.5 shrink-0" />
-      <span className="flex-1">{working ? t`Owlit is doing this on its own.` : t`Owlit did this on its own.`}</span>
+      <span className="flex-1">{working ? t`Owlit is working on this.` : t`Owlit did this.`}</span>
       {working && (
         <Button variant="text" size="inline" onClick={() => stopRun(run)}>
           {t({ message: "Stop", comment: "stop one of Owlit's background runs" })}

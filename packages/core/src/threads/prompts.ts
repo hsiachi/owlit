@@ -94,22 +94,3 @@ For each row whose answers are all depth abstract or title: add the paper to the
 Then update the memo if what you read changes it. ${MEMO}
 Your answer at the end is one line on what you read.`
 }
-
-export function checkPrompt(c: Thread, since: number) {
-  const from = new Date(since).getFullYear()
-  return `You are checking for new papers on a thread's question in owlit, which the user asked owlit to watch. The question: «${c.asked.text}»
-
-${ABOUT(c)}
-Search for papers published since ${from} (year filter "${from}-"), and follow who cites the best papers there (library_related cited_by, sort newest). Add only papers that are new, not there yet, and answer the question, with thread_write id ${c.id}. Most checks find nothing: then write nothing.
-${ANSWERS}
-Your answer at the end is one line on what you found.`
-}
-
-// The user read one of a thread's papers in full: its row's answers are given again from the whole text
-export function rereadPrompt(c: Thread, paperId: string) {
-  return `You are answering again, from its full text, one paper of a thread in owlit: the user has just read it in full. The thread's question: «${c.asked.text}». The paper: ${paperId}.
-
-${ABOUT(c)}
-Read the parts of the paper that matter with library_read, and what the user highlighted in it with library_highlights. Then rewrite that row's cells, in every column, from the full text, with depth full and the words each rests on in quote, word for word, with thread_write id ${c.id} (one row, id ${paperId}). Leave a cell as it is when the full text says the same as the answer there; never change what the user rewrote. Update the memo only if what you read changes it. ${MEMO}
-Your answer at the end is one line on what you changed.`
-}

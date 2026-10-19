@@ -1,4 +1,4 @@
-// Owlit's own runs: the sessions of its background work (a reading note, a watched thread's check),
+// Owlit's own runs: the sessions of the background work you asked for (a digest, a thread's gathering),
 // kept apart from your chats so no chat list, unread mark or notification counts them. A run opens in the
 // Owlit panel from what it works on; while it works, its steps stream here as chat.update.
 

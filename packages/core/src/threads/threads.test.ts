@@ -501,7 +501,6 @@ describe("Threads.paperOf", () => {
       canonical: async (id) => library[id],
     })
     const { id } = await threads.write({ asked: "Do replay ratings hold?", title: "Replay", rows: [{ id: "arxiv-2310.00001", cells: { q: { text: "Lower.", depth: "abstract" } } }] }, agent)
-    expect(await threads.rowsOf("doi-10.1145-9")).toEqual([{ thread: id, row: "arxiv-2310.00001", fromAbstract: true }])
     expect((await threads.paperOf("doi-10.1145-9"))?.title).toBe("Replay ratings")
     // Named by its library id, the answer goes to the row there
     await threads.write({ id, rows: [{ id: "doi-10.1145-9", cells: { q: { text: "Lower, by 0.6.", depth: "abstract" } } }] }, agent)
@@ -651,18 +650,6 @@ describe("Threads, Owlit's work in the background", () => {
     // The same words again are the same grouping
     expect((await threads.group(id, "the chapters  of my story", window)).columns.filter((col) => col.kind === "grouping")).toHaveLength(2)
   })
-
-  it("checks watched threads once a day", async () => {
-    const { threads, scheduler } = withRuns()
-    const { id } = await start(threads)
-    await threads.edit(id, { op: "watch", on: true }, window)
-    expect(await threads.watched(Date.now())).toEqual([{ id, due: false }])
-    expect(await threads.watched(Date.now() + 25 * 3_600_000)).toEqual([{ id, due: true }])
-    // Owlit's rules queue it (initiative/rules.ts); the run marks the thread checked
-    await scheduler.wait(scheduler.enqueue("threads.check", id, "background").id)
-    expect((await threads.get(id)).checkedAt).toBeGreaterThan(0)
-    expect(await threads.watched(Date.now() + 23 * 3_600_000)).toEqual([{ id, due: false }])
-  })
 })
 
 describe("Threads, the user's changes in the log", () => {
@@ -672,19 +659,19 @@ describe("Threads, the user's changes in the log", () => {
     const lines = (await threads.history(id)).length
     await threads.edit(id, { op: "remove", item: itemId.row("doi-10.1145-2") }, window)
     await threads.edit(id, { op: "rewrite", item: itemId.memo("s1"), text: "Kelly 2015 is the closest." }, window)
-    await threads.edit(id, { op: "watch", on: true }, window)
+    await threads.edit(id, { op: "project", project: "Thesis" }, window)
     // How the user looks changes nothing worth an entry
     await threads.edit(id, { op: "view", groupBy: "none" }, window)
     const mine = (await changes.list({ path: id, actor: "p_1234abcd" })).reverse()
     expect(mine.map((c) => [c.action, c.target.part, c.origin.via])).toEqual([
       ["update", "row:doi-10.1145-2", "editor"],
       ["update", "memo:s1", "editor"],
-      ["update", "watch", "editor"],
+      ["update", "project", "editor"],
     ])
     expect(mine[0]!.before).toEqual({ value: expect.objectContaining({ id: "doi-10.1145-2" }) })
     expect(mine[0]!.after).toMatchObject({ value: { id: "doi-10.1145-2" }, removed: { text: papers["doi-10.1145-2"]!.title } })
     expect(mine[1]!.after).toMatchObject({ edit: { text: "Kelly 2015 is the closest." } })
-    expect(mine[2]).toMatchObject({ before: { value: false }, after: { value: true } })
+    expect(mine[2]).toMatchObject({ before: { value: "主动提醒研究" }, after: { value: "Thesis" } })
     expect(await threads.history(id)).toHaveLength(lines)
     // What the user did is kept as the thread's overrides
     const kept = JSON.parse(readFileSync(path.join(owlit, "threads", id, "thread.json"), "utf8"))

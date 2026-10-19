@@ -1,5 +1,4 @@
-import type { ActorId, OwlitId, PersonId } from "./changes.ts"
-import type { EvaluationRecord, FeedbackRecord, JournaledCoreEvent, LookedRecord } from "./initiative.ts"
+import type { ActorId, PersonId } from "./changes.ts"
 import type { ReadStatus } from "./library.ts"
 
 // What the user does in the interface, as the renderer reports it to core. It feeds the workspace
@@ -47,8 +46,8 @@ export type ActivityKind = ActivityEvent["kind"]
 export type ActivityOf<K extends ActivityKind> = Extract<ActivityEvent, { kind: K }>
 
 // What goes into .owlit/journal.jsonl. The rest (page turns, removing a highlight, sending a message) is
-// only for live listeners. Closing a doc, the window going idle and coming back are kept because Owlit's
-// rules wait on them (initiative.ts, presence.ts), and a replay has to hear what they heard.
+// only for live listeners. Closing a doc, the window going idle and coming back are kept as the record of
+// when the user was here.
 export const JOURNALED_KINDS = [
   "paper.opened",
   "paper.focus",
@@ -66,16 +65,9 @@ export const JOURNALED_KINDS = [
   "back",
 ] as const satisfies readonly ActivityKind[]
 
-// A line of .owlit/journal.jsonl: who did what, when. Owlit's own decisions (each rule's evaluation, with
-// or without an action) and what the user did with its work are there too, so its initiative can be
-// looked back on and replayed. The window's events are the person's; what core heard, looked at and
-// decided is that person's Owlit's.
-export type JournalEntry =
-  | (ActivityEvent & { actor: PersonId })
-  | (EvaluationRecord & { actor: OwlitId })
-  | (LookedRecord & { actor: OwlitId })
-  | (JournaledCoreEvent & { actor: OwlitId })
-  | (FeedbackRecord & { actor: PersonId })
+// A line of .owlit/journal.jsonl: what the person did, when. Older journals also hold lines of other
+// kinds, some signed by the person's Owlit: whoever reads the journal skips a kind it doesn't know.
+export type JournalEntry = ActivityEvent & { actor: PersonId }
 
 // ---- What an agent may ask about the user's activity (activity.query, owlit-mcp's activity_read) ----
 // Facts, never scores: how long, which pages, how often. Single actions aren't interpreted.

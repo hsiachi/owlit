@@ -4856,22 +4856,17 @@ msgid "Stop all"
 msgstr "全部停止"
 
 #: app/src/features/runs/components.tsx
-msgid "Owlit is doing this on its own."
-msgstr "这是 Owlit 自己在做的事。"
+msgid "Owlit is working on this."
+msgstr "Owlit 正在做这件事。"
 
 #: app/src/features/runs/components.tsx
-msgid "Owlit did this on its own."
-msgstr "这是 Owlit 自己做的事。"
+msgid "Owlit did this."
+msgstr "这是 Owlit 做的事。"
 
 #: app/src/features/runs/hooks.ts
 #: packages/core/src/agents/runs.ts
 msgid "Writing the digest of “{title}”"
 msgstr "正在为“{title}”写导读"
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Checking “{title}” for new papers"
-msgstr "正在为「{title}」找新论文"
 
 #: app/src/features/runs/hooks.ts
 msgid "Working on “{title}”"
@@ -5370,8 +5365,8 @@ msgid "Remember what I do in owlit"
 msgstr "记住我在 owlit 中的操作"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
-msgstr "你在这个工作区里读、写和问的内容会记在 .owlit/journal.jsonl 中，让 Owlit 跟上你的工作。关闭后什么都不记，但打开论文或文档时，导读和 Owlit 的查看照常进行。"
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted."
+msgstr "你在这个工作区里读、写和问的内容会记在 .owlit/journal.jsonl 中，让 Owlit 跟上你的工作。关闭后什么都不记。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Tsinghua University"
@@ -5602,10 +5597,6 @@ msgid "{titles, plural, one {# had no abstract and is from its title only.} othe
 msgstr "{titles, plural, other {# 篇没有摘要，只来自标题。}}"
 
 #: app/src/features/threads/components/About.tsx
-msgid "Owlit watches for new papers on this question."
-msgstr "Owlit 会留意这个问题的新论文。"
-
-#: app/src/features/threads/components/About.tsx
 msgid "a chat"
 msgstr "一个对话"
 
@@ -5676,20 +5667,10 @@ msgstr "在 {link} 里 · {what}"
 msgid "Found more papers"
 msgstr "找更多论文"
 
-#. a batch of a thread: Owlit's watch looked for new papers
-#: app/src/features/threads/components/About.tsx
-msgid "Checked for new papers"
-msgstr "查找新论文"
-
 #. a batch of a thread: Owlit read the papers' full texts
 #: app/src/features/threads/components/About.tsx
 msgid "Read in full"
 msgstr "读全文"
-
-#. a batch of a thread: once the user read a paper in full, Owlit answered its row again from it
-#: app/src/features/threads/components/About.tsx
-msgid "Answered again from the full text"
-msgstr "读全文后重新回答"
 
 #. a batch of a thread: Owlit answered a column's question for every paper
 #: app/src/features/threads/components/About.tsx
@@ -5803,11 +5784,6 @@ msgstr "原为：{0}"
 #: app/src/features/threads/components/Memo.tsx
 msgid "Sentence actions"
 msgstr "这句话的操作"
-
-#. menu switch: Owlit looks for new papers on this thread's question now and then
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Watch for new papers"
-msgstr "留意新论文"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
@@ -6191,14 +6167,6 @@ msgstr "正在问每篇论文“{question}”…"
 #: app/src/features/threads/runs.ts
 msgid "Reading papers in full…"
 msgstr "正在读全文…"
-
-#: app/src/features/threads/runs.ts
-msgid "Looking for new papers…"
-msgstr "正在找新论文…"
-
-#: app/src/features/threads/runs.ts
-msgid "Answering a paper again from its full text…"
-msgstr "正在按全文重新回答一篇论文…"
 
 #: app/src/features/threads/runs.ts
 msgid "Owlit works on threads in the desktop app."
@@ -7228,36 +7196,16 @@ msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "You asked for a digest of “{title}”."
-msgstr "你请 Owlit 为“{title}”写导读。"
-
-#: packages/core/src/agents/runs.ts
-msgid "“{title}” has no digest yet."
-msgstr "“{title}”还没有导读。"
-
-#: packages/core/src/agents/runs.ts
 msgid "Digest of “{title}”"
 msgstr "“{title}”的导读"
 
 #: packages/core/src/agents/runs.ts
+msgid "You asked for a digest of “{title}”."
+msgstr "你请 Owlit 为“{title}”写导读。"
+
+#: packages/core/src/agents/runs.ts
 msgid "The digest is written:"
 msgstr "导读写好了："
-
-#: packages/core/src/agents/runs.ts
-msgid "a paper"
-msgstr "一篇论文"
-
-#: packages/core/src/agents/runs.ts
-msgid "Checking a comment in “{name}” against “{title}”"
-msgstr "正在对照“{title}”核对“{name}”里的一条评论"
-
-#: packages/core/src/agents/runs.ts
-msgid "Checked a comment in “{name}” against “{title}”"
-msgstr "对照“{title}”核对了“{name}”里的一条评论"
-
-#: packages/core/src/agents/runs.ts
-msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
-msgstr "你读完了“{title}”全文，而 Owlit 在“{name}”里的评论依据的正是它。"
 
 #: packages/core/src/agents/runs.ts
 msgid "Going through “{name}” against your docs"
@@ -7337,32 +7285,8 @@ msgid "You asked Owlit to read the papers in “{title}”."
 msgstr "你请 Owlit 通读「{title}」里的论文。"
 
 #: packages/core/src/agents/runs.ts
-msgid "Answering “{paper}” again in “{title}”"
-msgstr "正在「{title}」里重新回答“{paper}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered “{paper}” again in “{title}”"
-msgstr "在「{title}」里重新回答了“{paper}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You read “{paper}” in full; its answers in “{title}” came from its abstract."
-msgstr "你读完了“{paper}”全文；它在「{title}」里的回答原本只依据摘要。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Checked “{title}” for new papers"
-msgstr "为「{title}」找了新论文"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to check “{title}” for new papers."
-msgstr "你请 Owlit 为「{title}」找新论文。"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to watch “{title}”, and a day has passed since it last looked."
-msgstr "你请 Owlit 留意「{title}」，距它上次查看已过了一天。"
-
-#: packages/core/src/agents/runs.ts
-msgid "Owlit started this on its own."
-msgstr "这是 Owlit 自己开始的。"
+msgid "You asked Owlit for this."
+msgstr "这是你请 Owlit 做的事。"
 
 #: packages/core/src/agents/setup.ts
 msgid "npm finished, but the adapter isn't there."

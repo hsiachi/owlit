@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, isOwlit, isPerson, owlitOf, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -27,11 +27,10 @@ import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
-import { Initiative } from "./initiative/initiative.ts"
-import { exportArchive } from "./initiative/archive.ts"
+import { Presence } from "./activity/presence.ts"
 import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
-import { becameReadInFull } from "./initiative/reads.ts"
-import { GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN } from "./initiative/runs.ts"
+import { becameReadInFull } from "./library/read-in-full.ts"
+import { GO_THROUGH_RUN, REPLY_RUN } from "./initiative/runs.ts"
 import { MATERIAL } from "./initiative/go-through.ts"
 import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
@@ -118,9 +117,6 @@ export interface CoreOptions {
 
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
 // notifications. Constructing it touches nothing outside; start() is when it begins to talk.
-// Runs Owlit starts on its own, which step aside while the user waits on a chat's answer
-const OWN_RUNS = new Set<string>([RECHECK_RUN, "threads.reread"])
-
 export class Core {
   readonly settings: SettingsStore
   readonly activity = new ActivityBus()
@@ -146,9 +142,8 @@ export class Core {
   // One way out to the network for every workspace, so each service's rate holds across them
   private readonly http: Http
   private readonly background: Background
-  // Owlit's rules, and the hour that wakes them
-  private readonly initiative: Initiative
-  private readonly hourly: ReturnType<typeof setInterval>
+  // Whether the person is here or away, as their activity says
+  private readonly presence = new Presence()
   private readonly reviews: Reviews
   // Owlit updating itself
   readonly updates: Updates
@@ -253,13 +248,10 @@ export class Core {
       answering: () => this.turns.answering(),
       notify: (view) => this.notifier.notify("updates.changed", view),
     })
-    // What Owlit does without being asked is decided by its rules (initiative/rules.ts), which hear what
-    // the user does and what core sees, and the clock
-    this.initiative = new Initiative({ workspace: () => this.workspace, record: (entry) => this.journal.evaluation(entry), trace: (entry) => this.journal.trace(entry) })
-    this.activity.subscribe((event) => this.initiative.observe(event))
     // The person's last activity is kept in their seen marks, so the next start knows since when they
     // were away; coming back is told to the windows (Home's Since you left)
-    const presence = this.initiative.presence
+    const presence = this.presence
+    this.activity.subscribe((event) => presence.hear(event))
     presence.heard = (at, left) => {
       const ws = this.workspace
       if (!ws) return
@@ -268,33 +260,25 @@ export class Core {
         .catch((error) => console.error("[core] couldn't keep when the person was last here", error))
     }
     presence.cameBack = (away) => this.notifier.notify("presence.away", away)
-    this.hourly = setInterval(() => this.workspace && this.initiative.observe({ kind: "clock.hour", at: Date.now() }), 3_600_000)
-    this.hourly.unref?.()
-    // Owlit's reviews of the user's docs, and the comments they hold while the user writes
+    // Owlit's runs on the user's docs: answering a reply under its comment, going through material
     this.reviews = new Reviews({
       workspace: () => this.workspace,
-      presence: this.initiative.presence,
       agent: async (prompt, ctx, tools, runId) => {
         const root = this.requireWorkspace().root
         const mcpServers = this.mcpServers(root, undefined, runId)
         if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
         return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow: tools })
       },
-      write: (path, comment, run, quiet) => this.agentComment(path, comment, { kind: "owlit", run }, quiet),
-      put: async (path, comment, run, auto) => {
-        await this.putComment(path, comment, { kind: "owlit", run }, auto ? { via: "auto" } : {}, true)
+      write: (path, comment, run) => this.agentComment(path, comment, { kind: "owlit", run }),
+      put: async (path, comment, run) => {
+        await this.putComment(path, comment, { kind: "owlit", run }, {}, true)
       },
       looked: (path, state) => this.notifier.notify("docs.owlit", { path, state }),
       writeRecord: (path, content, run) => this.fs.write(path, content, { run }),
-      record: (entry) => this.journal.evaluation(entry),
       userName: async () => (await this.settings.get()).profile.name ?? undefined,
     })
-    // After presence has heard it (the bus calls kind listeners before catch-all ones, so this is one too)
-    this.activity.subscribe((event) => {
-      if (event.kind === "doc.closed" || event.kind === "doc.opened" || event.kind === "idle") void this.reviews.land()
-    })
     // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down
-    // from what the person set: Read is the top) and the rules hear it, once it is on disk
+    // from what the person set: Read is the top), once it is on disk
     this.activity.subscribe("paper.closed", (event) => {
       const ws = this.workspace
       if (!ws) return
@@ -311,29 +295,8 @@ export class Core {
             this.notifier.notify("library.changed", { papers: [read], removed: [] })
             this.notifier.notify("library.readToEnd", { paperId: read.id, from: paper.status })
           }
-          this.initiative.observe({ kind: "paper.read", at: Date.now(), paperId: event.paperId })
         })
         .catch((error) => console.error("[core] couldn't tell whether a paper was read in full", error))
-    })
-
-    // Written where the user says, outside the workspace: handing it out is theirs to do
-    this.router.register("archive.export", z.object({ to: z.string().min(1), since: z.number().nonnegative().optional() }), async ({ to, since }) => {
-      const ws = this.requireWorkspace()
-      await Promise.all([this.journal.flush(), ws.tasks.flush()])
-      return exportArchive({
-        root: ws.root,
-        journal: ws.owlitPath("journal.jsonl"),
-        tasksLog: path.join(ws.dataDir, "tasks", "log.jsonl"),
-        changes: (await ws.changes.list({ target: { kind: "doc" } })).filter((c) => isOwlit(c.actor)).reverse(),
-        owlit: owlitOf(await this.personAt(WINDOW)),
-        to: path.resolve(ws.root, to),
-        since,
-        recording: (await this.settings.get()).activity.enabled,
-        version: this.version().version,
-        now: Date.now(),
-      }).catch((error) => {
-        throw new RpcFailure(RpcErrorCode.InvalidParams, messageOf(error))
-      })
     })
 
     this.router.register("core.ping", noParams, () => ({ ok: true as const }))
@@ -611,9 +574,6 @@ export class Core {
         assistantMessageId: z.string().min(1),
       }),
       async (req) => {
-        // The user is waiting on this answer: a run Owlit started on its own steps aside and runs again
-        // a minute later, so the chat isn't slowed or charged for it meanwhile
-        this.workspace?.tasks.yieldTo("agent", (task) => OWN_RUNS.has(task.kind), 60_000)
         return { stopReason: await this.turns.prompt(req) }
       },
     )
@@ -732,7 +692,7 @@ export class Core {
     // When the person was away is theirs, like what they have seen: the window asks, no program on the socket
     this.router.register("presence.away", noParams, (_params, caller) => {
       if (caller.kind !== "window") throw new RpcFailure(RpcErrorCode.Forbidden, "Only owlit's window asks when the person was away.")
-      return this.initiative.presence.lastAway
+      return this.presence.lastAway
     })
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
@@ -1051,7 +1011,6 @@ export class Core {
           z.object({ op: z.literal("unmerge"), column: z.string().min(1), group: z.string().min(1) }),
           z.object({ op: z.literal("ungroup"), column: z.string().min(1), group: z.string().min(1) }),
           z.object({ op: z.literal("merge"), column: z.string().min(1), group: z.string().min(1), into: z.string().min(1) }),
-          z.object({ op: z.literal("watch"), on: z.boolean() }),
           z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
           z.object({ op: z.literal("project"), project: z.string() }),
           z.object({ op: z.literal("view"), groupBy: z.string().min(1) }),
@@ -1071,7 +1030,7 @@ export class Core {
       z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }),
       (params, caller) => threads().gather(params, caller),
     )
-    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read", "check"]) }), ({ id, run }) => threads().start(id, run))
+    this.router.register("threads.run", z.object({ id: z.string().min(1), run: z.enum(["more", "read"]) }), ({ id, run }) => threads().start(id, run))
     this.router.register(
       "threads.compare",
       z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }),
@@ -1098,7 +1057,7 @@ export class Core {
         }
         // Where a comment carries words from is core's to say (a Go through's record), never the agent's
         const { source: _claimed, ...own } = signed(comment, null, await this.requireWorkspace().recorder.actorOf(caller))
-        // A run Owlit started on its own: held while the user is on that page
+        // A Go through's comment waits for the record it points back to
         if (isCommentingRun(agent.run)) await this.reviews.comment(agent.run!, path, own)
         else await this.agentComment(path, own, caller)
         return null
@@ -1112,7 +1071,6 @@ export class Core {
       const first = comment.entries[0]
       const last = comment.entries.at(-1)
       if (first && isOwlit(first.by) && last && isPerson(last.by) && !before?.entries.some((e) => e.id === last.id) && isOpenComment(comment)) {
-        this.journal.feedback({ kind: "feedback.reply", at: Date.now(), subject: path, detail: { comment: comment.id } })
         this.requireWorkspace().tasks.enqueue(REPLY_RUN, `${path}#${comment.id}`, "asked")
       }
       return before
@@ -1124,18 +1082,8 @@ export class Core {
       if (!comment.entries[0] || !isOwlit(comment.entries[0].by)) throw new RpcFailure(RpcErrorCode.InvalidParams, "Only Owlit's comments are dismissed; yours are resolved or deleted.")
       const dismissed = { ...comment, dismissedAt: Date.now() }
       await this.putComment(path, dismissed, caller, {}, true)
-      this.journal.feedback({ kind: "feedback.dismiss", at: Date.now(), subject: path, detail: { comment: id } })
       return dismissed
     })
-    // What the user did with Owlit's work that only the window sees: a comment of its came into view
-    this.router.register(
-      "initiative.feedback",
-      z.object({ what: z.enum(["seen", "apply", "undo"]), subject: z.string(), detail: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional() }),
-      ({ what, subject, detail }) => {
-        if (this.workspace) this.journal.feedback({ kind: `feedback.${what}`, at: Date.now(), subject, ...(detail ? { detail } : {}) })
-        return null
-      },
-    )
     this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), async ({ path, id }, caller) => {
       const removed = await docs().removeComment(path, id)
       await this.recordComment(caller, path, removed, null)
@@ -1231,9 +1179,6 @@ export class Core {
                 pdfiumWasm: this.options.pdfiumWasm,
                 settings: async () => (await this.settings.get()).library,
                 parsing: async () => (await this.settings.get()).parsing,
-                starred: (paperId) => {
-                  if (this.workspace?.root === root) this.initiative.observe({ kind: "paper.starred", at: Date.now(), paperId })
-                },
                 agent: async (prompt, ctx, pictures) =>
                   this.runInBackground(root, ctx, { prompt, pictures, root, mcpServers: this.mcpServers(root), signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()) }),
                 noteLanguage: async () => {
@@ -1256,7 +1201,6 @@ export class Core {
                 },
               },
               profile: async () => (await this.settings.get()).profile,
-              ruleOf: (taskId) => this.initiative.ruleOf(taskId),
               changeAdded: (notification) => {
                 if (this.workspace?.root === root) this.notifier.notify("changes.added", notification)
               },
@@ -1335,14 +1279,12 @@ export class Core {
         const me = await this.personAt(WINDOW).catch(() => undefined)
         const now = Date.now()
         if (me) {
-          this.initiative.presence.resume((await next.seen.get(me, [])).here, now)
+          this.presence.resume((await next.seen.get(me, [])).here, now)
           await next.seen.here(me, now, true)
         }
       }
       // Its tasks run only now: an agent run started before its socket was up would go without owlit's tools
       if (opened) await next.tasks.start()
-      // Owlit's rules look at the workspace once it runs (watched threads get their daily look)
-      if (opened) this.initiative.observe({ kind: "workspace.opened", at: Date.now() })
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))
       this.notifier.notify("workspace.opened", next.info)
       // Only the recent list: the switch has happened either way
@@ -1361,11 +1303,11 @@ export class Core {
   // session's result card
   // quiet: from a run Owlit made while the user was away, which says nothing when it lands (no toast);
   // the comment and its change are kept the same
-  private async agentComment(path: string, comment: DocComment, caller: Caller, quiet = false) {
+  private async agentComment(path: string, comment: DocComment, caller: Caller) {
     const ws = this.requireWorkspace()
     await ws.docs.addComment(path, comment)
     this.notifier.notify("comments.changed", { path, comment })
-    await ws.recorder.record(caller, { action: "create", target: { kind: "comment", path, part: comment.id }, after: comment }, { label: path.split("/").pop()!.replace(/\.md$/i, ""), quiet })
+    await ws.recorder.record(caller, { action: "create", target: { kind: "comment", path, part: comment.id }, after: comment }, { label: path.split("/").pop()!.replace(/\.md$/i, "") })
   }
 
   // A comment as it reads now, replacing the one with its id; recorded, and told to windows when the
@@ -1467,9 +1409,7 @@ export class Core {
 
   async dispose() {
     this.started = false
-    clearInterval(this.hourly)
     await this.updates.dispose()
-    this.initiative.dispose()
     await this.switching
     if (this.workspace) await this.stopWorkspace(this.workspace)
     this.workspace = null
@@ -1477,7 +1417,6 @@ export class Core {
     // try, where one stopped by closing stays running, to run again next time
     this.agents.dispose()
     await this.extension?.close().catch(() => undefined)
-    this.reviews.dispose()
     await this.journal.dispose()
   }
 
@@ -1489,12 +1428,10 @@ export class Core {
     const steps: [string, () => unknown][] = [
       ["chat turns", () => this.turns.reset()],
       ["the window's requests", () => this.ui.reset()],
-      // What Owlit's rules were settling or had put off was about this workspace
-      ["Owlit's rules", () => this.initiative.reset()],
       // Before the agents they run on close (dispose closes them after this)
       ["background tasks", () => ws.tasks.dispose()],
-      // After the tasks, whose runs may still add to what is held
-      ["Owlit's held comments", () => this.reviews.stop()],
+      // After the tasks, whose runs may still add to what waits
+      ["Owlit's waiting comments", () => this.reviews.stop()],
       // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
       ["the socket", () => this.closeSocket()],
       ["the journal", () => this.journal.flush()],

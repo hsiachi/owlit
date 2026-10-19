@@ -54,7 +54,6 @@ export function About({ thread: c }: { thread: Thread }) {
             {titles > 0 && ` ${plural(titles, { one: "# had no abstract and is from its title only.", other: "# had no abstract and are from their titles only." })}`}
           </p>
         )}
-        {c.watch && <p>{t`Owlit watches for new papers on this question.`}</p>}
       </div>
     </section>
   )
@@ -193,17 +192,13 @@ function BatchTitle({ batch: b, first, askedIn }: { batch: ThreadBatch; first: b
   const name =
     b.trigger === "more"
       ? t({ message: "Found more papers", comment: "a batch of a thread: the user asked Owlit to find more" })
-      : b.trigger === "check"
-        ? t({ message: "Checked for new papers", comment: "a batch of a thread: Owlit's watch looked for new papers" })
-        : b.trigger === "read"
-          ? t({ message: "Read in full", comment: "a batch of a thread: Owlit read the papers' full texts" })
-          : b.trigger === "reread"
-            ? t({ message: "Answered again from the full text", comment: "a batch of a thread: once the user read a paper in full, Owlit answered its row again from it" })
-            : b.trigger === "fill" && column
-              ? t({ message: `Answered “${column}”`, comment: "a batch of a thread: Owlit answered a column's question for every paper" })
-              : first || b.trigger === "gather"
-                ? t({ message: "Gathered", comment: "a batch of a thread: Owlit's first search for papers" })
-                : t({ message: "Owlit", comment: "a batch of a thread Owlit made without saying why" })
+      : b.trigger === "read"
+        ? t({ message: "Read in full", comment: "a batch of a thread: Owlit read the papers' full texts" })
+        : b.trigger === "fill" && column
+          ? t({ message: `Answered “${column}”`, comment: "a batch of a thread: Owlit answered a column's question for every paper" })
+          : first || b.trigger === "gather"
+            ? t({ message: "Gathered", comment: "a batch of a thread: Owlit's first search for papers" })
+            : t({ message: "Owlit", comment: "a batch of a thread Owlit made without saying why" })
   return (
     <>
       {name} · {what}

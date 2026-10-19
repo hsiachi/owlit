@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { McpServer } from "@agentclientprotocol/sdk"
@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
 import type { Caller } from "../rpc/index.ts"
-import { eventually, until } from "../test-util.ts"
+import { until } from "../test-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { correctionOf } from "./review.ts"
 
@@ -39,8 +39,7 @@ async function setup(agent: (prompt: string) => Promise<string>) {
   })
   await call("workspace.open", { path: root })
   const workspace = (core as unknown as { workspace: Workspace }).workspace
-  const journal = () => readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
-  return { call, workspace, journal }
+  return { call, workspace }
 }
 
 type Call = (method: string, params?: unknown, caller?: Caller) => Promise<any>
@@ -56,7 +55,7 @@ const leave = (call: Call, quote: string, text: string) =>
 
 describe("A reply under Owlit's comment", () => {
   it("is answered by Owlit in the comment, as a run the user asked for; a dismissed comment is put away", { timeout: 20_000 }, async () => {
-    const { call, workspace, journal } = await setup(async (prompt) => (prompt.includes("the user has replied") ? "The week-long gap is in their Table 2." : "Nothing to add."))
+    const { call, workspace } = await setup(async (prompt) => (prompt.includes("the user has replied") ? "The week-long gap is in their Table 2." : "Nothing to add."))
     await leave(call, "Replay ratings track the live ones.", "They drift apart after a week.")
     const [comment] = Object.values(await call("comments.all")).flat() as any[]
     expect(comment).toMatchObject({ quote: "Replay ratings track the live ones.", entries: [{ by: expect.stringMatching(/^o_/) }] })
@@ -76,7 +75,6 @@ describe("A reply under Owlit's comment", () => {
     await call("comments.dismiss", { path: "story.md", id: comment.id })
     await expect(call("comments.dismiss", { path: "story.md", id: "nope" })).rejects.toThrow()
     expect((Object.values(await call("comments.all")).flat() as any[])[0]).toMatchObject({ dismissedAt: expect.any(Number) })
-    await eventually(() => expect(journal().filter((l) => l.kind.startsWith("feedback.")).map((l) => l.kind)).toEqual(["feedback.reply", "feedback.dismiss"]))
   })
 
   it("corrects Owlit's own comment when the reply shows it wrong: its words replaced, the old kept, the replies left", { timeout: 20_000 }, async () => {

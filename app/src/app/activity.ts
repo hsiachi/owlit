@@ -2,7 +2,7 @@
 // is open, time spent reading it and on which pages, page turns, stars, status and tags, highlights,
 // note and doc edits, chats written in and left, the window going idle.
 // Core journals the coarse ones (unless settings.activity.enabled is off) and hands all of them to live
-// listeners, Owlit's rules among them. Nothing is sent without the desktop app.
+// listeners (when the user was away, for Since you left). Nothing is sent without the desktop app.
 
 import { isOwlit, type ActivityEvent, type ChatMessage, type PaperMark, type PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"

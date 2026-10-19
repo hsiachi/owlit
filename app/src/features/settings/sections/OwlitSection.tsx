@@ -15,9 +15,8 @@ import { setActivity, updateSettings, useSettings } from "../store"
 import { KeptInMindRow } from "./Memory"
 
 // What Owlit calls you, what it keeps in mind about you, the agent for its background work, and what it
-// records of what you do. Owlit works on its own only to keep up with you (threads you asked it to watch,
-// a paper's rows and comments once you read it in full, digests you star or ask for), and that is not a
-// setting.
+// records of what you do. Owlit works only when you ask (a digest, a thread's papers, a Go through), so
+// there is no setting for work of its own.
 // The agent for background work sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
 export function OwlitSection() {
@@ -220,7 +219,7 @@ function MemoryRow() {
     <List>
       <Row
         name={t`Remember what I do in owlit`}
-        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look.`}
+        help={t`What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted.`}
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>

@@ -27,9 +27,8 @@ export interface Say {
   quiet?: boolean
 }
 
-// A background run ("<kind>:<task id>") as the log names it: the session it reports in, and the rule
-// that started it
-export type RunOrigin = (run: string) => { chatId?: string; ruleId?: string }
+// A background run ("<kind>:<task id>") as the log names it: the session it reports in
+export type RunOrigin = (run: string) => { chatId?: string }
 
 // Shared by the entries of one write that has no tool call to name it
 export const newWriteId = () => randomBytes(4).toString("hex")
@@ -120,14 +119,13 @@ export class Recorder {
     const run = from.run ? this.runOf(from.run) : {}
     const chatId = origin.chatId ?? from.chatId ?? run.chatId
     const toolCallId = origin.toolCallId ?? from.toolCallId
-    const ruleId = origin.ruleId ?? run.ruleId
     const via = origin.via ?? (caller.kind === "watcher" ? (caller.accepted ? "apply" : "watcher") : VIA[caller.kind])
     const change: Change = {
       id: changeId(at, input.target.path),
       at,
       actor: await this.actorOf(caller),
       ...rest,
-      origin: { ...origin, via, ...(chatId ? { chatId } : {}), ...(toolCallId ? { toolCallId } : {}), ...(ruleId ? { ruleId } : {}), writeId: origin.writeId ?? toolCallId ?? newWriteId() },
+      origin: { ...origin, via, ...(chatId ? { chatId } : {}), ...(toolCallId ? { toolCallId } : {}), writeId: origin.writeId ?? toolCallId ?? newWriteId() },
     }
     await this.log.append(change, content)
     if (change.target.kind === "doc") this.newest.set(change.target.path, change)
