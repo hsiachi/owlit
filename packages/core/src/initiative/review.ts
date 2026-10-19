@@ -7,6 +7,18 @@ import { defineSkill } from "./skills.ts"
 // The citation rule of agents/rules.ts, repeated where the answer's form is asked for (change them together)
 const CITE = `When you say something about a paper, cite it with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").`
 
+// The answer that rewrites Owlit's own first entry in the comment, when what it said there was wrong:
+// reviews.ts reads it (correctionOf), keeping the old words for the card's "was". Not for a point a Go
+// through carried over (source): its first entry is what someone said, not Owlit's to rewrite.
+export const CORRECT = "CORRECT:"
+export const correctable = (comment: DocComment) => comment.entries[0]?.by === "owlit" && !comment.source
+// The rewritten entry an answer gives, or null when it isn't a correction
+export function correctionOf(answer: string): string | null {
+  const t = answer.trim()
+  return t.startsWith(CORRECT) ? t.slice(CORRECT.length).trim() || null : null
+}
+const CORRECTING = `If what you said in your own first entry turns out to be wrong, don't only say so: answer with ${CORRECT} followed by that entry rewritten so it says the right thing (the whole entry, in the same language, citations kept as they should be), and nothing else. owlit replaces your entry with it and keeps the old words; the user's replies under it stay.`
+
 export interface ReplyInput {
   path: string
   // The doc as it is now, for the passage's surroundings
@@ -25,13 +37,13 @@ export function replyPrompt({ path, content, comment }: ReplyInput) {
     `Around the words:\n\n${around}`,
     `The comment so far:\n\n${thread}`,
     CITE,
-    `Answer with the reply only: no preamble, no quoting the thread back.`,
+    ...(correctable(comment) ? [CORRECTING, `Otherwise answer with the reply only: no preamble, no quoting the thread back.`] : [`Answer with the reply only: no preamble, no quoting the thread back.`]),
   ].join("\n\n")
 }
 
 export const replySkill = defineSkill<ReplyInput>({
   id: "docs.reply",
-  format: 2,
+  format: 3,
   lane: "agent",
   tools: /^library_(search|related)$/,
   writes: ["comment"],
@@ -57,13 +69,16 @@ export function recheckPrompt({ path, content, comment, paperId, title }: Rechec
     `Around the words:\n\n${around}`,
     `The comment so far:\n\n${thread}`,
     CITE,
-    `If it still holds, answer only "Still holds." If it needs correcting or adding to, answer with the short addition to the comment itself (one to three sentences, in the language of the doc), no preamble.`,
+    correctable(comment)
+      ? `If it still holds, answer only "Still holds." If it was wrong, answer in the ${CORRECT} form below. If it needs adding to, answer with the short addition to the comment itself (one to three sentences, in the language of the doc), no preamble.`
+      : `If it still holds, answer only "Still holds." If it needs correcting or adding to, answer with the short addition to the comment itself (one to three sentences, in the language of the doc), no preamble.`,
+    ...(correctable(comment) ? [CORRECTING] : []),
   ].join("\n\n")
 }
 
 export const recheckSkill = defineSkill<RecheckInput>({
   id: "docs.recheck",
-  format: 2,
+  format: 3,
   lane: "agent",
   writes: ["comment"],
   instructions: recheckPrompt,
