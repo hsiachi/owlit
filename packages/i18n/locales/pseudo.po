@@ -7031,10 +7031,6 @@ msgid "{name} exited with code {code}"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "You opened “{title}”, which has no digest yet."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
 msgid "You asked for a digest of “{title}”."
 msgstr ""
 
@@ -7048,42 +7044,6 @@ msgstr ""
 
 #: packages/core/src/agents/runs.ts
 msgid "The digest is written:"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading “{name}” since your last changes"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked at “{name}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You opened “{name}”, which changed since Owlit last looked."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading “{name}” after your edits"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked at “{name}” after your edits"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You stopped editing “{name}” a while ago, and you're away."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Looking over your docs"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Looked over your docs"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "A day has passed since Owlit last looked over your docs, and you're away."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
@@ -7103,31 +7063,15 @@ msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "Seeing which threads “{title}” belongs in"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "Saw which threads “{title}” belongs in"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "“{title}” came into your library."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "“{name}” appeared in {folder}, and you're away."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
 msgid "Going through “{name}” against your docs"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
+msgstr ""
+
+#: packages/core/src/agents/runs.ts
+msgid "You asked Owlit to go through “{name}”."
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
