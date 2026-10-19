@@ -133,7 +133,7 @@ function TOOLS(): ToolSpec[] {
   },
   {
     name: "library_add",
-    touches: "meta",
+    touches: "own",
     description:
       "Add papers to the user's library, as added by you: DOIs, arXiv ids, links to papers, or ids from library_search, library_related or library_journal; several in one call. Their metadata, PDFs and text follow by themselves. Says the library id of each.",
     inputSchema: {
@@ -200,7 +200,7 @@ function TOOLS(): ToolSpec[] {
     name: "docs_read",
     touches: "read",
     description:
-      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers. A PDF in the Library is read with library_read instead.",
+      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers. A PDF in the Library is read with library_read instead. A doc the user keeps Owlit out of says so after its text: read it, but don't change it or comment on it.",
     inputSchema: {
       type: "object",
       properties: {
@@ -264,6 +264,17 @@ function TOOLS(): ToolSpec[] {
     description: "Take back a comment of your own on a doc, one you left by mistake or that no longer applies. Only your own comments, and only while the user hasn't replied under it; theirs are theirs.",
     inputSchema: { type: "object", properties: { path: docPath, id: commentId }, required: ["path", "id"] },
     annotations: { destructiveHint: true },
+  },
+  {
+    name: "docs_go_through",
+    touches: "own",
+    description:
+      "Have Owlit go through material from people against the user's docs: a meeting's transcript or minutes, reviews, someone's comments on a draft, an email of points, the user's own notes. It runs in the background: Owlit reads the material and the docs it is about, writes a reading (what the material changes: points, open questions, to-dos) as a doc beside the material, or in Meetings/ for a file attached to this chat, and leaves each point as a comment on the doc it is about. Markdown or plain text only. Use it when the user asks you to go through such material, rather than doing it yourself in the chat.",
+    inputSchema: {
+      type: "object",
+      properties: { path: { type: "string", description: "Workspace-relative path of the material, a .md or .txt doc or a file attached to this chat (.owlit/chats/<id>/files/<name>)" } },
+      required: ["path"],
+    },
   },
   {
     name: "docs_delete",
@@ -392,7 +403,7 @@ function TOOLS(): ToolSpec[] {
   },
   {
     name: "thread_edit",
-    touches: "meta",
+    touches: "own",
     description: "Rename a thread when the user asks. A title the user gave the thread themselves stays. Deleting, splitting and merging threads are the user's, in owlit.",
     inputSchema: {
       type: "object",

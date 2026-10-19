@@ -407,6 +407,7 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
   }
   const counts: { depth: ReadFrom["depth"]; label: string }[] = [
     { depth: "full", label: t({ message: "in full", comment: "papers an answer was built from: N in full" }) },
+    { depth: "text", label: t({ message: "from the text", comment: "papers an answer was built from: N from the text (some of its pages or a section)" }) },
     { depth: "digest", label: t({ message: "from the digest", comment: "papers an answer was built from: N from the digest" }) },
     { depth: "abstract", label: t({ message: "abstract only", comment: "papers an answer was built from: N abstract only" }) },
     { depth: "none", label: t({ message: "without a PDF", comment: "papers an answer was built from: N without a PDF (owlit has no text of them)" }) },
@@ -415,9 +416,13 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
     <div ref={line} className="flex min-h-8 flex-wrap items-center gap-x-1.5 px-2.5 py-1 text-sm text-muted-foreground" onPointerLeave={() => mark(null)}>
       <PaperIcon className="mr-1 size-4 shrink-0" />
       <span>{plural(papers, { one: "From # paper", other: "From # papers" })}</span>
-      {counts.map(({ depth, label }) => {
-        const ids = readFrom.filter((r) => r.depth === depth).map((r) => r.paperId)
+      {counts.map(({ depth, label: each }) => {
+        const these = readFrom.filter((r) => r.depth === depth)
+        const ids = these.map((r) => r.paperId)
         if (!ids.length) return null
+        // One paper read in part says which pages, when the reads named them
+        const pages = these.length === 1 ? these[0]!.pages : undefined
+        const label = !pages ? each : /[–,]/.test(pages) ? t({ message: `from pp. ${pages}`, comment: "one paper an answer was built from: 1 from pp. 4–5" }) : t({ message: `from p. ${pages}`, comment: "one paper an answer was built from: 1 from p. 4" })
         return (
           <span key={depth} className="contents">
             <span aria-hidden>·</span>

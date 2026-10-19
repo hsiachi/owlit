@@ -1,9 +1,9 @@
-import { isMarkdown, isOpenComment, isPerson, parentPath, type DocComment, type DocOwlit } from "@owlit/protocol"
+import { chatOfFile, chatUri, isMarkdown, isOpenComment, isPerson, parentPath, type DocComment, type DocOwlit } from "@owlit/protocol"
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { correctable, correctionOf, replySkill } from "./review.ts"
 import { COMMENTING_RUNS, GO_THROUGH_RUN, REPLY_RUN } from "./runs.ts"
-import { cleanReading, goThroughSkill, isChinese, MEETINGS, recordOf } from "./go-through.ts"
+import { cleanReading, goThroughSkill, isChinese, MEETINGS, MEETINGS_FOLDER, recordOf } from "./go-through.ts"
 import { randomUUID } from "node:crypto"
 
 // Owlit's runs on the user's docs, each one the user started: the task that answers their reply under one
@@ -68,11 +68,16 @@ export class Reviews {
     const ws = this.services.workspace()
     if (!ws) throw new Error("No workspace is open.")
     const rel = ctx.task.subject
-    const { content } = await ws.docs.read(rel)
+    // A transcript attached to a chat is a copy in owlit's own folder, which docs refuses: it is read from
+    // disk, its record goes in the workspace's Meetings folder rather than beside it, its link goes to the
+    // chat, and there is no doc state to say it was gone through
+    const chat = chatOfFile(rel)
+    const content = chat ? await ws.docs.readDisk(rel) : (await ws.docs.read(rel)).content
+    if (content === null) throw new Error(`${rel} is gone.`)
     if (!content.trim()) return
     const chinese = isChinese(content)
     const name = rel.split("/").pop()!.replace(/\.(md|markdown|txt)$/i, "")
-    const record = ws.docs.freePath(parentPath(rel), `${name} · ${chinese ? "解读" : "reading"}`, ".md")
+    const record = ws.docs.freePath(chat ? MEETINGS_FOLDER : parentPath(rel), `${name} · ${chinese ? "解读" : "reading"}`, ".md")
     const label = record.split("/").pop()!.replace(/\.md$/i, "")
     const docs = (await ws.docs.list()).files.map((f) => f.path).filter((p) => p !== rel && isMarkdown(p) && !MEETINGS.test(p))
     const runId = `${GO_THROUGH_RUN}:${ctx.task.id}`
@@ -83,8 +88,8 @@ export class Reviews {
       const { text } = await this.services.agent(goThroughSkill.instructions({ path: rel, content, record, recordLabel: label, docs, today, user }), ctx, goThroughSkill.tools!, runId)
       const reading = cleanReading(text)
       if (!reading.startsWith("# ")) throw new Error("Owlit's reading didn't come out as one.")
-      await this.services.writeRecord(record, recordOf(reading, rel, chinese), runId)
-      this.services.looked(rel, await ws.docs.setWentThrough(rel, { at: this.now(), record }))
+      await this.services.writeRecord(record, recordOf(reading, rel, chinese, chat ? chatUri(chat) : undefined), runId)
+      if (!chat) this.services.looked(rel, await ws.docs.setWentThrough(rel, { at: this.now(), record }))
     } finally {
       this.records.delete(runId)
       // Its points land once the record is there; a run that stopped before it leaves them nothing to

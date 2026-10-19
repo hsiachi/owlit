@@ -13,10 +13,25 @@ describe("what an answer was built from", () => {
     const canonical = async (id: string) => (id === "old-id" ? "a" : id)
     const hasText = async (id: string) => id !== "d"
     expect(await readFromOf(log.since("chat:c1", 50), answer, canonical, hasText)).toEqual([
-      { paperId: "a", depth: "full" },
+      { paperId: "a", depth: "text", pages: "3–5" },
       { paperId: "b", depth: "digest" },
       { paperId: "c", depth: "abstract" },
       { paperId: "d", depth: "none" },
+    ])
+  })
+
+  it("says a paper was read in full only when its whole text was, and which pages otherwise", async () => {
+    const log = new ReadLog()
+    log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "4", at: 1 })
+    log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "5,9-10", at: 2 })
+    log.record({ asker: "chat:c1", paperId: "b", part: "text", pages: "2", at: 3 })
+    log.record({ asker: "chat:c1", paperId: "b", part: "text", at: 4 })
+    log.record({ asker: "chat:c1", paperId: "c", part: "text", section: "Method", at: 5 })
+    const same = async (id: string) => id
+    expect(await readFromOf(log.since("chat:c1", 0), "", same, async () => true)).toEqual([
+      { paperId: "a", depth: "text", pages: "4–5, 9–10" },
+      { paperId: "b", depth: "full" },
+      { paperId: "c", depth: "text" },
     ])
   })
 })

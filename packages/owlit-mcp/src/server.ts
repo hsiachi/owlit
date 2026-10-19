@@ -41,11 +41,20 @@ export interface OwlitMcpOptions {
   instructions?: string
 }
 
+// When owlit wasn't running to give its rules
 const FALLBACK_INSTRUCTIONS =
-  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and their chats (chats_*). Cite papers as [Author Year](owlit://library/<id>). Leave comments on docs with docs_add_comment rather than editing them."
+  "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and the comments on them (comments_*), their chats (chats_*) and threads (thread_*). Cite papers as [Author Year](owlit://library/<id>)."
+
+// Started for no chat and no run, owlit-mcp serves an agent outside owlit (the `owlit mcp` command), which
+// core lets read and refuses every change (agents/policy.ts); the rules that follow are written for Owlit
+// inside the app, so this goes first
+export const OUTSIDE_INSTRUCTIONS =
+  "You are reading the user's owlit workspace from outside owlit. Through these tools you can read their papers, docs, comments, chats and threads, but you can't change anything in it from here: when a change would help, say what it is, and the user makes it in the owlit app or asks Owlit there. The rules below are written for Owlit inside the app; what they say about reading and citing applies to you, what they say about changing things doesn't."
 
 export function createServer(options: OwlitMcpOptions) {
-  const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: options.instructions ?? FALLBACK_INSTRUCTIONS })
+  const outside = !options.chatId && !options.run
+  const instructions = options.instructions ?? FALLBACK_INSTRUCTIONS
+  const server = new Server({ name: "owlit", version: "0.1.0" }, { capabilities: { tools: {} }, instructions: outside ? `${OUTSIDE_INSTRUCTIONS}\n\n${instructions}` : instructions })
   let client: Promise<OwlitClient> | null = null
   // Connected on first use, and again after owlit closed and opened again
   const owlit = async () => {
@@ -72,7 +81,9 @@ export function createServer(options: OwlitMcpOptions) {
         client = null
         return failure(error.message)
       }
-      return failure(error instanceof Error ? error.message : String(error))
+      const message = error instanceof Error ? error.message : String(error)
+      // Core names the method it checked, which the agent never saw; the tool is what it called
+      return failure(message.replace(/^[\w.]+ got parameters it can't use/, `${spec.name} got parameters it can't use`))
     }
   })
   return server
@@ -249,11 +260,18 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return docs.length ? docs.map((f) => f.path).join("\n") : "There are no docs yet."
     }
     case "docs_read": {
+      // Keep Owlit out is the user's; core refuses the changes, and the agent hears it here before trying
+      const out = owlit.rpc.docs.owlit({ path: str("path") }).then((state) => !!state.out, () => false)
+      const said = async (text: string) => ((await out) ? `${text.trimEnd()}\n\n(The user keeps Owlit out of this doc: read it, don't change or comment on it.)` : text)
       if (/\.pdf$/i.test(str("path"))) {
         const { text, pages } = await owlit.rpc.docs.readPdf({ path: str("path"), ...(optStr("pages") ? { pages: optStr("pages") } : {}) })
-        return optStr("pages") ? `${text}\n\n(The PDF has ${pages} pages.)` : text
+        return said(optStr("pages") ? `${text}\n\n(The PDF has ${pages} pages.)` : text)
       }
-      return (await owlit.rpc.docs.read({ path: str("path") })).content
+      return said((await owlit.rpc.docs.read({ path: str("path") })).content)
+    }
+    case "docs_go_through": {
+      await owlit.rpc.docs.goThrough({ path: str("path") })
+      return `Owlit is going through ${str("path")} in the background. Its reading will be a doc named after the material with " · reading" (or " · 解读"), beside it or in Meetings/ for a file attached to a chat, and its points comments on the docs they are about. Tell the user it is on its way; don't go through the material yourself as well.`
     }
     case "docs_delete": {
       const paths = (args.paths as string[]).filter(Boolean)
