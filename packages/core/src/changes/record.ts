@@ -30,6 +30,9 @@ export interface Say {
 // A background run ("<kind>:<task id>") as the log names it: the session it reports in
 export type RunOrigin = (run: string) => { chatId?: string }
 
+// The reply a chat's change belongs to: the one whose tool call made it, else the one whose turn is running
+export type ReplyOrigin = (chatId: string, toolCallId?: string) => string | undefined
+
 // Shared by the entries of one write that has no tool call to name it
 export const newWriteId = () => randomBytes(4).toString("hex")
 
@@ -46,16 +49,18 @@ export class Recorder {
   private readonly profile: () => Promise<ProfileSettings>
   private readonly added: (notification: Notifications["changes.added"]) => void
   private readonly runOf: RunOrigin
+  private readonly replyOf: ReplyOrigin
   private readonly now: () => number
   private readonly turn = new Serial()
   // Each doc's newest entry, read from the log the first time it is needed and kept current after
   private readonly newest = new Map<string, Change | null>()
 
-  constructor(log: ChangeLog, options: { profile: () => Promise<ProfileSettings>; added?: (notification: Notifications["changes.added"]) => void; runOf?: RunOrigin; now?: () => number }) {
+  constructor(log: ChangeLog, options: { profile: () => Promise<ProfileSettings>; added?: (notification: Notifications["changes.added"]) => void; runOf?: RunOrigin; replyOf?: ReplyOrigin; now?: () => number }) {
     this.log = log
     this.profile = options.profile
     this.added = options.added ?? (() => {})
     this.runOf = options.runOf ?? (() => ({}))
+    this.replyOf = options.replyOf ?? (() => undefined)
     this.now = options.now ?? Date.now
   }
 
@@ -119,13 +124,14 @@ export class Recorder {
     const run = from.run ? this.runOf(from.run) : {}
     const chatId = origin.chatId ?? from.chatId ?? run.chatId
     const toolCallId = origin.toolCallId ?? from.toolCallId
+    const replyId = origin.replyId ?? (chatId ? this.replyOf(chatId, toolCallId) : undefined)
     const via = origin.via ?? (caller.kind === "watcher" ? (caller.accepted ? "apply" : "watcher") : VIA[caller.kind])
     const change: Change = {
       id: changeId(at, input.target.path),
       at,
       actor: await this.actorOf(caller),
       ...rest,
-      origin: { ...origin, via, ...(chatId ? { chatId } : {}), ...(toolCallId ? { toolCallId } : {}), writeId: origin.writeId ?? toolCallId ?? newWriteId() },
+      origin: { ...origin, via, ...(chatId ? { chatId } : {}), ...(replyId ? { replyId } : {}), ...(toolCallId ? { toolCallId } : {}), writeId: origin.writeId ?? toolCallId ?? newWriteId() },
     }
     await this.log.append(change, content)
     if (change.target.kind === "doc") this.newest.set(change.target.path, change)

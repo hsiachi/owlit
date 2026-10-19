@@ -118,6 +118,8 @@ export class Turns {
   // Tool calls whose permission was answered with an allow: by the user, or by owlit for an edit that
   // lands as a proposal
   private accepted = new Set<string>()
+  // The reply each tool call belongs to, so a change seen on disk after its turn ended still names it
+  private callReplies = new Map<string, string>()
   // Chats whose Co-author turn runs, until when (a moment after it ends, as for claims): a change nobody
   // claimed meanwhile came while it worked
   private coauthoring = new Map<string, number>()
@@ -177,6 +179,7 @@ export class Turns {
     }
     const emit = (update: SessionUpdate) => {
       turn.heard++
+      if (update.type === "tool_call") this.callReplies.set(update.toolCallId, turn.message.id)
       say(update)
       listen()
     }
@@ -272,6 +275,12 @@ export class Turns {
     return null
   }
 
+  // The reply a chat's change belongs to: the reply whose tool call made it, else the reply of the turn
+  // the chat is running
+  replyOf(chatId: string, toolCallId?: string): string | undefined {
+    return (toolCallId && this.callReplies.get(toolCallId)) || this.turns.get(chatId)?.message.id
+  }
+
   // How many chats have a turn running or starting
   answering() {
     return this.turns.size
@@ -306,6 +315,7 @@ export class Turns {
     }
     this.live.clear()
     this.claims.clear()
+    this.callReplies.clear()
     this.accepted.clear()
     this.coauthoring.clear()
   }

@@ -1239,6 +1239,7 @@ export class Core {
               changeAdded: (notification) => {
                 if (this.workspace?.root === root) this.notifier.notify("changes.added", notification)
               },
+              replyOf: (chatId, toolCallId) => this.turns.replyOf(chatId, toolCallId),
               memoryChanged: (lines) => {
                 if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
               },

@@ -20,6 +20,14 @@ describe("replyEntries", () => {
     expect(replyEntries([entry("after", 90)], messages, "r2").map((c) => c.id)).toEqual(["after"])
   })
 
+  it("keeps a broken reply's edit off the reply before it once that reply is retried", () => {
+    // Q2/A2 edited rw.md and broke; Retry took Q2/A2 out and asked again as Q3/A3
+    const all = [entry("e1", 12, { origin: { via: "tool", chatId: "c1", replyId: "r1" } }), entry("broken", 45, { origin: { via: "tool", chatId: "c1", replyId: "r2" } })]
+    const retried = [question("q1", 0), reply("r1", 10, 20), question("q3", 60), reply("r3", 70, 80)]
+    expect(replyEntries(all, retried, "r1").map((c) => c.id)).toEqual(["e1"])
+    expect(replyEntries(all, retried, "r3")).toEqual([])
+  })
+
   it("leaves out the person's entries and every undo", () => {
     const all = [entry("undo", 15, { actor: "p_1234abcd", undoes: "e1" }), entry("mine", 14, { actor: "p_1234abcd" }), entry("e1", 12)]
     expect(replyEntries(all, messages, "r1").map((c) => c.id)).toEqual(["e1"])

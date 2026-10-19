@@ -457,7 +457,7 @@ describe("turns", () => {
     await until(() => wrote.length, { what: "the change" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("rewritten by the agent")
     expect(wrote).toHaveLength(1)
-    expect(wrote[0]).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "watcher", chatId: "c1", toolCallId: "e1" } })
+    expect(wrote[0]).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "watcher", chatId: "c1", replyId: "a1", toolCallId: "e1" } })
     expect(readFileSync(path.join(root, ".owlit/versions", wrote[0].id), "utf8")).toBe("twelve chars")
     await call("changes.undo", { id: wrote[0].id })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
@@ -476,6 +476,8 @@ describe("turns", () => {
     expect(first.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(second.parts.filter((p: any) => p.type === "tool_call")).toHaveLength(1)
     expect(wrote).toHaveLength(2)
+    // Each change names the reply whose turn made it, for that reply's result card
+    expect(wrote.map((c) => c.origin.replyId)).toEqual([first.id, second.id])
   })
 
   it("records a change no tool call names as outside owlit, with the Co-author turn it came during as the only hint", async () => {
