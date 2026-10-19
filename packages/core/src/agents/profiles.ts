@@ -7,7 +7,7 @@ import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"
 import { FIRST_CHOICE_AGENT, RUNS_COMMANDS } from "@owlit/protocol"
 import { realpathSync } from "node:fs"
-import { OWLIT_DIR } from "../workspace/paths.ts"
+import { OWLIT_DIR, OWLIT_FOLDERS } from "../workspace/paths.ts"
 import type { ProcessOptions } from "./process.ts"
 
 // The agent owlit picks when nothing else says which (background work, a first chat)
@@ -165,10 +165,11 @@ const ownPaths = (roots: string[]) => roots.flatMap((root) => [`${root}/${OWLIT_
 // What is read through owlit's tools rather than the agent's own, as Read deny rules (Glob and Grep
 // follow them, and the sandbox takes them as denyRead for shell commands): a paper's text, digest and
 // figures (library_read, which leaves the read's trace), and owlit's state (threads, the change log, the
-// journal, chats, seen marks). The copies of files the user attached, .owlit/chats/<id>/files/, stay
-// readable, since the rules send the agent there; a deny can't be carved out by an allow, so owlit's
-// state is named piece by piece instead of as .owlit/** (the files directly in .owlit all have a dot).
-const STATE_PATTERNS = [`${OWLIT_DIR}/*.*`, `${OWLIT_DIR}/chats/*.json`, ...["docs", "papers", "seen", "shares", "threads", "trash", "versions"].map((dir) => `${OWLIT_DIR}/${dir}/**`)]
+// journal, chats, seen marks, the Owlit engine's transcripts). The copies of files the user attached,
+// .owlit/chats/<id>/files/, stay readable, since the rules send the agent there; a deny can't be carved
+// out by an allow, so owlit's state is named folder by folder (OWLIT_FOLDERS) instead of as .owlit/**
+// (the files directly in .owlit all have a dot).
+export const STATE_PATTERNS = [`${OWLIT_DIR}/*.*`, `${OWLIT_DIR}/chats/*.json`, ...OWLIT_FOLDERS.filter((dir) => dir !== "chats").map((dir) => `${OWLIT_DIR}/${dir}/**`)]
 const readRules = () => [...STATE_PATTERNS, ...OWN_PATTERNS.filter((p) => !p.startsWith(OWLIT_DIR))].map((pattern) => `Read(${pattern})`)
 
 export function guardFor(connectorId: string, role: Role, roots: string[]): Guard {
