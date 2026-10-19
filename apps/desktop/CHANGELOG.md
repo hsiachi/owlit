@@ -6,6 +6,9 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 - A digest you ask for starts at once, beside whatever else Owlit is doing, instead of waiting its turn behind a thread's work. The paper's page says "Owlit is reading this paper…" with Stop.
 - A digest that couldn't be written says why on the paper's page ("Claude Code's usage limit is reached; it resets at 2:20", "Owlit was closed before it finished"), with Retry, and still says so after you restart owlit. Retry carries on where it stopped.
+- A thread's work (Gather, Find more papers, Ask each paper, Group another way, Read N in full) starts at once, and several can run together on one thread or on several. The thread says what each is doing ("Reading papers in full… and 1 more") with Stop.
+- Thread work that couldn't finish says why on the thread ("Claude Code's usage limit is reached; it resets at 2:20"), with a Retry that works and carries on where it stopped, still there after you restart owlit.
+- Ask Owlit in a chat to "read the rest in full", find more papers for a thread, ask each paper something or group them another way, and it does the same work the thread's button does, there in the chat.
 - Asking Owlit in a chat for a digest of a paper with no PDF or text now gets "no digest" rather than a promise. Ask Owlit in a chat to fix a digest and it rewrites it; the chat's card says so and Undo puts the old one back.
 - When your agent's usage limit is reached, owlit says so in one sentence with when it resets ("Claude Code's usage limit is reached; it resets at 2:20"), and a digest, thread run or reply under a comment that hits the limit stops there instead of trying again.
 - Owlit's memory keeps lines written only in Chinese: a second one is no longer taken for the first.
