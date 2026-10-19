@@ -16,8 +16,22 @@ export function replyEntries(all: Change[], messages: ChatMessage[], messageId: 
 }
 
 // The entry that takes this one back now: the newest undo of it that isn't itself undone. The log is
-// append-only, so undone and redone are read off these links. all: newest first.
+// append-only, so undone and redone are read off these links. An undo names the same target as what it
+// takes back; one naming a part of it instead (a passage of a doc, undone in the doc) takes back only that
+// part (partsUndone). all: newest first.
 export function undoneBy(id: string, all: Change[]): Change | undefined {
-  for (const c of all) if (c.undoes === id && !undoneBy(c.id, all)) return c
+  const part = all.find((c) => c.id === id)?.target.part
+  for (const c of all) if (c.undoes === id && c.target.part === part && !undoneBy(c.id, all)) return c
   return undefined
+}
+
+// The undos that took back one part of this entry each, still standing, one per part. all: newest first.
+export function partsUndone(id: string, all: Change[]): Change[] {
+  const part = all.find((c) => c.id === id)?.target.part
+  const byPart = new Map<string, Change>()
+  for (const c of all) {
+    const of = c.target.part
+    if (c.undoes === id && of && of !== part && !byPart.has(of) && !undoneBy(c.id, all)) byPart.set(of, c)
+  }
+  return [...byPart.values()]
 }

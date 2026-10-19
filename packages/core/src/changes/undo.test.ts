@@ -69,6 +69,13 @@ describe("changes.undo", () => {
     expect(read()).toBe("回放评分略低。\n\nThe method works, mostly.\n\nOwlit's new paragraph.\n")
   })
 
+  it("says how much a doc change changed, and in how many passages as the doc marks them", async () => {
+    const { core, root, log, call } = await setup("First claim.\n\nSecond claim.\n\nThird claim.\n")
+    await core.fs.write(path.join(root, "a.md"), "First claim, sharpened.\n\nSecond claim.\n\nThird claim, sharpened.\n", { chatId: "chat-1" })
+    const [write] = await log("a.md")
+    expect(await call("changes.stats", { ids: [write!.id] })).toMatchObject({ unit: "words", added: 2, removed: 0, passages: 2 })
+  })
+
   it("names the passages edited since, which stay as they are, and refuses when none is left", async () => {
     const { core, root, read, save, log, undo } = await setup("First claim.\n\nSecond claim.\n")
     await core.fs.write(path.join(root, "a.md"), "First claim, sharpened.\n\nSecond claim, sharpened.\n")

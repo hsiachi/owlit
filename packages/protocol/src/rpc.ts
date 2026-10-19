@@ -343,9 +343,9 @@ export interface Methods {
   // A doc goes back passage by passage: left names those that were edited since and stay as they are.
   // Anything else that changed since is refused with Conflict.
   "changes.undo": { params: { id: string }; result: { change: Change; left?: string[] } }
-  // How much a run of changes to one doc changed it, from before the first to after the last; null when
-  // they aren't one doc's or are no longer kept
-  "changes.stats": { params: { ids: string[] }; result: EditStats | null }
+  // How much a run of changes to one doc changed it, from before the first to after the last, and in how
+  // many passages as the doc marks them; null when they aren't one doc's or are no longer kept
+  "changes.stats": { params: { ids: string[] }; result: (EditStats & { passages: number }) | null }
   // The log, newest first
   "changes.list": { params: ChangeFilter; result: Change[] }
   // The workspace's members: who the ids in the log are

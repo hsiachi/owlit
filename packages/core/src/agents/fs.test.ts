@@ -59,9 +59,9 @@ describe("agent fs", () => {
     await core.fs.write(path.join(root, "a.md"), "on paper and more words", { chatId: "chat-1" })
     const [first, second] = added().map((c) => c.id)
     // "on disk" → "on paper and more words": the net change, not the two writes added up
-    expect(await call("changes.stats", { ids: [first, second] })).toEqual({ unit: "words", added: 4, removed: 1, rewritten: false })
+    expect(await call("changes.stats", { ids: [first, second] })).toEqual({ unit: "words", added: 4, removed: 1, rewritten: false, passages: 1 })
     // The first write alone ends where the second began
-    expect(await call("changes.stats", { ids: [first] })).toEqual({ unit: "words", added: 2, removed: 0, rewritten: false })
+    expect(await call("changes.stats", { ids: [first] })).toEqual({ unit: "words", added: 2, removed: 0, rewritten: false, passages: 1 })
   })
 
   it("reads and writes an open doc through the window that has it", async () => {
