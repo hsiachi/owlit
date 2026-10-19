@@ -124,7 +124,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "library_read": {
       const part = (args.part as "text" | "digest" | "note" | undefined) ?? "text"
-      const { text, pages } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined })
+      // Signed like a search, so the chat's answer can say what it read
+      const { text, pages } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
       if (!text.trim()) return part === "digest" ? "This paper has no digest yet." : part === "note" ? "The user hasn't written a note on this paper." : "The paper has no text."
       return pages && part === "text" && (args.pages || args.section) ? `${text}\n\n(The paper has ${pages} pages.)` : text
     }

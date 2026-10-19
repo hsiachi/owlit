@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type MemoryLine, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { RpcErrorCode, type MemoryLine, type PaperIds, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
@@ -88,10 +88,7 @@ export class Workspace {
       canonical: (id, ids) => this.library.canonical(id, ids),
       facts: (id, paper) => this.library.rowFacts(id, paper),
       findPassage: (id, quote) => this.findPassage(id, quote),
-      hasText: async (id, ids) => {
-        const here = await this.library.canonical(id, ids)
-        return !!here && (await stat(path.join(paperDir(root, here), "text.md")).then(() => true, () => false))
-      },
+      hasText: (id, ids) => this.hasText(id, ids),
       searches: (by, since) => this.library.searchesBy(by, since),
       ...options.threads,
     })
@@ -130,6 +127,12 @@ export class Workspace {
     if (!here) return undefined
     const text = await readFile(path.join(paperDir(this.root, here), "text.md"), "utf8").catch(() => null)
     return text === null ? undefined : findQuote(text, quote)
+  }
+
+  // Whether owlit has a paper's full text (its text.md), by any id the paper goes by
+  async hasText(id: string, ids?: PaperIds): Promise<boolean> {
+    const here = await this.library.canonical(id, ids)
+    return !!here && (await stat(path.join(paperDir(this.root, here), "text.md")).then(() => true, () => false))
   }
 
   // Resolves the folder, takes the lock, makes sure .owlit/workspace.json exists and picks up the tasks
