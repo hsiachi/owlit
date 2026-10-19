@@ -536,13 +536,9 @@ msgstr ""
 msgid "Show all {total}"
 msgstr ""
 
-#. reading status of a paper
-#. reading status of a paper
+#. hover on a mention of a paper Owlit added to the library that the person hasn't opened
 #: app/src/components/mention/mention-token.tsx
-#: app/src/features/docs/editor/live-preview.ts
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-msgid "Unread"
+msgid "Added by Owlit, not opened yet"
 msgstr ""
 
 #: app/src/components/page.tsx
@@ -3599,6 +3595,13 @@ msgstr ""
 msgid "Starred"
 msgstr ""
 
+#. reading status of a paper
+#. reading status of a paper
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+msgid "Unread"
+msgstr ""
+
 #. reading status of a paper: finished reading (past participle)
 #. reading status of a paper: finished reading (past participle)
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -3754,6 +3757,11 @@ msgstr ""
 msgid "Couldn't save the library."
 msgstr ""
 
+#. toast: owlit set a paper's status to Read because it was read to the end
+#: app/src/features/library/disk.ts
+msgid "Marked as read"
+msgstr ""
+
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr ""
@@ -3858,6 +3866,49 @@ msgstr ""
 #. the publisher has no PDF of the paper
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
+msgstr ""
+
+#. time spent in a paper, then the pages read, e.g. 12 min, pp. 1–6
+#: app/src/features/library/lib/trace.ts
+msgid "{time}, {pages}"
+msgstr ""
+
+#. time spent reading Owlit's digest of a paper, e.g. the digest, 3 min
+#: app/src/features/library/lib/trace.ts
+msgid "the digest, {time}"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "Not opened here"
+msgstr ""
+
+#. a paper's reading status, then how long it was read
+#: app/src/features/library/lib/trace.ts
+msgid "Read · {detail}"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "under a minute"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "{minutes} min"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "{hours} h {rest} min"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "{hours} h"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "p. {list}"
+msgstr ""
+
+#: app/src/features/library/lib/trace.ts
+msgid "pp. {list}"
 msgstr ""
 
 #: app/src/features/library/lib/use-ref-lookup.ts

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 // One look for a mentioned workspace item wherever it appears. In the editor it carries a faint fill so
 // it reads as one unit you can delete; in text it is plain coloured words that fill only on hover, and a
 // button when it opens something. Inline-flex keeps the text baseline (an overflow-hidden inline-block
-// would sit on its bottom edge). A paper nobody but Owlit has read yet is a step lighter (unread).
+// would sit on its bottom edge). A paper Owlit added that the person hasn't opened is a step lighter (unread).
 export function MentionToken({
   label,
   variant = "inline",
@@ -24,7 +24,7 @@ export function MentionToken({
   quote?: string
   onClick?: () => void
 }) {
-  if (unread) title = title ? `${title} · ${t`Unread`}` : t`Unread`
+  if (unread) title = title ? `${title} · ${unreadHint()}` : unreadHint()
   if (quote) title = `${title ?? ""}\n“${quote}”`.trim()
   const look = cn(
     "inline-flex max-w-80 items-baseline rounded-[0.3em] px-[0.2em] align-baseline transition-colors",
@@ -51,3 +51,6 @@ export function MentionLink({ label, to, title, className }: { label: React.Reac
   const navigate = useNavigate()
   return <MentionToken label={label} title={title} className={className} onClick={to ? () => navigate(to) : undefined} />
 }
+
+// What the lighter mention means, on hover
+export const unreadHint = () => t({ message: "Added by Owlit, not opened yet", comment: "hover on a mention of a paper Owlit added to the library that the person hasn't opened" })

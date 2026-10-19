@@ -32,7 +32,7 @@ export function PaperPeek({ paper, rowActions, className }: { paper: Paper; rowA
       </div>
       <div className="mt-3.5 flex items-center gap-1">
         <TagsEditor tags={paper.tags} onChange={(tags) => setTags(paper.id, tags)} onOpenTag={showTag} className="min-w-0 flex-1" />
-        {rowActions ? <PaperQuickActions paper={paper} align="end" /> : <StatusMenu value={paper.status} onChange={(s) => setStatus([paper.id], s)} align="end" />}
+        {rowActions ? <PaperQuickActions paper={paper} align="end" /> : <StatusMenu paper={paper} onChange={(s) => setStatus([paper.id], s)} align="end" />}
         <Button size="sm" className="ml-3" onClick={() => actions.open(paper.id)}>
           {openLabel}
         </Button>

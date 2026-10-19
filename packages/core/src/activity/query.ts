@@ -1,5 +1,5 @@
-import type { ActivityAnswer, ActivityItem, ActivityLine, ActivityQuery, ChatActivity, DocActivity, JournalEntry, PaperActivity } from "@owlit/protocol"
-import { readingOf } from "./reading.ts"
+import type { ActivityAnswer, ActivityItem, ActivityLine, ActivityQuery, ChatActivity, DocActivity, JournalEntry, PaperActivity, ReadStatus } from "@owlit/protocol"
+import { readingOf, traceOf, type PaperReading } from "./reading.ts"
 
 // What an agent may learn of what the user did (activity_read), summed from the journal. It answers with
 // facts (how long, which pages, how often) and never with a score or a guess at what the user wants: the
@@ -23,16 +23,22 @@ interface Context {
   names: Names
   // Where a paper that changed id lives now
   alias?: (id: string) => string
+  // The paper's status now: Read is the one meaning of read (reading.ts › traceOf)
+  status?: (id: string) => ReadStatus | undefined
 }
 
 export function answerActivity(entries: JournalEntry[], query: ActivityQuery, ctx: Context): Omit<ActivityAnswer, "recording" | "cited"> {
   const alias = ctx.alias ?? ((id: string) => id)
+  // How far the user got with each paper is the whole history's, whatever stretch is asked about
+  const whole = readingOf(entries, alias)
+  const status = ctx.status ?? (() => undefined)
+  const papers = { whole, status }
   if (query.mode === "of") {
     const of = (e: JournalEntry) =>
       query.paper ? "paperId" in e && alias(e.paperId) === alias(query.paper) : query.doc ? "path" in e && e.path === query.doc : "chatId" in e && e.chatId === query.chat
     const mine = entries.filter(of)
     const lines = linesOf(mine, ctx.names, alias)
-    return { items: itemsOf(mine, ctx.names, alias), lines: lines.slice(-MAX_LINES), ...(lines.length > MAX_LINES ? { more: true } : {}) }
+    return { items: itemsOf(mine, ctx.names, alias, papers), lines: lines.slice(-MAX_LINES), ...(lines.length > MAX_LINES ? { more: true } : {}) }
   }
   const since = query.since ?? ctx.now - LOOK_BACK[query.mode]
   const until = query.mode === "log" ? (query.until ?? Infinity) : Infinity
@@ -42,7 +48,7 @@ export function answerActivity(entries: JournalEntry[], query: ActivityQuery, ct
     const lines = linesOf(within, ctx.names, alias).filter((l) => !query.actor || l.actor === query.actor)
     return { since, lines: lines.slice(-limit), ...(lines.length > limit ? { more: true } : {}) }
   }
-  const items = itemsOf(within, ctx.names, alias)
+  const items = itemsOf(within, ctx.names, alias, papers)
   const ranked = query.mode === "recent" ? items.sort((a, b) => b.last - a.last) : items.filter((i) => effort(i) > 0).sort((a, b) => effort(b) - effort(a))
   return { since, items: ranked.slice(0, limit), ...(ranked.length > limit ? { more: true } : {}) }
 }
@@ -57,7 +63,12 @@ function effort(item: ActivityItem): number {
 // Agents' own records of owlit's state (threads, versions) aren't the user's docs
 const isOwlitState = (path: string) => path.split("/").some((part) => part.startsWith("."))
 
-function itemsOf(entries: JournalEntry[], names: Names, alias: (id: string) => string): ActivityItem[] {
+interface Papers {
+  whole: Map<string, PaperReading>
+  status: (id: string) => ReadStatus | undefined
+}
+
+function itemsOf(entries: JournalEntry[], names: Names, alias: (id: string) => string, papers: Papers): ActivityItem[] {
   const items: ActivityItem[] = []
   const marks = new Map<string, Pick<PaperActivity, "starred" | "status" | "tags">>()
   for (const e of entries) {
@@ -82,7 +93,7 @@ function itemsOf(entries: JournalEntry[], names: Names, alias: (id: string) => s
       highlights: p.highlights,
       noted: p.noted,
       ...marks.get(p.paperId),
-      read: p.read,
+      trace: traceOf(papers.whole.get(p.paperId), papers.status(p.paperId)),
     })
   }
   const docs = new Map<string, DocActivity>()
@@ -127,7 +138,8 @@ function linesOf(entries: JournalEntry[], names: Names, alias: (id: string) => s
     lines.push({
       at: v.at,
       actor: "user",
-      what: seconds ? "read" : "opened",
+      // A visit is time spent, not a paper read: read is the end reached (reading.ts › readInFull)
+      what: seconds ? "looked at" : "opened",
       paper: paper(id),
       ...(seconds ? { seconds } : {}),
       ...(v.pages.size ? { pages: [...v.pages].sort((a, b) => a - b) } : {}),

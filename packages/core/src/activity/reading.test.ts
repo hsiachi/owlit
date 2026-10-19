@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { fullReadAt, readInFull, readJournal, readingOf } from "./reading.ts"
+import { fullReadAt, readInFull, readJournal, readingOf, traceOf } from "./reading.ts"
 
 const at = 1_790_000_000_000
 const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: "user" })
@@ -27,36 +27,8 @@ describe("readingOf", () => {
       visits: 2,
       firstAt: at,
       lastAt: at + 95_000,
-      read: false,
+      digestEnd: false,
     })
-  })
-
-  it("counts a paper as read after two minutes on it, the PDF and the digest together", () => {
-    const focus = (view: "pdf" | "digest", seconds: number) => user({ kind: "paper.focus", at, paperId: "p", view, seconds })
-    expect(readingOf([focus("pdf", 30), focus("pdf", 30), focus("digest", 30), focus("digest", 29)]).get("p")?.read).toBe(false)
-    expect(readingOf([focus("pdf", 30), focus("pdf", 30), focus("digest", 30), focus("digest", 30)]).get("p")?.read).toBe(true)
-    expect(readingOf([focus("digest", 120)]).get("p")?.read).toBe(true)
-  })
-
-  it("counts a highlight, a note or a star as read at any length", () => {
-    const papers = readingOf([
-      user({ kind: "highlight.added", at, paperId: "h", highlightId: "x" }),
-      user({ kind: "note.edited", at, paperId: "n" }),
-      user({ kind: "paper.marked", at, paperId: "s", mark: { what: "starred", to: true } }),
-      user({ kind: "paper.marked", at, paperId: "s", mark: { what: "starred", to: false } }),
-      user({ kind: "paper.marked", at, paperId: "t", mark: { what: "tags", to: ["method"] } }),
-    ])
-    expect([...papers.values()].map((p) => [p.paperId, p.read])).toEqual([
-      ["h", true],
-      ["n", true],
-      ["s", true],
-      ["t", false],
-    ])
-  })
-
-  it("doesn't count a paper only opened and closed", () => {
-    const papers = readingOf([user({ kind: "paper.opened", at, paperId: "p" }), user({ kind: "paper.closed", at: at + 4000, paperId: "p" })])
-    expect(papers.get("p")).toMatchObject({ visits: 1, read: false })
   })
 
   it("takes visits from closings in a journal from before openings were kept", () => {
@@ -74,7 +46,7 @@ describe("readingOf", () => {
       (id) => (id === "local-abc" ? "doi-10.1-x" : id),
     )
     expect([...papers.keys()]).toEqual(["doi-10.1-x"])
-    expect(papers.get("doi-10.1-x")).toMatchObject({ pdfSeconds: 120, read: true })
+    expect(papers.get("doi-10.1-x")).toMatchObject({ pdfSeconds: 120 })
   })
 })
 
@@ -97,6 +69,15 @@ describe("readInFull", () => {
     expect(readInFull(readingOf([user({ kind: "paper.focus", at, paperId: "p", view: "pdf", seconds: 900 })]).get("p"), null)).toBe(true)
   })
 
+  it("is the digest's end reached, with two minutes on the digest in all", () => {
+    const focus = (seconds: number) => user({ kind: "paper.focus", at, paperId: "p", view: "digest", seconds })
+    const end = user({ kind: "paper.end", at, paperId: "p", view: "digest" })
+    expect(readInFull(readingOf([focus(60), focus(59), end]).get("p"), 10)).toBe(false)
+    expect(readInFull(readingOf([focus(60), focus(60)]).get("p"), 10)).toBe(false)
+    expect(readInFull(readingOf([focus(60), end, focus(60)]).get("p"), 10)).toBe(true)
+    expect(readInFull(readingOf([focus(120), end]).get("p"), null)).toBe(true)
+  })
+
   it("is said on the visit that got there, once", () => {
     const visit = (from: number, pages: number[]) => [
       user({ kind: "paper.opened", at: from, paperId: "p" }),
@@ -110,5 +91,20 @@ describe("readInFull", () => {
     expect(fullReadAt(all, "p", at + 60_000, 10)).toBe(false)
     expect(fullReadAt(all, "p", at + 160_000, 10)).toBe(true)
     expect(fullReadAt(all, "p", at + 260_000, 10)).toBe(false)
+  })
+})
+
+describe("traceOf", () => {
+  it("is Read from the status, looked at from a visit or Reading, and nothing for a paper never opened", () => {
+    const reading = readingOf([
+      user({ kind: "paper.opened", at, paperId: "p" }),
+      user({ kind: "paper.focus", at, paperId: "p", view: "pdf", seconds: 720 }),
+      ...[3, 1, 2].map((page) => user({ kind: "paper.dwell", at, paperId: "p", page, seconds: 20 })),
+    ]).get("p")
+    expect(traceOf(reading, "unread")).toEqual({ state: "looked", pdfSeconds: 720, digestSeconds: 0, pages: [1, 2, 3] })
+    expect(traceOf(reading, "read").state).toBe("read")
+    expect(traceOf(undefined, "read").state).toBe("read")
+    expect(traceOf(undefined, "reading").state).toBe("looked")
+    expect(traceOf(undefined, "unread")).toEqual({ state: "none", pdfSeconds: 0, digestSeconds: 0, pages: [] })
   })
 })

@@ -5,6 +5,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import type { SyntaxNode } from "@lezer/common"
 import katex from "katex"
 import { unescapeLabel } from "@owlit/protocol"
+import { unreadHint } from "@/components/mention/mention-token"
 import { frontmatterEnd } from "../lib/naming"
 
 // Live preview: the text stays the document, and decorations only change how it is drawn. Markdown marks
@@ -33,7 +34,7 @@ class MentionWidget extends WidgetType {
     const title = this.title && this.title !== this.label ? this.title : undefined
     if (this.unread) {
       span.dataset.unread = ""
-      span.title = title ? `${title} · ${t`Unread`}` : t`Unread`
+      span.title = title ? `${title} · ${unreadHint()}` : unreadHint()
     } else if (title) span.title = title
     return span
   }

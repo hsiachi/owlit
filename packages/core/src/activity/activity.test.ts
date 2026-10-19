@@ -2,7 +2,7 @@ import type { ActivityEvent, RpcNotification } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { ActivityBus } from "./bus.ts"
 
@@ -151,5 +151,44 @@ describe("activity.emit and the journal", () => {
     await expect(call("activity.emit", { event: { kind: "doc.typed", at, path: "a" } })).rejects.toMatchObject({ code: -32602 })
     await expect(call("activity.emit", { event: { kind: "paper.focus", at, paperId: "p", view: "pdf", seconds: 0 } })).rejects.toMatchObject({ code: -32602 })
     await expect(call("activity.emit", { event: { kind: "paper.marked", at, paperId: "p", mark: { what: "status", to: "done" } } })).rejects.toMatchObject({ code: -32602 })
+  })
+})
+
+describe("read from evidence", () => {
+  const visit = (paperId: string, from: number, digestSeconds: number, end: boolean): ActivityEvent[] => [
+    { kind: "paper.opened", at: from, paperId },
+    { kind: "paper.focus", at: from + 1000, paperId, view: "digest", seconds: digestSeconds },
+    ...(end ? [{ kind: "paper.end", at: from + 2000, paperId, view: "digest" } as const] : []),
+    { kind: "paper.closed", at: from + 3000, paperId },
+  ]
+
+  it("sets a paper Read when its digest was read to the end, once, and says how far each paper got", async () => {
+    const { core, call, ws } = await openCore()
+    await call("workspace.open", { path: ws })
+    for (const id of ["p1", "p2", "p3"]) await call("library.add", { paper: { id, title: `Paper ${id}`, authors: ["A. Author"], ids: { doi: `10.1/${id}` } } })
+    const notes: RpcNotification[] = []
+    core.onNotify((n) => notes.push(n))
+    const status = async (id: string) => ((await call("library.list")) as { papers: { id: string; status: string }[] }).papers.find((p) => p.id === id)?.status
+
+    // Scrolled to the end too soon is looked at; the end with two minutes on the digest is read
+    for (const event of visit("p2", at, 30, true)) await call("activity.emit", { event })
+    for (const event of visit("p1", at + 10_000, 130, true)) await call("activity.emit", { event })
+    await vi.waitFor(async () => expect(await status("p1")).toBe("read"))
+    expect(notes.find((n) => n.method === "library.readToEnd")).toMatchObject({ params: { paperId: "p1", from: "unread" } })
+    expect(await status("p2")).toBe("unread")
+
+    const traces = await call("library.trace", { ids: ["p1", "p2", "p3"] })
+    expect(traces).toEqual({
+      p1: { state: "read", pdfSeconds: 0, digestSeconds: 130, pages: [] },
+      p2: { state: "looked", pdfSeconds: 0, digestSeconds: 30, pages: [] },
+      p3: { state: "none", pdfSeconds: 0, digestSeconds: 0, pages: [] },
+    })
+
+    // Taken back by the person, it stays as they set it on the next visit
+    await call("library.update", { id: "p1", patch: { status: "reading" } })
+    for (const event of visit("p1", at + 20_000, 60, true)) await call("activity.emit", { event })
+    await core["journal"].flush()
+    await vi.waitFor(() => expect(notes.filter((n) => n.method === "library.readToEnd")).toHaveLength(1))
+    expect(await status("p1")).toBe("reading")
   })
 })

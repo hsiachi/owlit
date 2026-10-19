@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import type { Paper, PaperFigure } from "@owlit/protocol"
+import { reportPaperEnd } from "@/app/activity"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
@@ -125,14 +126,25 @@ function Column({ paperId, remembers, children }: { paperId: string; remembers?:
     if (!el || !remembers) return
     el.scrollTop = useLibraryStore.getState().papers[paperId]?.digestPosition?.y ?? 0
     let timer: ReturnType<typeof setTimeout> | undefined
+    // Its end in view is part of reading it to the end (core counts it with the time on the digest)
+    let ended = false
+    const atEnd = () => {
+      if (ended || el.scrollTop + el.clientHeight < el.scrollHeight - END_SLACK_PX) return
+      ended = true
+      reportPaperEnd(paperId, "digest")
+    }
     const onScroll = () => {
+      atEnd()
       clearTimeout(timer)
       timer = setTimeout(() => useLibraryStore.getState().setDigestPosition(paperId, { y: Math.round(el.scrollTop) }), POSITION_REST_MS)
     }
     el.addEventListener("scroll", onScroll, { passive: true })
+    // A digest short enough to fit is at its end as it opens
+    const fits = setTimeout(atEnd, POSITION_REST_MS)
     return () => {
       el.removeEventListener("scroll", onScroll)
       clearTimeout(timer)
+      clearTimeout(fits)
     }
   }, [paperId, remembers])
   const page = useRef<HTMLDivElement>(null)
@@ -196,6 +208,8 @@ function Column({ paperId, remembers, children }: { paperId: string; remembers?:
 const SEEN_AFTER_MS = 1000
 // A scroll that has stopped this long is where the digest was left
 const POSITION_REST_MS = 400
+// The column's bottom padding and a line's leeway: the last lines are in view this close to the bottom
+const END_SLACK_PX = 96
 
 // No digest yet: Owlit writes one when asked, and the ask is here, where the digest will be
 function Offer({ paper }: { paper: Paper }) {

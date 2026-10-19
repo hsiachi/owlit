@@ -69,8 +69,9 @@ export function PaperPage() {
     useLibraryUi.getState().placeCursor(paper.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId])
-  // Opening a paper isn't reading it: it turns Reading once the person has read in it (lib/reading.ts)
-  useReadingVisit(paperId, !!paper?.pdf)
+  // Opening a paper isn't reading it: it turns Reading once the person has read in it (lib/reading.ts),
+  // in the PDF, the digest or, without either, the abstract
+  useReadingVisit(paperId, !!paper)
 
   // The digest or the PDF (paper-view.ts)
   const writing = useWritingDigest(paperId)

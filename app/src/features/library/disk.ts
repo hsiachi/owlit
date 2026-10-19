@@ -2,7 +2,7 @@ import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owl
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
-import { toastError } from "@/lib/toast"
+import { toastError, toastUndo } from "@/lib/toast"
 import { followCore } from "@/lib/follow-core"
 import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
@@ -250,6 +250,14 @@ if (onDisk) {
       if (removed.length) trashChanged()
     }),
   )
+
+  // Core set a paper Read because the person reached its end: said once, with Undo, since nobody chose it
+  onNotify("library.readToEnd", ({ paperId, from }) => {
+    const title = useLibraryStore.getState().papers[paperId]?.title
+    toastUndo(t({ message: "Marked as read", comment: "toast: owlit set a paper's status to Read because it was read to the end" }), () => useLibraryStore.getState().setStatus([paperId], from), {
+      description: title,
+    })
+  })
 
   // A note an agent edited (or another program changed): taken as it is, and the open note editor takes
   // it in as one undoable change

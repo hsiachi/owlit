@@ -536,14 +536,10 @@ msgstr "No matches"
 msgid "Show all {total}"
 msgstr "Show all {total}"
 
-#. reading status of a paper
-#. reading status of a paper
+#. hover on a mention of a paper Owlit added to the library that the person hasn't opened
 #: app/src/components/mention/mention-token.tsx
-#: app/src/features/docs/editor/live-preview.ts
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-msgid "Unread"
-msgstr "Unread"
+msgid "Added by Owlit, not opened yet"
+msgstr "Added by Owlit, not opened yet"
 
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
@@ -3599,6 +3595,13 @@ msgstr "Reading"
 msgid "Starred"
 msgstr "Starred"
 
+#. reading status of a paper
+#. reading status of a paper
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+msgid "Unread"
+msgstr "Unread"
+
 #. reading status of a paper: finished reading (past participle)
 #. reading status of a paper: finished reading (past participle)
 #: app/src/features/library/components/LibraryHeader.tsx
@@ -3754,6 +3757,11 @@ msgstr "Couldn't write the digest"
 msgid "Couldn't save the library."
 msgstr "Couldn't save the library."
 
+#. toast: owlit set a paper's status to Read because it was read to the end
+#: app/src/features/library/disk.ts
+msgid "Marked as read"
+msgstr "Marked as read"
+
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "Only PDF files can be added this way."
 msgstr "Only PDF files can be added this way."
@@ -3859,6 +3867,49 @@ msgstr "No access"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
 msgstr "No PDF there"
+
+#. time spent in a paper, then the pages read, e.g. 12 min, pp. 1–6
+#: app/src/features/library/lib/trace.ts
+msgid "{time}, {pages}"
+msgstr "{time}, {pages}"
+
+#. time spent reading Owlit's digest of a paper, e.g. the digest, 3 min
+#: app/src/features/library/lib/trace.ts
+msgid "the digest, {time}"
+msgstr "the digest, {time}"
+
+#: app/src/features/library/lib/trace.ts
+msgid "Not opened here"
+msgstr "Not opened here"
+
+#. a paper's reading status, then how long it was read
+#: app/src/features/library/lib/trace.ts
+msgid "Read · {detail}"
+msgstr "Read · {detail}"
+
+#: app/src/features/library/lib/trace.ts
+msgid "under a minute"
+msgstr "under a minute"
+
+#: app/src/features/library/lib/trace.ts
+msgid "{minutes} min"
+msgstr "{minutes} min"
+
+#: app/src/features/library/lib/trace.ts
+msgid "{hours} h {rest} min"
+msgstr "{hours} h {rest} min"
+
+#: app/src/features/library/lib/trace.ts
+msgid "{hours} h"
+msgstr "{hours} h"
+
+#: app/src/features/library/lib/trace.ts
+msgid "p. {list}"
+msgstr "p. {list}"
+
+#: app/src/features/library/lib/trace.ts
+msgid "pp. {list}"
+msgstr "pp. {list}"
 
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."

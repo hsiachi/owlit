@@ -96,6 +96,11 @@ export function reportPaperView(paperId: string, view: PaperView | null) {
   if (reading?.paperId === paperId) reading.setView(view)
 }
 
+// Called by the digest when its end comes into view; once per showing is enough, core keeps it
+export function reportPaperEnd(paperId: string, view: PaperView) {
+  if (open.paperId === paperId) emit({ kind: "paper.end", paperId, view })
+}
+
 // ---- What is open: from the route, the agent window and the stores ----
 
 interface Open {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { activityQueryOf, activityText, clock, duration, pageRanges, parseWhen } from "./activity.ts"
+import { activityQueryOf, activityText, clock, duration, pageRanges, parseWhen, traceText } from "./activity.ts"
 
 const now = new Date("2026-10-14T12:00").getTime()
 
@@ -22,6 +22,13 @@ describe("activity_read's arguments", () => {
 })
 
 describe("activity_read's answer", () => {
+  it("says how far the user got with a paper in three states", () => {
+    expect(traceText({ state: "read", pdfSeconds: 0, digestSeconds: 0, pages: [] })).toBe("read in full")
+    expect(traceText({ state: "looked", pdfSeconds: 720, digestSeconds: 0, pages: [1, 2, 3, 4, 5, 6] })).toBe("looked at: 12 min, pp. 1–6")
+    expect(traceText({ state: "looked", pdfSeconds: 0, digestSeconds: 180, pages: [] })).toBe("looked at: the digest, 3 min")
+    expect(traceText({ state: "none", pdfSeconds: 0, digestSeconds: 0, pages: [] })).toBe("not opened here")
+  })
+
   it("writes durations, pages and times plainly", () => {
     expect(duration(40)).toBe("40 s")
     expect(duration(12 * 60 + 20)).toBe("12 min")
@@ -37,7 +44,7 @@ describe("activity_read's answer", () => {
         recording: true,
         since: now - 7 * 86_400_000,
         items: [
-          { kind: "paper", id: "p1", title: "Paper One", first: now, last: now, visits: 2, pdfSeconds: 900, digestSeconds: 0, pages: { 3: 400, 4: 300, 5: 200 }, highlights: 2, noted: false, starred: true, read: true },
+          { kind: "paper", id: "p1", title: "Paper One", first: now, last: now, visits: 2, pdfSeconds: 900, digestSeconds: 0, pages: { 3: 400, 4: 300, 5: 200 }, highlights: 2, noted: false, starred: true, trace: { state: "read", pdfSeconds: 900, digestSeconds: 0, pages: [3, 4, 5] } },
           { kind: "doc", path: "notes/a.md", first: now, last: now, opens: 1, edits: 3, agentEdits: 0 },
         ],
       },
@@ -46,7 +53,7 @@ describe("activity_read's answer", () => {
     expect(text).toBe(
       [
         "What the user did since 2026-10-07 12:00, what the user spent the most on first:",
-        '- paper p1 · "Paper One" · last 2026-10-14 12:00 · opened 2 times · 15 min on the PDF (pp. 3–5) · 2 highlights · starred it · read',
+        '- paper p1 · "Paper One" · last 2026-10-14 12:00 · opened 2 times · 15 min on the PDF (pp. 3–5) · 2 highlights · starred it · read in full',
         "- doc notes/a.md · last 2026-10-14 12:00 · opened once · edited 3 times",
       ].join("\n"),
     )
@@ -62,13 +69,14 @@ describe("activity_read's answer", () => {
     const text = activityText(
       {
         recording: true,
-        items: [{ kind: "paper", id: "p1", title: "Paper One", first: now, last: now, visits: 1, pdfSeconds: 0, digestSeconds: 200, pages: {}, highlights: 0, noted: false, read: true }],
-        lines: [{ at: now, actor: "user", what: "read", paper: { id: "p1", title: "Paper One" }, seconds: 200, detail: "the digest only" }],
+        items: [{ kind: "paper", id: "p1", title: "Paper One", first: now, last: now, visits: 1, pdfSeconds: 0, digestSeconds: 200, pages: {}, highlights: 0, noted: false, trace: { state: "looked", pdfSeconds: 0, digestSeconds: 200, pages: [] } }],
+        lines: [{ at: now, actor: "user", what: "looked at", paper: { id: "p1", title: "Paper One" }, seconds: 200, detail: "the digest only" }],
         cited: [{ quote: "A sentence.", page: 4, chatId: "c1", chatTitle: "Why", at: now }],
       },
       { mode: "of", paper: "p1" },
     )
-    expect(text).toContain('History:\n2026-10-14 12:00 · the user read "Paper One" (p1) for 3 min (the digest only)')
+    expect(text).toContain("In all: paper p1 · \"Paper One\" · last 2026-10-14 12:00 · opened once · 3 min on the digest · looked at: the digest, 3 min")
+    expect(text).toContain('History:\n2026-10-14 12:00 · the user looked at "Paper One" (p1) for 3 min (the digest only)')
     expect(text).toContain('Sentences Owlit\'s answers cited from it:\n- 2026-10-14 12:00 in "Why" (c1), p. 4: "A sentence."')
   })
 })
