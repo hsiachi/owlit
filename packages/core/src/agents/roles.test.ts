@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { guardFor, processEnv } from "./profiles.ts"
+import { backgroundMeta, guardFor, processEnv } from "./profiles.ts"
 import { answerFor } from "./roles.ts"
 
 describe("roles", () => {
@@ -25,6 +25,21 @@ describe("roles", () => {
     // A Co-author's shell writes the user's docs, not owlit's state; the others' writes nothing of the workspace
     expect((guardFor("claude-code", "coauthor", ["/w", "/real/w"]).meta as any).claudeCode.options.sandbox.filesystem).toEqual({ denyWrite: ["/w/.owlit", "/w/library", "/real/w/.owlit", "/real/w/library"] })
     expect((guardFor("claude-code", "assistant", ["/w"]).meta as any).claudeCode.options.sandbox.filesystem).toEqual({ denyWrite: ["/w"] })
+  })
+
+  it("keeps Claude Code's reads inside the workspace in every role, with papers and owlit's state read through owlit's tools, and gives a background run a Reviewer's controls", () => {
+    const state = [".owlit/*.*", ".owlit/chats/*.json", ".owlit/docs/**", ".owlit/papers/**", ".owlit/seen/**", ".owlit/shares/**", ".owlit/threads/**", ".owlit/trash/**", ".owlit/versions/**"]
+    const papers = ["library/*", "library/**/*.json", "library/**/*.pdf", "library/**/text.md", "library/**/digest.md", "library/**/figures/**", "library/**/sources/**"]
+    for (const role of ["reviewer", "assistant", "coauthor"] as const) {
+      const permissions = (guardFor("claude-code", role, ["/w"]).meta as any).claudeCode.options.settings.permissions
+      expect(permissions.blockReadsOutsideWorkingDirectories).toBe(true)
+      expect(permissions.deny).toEqual(expect.arrayContaining([...state, ...papers].map((p) => `Read(${p})`)))
+      // The files the user attached, and a paper's note, stay readable
+      expect(permissions.deny).not.toContain("Read(.owlit/**)")
+      expect(permissions.deny).not.toContain("Read(library/**/note.md)")
+    }
+    expect(backgroundMeta("claude-code", ["library_.*"], "/w")).toEqual(guardFor("claude-code", "reviewer", ["/w"]).meta)
+    expect(backgroundMeta("owlit-engine", ["library_.*"], "/w")).toEqual({ owlit: { role: "reviewer", background: { tools: ["library_.*"] } } })
   })
 
   it("keeps each agent's own memory off, whatever the role", () => {

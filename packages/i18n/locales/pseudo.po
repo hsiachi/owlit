@@ -5182,12 +5182,12 @@ msgid "Background work"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-#: app/src/features/settings/store.ts
-msgid "Privacy"
+msgid "What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere."
+#: app/src/features/settings/store.ts
+msgid "Privacy"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx

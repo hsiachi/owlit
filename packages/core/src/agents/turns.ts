@@ -21,7 +21,6 @@ import {
   withoutAgentError,
 } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
-import { realpathSync } from "node:fs"
 import { readFile, stat } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 import path from "node:path"
@@ -32,7 +31,7 @@ import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import { failureOf } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
-import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, sendsPictures } from "./profiles.ts"
+import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
 import { answerFor, roleNote, takesRules, withUserName } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
@@ -567,17 +566,6 @@ export interface Claim {
 }
 
 const CLAIM_AFTER_MS = 5000
-
-// The workspace as the agent may see it: as given and as the disk resolves it (/tmp is /private/tmp)
-function roots(root: string) {
-  let real = root
-  try {
-    real = realpathSync(root)
-  } catch {
-    // Gone or unreadable: the path as given still names it
-  }
-  return [...new Set([root, real])]
-}
 
 // Sessions being loaded, whose replayed history is not news
 const loading = new Set<string>()

@@ -5182,13 +5182,13 @@ msgid "Background work"
 msgstr "后台任务"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be."
+msgstr "owlit 记下的东西留在这个工作区里，除了交给智能体之外不会发往任何地方。智能体会读这个工作区里的文件、通过 owlit 读你的论文，以及在“记住我做了什么”开着时读你在 owlit 里做过的事；工作区文件夹之外的一概不读。Claude Code 由它的沙箱管住这一点；Codex 管不住。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
 msgid "Privacy"
 msgstr "隐私"
-
-#: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What owlit remembers stays in this workspace and is never sent anywhere."
-msgstr "owlit 记住的内容只保存在这个工作区，绝不会发送到任何地方。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts

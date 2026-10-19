@@ -38,7 +38,7 @@ export function OwlitSection() {
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />
       </Group>
-      <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays in this workspace and is never sent anywhere.`}>
+      <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays in this workspace and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be.`}>
         <MemoryRow />
       </Group>
       {isDesktop && (

@@ -5,7 +5,8 @@
 
 import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"
-import { FIRST_CHOICE_AGENT } from "@owlit/protocol"
+import { FIRST_CHOICE_AGENT, RUNS_COMMANDS } from "@owlit/protocol"
+import { realpathSync } from "node:fs"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import type { ProcessOptions } from "./process.ts"
 
@@ -125,15 +126,20 @@ export function processSetup(connectorId: string): Pick<ProcessOptions, "clientM
 // ---- Roles, as each agent's own controls ----
 
 // What a role means on each agent. owlit relies on one thing: an agent asks, with the diff, before it
-// changes the user's files. Each agent is held to that with its own controls, since none of them sends
-// its edits through ACP's fs/write_text_file (claude-agent-acp 0.88, codex-acp 2.2.1):
+// changes the user's files (owlit answers at once in Assistant, where the edit lands as a proposal, and
+// the request is what ties the write to its tool call). Each agent is held to that with its own
+// controls, since none of them sends its edits through ACP's fs/write_text_file (claude-agent-acp 0.88,
+// codex-acp 2.2.1):
 // - Claude Code runs in its auto mode. Its own permission rules make its file-editing tools ask (or
 //   refuse) even there, and its sandbox stops shell commands writing the workspace, so a `sed` or an
-//   `echo >>` fails and it falls back to the editing tool, which asks. Its auto classifier still judges
-//   everything else (commands, the network).
+//   `echo >>` fails and it falls back to the editing tool, which asks. Reads stop at the workspace in
+//   every role (blockReadsOutsideWorkingDirectories, Claude Code 2.1.257 on; an older one ignores the
+//   key), for its file tools and, with the sandbox on, for shell commands too, while its own ~/.claude
+//   stays readable; papers and owlit's state are read through owlit's tools, so a read leaves its trace
+//   (readRules). Its auto classifier still judges everything else (commands, the network).
 // - Codex's read-only mode already asks, with the patch, before any edit, and its sandbox makes a shell
 //   command that writes ask first; its auto-review mode lets it work and has its own reviewer judge what
-//   is risky.
+//   is risky. Its sandbox can't limit reads.
 // - The Owlit engine is told the role and holds to it itself: a Reviewer gets no edit tools, an Assistant
 //   asks with the diff through ACP, and every write comes through ACP's fs, so owlit records it.
 // - Any other agent keeps the mode it starts in; owlit still refuses what a Reviewer may not do.
@@ -156,20 +162,32 @@ const ownRules = () => CLAUDE_EDIT_TOOLS.flatMap((tool) => OWN_PATTERNS.map((pat
 // Shell commands get no such carve-out: a note is edited with the editing tools, never with a shell
 const ownPaths = (roots: string[]) => roots.flatMap((root) => [`${root}/${OWLIT_DIR}`, `${root}/library`])
 
+// What is read through owlit's tools rather than the agent's own, as Read deny rules (Glob and Grep
+// follow them, and the sandbox takes them as denyRead for shell commands): a paper's text, digest and
+// figures (library_read, which leaves the read's trace), and owlit's state (threads, the change log, the
+// journal, chats, seen marks). The copies of files the user attached, .owlit/chats/<id>/files/, stay
+// readable, since the rules send the agent there; a deny can't be carved out by an allow, so owlit's
+// state is named piece by piece instead of as .owlit/** (the files directly in .owlit all have a dot).
+const STATE_PATTERNS = [`${OWLIT_DIR}/*.*`, `${OWLIT_DIR}/chats/*.json`, ...["docs", "papers", "seen", "shares", "threads", "trash", "versions"].map((dir) => `${OWLIT_DIR}/${dir}/**`)]
+const readRules = () => [...STATE_PATTERNS, ...OWN_PATTERNS.filter((p) => !p.startsWith(OWLIT_DIR))].map((pattern) => `Read(${pattern})`)
+
 export function guardFor(connectorId: string, role: Role, roots: string[]): Guard {
   if (connectorId === "claude-code") {
     // Without auto mode (a plan or model that lacks it) the default mode asks for everything, which only
     // makes a Co-author ask more
     const modes = ["auto", "default"]
-    const permissions = role === "reviewer" ? { deny: [...CLAUDE_EDIT_TOOLS, ...ownRules()] } : role === "assistant" ? { ask: CLAUDE_EDIT_TOOLS, deny: ownRules() } : { deny: ownRules() }
+    const deny = [...(role === "reviewer" ? CLAUDE_EDIT_TOOLS : []), ...ownRules(), ...readRules()]
+    const permissions = { ...(role === "assistant" ? { ask: CLAUDE_EDIT_TOOLS } : {}), deny, blockReadsOutsideWorkingDirectories: true }
     const sandbox = {
       enabled: true,
       // Without a sandbox (Windows), commands could write where the role says they can't: the turn fails
       failIfUnavailable: true,
       autoAllowBashIfSandboxed: true,
       allowUnsandboxedCommands: false,
-      // A Co-author's commands write the user's docs; the others' write nothing in the workspace
-      filesystem: { denyWrite: role === "coauthor" ? ownPaths(roots) : roots },
+      // A Co-author's commands write the user's docs and nothing else of the workspace (the sandbox lets
+      // them write only the working directory and the temp directory anyway); the others' write nothing
+      // of the workspace
+      filesystem: { denyWrite: RUNS_COMMANDS[role] ? ownPaths(roots) : roots },
     }
     return { modes, meta: sessionMeta(connectorId, { settings: { permissions }, sandbox }) }
   }
@@ -183,11 +201,23 @@ export function guardFor(connectorId: string, role: Role, roots: string[]): Guar
 // ---- Background work ----
 
 // The session options for a background run: the Owlit engine calls owlit's tools itself rather than asking
-// for each, so it is told which it may offer the model (patterns over their names); Claude Code gets its
-// isolation as in a chat
-export function backgroundMeta(connectorId: string, tools: string[]): Record<string, unknown> | undefined {
+// for each, so it is told which it may offer the model (patterns over their names); Claude Code gets a
+// Reviewer's controls (its isolation, no edits, reads kept to the workspace and through owlit's tools)
+export function backgroundMeta(connectorId: string, tools: string[], root: string): Record<string, unknown> | undefined {
   if (connectorId === ENGINE) return { owlit: { role: "reviewer", background: { tools } } }
+  if (connectorId === "claude-code") return guardFor(connectorId, "reviewer", roots(root)).meta
   return sessionMeta(connectorId)
+}
+
+// The workspace as the agent may see it: as given and as the disk resolves it (/tmp is /private/tmp)
+export function roots(root: string) {
+  let real = root
+  try {
+    real = realpathSync(root)
+  } catch {
+    // Gone or unreadable: the path as given still names it
+  }
+  return [...new Set([root, real])]
 }
 
 // ---- Reading what an agent sends ----
