@@ -2,7 +2,7 @@ import { isMarkdown, isOpenComment, paperUri, parentPath, type DocComment, type 
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { TYPING_MS, type Presence } from "./presence.ts"
-import { recheckSkill, replySkill } from "./review.ts"
+import { correctable, correctionOf, recheckSkill, replySkill } from "./review.ts"
 import { COMMENTING_RUNS, GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN } from "./runs.ts"
 import { cleanReading, goThroughSkill, isChinese, MEETINGS, recordOf } from "./go-through.ts"
 import { randomUUID } from "node:crypto"
@@ -41,8 +41,9 @@ interface Held {
   path: string
   comment: DocComment
   chatId?: string
-  // add: a new comment; put: one of Owlit's comments with something added to it
-  how: "add" | "put"
+  // add: a new comment; put: one of Owlit's comments with something added to it; correct: one of
+  // Owlit's comments with its first entry rewritten
+  how: "add" | "put" | "correct"
   // Held for as long as the user is in the doc, not only while they type there
   pushed: boolean
   // A Go through's comment: held until the record it points back to is written, and dropped if it never is
@@ -188,7 +189,9 @@ export class Reviews {
     const now = (await ws.docs.listComments(h.path)).find((c) => c.id === h.comment.id)
     if (!now || !isOpenComment(now)) return
     const added = h.comment.entries.filter((e) => !now.entries.some((n) => n.id === e.id))
-    const next = { ...now, entries: [...now.entries, ...added] }
+    // A correction rewrites the first entry as it is now, whatever was said under it meanwhile
+    const first = h.comment.entries[0]
+    const next = h.how === "correct" && first && correctable(now) ? corrected(now, first.text, first.editedAt ?? this.now()) : { ...now, entries: [...now.entries, ...added] }
     await ws.docs.putComment(h.path, next)
     this.services.replied(h.path, next)
   }
@@ -223,7 +226,12 @@ export class Reviews {
     const now = await find()
     if (!now || !isOpenComment(now)) return
     const chatId = ws.tasks.get(ctx.task.id)?.chatId
-    const replied: DocComment = { ...now, entries: [...now.entries, { id: randomUUID(), by: "owlit", text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }] }
+    // Shown wrong, Owlit says the right thing in its comment rather than under it; the replies stay
+    const fixed = correctionOf(answer)
+    const replied: DocComment =
+      fixed && correctable(now)
+        ? corrected(now, fixed, this.now())
+        : { ...now, entries: [...now.entries, { id: randomUUID(), by: "owlit", text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }] }
     await ws.docs.putComment(rel, replied)
     this.services.replied(rel, replied)
   }
@@ -245,11 +253,23 @@ export class Reviews {
     const answer = text.trim()
     if (!answer || /^still holds\.?$/i.test(answer)) return
     const chatId = ws.tasks.get(ctx.task.id)?.chatId
+    const fixed = correctionOf(answer)
     const entry = { id: randomUUID(), by: "owlit" as const, text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }
-    const held: Held = { path: rel, comment: { ...comment, entries: [...comment.entries, entry] }, chatId, how: "put", pushed: true }
+    const held: Held =
+      fixed && correctable(comment)
+        ? { path: rel, comment: corrected(comment, fixed, this.now()), chatId, how: "correct", pushed: true }
+        : { path: rel, comment: { ...comment, entries: [...comment.entries, entry] }, chatId, how: "put", pushed: true }
     if (this.holds(held)) this.hold(held)
     else await this.write(held)
   }
+}
+
+// Owlit's comment with its first entry rewritten: the old words kept as was, marked edited, which also
+// makes the comment new to the user again (the doc's Owlit dot)
+function corrected(comment: DocComment, text: string, at: number): DocComment {
+  const [first, ...rest] = comment.entries
+  if (!first || first.text === text) return comment
+  return { ...comment, entries: [{ ...first, text, was: first.was ?? first.text, editedAt: at }, ...rest] }
 }
 
 // "<path>#<comment id>"

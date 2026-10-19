@@ -7,6 +7,7 @@ import { Background, type BackgroundRun } from "../agents/background.ts"
 import { Core } from "../core.ts"
 import { eventually, until } from "../test-util.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import { correctionOf } from "./review.ts"
 
 const cores: Core[] = []
 afterEach(async () => {
@@ -74,5 +75,30 @@ describe("A reply under Owlit's comment", () => {
     await expect(call("comments.dismiss", { path: "story.md", id: "nope" })).rejects.toThrow()
     expect((Object.values(await call("comments.all")).flat() as any[])[0]).toMatchObject({ dismissedAt: expect.any(Number) })
     await eventually(() => expect(journal().filter((l) => l.kind.startsWith("feedback.")).map((l) => l.kind)).toEqual(["feedback.reply", "feedback.dismiss"]))
+  })
+
+  it("corrects Owlit's own comment when the reply shows it wrong: its words replaced, the old kept, the replies left", { timeout: 20_000 }, async () => {
+    const { call, workspace } = await setup(async (prompt) => {
+      if (!prompt.includes("the user has replied")) return "Nothing to add."
+      expect(prompt).toContain("CORRECT:")
+      return "CORRECT: They track the live ones for a week, then drift apart."
+    })
+    await leave(call, "Replay ratings track the live ones.", "They never track the live ones.")
+    const [comment] = Object.values(await call("comments.all")).flat() as any[]
+    await call("comments.put", { path: "story.md", comment: { ...comment, entries: [...comment.entries, { id: "r1", by: "you", text: "Table 2 shows they do for a week.", at: Date.now() }] } })
+    await until(() => workspace.tasks.list().some((t) => t.kind === "docs.reply" && t.state === "done"), { timeout: 10_000, what: "the reply" })
+    const fixed = (Object.values(await call("comments.all")).flat() as any[])[0]
+    expect(fixed.entries).toMatchObject([
+      { by: "owlit", text: "They track the live ones for a week, then drift apart.", was: "They never track the live ones.", editedAt: expect.any(Number) },
+      { by: "you", text: "Table 2 shows they do for a week." },
+    ])
+  })
+})
+
+describe("A correction's form", () => {
+  it("is the rewritten entry after CORRECT:, and nothing else is one", () => {
+    expect(correctionOf("CORRECT:  The right words.")).toBe("The right words.")
+    expect(correctionOf("Still holds.")).toBeNull()
+    expect(correctionOf("CORRECT:")).toBeNull()
   })
 })

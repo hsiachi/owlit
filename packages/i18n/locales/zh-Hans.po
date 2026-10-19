@@ -2481,6 +2481,12 @@ msgstr "新建文件夹"
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr "{count, plural, other {删除 # 项}}"
 
+#. before the words Owlit's comment said before it corrected them
+#. before the words Owlit's comment said before it corrected them
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "was:"
+msgstr "原为："
+
 #. after a comment's time: it was changed after it was written
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "edited"

@@ -35,6 +35,8 @@ export interface EntryView {
   text: string
   at: number
   editedAt?: number
+  // Owlit's first entry, corrected: what it first said
+  was?: string
   // Yours, in a comment kept beside the file: it has Edit and Delete
   editable: boolean
 }
@@ -60,6 +62,7 @@ function fromDoc(c: DocComment): CommentView {
       text: e.text,
       at: e.at,
       editedAt: e.editedAt,
+      ...(e.was ? { was: e.was } : {}),
       editable: e.by === "you",
     })),
   }

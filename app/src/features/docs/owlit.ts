@@ -39,9 +39,11 @@ export const useOwlitSeen = create<{ seen: Record<string, number>; since: number
 // When the user last saw a doc's comments from Owlit
 export const useOwlitSeenAt = (path: string) => useOwlitSeen((s) => s.seen[path] ?? s.since)
 
-// Owlit's open comments on a doc that came after the user last saw its comments, oldest first
+// Owlit's open comments on a doc that came after the user last saw its comments, oldest first; one Owlit
+// corrected (its first entry rewritten) is new again from then
 export function newOwlitComments(comments: DocComment[] | undefined, seenAt: number | undefined) {
-  return (comments ?? []).filter((c) => isOpenComment(c) && c.entries[0]?.by === "owlit" && c.createdAt > (seenAt ?? 0)).sort((a, b) => a.createdAt - b.createdAt)
+  const since = (c: DocComment) => Math.max(c.createdAt, c.entries[0]?.editedAt ?? 0)
+  return (comments ?? []).filter((c) => isOpenComment(c) && c.entries[0]?.by === "owlit" && since(c) > (seenAt ?? 0)).sort((a, b) => since(a) - since(b))
 }
 
 // Owlit goes through this doc as material from people (a meeting's transcript, reviews) against the

@@ -76,6 +76,8 @@ export interface CommentEntry {
   text: string
   at: number
   editedAt?: number
+  // Owlit's own first entry, rewritten when a recheck or a reply showed it wrong: what it first said
+  was?: string
   // Owlit's entries: the chat that wrote it
   chatId?: string
 }
