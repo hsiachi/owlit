@@ -7,18 +7,19 @@ import { notifyWhenAway } from "@/lib/notify"
 import { rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
 import { useDigestUnseen } from "@/app/seen"
-import { tasksFor, useTasksStore } from "@/features/tasks/store"
+import { toastError } from "@/lib/toast"
+import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
 import { useLibraryStore } from "./store"
 
 // Where a paper's digest stands for the user, on the ladder of states (DESIGN.md, rule 3): being written,
 // new since they last looked, or stopped. And who is told when one is done: only someone waiting for it,
-// that is who saw it being written on the paper's page or asked for it from the paper's menu. A digest
-// written in the background (every paper, or opening one while reading its PDF) only leaves its mark.
+// that is who saw it being written on the paper's page or asked for it from the paper's menu. One asked
+// for in a chat or by an agent only leaves its mark.
 
 // A paper's digest runs, finished ones too; a fresh array, free to sort
 const digestTasks = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).filter((task) => task.kind === "paper.digest")
 
-// A run for the paper's digest is under way or waiting its turn, in the background too
+// A run for the paper's digest is under way or waiting its turn
 export const digestUnderWay = (byId: Record<string, Task>, id: string) => tasksFor(byId, id).some((task) => task.kind === "paper.digest" && !isTaskFinished(task))
 
 // The digest's last run broke and nothing has taken it up again. Known for this session only: core keeps
@@ -30,14 +31,13 @@ export function digestFailed(byId: Record<string, Task>, id: string) {
   return last?.state === "failed"
 }
 
-// The mark a paper's row and page show for its digest: writing while it is under way, stopped, or new.
-// Under way is a run at work, or one opened or asked for that waits on its own first steps (the paper's
-// figures); a background one only once at work, so a library-wide batch doesn't breathe on every row.
+// The mark a paper's row and page show for its digest: writing while it is under way (at work, or waiting
+// on its first steps, the paper's figures), stopped, or new.
 export type DigestState = "writing" | "failed" | "new" | null
 
 export function useDigestState(paper: Paper): DigestState {
   const failed = useTasksStore((s) => digestFailed(s.byId, paper.id))
-  const writing = useTasksStore((s) => digestTasks(s.byId, paper.id).some((task) => task.state === "running" || (!isTaskFinished(task) && task.priority !== "background")))
+  const writing = useTasksStore((s) => digestUnderWay(s.byId, paper.id))
   // New since the user last looked (protocol's digestUnseen, which core answers)
   const fresh = useDigestUnseen(paper.id)
   return failed ? "failed" : writing ? "writing" : fresh ? "new" : null
@@ -49,6 +49,11 @@ export const useNewDigest = useDigestUnseen
 // Any run for the digest, background ones too: the paper's page says it is being written
 export function useWritingDigest(paperId: string) {
   return useTasksStore((s) => digestUnderWay(s.byId, paperId))
+}
+
+// Stops the paper's digest: every run for it still under way or waiting its turn
+export function stopDigest(paperId: string) {
+  for (const task of digestTasks(useTasksStore.getState().byId, paperId)) if (!isTaskFinished(task)) void cancelTask(task.id).catch(toastError)
 }
 
 export function useDigestFailed(paperId: string) {

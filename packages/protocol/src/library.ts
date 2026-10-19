@@ -30,8 +30,6 @@ export interface PaperPdf {
   // Where the window reads it: owlit-file://workspace/… in the desktop app, an object URL on mock data
   url: string
   pages?: number
-  // Who brought it, and when, from the paper's tries; absent for a PDF owlit has no record of
-  came?: { by: PdfTry["by"]; at: number }
 }
 
 // How one try at a paper's PDF ended. pdf: it came. no-copy: owlit's routes found no copy. no-access: the
@@ -102,7 +100,7 @@ export interface Paper {
   kind?: PaperKind
   // How often other works cite it, as a service counted it (openalex, else s2 or crossref) and when
   citations?: { count: number; source: string; at: number }
-  // When the person last read in it, which a glance doesn't count as; Up next's Reading group goes by it
+  // When the person last read in it, which a glance doesn't count as; Home's recent papers go by it
   lastOpenedAt?: number
   // Reading position, so a paper reopens where it was left
   position?: ReadingPosition

@@ -1,4 +1,4 @@
-import { isPerson, type JournalEntry, type ReadStatus, type ReadTrace } from "@owlit/protocol"
+import { isPerson, JOURNALED_KINDS, type JournalEntry, type ReadStatus, type ReadTrace } from "@owlit/protocol"
 import { readJsonl } from "../fs-util.ts"
 
 // What the person has done with each paper, summed from the journal. The journal keeps raw events,
@@ -128,5 +128,9 @@ export function fullReadAt(entries: readonly JournalEntry[], paperId: string, cl
   return readInFull(after, pageCount) && !readInFull(before, pageCount)
 }
 
-// The entries of a journal file in order; a line that doesn't parse (a write cut short) is skipped
-export const readJournal = (file: string) => readJsonl<JournalEntry>(file)
+const JOURNALED = new Set<string>(JOURNALED_KINDS)
+
+// The entries of a journal file in order. A line that doesn't parse (a write cut short) is skipped, and so
+// is one of a kind owlit doesn't write: older journals also hold Owlit's decisions and feedback, docs
+// closing, and the window going to the background and coming back.
+export const readJournal = async (file: string) => (await readJsonl<JournalEntry>(file)).filter((e) => JOURNALED.has(e.kind))

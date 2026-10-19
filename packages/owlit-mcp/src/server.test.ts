@@ -513,7 +513,7 @@ describe("docs_read on a PDF", () => {
     ])
   })
 
-  it("stars, tags and marks papers, renames and watches a thread, and takes back its own highlight", async () => {
+  it("stars, tags and marks papers, renames a thread, and takes back its own highlight", async () => {
     const { call, tool } = await setup()
     await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
     expect((await tool("library_update", { ids: ["arxiv-1706.03762"], starred: true, tags: ["baseline", "transformer"], status: "read" })).text).toBe("arxiv-1706.03762: starred, read, tags baseline, transformer.")
@@ -524,9 +524,9 @@ describe("docs_read on a PDF", () => {
 
     const written = await tool("thread_write", { asked: "What do transformers replace?", title: "Transformers", rows: JSON.stringify([{ id: "arxiv-1706.03762", answer: "Recurrence.", depth: "abstract" }]) })
     const id = written.text.match(/owlit:\/\/threads\/([\w-]+)/)![1]!
-    expect((await tool("thread_edit", { id, title: "Attention replaces recurrence", watch: true })).text).toBe(`“Attention replaces recurrence” (owlit://threads/${id}), watched.`)
-    expect(await call("threads.get", { id })).toMatchObject({ title: "Attention replaces recurrence", watch: true })
-    expect((await tool("thread_edit", { id })).text).toBe("thread_edit needs a title or watch.")
+    expect((await tool("thread_edit", { id, title: "Attention replaces recurrence" })).text).toBe(`“Attention replaces recurrence” (owlit://threads/${id}).`)
+    expect(await call("threads.get", { id })).toMatchObject({ title: "Attention replaces recurrence" })
+    expect((await tool("thread_edit", { id })).text).toBe("thread_edit needs title.")
 
     // A highlight the chat's Owlit made (as ui_mark has the window make it), and one of the user's
     await call("library.putHighlight", { highlight: { id: "h1", paperId: "arxiv-1706.03762", page: 1, rects: [], text: "Scaled dot-product\nattention.", color: "yellow", createdAt: 1 }, chatId: "chat-1" })

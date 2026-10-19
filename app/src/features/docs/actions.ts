@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { mentionLink } from "@owlit/protocol"
+import { isTaskFinished, mentionLink } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
 import { copyText } from "@/lib/clipboard"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -13,7 +13,8 @@ import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
-import { goThrough, setOwlitOut, useDocOwlitStore } from "./owlit"
+import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
+import { GO_THROUGH, goThrough, setOwlitOut, useDocOwlitStore } from "./owlit"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -95,6 +96,7 @@ export function useDocActions() {
 
   const fileGroups = (file: WorkspaceFile): MenuGroups => {
     const md = isMarkdown(file.path)
+    const going = tasksFor(useTasksStore.getState().byId, file.path).find((task) => task.kind === GO_THROUGH && !isTaskFinished(task))
     return [
       [
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.file(file.id)) },
@@ -109,8 +111,11 @@ export function useDocActions() {
       ...(md && isDesktop
         ? [
             [
-              // Material from people (a meeting, reviews): read against the docs, the points carried to them
-              { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
+              // Material from people (a meeting, reviews): read against the docs, the points carried to them.
+              // While Owlit goes through it, this row is where that shows and where it stops.
+              going
+                ? { label: t`Stop going through`, onSelect: () => void cancelTask(going.id).catch(toastError) }
+                : { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
               useDocOwlitStore.getState().byPath[file.path]?.out
                 ? { label: t`Let Owlit in`, onSelect: () => setOwlitOut(file.path, false) }
                 : { label: t`Keep Owlit out`, onSelect: () => setOwlitOut(file.path, true) },

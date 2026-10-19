@@ -111,6 +111,16 @@ describe("chats", () => {
     expect((await second.call("chats.list")).map((c: any) => c.id)).toEqual(["a"])
   })
 
+  it("moves a chat's last update to when its answer finished, so an answer that ends after a look is found", async () => {
+    const { open } = await setup()
+    const { call } = await open()
+    await call("chats.create", { chat: summary("c", 1) })
+    await call("chats.appendMessage", { id: "c", message: msg("q", "user", 5) })
+    await call("chats.appendMessage", { id: "c", message: msg("a", "assistant", 10, { status: "streaming" }) })
+    await call("chats.patchMessage", { id: "c", message: msg("a", "assistant", 10, { status: "done", finishedAt: 40 }), final: true })
+    expect((await call("chats.list")).find((c: { id: string }) => c.id === "c").updatedAt).toBe(40)
+  })
+
   it("keeps the layout in workspace.json", async () => {
     const { open, root } = await setup()
     const { call } = await open()
@@ -122,20 +132,5 @@ describe("chats", () => {
     writeFileSync(path.join(root, ".owlit/workspace.json"), "{ broken")
     const error = await call("workspace.setLayout", { patch: { x: 1 } }).catch((e) => e)
     expect(error.message).toContain("can't be read")
-  })
-
-  it("lists a run that started before since and ended after it", async () => {
-    const { open } = await setup()
-    const { core, call } = await open()
-    // Only core starts runs: the RPC takes no startedBy
-    const run = { taskId: "t1", kind: "paper.digest", subject: "arxiv-1" }
-    await core["requireWorkspace"]().chats.create({ ...summary("r", 1), startedBy: "owlit", run })
-    await call("chats.appendMessage", { id: "r", message: msg("q", "user", 5) })
-    await call("chats.appendMessage", { id: "r", message: msg("a", "assistant", 10, { status: "streaming" }) })
-    // A newer chat, updated after since, comes first in the index
-    await call("chats.create", { chat: summary("c", 30) })
-    await call("chats.patchMessage", { id: "r", message: msg("a", "assistant", 10, { status: "done", finishedAt: 40 }), final: true })
-    expect((await call("chats.runs", { since: 20 })).map((r: any) => [r.id, r.ended, r.endedAt])).toEqual([["r", "done", 40]])
-    expect(await call("chats.runs", { since: 40 })).toEqual([])
   })
 })

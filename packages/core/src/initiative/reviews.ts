@@ -1,59 +1,43 @@
-import { isMarkdown, isOpenComment, isOwlit, isPerson, paperUri, parentPath, type DocComment, type DocOwlit, type EvaluationRecord } from "@owlit/protocol"
+import { isMarkdown, isOpenComment, isPerson, parentPath, type DocComment, type DocOwlit } from "@owlit/protocol"
 import { defineTask, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { TYPING_MS, type Presence } from "./presence.ts"
-import { correctable, correctionOf, recheckSkill, replySkill } from "./review.ts"
-import { COMMENTING_RUNS, GO_THROUGH_RUN, RECHECK_RUN, REPLY_RUN } from "./runs.ts"
+import { correctable, correctionOf, replySkill } from "./review.ts"
+import { COMMENTING_RUNS, GO_THROUGH_RUN, REPLY_RUN } from "./runs.ts"
 import { cleanReading, goThroughSkill, isChinese, MEETINGS, recordOf } from "./go-through.ts"
 import { randomUUID } from "node:crypto"
 
-// Owlit's runs on the user's docs: the tasks that answer under one of its comments, look at a comment
-// again, or go through material against the docs, and where what they make lands. Two rules hold at every
-// step. Nothing it writes is the user's: only Owlit's own comments (core checks). And it never writes on
-// the page the user is writing in: a comment made while they type there is held, and lands when they
-// stop or leave, if the words it is about are still there (commit-or-abort); one whose words are gone is
-// dropped, and the drop is logged. What Owlit did on its own waits further: for as long as the user is in
-// that doc at all.
+// Owlit's runs on the user's docs, each one the user started: the task that answers their reply under one
+// of its comments, and the one that goes through material against the docs, and where what they make
+// lands. Nothing a run writes is the user's: only Owlit's own comments (core checks). A comment lands as
+// soon as it is made; the change log marks it unseen until the user looks.
 
 export interface ReviewServices {
   workspace: () => Workspace | null
-  presence: Presence
   // A background session for the task, with only these of owlit's tools beyond the read-only ones; runId
   // signs what it writes (docs_add_comment comes back to comment())
   agent: (prompt: string, ctx: TaskContext, tools: RegExp, runId: string) => Promise<{ text: string }>
-  // Writes one of Owlit's comments to the doc, as the run's (run: "<kind>:<task id>"); quiet, without a
-  // word in the window (a run made while the user was away)
-  write: (path: string, comment: DocComment, run: string, quiet: boolean) => Promise<void>
-  // Owlit looked at a doc (the chip's line), or went through it
+  // Writes one of Owlit's comments to the doc, as the run's (run: "<kind>:<task id>")
+  write: (path: string, comment: DocComment, run: string) => Promise<void>
+  // Owlit went through a doc (the chip's line)
   looked: (path: string, state: DocOwlit) => void
   // Writes a new doc of Owlit's (a Go through's record), as an agent's write for the run: recorded in the
   // change log, so the run offers Undo
   writeRecord: (path: string, content: string, run: string) => Promise<void>
-  // Changes one of Owlit's comments, as the run's: it answered in it or added to it (new entries are
-  // signed by core), or folded it away on its own (auto)
-  put: (path: string, comment: DocComment, run: string, auto?: boolean) => Promise<void>
-  record: (entry: EvaluationRecord) => void
+  // Changes one of Owlit's comments, as the run's: it answered in it or rewrote its own first entry (new
+  // entries are signed by core)
+  put: (path: string, comment: DocComment, run: string) => Promise<void>
   now?: () => number
   // The user's name, when they gave one (a Go through writes their own words as "you")
   userName?: () => Promise<string | undefined>
 }
 
-interface Held {
+// A Go through's comment, waiting for the record it points back to
+interface Waiting {
   path: string
   comment: DocComment
   // The run that made it, "<kind>:<task id>"
   run: string
-  // add: a new comment; put: one of Owlit's comments with something added to it; correct: one of
-  // Owlit's comments with its first entry rewritten
-  how: "add" | "put" | "correct"
-  // Held for as long as the user is in the doc, not only while they type there
-  pushed: boolean
 }
-
-// Runs nobody is waiting for, whose work waits while the user is in the doc at all
-const PUSHED = new Set<string>([RECHECK_RUN])
-// Never a run's tools: a run that may use only the read-only ones
-const NONE = /^$/
 
 const taskOf = (runId: string) => runId.slice(runId.indexOf(":") + 1)
 const kindOf = (runId: string) => runId.slice(0, runId.indexOf(":"))
@@ -62,10 +46,7 @@ export const isCommentingRun = (runId: string | undefined) => !!runId && (COMMEN
 
 export class Reviews {
   private readonly services: ReviewServices
-  // Comments each run made, held or written, by run id
-  private made = new Map<string, number>()
-  private held: Held[] = []
-  private timer: ReturnType<typeof setTimeout> | undefined
+  private waiting: Waiting[] = []
   // The record each Go through run is writing, while it hasn't been written
   private records = new Map<string, { path: string; label: string }>()
 
@@ -76,7 +57,6 @@ export class Reviews {
   tasks(): TaskDefinition[] {
     return [
       defineTask(REPLY_RUN, { lane: replySkill.lane, retries: 1, run: (ctx) => this.reply(ctx) }),
-      defineTask(RECHECK_RUN, { lane: recheckSkill.lane, retries: 1, run: (ctx) => this.recheck(ctx) }),
       defineTask(GO_THROUGH_RUN, { lane: goThroughSkill.lane, retries: 1, run: (ctx) => this.goThrough(ctx) }),
     ]
   }
@@ -107,102 +87,40 @@ export class Reviews {
       this.services.looked(rel, await ws.docs.setWentThrough(rel, { at: this.now(), record }))
     } finally {
       this.records.delete(runId)
-      // Points of a run that stopped before its record: nothing to point back to
-      if (!(await ws.docs.readDisk(record))) this.held = this.held.filter((h) => h.run !== runId)
+      // Its points land once the record is there; a run that stopped before it leaves them nothing to
+      // point back to
+      const mine = this.waiting.filter((w) => w.run === runId)
+      this.waiting = this.waiting.filter((w) => w.run !== runId)
+      if (await ws.docs.readDisk(record)) await this.landAll(ws, mine)
     }
-    await this.land()
   }
 
-  // A comment a run made through docs_add_comment: written now, or held while the user is on that page
+  // A comment a run made through docs_add_comment: written now, or, for a Go through, once its record is
   async comment(runId: string, path: string, comment: DocComment) {
     const ws = this.services.workspace()
     const chatId = ws?.tasks.get(taskOf(runId))?.chatId
     // A Go through's comments carry over what people said, from the record it is writing
     const source = this.records.get(runId)
     const signed = { ...comment, ...(source ? { source } : {}), entries: comment.entries.map((e) => ({ ...e, ...(chatId ? { chatId } : {}) })) }
-    this.made.set(runId, (this.made.get(runId) ?? 0) + 1)
-    const held: Held = { path, comment: signed, run: runId, how: "add", pushed: PUSHED.has(kindOf(runId)) }
-    if (this.holds(held)) {
-      this.hold(held)
-      return "held"
-    }
-    await this.write(held)
-    return "written"
+    if (source) this.waiting.push({ path, comment: signed, run: runId })
+    else await this.services.write(path, signed, runId)
   }
 
-  // What was held lands where the user isn't any more
-  async land() {
-    const ready = this.held.filter((h) => !this.holds(h))
-    this.held = this.held.filter((h) => !ready.includes(h))
-    await this.landAll(ready)
-    if (this.held.length) this.later()
-  }
-
-  // The workspace is closing, its tasks already stopped: the user has left every doc in it, so what was
-  // held lands now, while it is still the open one. It can't wait: the next workspace may have a doc at
-  // the same path. A Go through's points whose record never got written have nothing to point back to.
-  async stop() {
-    clearTimeout(this.timer)
-    this.timer = undefined
-    const held = this.held.filter((h) => !this.records.has(h.run))
-    this.held = []
+  // The workspace is closing, its tasks already stopped: a Go through's points still waiting never got
+  // their record
+  stop() {
+    this.waiting = []
     this.records.clear()
-    this.made.clear()
-    await this.landAll(held)
   }
 
-  dispose() {
-    clearTimeout(this.timer)
-    this.held = []
-  }
-
-  private async landAll(ready: Held[]) {
-    const ws = this.services.workspace()
-    for (const h of ready) {
-      const content = ws ? await ws.docs.read(h.path).then((r) => r.content, () => null) : null
-      // Written into whichever workspace is open: never another one's doc at the same path
+  // Written if the words each is about are still there; never into another workspace's doc at the same path
+  private async landAll(ws: Workspace, ready: Waiting[]) {
+    for (const w of ready) {
+      const content = await ws.docs.read(w.path).then((r) => r.content, () => null)
       if (this.services.workspace() !== ws) return
-      if (content !== null && content.includes(h.comment.quote)) {
-        await this.write(h).catch((error) => console.error("[core] couldn't land Owlit's comment", error))
-        continue
-      }
-      this.services.record({ kind: "evaluation", at: this.now(), rule: "docs.landing", subject: h.path, decision: "none", reason: "the passage changed before the comment landed", cause: "landing" })
+      if (content === null || !content.includes(w.comment.quote)) continue
+      await this.services.write(w.path, w.comment, w.run).catch((error) => console.error("[core] couldn't land Owlit's comment", error))
     }
-  }
-
-  private holds(h: Held) {
-    // A Go through's comment waits for the record it points back to
-    if (this.records.has(h.run)) return true
-    const { presence } = this.services
-    return h.pushed ? presence.inDoc(h.path) : presence.writingIn(h.path, this.now())
-  }
-
-  private hold(h: Held) {
-    this.held.push(h)
-    this.later()
-  }
-
-  private async write(h: Held) {
-    if (h.how === "add") return this.services.write(h.path, h.comment, h.run, h.pushed)
-    const ws = this.services.workspace()
-    if (!ws) return
-    // As it is now: the user may have answered, resolved or dismissed it meanwhile
-    const now = (await ws.docs.listComments(h.path)).find((c) => c.id === h.comment.id)
-    if (!now || !isOpenComment(now)) return
-    const added = h.comment.entries.filter((e) => !now.entries.some((n) => n.id === e.id))
-    // A correction rewrites the first entry as it is now, whatever was said under it meanwhile
-    const first = h.comment.entries[0]
-    const next = h.how === "correct" && first && correctable(now) ? corrected(now, first.text, first.editedAt ?? this.now()) : { ...now, entries: [...now.entries, ...added] }
-    await this.services.put(h.path, next, h.run)
-  }
-
-  private later() {
-    if (this.timer) return
-    this.timer = setTimeout(() => {
-      this.timer = undefined
-      void this.land()
-    }, TYPING_MS)
-    this.timer.unref?.()
   }
 
   private now() {
@@ -236,34 +154,6 @@ export class Reviews {
         : { ...now, entries: [...now.entries, { id: randomUUID(), by, text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }] }
     await this.services.put(rel, replied, `${REPLY_RUN}:${ctx.task.id}`)
   }
-
-  // One of Owlit's comments that leans on a paper the user has now read in full (subject
-  // "<path>#<comment id>|<paper id>"): Owlit reads the paper again and adds to the comment if what it
-  // said needs it
-  private async recheck(ctx: TaskContext) {
-    const ws = this.services.workspace()
-    if (!ws) throw new Error("No workspace is open.")
-    const bar = ctx.task.subject.lastIndexOf("|")
-    const { rel, id } = commentSubject(ctx.task.subject.slice(0, bar))
-    const paperId = ctx.task.subject.slice(bar + 1)
-    const comment = (await ws.docs.listComments(rel)).find((c) => c.id === id)
-    if (!comment || !isOpenComment(comment)) return
-    const { content } = await ws.docs.read(rel)
-    const title = (await ws.library.get(paperId).catch(() => undefined))?.title ?? paperId
-    const { text } = await this.services.agent(recheckSkill.instructions({ path: rel, content, comment, paperId, title }), ctx, recheckSkill.tools ?? NONE, `${RECHECK_RUN}:${ctx.task.id}`)
-    const answer = text.trim()
-    if (!answer || /^still holds\.?$/i.test(answer)) return
-    const chatId = ws.tasks.get(ctx.task.id)?.chatId
-    const fixed = correctionOf(answer)
-    const run = `${RECHECK_RUN}:${ctx.task.id}`
-    const entry = { id: randomUUID(), by: await ws.recorder.actorOf({ kind: "owlit" }), text: answer, at: this.now(), ...(chatId ? { chatId } : {}) }
-    const held: Held =
-      fixed && correctable(comment)
-        ? { path: rel, comment: corrected(comment, fixed, this.now()), run, how: "correct", pushed: true }
-        : { path: rel, comment: { ...comment, entries: [...comment.entries, entry] }, run, how: "put", pushed: true }
-    if (this.holds(held)) this.hold(held)
-    else await this.write(held)
-  }
 }
 
 // Owlit's comment with its first entry rewritten: the old words kept as was, marked edited, which also
@@ -278,10 +168,4 @@ function corrected(comment: DocComment, text: string, at: number): DocComment {
 function commentSubject(subject: string) {
   const cut = subject.lastIndexOf("#")
   return { rel: subject.slice(0, cut), id: subject.slice(cut + 1) }
-}
-
-// Owlit's open comments that lean on a paper: they link to it
-export function leaningOn(comments: readonly DocComment[], paperId: string) {
-  const link = paperUri(paperId)
-  return comments.filter((c) => c.entries[0] && isOwlit(c.entries[0].by) && isOpenComment(c) && c.entries.some((e) => isOwlit(e.by) && (e.text.includes(`${link})`) || e.text.includes(`${link}#`))))
 }

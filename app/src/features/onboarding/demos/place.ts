@@ -7,7 +7,7 @@ export const DEMO_PLACES: DemoPlace[] = ["home", "chat", "docs", "threads", "lib
 
 export interface PlaceClaim {
   place: DemoPlace | null
-  // Owlit's dot on a place in the rail (Chat, while a hand-off's result waits to be seen)
+  // Owlit's dot on a place in the rail (Chat, while a chat's result waits to be seen)
   dot: DemoPlace | null
 }
 

@@ -155,7 +155,7 @@ export class MockAgentClient implements AgentClient {
     }
   }
 
-  // Finds papers outside the library and adds the ones that fit, as a hand-off does
+  // Finds papers outside the library and adds the ones that fit, as Owlit does when asked to find papers
   private async findAndAdd(emit: (u: SessionUpdate) => void, signal: AbortSignal, chatId: string): Promise<StopReason> {
     emit({ type: "plan", entries: FIND_PLAN.map((content, i) => ({ content, priority: "medium", status: i === 0 ? "in_progress" : "pending" })) })
     const step = async (title: string, kind: "search" | "read" | "other", ms: number, content: string, done: number) => {
@@ -558,7 +558,7 @@ print(paper.title, paper.year)
 Want me to turn this into a note in Docs?`
 }
 
-// ---- Finding and adding papers (the browser build's hand-off) ----
+// ---- Finding and adding papers (the browser build's stand-in) ----
 
 const WANTS_FIND_AND_ADD = /\bfind\b.*\bpapers?\b|\badd (them|the ones|papers)\b/i
 

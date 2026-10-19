@@ -410,7 +410,7 @@ describe("library on disk", () => {
     const row = (await call("threads.get", { id: thread })).rows[0]
     expect(row.cells.q).toMatchObject({ depth: "full", passage: { quote, page: 1 } })
     const ws = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
-    expect(await ws.threads.rowsOf(id)).toEqual([{ thread, row: "s2-abc", fromAbstract: false }])
+    expect(await ws.threads.paperOf(id)).toMatchObject({ ids: expect.anything() })
     // The user's correction is what the thread says the paper is
     await call("library.update", { id, patch: { year: 2024 } })
     expect((await call("threads.get", { id: thread })).rows[0].paper.year).toBe(2024)

@@ -228,9 +228,9 @@ export interface Chat {
   // The ACP session this chat has on each agent (connector id → session id), so it continues where it
   // left off after a restart; kept by core
   sessions?: Record<string, string>
-  // Work Owlit started on its own (a reading note, a watched thread's check): a run, not one of your
-  // chats. It isn't in the chat list; it opens from what it works on, and its first message, though
-  // stored as a question, is the reason it started, in Owlit's words.
+  // Work the user asked Owlit for in the background (a digest, a thread's gathering): a run, not one of
+  // their chats. It isn't in the chat list; its first message, though stored as a question, is the reason
+  // it started, in Owlit's words.
   startedBy?: "owlit"
   run?: OwlitRun
   messages: ChatMessage[]
@@ -239,7 +239,7 @@ export interface Chat {
 // The background task an Owlit run is the session of
 export interface OwlitRun {
   taskId: string
-  // The task's kind and subject (paper.digest on a paper id, threads.check on a thread id)
+  // The task's kind and subject (paper.digest on a paper id, threads.more on a thread id)
   kind: string
   subject: string
 }
@@ -247,9 +247,6 @@ export interface OwlitRun {
 // A chat without its messages, as the chat list shows it
 export type ChatSummary = Omit<Chat, "messages">
 
-// One of Owlit's runs as Home lists what it did while the user was away: its session's summary and how
-// its last part ended
-export type RunSummary = ChatSummary & { run: OwlitRun; ended: "done" | "error" | "cancelled"; endedAt: number }
 
 // ---- Local agent connectors ----
 

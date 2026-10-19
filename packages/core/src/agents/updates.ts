@@ -2,7 +2,6 @@ import type * as acp from "@agentclientprotocol/sdk"
 import { HUNK_GAP, type AgentStatus, type SessionUpdate, type ToolKind } from "@owlit/protocol"
 import path from "node:path"
 import type { AgentNotice } from "./process.ts"
-import { handbackOf } from "./profiles.ts"
 import { toolInfoOf } from "./questions.ts"
 
 // What an agent sends over ACP, as owlit's chat updates: for a chat turn (turns.ts) and a background run
@@ -60,35 +59,24 @@ export function toUpdate(u: acp.SessionUpdate, root: string): SessionUpdate | nu
   }
 }
 
-// The state agentWork keeps for each reply: what each of the agent's own agents said as text, and the
-// ones that handed a report back
+// The state agentWork keeps for each reply: what each of the agent's own agents said as text
 export interface HelperReports {
   agentText: Map<string, string>
-  handedBack: Set<string>
 }
 
-// What one of the agent's own agents sent: its steps, marked as its own, and its report. Its report is
-// the call it hands back with, or else what it said as text (an agent may tell its findings that way).
-// Never the reply's own words: a chat turn and a background run both keep them apart.
+// What one of the agent's own agents sent: its steps, marked as its own, and its report, which is what it
+// said as text (the Owlit engine's agents hand back their last words). Never the reply's own words: a chat
+// turn and a background run both keep them apart.
 export function agentWork(reports: HelperReports, agentId: string, u: acp.SessionUpdate, root: string): SessionUpdate[] {
-  const out: SessionUpdate[] = []
-  if (u.sessionUpdate === "tool_call" || u.sessionUpdate === "tool_call_update") {
-    const report = handbackOf(u)
-    if (report) {
-      reports.handedBack.add(agentId)
-      out.push({ type: "agent_update", agentId, report })
-    }
-  }
   if (u.sessionUpdate === "agent_message_chunk" && u.content.type === "text") {
     const text = (reports.agentText.get(agentId) ?? "") + u.content.text
     reports.agentText.set(agentId, text)
-    if (!reports.handedBack.has(agentId)) out.push({ type: "agent_update", agentId, report: text })
-    return out
+    return [{ type: "agent_update", agentId, report: text }]
   }
   const update = toUpdate(u, root)
-  if (update?.type === "tool_call") out.push({ ...update, agentId })
-  else if (update?.type === "tool_call_update") out.push(update)
-  return out
+  if (update?.type === "tool_call") return [{ ...update, agentId }]
+  if (update?.type === "tool_call_update") return [update]
+  return []
 }
 
 // One of the agent's own agents started or changed state

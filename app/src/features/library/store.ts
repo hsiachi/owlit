@@ -34,8 +34,8 @@ interface LibraryState {
   setTags: (id: string, tags: string[]) => void
   addTag: (ids: string[], tag: string) => void
   removeTag: (ids: string[], tag: string) => void
-  // dev:web's stand-in for core's library.opened (disk.ts markReading): records the time Up next orders
-  // by and moves unread → reading
+  // dev:web's stand-in for core's library.opened (disk.ts markReading): records the last-read time Home's
+  // recent papers order by and moves unread → reading
   markReading: (id: string) => void
   setPosition: (id: string, position: ReadingPosition) => void
   // The side of the paper being read (the digest or the PDF), kept so it reopens there

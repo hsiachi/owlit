@@ -25,8 +25,10 @@ export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 
 // Built-in tools owlit wants. The rest publish or act outside the workspace (Artifact, scheduled and remote
 // agents, push notifications, worktrees) or mean nothing here, and listing them means a Claude Code update
-// can't add one behind owlit's back. ToolSearch stays because MCP tools may be deferred behind it.
-const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "Agent", "ToolSearch", "TodoWrite", "AskUserQuestion"]
+// can't add one behind owlit's back. ToolSearch stays because MCP tools may be deferred behind it. Agent is
+// left out: Claude Code's own agents may report after its prompt has returned, and a reply ends with its
+// prompt (turns.ts).
+const CLAUDE_TOOLS = ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebSearch", "WebFetch", "ToolSearch", "TodoWrite", "AskUserQuestion"]
 
 export interface ClaudeOptions {
   settings?: Record<string, unknown>
@@ -198,27 +200,6 @@ export function toolNameOf(call: { name?: string | null; _meta?: Record<string, 
   return standard ?? (typeof claude === "string" && claude ? claude : undefined)
 }
 
-// The report an agent's own agent hands back, when this step is how it does: Claude Code's agents end with
-// a SubagentHandback call whose input is the report (claude-agent-acp 0.88); the step
-// itself only says "Report delivered"
-export function handbackOf(call: { name?: string | null; _meta?: Record<string, unknown> | null; rawInput?: unknown }): string | undefined {
-  if (toolNameOf(call) !== "SubagentHandback") return undefined
-  const message = (call.rawInput as { message?: unknown } | undefined)?.message
-  return typeof message === "string" && message.trim() ? message.trim() : undefined
-}
-
-// ---- When an agent's own turn is over ----
-
-// Whether this update closes a turn of the agent's own, one no prompt waits for. Claude Code goes on after
-// its prompt has returned: when a background agent reports back after end_turn, the report starts a turn of
-// its own, and its answer streams in with no prompt open, seconds after end_turn (claude-agent-acp 0.88).
-// Each of its turns, those included, ends with a usage_update that carries the session's cost, sent right
-// after the turn's last words (its `result` message; also sent once more for each finished background
-// task, which says nothing new). An agent this says nothing for is waited out instead (turns.ts,
-// LATE_QUIET_MS).
-export function ownTurnOver(connectorId: string, u: acp.SessionUpdate): boolean {
-  return connectorId === "claude-code" && u.sessionUpdate === "usage_update" && !!u.cost
-}
 
 // A tool call to owlit's own MCP server: Codex says so in rawInput (and titles it mcp.owlit.<tool>),
 // Claude Code titles it mcp__owlit__<tool>

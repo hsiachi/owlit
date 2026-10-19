@@ -23,9 +23,6 @@ import { i18n } from "@/lib/i18n"
 import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
 import { useWaitingOnYou } from "@/app/waiting-on-you"
-import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card"
-import { RunsCard } from "@/features/runs/components"
-import { useWorkingRuns } from "@/features/runs/store"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { pathname } = useLocation()
@@ -35,9 +32,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // reply finished while the user wasn't looking at its chat. Work at its own pace marks nothing.
   const waiting = useWaitingOnYou()
   const markOf = (to: string) => waiting.find((w) => w.place === to && w.tone !== "working")
-  // While any of Owlit's runs works, Chat's icon breathes, and its hover lists them with Stop (DESIGN.md ›
-  // Owlit's runs). A mark of something waiting on the user still wins: it outranks work on the ladder.
-  const runs = useWorkingRuns()
 
   return (
     <Sidebar
@@ -55,40 +49,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   const mark = markOf(item.to)
                   const needsYou = mark?.what
                   const place = i18n._(item.label)
-                  const working = item.to === "/chat" ? runs : []
-                  const button = (
-                    <SidebarMenuButton
-                      asChild
-                      tooltip={{
-                        children: needsYou ? t({ message: `${place} · ${needsYou}`, comment: "a place in the rail, then what waits there: Library · Sign in to your library" }) : place,
-                        // The runs' card takes the tooltip's place
-                        hidden: working.length > 0,
-                      }}
-                      onClick={() => item.panel && setOpen(true)}
-                      isActive={activeItem?.to === item.to}
-                      className="px-2.5 md:px-2 data-active:bg-card data-active:shadow-xs dark:data-active:bg-card"
-                    >
-                      <HoverCardTrigger asChild>
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={{
+                          children: needsYou ? t({ message: `${place} · ${needsYou}`, comment: "a place in the rail, then what waits there: Library · Sign in to your library" }) : place,
+                          hidden: false,
+                        }}
+                        onClick={() => item.panel && setOpen(true)}
+                        isActive={activeItem?.to === item.to}
+                        className="px-2.5 md:px-2 data-active:bg-card data-active:shadow-xs dark:data-active:bg-card"
+                      >
                         <NavLink to={item.to} className="relative">
                           <item.icon />
                           <span>{place}</span>
-                          {mark ? (
-                            <span aria-hidden className={`absolute top-1.5 right-1.5 size-1.5 rounded-full ${mark.tone === "warning" ? "bg-warning" : "bg-owlit-mark"}`} />
-                          ) : (
-                            working.length > 0 && (
-                              <span aria-hidden className="absolute top-1 right-1 size-2 animate-ring-breathe rounded-full border-[1.5px] border-muted-foreground motion-reduce:animate-none" />
-                            )
-                          )}
+                          {mark && <span aria-hidden className={`absolute top-1.5 right-1.5 size-1.5 rounded-full ${mark.tone === "warning" ? "bg-warning" : "bg-owlit-mark"}`} />}
                         </NavLink>
-                      </HoverCardTrigger>
-                    </SidebarMenuButton>
-                  )
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <HoverCard openDelay={200} closeDelay={150} open={working.length ? undefined : false}>
-                        {button}
-                        <RunsCard tasks={working} />
-                      </HoverCard>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   )
                 })}

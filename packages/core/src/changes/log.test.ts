@@ -42,6 +42,16 @@ describe("ChangeLog", () => {
     expect(ids(await log.list({ since: 2000 }))).toEqual([c.id, b.id])
   })
 
+  it("leaves out lines an owlit from before the change log wrote into the same index", async () => {
+    const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
+    const log = new ChangeLog(owlit)
+    const a = await log.append(entry({ kind: "doc", path: "a.md" }, { at: 1000 }), "")
+    // A version record in the earlier shape: no target
+    writeFileSync(path.join(owlit, "versions", "index.jsonl"), JSON.stringify({ id: "2000-x-a.md", at: 2000, by: "agent", kind: "note", path: "a.md", op: "added" }) + "\n", { flag: "a" })
+    expect((await log.list()).map((x) => x.id)).toEqual([a.id])
+    expect(await log.get("2000-x-a.md")).toBeNull()
+  })
+
   it("keeps the newest of each path and nothing older than the keep window", async () => {
     const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
     const log = new ChangeLog(owlit)
@@ -69,14 +79,14 @@ describe("Recorder", () => {
     const owlit = mkdtempSync(path.join(tmpdir(), "owlit-changes-"))
     const said: Change[] = []
     const log = new ChangeLog(owlit)
-    return { said, log, recorder: new Recorder(log, { profile: async () => ({ id }), added: ({ change }) => said.push(change), now, runOf: (run) => (run === "docs.review:t1" ? { chatId: "run-chat", ruleId: "docs.review" } : {}) }) }
+    return { said, log, recorder: new Recorder(log, { profile: async () => ({ id }), added: ({ change }) => said.push(change), now, runOf: (run) => (run === "meetings.goThrough:t1" ? { chatId: "run-chat" } : {}) }) }
   }
 
   it("names the actor by the caller", async () => {
     const { recorder: r } = recorder("1234abcd")
     expect(await r.actorOf({ kind: "window" })).toBe("p_1234abcd")
     expect(await r.actorOf({ kind: "socket", chatId: "c1" })).toBe("o_1234abcd")
-    expect(await r.actorOf({ kind: "socket", run: "docs.review:t1" })).toBe("o_1234abcd")
+    expect(await r.actorOf({ kind: "socket", run: "meetings.goThrough:t1" })).toBe("o_1234abcd")
     expect(await r.actorOf({ kind: "socket" })).toBe("other")
     expect(await r.actorOf({ kind: "owlit" })).toBe("o_1234abcd")
     // The watcher's change is Owlit's only when a tool call named the file; a running turn alone is a hint
@@ -90,12 +100,12 @@ describe("Recorder", () => {
     const applied = await r.doc({ kind: "watcher", chatId: "c1", toolCallId: "t1", accepted: true }, "a.md", "a", "b")
     const seen = await r.doc({ kind: "watcher", chatId: "c1", toolCallId: "t2" }, "a.md", "b", "c")
     const hinted = await r.doc({ kind: "watcher", chatId: "c1" }, "a.md", "c", "d")
-    const run = await r.record({ kind: "socket", run: "docs.review:t1" }, { action: "create", target: { kind: "comment", path: "a.md", part: "x" } })
+    const run = await r.record({ kind: "socket", run: "meetings.goThrough:t1" }, { action: "create", target: { kind: "comment", path: "a.md", part: "x" } })
     expect(applied).toMatchObject({ actor: "o_1234abcd", origin: { via: "apply", chatId: "c1", toolCallId: "t1", writeId: "t1" } })
     expect(seen).toMatchObject({ actor: "o_1234abcd", origin: { via: "watcher", toolCallId: "t2" } })
     expect(hinted).toMatchObject({ actor: "other", origin: { via: "watcher", chatId: "c1" } })
     expect(hinted.origin.toolCallId).toBeUndefined()
-    expect(run.origin).toMatchObject({ via: "tool", chatId: "run-chat", ruleId: "docs.review" })
+    expect(run.origin).toMatchObject({ via: "tool", chatId: "run-chat" })
   })
 
   it("folds one person's saves of a doc into one entry while nobody else changes it, for up to FOLD_MS between saves", async () => {

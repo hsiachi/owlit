@@ -1,8 +1,8 @@
 // Reports what the user does to core as activity events (protocol's ActivityEvent): which paper or doc
 // is open, time spent reading it and on which pages, page turns, stars, status and tags, highlights,
-// note and doc edits, chats written in and left, the window going idle.
+// note and doc edits, chats written in and left.
 // Core journals the coarse ones (unless settings.activity.enabled is off) and hands all of them to live
-// listeners, Owlit's rules among them. Nothing is sent without the desktop app.
+// listeners (a visit's end, for whether it read the paper in full). Nothing is sent without the desktop app.
 
 import { isOwlit, type ActivityEvent, type ChatMessage, type PaperMark, type PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
@@ -21,8 +21,6 @@ type Event = ActivityEvent extends infer E ? (E extends ActivityEvent ? Omit<E, 
 
 // How long typing must pause before an edit counts as one
 const EDIT_PAUSE = 2000
-// How long the window must sit in the background before it counts as idle
-const IDLE_AFTER = 30_000
 // No key, click, scroll or pointer move for this long with the window in front: the person is away.
 // Long enough for a dense page read without touching anything
 const STILL_AFTER = 5 * 60_000
@@ -137,12 +135,6 @@ function closePaper(paperId: string) {
   emit({ kind: "paper.closed", paperId })
 }
 
-function closeDoc(doc: { id: string; path: string }) {
-  flushPending(`doc:${doc.id}`)
-  // Its path now, should it have been renamed while open
-  emit({ kind: "doc.closed", path: useDocsStore.getState().files[doc.id]?.path ?? doc.path })
-}
-
 function leaveChats(stillOpen: Set<string>) {
   for (const chatId of [...wroteIn]) {
     if (stillOpen.has(chatId)) continue
@@ -160,7 +152,7 @@ function update(next: Open) {
     }
   }
   if (open.doc?.id !== next.doc?.id) {
-    if (open.doc) closeDoc(open.doc)
+    if (open.doc) flushPending(`doc:${open.doc.id}`)
     if (next.doc) emit({ kind: "doc.opened", path: next.doc.path })
   }
   leaveChats(next.chats)
@@ -229,27 +221,6 @@ export function startActivity(router: typeof appRouter) {
     }
     // A chat sent from the agent window may open only now; nothing else here changes what is open
     if (sent) refresh()
-  })
-
-  // The window in the background long enough counts as idle, once per stay; coming back from such a
-  // stay says so, since a person reading the page they came back to does nothing else core would hear
-  let idleTimer: ReturnType<typeof setTimeout> | undefined
-  let blurredAt: number | null = null
-  let idled = false
-  const away = () => {
-    clearTimeout(idleTimer)
-    blurredAt = Date.now()
-    idleTimer = setTimeout(() => {
-      idled = true
-      emit({ kind: "idle", seconds: IDLE_AFTER / 1000 })
-    }, IDLE_AFTER)
-  }
-  window.addEventListener("blur", away)
-  window.addEventListener("focus", () => {
-    clearTimeout(idleTimer)
-    if (idled && blurredAt !== null) emit({ kind: "back", seconds: Math.round((Date.now() - blurredAt) / 1000) })
-    idled = false
-    blurredAt = null
   })
 
   // Reading time, a second at a time; leaving the window settles what was read so far

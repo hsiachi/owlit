@@ -22,7 +22,6 @@ const core = vi.hoisted(() => {
         },
       },
       changes: { unseen: () => asked((): Unseen => ({ changes: [], chats: marked ? [] : ["c1"], digests: [] })) },
-      presence: { away: () => Promise.resolve(null) },
     },
   }
 })

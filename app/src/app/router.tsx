@@ -9,7 +9,6 @@ import { DocsHome } from "@/features/docs/pages/DocsHome"
 import { LibraryLayout } from "@/features/library/LibraryLayout"
 import { LibraryPage } from "@/features/library/pages/LibraryPage"
 import { PaperPage } from "@/features/library/pages/PaperPage"
-import { UpNextPage } from "@/features/library/pages/UpNextPage"
 import { HomePage } from "@/features/home/HomePage"
 import { ThreadsPage } from "@/features/threads/pages/ThreadsPage"
 import { ThreadPage } from "@/features/threads/pages/ThreadPage"
@@ -49,7 +48,6 @@ export const router = createBrowserRouter([
         element: <LibraryLayout />,
         children: [
           { index: true, element: <LibraryPage /> },
-          { path: "up-next", element: <UpNextPage /> },
           { path: ":paperId", element: <PaperPage /> },
         ],
       },

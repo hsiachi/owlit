@@ -383,18 +383,6 @@ describe("Scheduler", () => {
     expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
     expect(order).toEqual(["start review", "start digest", "end digest", "start review", "end review"])
   })
-
-  it("lets background runs of a kind step aside for a while (a chat being answered)", async () => {
-    let runs = 0
-    const work = defineTask("fake.review", { lane: "agent", run: (ctx) => (++runs === 1 ? untilAborted(ctx.signal) : undefined) })
-    const { scheduler } = await newScheduler([work])
-    const review = scheduler.enqueue("fake.review", "a.md", "background")
-    await until(() => scheduler.get(review.id)?.state === "running", { what: "the background run to start" })
-    scheduler.yieldTo("agent", (task) => task.kind === "fake.review", 30)
-    await until(() => scheduler.get(review.id)?.state === "queued", { what: "the run to step aside" })
-    expect(scheduler.get(review.id)).toMatchObject({ state: "queued", attempts: 0, notBefore: expect.any(Number) })
-    expect(await scheduler.wait(review.id)).toMatchObject({ state: "done", attempts: 1 })
-  })
 })
 
 describe("TaskThrottle", () => {

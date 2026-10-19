@@ -46,23 +46,17 @@ async function setup() {
       },
       { what: `the digest of ${id}` },
     )
-  const journal = () => readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
-  // Stars the paper and waits for the digest rule to say, in the journal, why it writes nothing
-  const starredForNothing = async (id: string) => {
-    await call("library.update", { id, patch: { starred: true } })
-    const found = await until(() => journal().find((l) => l.kind === "evaluation" && l.rule === "digest.onStar" && l.subject === id), { what: `digest.onStar's decision on ${id}` })
-    expect(found.decision).toBe("none")
-    return found.reason as string
-  }
-  return { root, call, workspace, addPaper, digestDone, starredForNothing }
+  return { root, call, workspace, addPaper, digestDone }
 }
 
 describe("digests", () => {
-  it("writes one when asked, with no chat to show for it; opening a paper's page asks for nothing", async () => {
+  it("writes one when asked, with no chat to show for it; opening or starring a paper asks for nothing", async () => {
     const { root, call, workspace, addPaper, digestDone } = await setup()
     await addPaper("doi-10.1-opened")
+    await addPaper("doi-10.1-starred")
     await addPaper("doi-10.1-a")
     await call("activity.emit", { event: { kind: "paper.opened", at: Date.now(), paperId: "doi-10.1-opened" } })
+    await call("library.update", { id: "doi-10.1-starred", patch: { starred: true } })
     await call("library.requestDigest", { id: "doi-10.1-a" })
     expect(await digestDone("doi-10.1-a")).toMatchObject({ state: "done", priority: "asked" })
     // Heard before the ask, and queued nothing
@@ -78,12 +72,12 @@ describe("digests", () => {
     expect(await call("chats.list")).toEqual([])
   })
 
-  it("keeps its run as a session the paper's row opens: why, steps, result; not in the chat list", async () => {
+  it("keeps its run as a session: why, steps, result; not in the chat list", async () => {
     const { call, addPaper, digestDone } = await setup()
     await addPaper("doi-10.1-r")
     await call("library.requestDigest", { id: "doi-10.1-r" })
     const task = await digestDone("doi-10.1-r")
-    expect(task).toMatchObject({ state: "done", chatId: expect.any(String), doing: "Writing the digest of “Paper doi-10.1-r”" })
+    expect(task).toMatchObject({ state: "done", chatId: expect.any(String) })
     const run = await call("chats.get", { id: task.chatId })
     expect(run).toMatchObject({ startedBy: "owlit", run: { taskId: task.id, kind: "paper.digest", subject: "doi-10.1-r" }, title: "Digest of “Paper doi-10.1-r”" })
     expect(run.messages[0]).toMatchObject({ role: "user", parts: [{ type: "text", text: "You asked for a digest of “Paper doi-10.1-r”." }] })
@@ -107,23 +101,14 @@ describe("digests", () => {
     expect((await call("library.list")).papers[0].digestOutdated).toBe("language")
   })
 
-  it("writes one in the background when a paper is starred", async () => {
-    const { call, addPaper, digestDone } = await setup()
-    await addPaper("doi-10.1-b")
-    await call("library.update", { id: "doi-10.1-b", patch: { starred: true } })
-    expect(await digestDone("doi-10.1-b")).toMatchObject({ state: "done", priority: "background" })
-  })
-
   it("writes none for papers merely added, and replaces a note that is there only when asked", async () => {
-    const { root, call, workspace, addPaper, digestDone, starredForNothing } = await setup()
+    const { root, call, workspace, addPaper, digestDone } = await setup()
     for (let i = 0; i < 50; i++) await addPaper(`doi-10.1-bulk${i}`)
 
     const note = path.join(root, "library/papers/doi-10.1-bulk0/digest.md")
     writeFileSync(note, "# From pitta\n\nKept as it is.\n")
-    // Asked for, the decision is made before the call returns
+    // Asked for, the decision is made before the call returns: a note is there already
     await call("library.requestDigest", { id: "doi-10.1-bulk0" })
-    // The rule's decision on the star comes after the adds' events: no digest for any of them by then
-    expect(await starredForNothing("doi-10.1-bulk0")).toBe("has a digest")
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
     expect(readFileSync(note, "utf8")).toBe("# From pitta\n\nKept as it is.\n")
     // Written another way than owlit writes notes now: the page offers to rewrite it
@@ -164,12 +149,12 @@ describe("digests", () => {
   })
 
   it("waits for a paper's text before writing, and skips papers with nothing to read", async () => {
-    const { root, call, workspace, addPaper, starredForNothing } = await setup()
+    const { root, call, workspace, addPaper } = await setup()
     await addPaper("doi-10.1-none", false)
     await call("library.requestDigest", { id: "doi-10.1-none" })
-    // Its text is read first, and finds nothing
+    // Its text is read first, and finds nothing: asked again, there is still nothing to write from
     await until(() => workspace.tasks.list().some((t) => t.kind === "paper.text" && t.subject === "doi-10.1-none" && ["done", "failed", "cancelled"].includes(t.state)), { what: "the paper's text task" })
-    expect(await starredForNothing("doi-10.1-none")).toBe("nothing to read")
+    await call("library.requestDigest", { id: "doi-10.1-none" })
     expect(workspace.tasks.list().filter((t) => t.kind === "paper.digest")).toEqual([])
     expect(existsSync(path.join(root, "library/papers/doi-10.1-none/digest.md"))).toBe(false)
   })

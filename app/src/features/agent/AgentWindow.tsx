@@ -20,9 +20,6 @@ import { useChatList } from "@/features/chat/use-chat-list"
 import { useChatStatus } from "@/features/chat/use-chat-status"
 import { useLookAt } from "@/features/chat/status"
 import { useChatStore } from "@/features/chat/store"
-import { RunFooter } from "@/features/runs/components"
-import { loadRun, useRunsStore } from "@/features/runs/store"
-import { isDesktop } from "@/lib/rpc"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
 import { askAboutOrAnything, pageStarters, useVisibleContext } from "./page-context"
@@ -51,23 +48,14 @@ export function AgentPanel() {
   const panelWidth = useAgentWindow((s) => s.panelWidth)
   const { close, send } = useAgentWindow.getState()
   const context = useVisibleContext()
-  const own = useChatStore((s) => (chatId ? s.chats[chatId] : undefined))
-  // One of Owlit's own runs, opened from what it works on: shown as a chat is, without a composer
-  const run = useRunsStore((s) => (chatId && !own ? s.runs[chatId] : undefined))
-  const chat = own ?? run
-  const streaming = useChatStore((s) => (chatId ? !!s.streaming[chatId] : false)) || run?.messages.at(-1)?.status === "streaming"
+  const chat = useChatStore((s) => (chatId ? s.chats[chatId] : undefined))
+  const streaming = useChatStore((s) => (chatId ? !!s.streaming[chatId] : false))
   const composer = useRef<ComposerHandle>(null)
-  useLookAt(own?.id)
+  useLookAt(chat?.id)
 
   useEffect(() => {
     composer.current?.focus()
   }, [focusTick, chatId])
-
-  // A run the panel was left on (the workspace keeps the panel's chat) is read again from core
-  const known = !!own || !!run
-  useEffect(() => {
-    if (chatId && !known && isDesktop) void loadRun(chatId)
-  }, [chatId, known])
 
   return (
     <aside
@@ -78,7 +66,7 @@ export function AgentPanel() {
       onKeyDown={(e) => e.key === "Escape" && !e.defaultPrevented && close()}
     >
       <ResizeEdge />
-      <PanelHeader chatId={own?.id} title={chat?.title} />
+      <PanelHeader chatId={chat?.id} title={chat?.title} />
       {chat && chat.messages.length > 0 ? (
         <ChatMessages chat={chat} streaming={streaming} panel />
       ) : (
@@ -90,20 +78,16 @@ export function AgentPanel() {
           }}
         />
       )}
-      {run ? (
-        <RunFooter run={run} working={streaming} />
-      ) : (
-        <ComposerDock
-          ref={composer}
-          chat={own}
-          streaming={streaming}
-          panel
-          compact={panelWidth < 440}
-          onSubmit={(input, id) => send(input, context, id)}
-          placeholder={own?.messages.length ? t`Ask a follow-up…` : t`Ask Owlit…`}
-          header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
-        />
-      )}
+      <ComposerDock
+        ref={composer}
+        chat={chat}
+        streaming={streaming}
+        panel
+        compact={panelWidth < 440}
+        onSubmit={(input, id) => send(input, context, id)}
+        placeholder={chat?.messages.length ? t`Ask a follow-up…` : t`Ask Owlit…`}
+        header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
+      />
     </aside>
   )
 }

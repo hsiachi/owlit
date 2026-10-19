@@ -24,10 +24,6 @@ import { useLibraryUi } from "../ui-store"
 import { PaperRowMenu } from "./PaperMenu"
 import { PaperPeek } from "./PaperPeek"
 import { PaperRow } from "./PaperRow"
-import { RunMark } from "@/features/runs/components"
-
-// The run that writes a paper's reading note
-const DIGEST_RUN = ["paper.digest"]
 import { StarButton, StarMark } from "./StarButton"
 import { TagDot } from "./TagsEditor"
 
@@ -90,10 +86,10 @@ function TextSnippet({ text, className }: { text: string; className?: string }) 
   )
 }
 
-// Where the paper's digest stands, on the ladder of states: breathing while Owlit writes it, Owlit's dot
-// once it is new since the user looked, red when the run broke (the row says so in words too)
-function DigestMark({ state, paperId }: { state: DigestState; paperId: string }) {
-  if (state === "writing") return <RunMark subject={paperId} kinds={DIGEST_RUN} />
+// Where the paper's digest stands, on the ladder of states: Owlit's dot once it is new since the user
+// looked, red when the run broke (the row says so in words too). One being written shows on the paper's
+// Digest side, not in the list.
+function DigestMark({ state }: { state: DigestState }) {
   if (state === "new") return <NoteDot label={t`New digest`} />
   if (state === "failed") return <StoppedDot label={t`Digest stopped`} />
   return null
@@ -108,10 +104,10 @@ const noPdfWord = (p: Paper) => pdfWord(pdfWait(p))
 function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState }) {
   const label = paper.status === "reading" ? statusLabel("reading") : undefined
   const trace = useTraceTitle(paper)
-  if (digest) {
+  if (digest === "new" || digest === "failed") {
     return (
       <span className="grid size-4 shrink-0 place-items-center">
-        <DigestMark state={digest} paperId={paper.id} />
+        <DigestMark state={digest} />
       </span>
     )
   }
@@ -283,7 +279,7 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
             <span className={cn(peeked ? "font-medium text-balance decoration-foreground/30 underline-offset-3 group-hover/row:underline" : "truncate")}>{paper.title}</span>
             {/* The table has no status slot: the digest's mark follows the title, as the star does */}
             <span className="flex h-5 shrink-0 items-center gap-2">
-              <DigestMark state={digest} paperId={paper.id} />
+              <DigestMark state={digest} />
               {paper.starred && <StarMark />}
             </span>
           </span>

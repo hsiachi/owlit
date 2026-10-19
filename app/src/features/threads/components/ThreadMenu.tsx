@@ -31,11 +31,6 @@ export function useThreadMenu(c: Thread | undefined, projects: string[], opts: {
     [
       { label: t`Rename`, onSelect: () => rename({ renaming: c.id }), afterClose: true },
       {
-        label: t({ message: "Watch for new papers", comment: "menu switch: Owlit looks for new papers on this thread's question now and then" }),
-        checked: c.watch,
-        onSelect: () => void editThread(c.id, { op: "watch", on: !c.watch }),
-      },
-      {
         label: t`Move to project`,
         childrenClassName: "w-52",
         children: [

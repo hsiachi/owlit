@@ -1,8 +1,8 @@
 import { isOwlit, type DocComment } from "@owlit/protocol"
 import { defineSkill } from "./skills.ts"
 
-// Owlit's own comments on the user's docs: how it answers under one, and how it looks at one again.
-// It never edits the doc; its comments are its own words.
+// Owlit's own comments on the user's docs: how it answers when the user replies under one. It never
+// edits the doc; its comments are its own words.
 
 // The citation rule of agents/rules.ts, repeated where the answer's form is asked for (change them together)
 const CITE = `When you say something about a paper, cite it with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").`
@@ -48,38 +48,4 @@ export const replySkill = defineSkill<ReplyInput>({
   tools: /^library_(search|related)$/,
   writes: ["comment"],
   instructions: replyPrompt,
-})
-
-export interface RecheckInput {
-  path: string
-  content: string
-  comment: DocComment
-  paperId: string
-  title: string
-}
-
-// One of Owlit's comments leans on a paper the user has now read in full: Owlit reads the paper again,
-// with what the user marked in it, and says in the comment whether what it said still holds
-export function recheckPrompt({ path, content, comment, paperId, title }: RecheckInput) {
-  const at = content.indexOf(comment.quote)
-  const around = at >= 0 ? content.slice(Math.max(0, at - 600), at + comment.quote.length + 600) : comment.quote
-  const thread = comment.entries.map((e) => `${isOwlit(e.by) ? "Owlit" : "The user"}: ${e.text}`).join("\n\n")
-  return [
-    `You are Owlit. On the user's doc ${path} you left a comment on the words «${comment.quote}» that leans on the paper “${title}” (${paperId}). The user has since read that paper in full. Read it again (library_read), with what they highlighted and noted in it (library_highlights, library_get), and check whether what you said still holds.`,
-    `Around the words:\n\n${around}`,
-    `The comment so far:\n\n${thread}`,
-    CITE,
-    correctable(comment)
-      ? `If it still holds, answer only "Still holds." If it was wrong, answer in the ${CORRECT} form below. If it needs adding to, answer with the short addition to the comment itself (one to three sentences, in the language of the doc), no preamble.`
-      : `If it still holds, answer only "Still holds." If it needs correcting or adding to, answer with the short addition to the comment itself (one to three sentences, in the language of the doc), no preamble.`,
-    ...(correctable(comment) ? [CORRECTING] : []),
-  ].join("\n\n")
-}
-
-export const recheckSkill = defineSkill<RecheckInput>({
-  id: "docs.recheck",
-  format: 3,
-  lane: "agent",
-  writes: ["comment"],
-  instructions: recheckPrompt,
 })

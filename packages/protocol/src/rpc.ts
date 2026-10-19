@@ -1,10 +1,9 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
-import type { ArchiveSummary } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
-import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
+import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Absence, Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
+import type { Change, ChangedPassage, ChangeFilter, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -110,11 +109,6 @@ export interface Methods {
   "workspace.clearRecent": { params: void; result: null }
   // .owlit/workspace.json's layout: what the window shows, kept with the workspace (the agent
   // window's chat, …)
-  // What the user did with Owlit's work that only a window sees (a comment of Owlit's came into view)
-  "initiative.feedback": { params: { what: "seen" | "apply" | "undo"; subject: string; detail?: Record<string, string | number | boolean> }; result: null }
-  // Everything Owlit did on its own here (what it heard, each decision, what you did with its work, its
-  // runs) as one archive in a new folder outside the workspace, from since (ms) on
-  "archive.export": { params: { to: string; since?: number }; result: ArchiveSummary }
   "workspace.layout":{ params: void; result: Record<string, unknown> }
   // Merges into the layout; a key set to null is removed
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
@@ -190,7 +184,7 @@ export interface Methods {
   "comments.put": { params: { path: string; comment: CommentInput }; result: DocComment | null }
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
-  // One of Owlit's comments the user doesn't want; journaled as feedback.dismiss
+  // One of Owlit's comments the user doesn't want, put away for good
   "comments.dismiss": { params: { path: string; id: string }; result: DocComment }
   // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
   "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
@@ -231,7 +225,7 @@ export interface Methods {
   "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: Thread }
   // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full, check
   // for new papers now
-  "threads.run": { params: { id: string; run: "more" | "read" | "check" }; result: Task }
+  "threads.run": { params: { id: string; run: "more" | "read" }; result: Task }
   // A new column: a question Owlit answers for every paper
   "threads.ask": { params: { id: string; question: string }; result: Thread }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
@@ -250,8 +244,6 @@ export interface Methods {
   // Your chats; Owlit's own runs aren't among them
   "chats.list": { params: void; result: ChatSummary[] }
   "chats.get": { params: { id: string }; result: Chat }
-  // Owlit's runs that ended after since, newest first
-  "chats.runs": { params: { since: number }; result: RunSummary[] }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
@@ -363,8 +355,6 @@ export interface Methods {
   // kinds: only those (all when absent)
   "seen.get": { params: { kinds?: SeenKind[] }; result: SeenMarks }
   "seen.mark": { params: SeenMark; result: SeenMarks }
-  // The person's last stretch away that has ended (the app closed counts), or null
-  "presence.away": { params: void; result: Absence | null }
 
   // ---- Memory: what Owlit keeps in mind about the user (.owlit/memory.md)
   // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
@@ -542,11 +532,8 @@ export interface Notifications {
   "agents.changed": Connector
   // One streamed update of a chat's running turn, for that turn's reply (messageId)
   "chat.update": { chatId: string; messageId: string; update: SessionUpdate }
-  // A reply that had ended was opened again because the agent went on after its turn, or that reply ended
-  // again: the reply as core has it (status "streaming" while it runs). What it adds streams as chat.update.
-  "chat.lateReply": { chatId: string; message: ChatMessage }
-  // A run Owlit started on its own began or ended: its session whole, as core has it (the first
-  // message says why it started; the reply is "streaming" while it runs). Its steps stream as chat.update.
+  // A run the user asked Owlit for began or ended: its session whole, as core has it (the first message
+  // says why it started; the reply is "streaming" while it runs)
   "chats.run": { chat: Chat }
   // Core needs a window to do something only it can (UiActions)
   "ui.request": UiRequest
@@ -562,8 +549,6 @@ export interface Notifications {
   "changes.added": { change: Change; label?: string; thread?: { rows: string[]; updated: number; asked?: string } }
   // The person's seen marks changed (a window marked something); all of them as they are now
   "seen.changed": SeenMarks
-  // The person came back from a stretch away
-  "presence.away": Absence
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

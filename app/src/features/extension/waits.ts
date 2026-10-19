@@ -75,20 +75,3 @@ export function siteWaitItem(wait: ExtensionWait, showLibrary: () => void): Wait
 
 // The ones that wait on the user
 export const siteWaitItems = (waits: ExtensionWait[], showLibrary: () => void) => waits.filter((wait) => waitsOnYou(wait)).map((wait) => siteWaitItem(wait, showLibrary))
-
-// Since you left's line for PDFs: how many came through the user's browser while they were away, and
-// what the sites still wait for. Nothing to say when none came; the sites have their own lines.
-export function cameLine(came: number, waits: ExtensionWait[]): { title: string; detail?: string } | undefined {
-  if (!came) return undefined
-  const title = plural(came, { one: "# PDF came through your browser", other: "# PDFs came through your browser" })
-  const parts = waits.map(({ kind, host, papers: n, proxied }) =>
-    kind === "sign-in"
-      ? proxied
-        ? plural(n, { one: "# waits for your library sign-in", other: "# wait for your library sign-in" })
-        : plural(n, { one: `# waits for a sign-in at ${host}`, other: `# wait for a sign-in at ${host}` })
-      : kind === "check"
-        ? plural(n, { one: `# waits for a check at ${host}`, other: `# wait for a check at ${host}` })
-        : plural(n, { one: `# waits for the extension to be allowed on ${host}`, other: `# wait for the extension to be allowed on ${host}` }),
-  )
-  return parts.length ? { title, detail: parts.join(" · ") } : { title }
-}

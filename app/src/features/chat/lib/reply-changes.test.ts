@@ -16,8 +16,8 @@ describe("replyEntries", () => {
     expect(replyEntries(all, messages, "r2").map((c) => c.id)).toEqual(["e3"])
   })
 
-  it("stretches the last reply, taken up again late, to whatever came after it", () => {
-    expect(replyEntries([entry("late", 90)], messages, "r2").map((c) => c.id)).toEqual(["late"])
+  it("stretches the last reply to whatever came after it", () => {
+    expect(replyEntries([entry("after", 90)], messages, "r2").map((c) => c.id)).toEqual(["after"])
   })
 
   it("leaves out the person's entries and every undo", () => {

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { fullReadAt, readJournal } from "../activity/reading.ts"
-import { paperDir } from "../library/paths.ts"
+import { paperDir } from "./paths.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 
 // When the user's reading of a paper reaches the whole of it (reading.ts › readInFull): looked at as each

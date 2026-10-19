@@ -42,7 +42,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "owlit",
     title: "Talking to Owlit",
-    text: `⌘J (or the feather at the top right) opens Owlit from anywhere outside Chat: a small ask bar that becomes a side panel once a conversation starts. It sees the paper or doc on screen and any selection sent to it. Work that takes minutes (find and add papers, compare papers, review a draft) is better handed off from the Chat page; the chat list shows which chats are working, waiting on the user, or finished since they last looked. Home lists everything waiting on the user. The composer picks the agent, the model and how often Owlit asks permission.`,
+    text: `⌘J (or the feather at the top right) opens Owlit from anywhere outside Chat: a small ask bar that becomes a side panel once a conversation starts. It sees the paper or doc on screen and any selection sent to it. Work that takes minutes (find and add papers, compare papers, review a draft) is better asked on the Chat page; the chat list shows which chats are working, waiting on the user, or finished since they last looked. Home lists everything waiting on the user. The composer picks the agent, the model and how often Owlit asks permission.`,
   },
   {
     id: "agents",
@@ -52,7 +52,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "threads",
     title: "Threads",
-    text: `A thread is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Threads page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the thread; opening one or Add to Library brings it into the Library. On a thread: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Watch for new papers, Move to project, Export as CSV and Delete.`,
+    text: `A thread is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Threads page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the thread; opening one or Add to Library brings it into the Library. On a thread: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Move to project, Export as CSV and Delete.`,
   },
   {
     id: "undo",

@@ -76,7 +76,7 @@ export const WRITE = {
   ],
 }
 
-// Ask: ⌘J over a paper, then work handed off in Chat
+// Ask: ⌘J over a paper, then a longer task in Chat
 export const ASK = {
   section: "3 Self-RAG",
   body: "Self-RAG trains an LM to generate text with reflection tokens. Given an input, the model first decides whether retrieval would help by predicting a Retrieve token. If so, it calls a retriever and processes several passages in parallel, then predicts IsRel, IsSup and IsUse tokens to judge each passage and its own output.",
@@ -92,7 +92,7 @@ export const ASK = {
   answerPage: "p. 4",
   // The agent the composer shows: a name, the same in every language
   agent: "Claude Code",
-  handOff: "Find 2024 papers on hallucination benchmarks for RAG and add the good ones",
+  task: "Find 2024 papers on hallucination benchmarks for RAG and add the good ones",
   found: 37,
   added: [
     { title: "RAGTruth: A Hallucination Corpus for Trustworthy RAG", meta: "Niu et al." },

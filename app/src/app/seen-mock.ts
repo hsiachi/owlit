@@ -1,12 +1,12 @@
-import { itemId, type Absence, type Change, type ChangedPassage, type SeenMarks } from "@owlit/protocol"
+import { itemId, type Change, type ChangedPassage, type SeenMarks } from "@owlit/protocol"
 import { seedComments, seedFiles } from "@/features/docs/mocks/seed"
 import { seedThreads } from "@/features/threads/mocks/seed"
 import { WEB_OWLIT } from "@/lib/actors"
 import { DAY, HOUR } from "@/lib/time"
 
-// What the browser preview has instead of core's log and seen marks: the person away four days, the
-// Library's tool-reading thread with two rows and a sentence Owlit added since they looked, a paragraph
-// Owlit wrote in Related work and its last comment there
+// What the browser preview has instead of core's log and seen marks: the Library's tool-reading thread
+// with two rows and a sentence Owlit added since the person looked, a paragraph Owlit wrote in Related
+// work and its last comment there
 
 const now = Date.now()
 const threads = seedThreads()
@@ -16,8 +16,6 @@ const retrieval = relatedWork.content!.split("\n\n").find((p) => p.startsWith("R
 
 let n = 0
 const change = (at: number, target: Change["target"], extra: Partial<Change> = {}): Change => ({ id: `mock-${n++}`, at, actor: WEB_OWLIT, action: "update", target, origin: { via: "tool" }, ...extra })
-
-export const MOCK_AWAY: Absence = { from: now - 4 * DAY, to: now }
 
 export const MOCK_CHANGES: Change[] = [
   ...reading.rows

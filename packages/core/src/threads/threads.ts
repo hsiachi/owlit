@@ -35,7 +35,7 @@ import { newWriteId, type RecordInput, type Recorder } from "../changes/record.t
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
-import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, rereadSkill, type Skill } from "../initiative/skills.ts"
+import { fillSkill, gatherSkill, moreSkill, readSkill, type Skill } from "../initiative/skills.ts"
 import { sameJson, Serial } from "../util.ts"
 
 // Threads: papers Owlit gathered for a question, in .owlit/threads/<id>/:
@@ -94,7 +94,6 @@ const SEARCHES_SINCE_MS = 6 * 3_600_000
 const BATCH_GAP_MS = 30 * 60_000
 
 const FILE = "thread.json"
-const DAY = 24 * 3_600_000
 
 // A skill that may use only owlit's read-only tools
 const NO_TOOLS = /^$/
@@ -136,18 +135,6 @@ export class Threads {
     return undefined
   }
 
-  // The threads that have this paper as a row (under any id it goes by), and whether some of its answers
-  // there rest only on the abstract (the user's reading of it in full can give them again from the whole
-  // text)
-  async rowsOf(paperId: string): Promise<{ thread: string; row: string; fromAbstract: boolean }[]> {
-    const out: { thread: string; row: string; fromAbstract: boolean }[] = []
-    for (const id of await readdir(this.dir).catch(() => [] as string[])) {
-      const row = await this.rowOf((await this.load(id).catch(() => undefined))?.rows ?? [], paperId)
-      if (row) out.push({ thread: id, row: row.id, fromAbstract: Object.values(row.cells).some((cell) => cell.depth !== "full") })
-    }
-    return out
-  }
-
   // The thread as it is read: each row's paper as the Library has it, when it is there
   async get(id: string): Promise<Thread> {
     const c = await this.load(id)
@@ -178,7 +165,7 @@ export class Threads {
     const agent = this.services.agent
     if (!agent) return []
     // A task per skill (initiative/skills.ts): the skill says what the session is told and which tools it gets
-    const run = <I>(skill: Skill<I>, input: (c: Thread, subject: string) => I | Promise<I>, after?: (c: Thread) => Promise<void>) =>
+    const run = <I>(skill: Skill<I>, input: (c: Thread, subject: string) => I | Promise<I>) =>
       defineTask(skill.id, {
         lane: skill.lane,
         retries: 1,
@@ -189,7 +176,6 @@ export class Threads {
           // What it did is in the thread, with Owlit's dots; its answer is only a line for the log
           const done = await agent(skill.instructions(await input(c, ctx.task.subject)), ctx, skill.tools ?? NO_TOOLS, `${skill.id}:${ctx.task.id}`)
           if (process.env.OWLIT_LOG_AGENTS) console.log(`[threads] ${skill.id} ${ctx.task.subject}: ${done.text.trim().split("\n").pop()}`)
-          await after?.(c)
         },
       })
     return [
@@ -201,9 +187,6 @@ export class Threads {
         return { thread, column, withText: await this.withText(thread) }
       }),
       run(readSkill, (thread) => ({ thread })),
-      run(checkSkill, (thread) => ({ thread, since: thread.checkedAt ?? thread.createdAt }), (c) => this.checked(c.id)),
-      // "<id>:<paper>": one row, answered again once the user read the paper in full
-      run(rereadSkill, (thread, subject) => ({ thread, paperId: subject.slice(subject.indexOf(":") + 1) })),
     ]
   }
 
@@ -231,7 +214,7 @@ export class Threads {
     })
   }
 
-  async start(id: string, run: "more" | "read" | "check") {
+  async start(id: string, run: "more" | "read") {
     await this.get(id)
     return this.queue(`threads.${run}`, id, "asked")
   }
@@ -307,27 +290,6 @@ export class Threads {
       this.services.changed?.(c.id, c)
       this.queue("threads.fill", `${c.id}:${column.id}`, "asked")
       return c
-    })
-  }
-
-  // The threads the user asked Owlit to watch, each with whether a day has passed since its last check
-  // (Owlit's rules queue the check)
-  async watched(now = Date.now()): Promise<{ id: string; due: boolean }[]> {
-    const out: { id: string; due: boolean }[] = []
-    for (const s of await this.list()) {
-      if (!s.watch) continue
-      const c = await this.load(s.id)
-      if (c) out.push({ id: c.id, due: now - (c.checkedAt ?? c.createdAt) >= DAY })
-    }
-    return out
-  }
-
-  private async checked(id: string) {
-    await this.serial.run(async () => {
-      const c = await this.load(id)
-      if (!c) return
-      c.checkedAt = Date.now()
-      await this.save(c)
     })
   }
 
@@ -809,7 +771,7 @@ export class Threads {
       let batch = batches.at(-1)
       if (!batch || batch.key !== key || (!line.run && line.at - batch.last > BATCH_GAP_MS)) {
         const kind = line.run?.split(":")[0]?.replace(/^threads\./, "")
-        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "check", "read", "reread", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
+        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
         batch = { key, last: line.at, rows: new Set(), lines: [], at: line.at, trigger, added: 0, answered: 0, columns: [], searches: [], notes: [] }
         if (trigger === "chat") batch.chatId = line.by.slice("chat:".length)
         batches.push(batch)
@@ -873,7 +835,6 @@ export class Threads {
       memo: [],
       columns: [{ id: QUESTION_COLUMN, question: input.asked!.trim(), kind: "ask" }],
       rows: [],
-      watch: false,
       createdAt: now,
       updatedAt: now,
       overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
@@ -925,7 +886,7 @@ export class Threads {
 
 // One item of a thread as the change log keeps it: Owlit's value, and the user's rewrite or removal of it
 // that wins over that value. Items are named as itemId() names them, plus column:<id>, alsoAsked, and the
-// thread's watch and project settings. A row is kept without its cells and a column without its groups:
+// thread's project. A row is kept without its cells and a column without its groups:
 // those are items of their own. undefined when the thread has nothing of it.
 function itemOf(c: Thread, item: string): unknown {
   const [kind, a, b] = item.split(":")
@@ -934,7 +895,6 @@ function itemOf(c: Thread, item: string): unknown {
   if (item === itemId.title()) value = c.title
   else if (item === "asked") value = c.asked
   else if (item === "alsoAsked") value = c.alsoAsked
-  else if (item === "watch") value = c.watch
   else if (item === "project") value = c.project
   else if (kind === "memo") value = c.memo.find((s) => s.id === a)
   else if (kind === "cell") value = c.rows.find((r) => r.id === a)?.cells[b!]
@@ -994,8 +954,7 @@ function putItem(c: Thread, item: string, to: unknown): boolean {
   else if (item === "alsoAsked") {
     if (value) c.alsoAsked = value
     else delete c.alsoAsked
-  } else if (item === "watch") c.watch = !!value
-  else if (item === "project") c.project = value ?? ""
+  } else if (item === "project") c.project = value ?? ""
   else if (kind === "memo") c.memo = put(c.memo, a, value)
   else if (kind === "column") {
     const was = c.columns.find((col) => col.id === a)

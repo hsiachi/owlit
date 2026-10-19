@@ -1220,12 +1220,13 @@ msgstr "Attach files"
 msgid "Add from {place}"
 msgstr "Add from {place}"
 
+#. stop Owlit answering a reply on its comment
+#. stop Owlit writing a paper's digest
 #. stop Owlit's work on a thread
-#. stop one of Owlit's background runs
-#. stop one of Owlit's background runs
 #. verb: stop the agent's reply
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/runs/components.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/threads/components/Work.tsx
 msgid "Stop"
 msgstr "Stop"
@@ -1931,14 +1932,6 @@ msgid "Searched files for {pattern}"
 msgstr "Searched files for {pattern}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "Hand a task to an agent"
-msgstr "Hand a task to an agent"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Handed a task to an agent"
-msgstr "Handed a task to an agent"
-
-#: app/src/features/chat/lib/step-words.ts
 msgid "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
 msgstr "{questions, plural, one {Ask you a question} other {Ask you # questions}}"
 
@@ -1965,10 +1958,6 @@ msgstr "{n, plural, one {wrote a file} other {wrote # files}}"
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {opened a page} other {opened # pages}}"
 msgstr "{n, plural, one {opened a page} other {opened # pages}}"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
-msgstr "{n, plural, one {handed a task to a helper} other {handed # tasks to helpers}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked you a question} other {asked you # questions}}"
@@ -2049,10 +2038,6 @@ msgstr "Searching the web"
 #: app/src/features/chat/lib/step-words.ts
 msgid "Opening pages"
 msgstr "Opening pages"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "Working with a helper"
-msgstr "Working with a helper"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Searching for papers"
@@ -2452,6 +2437,10 @@ msgid "Resolved comments…"
 msgstr "Resolved comments…"
 
 #: app/src/features/docs/actions.ts
+msgid "Stop going through"
+msgstr "Stop going through"
+
+#: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
 msgstr "Go through against your docs"
 
@@ -2521,8 +2510,8 @@ msgstr "{0} replied {1}"
 
 #. Owlit is writing its answer to the user's reply on a comment
 #: app/src/features/docs/comments/CommentCard.tsx
-msgid "Replying…"
-msgstr "Replying…"
+msgid "Owlit is answering…"
+msgstr "Owlit is answering…"
 
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Ask Owlit about this comment"
@@ -2803,7 +2792,6 @@ msgstr "Edit applied"
 #. placeholder {0}: papers.length
 #. placeholder {0}: rows.length
 #: app/src/features/docs/lib/mentions.ts
-#: app/src/features/home/SinceYouLeft.tsx
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/library/lib/filter.ts
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -2815,6 +2803,14 @@ msgstr "{0, plural, one {# paper} other {# papers}}"
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}, p. {page}"
+
+#: app/src/features/docs/owlit.ts
+msgid "Owlit is going through “{name}”"
+msgstr "Owlit is going through {name}"
+
+#: app/src/features/docs/owlit.ts
+msgid "What it finds will come as comments. The doc's menu can stop it."
+msgstr "What it finds will come as comments. The doc's menu can stop it."
 
 #: app/src/features/docs/owlit.ts
 msgid "Couldn't start going through it."
@@ -3071,26 +3067,6 @@ msgstr "Press owlit's button in your browser's toolbar, then Allow."
 msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "The extension asks to read {host} for the papers waiting there."
 
-#: app/src/features/extension/waits.ts
-msgid "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-msgstr "{came, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
-msgstr "{n, plural, one {# waits for your library sign-in} other {# wait for your library sign-in}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
-msgstr "{n, plural, one {# waits for a sign-in at {host}} other {# wait for a sign-in at {host}}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
-msgstr "{n, plural, one {# waits for a check at {host}} other {# wait for a check at {host}}}"
-
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
-msgstr "{n, plural, one {# waits for the extension to be allowed on {host}} other {# wait for the extension to be allowed on {host}}}"
-
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Recent"
@@ -3150,8 +3126,8 @@ msgid "Chat with Owlit"
 msgstr "Chat with Owlit"
 
 #: app/src/features/home/HomePage.tsx
-msgid "Ask, or hand off work like finding papers"
-msgstr "Ask, or hand off work like finding papers"
+msgid "Ask, or have Owlit find papers"
+msgstr "Ask, or have Owlit find papers"
 
 #: app/src/features/home/HomePage.tsx
 msgid "This folder is your workspace. Papers, notes and chats you add live in it as ordinary files."
@@ -3160,69 +3136,6 @@ msgstr "This folder is your workspace. Papers, notes and chats you add live in i
 #: app/src/features/home/HomePage.tsx
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left at {left}"
-msgstr "Since you left at {left}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Since you left on {left}"
-msgstr "Since you left on {left}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "Finished {when}"
-msgstr "Finished {when}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
-msgstr "{more, plural, one {{shownNames} and # more} other {{shownNames} and # more}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "New thread: {title}"
-msgstr "New thread: {title}"
-
-#. placeholder {0}: line.added.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
-msgstr "{0, plural, one {# paper added to {title}} other {# papers added to {title}}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{title} changed"
-msgstr "{title} changed"
-
-#. placeholder {0}: titles.length
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
-msgstr "{0, plural, one {# paper added to your Library} other {# papers added to your Library}}"
-
-#. placeholder {0}: line.count
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
-msgstr "{0, plural, one {{who} left # comment on {name}} other {{who} left # comments on {name}}}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was made outside owlit"
-msgstr "{name} was made outside owlit"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} wrote {name}"
-msgstr "{who} wrote {name}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was removed outside owlit"
-msgstr "{name} was removed outside owlit"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} removed {name}"
-msgstr "{who} removed {name}"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{name} was changed outside owlit"
-msgstr "{name} was changed outside owlit"
-
-#: app/src/features/home/SinceYouLeft.tsx
-msgid "{who} edited {name}"
-msgstr "{who} edited {name}"
 
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
@@ -3632,15 +3545,6 @@ msgstr "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PD
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 
-#. Library tab: the papers to read next
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Up next"
-msgstr "Up next"
-
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "All papers"
-msgstr "All papers"
-
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr "Recently added"
@@ -3697,11 +3601,9 @@ msgstr "Search or add papers"
 msgid "Add a PDF file"
 msgstr "Add a PDF file"
 
-#. group heading: papers being read now
 #. reading status of a paper: being read now
 #. reading status of a paper: being read now
 #: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/filter.ts
 #: app/src/features/library/lib/status.ts
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Reading"
@@ -3935,10 +3837,6 @@ msgstr "Not from a thread"
 msgid "No year"
 msgstr "No year"
 
-#: app/src/features/library/lib/filter.ts
-msgid "Not read yet"
-msgstr "Not read yet"
-
 #: app/src/features/library/lib/format.ts
 msgid "{count, plural, one {# citation} other {# citations}}"
 msgstr "{count, plural, one {# citation} other {# citations}}"
@@ -4131,14 +4029,6 @@ msgstr "Hide details"
 msgid "Show details"
 msgstr "Show details"
 
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Nothing to read next"
-msgstr "Nothing to read next"
-
-#: app/src/features/library/pages/UpNextPage.tsx
-msgid "Papers you start reading, and new ones with a PDF, will show up here."
-msgstr "Papers you start reading, and new ones with a PDF, will show up here."
-
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Resize details"
 msgstr "Resize details"
@@ -4212,6 +4102,10 @@ msgstr "Owlit is reading this paper…"
 msgid "You can keep reading. Owlit will let you know when it's ready."
 msgstr "You can keep reading. Owlit will let you know when it's ready."
 
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is reading this paper again…"
+msgstr "Owlit is reading this paper again…"
+
 #. signs Owlit's digest of a paper, as in owlit
 #: app/src/features/library/pages/paper/Digest.tsx
 #: apps/share-web/src/App.tsx
@@ -4222,10 +4116,6 @@ msgstr "Digest · Owlit"
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest · Owlit, {when}"
 msgstr "Digest · Owlit, {when}"
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is reading this paper again…"
-msgstr "Owlit is reading this paper again…"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
@@ -4711,12 +4601,12 @@ msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Ow
 msgstr "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Ask, or hand it off."
-msgstr "Ask, or hand it off."
+msgid "Ask anywhere."
+msgstr "Ask anywhere."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
-msgstr "Press <0>⌘J</0> anywhere to ask about what's on screen. In Chat, <1>hand off longer work</1>, like finding papers, and carry on while Owlit works."
+msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
+msgstr "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Owlit gathers papers."
@@ -4845,42 +4735,6 @@ msgstr "Hi!"
 #: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Answered through {agentName}"
 msgstr "Answered through {agentName}"
-
-#: app/src/features/runs/components.tsx
-msgid "and {more} more waiting their turn"
-msgstr "and {more} more waiting their turn"
-
-#. stop every background run Owlit has going
-#: app/src/features/runs/components.tsx
-msgid "Stop all"
-msgstr "Stop all"
-
-#: app/src/features/runs/components.tsx
-msgid "Owlit is doing this on its own."
-msgstr "Owlit is doing this on its own."
-
-#: app/src/features/runs/components.tsx
-msgid "Owlit did this on its own."
-msgstr "Owlit did this on its own."
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Writing the digest of “{title}”"
-msgstr "Writing the digest of “{title}”"
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Checking “{title}” for new papers"
-msgstr "Checking “{title}” for new papers"
-
-#: app/src/features/runs/hooks.ts
-msgid "Working on “{title}”"
-msgstr "Working on “{title}”"
-
-#: app/src/features/runs/hooks.ts
-#: packages/core/src/agents/runs.ts
-msgid "Working in the background"
-msgstr "Working in the background"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the work it does when nobody is waiting, and what it remembers. Your name is told only to the agent you chat with."
@@ -5370,8 +5224,8 @@ msgid "Remember what I do in owlit"
 msgstr "Remember what I do in owlit"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
-msgstr "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted, but opening a paper or doc still brings its digest or Owlit's look."
+msgid "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted."
+msgstr "What you read, write and ask in this workspace is noted in .owlit/journal.jsonl, so Owlit can follow your work. Off, nothing is noted."
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Tsinghua University"
@@ -5602,10 +5456,6 @@ msgid "{titles, plural, one {# had no abstract and is from its title only.} othe
 msgstr "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
 
 #: app/src/features/threads/components/About.tsx
-msgid "Owlit watches for new papers on this question."
-msgstr "Owlit watches for new papers on this question."
-
-#: app/src/features/threads/components/About.tsx
 msgid "a chat"
 msgstr "a chat"
 
@@ -5676,20 +5526,10 @@ msgstr "In {link} · {what}"
 msgid "Found more papers"
 msgstr "Found more papers"
 
-#. a batch of a thread: Owlit's watch looked for new papers
-#: app/src/features/threads/components/About.tsx
-msgid "Checked for new papers"
-msgstr "Checked for new papers"
-
 #. a batch of a thread: Owlit read the papers' full texts
 #: app/src/features/threads/components/About.tsx
 msgid "Read in full"
 msgstr "Read in full"
-
-#. a batch of a thread: once the user read a paper in full, Owlit answered its row again from it
-#: app/src/features/threads/components/About.tsx
-msgid "Answered again from the full text"
-msgstr "Answered again from the full text"
 
 #. a batch of a thread: Owlit answered a column's question for every paper
 #: app/src/features/threads/components/About.tsx
@@ -5803,11 +5643,6 @@ msgstr "Was: {0}"
 #: app/src/features/threads/components/Memo.tsx
 msgid "Sentence actions"
 msgstr "Sentence actions"
-
-#. menu switch: Owlit looks for new papers on this thread's question now and then
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Watch for new papers"
-msgstr "Watch for new papers"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
@@ -6191,14 +6026,6 @@ msgstr "Asking each paper “{question}”…"
 #: app/src/features/threads/runs.ts
 msgid "Reading papers in full…"
 msgstr "Reading papers in full…"
-
-#: app/src/features/threads/runs.ts
-msgid "Looking for new papers…"
-msgstr "Looking for new papers…"
-
-#: app/src/features/threads/runs.ts
-msgid "Answering a paper again from its full text…"
-msgstr "Answering a paper again from its full text…"
 
 #: app/src/features/threads/runs.ts
 msgid "Owlit works on threads in the desktop app."
@@ -7228,40 +7055,16 @@ msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "You asked for a digest of “{title}”."
-msgstr "You asked for a digest of “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "“{title}” has no digest yet."
-msgstr "“{title}” has no digest yet."
-
-#: packages/core/src/agents/runs.ts
 msgid "Digest of “{title}”"
 msgstr "Digest of “{title}”"
 
 #: packages/core/src/agents/runs.ts
+msgid "You asked for a digest of “{title}”."
+msgstr "You asked for a digest of “{title}”."
+
+#: packages/core/src/agents/runs.ts
 msgid "The digest is written:"
 msgstr "The digest is written:"
-
-#: packages/core/src/agents/runs.ts
-msgid "a paper"
-msgstr "a paper"
-
-#: packages/core/src/agents/runs.ts
-msgid "Checking a comment in “{name}” against “{title}”"
-msgstr "Checking a comment in “{name}” against “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "Checked a comment in “{name}” against “{title}”"
-msgstr "Checked a comment in “{name}” against “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
-msgstr "You read “{title}” in full, and Owlit's comment in “{name}” leans on it."
-
-#: packages/core/src/agents/runs.ts
-msgid "Going through “{name}” against your docs"
-msgstr "Going through “{name}” against your docs"
 
 #: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
@@ -7270,10 +7073,6 @@ msgstr "Went through “{name}”"
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to go through “{name}”."
 msgstr "You asked Owlit to go through “{name}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Answering your reply in “{name}”"
-msgstr "Answering your reply in “{name}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "Answered your reply in “{name}”"
@@ -7288,10 +7087,6 @@ msgid "a thread"
 msgstr "a thread"
 
 #: packages/core/src/agents/runs.ts
-msgid "Gathering papers for “{title}”"
-msgstr "Gathering papers for “{title}”"
-
-#: packages/core/src/agents/runs.ts
 msgid "Gathered papers for “{title}”"
 msgstr "Gathered papers for “{title}”"
 
@@ -7299,10 +7094,6 @@ msgstr "Gathered papers for “{title}”"
 #: packages/core/src/agents/runs.ts
 msgid "You asked Owlit to gather papers: “{0}”."
 msgstr "You asked Owlit to gather papers: “{0}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Looking for more papers for “{title}”"
-msgstr "Looking for more papers for “{title}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "Looked for more papers for “{title}”"
@@ -7313,20 +7104,12 @@ msgid "You asked for more papers in “{title}”."
 msgstr "You asked for more papers in “{title}”."
 
 #: packages/core/src/agents/runs.ts
-msgid "Answering “{question}” for the papers in “{title}”"
-msgstr "Answering “{question}” for the papers in “{title}”"
-
-#: packages/core/src/agents/runs.ts
 msgid "Answered “{question}” in “{title}”"
 msgstr "Answered “{question}” in “{title}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "You asked “{question}” of each paper in “{title}”."
 msgstr "You asked “{question}” of each paper in “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "Reading the papers in “{title}”"
-msgstr "Reading the papers in “{title}”"
 
 #: packages/core/src/agents/runs.ts
 msgid "Read the papers in “{title}”"
@@ -7337,32 +7120,8 @@ msgid "You asked Owlit to read the papers in “{title}”."
 msgstr "You asked Owlit to read the papers in “{title}”."
 
 #: packages/core/src/agents/runs.ts
-msgid "Answering “{paper}” again in “{title}”"
-msgstr "Answering “{paper}” again in “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "Answered “{paper}” again in “{title}”"
-msgstr "Answered “{paper}” again in “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You read “{paper}” in full; its answers in “{title}” came from its abstract."
-msgstr "You read “{paper}” in full; its answers in “{title}” came from its abstract."
-
-#: packages/core/src/agents/runs.ts
-msgid "Checked “{title}” for new papers"
-msgstr "Checked “{title}” for new papers"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to check “{title}” for new papers."
-msgstr "You asked Owlit to check “{title}” for new papers."
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to watch “{title}”, and a day has passed since it last looked."
-msgstr "You asked Owlit to watch “{title}”, and a day has passed since it last looked."
-
-#: packages/core/src/agents/runs.ts
-msgid "Owlit started this on its own."
-msgstr "Owlit started this on its own."
+msgid "You asked Owlit for this."
+msgstr "You asked Owlit for this."
 
 #: packages/core/src/agents/setup.ts
 msgid "npm finished, but the adapter isn't there."

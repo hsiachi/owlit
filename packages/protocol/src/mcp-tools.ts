@@ -393,15 +393,14 @@ function TOOLS(): ToolSpec[] {
   {
     name: "thread_edit",
     touches: "meta",
-    description: "Rename a thread, or watch it (Owlit then looks for new papers for it) or stop watching, when the user asks. A title the user gave the thread themselves stays. Deleting, splitting and merging threads are the user's, in owlit.",
+    description: "Rename a thread when the user asks. A title the user gave the thread themselves stays. Deleting, splitting and merging threads are the user's, in owlit.",
     inputSchema: {
       type: "object",
       properties: {
         id: { type: "string", description: "The thread's id" },
-        title: { type: "string", description: "Its new title, in the user's language (optional)" },
-        watch: { type: "boolean", description: "Watch it (true) or stop (false) (optional)" },
+        title: { type: "string", description: "Its new title, in the user's language" },
       },
-      required: ["id"],
+      required: ["id", "title"],
     },
   },
   {

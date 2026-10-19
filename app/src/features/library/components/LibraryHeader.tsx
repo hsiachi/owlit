@@ -1,6 +1,5 @@
 import { t } from "@lingui/core/macro"
 import { useMemo, useRef } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
 import { CheckIcon, ChevronDownIcon, ListIcon, PaperclipIcon, Table2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChoiceMenu } from "@/components/choice-menu"
@@ -14,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IconButton } from "@/components/icon-button"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
@@ -22,29 +20,10 @@ import { type Layout, usePrefsStore } from "../prefs-store"
 import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
 import { TagDot } from "./TagsEditor"
 
-// The Library's two pages, as underline tabs on its title's line, so the header is one row above the
-// find field rather than two. A third (Feed) can join later.
-const pages = () => [
-  { path: "/library/up-next", label: t({ message: "Up next", comment: "Library tab: the papers to read next" }) },
-  { path: "/library", label: t`All papers` },
-]
-
 export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const current = pathname === "/library/up-next" ? "/library/up-next" : "/library"
   return (
     <header className="flex items-center gap-2 px-0.5">
-      <PageTitle className="mr-5">{t`Library`}</PageTitle>
-      <Tabs value={current} onValueChange={(v) => navigate(v)}>
-        <TabsList variant="line">
-          {pages().map((p) => (
-            <TabsTrigger key={p.path} value={p.path} className="px-1.5">
-              {p.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <PageTitle>{t`Library`}</PageTitle>
       <span className="flex-1" />
       {actions}
     </header>

@@ -14,7 +14,7 @@ import { askAboutPassage } from "../../actions"
 import { markSeen } from "@/app/seen"
 import { digestSourceNotes } from "../../lib/digest-source"
 import { toast } from "sonner"
-import { askDigestAgain, retryDigest, showingDigest, useDigestFailed, useWritingDigest, waitForDigest } from "../../digests"
+import { askDigestAgain, retryDigest, showingDigest, stopDigest, useDigestFailed, useWritingDigest, waitForDigest } from "../../digests"
 import { useLibraryStore } from "../../store"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: a form of the paper that
@@ -65,8 +65,9 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
       <Column paperId={paper.id}>
         {writing ? (
           <>
-            <p className="text-detail text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-detail text-muted-foreground">
               <span className="shimmer">{t`Owlit is reading this paper…`}</span>
+              <StopDigest paperId={paper.id} />
             </p>
             <p className="mt-1 text-detail text-muted-foreground">{t`You can keep reading. Owlit will let you know when it's ready.`}</p>
           </>
@@ -85,9 +86,14 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
   const from = digest ? digestSourceNotes(digest.source, paper.pdf?.pages) : []
   return (
     <Column paperId={paper.id} remembers>
-      <p className="text-detail text-muted-foreground">
-        {writing ? <span className="shimmer">{t`Owlit is reading this paper again…`}</span> : when ? t`Digest · Owlit, ${when}` : t`Digest · Owlit`}
-      </p>
+      {writing ? (
+        <p className="flex items-center gap-1.5 text-detail text-muted-foreground">
+          <span className="shimmer">{t`Owlit is reading this paper again…`}</span>
+          <StopDigest paperId={paper.id} />
+        </p>
+      ) : (
+        <p className="text-detail text-muted-foreground">{when ? t`Digest · Owlit, ${when}` : t`Digest · Owlit`}</p>
+      )}
       {from.length > 0 && <p className="text-detail text-muted-foreground">{from.join(" · ")}</p>}
       {failed && !writing ? <Stopped paper={paper} again /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown
@@ -235,6 +241,14 @@ function Offer({ paper }: { paper: Paper }) {
 }
 
 // The last run broke: said in words, with Retry. Again when it was a rewrite and the old digest stays.
+function StopDigest({ paperId }: { paperId: string }) {
+  return (
+    <Button variant="text" size="inline" onClick={() => stopDigest(paperId)}>
+      {t({ message: "Stop", comment: "stop Owlit writing a paper's digest" })}
+    </Button>
+  )
+}
+
 function Stopped({ paper, again }: { paper: Paper; again?: boolean }) {
   return (
     <AskAgain

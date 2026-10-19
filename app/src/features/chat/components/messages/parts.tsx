@@ -309,7 +309,7 @@ export function StepsPart({ parts, active, streaming, asks }: { parts: StepPart[
 
 // A plan reads like the steps block: a quiet label and a ruled list, no card. While it is under way it
 // stays open; once every entry is done it folds into its "done of total" line, as finished steps do, so a
-// finished hand-off leads with its answer.
+// finished long turn leads with its answer.
 export function PlanPart({ part }: { part: Part<"plan"> }) {
   const done = part.entries.filter((e) => e.status === "completed").length
   const finished = part.entries.length > 0 && done === part.entries.length

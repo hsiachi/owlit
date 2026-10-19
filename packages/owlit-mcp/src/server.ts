@@ -359,13 +359,11 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${threadUri(done.id)}).${kept}`
     }
     case "thread_edit": {
-      if (args.title === undefined && typeof args.watch !== "boolean") return "thread_edit needs a title or watch."
       // The title is Owlit's own, so it goes through a write of its own (a threads.edit rename is the
-      // user's rewrite, kept over Owlit's title); watching is one of the thread's settings
-      if (optStr("title")) await owlit.rpc.threads.write({ id: str("id"), title: str("title").trim(), ...writer })
-      if (typeof args.watch === "boolean") await owlit.rpc.threads.edit({ id: str("id"), edit: { op: "watch", on: args.watch }, ...writer })
+      // user's rewrite, kept over Owlit's title)
+      await owlit.rpc.threads.write({ id: str("id"), title: str("title").trim(), ...writer })
       const thread = shownThread(await owlit.rpc.threads.get({ id: str("id") }))
-      return `“${thread.title}” (${threadUri(thread.id)})${thread.watch ? ", watched" : ""}.`
+      return `“${thread.title}” (${threadUri(thread.id)}).`
     }
     case "memory_write": {
       const op = str("op") as "add" | "replace" | "remove"

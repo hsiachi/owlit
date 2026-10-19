@@ -111,8 +111,6 @@ export interface LibraryServices {
   // (digests). model is the one chosen for background work, when one is.
   // An import of the person's added a paper (importId: which one)
   imported?: (paper: Paper, importId: string) => void
-  // The user starred a paper (not an agent, not an import)
-  starred?: (id: string) => void
   // A background agent run for a task: its session shows beside the paper (ctx.describe)
   agent?: (prompt: string, ctx: TaskContext, pictures?: AgentPicture[]) => Promise<{ text: string; connectorId: string; model?: string; pictures?: number }>
   // The language digests are written in: Settings' choice, else the system's
@@ -260,10 +258,6 @@ export class Library {
     }
     const text = await this.textQuality(id)
     if (text) paper.text = text
-    if (pdf && paper.pdf) {
-      const placed = (await this.acquisitions.read(id))?.tried.at(-1)
-      if (placed?.ended === "pdf") paper.pdf.came = { by: placed.by, at: placed.at }
-    }
     if (!pdf) {
       paper.pdfState = await this.acquisitions.shown(id)
       // In the extension's queue, or being fetched: owlit is still finding it, whatever its own look said
@@ -387,8 +381,6 @@ export class Library {
       const state = (await readState(this.root, id)) ?? freshState("other", record.fetchedAt)
       if (id.startsWith("local-") && patch.ids && paperIdOf(cleanIds(patch.ids))) return this.relink(id, record, state, patch)
       await writeState(this.root, id, applyPatch(state, record, patch))
-      // Starring a paper says it is worth reading: Owlit's rules hear it (a digest in the background)
-      if (patch.starred && !state.starred) this.services.starred?.(id)
       return (await this.get(id))!
     })
   }
@@ -721,7 +713,7 @@ export class Library {
     })
   }
 
-  // A digest is wanted (the paper was opened, starred, asked for by the user or an agent): queued
+  // A digest is wanted (asked for by the user or an agent): queued
   // when the paper has, or will have, text to read and has no note yet. A note already there, one written
   // another way included, is written again only when the user asks (rewrite), never on owlit's own account.
   async wantDigest(id: string, priority: TaskPriority, options: { rewrite?: boolean } = {}) {
@@ -742,8 +734,8 @@ export class Library {
     this.queue("paper.digest", id, priority)
   }
 
-  // Why no digest would be written for a paper now (Owlit's rules log it), or null when one would
-  async digestHeldBack(id: string, rewrite = false): Promise<string | null> {
+  // Why no digest would be written for a paper now, or null when one would
+  private async digestHeldBack(id: string, rewrite = false): Promise<string | null> {
     if (!this.services.agent) return "no agent to write it"
     if (!isPaperId(id) || !(await readRecord(this.root, id))) return "not in the library"
     const dir = paperDir(this.root, id)

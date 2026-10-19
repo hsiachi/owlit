@@ -17,19 +17,19 @@ describe("ActivityBus", () => {
     bus.subscribe("paper.page", (e) => pages.push(e.page))
     bus.subscribe((e) => all.push(e.kind))
     bus.publish({ kind: "paper.page", at, paperId: "p", page: 3 })
-    bus.publish({ kind: "idle", at, seconds: 30 })
+    bus.publish({ kind: "chat.sent", at, chatId: "c" })
     expect(pages).toEqual([3])
-    expect(all).toEqual(["paper.page", "idle"])
+    expect(all).toEqual(["paper.page", "chat.sent"])
   })
 
   it("filters by a list of kinds", () => {
     const bus = new ActivityBus()
     const heard: string[] = []
-    bus.subscribe(["doc.opened", "doc.closed"], (e) => heard.push(`${e.kind} ${e.path}`))
+    bus.subscribe(["doc.opened", "doc.edited"], (e) => heard.push(`${e.kind} ${e.path}`))
     bus.publish({ kind: "doc.opened", at, path: "a.md" })
+    bus.publish({ kind: "chat.sent", at, chatId: "c" })
     bus.publish({ kind: "doc.edited", at, path: "a.md" })
-    bus.publish({ kind: "doc.closed", at, path: "a.md" })
-    expect(heard).toEqual(["doc.opened a.md", "doc.closed a.md"])
+    expect(heard).toEqual(["doc.opened a.md", "doc.edited a.md"])
   })
 
   it("stops delivering after unsubscribe, for every kind subscribed", () => {
@@ -50,11 +50,11 @@ describe("ActivityBus", () => {
     const heard: string[] = []
     const error = console.error
     console.error = () => {}
-    bus.subscribe("idle", () => {
+    bus.subscribe("paper.page", () => {
       throw new Error("boom")
     })
-    bus.subscribe("idle", (e) => heard.push(String(e.seconds)))
-    bus.publish({ kind: "idle", at, seconds: 5 })
+    bus.subscribe("paper.page", (e) => heard.push(String(e.page)))
+    bus.publish({ kind: "paper.page", at, paperId: "p", page: 5 })
     console.error = error
     expect(heard).toEqual(["5"])
   })
@@ -94,17 +94,14 @@ describe("activity.emit and the journal", () => {
       { kind: "highlight.added", at: at + 4, paperId: "arxiv-1", highlightId: "h1" },
       { kind: "highlight.removed", at: at + 5, paperId: "arxiv-1", highlightId: "h1" },
       { kind: "paper.marked", at: at + 6, paperId: "arxiv-1", mark: { what: "status", to: "read" } },
-      { kind: "idle", at: at + 7, seconds: 30 },
       { kind: "paper.closed", at: at + 8, paperId: "arxiv-1" },
       { kind: "doc.opened", at: at + 9, path: "a.md" },
-      { kind: "doc.closed", at: at + 10, path: "a.md" },
+      { kind: "chat.sent", at: at + 10, chatId: "c" },
     ]
     for (const event of events) await call("activity.emit", { event })
     await core["journal"].flush()
-    // Closing a doc and going idle are kept for Owlit's rules, which wait on them; Owlit's own lines
-    // (its rules' decisions on opening the paper) are its, not the user's
-    const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "idle", "paper.closed", "doc.opened", "doc.closed"])
-    expect(lines().filter((l: { actor: string }) => l.actor === ME)).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: ME })))
+    const kept = new Set(["paper.opened", "paper.focus", "paper.dwell", "highlight.added", "paper.marked", "paper.closed", "doc.opened"])
+    expect(lines()).toEqual(events.filter((e) => kept.has(e.kind)).map((e) => ({ ...e, actor: ME })))
   })
 
   it("passes every event to bus listeners", async () => {
@@ -116,7 +113,7 @@ describe("activity.emit and the journal", () => {
     expect(heard).toEqual(["paper.page"])
   })
 
-  it("journals nothing while turned off, but the rules still hear, and says so to clients", async () => {
+  it("journals nothing while turned off, but listeners still hear, and says so to clients", async () => {
     const { core, call, ws, lines } = await openCore()
     await call("workspace.open", { path: ws })
     const notes: RpcNotification[] = []

@@ -4,8 +4,7 @@ import { useSettings } from "@/features/settings/store"
 import { useWorkspace } from "@/lib/workspace"
 
 // What Home needs that the files don't say: where the cursor was when the user last wrote in a doc. Kept in
-// this window's storage per workspace folder; nothing goes to core. When they were last here is core's
-// (app/seen.ts › away).
+// this window's storage per workspace folder; nothing goes to core.
 
 interface DocMark {
   path: string

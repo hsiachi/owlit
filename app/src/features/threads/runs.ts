@@ -44,10 +44,6 @@ export function runWords(task: Task & { kind: ThreadRun }, c: Thread | undefined
     }
     case "threads.read":
       return t`Reading papers in full…`
-    case "threads.check":
-      return t`Looking for new papers…`
-    case "threads.reread":
-      return t`Answering a paper again from its full text…`
   }
 }
 
@@ -69,7 +65,7 @@ export async function gather(question: string, size: ThreadSize, project: string
   }
 }
 
-export async function startRun(id: string, run: "more" | "read" | "check") {
+export async function startRun(id: string, run: "more" | "read") {
   if (!isDesktop) return desktopOnly()
   await rpc.threads.run({ id, run }).catch(toastError)
 }

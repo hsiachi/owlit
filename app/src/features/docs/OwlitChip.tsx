@@ -6,45 +6,32 @@ import { NoteDot } from "@/components/marks"
 import { OwlitMark } from "@/components/owlit-mark"
 import { Tip } from "@/components/tip"
 import { Button } from "@/components/ui/button"
-import { isDesktop, rpc } from "@/lib/rpc"
-import { cn } from "@/lib/utils"
+import { isDesktop } from "@/lib/rpc"
 import { useAgentWindow } from "@/features/agent/store"
-import { RunsHover } from "@/features/runs/components"
-import { openRun, useDoingLine, useOpenRuns } from "@/features/runs/hooks"
 import { docKey } from "./comments/model"
 import { useDocOwlit, useNewOwlitComments } from "./owlit"
 import { useDocsUiStore } from "./ui-store"
 
-// The runs that work on a doc
-const DOC_RUNS = ["meetings.goThrough"] as const
-
 // New comments count as seen once they have been on screen this long
 const SEEN_AFTER_MS = 3000
 
-// Owlit in a doc's header, beside its comments and Shared (DESIGN.md › Owlit's runs): it is a member of
-// the doc. Still while it isn't working here, its tooltip saying it works here only when asked; breathing
-// while a run works on the doc (hover: what it is doing, Stop; click: the run); Owlit's dot once it left
-// comments the user hasn't seen (click: the first of them). Kept out (the doc's ⋯ menu), there is no chip
-// at all.
+// Owlit in a doc's header, beside its comments and Shared: it is a member of the doc. Its tooltip says it
+// works here only when asked, and a click opens the Owlit panel to ask; Owlit's dot once it left comments
+// the user hasn't seen (click: the first of them). Kept out (the doc's ⋯ menu), there is no chip at all.
 export function OwlitChip({ file }: { file: WorkspaceFile }) {
   const state = useDocOwlit(file.path)
-  const runs = useOpenRuns(file.path, DOC_RUNS)
   const fresh = useNewOwlitComments(file)
   const shown = useDocsUiStore((s) => s.commentsShown)
 
-  // Comments on screen a moment are seen: the dot goes, and Owlit hears they were
+  // Comments on screen a moment are seen: the dot goes
   const count = fresh.length
   useEffect(() => {
     if (!count || !shown) return
-    const timer = setTimeout(() => {
-      markSeen({ kind: "comments", path: file.path })
-      void rpc.initiative.feedback({ what: "seen", subject: file.path, detail: { comments: count } }).catch(() => undefined)
-    }, SEEN_AFTER_MS)
+    const timer = setTimeout(() => markSeen({ kind: "comments", path: file.path }), SEEN_AFTER_MS)
     return () => clearTimeout(timer)
   }, [count, shown, file.path])
 
   if (!isDesktop || !state || state.out) return null
-  if (runs[0]) return <WorkingChip runs={runs} />
 
   const first = fresh[0]
   return (
@@ -73,20 +60,4 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
 function askHere() {
   const panel = useAgentWindow.getState()
   if (panel.stage !== "open") panel.togglePanel()
-}
-
-function WorkingChip({ runs }: { runs: ReturnType<typeof useOpenRuns> }) {
-  const line = useDoingLine(runs[0]!)
-  const chatId = runs.find((r) => r.chatId)?.chatId
-  return (
-    <RunsHover tasks={runs} side="bottom" align="end">
-      <Button variant="ghost" size="sm" aria-label={line} onClick={() => chatId && void openRun(chatId)} className="h-7 px-2 font-normal text-muted-foreground hover:text-foreground">
-        <span className="relative">
-          <OwlitMark />
-          <span aria-hidden className={cn("absolute -top-0.5 -right-1 size-1.5 rounded-full bg-muted-foreground", "animate-ring-breathe motion-reduce:animate-none")} />
-        </span>
-        Owlit
-      </Button>
-    </RunsHover>
-  )
 }

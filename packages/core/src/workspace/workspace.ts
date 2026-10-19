@@ -46,8 +46,6 @@ export interface WorkspaceOptions {
   profile?: () => Promise<ProfileSettings>
   // An entry was added to the change log
   changeAdded?: (notification: Notifications["changes.added"]) => void
-  // The initiative rule that queued a task, if one did
-  ruleOf?: (taskId: string) => string | undefined
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
@@ -94,11 +92,7 @@ export class Workspace {
       profile,
       added: options.changeAdded,
       // A run ("<kind>:<task id>") reports in its task's session
-      runOf: (run) => {
-        const taskId = run.slice(run.indexOf(":") + 1)
-        const ruleId = options.ruleOf?.(taskId)
-        return { chatId: this.tasks.get(taskId)?.chatId, ...(ruleId ? { ruleId } : {}) }
-      },
+      runOf: (run) => ({ chatId: this.tasks.get(run.slice(run.indexOf(":") + 1))?.chatId }),
     })
     this.members = new Members(path.join(root, OWLIT_DIR))
     this.seen = new Seen(path.join(root, OWLIT_DIR))

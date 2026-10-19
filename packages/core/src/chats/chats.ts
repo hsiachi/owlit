@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary, type RunSummary } from "@owlit/protocol"
+import { chatFilesDir, RpcErrorCode, type Chat, type ChatMessage, type ChatSummary } from "@owlit/protocol"
 import { constants } from "node:fs"
 import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -45,7 +45,7 @@ export class Chats {
   }
 
   // Your chats, most recently updated first. Owlit's own runs (startedBy) are sessions too, kept here,
-  // but no chat list shows them: they open from what they work on.
+  // but no chat list shows them: their work shows where it lands.
   async list(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !c.startedBy)
   }
@@ -53,20 +53,6 @@ export class Chats {
   // Owlit's runs, most recent first
   async runs(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !!c.startedBy)
-  }
-
-  // Owlit's runs that ended after since, with how they ended (a run's session ends with its last part)
-  async runsSince(since: number): Promise<RunSummary[]> {
-    const out: RunSummary[] = []
-    for (const summary of await this.runs()) {
-      // Most recent first: one not touched since can't have ended since
-      if (summary.updatedAt <= since) break
-      if (!summary.run) continue
-      const last = (await this.get(summary.id).catch(() => null))?.messages.at(-1)
-      const ended = last?.role === "assistant" ? last.status : undefined
-      if ((ended === "done" || ended === "error" || ended === "cancelled") && (last!.finishedAt ?? 0) > since) out.push({ ...summary, run: summary.run, ended, endedAt: last!.finishedAt! })
-    }
-    return out
   }
 
   private async all() {
@@ -203,8 +189,8 @@ export class Chats {
   async patchMessage(id: string, message: ChatMessage, final = false) {
     const chat = await this.get(id)
     if (!chat.messages.some((m) => m.id === message.id)) throw notFound(`${id}/${message.id}`)
-    // A finished answer moves updatedAt to its end: runsSince stops at the first chat not updated since,
-    // and a run that started before then but ended after must still be found
+    // A finished answer moves updatedAt to its end: changes.unseen looks only at chats updated after the
+    // person's mark on them, and an answer that started before the mark but ended after must still be found
     const updatedAt = Math.max(chat.updatedAt, message.finishedAt ?? 0)
     const next = { ...chat, updatedAt, messages: chat.messages.map((m) => (m.id === message.id ? clean(message) : m)) }
     this.bodies.set(id, next)

@@ -222,10 +222,10 @@ function lesson(step: StepId): Lesson | null {
         icon: KIND_ICON.chat,
         kicker: t`Chat`,
         keys: "⌘J",
-        title: t`Ask, or hand it off.`,
+        title: t`Ask anywhere.`,
         body: (
           <Trans>
-            Press <Key>⌘J</Key> anywhere to ask about what's on screen. In Chat, <b>hand off longer work</b>, like finding papers, and carry on while Owlit works.
+            Press <Key>⌘J</Key> anywhere to ask about what's on screen. Chat is for <b>longer work</b>, like finding papers.
           </Trans>
         ),
         place: "library",
