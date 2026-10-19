@@ -16,6 +16,7 @@ const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((c) => c.dispose()))
   vi.restoreAllMocks()
+  delete process.env.FAKE_ACP_LIMIT
 })
 
 // A workspace whose background agent is the fake one, and a paper with its text read
@@ -99,6 +100,14 @@ describe("digests", () => {
 
     await call("settings.update", { patch: { library: { digestLanguage: "ja" } } })
     expect((await call("library.list")).papers[0].digestOutdated).toBe("language")
+  })
+
+  it("fails once at the agent's usage limit, saying when it resets, and isn't tried again", async () => {
+    process.env.FAKE_ACP_LIMIT = "You've hit your session limit · resets 2:20am (Asia/Shanghai)"
+    const { call, addPaper, digestDone } = await setup()
+    await addPaper("doi-10.1-limit")
+    await call("library.requestDigest", { id: "doi-10.1-limit" })
+    expect(await digestDone("doi-10.1-limit")).toMatchObject({ state: "failed", attempts: 1, error: "Fake's usage limit is reached; it resets at 2:20." })
   })
 
   it("writes none for papers merely added, and replaces a note that is there only when asked", async () => {

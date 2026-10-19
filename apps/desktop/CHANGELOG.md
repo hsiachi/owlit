@@ -4,6 +4,9 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- When your agent's usage limit is reached, owlit says so in one sentence with when it resets ("Claude Code's usage limit is reached; it resets at 2:20"), and a digest, thread run or reply under a comment that hits the limit stops there instead of trying again.
+- Owlit's memory keeps lines written only in Chinese: a second one is no longer taken for the first.
+- Settings › Owlit › Remember what I do says what turning it off costs ("papers you finish stay as you left them") and that it applies on this Mac.
 - A reply survives closing or reloading the window: open it again and the reply is still live, with Stop and whatever it waits on you for, and it ends where you can see it.
 - Type while Owlit works and your message waits under the reply ("Sends when Owlit finishes", × to take it back), then goes when the reply ends. With a command waiting on you, typing answers it Don't allow and Owlit carries on with your words next; files and mentions in the composer go with your message.
 - Chinese answers come on word by word, as English ones do, instead of in lumps.

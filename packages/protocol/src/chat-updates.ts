@@ -4,9 +4,9 @@ import type { ChatMessage, FileDiff, MessagePart, SessionUpdate } from "./chat.t
 // the same updates the same way.
 
 // An agent whose turn fails often says why as the last text of its answer ("Failed to authenticate. API
-// Error: 403 Request not allowed"). That isn't an answer: it is taken out of the parts and kept as the
-// reply's errorDetail, for the line that says the reply broke.
-const AGENT_ERROR = /^(?:[\w ]+\.\s+)?API Error\b|^Failed to authenticate\b|^(?:Error|Request failed):\s/
+// Error: 403 Request not allowed", "You've hit your session limit · resets 2:20am"). That isn't an answer:
+// it is taken out of the parts and kept as the reply's errorDetail, for the line that says the reply broke.
+const AGENT_ERROR = /^(?:[\w ]+\.\s+)?API Error\b|^Failed to authenticate\b|^(?:Error|Request failed):\s|^You['’]ve (?:hit|reached) your\b/
 export function withoutAgentError(message: ChatMessage): ChatMessage {
   const last = message.parts.at(-1)
   if (message.status !== "error" || last?.type !== "text") return message
