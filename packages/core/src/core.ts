@@ -592,7 +592,8 @@ export class Core {
     const memoryKind = z.enum(["work", "about"])
     this.router.register(
       "memory.write",
-      z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }), "own",
+      z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
+      { touches: "own", target: ({ op, id }) => this.memoryTarget(op === "add" ? undefined : id) },
       async ({ op, id, kind, text }, caller) => {
         // Said to the agent, so plain English
         const need = (what: string) => {
@@ -606,10 +607,11 @@ export class Core {
     )
     this.router.register(
       "memory.put",
-      z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }), "own",
+      z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }),
+      { touches: "own", target: ({ id }) => this.memoryTarget(id) },
       (input, caller) => this.requireWorkspace().memory.put(input, caller),
     )
-    this.router.register("memory.remove", z.object({ id: z.string().min(1) }), "own", ({ id }, caller) => this.requireWorkspace().memory.remove(id, caller))
+    this.router.register("memory.remove", z.object({ id: z.string().min(1) }), { touches: "own", target: ({ id }) => this.memoryTarget(id) }, ({ id }, caller) => this.requireWorkspace().memory.remove(id, caller))
     this.router.register(
       "memory.decideClaudeNotes",
       z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }), "own",
@@ -1408,6 +1410,21 @@ export class Core {
     const theirs = papers.find((p) => !isOwlit(p.addedBy))
     const by = theirs?.addedBy ?? adders[0]
     return { what: theirs ? `paper ${theirs.id}` : "paper", ...(by ? { by } : {}), touchedBy }
+  }
+
+  // Whose a memory line is: whoever kept it, as the change log says, and whoever changed it since. A line
+  // the log has no record of was written by hand in memory.md, the person's, unless it names the chat it
+  // came from. No id: a line not there yet, the caller's to make.
+  private async memoryTarget(id: string | undefined): Promise<Target> {
+    if (!id) return { what: "memory line" }
+    const ws = this.requireWorkspace()
+    const line = (await ws.memory.list()).find((l) => l.id === id)
+    if (!line) return { what: "memory line" }
+    const changes = (await ws.changes.list({ target: { kind: "memory", part: id } })).reverse()
+    const made = changes.findLast((c) => c.action === "create")
+    const by = made?.actor ?? (line.chatId ? undefined : await ws.recorder.actorOf(WINDOW))
+    const since = made ? changes.slice(changes.indexOf(made) + 1) : changes
+    return { what: "memory line", ...(by ? { by } : {}), touchedBy: since.map((c) => c.actor) }
   }
 
   // A task's agent run, kept as a session: why it started, its steps as they come, and how it ended

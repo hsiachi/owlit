@@ -17,7 +17,7 @@ export interface Target {
   // Others who touched it since it was made (the person starred a paper Owlit added, replied under its
   // comment); any of them makes it theirs
   touchedBy?: ActorId[]
-  // What to call it in a refusal: "comment", "paper", "highlight", "change"
+  // What to call it in a refusal: "comment", "paper", "highlight", "change", "memory line"
   what?: string
   // The thing as it is now, for a method whose class depends on what the call changes in it
   was?: unknown

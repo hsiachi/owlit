@@ -182,6 +182,24 @@ describe("the router's policy", () => {
     expect((await call("memory.list")).lines).toMatchObject([{ text: "Works on replay studies." }])
   })
 
+  it("keeps a memory line the person wrote theirs, and Owlit's own lines Owlit's", async () => {
+    const { call, mcp } = await setup()
+    const lines = async () => (await call("memory.list")).lines.map((l: { id: string; text: string }) => [l.id, l.text])
+    await call("memory.put", { kind: "work", text: "Cite as (Author, Year)." })
+    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies.", chatId: "c1" }, mcp)
+    const [mine, owlits] = (await call("memory.list")).lines.map((l: { id: string }) => l.id)
+    await expect(call("memory.write", { op: "replace", id: mine, text: "Cite in APA 7." }, mcp)).rejects.toThrow("Not done: That memory line is the user's, not Owlit's to change; name it in your answer and let them decide.")
+    await expect(call("memory.write", { op: "remove", id: mine }, mcp)).rejects.toThrow(/^Not done: That memory line is the user's/)
+    await call("memory.write", { op: "replace", id: owlits, text: "Works on replay annotation." }, mcp)
+    // Once the person changes Owlit's line in Settings, it is theirs
+    await call("memory.put", { id: owlits, kind: "about", text: "Works on replay annotation studies." })
+    await expect(call("memory.write", { op: "remove", id: owlits }, mcp)).rejects.toThrow(/^Not done: The user has changed that memory line since/)
+    expect(await lines()).toEqual([
+      [mine, "Cite as (Author, Year)."],
+      [owlits, "Works on replay annotation studies."],
+    ])
+  })
+
   it("treats a caller naming a chat that isn't there as a program with no chat", async () => {
     const { call, paper } = await setup()
     const borrowed: Caller = { kind: "socket", chatId: "nobody's" }
