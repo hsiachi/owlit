@@ -7265,19 +7265,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/runs.ts
-#: packages/core/src/core.ts
-msgid "Digest of “{title}”"
-msgstr "“{title}”的导读"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked for a digest of “{title}”."
-msgstr "你请 Owlit 为“{title}”写导读。"
-
-#: packages/core/src/agents/runs.ts
-msgid "The digest is written:"
-msgstr "导读写好了："
-
-#: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
 msgstr "过了一遍“{name}”"
 
@@ -7544,6 +7531,10 @@ msgstr "那条评论已经在了。"
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "那条评论已经不在了。"
+
+#: packages/core/src/core.ts
+msgid "Digest of “{title}”"
+msgstr "“{title}”的导读"
 
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."

@@ -267,7 +267,7 @@ export interface StartedChat {
 // The background task an Owlit run is the session of
 export interface OwlitRun {
   taskId: string
-  // The task's kind and subject (paper.digest on a paper id, threads.more on a thread id)
+  // The task's kind and subject (threads.more on a thread id, meetings.goThrough on a doc's path)
   kind: string
   subject: string
 }

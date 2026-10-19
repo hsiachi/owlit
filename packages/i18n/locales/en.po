@@ -7265,19 +7265,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} exited with code {code}"
 
 #: packages/core/src/agents/runs.ts
-#: packages/core/src/core.ts
-msgid "Digest of “{title}”"
-msgstr "Digest of “{title}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked for a digest of “{title}”."
-msgstr "You asked for a digest of “{title}”."
-
-#: packages/core/src/agents/runs.ts
-msgid "The digest is written:"
-msgstr "The digest is written:"
-
-#: packages/core/src/agents/runs.ts
 msgid "Went through “{name}”"
 msgstr "Went through “{name}”"
 
@@ -7544,6 +7531,10 @@ msgstr "That comment is already there."
 #: packages/core/src/core.ts
 msgid "That comment isn't there any more."
 msgstr "That comment isn't there any more."
+
+#: packages/core/src/core.ts
+msgid "Digest of “{title}”"
+msgstr "Digest of “{title}”"
 
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."

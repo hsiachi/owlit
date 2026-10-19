@@ -1549,7 +1549,8 @@ export class Core {
     if (chat && this.workspace === ws) this.notifier.notify("chats.run", { chat })
   }
 
-  // A task's agent run, kept as a session: why it started, its steps as they come, and how it ended
+  // A task's agent run (threads, Go through, a reply), kept as a session: why it started, its steps as
+  // they come, and how it ended
   private async runInBackground(root: string, ctx: TaskContext, run: BackgroundRun): Promise<BackgroundResult> {
     const ws = this.workspace
     if (ws?.root !== root) throw new Error("The workspace closed.")

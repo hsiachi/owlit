@@ -5,14 +5,14 @@ import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
 import type { Who } from "./policy.ts"
 import { flatValues } from "./process.ts"
-import { backgroundMeta, bareToolTitle, guardFor, isOwlitCall, roots, sendsPictures } from "./profiles.ts"
+import { backgroundMeta, bareToolTitle, guardFor, isOwlitCall, roots } from "./profiles.ts"
 import { answerFor, takesRules } from "./roles.ts"
 import { memoryNote, preamble } from "./rules.ts"
 import { failureOf } from "./failure.ts"
 import { agentNotice, agentWork, toKind, toUpdate, type HelperReports } from "./updates.ts"
 
 // Agent work that isn't a chat: a session on a local agent that no chat list shows, given one prompt,
-// whose answer is the result (a digest), or whose work goes through owlit's tools (a thread). Nobody is
+// whose answer is the result (Go through, a reply), or whose work goes through owlit's tools (a thread). Nobody is
 // there to answer questions. What the agent asks to do with its own tools is decided by the policy, as a
 // chat's is (roles.ts answerFor), for a run with a Reviewer's role: it changes nothing of the user's and
 // runs no commands, and anything left to a person is refused. owlit's own tools are held to the run's
@@ -27,9 +27,6 @@ const READ_ONLY = /^(library_(list|get|read|highlights)|docs_(list|read)|chats_(
 
 export interface BackgroundRun {
   prompt: string
-  // Pictures after the prompt, each after its label (a paper's figures), for an agent that sees images;
-  // one that doesn't gets the prompt alone, which names them anyway
-  pictures?: { label: string; data: string; mimeType: string }[]
   // The workspace, as the session's cwd
   root: string
   mcpServers: acp.McpServer[]
@@ -66,8 +63,6 @@ export interface BackgroundResult {
   connectorId: string
   // The model chosen for background work, when one is and the agent offers it
   model?: string
-  // How many of the run's pictures went with the prompt: none when the agent doesn't see images
-  pictures?: number
 }
 
 export class Background {
@@ -169,19 +164,14 @@ export class Background {
       const init = await proc.initialized()
       // An agent that takes owlit's rules in its system prompt has them already
       const rules: acp.ContentBlock[] = takesRules(init) ? [] : [{ type: "text", text: preamble(run.root) }]
-      // Background work follows owlit's memory too (a digest in the language the user asked for)
+      // Background work follows owlit's memory too (how the user wants Owlit to work)
       if (run.memory?.length) rules.push({ type: "text", text: memoryNote(run.memory, false) })
-      const seen = run.pictures?.length && sendsPictures(connectorId, init, model) ? run.pictures : []
-      const pictures: acp.ContentBlock[] = seen.flatMap((p) => [
-        { type: "text" as const, text: p.label },
-        { type: "image" as const, data: p.data, mimeType: p.mimeType },
-      ])
-      const response = await proc.prompt({ sessionId: session.sessionId, prompt: [...rules, { type: "text", text: run.prompt }, ...pictures] })
+      const response = await proc.prompt({ sessionId: session.sessionId, prompt: [...rules, { type: "text", text: run.prompt }] })
       run.signal.throwIfAborted()
       log(`answered (${response.stopReason}): ${answer.slice(0, 600)}`)
       if (response.stopReason === "refusal") throw new Error("The agent declined.")
       if (!answer.trim()) throw new Error(refused.length ? `The agent wanted tools it may not use here (${refused.join(", ")}).` : "The agent said nothing.")
-      return { text: answer, connectorId, ...(model ? { model } : {}), pictures: seen.length }
+      return { text: answer, connectorId, ...(model ? { model } : {}) }
     } finally {
       run.signal.removeEventListener("abort", cancel)
       await proc.closeSession(session.sessionId).catch(() => undefined)
