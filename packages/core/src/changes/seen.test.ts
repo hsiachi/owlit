@@ -96,6 +96,7 @@ describe("seen over RPC", () => {
     await expect(call("seen.get", {}, agent)).rejects.toMatchObject({ code: RpcErrorCode.Forbidden })
     await expect(call("seen.mark", { kind: "comments", path: "a.md" }, agent)).rejects.toMatchObject({ code: RpcErrorCode.Forbidden })
     await expect(call("changes.unseen", {}, agent)).rejects.toMatchObject({ code: RpcErrorCode.Forbidden })
+    await expect(call("presence.away", {}, agent)).rejects.toMatchObject({ code: RpcErrorCode.Forbidden })
   })
 
   it("says what Owlit changed in a doc since the person had it on screen, and which paragraphs", async () => {

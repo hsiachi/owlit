@@ -758,11 +758,12 @@ export class Threads {
   }
 
   // Undo of a whole thread's entry: one that started it puts it in the trash, one that deleted it brings it
-  // back from there
+  // back from there. An update of the whole thread holds a snapshot in its content file, which nothing
+  // reads: it is refused
   undoWhole(change: Change, caller: Caller, extra: Pick<RecordInput, "origin" | "undoes">) {
     return this.serial.run(async () => {
       const id = change.target.path
-      if (change.action === "update") throw new RpcFailure(RpcErrorCode.Conflict, t`That change was kept before owlit undid threads by item, so it can't be undone.`, { id })
+      if (change.action === "update") throw new RpcFailure(RpcErrorCode.Conflict, t`That change holds the whole thread at once, so it can't be undone.`, { id })
       if (change.action === "create") {
         if (!(await this.load(id))) throw new RpcFailure(RpcErrorCode.NotFound, t`That thread isn't here any more.`, { id })
         await this.toTrash(id)

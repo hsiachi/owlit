@@ -722,7 +722,11 @@ export class Core {
         return marks
       },
     )
-    this.router.register("presence.away", noParams, () => this.initiative.presence.lastAway)
+    // When the person was away is theirs, like what they have seen: the window asks, no program on the socket
+    this.router.register("presence.away", noParams, (_params, caller) => {
+      if (caller.kind !== "window") throw new RpcFailure(RpcErrorCode.Forbidden, "Only owlit's window asks when the person was away.")
+      return this.initiative.presence.lastAway
+    })
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),

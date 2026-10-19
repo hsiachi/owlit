@@ -54,7 +54,9 @@ export function socketPaths(workspace: string, dir = tmpdir()) {
   return { socket: path.join(dir, `owlit-${hash}.sock`), pointer: path.join(dir, `owlit-${hash}.json`) }
 }
 
-export async function connect(workspace: string, options: { dir?: string } = {}): Promise<OwlitClient> {
+// as: the chat or run owlit-mcp works for, said once for the connection; core records what it changes
+// as that person's Owlit's. Without it the caller is a program owlit can't tell from the person.
+export async function connect(workspace: string, options: { dir?: string; as?: { chatId?: string; run?: string } } = {}): Promise<OwlitClient> {
   const name = path.basename(path.resolve(workspace))
   const root = await realpath(path.resolve(workspace)).catch(() => {
     throw new OwlitNotRunning(`There is no folder at ${path.resolve(workspace)}.`)
@@ -107,7 +109,7 @@ export async function connect(workspace: string, options: { dir?: string } = {})
       socket.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n")
     })
 
-  await send("auth", { token: pointer.token })
+  await send("auth", { token: pointer.token, ...options.as })
   let subscribed = false
 
   const client: OwlitClient = {

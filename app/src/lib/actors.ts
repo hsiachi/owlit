@@ -11,7 +11,7 @@ export const WEB_OWLIT: OwlitId = owlitOf(WEB_ME)
 
 // Who made a change, as the viewer reads it: "you" for their own id (me), a person's name from the
 // workspace's roster, "Owlit" for any person's Owlit, "outside owlit" when owlit couldn't tell
-export function actorLabel(actor: ActorId, me: PersonId | undefined, roster: Roster): string {
+function actorLabel(actor: ActorId, me: PersonId | undefined, roster: Roster): string {
   if (actor === me) return t({ message: "you", comment: "who made a change: the person reading" })
   if (isOwlit(actor)) return "Owlit"
   if (actor === "other") return t({ message: "outside owlit", comment: "who made a change: another program, or someone owlit doesn't know" })

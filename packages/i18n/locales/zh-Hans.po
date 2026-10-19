@@ -7983,8 +7983,8 @@ msgid "That changed in the thread since, so owlit left it as it is."
 msgstr "这一项在脉络里之后又被改过，owlit 没有动它。"
 
 #: packages/core/src/threads/threads.ts
-msgid "That change was kept before owlit undid threads by item, so it can't be undone."
-msgstr "这处改动记录于 owlit 按条撤销脉络之前，无法撤销。"
+msgid "That change holds the whole thread at once, so it can't be undone."
+msgstr "这处改动记录的是整条脉络，无法撤销。"
 
 #: packages/core/src/threads/threads.ts
 msgid "That thread is already here."

@@ -48,7 +48,7 @@ export function createServer(options: OwlitMcpOptions) {
   let client: Promise<OwlitClient> | null = null
   // Connected on first use, and again after owlit closed and opened again
   const owlit = async () => {
-    client ??= connect(options.workspace, { dir: options.socketDir }).catch((error) => {
+    client ??= connect(options.workspace, { dir: options.socketDir, as: { ...(options.chatId ? { chatId: options.chatId } : {}), ...(options.run ? { run: options.run } : {}) } }).catch((error) => {
       client = null
       throw error
     })
@@ -83,7 +83,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
   const optStr = (key: string) => (args[key] as string | undefined) || undefined
   // The chat this agent is answering in, so the window keeps it in view
   const asker = options.chatId ? { chatId: options.chatId } : {}
-  // A change's chat and tool call, for the change log
+  // The tool call a change comes from, for the change log (the chat is the connection's, said at auth);
+  // the chat again for the methods that ask it as a param, like a removal's consent
   const writer = { ...asker, ...(toolCallId ? { toolCallId } : {}) }
   switch (tool) {
     case "library_list": {

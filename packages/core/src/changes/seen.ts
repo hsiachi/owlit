@@ -5,7 +5,7 @@ import { Serial } from "../util.ts"
 
 // The person's last activity is written down at most this often while they are here: it only has to
 // say, after the app was closed, about when they left
-export const HERE_EVERY_MS = 60_000
+const HERE_EVERY_MS = 60_000
 
 const KINDS: SeenKind[] = ["docs", "threads", "chats", "comments", "digests"]
 

@@ -23,7 +23,7 @@ interface SeenState {
 }
 
 // Away this long, Home says everything others changed meanwhile, not only Owlit's runs
-export const LONG_AWAY = 3 * 24 * 3_600_000
+const LONG_AWAY = 3 * 24 * 3_600_000
 
 const withAway = (away: Absence | null, long: Absence | null) => ({ away, long: away && away.to - away.from >= LONG_AWAY ? away : long })
 
@@ -32,26 +32,44 @@ const NO_MARKS: SeenMarks = { since: 0, docs: {}, threads: {}, chats: {}, commen
 
 export const useSeen = create<SeenState>(() => ({ loaded: !isDesktop, marks: isDesktop ? NO_MARKS : MOCK_MARKS, unseen: NONE, ...withAway(isDesktop ? null : MOCK_AWAY, null) }))
 
-// The person has this on screen now
-export function markSeen(mark: SeenMark) {
+// Marks made here that core's answer may not hold yet, each with the first load asked after core took it
+// (Infinity while it is on its way). An answer older than that has the mark put on it again, so a reply
+// that ends as it is seen doesn't flash as unseen between core's answer and the mark.
+const pending = new Map<SeenMark & { at: number }, number>()
+let loads = 0
+
+// marks and unseen with one more mark: the changes still newer than the marks, and the chat or digest
+// just seen gone; null when the mark moves nothing
+function withMark(state: Pick<SeenState, "marks" | "unseen">, mark: SeenMark & { at: number }): Pick<SeenState, "marks" | "unseen"> | null {
   const person = me()
-  const at = Date.now()
-  const marks = structuredClone(useSeen.getState().marks)
-  if (!applySeen(marks, mark, at)) return
-  const { unseen } = useSeen.getState()
-  // Shown at once: the changes still newer than the marks, and the chat or digest just seen gone
-  useSeen.setState({
+  const marks = structuredClone(state.marks)
+  if (!applySeen(marks, mark, mark.at)) return null
+  const { unseen } = state
+  return {
     marks,
     unseen: {
       changes: person ? unseenOf(marks, person, { changes: unseen.changes, chats: [], papers: [] }).changes : unseen.changes,
       chats: mark.kind === "chat" ? unseen.chats.filter((id) => id !== mark.id) : unseen.chats,
       digests: mark.kind === "digest" ? unseen.digests.filter((id) => id !== mark.paper) : unseen.digests,
     },
-  })
+  }
+}
+
+// The person has this on screen now
+export function markSeen(seen: SeenMark) {
+  const mark = { ...seen, at: Date.now() }
+  const next = withMark(useSeen.getState(), mark)
+  if (!next) return
+  // Shown at once
+  useSeen.setState(next)
   if (!isDesktop) return
-  rpc.seen.mark({ ...mark, at }).then(
-    () => refresh(),
-    () => undefined,
+  pending.set(mark, Infinity)
+  rpc.seen.mark(mark).then(
+    () => {
+      pending.set(mark, loads + 1)
+      refresh()
+    },
+    () => pending.delete(mark),
   )
 }
 
@@ -81,8 +99,15 @@ async function load() {
     useSeen.setState({ unseen: unseenOf(marks, WEB_ME, { changes: MOCK_CHANGES, chats, papers }) })
     return
   }
+  const load = ++loads
   const [marks, unseen, away] = await Promise.all([rpc.seen.get({}), rpc.changes.unseen({}), rpc.presence.away()]).catch(() => [null, null, null] as const)
-  if (marks && unseen) useSeen.setState((s) => ({ loaded: true, marks, unseen, ...withAway(away, s.long) }))
+  if (!marks || !unseen) return
+  let answer = { marks, unseen }
+  for (const [mark, heldFrom] of pending) {
+    if (load >= heldFrom) pending.delete(mark)
+    else answer = withMark(answer, mark) ?? answer
+  }
+  useSeen.setState((s) => ({ loaded: true, ...answer, ...withAway(away, s.long) }))
 }
 
 // The log's entries, newest first (the browser preview's own: since and the target's kind only)
@@ -106,6 +131,7 @@ export function startSeen() {
     return
   }
   onWorkspaceOpened(() => {
+    pending.clear()
     useSeen.setState({ loaded: false, marks: NO_MARKS, unseen: NONE, away: null, long: null })
     refresh()
   })

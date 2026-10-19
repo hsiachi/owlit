@@ -144,7 +144,7 @@ export function threadDot(change: Change): boolean {
 
 // A chat whose last reply ended well after the last message the person saw. A chat they never looked at
 // (a run, or one from before the marks) has none: it is not news.
-export function chatUnseen(chat: Pick<Chat, "messages">, mark: SeenMarks["chats"][string] | undefined): boolean {
+function chatUnseen(chat: Pick<Chat, "messages">, mark: SeenMarks["chats"][string] | undefined): boolean {
   const last = chat.messages.at(-1)
   return !!mark && last?.role === "assistant" && last.status === "done" && last.id !== mark.message
 }

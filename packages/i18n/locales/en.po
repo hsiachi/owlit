@@ -7983,8 +7983,8 @@ msgid "That changed in the thread since, so owlit left it as it is."
 msgstr "That changed in the thread since, so owlit left it as it is."
 
 #: packages/core/src/threads/threads.ts
-msgid "That change was kept before owlit undid threads by item, so it can't be undone."
-msgstr "That change was kept before owlit undid threads by item, so it can't be undone."
+msgid "That change holds the whole thread at once, so it can't be undone."
+msgstr "That change holds the whole thread at once, so it can't be undone."
 
 #: packages/core/src/threads/threads.ts
 msgid "That thread is already here."
