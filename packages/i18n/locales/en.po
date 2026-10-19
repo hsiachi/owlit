@@ -1748,19 +1748,11 @@ msgstr "Older"
 msgid "Reviewer"
 msgstr "Reviewer"
 
-#: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes what is yours."
-msgstr "Reads, answers and leaves comments. Never changes what is yours."
-
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 #: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
 msgstr "Assistant"
-
-#: app/src/features/chat/lib/selection.ts
-msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
-msgstr "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
@@ -1768,8 +1760,40 @@ msgid "Co-author"
 msgstr "Co-author"
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
-msgstr "Also edits your docs and runs commands in this workspace. Every change can be undone."
+msgid "Reads your workspace"
+msgstr "Reads your workspace"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Keeps its own comments, threads, memory and highlights"
+msgstr "Keeps its own comments, threads, memory and highlights"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Stars, tags and sorts papers, with Undo"
+msgstr "Stars, tags and sorts papers, with Undo"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never changes your writing"
+msgstr "Never changes your writing"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs as marked proposals; undo any part"
+msgstr "Edits your docs as marked proposals; undo any part"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs; undo any part"
+msgstr "Edits your docs; undo any part"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Moves or deletes into the Trash, with Undo"
+msgstr "Moves or deletes into the Trash, with Undo"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Runs commands in this workspace; what they change outside your docs has no Undo"
+msgstr "Runs commands in this workspace; what they change outside your docs has no Undo"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never runs commands"
+msgstr "Never runs commands"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"
@@ -2817,6 +2841,10 @@ msgstr "Keep"
 #: app/src/features/docs/editor/proposals.ts
 msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
 msgstr "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
+msgstr "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
 
 #. verb: keep every passage Owlit changed
 #: app/src/features/docs/editor/proposals.ts
@@ -4541,6 +4569,14 @@ msgid "Where this paper was read"
 msgstr "Where this paper was read"
 
 #: app/src/features/onboarding/AgentChoice.tsx
+msgid "As Assistant, its usual role, Owlit"
+msgstr "As Assistant, its usual role, Owlit"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr "Agent for Owlit"
 
@@ -5119,6 +5155,15 @@ msgstr "Claude Code kept these about you in this folder. Keep the ones Owlit sho
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
 msgstr "Drop"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "What Owlit may do"
+msgstr "What Owlit may do"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
+msgstr "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts

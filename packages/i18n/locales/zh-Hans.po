@@ -1748,19 +1748,11 @@ msgstr "更早"
 msgid "Reviewer"
 msgstr "审阅者"
 
-#: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes what is yours."
-msgstr "阅读、回答并留下批注。不会改动属于你的任何东西。"
-
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 #: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
 msgstr "助理"
-
-#: app/src/features/chat/lib/selection.ts
-msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
-msgstr "查找并添加论文，记自己的笔记。只有你采纳后，你的文稿才会改动。"
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
@@ -1768,8 +1760,40 @@ msgid "Co-author"
 msgstr "合著者"
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
-msgstr "还能编辑你的文档，并在这个工作区中运行命令。每处改动都可以撤销。"
+msgid "Reads your workspace"
+msgstr "读取你的工作区"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Keeps its own comments, threads, memory and highlights"
+msgstr "保有自己的评论、脉络、记忆和高亮"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Stars, tags and sorts papers, with Undo"
+msgstr "给论文加星、打标签、标记状态，可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never changes your writing"
+msgstr "从不改动你写的文字"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs as marked proposals; undo any part"
+msgstr "改动你的文档时以标记的提议落下，任一处都可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs; undo any part"
+msgstr "改动你的文档，任一处都可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Moves or deletes into the Trash, with Undo"
+msgstr "移动或删除文档，进废纸篓，可撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Runs commands in this workspace; what they change outside your docs has no Undo"
+msgstr "在这个工作区里运行命令；命令在文档之外改动的东西无法撤销"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never runs commands"
+msgstr "从不运行命令"
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"
@@ -2817,6 +2841,10 @@ msgstr "保留"
 #: app/src/features/docs/editor/proposals.ts
 msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
 msgstr "{0, plural, other {Owlit 改了 # 处}}"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
+msgstr "Owlit 的改动就这样落下；任一处都可撤销，也可以在文档菜单里让 Owlit 别碰这篇"
 
 #. verb: keep every passage Owlit changed
 #: app/src/features/docs/editor/proposals.ts
@@ -4541,6 +4569,14 @@ msgid "Where this paper was read"
 msgstr "这篇论文读过的地方"
 
 #: app/src/features/onboarding/AgentChoice.tsx
+msgid "As Assistant, its usual role, Owlit"
+msgstr "作为助理（它平常的角色），Owlit 会"
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命令）在输入框里选，只对当前这个对话生效。"
+
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr "Owlit 用的智能体"
 
@@ -5119,6 +5155,15 @@ msgstr "Claude Code 在这个文件夹里记过这些关于你的事。保留 Ow
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
 msgstr "不要"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "What Owlit may do"
+msgstr "Owlit 可以做什么"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
+msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命令）在输入框里选，只对当前这个对话生效。智能体会读取工作区里的哪些内容，见“隐私”。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts

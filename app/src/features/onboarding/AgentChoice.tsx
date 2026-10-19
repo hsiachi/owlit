@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
-import type { Connector } from "@owlit/protocol"
+import { DEFAULT_ROLE, type Connector } from "@owlit/protocol"
+import { RoleLines } from "@/components/role-lines"
 import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { CopyButton } from "@/components/copy-button"
 import { Button } from "@/components/ui/button"
@@ -15,8 +16,22 @@ import { Spinner } from "@/components/ui/spinner"
 // chats' agent, so the first day has one answer to "what runs Owlit"; Settings can part them later. Agents
 // not ready say what would make them ready, and are checked again when the window comes back to the front,
 // since people may leave to run a command in Terminal. The Owlit engine (Beta) signs in under Settings, so a
-// first run leaves it out.
+// first run leaves it out. Under the list, what Owlit may do through the agent in its default role, in
+// the lines the composer's menu says, so the scope is met here and not found by accident.
 export function AgentChoice() {
+  return (
+    <>
+      <AgentList />
+      <div className="mt-6 text-sm leading-relaxed text-muted-foreground">
+        <p className="mb-1 font-medium text-foreground">{t`As Assistant, its usual role, Owlit`}</p>
+        <RoleLines role={DEFAULT_ROLE} />
+        <p className="mt-2">{t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time.`}</p>
+      </div>
+    </>
+  )
+}
+
+function AgentList() {
   const setUp = useChatStore((s) => s.setUpConnector)
   const connectors = useChatStore((s) => s.connectors).filter((c) => !c.signsInHere)
   const check = useChatStore((s) => s.checkConnector)

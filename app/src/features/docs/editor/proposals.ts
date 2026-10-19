@@ -107,24 +107,45 @@ class ActsWidget extends WidgetType {
   }
 }
 
+// The first landed proposal teaches the rule, once on this machine: the sentence rides on the header
+// line until a Keep or Undo has been clicked anywhere
+const EXPLAINED = "owlit.proposals.explained"
+const explained = () => {
+  try {
+    return localStorage.getItem(EXPLAINED) === "1"
+  } catch {
+    return true
+  }
+}
+const setExplained = () => {
+  try {
+    localStorage.setItem(EXPLAINED, "1")
+  } catch {
+    // Nowhere to keep it: the sentence shows again, which is no harm
+  }
+}
+
 // The line above the first passage: how many, Keep all, Undo all
 class HeadWidget extends WidgetType {
   readonly count: number
   readonly all: (keep: boolean) => void
+  readonly first: boolean
   constructor(count: number, all: (keep: boolean) => void) {
     super()
     this.count = count
     this.all = all
+    this.first = !explained()
   }
   eq(other: HeadWidget) {
-    return other.count === this.count
+    return other.count === this.count && other.first === this.first
   }
   toDOM() {
     const bar = document.createElement("div")
     bar.className = "suggest-bar proposal-head"
     bar.contentEditable = "false"
     const label = document.createElement("span")
-    label.textContent = plural(this.count, { one: "Owlit changed # passage", other: "Owlit changed # passages" })
+    const count = plural(this.count, { one: "Owlit changed # passage", other: "Owlit changed # passages" })
+    label.textContent = this.first ? `${count} · ${t`Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu`}` : count
     const button = (text: string, keep: boolean) => {
       const b = document.createElement("button")
       b.type = "button"
@@ -160,12 +181,14 @@ export function proposalMarks(onKeepAll: () => void): Extension {
   let view: EditorView | undefined
   const act = (key: string, keep: boolean) => {
     if (!view) return
+    setExplained()
     const spot = view.state.field(field).spots.find((s) => s.key === key)
     if (!spot) return
     view.dispatch({ effects: settle.of([key]), ...(keep ? {} : { changes: { from: spot.from, to: spot.to, insert: spot.removed }, userEvent: "input.proposal" }) })
   }
   const all = (keep: boolean) => {
     if (!view) return
+    setExplained()
     const spots = view.state.field(field).spots
     view.dispatch({ effects: settle.of(spots.map((s) => s.key)), ...(keep ? {} : { changes: spots.map((s) => ({ from: s.from, to: s.to, insert: s.removed })), userEvent: "input.proposal" }) })
     if (keep) onKeepAll()

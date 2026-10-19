@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
-import { FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
+import { DEFAULT_ROLE, FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
+import { RoleLines } from "@/components/role-lines"
 import { isDesktop } from "@/lib/rpc"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -30,6 +31,9 @@ export function OwlitSection() {
           <NameRow />
           {(workspace || !isDesktop) && <KeptInMindRow />}
         </List>
+      </Group>
+      <Group id="roles" label={t`What Owlit may do`} note={t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy.`}>
+        <RoleLines role={DEFAULT_ROLE} className="mt-1 text-sm leading-6 text-foreground" />
       </Group>
       <Group id="background" label={t`Background work`}>
         <BackgroundWork />

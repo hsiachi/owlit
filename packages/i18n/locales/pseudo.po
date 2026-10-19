@@ -1748,18 +1748,10 @@ msgstr ""
 msgid "Reviewer"
 msgstr ""
 
-#: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes what is yours."
-msgstr ""
-
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 #: app/src/features/onboarding/demos/parts.tsx
 msgid "Assistant"
-msgstr ""
-
-#: app/src/features/chat/lib/selection.ts
-msgid "Finds and adds papers, keeps its own notes. Your writing changes only when you apply it."
 msgstr ""
 
 #. Owlit's role
@@ -1768,7 +1760,39 @@ msgid "Co-author"
 msgstr ""
 
 #: app/src/features/chat/lib/selection.ts
-msgid "Also edits your docs and runs commands in this workspace. Every change can be undone."
+msgid "Reads your workspace"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Keeps its own comments, threads, memory and highlights"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Stars, tags and sorts papers, with Undo"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never changes your writing"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs as marked proposals; undo any part"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Edits your docs; undo any part"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Moves or deletes into the Trash, with Undo"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Runs commands in this workspace; what they change outside your docs has no Undo"
+msgstr ""
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Never runs commands"
 msgstr ""
 
 #: app/src/features/chat/lib/starters.ts
@@ -2816,6 +2840,10 @@ msgstr ""
 #. placeholder {0}: this.count
 #: app/src/features/docs/editor/proposals.ts
 msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
 msgstr ""
 
 #. verb: keep every passage Owlit changed
@@ -4541,6 +4569,14 @@ msgid "Where this paper was read"
 msgstr ""
 
 #: app/src/features/onboarding/AgentChoice.tsx
+msgid "As Assistant, its usual role, Owlit"
+msgstr ""
+
+#: app/src/features/onboarding/AgentChoice.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr ""
+
+#: app/src/features/onboarding/AgentChoice.tsx
 msgid "Agent for Owlit"
 msgstr ""
 
@@ -5118,6 +5154,15 @@ msgstr ""
 #. verb: don't keep a note Claude Code had kept
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/settings/store.ts
+msgid "What Owlit may do"
+msgstr ""
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx

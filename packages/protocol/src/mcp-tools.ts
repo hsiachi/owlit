@@ -269,7 +269,7 @@ function TOOLS(): ToolSpec[] {
     name: "docs_delete",
     touches: "structure",
     description:
-      "Delete docs or folders of the user's, when they ask for it. Use this, not shell commands: owlit asks the user first when their settings say so, and keeps each file so they can undo it.",
+      "Delete docs or folders of the user's, when they ask for it. Use this, not shell commands: the files go to the Trash, and owlit keeps each file's text so they can undo it.",
     inputSchema: {
       type: "object",
       properties: { paths: { type: "array", items: { type: "string" }, description: "Workspace-relative paths of the docs or folders" } },
@@ -281,7 +281,7 @@ function TOOLS(): ToolSpec[] {
     name: "docs_move",
     touches: "structure",
     description:
-      "Move or rename a doc or folder of the user's, when they ask for it. Use this, not shell commands: owlit asks the user first when their settings say so, and keeps the change so they can undo it.",
+      "Move or rename a doc or folder of the user's, when they ask for it. Use this, not shell commands: owlit keeps the change so they can undo it.",
     inputSchema: {
       type: "object",
       properties: {

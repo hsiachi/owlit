@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { type Chat, type Connector, DEFAULT_ROLE, type Role, ROLES } from "@owlit/protocol"
+import { type Chat, type Connector, DEFAULT_ROLE, type Role, ROLE_TABLE, ROLES, RUNS_COMMANDS } from "@owlit/protocol"
 
 export interface Selection {
   connectorId: string
@@ -30,17 +30,35 @@ export function resolveSelection(connectors: Connector[], selection: Selection) 
   return { connector, model, effort, role }
 }
 
-// A role's name and what it does, in the interface's language. ROLES keeps them in English for core,
-// which tells the agent its role in those words.
-export function roleWords(role: Role): { name: string; description: string } {
+// A role's name, in the interface's language
+export function roleName(role: Role) {
   switch (role) {
     case "reviewer":
-      return { name: t({ message: "Reviewer", comment: "Owlit's role" }), description: t`Reads, answers and leaves comments. Never changes what is yours.` }
+      return t({ message: "Reviewer", comment: "Owlit's role" })
     case "assistant":
-      return { name: t({ message: "Assistant", comment: "Owlit's role" }), description: t`Finds and adds papers, keeps its own notes. Your writing changes only when you apply it.` }
+      return t({ message: "Assistant", comment: "Owlit's role" })
     case "coauthor":
-      return { name: t({ message: "Co-author", comment: "Owlit's role" }), description: t`Also edits your docs and runs commands in this workspace. Every change can be undone.` }
+      return t({ message: "Co-author", comment: "Owlit's role" })
   }
+}
+
+// What a role may do, one sentence a class, read off the policy's table (protocol's ROLE_TABLE), so the
+// composer's menu, onboarding and Settings say what core decides; the agent hears the same sentences in
+// English (protocol's roleSentences). Each is a line, so a change of one word changes it everywhere.
+export function roleLines(role: Role): string[] {
+  const out = [t`Reads your workspace`, t`Keeps its own comments, threads, memory and highlights`]
+  if (ROLE_TABLE.meta[role] !== "refuse") out.push(t`Stars, tags and sorts papers, with Undo`)
+  const words = ROLE_TABLE.words[role]
+  out.push(words === "refuse" ? t`Never changes your writing` : words === "propose" ? t`Edits your docs as marked proposals; undo any part` : t`Edits your docs; undo any part`)
+  if (ROLE_TABLE.structure[role] !== "refuse") out.push(t`Moves or deletes into the Trash, with Undo`)
+  if (RUNS_COMMANDS[role]) out.push(t`Runs commands in this workspace; what they change outside your docs has no Undo`)
+  else if (words !== "refuse") out.push(t`Never runs commands`)
+  return out
+}
+
+// A role's name and what it does, as one sentence (the chip's tooltip)
+export function roleWords(role: Role): { name: string; description: string } {
+  return { name: roleName(role), description: `${roleLines(role).join(". ")}.` }
 }
 
 // The name of the model a reply came from, while its agent still lists it
