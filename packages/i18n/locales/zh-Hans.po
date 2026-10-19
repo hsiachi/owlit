@@ -1728,14 +1728,14 @@ msgstr "过去 30 天"
 msgid "Older"
 msgstr "更早"
 
-#: app/src/features/chat/lib/selection.ts
-msgid "Reads, answers and leaves comments. Never changes what is yours."
-msgstr "阅读、回答并留下批注。不会改动属于你的任何东西。"
-
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
 msgid "Reviewer"
 msgstr "审阅者"
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Reads, answers and leaves comments. Never changes what is yours."
+msgstr "阅读、回答并留下批注。不会改动属于你的任何东西。"
 
 #. Owlit's role
 #: app/src/features/chat/lib/selection.ts
