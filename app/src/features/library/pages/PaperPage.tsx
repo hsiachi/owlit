@@ -13,7 +13,7 @@ import { useDigestState, useWritingDigest } from "../digests"
 import { visiblePapers } from "../lib/filter"
 import { useReadingVisit } from "../lib/reading"
 import { notePathOf } from "../notes/note-actions"
-import { showInPaper, usePaperView, usePaperViewOf, type PaperView } from "../paper-view"
+import { paperViews, showInPaper, usePaperView, usePaperViewOf, type PaperView } from "../paper-view"
 import { usePrefsStore } from "../prefs-store"
 import { PdfReader } from "../reader/PdfReader"
 import { paperById, useLibraryStore } from "../store"
@@ -152,11 +152,6 @@ export function PaperPage() {
 
 // Hooks run before a missing paper's Not found
 const NO_PAPER = { id: "", hasDigest: false } as Paper
-
-const paperViews = (): { value: PaperView; label: string }[] => [
-  { value: "digest", label: t({ message: "Digest", comment: "a view of the paper page: Owlit's digest of the paper" }) },
-  { value: "pdf", label: "PDF" },
-]
 
 // All papers, kept as they were while only reading positions (in the PDF or the digest) move. A position
 // changes at every scroll pause and nothing on this page follows it (the reader and the digest read their

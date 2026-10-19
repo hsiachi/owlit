@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import { AppSidebar } from "@/app/AppSidebar"
@@ -18,6 +18,9 @@ import { AgentAskBar } from "@/features/agent/AgentAskBar"
 import { AgentPanel, AgentToggle } from "@/features/agent/AgentWindow"
 import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
 import { useAgentWindow } from "@/features/agent/store"
+import { useBeside } from "@/features/agent/beside"
+import { PaperBesideSlot } from "@/features/library/pages/paper/PaperBeside"
+import { routeSubject } from "@/app/route-subject"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { useSettingsShortcut } from "@/features/settings/hooks"
 import { WelcomePage } from "@/features/welcome/WelcomePage"
@@ -60,6 +63,12 @@ function AppShell() {
   const listShown = useAgentWindow((s) => s.listShown)
   const panelWidth = useAgentWindow((s) => s.panelWidth)
   const setListShown = useAgentWindow((s) => s.setListShown)
+  // A paper beside the doc it was cited in: the slot's other occupant, only while a doc is open
+  const onDoc = routeSubject(pathname)?.kind === "doc"
+  const besidePaper = useBeside((s) => !!s.paper) && onDoc && !docked
+  useEffect(() => {
+    if (!onDoc && useBeside.getState().paper) useBeside.getState().close()
+  }, [onDoc])
   useAgentShortcut()
   useSettingsShortcut()
   useShortcutsShortcut()
@@ -112,7 +121,7 @@ function AppShell() {
                   <Outlet />
                   <AgentAskBar />
                 </div>
-                {docked && <AgentPanel />}
+                {docked ? <AgentPanel /> : besidePaper && <PaperBesideSlot />}
               </div>
             </SidebarInset>
           </div>
@@ -125,7 +134,7 @@ function AppShell() {
         <TourOverlay />
         <IntroReplay />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}
-        <Toaster position="bottom-right" offset={docked ? { right: panelWidth + 20, bottom: 24 } : undefined} />
+        <Toaster position="bottom-right" offset={docked || besidePaper ? { right: panelWidth + 20, bottom: 24 } : undefined} />
       </div>
     </TooltipProvider>
   )
