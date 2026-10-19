@@ -1,4 +1,4 @@
-import type { ChatMessage, MessagePart, SessionUpdate } from "./chat.ts"
+import type { ChatMessage, FileDiff, MessagePart, SessionUpdate } from "./chat.ts"
 
 // How a message is built from an agent's stream; core (which saves it) and the app (which shows it) fold
 // the same updates the same way.
@@ -24,6 +24,13 @@ export function applyUpdate(parts: MessagePart[], u: SessionUpdate): MessagePart
 
 export const withoutNotice = (parts: MessagePart[]) => (parts.some((p) => p.type === "notice") ? parts.filter((p) => p.type !== "notice") : parts)
 
+// A tool call's diff as a later update brings it: the text it replaces, once known, stays when the update
+// comes without it (an agent sends a Write's diff again with each update, never with what it replaces)
+function diffOf(had: FileDiff | undefined, next: FileDiff | undefined): FileDiff | undefined {
+  if (!next) return had
+  return !next.oldText && had?.oldText && had.path === next.path ? { ...next, oldText: had.oldText } : next
+}
+
 function fold(parts: MessagePart[], u: Exclude<SessionUpdate, { type: "notice" }>): MessagePart[] {
   const last = parts[parts.length - 1]
   switch (u.type) {
@@ -42,7 +49,7 @@ function fold(parts: MessagePart[], u: Exclude<SessionUpdate, { type: "notice" }
     case "tool_call_update":
       return parts.map((p) =>
         p.type === "tool_call" && p.toolCallId === u.toolCallId
-          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations, diff: u.diff ?? p.diff, tool: u.tool ?? p.tool }
+          ? { ...p, status: u.status ?? p.status, title: u.title ?? p.title, content: u.content ?? p.content, locations: u.locations ?? p.locations, diff: diffOf(p.diff, u.diff), tool: u.tool ?? p.tool }
           : p,
       )
     case "plan": {

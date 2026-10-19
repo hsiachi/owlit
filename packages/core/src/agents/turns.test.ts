@@ -286,6 +286,14 @@ describe("turns", () => {
     expect(await diffOf("rewrite fresh.md new words")).toEqual({ path: "fresh.md", oldText: "", newText: "new words" })
   })
 
+  it("shows a Write made without asking as what it replaces, in every update of its call", async () => {
+    const { send, call } = await setup()
+    await call("docs.list")
+    await send("overwrite notes.md thirteen chars", { role: "coauthor" })
+    const step = (await call("chats.get", { id: "c1" })).messages[1].parts.find((p: any) => p.type === "tool_call")
+    expect(step).toMatchObject({ status: "completed", diff: { path: "notes.md", oldText: "twelve chars", newText: "thirteen chars" } })
+  })
+
   it("shows the agent's questions and passes on the answer, or a skip", async () => {
     const { send, updates, call, text } = await setup()
     let turn = send("a question for you")

@@ -3,6 +3,8 @@
 //   "permission"       asks to run something, then says what the user chose
 //   "rewrite <path> <t>" asks to Write t (\n for a line break) over the whole file, as Claude Code does: the
 //                      diff has no old text; allowed, it writes the file itself
+//   "overwrite <path> <t>" Writes t over the whole file without asking, as Claude Code does in Co-author: the
+//                      tool call's diff, with no old text, comes before the write and again after it
 //   "read <path>"      reads a file through owlit and says how long it is
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
@@ -294,6 +296,17 @@ class FakeAgent implements acp.Agent {
         if (chose === "yes") writeFileSync(file, content)
         await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "w1", status: chose === "yes" ? "completed" : "failed" } })
         await say(`you chose ${chose}`)
+        return { stopReason: "end_turn" }
+      }
+      const overwrite = /overwrite (\S+) (.+)/.exec(text)
+      if (overwrite) {
+        const file = `${session.cwd}/${overwrite[1]}`
+        const content = overwrite[2]
+        const call = { toolCallId: "w2", content: [{ type: "diff" as const, path: file, oldText: null, newText: content }], rawInput: { file_path: file, content }, _meta: { claudeCode: { toolName: "Write" } } }
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call", title: `Write ${overwrite[1]}`, kind: "edit", status: "pending", ...call } })
+        writeFileSync(file, content)
+        await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", status: "completed", ...call } })
+        await say("written")
         return { stopReason: "end_turn" }
       }
       const read = /read (\S+)/.exec(text)

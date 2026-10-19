@@ -95,6 +95,8 @@ interface Turn {
   // Resolves when the turn is cancelled, so a wait on the agent starting ends with it (startOrStop)
   stopped: Promise<void>
   stop: () => void
+  // The text each whole-file Write replaces, by tool call, read when its diff first came (withOldText)
+  replaced: Map<string, string>
   // Set when owlit, not the person, stopped it (reset): the reply says so instead of "stopped"
   cutOff?: CutOff
   // Shows an update in the chat and saves it in the answer; set once the turn runs
@@ -144,7 +146,7 @@ export class Turns {
     }
     let stop = () => {}
     const stopped = new Promise<void>((resolve) => (stop = resolve))
-    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, stopped, stop, agentText: new Map() }
+    const turn: Turn = { chatId: req.chatId, key: `${req.chatId}/${req.connectorId}`, role: req.role ?? DEFAULT_ROLE, heard: 0, message, permissions: new Map(), questions: new Map(), cancelled: false, stopped, stop, replaced: new Map(), agentText: new Map() }
     this.turns.set(req.chatId, turn)
     try {
       return await this.run(req, ws, turn)
@@ -451,7 +453,7 @@ export class Turns {
         deliver((turn) => {
           if (agentId) return agentWork(turn, agentId, n.update, root)
           const update = toUpdate(n.update, root)
-          return update ? [update] : []
+          return update ? [withOldText(turn, update, n.update, (rel) => this.options.workspace()?.docs.knownText(rel))] : []
         })
       },
       // One of the agent's own agents started or changed state
@@ -770,6 +772,26 @@ async function withReplacedText(call: acp.ToolCallUpdate, root: string): Promise
   const replaced = await readFile(path.resolve(root, diff.path), "utf8").catch(() => null)
   if (replaced === null) return call
   return { ...call, content: call.content!.map((c) => (c === diff ? { ...diff, oldText: replaced } : c)) }
+}
+
+// The same for a Write's tool call as it streams, where no permission is asked (Co-author): its diff
+// comes again with every update of the call, without old text each time. The agent writes as soon as it
+// has announced the call, so the disk may already hold the new text when the announcement is heard; the
+// text it replaces is the doc's as owlit last saw it (Docs keeps it, and hears of the write only later).
+// Taken once per call, when its diff first comes; later updates of the call take it from there.
+function withOldText(turn: Turn, update: SessionUpdate, raw: acp.SessionUpdate, known: (rel: string) => string | undefined): SessionUpdate {
+  if ((update.type !== "tool_call" && update.type !== "tool_call_update") || !update.diff || update.diff.oldText) return update
+  const id = update.toolCallId
+  let replaced = turn.replaced.get(id)
+  if (replaced === undefined) {
+    const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === id)
+    const write = (raw.sessionUpdate === "tool_call" || raw.sessionUpdate === "tool_call_update" ? toolInfoOf(raw)?.name : undefined) ?? (announced?.type === "tool_call" ? announced.tool?.name : undefined)
+    if (write !== "Write") return update
+    // Nothing known (a new file, or one not Markdown): the diff stays a creation
+    replaced = known(update.diff.path) ?? ""
+    turn.replaced.set(id, replaced)
+  }
+  return replaced ? { ...update, diff: { ...update.diff, oldText: replaced } } : update
 }
 
 // owlit's errors reach the agent with their sentence, not as a bare "Internal error"
