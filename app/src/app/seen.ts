@@ -103,9 +103,12 @@ async function load() {
   useSeen.setState({ loaded: true, ...answer })
 }
 
-// The log's entries, newest first (the browser preview's own: since and the target's kind only)
+// The log's entries, newest first (the browser preview's own: since and the target only)
 export function listChanges(filter: ChangeFilter): Promise<Change[]> {
-  if (!isDesktop) return Promise.resolve(MOCK_CHANGES.filter((c) => c.at >= (filter.since ?? 0) && (!filter.target?.kind || c.target.kind === filter.target.kind)))
+  if (!isDesktop) {
+    const { kind, path, part } = filter.target ?? {}
+    return Promise.resolve(MOCK_CHANGES.filter((c) => c.at >= (filter.since ?? 0) && (!kind || c.target.kind === kind) && (!path || c.target.path === path) && (!part || c.target.part === part)))
+  }
   return rpc.changes.list(filter)
 }
 

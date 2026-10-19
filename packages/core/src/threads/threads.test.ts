@@ -1,4 +1,4 @@
-import { itemId, placedKey, shownThread, type Change, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
+import { itemId, placedKey, readInFull, shownThread, type Change, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -120,6 +120,26 @@ describe("Threads.write", () => {
     expect(await dots(id)).toEqual([])
     // Owlit's own answer is still there underneath
     expect(c.rows.find((r) => r.id === "doi-10.1145-2")?.cells.q?.text).toBe("Explanations from replay are more complete.")
+  })
+
+  it("logs an answer written again from the full text with the one it replaced, whatever asked for it", async () => {
+    const { threads, changes } = setup()
+    const { id } = await start(threads)
+    const newest = async (paper: string) => (await changes.list({ target: { kind: "thread", path: id, part: itemId.cell(paper, "q") } }))[0]
+    // Read all in full: a background run rewrites the rows answered from their abstracts
+    const read = { kind: "socket" as const, run: "threads.read:t2" }
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover a third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }] }, read)
+    expect(readInFull(await newest("doi-10.1145-2"))).toEqual({ was: "Own explanations recover more.", from: "abstract" })
+    // A chat's write over an answer from the title only (the paper has no abstract) is the same entry
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }] }, agent)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }], chatId: "chat-1" }, { kind: "socket", chatId: "chat-1" })
+    expect(readInFull(await newest("doi-10.1145-1"))).toEqual({ was: "Lower.", from: "title" })
+    // A rewrite that stays from the full text, or under the user's own words, isn't one
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }] }, read)
+    expect(readInFull(await newest("doi-10.1145-1"))).toBeNull()
+    await threads.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-2", "q"), text: "Mine." }, window)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Owlit's again.", depth: "full", passage: { quote: "again", page: 5 } } } }] }, read)
+    expect(readInFull(await newest("doi-10.1145-2"))).toBeNull()
   })
 
   it("never brings back a row the user removed", async () => {

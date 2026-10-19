@@ -509,6 +509,7 @@ msgstr ""
 #. a page of a paper
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/components/citation-card.tsx
 #: app/src/features/agent/page-context.ts
@@ -5592,6 +5593,10 @@ msgid "{added, plural, one {+# paper} other {+# papers}}"
 msgstr ""
 
 #: app/src/features/threads/components/About.tsx
+msgid "{answered, plural, one {the answers for # paper changed} other {the answers for # papers changed}}"
+msgstr ""
+
+#: app/src/features/threads/components/About.tsx
 msgid "{answered, plural, one {# answer} other {# answers}}"
 msgstr ""
 
@@ -5666,6 +5671,28 @@ msgstr ""
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Removed from {0}"
+msgstr ""
+
+#. chip on a thread cell Owlit answered again from the full text
+#. chip on a thread cell Owlit answered again from the full text
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Changed after reading in full"
+msgstr ""
+
+#. after “was: …”: what Owlit's earlier answer was written from
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "from the title only"
+msgstr ""
+
+#. after “was: …”: what Owlit's earlier answer was written from
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "from the abstract"
+msgstr ""
+
+#. Owlit's earlier answer, under the one that replaced it
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "was: {text}"
 msgstr ""
 
 #: app/src/features/threads/components/AnswerRows.tsx

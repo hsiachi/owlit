@@ -1,27 +1,37 @@
-import { itemId, type Change, type ChangedPassage, type Proposal, type SeenMarks } from "@owlit/protocol"
+import { itemId, QUESTION_COLUMN, type Change, type ChangedPassage, type Proposal, type SeenMarks, type Thread } from "@owlit/protocol"
 import { seedComments, seedFiles } from "@/features/docs/mocks/seed"
 import { seedThreads } from "@/features/threads/mocks/seed"
 import { WEB_OWLIT } from "@/lib/actors"
 import { DAY, HOUR } from "@/lib/time"
 
 // What the browser preview has instead of core's log and seen marks: the Library's tool-reading thread
-// with two rows and a sentence Owlit added since the person looked, a paragraph Owlit wrote in Related
-// work and its last comment there
+// with two rows, a sentence and an answer read again in full that Owlit changed since the person looked,
+// an answer of the venue thread read again in full, a paragraph Owlit wrote in Related work and its last
+// comment there
 
 const now = Date.now()
 const threads = seedThreads()
 const reading = threads["reading-support-tools"]!
+const venue = threads["uist-2026-papers"]!
 const relatedWork = seedFiles.find((f) => f.path === "writing/Related work.md")!
 const retrieval = relatedWork.content!.split("\n\n").find((p) => p.startsWith("Retrieval is the oldest"))!.trim()
 
 let n = 0
 const change = (at: number, target: Change["target"], extra: Partial<Change> = {}): Change => ({ id: `mock-${n++}`, at, actor: WEB_OWLIT, action: "update", target, origin: { via: "tool" }, ...extra })
 
+// A cell Owlit answered again from the full text: the entry holds the cell on each side, as core's does
+const reread = (thread: Thread, paper: string, column: string, at: number, was: string, from: "abstract" | "title") => {
+  const cell = thread.rows.find((r) => r.id === paper)!.cells[column]!
+  return change(at, { kind: "thread", path: thread.id, part: itemId.cell(paper, column) }, { before: { value: { text: was, depth: from, at: thread.createdAt } }, after: { value: { ...cell, at } } })
+}
+
 export const MOCK_CHANGES: Change[] = [
   ...reading.rows
     .filter((r) => r.addedAt > reading.createdAt)
     .map((r) => change(r.addedAt, { kind: "thread", path: reading.id, part: itemId.row(r.id) }, { action: "create", after: { value: r } })),
   change(now - 30 * 60_000, { kind: "thread", path: reading.id, part: itemId.memo("s3") }),
+  reread(reading, "p15", QUESTION_COLUMN, now - 25 * 60_000, "Highlights a paper's objective, method and result sentences in different colours to guide skimming.", "abstract"),
+  reread(venue, "u1", QUESTION_COLUMN, now - 3 * HOUR, "Seems to show citation context inline while reading.", "title"),
   change(now - 2 * HOUR, { kind: "doc", path: relatedWork.path }),
   ...(seedComments.d1 ?? [])
     .filter((c) => c.id === "n1")
