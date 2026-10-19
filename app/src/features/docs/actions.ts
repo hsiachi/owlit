@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { isTaskFinished, mentionLink } from "@owlit/protocol"
+import { mentionLink } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
 import { copyText } from "@/lib/clipboard"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -13,8 +13,7 @@ import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
-import { cancelTask, tasksFor, useTasksStore } from "@/features/tasks/store"
-import { GO_THROUGH, goThrough, setOwlitOut, useDocOwlitStore } from "./owlit"
+import { goingThrough, goThrough, setOwlitOut, stopGoingThrough, useDocOwlitStore } from "./owlit"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -96,7 +95,7 @@ export function useDocActions() {
 
   const fileGroups = (file: WorkspaceFile): MenuGroups => {
     const md = isMarkdown(file.path)
-    const going = tasksFor(useTasksStore.getState().byId, file.path).find((task) => task.kind === GO_THROUGH && !isTaskFinished(task))
+    const going = goingThrough(file.path)
     return [
       [
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.file(file.id)) },
@@ -107,18 +106,24 @@ export function useDocActions() {
           ? [{ label: t`Resolved comments…`, onSelect: () => useDocsUiStore.getState().showResolved(file.id) }]
           : []),
       ],
-      // Owlit is a member of every doc unless kept out of it: no chip, no work of its own there
-      ...(md && isDesktop
+      // Owlit is a member of every doc unless kept out of it: no chip, no work of its own there. Without
+      // core (pnpm dev:web) Go through runs on a mock, and Keep Owlit out isn't offered.
+      ...(md
         ? [
             [
               // Material from people (a meeting, reviews): read against the docs, the points carried to them.
-              // While Owlit goes through it, this row is where that shows and where it stops.
-              going
-                ? { label: t`Stop going through`, onSelect: () => void cancelTask(going.id).catch(toastError) }
-                : { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
-              useDocOwlitStore.getState().byPath[file.path]?.out
-                ? { label: t`Let Owlit in`, onSelect: () => setOwlitOut(file.path, false) }
-                : { label: t`Keep Owlit out`, onSelect: () => setOwlitOut(file.path, true) },
+              // While Owlit goes through it, this row is where that shows and where it stops; when it
+              // broke, where it says why and tries again.
+              going?.state === "running"
+                ? { label: t`Stop going through`, detail: t`Owlit is going through…`, working: true, onSelect: () => stopGoingThrough(file.path) }
+                : going?.state === "failed"
+                  ? { label: t`Retry going through`, detail: going.reply.error ?? t`Owlit couldn't go through it.`, onSelect: () => goThrough(file, { retry: true }) }
+                  : { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
+              ...(!isDesktop
+                ? []
+                : useDocOwlitStore.getState().byPath[file.path]?.out
+                  ? [{ label: t`Let Owlit in`, onSelect: () => setOwlitOut(file.path, false) }]
+                  : [{ label: t`Keep Owlit out`, onSelect: () => setOwlitOut(file.path, true) }]),
             ],
           ]
         : []),

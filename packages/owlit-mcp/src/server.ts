@@ -276,7 +276,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "docs_go_through": {
       await owlit.rpc.docs.goThrough({ path: str("path") })
-      return `Owlit is going through ${str("path")} in the background. Its reading will be a doc named after the material with " · reading" (or " · 解读"), beside it or in Meetings/ for a file attached to a chat, and its points comments on the docs they are about. Tell the user it is on its way; don't go through the material yourself as well.`
+      return `Owlit is going through ${str("path")} in a chat of its own. Its reading will be a doc named after the material with " · reading" (or " · 解读"), beside it or in Meetings/ for a file attached to a chat, and its points comments on the docs they are about. Tell the user it is on its way; don't go through the material yourself as well.`
     }
     case "docs_write": {
       const { path: written, created } = await owlit.rpc.agents.writeDoc({ path: str("path"), content: str("content"), ...writer })

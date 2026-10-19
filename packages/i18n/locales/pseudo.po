@@ -2506,6 +2506,7 @@ msgid "Stopped with an error"
 msgstr ""
 
 #: app/src/features/chat/store.ts
+#: app/src/features/docs/owlit.ts
 #: app/src/features/library/digests.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
@@ -2557,6 +2558,18 @@ msgstr ""
 
 #: app/src/features/docs/actions.ts
 msgid "Stop going through"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit is going through…"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Retry going through"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit couldn't go through it."
 msgstr ""
 
 #: app/src/features/docs/actions.ts
@@ -7265,14 +7278,6 @@ msgid "{name} exited with code {code}"
 msgstr ""
 
 #: packages/core/src/agents/runs.ts
-msgid "Went through “{name}”"
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr ""
-
-#: packages/core/src/agents/runs.ts
 msgid "Answered your reply in “{name}”"
 msgstr ""
 
@@ -7538,6 +7543,18 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "There is nothing in it to go through."
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Going through “{name}”"
+msgstr ""
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing its reading."
 msgstr ""
 
 #: packages/core/src/docs/docs.ts

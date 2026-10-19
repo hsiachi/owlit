@@ -2506,6 +2506,7 @@ msgid "Stopped with an error"
 msgstr "出错停止"
 
 #: app/src/features/chat/store.ts
+#: app/src/features/docs/owlit.ts
 #: app/src/features/library/digests.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
@@ -2558,6 +2559,18 @@ msgstr "已解决的评论…"
 #: app/src/features/docs/actions.ts
 msgid "Stop going through"
 msgstr "停止过这一遍"
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit is going through…"
+msgstr "Owlit 正在过这一遍…"
+
+#: app/src/features/docs/actions.ts
+msgid "Retry going through"
+msgstr "重试过这一遍"
+
+#: app/src/features/docs/actions.ts
+msgid "Owlit couldn't go through it."
+msgstr "Owlit 没能把它过完。"
 
 #: app/src/features/docs/actions.ts
 msgid "Go through against your docs"
@@ -7265,14 +7278,6 @@ msgid "{name} exited with code {code}"
 msgstr "{name} 已退出，代码 {code}"
 
 #: packages/core/src/agents/runs.ts
-msgid "Went through “{name}”"
-msgstr "过了一遍“{name}”"
-
-#: packages/core/src/agents/runs.ts
-msgid "You asked Owlit to go through “{name}”."
-msgstr "你请 Owlit 把“{name}”过一遍。"
-
-#: packages/core/src/agents/runs.ts
 msgid "Answered your reply in “{name}”"
 msgstr "回复了你在“{name}”里的回复"
 
@@ -7539,6 +7544,18 @@ msgstr "“{title}”的导读"
 #: packages/core/src/core.ts
 msgid "Owlit finished without writing the digest."
 msgstr "Owlit 结束了，但没有写出导读。"
+
+#: packages/core/src/core.ts
+msgid "There is nothing in it to go through."
+msgstr "里面没有可以过的内容。"
+
+#: packages/core/src/core.ts
+msgid "Going through “{name}”"
+msgstr "把“{name}”过一遍"
+
+#: packages/core/src/core.ts
+msgid "Owlit finished without writing its reading."
+msgstr "Owlit 结束了，但没有写出解读。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."

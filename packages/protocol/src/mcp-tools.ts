@@ -285,7 +285,7 @@ function TOOLS(): ToolSpec[] {
     name: "docs_go_through",
     touches: "own",
     description:
-      "Have Owlit go through material from people against the user's docs: a meeting's transcript or minutes, reviews, someone's comments on a draft, an email of points, the user's own notes. It runs in the background: Owlit reads the material and the docs it is about, writes a reading (what the material changes: points, open questions, to-dos) as a doc beside the material, or in Meetings/ for a file attached to this chat, and leaves each point as a comment on the doc it is about. Markdown or plain text only. Use it when the user asks you to go through such material, rather than doing it yourself in the chat.",
+      "Have Owlit go through material from people against the user's docs: a meeting's transcript or minutes, reviews, someone's comments on a draft, an email of points, the user's own notes. It runs in a chat owlit starts for the user beside this one: Owlit reads the material and the docs it is about, writes a reading (what the material changes: points, open questions, to-dos) as a doc beside the material, or in Meetings/ for a file attached to this chat, and leaves each point as a comment on the doc it is about. Markdown or plain text only. Use it when the user asks you to go through such material, rather than doing it yourself in the chat.",
     inputSchema: {
       type: "object",
       properties: { path: { type: "string", description: "Workspace-relative path of the material, a .md or .txt doc or a file attached to this chat (.owlit/chats/<id>/files/<name>)" } },

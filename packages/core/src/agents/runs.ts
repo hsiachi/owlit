@@ -61,10 +61,6 @@ const docName = (rel: string) => (rel.split("/").pop() ?? rel).replace(/\.md$/i,
 
 // The words of a run, from its task: what it is about, by name, and what the user asked
 export async function runWords(ws: Workspace, task: Task): Promise<RunWords> {
-  if (task.kind === "meetings.goThrough") {
-    const name = docName(task.subject)
-    return { title: t`Went through “${name}”`, why: t`You asked Owlit to go through “${name}”.` }
-  }
   if (task.kind === "docs.reply") {
     const name = docName(task.subject.slice(0, task.subject.lastIndexOf("#")))
     return { title: t`Answered your reply in “${name}”`, why: t`You replied to Owlit's comment in “${name}”.` }

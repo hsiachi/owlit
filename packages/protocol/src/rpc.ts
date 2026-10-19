@@ -160,12 +160,12 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit and a doc: kept out or let in, and what it went through there
+  // Owlit and a doc: kept out or let in
   "docs.owlit": { params: { path: string }; result: DocOwlit }
   // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
-  // the user's docs: a record beside it, and the points as comments where they belong; the task that
-  // does it
-  "docs.goThrough": { params: { path: string }; result: Task }
+  // the user's docs, in a chat owlit starts about it (or a new turn in the one that broke): a record
+  // beside it, and the points as comments where they belong
+  "docs.goThrough": { params: { path: string }; result: { chatId: string } }
   "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected

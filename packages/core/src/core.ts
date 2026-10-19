@@ -31,10 +31,11 @@ import { guide } from "./agents/guide.ts"
 import { Background, BackgroundFailure, type BackgroundResult, type BackgroundRun } from "./agents/background.ts"
 import { openRun, runWords } from "./agents/runs.ts"
 import { startFor, tryAgain, type StartFor, type Started } from "./chats/chats.ts"
-import { isCommentingRun, Reviews } from "./initiative/reviews.ts"
+import { Reviews } from "./initiative/reviews.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
-import { GO_THROUGH_RUN, REPLY_RUN } from "./initiative/runs.ts"
-import { MATERIAL } from "./initiative/go-through.ts"
+import { REPLY_RUN } from "./initiative/runs.ts"
+import { MATERIAL } from "./recipes/go-through.ts"
+import { goThroughWork } from "./docs/go-through.ts"
 import { messageOf } from "./util.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
@@ -143,6 +144,8 @@ export class Core {
   private opening = 0
   // Digests asked for whose chat hasn't started yet (the paper's text is being read), by workspace and paper
   private digestAsks = new Map<string, Promise<DigestAsked>>()
+  // Go throughs asked for whose chat hasn't started yet, by workspace and material
+  private goThroughAsks = new Map<string, Promise<{ chatId: string }>>()
   private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
@@ -257,7 +260,7 @@ export class Core {
       answering: () => this.turns.answering(),
       notify: (view) => this.notifier.notify("updates.changed", view),
     })
-    // Owlit's runs on the user's docs: answering a reply under its comment, going through material
+    // Owlit's run on the user's docs that answers a reply under its comment
     this.reviews = new Reviews({
       workspace: () => this.workspace,
       agent: async (prompt, ctx, tools, runId) => {
@@ -266,13 +269,9 @@ export class Core {
         if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
         return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow: tools })
       },
-      write: (path, comment, run) => this.agentComment(path, comment, { kind: "owlit", run }),
       put: async (path, comment, run) => {
         await this.putComment(path, comment, { kind: "owlit", run }, {}, true)
       },
-      looked: (path, state) => this.notifier.notify("docs.owlit", { path, state }),
-      writeRecord: (path, content, run) => this.fs.write(path, content, { run }),
-      userName: async () => (await this.settings.get()).profile.name ?? undefined,
     })
     // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down
     // from what the person set: Read is the top), once it is on disk
@@ -470,14 +469,14 @@ export class Core {
     this.router.register("docs.goThrough", z.object({ path: rel }), "own", async ({ path: file }) => {
       if (!MATERIAL.test(file)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit goes through text: a Markdown or plain-text file.`)
       const ws = this.requireWorkspace()
-      // A file attached in a chat is kept in owlit's own folder, out of Docs' reach; the run reads it there
+      // A file attached in a chat is kept in owlit's own folder, out of Docs' reach; it is read there
       const resolved = ws.docs.resolve(file)
       const attached = chatOfFile(resolved) ? resolved : null
       if (attached) {
         const there = await stat(path.join(ws.root, attached)).then((info) => info.isFile()).catch(() => false)
         if (!there) throw new RpcFailure(RpcErrorCode.NotFound, t`That file isn't there any more.`, { path: attached })
       } else await docs().read(file)
-      return ws.tasks.enqueue(GO_THROUGH_RUN, attached ?? file, "asked")
+      return this.goThrough(attached ?? file)
     })
     this.router.register("docs.setOwlitOut", z.object({ path: rel, out: z.boolean() }), "admin", async ({ path, out }) => {
       const state = await docs().setOwlitOut(path, out)
@@ -1126,10 +1125,8 @@ export class Core {
       }
       // Where a comment carries words from is core's to say (a Go through's record), never the agent's
       const { source: _claimed, ...own } = signed(comment, null, await this.requireWorkspace().recorder.actorOf(caller))
-      // A Go through's comment waits for the record it points back to
-      const run = caller.kind === "socket" || caller.kind === "owlit" ? caller.run : undefined
-      if (isCommentingRun(run)) await this.reviews.comment(run!, path, own)
-      else await this.agentComment(path, own, caller)
+      const source = await this.goThroughSource(caller)
+      await this.agentComment(path, source ? { ...own, source } : own, caller)
       return null
     })
     const COMMENT_PUT: Policy<"comments.put"> = {
@@ -1551,6 +1548,70 @@ export class Core {
     await this.announceStarted(ws, started.chatId)
   }
 
+  // Owlit going through material (a meeting's transcript, reviews) against the person's docs: a chat about
+  // the material, whose agent writes the reading as a record of its own with docs_write and then lands
+  // the points as comments. One already going is that one; after one that broke or was stopped, Retry is
+  // a new turn in its chat. Once one finished, asking again goes through it afresh, with a new record.
+  private async goThrough(rel: string): Promise<{ chatId: string }> {
+    const ws = this.requireWorkspace()
+    const about = { kind: "doc", id: rel } as const
+    const running = this.turns.inFlight().find((turn) => sameAbout(turn.about, about))
+    if (running) return { chatId: running.chatId }
+    const key = `${ws.root}\0${rel}`
+    const asking = this.goThroughAsks.get(key)
+    if (asking) return asking
+    const asked = (async () => {
+      const last = await ws.chats.latestAbout(about)
+      const reply = last && (await ws.chats.get(last.id)).messages.at(-1)
+      let started: Started
+      if (reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming") {
+        started = await tryAgain(this.turns, ws.chats, last!.id)
+        await this.announceStarted(ws, started.chatId)
+      } else {
+        const user = (await this.settings.get()).profile.name?.trim() || undefined
+        const work = await goThroughWork(ws, rel, { today: new Date().toISOString().slice(0, 10), ...(user ? { user } : {}) })
+        if (!work) throw new RpcFailure(RpcErrorCode.InvalidParams, t`There is nothing in it to go through.`, { path: rel })
+        const { name } = work
+        started = await this.startFor({ about, title: t`Going through “${name}”`, recipe: work.recipe, texts: [{ text: work.text, from: `The material, ${rel},` }] })
+      }
+      void started.done.then((stop) => this.goThroughEnded(ws, started, stop))
+      return { chatId: started.chatId }
+    })().finally(() => this.goThroughAsks.delete(key))
+    this.goThroughAsks.set(key, asked)
+    return asked
+  }
+
+  // The record a Go through's chat wrote: the doc it made, as the change log says. Undefined for any
+  // other caller, and for a Go through that hasn't written its record yet.
+  private async goThroughRecord(ws: Workspace, chatId: string) {
+    const made = (await ws.changes.list({ chatId, target: { kind: "doc" } })).find((c) => c.action === "create")
+    return made?.target.path
+  }
+
+  // A comment a Go through's agent lands carries over what people said, from the record: the comment
+  // says where it came from (and so Owlit can't rewrite its first entry, recipes/reply.ts). The recipe
+  // has the record written first; a comment before it would point at nothing, and is refused.
+  private async goThroughSource(caller: Caller) {
+    const chatId = caller.kind === "socket" || caller.kind === "owlit" ? caller.chatId : undefined
+    const ws = this.requireWorkspace()
+    const chat = chatId ? await ws.chats.get(chatId).catch(() => null) : null
+    if (!chat?.startedBy || chat.about?.kind !== "doc") return undefined
+    const record = await this.goThroughRecord(ws, chat.id)
+    if (!record) throw new RpcFailure(RpcErrorCode.InvalidParams, "Write the reading with docs_write first: each comment points back to it.")
+    return { path: record, label: record.split("/").pop()!.replace(/\.md$/i, "") }
+  }
+
+  // A Go through's turn that finished without writing its record says so on its reply, as a failure,
+  // with Retry
+  private async goThroughEnded(ws: Workspace, started: Started, stop: StopReason | "error") {
+    if (stop !== "end_turn" || this.workspace !== ws) return
+    if (await this.goThroughRecord(ws, started.chatId)) return
+    const reply = (await ws.chats.get(started.chatId).catch(() => null))?.messages.find((m) => m.id === started.messageId)
+    if (!reply) return
+    await ws.chats.patchMessage(started.chatId, { ...reply, status: "error", error: t`Owlit finished without writing its reading.` }, true)
+    await this.announceStarted(ws, started.chatId)
+  }
+
   // A chat owlit starts for the person, on the agent and model Settings chooses for its work. Every window
   // hears it begin (chats.run) and end (chats.run again, after chat.ended).
   async startFor(start: Omit<StartFor, "connectorId" | "modelId">): Promise<Started> {
@@ -1613,8 +1674,6 @@ export class Core {
       ["the window's requests", () => this.ui.reset()],
       // Before the agents they run on close (dispose closes them after this)
       ["background tasks", () => ws.tasks.dispose()],
-      // After the tasks, whose runs may still add to what waits
-      ["Owlit's waiting comments", () => this.reviews.stop()],
       // owlit-mcp and the CLI can't write into the workspace once it has let go of its lock
       ["the socket", () => this.closeSocket()],
       ["the journal", () => this.journal.flush()],
