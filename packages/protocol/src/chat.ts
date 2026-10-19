@@ -256,6 +256,14 @@ export interface ChatAbout {
   id: string
 }
 
+// A chat owlit started, as the thing it is about shows it: its last reply, streaming while its turn runs,
+// else how it ended (a failure says why, with Retry)
+export interface StartedChat {
+  chatId: string
+  about: ChatAbout
+  reply?: ChatMessage
+}
+
 // The background task an Owlit run is the session of
 export interface OwlitRun {
   taskId: string

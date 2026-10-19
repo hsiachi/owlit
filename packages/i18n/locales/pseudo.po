@@ -2506,6 +2506,7 @@ msgid "Stopped with an error"
 msgstr ""
 
 #: app/src/features/chat/store.ts
+#: app/src/features/library/digests.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
 msgstr ""
@@ -3850,11 +3851,6 @@ msgstr ""
 msgid "Rewrite the digest"
 msgstr ""
 
-#: app/src/features/library/components/PaperMenu.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Couldn't ask for a digest."
-msgstr ""
-
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
@@ -3909,7 +3905,15 @@ msgid "Writing the digest…"
 msgstr ""
 
 #: app/src/features/library/digests.ts
-msgid "Couldn't ask for the digest again."
+msgid "Owlit couldn't write a digest of this paper."
+msgstr ""
+
+#: app/src/features/library/digests.ts
+msgid "This paper has no PDF or text for Owlit to read."
+msgstr ""
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't ask for a digest."
 msgstr ""
 
 #: app/src/features/library/digests.ts
@@ -4266,14 +4270,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
-msgstr ""
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write this digest again."
-msgstr ""
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write a digest of this paper."
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx

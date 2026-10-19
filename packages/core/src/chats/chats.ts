@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatFilesDir, RpcErrorCode, sameAbout, type AttachmentFile, type Chat, type ChatAbout, type ChatMessage, type ChatSummary, type StopReason } from "@owlit/protocol"
+import { chatFilesDir, RpcErrorCode, sameAbout, type AttachmentFile, type Chat, type ChatAbout, type ChatMessage, type ChatSummary, type StartedChat, type StopReason } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { constants } from "node:fs"
 import { copyFile, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
@@ -56,6 +56,21 @@ export class Chats {
   // The chats owlit started and the scheduler's runs, most recent first
   async runs(): Promise<ChatSummary[]> {
     return (await this.all()).filter((c) => !!c.startedBy)
+  }
+
+  // The chat owlit started last about each thing (of one kind), with its last message
+  async startedFor(kind?: ChatAbout["kind"]): Promise<StartedChat[]> {
+    const seen = new Set<string>()
+    const out: StartedChat[] = []
+    for (const c of await this.runs()) {
+      if (!c.about || (kind && c.about.kind !== kind)) continue
+      const key = `${c.about.kind}:${c.about.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const reply = (await this.get(c.id).catch(() => null))?.messages.at(-1)
+      out.push({ chatId: c.id, about: c.about, ...(reply ? { reply } : {}) })
+    }
+    return out
   }
 
   // The chat owlit started last about this thing

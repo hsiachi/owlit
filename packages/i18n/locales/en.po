@@ -2506,6 +2506,7 @@ msgid "Stopped with an error"
 msgstr "Stopped with an error"
 
 #: app/src/features/chat/store.ts
+#: app/src/features/library/digests.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
 msgstr "Owlit was closed before it finished."
@@ -3850,11 +3851,6 @@ msgstr "Write a digest"
 msgid "Rewrite the digest"
 msgstr "Rewrite the digest"
 
-#: app/src/features/library/components/PaperMenu.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Couldn't ask for a digest."
-msgstr "Couldn't ask for a digest."
-
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
@@ -3909,8 +3905,16 @@ msgid "Writing the digest…"
 msgstr "Writing the digest…"
 
 #: app/src/features/library/digests.ts
-msgid "Couldn't ask for the digest again."
-msgstr "Couldn't ask for the digest again."
+msgid "Owlit couldn't write a digest of this paper."
+msgstr "Owlit couldn't write a digest of this paper."
+
+#: app/src/features/library/digests.ts
+msgid "This paper has no PDF or text for Owlit to read."
+msgstr "This paper has no PDF or text for Owlit to read."
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't ask for a digest."
+msgstr "Couldn't ask for a digest."
 
 #: app/src/features/library/digests.ts
 msgid "Couldn't write the digest"
@@ -4267,14 +4271,6 @@ msgstr "Digest · Owlit, {when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
 msgstr "No digest yet. Owlit writes one when you ask."
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write this digest again."
-msgstr "Owlit couldn't write this digest again."
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write a digest of this paper."
-msgstr "Owlit couldn't write a digest of this paper."
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "This digest is in another language than the one set for digests."

@@ -1,6 +1,6 @@
 import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./activity.ts"
 import type { EditStats } from "./edit-stats.ts"
-import type { AttachmentFile, Chat, ChatAbout, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
+import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
@@ -246,6 +246,8 @@ export interface Methods {
   // Your chats; Owlit's own runs aren't among them
   "chats.list": { params: void; result: ChatSummary[] }
   "chats.get": { params: { id: string }; result: Chat }
+  // The chats owlit started, the last one about each thing (of one kind, when given)
+  "chats.startedFor": { params: { kind?: ChatAbout["kind"] }; result: StartedChat[] }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
   // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }

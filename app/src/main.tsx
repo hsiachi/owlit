@@ -14,6 +14,7 @@ import { startUiHandlers } from "@/app/ui-handlers"
 import { startAppearance, storedAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
+import { startStartedChats } from "@/features/chat/started"
 import { startUpdates } from "@/features/updates/store"
 import { PairDialog } from "@/features/extension/PairDialog"
 import { startExtension } from "@/features/extension/store"
@@ -42,6 +43,7 @@ startExtension()
 // what agents changed
 startWorkspace()
 startTasks()
+startStartedChats()
 startShares()
 startImports()
 startUiActions()

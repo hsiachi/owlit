@@ -13,8 +13,7 @@ import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { askAboutPassage } from "../../actions"
 import { markSeen } from "@/app/seen"
 import { digestSourceNotes } from "../../lib/digest-source"
-import { toast } from "sonner"
-import { askDigestAgain, retryDigest, showingDigest, stopDigest, useDigestFailed, useWritingDigest, waitForDigest } from "../../digests"
+import { askDigest, retryDigest, showingDigest, stopDigest, useDigestFailure, useWritingDigest, waitForDigest } from "../../digests"
 import { useLibraryStore } from "../../store"
 
 // Owlit's digest of a paper (digest.md), on the page where the PDF otherwise is: a form of the paper that
@@ -26,7 +25,7 @@ import { useLibraryStore } from "../../store"
 
 export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page: number) => void }) {
   const writing = useWritingDigest(paper.id)
-  const failed = useDigestFailed(paper.id)
+  const failed = useDigestFailure(paper.id)
   const [digest, setDigest] = useState<{ paperId: string; text: string | null; figures: PaperFigure[]; source: DigestSource } | null>(null)
 
   // Read again whenever the digest may have changed: written, rewritten, or gone
@@ -72,7 +71,7 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
             <p className="mt-1 text-detail text-muted-foreground">{t`You can keep reading. Owlit will let you know when it's ready.`}</p>
           </>
         ) : failed ? (
-          <Stopped paper={paper} />
+          <Stopped paper={paper} why={failed} />
         ) : paper.hasDigest ? (
           <Spinner />
         ) : (
@@ -95,7 +94,7 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
         <p className="text-detail text-muted-foreground">{when ? t`Digest · Owlit, ${when}` : t`Digest · Owlit`}</p>
       )}
       {from.length > 0 && <p className="text-detail text-muted-foreground">{from.join(" · ")}</p>}
-      {failed && !writing ? <Stopped paper={paper} again /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
+      {failed && !writing ? <Stopped paper={paper} why={failed} /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown
         text={withoutTitle(text)}
         prepare={linkPages}
@@ -228,7 +227,7 @@ function Offer({ paper }: { paper: Paper }) {
     // Asked for, the digest that comes is news
     markSeen({ kind: "digest", paper: paper.id })
     waitForDigest(paper.id)
-    void rpc.library.requestDigest({ id: paper.id, rewrite: false }).catch(() => toast.error(t`Couldn't ask for a digest.`))
+    void askDigest(paper, false)
   }
   return (
     <>
@@ -240,7 +239,7 @@ function Offer({ paper }: { paper: Paper }) {
   )
 }
 
-// The last run broke: said in words, with Retry. Again when it was a rewrite and the old digest stays.
+// Stops the chat writing the digest
 function StopDigest({ paperId }: { paperId: string }) {
   return (
     <Button variant="text" size="inline" onClick={() => stopDigest(paperId)}>
@@ -249,10 +248,12 @@ function StopDigest({ paperId }: { paperId: string }) {
   )
 }
 
-function Stopped({ paper, again }: { paper: Paper; again?: boolean }) {
+// The last try broke: the sentence its reply ended with (kept by core, so after a restart too), with
+// Retry, a new turn in the same chat. Above the old digest when it was a rewrite.
+function Stopped({ paper, why }: { paper: Paper; why: string }) {
   return (
     <AskAgain
-      sentence={again ? t`Owlit couldn't write this digest again.` : t`Owlit couldn't write a digest of this paper.`}
+      sentence={why}
       label={t`Retry`}
       ask={() => retryDigest(paper)}
     />
@@ -266,7 +267,7 @@ function Outdated({ paper }: { paper: Paper }) {
     <AskAgain
       sentence={paper.digestOutdated === "language" ? t`This digest is in another language than the one set for digests.` : t`This digest was written the old way.`}
       label={t({ message: "Rewrite", comment: "button: write the digest again" })}
-      ask={() => askDigestAgain(paper, true)}
+      ask={() => askDigest(paper, true)}
     />
   )
 }

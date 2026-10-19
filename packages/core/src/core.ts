@@ -527,6 +527,7 @@ export class Core {
       createdAt: z.number(),
     }) as unknown as z.ZodType<ChatMessage>
     this.router.register("chats.list", noParams, "read", () => chats().list())
+    this.router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
     this.router.register("chats.get", z.object({ id: chatId }), "read", ({ id }) => chats().get(id))
     this.router.register("chats.create", z.object({ chat: summary }), "admin", ({ chat }) => chats().create(chat))
     this.router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), "admin", ({ id, patch }) =>

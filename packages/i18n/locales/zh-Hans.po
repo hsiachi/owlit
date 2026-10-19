@@ -2506,6 +2506,7 @@ msgid "Stopped with an error"
 msgstr "出错停止"
 
 #: app/src/features/chat/store.ts
+#: app/src/features/library/digests.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
 msgstr "Owlit 在完成之前被关闭了。"
@@ -3850,11 +3851,6 @@ msgstr "写导读"
 msgid "Rewrite the digest"
 msgstr "重写导读"
 
-#: app/src/features/library/components/PaperMenu.tsx
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Couldn't ask for a digest."
-msgstr "无法请求导读。"
-
 #. placeholder {0}: papers.length
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "{0, plural, one {Remove # paper} other {Remove # papers}}"
@@ -3909,8 +3905,16 @@ msgid "Writing the digest…"
 msgstr "正在写导读…"
 
 #: app/src/features/library/digests.ts
-msgid "Couldn't ask for the digest again."
-msgstr "无法重新请求导读。"
+msgid "Owlit couldn't write a digest of this paper."
+msgstr "Owlit 无法为这篇论文写导读。"
+
+#: app/src/features/library/digests.ts
+msgid "This paper has no PDF or text for Owlit to read."
+msgstr "这篇论文没有可供 Owlit 阅读的 PDF 或全文。"
+
+#: app/src/features/library/digests.ts
+msgid "Couldn't ask for a digest."
+msgstr "无法请求导读。"
 
 #: app/src/features/library/digests.ts
 msgid "Couldn't write the digest"
@@ -4267,14 +4271,6 @@ msgstr "导读 · Owlit，{when}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "No digest yet. Owlit writes one when you ask."
 msgstr "还没有摘要。你要求时，Owlit 才会写。"
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write this digest again."
-msgstr "Owlit 无法重写这份导读。"
-
-#: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit couldn't write a digest of this paper."
-msgstr "Owlit 无法为这篇论文写导读。"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "This digest is in another language than the one set for digests."

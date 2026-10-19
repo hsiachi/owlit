@@ -90,6 +90,10 @@ describe("chats owlit starts", () => {
     expect(chat.messages.at(-1)).toMatchObject({ status: "error", cutOff: "closed", error: cutOffSentence("closed") })
     // Read by what it is about, as the place it worked on finds it after a restart
     expect(await again.workspace().chats.latestAbout({ kind: "paper", id: "doi-10.1-b" })).toMatchObject({ id: cut.chatId })
+    expect(await again.call("chats.startedFor", { kind: "paper" })).toEqual([
+      expect.objectContaining({ chatId: cut.chatId, about: { kind: "paper", id: "doi-10.1-b" }, reply: expect.objectContaining({ status: "error", cutOff: "closed" }) }),
+      expect.objectContaining({ chatId: stopped.chatId, about, reply: expect.objectContaining({ status: "cancelled" }) }),
+    ])
   })
 
   it("retries in the same chat, so the agent sees what it did", async () => {
