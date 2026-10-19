@@ -249,11 +249,14 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return docs.length ? docs.map((f) => f.path).join("\n") : "There are no docs yet."
     }
     case "docs_read": {
+      // Keep Owlit out is the user's; core refuses the changes, and the agent hears it here before trying
+      const out = owlit.rpc.docs.owlit({ path: str("path") }).then((state) => !!state.out, () => false)
+      const said = async (text: string) => ((await out) ? `${text.trimEnd()}\n\n(The user keeps Owlit out of this doc: read it, don't change or comment on it.)` : text)
       if (/\.pdf$/i.test(str("path"))) {
         const { text, pages } = await owlit.rpc.docs.readPdf({ path: str("path"), ...(optStr("pages") ? { pages: optStr("pages") } : {}) })
-        return optStr("pages") ? `${text}\n\n(The PDF has ${pages} pages.)` : text
+        return said(optStr("pages") ? `${text}\n\n(The PDF has ${pages} pages.)` : text)
       }
-      return (await owlit.rpc.docs.read({ path: str("path") })).content
+      return said((await owlit.rpc.docs.read({ path: str("path") })).content)
     }
     case "docs_delete": {
       const paths = (args.paths as string[]).filter(Boolean)

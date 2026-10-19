@@ -464,6 +464,14 @@ describe("docs_read on a PDF", () => {
     expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
   }, 30_000)
 
+  it("says after a doc's text that the user keeps Owlit out of it", async () => {
+    const { root, call, tool } = await setup()
+    writeFileSync(path.join(root, "Intro.md"), "# Intro\n\nMine alone.\n")
+    expect((await tool("docs_read", { path: "Intro.md" })).text).toBe("# Intro\n\nMine alone.\n")
+    await call("docs.setOwlitOut", { path: "Intro.md", out: true })
+    expect((await tool("docs_read", { path: "Intro.md" })).text).toMatch(/Mine alone\.\n\n\(The user keeps Owlit out of this doc: read it, don't change or comment on it\.\)$/)
+  })
+
   it("ends each tool's description with what the roles get", async () => {
     const { mcp } = await setup()
     const { tools } = await mcp.listTools()
