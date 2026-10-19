@@ -1,3 +1,4 @@
+import { i18n } from "@owlit/i18n"
 import { useEffect, useRef, useState } from "react"
 import { FINISH_MS, revealStep, wordEnd } from "../../lib/reveal"
 
@@ -33,7 +34,7 @@ export function usePacedText(text: string, pace: Pace): string {
       const dt = now - s.last
       s.last = now
       s.pos = revealStep(s.pos, s.text.length, dt, s.pace === "ending" ? Math.max(0, s.endsAt - now) : null)
-      const next = wordEnd(s.text, s.pos)
+      const next = wordEnd(s.text, s.pos, i18n.locale)
       setShown((n) => Math.max(n, next))
       s.frame = s.pos < s.text.length ? requestAnimationFrame(tick) : 0
     }

@@ -127,6 +127,15 @@ export class MockAgentClient implements AgentClient {
       if (WANTS_FIND_AND_ADD.test(text)) return await this.findAndAdd(emit, signal, req.chatId)
       // Commands, web searches and pages, as Claude Code runs them, and a question for the user
       if (/\bweb\b/i.test(text)) return await this.webResearch(emit, signal)
+      // Asked in Chinese, answered in Chinese, in bursts as Claude Code sends them
+      if (/\p{Script=Han}/u.test(text)) {
+        await sleep(300, signal)
+        for (let i = 0; i < CHINESE_ANSWER.length; i += 40) {
+          emit({ type: "agent_message_chunk", text: CHINESE_ANSWER.slice(i, i + 40) })
+          await sleep(400, signal)
+        }
+        return "end_turn"
+      }
       // A command, as an engine asks before running one: the card decision 12 keeps
       if (/\b(run|command)\b/i.test(text)) return await this.runCommand(emit, signal)
       if (/\b(ask me|questions?)\b/i.test(text)) return await this.askQuestions(emit, signal)
@@ -485,6 +494,9 @@ export class MockAgentClient implements AgentClient {
     }
   }
 }
+
+const CHINESE_ANSWER =
+  "检索增强生成的效果主要取决于两件事：检索器能否找到真正相关的段落，以及模型如何使用这些段落。你库里的三篇论文给出了不同的答案。\n\n第一篇认为稠密检索在开放领域问题上明显优于稀疏检索，但在术语密集的科学文献中，两者的差距会显著缩小。第二篇发现，把检索结果按段落重新排序并附上简短的来源说明，可以让模型更少地编造引用。第三篇则提醒，现有基准大多只看最终答案是否正确，而忽略了答案依据的证据是否真实可查。\n\n如果你想写相关工作，可以按“检索质量、证据使用、评测方法”这三条线来组织。"
 
 function slug(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
