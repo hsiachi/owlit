@@ -6,7 +6,7 @@
 // Without it the engine stops after one citation note where several claims need one, and adds papers by
 // an OpenAlex id instead of their arXiv id.
 
-import type { Role } from "./files.ts"
+import { ROLES, roleSummary, type Role } from "@owlit/protocol"
 
 export interface PromptContext {
   role: Role
@@ -48,14 +48,18 @@ Answer well
 - Lead with the answer. Keep it as short as the question allows; use a table or a list when it makes things easier to compare.
 - Answer in the language the user writes in.`
 
-const ROLES: Record<Role, string> = {
-  reviewer: `# Your role in this chat: Reviewer
-Read and answer. Leave comments on a doc's passages with docs_add_comment. Papers you add to the library and your own comments, threads and highlights are yours; don't change the user's files or their papers' marks. When a change of theirs would help, describe it in your answer and say they can pick Assistant or Co-author in the composer to have you make it.`,
-  assistant: `# Your role in this chat: Assistant
-You may add papers the user asked for and keep digests. Your edits to the user's docs land at once as marked proposals the user may undo in part: make them with edit_file, one passage at a time, so each part is its own decision; write_file only for a new doc. Delete or move docs with docs_delete and docs_move; they land the same way, with Undo.`,
-  coauthor: `# Your role in this chat: Co-author
-You may edit the user's docs without asking; owlit keeps every change so they can undo it. Still change only what the task needs, and say what you changed.`,
+// How the engine works within each role, after what the role may do (protocol's roleSummary, the
+// sentences the person reads in the composer and every other engine hears in its role note). What owlit's
+// tools let a role do is core's policy whatever this says.
+const HOW: Record<Role, string> = {
+  reviewer:
+    "Read and answer. Leave comments on a doc's passages with docs_add_comment, and answer the user's comment under it with comments_reply. When a change to the user's docs or papers would help, describe it in your answer and say they can pick Assistant or Co-author in the composer to have you make it.",
+  assistant:
+    "Your edits to the user's docs land at once as marked proposals the user may undo in part: make them with edit_file, one passage at a time, so each part is its own decision; write_file only for a new doc. Delete or move docs with docs_delete and docs_move; they land the same way, with Undo. Star, tag and mark papers with library_update, reply to and resolve comments, and rename threads, when the user asks.",
+  coauthor: "Edit the user's docs with edit_file and write_file without asking; owlit keeps every change so they can undo it. Still change only what the task needs, and say what you changed.",
 }
+
+const roleText = (role: Role) => `# Your role in this chat: ${ROLES.find((r) => r.id === role)!.name}\n${roleSummary(role, { commands: false })} ${HOW[role]}`
 
 const AGENTS = `# Agents of your own
 When the work splits into parts that don't depend on each other (the lines of a literature review, several papers to check one by one), hand each part to an agent with the agent tool, all in one go, so they run at the same time. Give each a short task the user will recognise and full instructions, since an agent doesn't see this conversation. You get each agent's report back: check them against each other, then answer. Don't use agents for a small or quick request.`
@@ -68,6 +72,6 @@ Nobody is waiting on this answer and nobody can answer questions: do the task wi
 
 export function systemPrompt(ctx: PromptContext) {
   const context = [`# Context`, `- The user's workspace: ${ctx.workspace}`, ...(ctx.userName ? [`- The user's name: ${ctx.userName}. Call them that when you address them.`] : []), `- Today: ${ctx.today}`].join("\n")
-  const situation = ctx.background ? [BACKGROUND] : ctx.agent ? [ROLES[ctx.role], AGENT] : [ROLES[ctx.role], AGENTS]
+  const situation = ctx.background ? [BACKGROUND] : ctx.agent ? [roleText(ctx.role), AGENT] : [roleText(ctx.role), AGENTS]
   return [IDENTITY, HOW_TO_WORK, ...situation, context, ...(ctx.rules ? [`# owlit's rules\n\n${ctx.rules}`] : [])].join("\n\n")
 }
