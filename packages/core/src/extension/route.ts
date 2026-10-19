@@ -1,4 +1,4 @@
-import type { ProxySettings } from "@owlit/protocol"
+import { PROXY_PRESETS, type ProxySettings } from "@owlit/protocol"
 import { hostOf } from "../net/http.ts"
 import { fill, publisherOf, PUBLISHERS, type Publisher } from "../library/publisher-table.ts"
 
@@ -51,8 +51,13 @@ export function extensionRoute(doi: string, proxy: ProxySettings | undefined, re
   }
 }
 
-// The proxy's entry, where a signed-out reader is asked to sign in
-export const proxySignIn = (proxy: ProxySettings) => (proxy.scheme === "host-rewrite" ? proxy.base : `${proxy.base.replace(/\/+$/, "")}${proxy.path ?? "/login"}`)
+// The proxy's entry, where a signed-out reader is asked to sign in. A preset's page wins: it is looked up
+// rather than saved with the proxy, so settings saved before it still get it
+export function proxySignIn(proxy: ProxySettings) {
+  const preset: { signIn?: string } | undefined = proxy.preset ? PROXY_PRESETS[proxy.preset as keyof typeof PROXY_PRESETS] : undefined
+  if (preset?.signIn) return preset.signIn
+  return proxy.scheme === "host-rewrite" ? proxy.base : `${proxy.base.replace(/\/+$/, "")}${proxy.path ?? "/login"}`
+}
 
 // The row for a DOI: by the site it is registered to when that's known, else by its prefix
 function rowFor(doi: string, site: string | undefined) {

@@ -45,6 +45,8 @@ export interface ExtensionHost {
   // Opens a page in a pairing's browser: its app when known, else the one the extension named ("Chrome"),
   // else the system's default
   openInBrowser?: (url: string, browser: { app?: string; name?: string }) => Promise<void>
+  // Host.showBrowser
+  showBrowser?: (browser: { app?: string; name?: string }) => Promise<void>
   // The browser app holding the other end of a request's connection, by its port (Host.browserApp)
   browserApp?: (remotePort: number) => Promise<BrowserApp | undefined>
 }
@@ -147,7 +149,13 @@ export class ExtensionServer {
     const paired = (await this.host.settings.get()).extension?.paired ?? []
     const pairingOf = (id: string | undefined) => paired.find((p) => p.id === id)
     const to = this.work.open(kind, host)
-    if (to) return { by: "extension", browser: pairingOf(to)?.browser }
+    if (to) {
+      // The extension's tab and window focus stay inside the browser: macOS keeps owlit in front unless
+      // owlit itself hands the front over
+      const pairing = pairingOf(to)
+      await this.host.showBrowser?.(clean({ app: pairing?.app, name: pairing?.browser })).catch(() => undefined)
+      return { by: "extension", browser: pairing?.browser }
+    }
     if (kind === "permission" || !this.host.openInBrowser) return { by: "none" }
     // The browser that met it, else the one seen last
     const pairing = pairingOf(this.work.pausedBy(host)) ?? [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]
