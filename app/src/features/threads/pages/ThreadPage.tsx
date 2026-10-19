@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { QUESTION_COLUMN } from "@owlit/protocol"
 import { ThreadTable } from "../components/ThreadTable"
-import { useEffect, useLayoutEffect, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { NotFound, PageHeader, PageTitle } from "@/components/page"
@@ -21,6 +21,10 @@ import { scrollMotion } from "@/lib/utils"
 // After this long on the page, what Owlit changed counts as seen; its dots stay for this visit
 const SEEN_AFTER_MS = 1500
 
+// Where each thread's page was scrolled to, for this session: Back from a paper a cell opened lands on
+// the cell again
+const lastScroll = new Map<string, number>()
+
 // One visit per thread: going from one to another (a group made its own, Undo, a link) starts at the
 // top with that thread's own idea of what changed since the user looked
 export function ThreadPage() {
@@ -38,6 +42,18 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   // When the user last looked before this visit: what changed since carries the dot until they leave
   const [seenBefore, setSeenBefore] = useState<number | null>(null)
   const id = thread?.id
+  const page = useRef<HTMLDivElement>(null)
+  // Back where it was left, after the first layout; a link to one of its papers scrolls to that row instead
+  const hasPage = !!thread
+  useEffect(() => {
+    const el = page.current
+    if (!threadId || !el) return
+    const top = lastScroll.get(threadId)
+    if (top !== undefined && !new URLSearchParams(window.location.search).has("paper")) requestAnimationFrame(() => el.scrollTo({ top }))
+    const keep = () => lastScroll.set(threadId, el.scrollTop)
+    el.addEventListener("scroll", keep, { passive: true })
+    return () => el.removeEventListener("scroll", keep)
+  }, [threadId, hasPage])
   // A row left open from before closes. A layout effect, so it comes before the link's paper is taken below
   // (layout effects run in order, and before plain ones).
   useLayoutEffect(() => {
@@ -84,7 +100,7 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
           <ActionsDropdownContent groups={groups} align="end" className="w-56" />
         </DropdownMenu>
       </PageHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={page} className="min-h-0 flex-1 overflow-y-auto">
         {/* One frame whatever the form: the words stay in the reading column, so the title never moves when
             a column is added, and only a table reaches into the Library's wide column below them */}
         <article className="pt-8 pb-32">
