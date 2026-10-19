@@ -29,6 +29,8 @@ async function setup() {
     return response.result
   }
   await call("workspace.open", { path: root })
+  // The chats the agents here write for, each in the default role
+  for (const id of ["chat-1", "c"]) await call("chats.create", { chat: { id, title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
   await call("docs.list")
   const of = (method: string) => heard.filter((n) => n.method === method).map((n) => n.params as any)
   // The changes windows were told of, Owlit's and the undos
@@ -128,20 +130,22 @@ describe("agent fs", () => {
     const { core, root } = await setup()
     await expect(core.fs.read("/etc/passwd")).rejects.toThrow("outside the workspace")
     await expect(core.fs.read(path.join(root, "../../../etc/passwd"))).rejects.toThrow("outside the workspace")
-    await expect(core.fs.write(path.join(root, ".owlit/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.write(path.join(root, ".owlit/workspace.json"), "{}")).rejects.toThrow("That file isn't one of the user's docs.")
     // macOS takes .OWLIT for .owlit and Library for library
-    await expect(core.fs.write(path.join(root, ".OWLIT/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
-    await expect(core.fs.write(path.join(root, "Library/papers/x/paper.json"), "{}")).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.write(path.join(root, ".OWLIT/workspace.json"), "{}")).rejects.toThrow("That file isn't one of the user's docs.")
+    await expect(core.fs.write(path.join(root, "Library/papers/x/paper.json"), "{}")).rejects.toThrow("That file isn't one of the user's docs.")
     symlinkSync(path.join(root, ".owlit"), path.join(root, "state"))
-    await expect(core.fs.write(path.join(root, "state/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
-    await expect(core.fs.remove(["state"], { kind: "socket" })).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.write(path.join(root, "state/workspace.json"), "{}")).rejects.toThrow("That file isn't one of the user's docs.")
+    // An agent's delete is the policy's to refuse, on the same target (agents.deleteDocs)
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method: "agents.deleteDocs", params: { paths: ["state"] } }, { kind: "socket", chatId: "c1" })
+    expect(response).toMatchObject({ error: { message: "Not done: That file isn't one of the user's docs." } })
     // A symlink in the folder doesn't lead outside it
     const outside = mkdtempSync(path.join(tmpdir(), "owlit-outside-"))
     writeFileSync(path.join(outside, "secret.txt"), "secret")
     symlinkSync(path.join(outside, "secret.txt"), path.join(root, "notes.md"))
     symlinkSync(outside, path.join(root, "away"))
     await expect(core.fs.read(path.join(root, "notes.md"))).rejects.toThrow("leads outside the workspace")
-    await expect(core.fs.write(path.join(root, "away/new.md"), "x")).rejects.toThrow("leads outside the workspace")
+    await expect(core.fs.write(path.join(root, "away/new.md"), "x")).rejects.toThrow("That file isn't one of the user's docs.")
   })
 
   it("writes a paper's note through the library, tells windows, and undoes it", async () => {
@@ -160,7 +164,7 @@ describe("agent fs", () => {
     expect(readFileSync(file, "utf8")).toBe("Mine. Long and repeated.")
     expect(of("library.noteChanged").at(-1)).toEqual({ paperId: id, note: expect.objectContaining({ content: "Mine. Long and repeated." }) })
     // The machine state inside .owlit/papers isn't writable
-    await expect(core.fs.write(path.join(root, `.owlit/papers/${id}/state.json`), "{}")).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.write(path.join(root, `.owlit/papers/${id}/state.json`), "{}")).rejects.toThrow("That file isn't one of the user's docs.")
   })
 
   it("keeps a note an agent wrote on disk itself as the agent's, while its tool call names the file", async () => {

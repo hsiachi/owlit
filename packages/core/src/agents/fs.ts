@@ -1,9 +1,10 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type ChangeOrigin } from "@owlit/protocol"
+import { RpcErrorCode, type ActorId, type ChangeOrigin, type Role } from "@owlit/protocol"
 import { newWriteId } from "../changes/record.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { UiBridge } from "../ui/bridge.ts"
 import type { Workspace } from "../workspace/workspace.ts"
+import { decide, offLimits, type Target } from "./policy.ts"
 import type { Claim } from "./turns.ts"
 
 const log = (line: string) => process.env.OWLIT_LOG_AGENTS && console.log(`[agent fs] ${line}`)
@@ -13,6 +14,8 @@ interface AgentFsOptions {
   ui: UiBridge
   // The tool call claiming a file now (agents/turns.ts)
   claimOf?: (rel: string) => Claim | undefined
+  // The role a chat's agent works in now (Turns.roleOf)
+  roleOf?: (chatId: string) => Promise<Role | undefined>
 }
 
 // What agents read and write (ACP fs/read_text_file and fs/write_text_file). A doc open in a window is
@@ -44,8 +47,14 @@ export class AgentFs {
   async write(file: string, content: string, { chatId, run }: { chatId?: string; run?: string } = {}) {
     log(`write ${file} (${content.length} characters)`)
     const ws = this.workspace()
-    const rel = ws.docs.resolve(file)
     const caller: Caller = { kind: "owlit", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
+    const target = await this.target([file])
+    // A chat's agent writes as its role lets it; core's own write for a run was decided by core, and
+    // only the target's limits hold for it
+    const role = chatId ? await this.options.roleOf?.(chatId) : undefined
+    const decision = chatId ? decide({ caller, actor: await this.actorOf(caller), ...(role ? { role } : {}) }, "words", target) : offLimits(target)
+    if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, decision.refuse, { path: file })
+    const rel = target.files![0]!
     const claim = chatId ? this.options.claimOf?.(rel) : undefined
     const origin: Partial<ChangeOrigin> = claim && claim.chatId === chatId ? { via: claim.accepted ? "apply" : "tool", toolCallId: claim.toolCallId } : {}
     // A paper's note is the user's, like a doc: the agent may change it when asked (the edit is shown in
@@ -58,12 +67,41 @@ export class AgentFs {
       ws.recorder.say(change)
       return
     }
-    if (ws.docs.isOwlits(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't write it.`, { path: rel })
     const before = await this.text(rel)
     // Said once it is written, so the window that shows it has it
     const change = await ws.recorder.doc(caller, rel, before, content, { origin }, { quiet: true })
     await this.place(rel, content, change.id)
     ws.recorder.say(change)
+  }
+
+  // The files a write or an engine's request names, as the policy's target (policy.ts): each resolved
+  // against the workspace, and whether all are the user's: inside the workspace and docs (not library/,
+  // .owlit/ or another dot-folder, as written or where a link leads), or a paper's note; and whether the
+  // user keeps Owlit out of one of the docs
+  async target(paths: string[]): Promise<Target> {
+    const { docs, library } = this.workspace()
+    const files: string[] = []
+    let notDoc = false
+    let out = false
+    for (const file of paths) {
+      let rel: string
+      try {
+        rel = docs.resolve(file)
+      } catch {
+        notDoc = true
+        continue
+      }
+      files.push(rel)
+      if (library.noteOf(rel)) continue
+      if (!docs.isDoc(rel)) notDoc = true
+      else if ((await docs.owlitOf(rel)).out) out = true
+    }
+    return { what: "file", files, ...(notDoc ? { notDoc } : {}), ...(out ? { out } : {}) }
+  }
+
+  // The caller as the change log names it
+  actorOf(caller: Caller): Promise<ActorId> {
+    return this.workspace().recorder.actorOf(caller)
   }
 
   // A doc's text as the person sees it: its open editor's, else the disk's; null when there is none
@@ -126,12 +164,10 @@ export class AgentFs {
     return at
   }
 
-  // A workspace path an agent may delete or move: a doc or folder of the user's, not owlit's own
+  // A workspace path an agent names; whether it may delete or move it is the policy's (core.ts gives the
+  // router target for agents.deleteDocs and agents.moveDoc)
   private docPath(file: string) {
-    const docs = this.workspace().docs
-    const rel = docs.resolve(file)
-    if (docs.isOwlits(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, `${rel} is owlit's, not a doc; agents can't delete or move it.`, { path: rel })
-    return rel
+    return this.workspace().docs.resolve(file)
   }
 
   private keep(caller: Caller, rel: string, before: string | null, after: string | null, writeId: string) {

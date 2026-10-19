@@ -258,7 +258,8 @@ describe("turns", () => {
 
   it("asks permission and passes on the answer; Reject reaches the agent", async () => {
     const { send, updates, call, text } = await setup()
-    const turn = send("needs permission")
+    // A Co-author may run commands, each still the user's to allow when the agent asks
+    const turn = send("needs permission", { role: "coauthor" })
     await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
     const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
     await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
@@ -274,15 +275,11 @@ describe("turns", () => {
   })
 
   it("shows a Write over a file as what it replaces, and a Write of a new file as new", async () => {
-    const { send, updates, call } = await setup()
+    const { send, updates } = await setup()
     const diffOf = async (text: string) => {
       updates.length = 0
-      const turn = send(text, { role: "coauthor" })
-      await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
-      const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
-      const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === ask.toolCallId) as Extract<SessionUpdate, { type: "tool_call" }>
-      await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "no" })
-      await turn
+      await send(text, { role: "assistant" })
+      const asked = updates.find((u) => u.type === "tool_call" && u.toolCallId === "w1") as Extract<SessionUpdate, { type: "tool_call" }>
       return asked.diff
     }
     expect(await diffOf("rewrite notes.md thirteen chars")).toEqual({ path: "notes.md", oldText: "twelve chars", newText: "thirteen chars" })
@@ -330,6 +327,21 @@ describe("turns", () => {
     expect(connectors.find((c: any) => c.id === agent.id).authenticated).not.toBe(false)
   })
 
+  it("lists the turns running, for a window that opens meanwhile, and says when one ends", async () => {
+    const { send, call, core, text } = await setup()
+    const ended: any[] = []
+    core.onNotify((n) => n.method === "chat.ended" && ended.push(n.params))
+    expect(await call("agents.running")).toEqual([])
+    const turn = send("slow please")
+    await until(() => text(), { what: "the agent to start talking" })
+    const [running] = await call("agents.running")
+    expect(running).toMatchObject({ chatId: "c1", messageId: "a1", message: { id: "a1", status: "streaming", parts: [{ type: "text" }] } })
+    await call("agents.cancel", { chatId: "c1" })
+    await turn
+    expect(await call("agents.running")).toEqual([])
+    expect(ended).toMatchObject([{ chatId: "c1", messageId: "a1", message: { id: "a1", status: "cancelled" } }])
+  })
+
   it("cancels a turn, closing it as cancelled", async () => {
     const { send, call, text } = await setup()
     const turn = send("slow please")
@@ -362,15 +374,32 @@ describe("turns", () => {
     expect(await send("again")).toEqual({ stopReason: "end_turn" })
   })
 
-  it("says a turn cut off by owlit closing was closed, not that the agent broke", async () => {
-    const { send, call, core, text } = await setup()
+  it("says a turn cut off by owlit closing was closed, not that the agent broke or the person stopped it", async () => {
+    const { send, core, text, root } = await setup()
     const turn = send("slow please").catch((e) => e)
     // Wait for the agent to be talking, not for a set time: starting it can take longer under load
     await until(() => text(), { what: "the agent to start talking" })
-    core.agents.dispose()
+    // As quitting does: the workspace's turns are reset, then the agents close
+    await core.dispose()
     const error = await turn
-    expect(error.message).toBe("Owlit was closed before it could finish.")
-    expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({ status: "error", error: error.message })
+    expect(error.message).toBe("Owlit was closed before it finished.")
+    // The reply says so when the chat is read again, whether it was saved before the workspace let go or
+    // is found still streaming
+    const next = new Core({ userDataDir: path.join(path.dirname(root), "userData"), searchPath: testSearchPath })
+    cores.push(next)
+    await next.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const chat = await next.handle({ jsonrpc: "2.0", id: 2, method: "chats.get", params: { id: "c1" } })
+    expect((chat as { result: { messages: unknown[] } }).result.messages[1]).toMatchObject({ status: "error", error: "Owlit was closed before it finished." })
+  })
+
+  it("says a turn cut off by opening another workspace was cut off by that", async () => {
+    const { send, call, text, root } = await setup()
+    const turn = send("slow please").catch((e) => e)
+    await until(() => text(), { what: "the agent to start talking" })
+    const other = path.join(path.dirname(root), "other")
+    mkdirSync(other)
+    await call("workspace.open", { path: other })
+    expect((await turn).message).toBe("Owlit was closed before it finished, when you opened another workspace.")
   })
 
   it("serves file reads inside the workspace and refuses the rest", async () => {
@@ -428,17 +457,14 @@ describe("turns", () => {
     expect(wrote[1].origin.toolCallId).toBeUndefined()
   })
 
-  it("signs a change the user allowed (Apply) as Owlit's, taken by them, with its tool call", async () => {
+  it("lands a Co-author's edit at once, signed as Owlit's with its tool call", async () => {
     const { send, core, call, updates, root } = await setup()
     await call("docs.list")
     const wrote: any[] = []
     core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
-    const turn = send("rewrite notes.md thirteen chars", { role: "coauthor" })
-    await until(() => updates.some((u) => u.type === "permission_request"), { what: "a permission_request" })
-    const ask = updates.find((u) => u.type === "permission_request") as Extract<SessionUpdate, { type: "permission_request" }>
-    await call("agents.respondPermission", { chatId: "c1", requestId: ask.requestId, optionId: "yes" })
-    await turn
-    await until(() => wrote.length, { what: "the applied change" })
+    await send("rewrite notes.md thirteen chars", { role: "coauthor" })
+    expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+    await until(() => wrote.length, { what: "the landed change" })
     expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("thirteen chars")
     expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
   })
@@ -458,6 +484,52 @@ describe("turns", () => {
     expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
     const proposals = await call("changes.proposals", { path: "notes.md", text: "thirteen chars", since: 0 })
     expect(proposals).toMatchObject([{ id: wrote[0].id, hunks: [{ insert: "thirteen", removed: "twelve", before: "", after: " chars" }] }])
+  })
+
+  it("refuses an edit outside the user's docs before any card, whatever the role", async () => {
+    const { send, updates, text, root } = await setup()
+    for (const file of ["../x.md", ".owlit/x.json", ".git/x.md"]) {
+      updates.length = 0
+      await send(`rewrite ${file} words`, { role: "coauthor" })
+      expect(text(), file).toBe("you chose no")
+      expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+      expect(existsSync(path.join(root, file))).toBe(false)
+    }
+  })
+
+  describe("a doc the user keeps Owlit out of", () => {
+    const KEPT_OUT = "The user keeps Owlit out of this doc: read it if you need to, but don't change it or comment on it."
+    const kept = async () => {
+      const turns = await setup()
+      await turns.call("docs.setOwlitOut", { path: "notes.md", out: true })
+      return turns
+    }
+
+    it("refuses an engine's edit before any card", async () => {
+      const { send, updates, text, root } = await kept()
+      await send("rewrite notes.md thirteen chars", { role: "coauthor" })
+      expect(text()).toBe("you chose no")
+      expect(updates.some((u) => u.type === "permission_request")).toBe(false)
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+    })
+
+    it("refuses an agent's write, delete and move", async () => {
+      const { send, call, root } = await kept()
+      await expect(send("write notes.md other words", { role: "coauthor" })).rejects.toThrow(KEPT_OUT)
+      const mcp: Caller = { kind: "socket", chatId: "c1" }
+      await call("chats.update", { id: "c1", patch: { role: "coauthor" } })
+      await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)).rejects.toThrow(`Not done: ${KEPT_OUT}`)
+      await expect(call("agents.moveDoc", { path: "notes.md", to: "kept.md" }, mcp)).rejects.toThrow(`Not done: ${KEPT_OUT}`)
+      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
+    })
+
+    it("refuses Owlit's comments there, and leaves the person's own", async () => {
+      const { call } = await kept()
+      const comment = (id: string) => ({ id, quote: "twelve", prefix: "", suffix: "", entries: [{ id: `${id}-e`, text: "A word.", at: 1 }], createdAt: 1 })
+      await expect(call("comments.add", { path: "notes.md", comment: comment("o1") }, { kind: "socket", chatId: "c1" })).rejects.toThrow(`Not done: ${KEPT_OUT}`)
+      await call("comments.add", { path: "notes.md", comment: comment("p1") })
+      expect((await call("comments.all"))["notes.md"].map((c: { id: string }) => c.id)).toEqual(["p1"])
+    })
   })
 
   it("writes files for the agent and tells clients", async () => {

@@ -27,13 +27,15 @@ import path from "node:path"
 import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
 import { RpcFailure } from "../rpc/index.ts"
+import { messageOf } from "../util.ts"
 import type { Agents } from "./agents.ts"
 import type { AgentFs } from "./fs.ts"
-import { failureOf } from "./failure.ts"
+import { cutOffSentence, failureOf, type CutOff } from "./failure.ts"
 import { type AcpProcess, flatValues, type SessionHandler } from "./process.ts"
 import { guardFor, isOwlitCall, PICTURE_MAX_BYTES, PICTURE_TYPES, roots, sendsPictures } from "./profiles.ts"
 import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questions.ts"
-import { answerFor, roleNote, takesRules, withUserName } from "./roles.ts"
+import type { Who } from "./policy.ts"
+import { answerFor, roleNote, takesRules, withUserName, type EngineAnswer } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
 import { memoryNote, preamble, USER_FOLLOWS } from "./rules.ts"
 import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
@@ -46,6 +48,8 @@ interface TurnsOptions {
   workspace: () => { root: string; chats: Chats; docs: Docs } | null
   // An update of the reply messageId, as it streams
   notify: (chatId: string, update: SessionUpdate, messageId: string) => void
+  // A turn ended, its reply as saved
+  ended?: (chatId: string, message: ChatMessage) => void
   // The MCP servers a chat's session gets (owlit-mcp, for that chat)
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
   // What the user asked Owlit to call them, read when a session starts
@@ -86,6 +90,8 @@ interface Turn {
   // Questions waiting for the user: answers by question id, null to skip, "cancel" when the turn stops
   questions: Map<string, (answers: Record<string, QuestionAnswer> | null | "cancel") => void>
   cancelled: boolean
+  // Set when owlit, not the person, stopped it (reset): the reply says so instead of "stopped"
+  cutOff?: CutOff
   // Shows an update in the chat and saves it in the answer; set once the turn runs
   emit?: (update: SessionUpdate) => void
   // What each of the agent's own agents said as text: its report
@@ -135,7 +141,13 @@ export class Turns {
       return await this.run(req, ws, turn)
     } finally {
       this.turns.delete(req.chatId)
+      this.options.ended?.(req.chatId, turn.message)
     }
+  }
+
+  // The turns running or starting, with each reply as it stands
+  inFlight() {
+    return [...this.turns.values()].map((turn) => ({ chatId: turn.chatId, messageId: turn.message.id, message: turn.message }))
   }
 
   private async run(req: TurnRequest, ws: NonNullable<ReturnType<TurnsOptions["workspace"]>>, turn: Turn): Promise<StopReason> {
@@ -196,10 +208,16 @@ export class Turns {
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
       await quiet(turn)
+      if (turn.cutOff) throw new Error("Cut off by owlit.")
       const stop: StopReason = turn.cancelled || response.stopReason === "cancelled" ? "cancelled" : response.stopReason === "refusal" ? "refusal" : "end_turn"
       await finish(stop === "cancelled" ? "cancelled" : "done")
       return stop
     } catch (error) {
+      if (turn.cutOff) {
+        const text = cutOffSentence(turn.cutOff)
+        await finish("error", text)
+        throw new RpcFailure(RpcErrorCode.InternalError, text)
+      }
       if (turn.cancelled) {
         await finish("cancelled")
         return "cancelled"
@@ -254,9 +272,12 @@ export class Turns {
   }
 
   // Forgets the sessions of a workspace that closed, stopping its turns first: nothing could answer their
-  // questions or stop them once they are forgotten
-  reset() {
-    for (const chatId of [...this.turns.keys()]) void this.cancel(chatId)
+  // questions or stop them once they are forgotten. why: what each reply says it was cut off by.
+  reset(why: CutOff) {
+    for (const [chatId, turn] of [...this.turns]) {
+      turn.cutOff = why
+      void this.cancel(chatId)
+    }
     this.live.clear()
     this.claims.clear()
     this.accepted.clear()
@@ -290,10 +311,13 @@ export class Turns {
   }
 
   // The role Owlit's tools answer to in a chat: its running turn's; between turns (a tool call that
-  // outlived its turn) the one the chat was saved with
-  async roleOf(chatId: string): Promise<Role> {
+  // outlived its turn) the one the chat was saved with. None for a chat that isn't there, so its caller
+  // is a program with nobody behind it.
+  async roleOf(chatId: string): Promise<Role | undefined> {
     const turn = this.turns.get(chatId)
-    return turn ? turn.role : ((await this.options.workspace()?.chats.get(chatId).catch(() => null))?.role ?? DEFAULT_ROLE)
+    if (turn) return turn.role
+    const chat = await this.options.workspace()?.chats.get(chatId).catch(() => null)
+    return chat ? (chat.role ?? DEFAULT_ROLE) : undefined
   }
 
   // ---- inside ----
@@ -410,9 +434,13 @@ export class Turns {
           const allow = r.options.find((o) => o.kind === "allow_once")
           if (allow) return { outcome: { outcome: "selected", optionId: allow.optionId } }
         }
-        // What the role doesn't allow is refused before the user sees it
-        const answer = answerFor(turn.role, toKind(r.toolCall.kind))
-        if (answer === "reject") {
+        // A request may leave out what its tool call already announced (Codex sends only the id)
+        const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === r.toolCall.toolCallId)
+        // What the policy refuses for the chat's role, or on the files the request names, is refused
+        // before the user sees it
+        const answer = await this.answer(turn, r.toolCall, announced?.type === "tool_call" ? announced : undefined).catch((error: unknown) => ({ refuse: messageOf(error) }))
+        if (typeof answer === "object") {
+          if (process.env.OWLIT_LOG_AGENTS) console.log(`[turn ${chatId.slice(0, 8)}] refused ${r.toolCall.title ?? r.toolCall.toolCallId}: ${answer.refuse}`)
           const reject = r.options.find((o) => o.kind === "reject_once") ?? r.options.find((o) => o.kind === "reject_always")
           return reject ? { outcome: { outcome: "selected", optionId: reject.optionId } } : { outcome: { outcome: "cancelled" } }
         }
@@ -420,8 +448,6 @@ export class Turns {
         if (turn.cancelled) return { outcome: { outcome: "cancelled" } }
         const requestId = randomUUID()
         const toolCallId = toolCall.toolCallId
-        // A request may leave out what its tool call already announced (Codex sends only the id)
-        const announced = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === toolCallId)
         const title = toolCall.title ?? (announced?.type === "tool_call" ? announced.title : undefined)
         // The tool call as the question describes it (its diff, above all), then the question. Announced
         // whole, since its own tool_call may not have arrived yet; a repeat merges into the first.
@@ -498,6 +524,16 @@ export class Turns {
         return {}
       },
     }
+  }
+
+  // An engine's permission request, as the policy answers it for this turn's chat and role, on the files
+  // the request names (or its tool call announced)
+  private async answer(turn: Turn, call: acp.ToolCallUpdate, announced?: { locations?: { path: string }[]; diff?: { path: string } }): Promise<EngineAnswer> {
+    const named = [...(call.locations ?? []).map((l) => l.path), ...(call.content ?? []).flatMap((c) => (c.type === "diff" ? [c.path] : []))]
+    const paths = named.length ? named : [...(announced?.locations ?? []).map((l) => l.path), ...(announced?.diff ? [announced.diff.path] : [])]
+    const caller = { kind: "owlit", chatId: turn.chatId } as const
+    const who: Who = { caller, actor: await this.options.fs.actorOf(caller), role: turn.role }
+    return answerFor(who, toKind(call.kind), await this.options.fs.target([...new Set(paths)]))
   }
 
   // The turn that is running on this session, or starting on it (a new message whose session is still

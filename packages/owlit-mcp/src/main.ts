@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // owlit-mcp --workspace <folder> [--chat <id>] [--run <kind:task>]: owlit's tools over stdio, for an agent. owlit starts it
-// for its own agents; to use it from an agent outside owlit, point that agent's MCP config at this
-// command with the workspace owlit has open.
+// for its own agents, with the session secret (OWLIT_SESSION) that tells core which chat or run it works
+// for; --chat and --run only sign its searches and comments. To use it from an agent outside owlit, point
+// that agent's MCP config at this command with the workspace owlit has open: it then works as a program
+// with no chat, which reads and changes only Owlit's own things.
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { connect, OwlitNotRunning } from "@owlit/client"
@@ -30,7 +32,7 @@ async function main(workspace: string) {
     if (error instanceof OwlitNotRunning) console.error(`owlit-mcp: ${error.message}`)
     else throw error
   }
-  const server = createServer({ workspace, socketDir, chatId: flag("chat") ?? process.env.OWLIT_CHAT_ID, run: flag("run"), instructions })
+  const server = createServer({ workspace, socketDir, chatId: flag("chat"), run: flag("run"), instructions })
   await server.connect(new StdioServerTransport())
   // The agent that started this is gone. The socket to owlit, once a tool used it, would keep the process
   // alive on its own, authenticated, so leave

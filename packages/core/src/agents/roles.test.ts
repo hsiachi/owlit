@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { backgroundMeta, guardFor, processEnv } from "./profiles.ts"
+import type { Role } from "@owlit/protocol"
+import type { Target, Who } from "./policy.ts"
 import { answerFor } from "./roles.ts"
 
 describe("roles", () => {
@@ -77,13 +79,24 @@ describe("roles", () => {
     expect(guardFor("gemini-cli", "assistant", ["/w"])).toEqual({ modes: [] })
   })
 
-  it("refuses a Reviewer's changes, lets an Assistant's edits land as proposals, and leaves the rest to the user", () => {
-    expect(answerFor("reviewer", "edit")).toBe("reject")
-    expect(answerFor("reviewer", "execute")).toBe("reject")
-    expect(answerFor("reviewer", "fetch")).toBe("ask")
-    expect(answerFor("assistant", "edit")).toBe("allow")
-    expect(answerFor("assistant", "delete")).toBe("allow")
-    expect(answerFor("assistant", "execute")).toBe("ask")
-    expect(answerFor("coauthor", "execute")).toBe("ask")
+  it("answers an engine's request through the policy: a Reviewer's changes refused, an Assistant's edits landing, commands by the role, the rest the user's", () => {
+    const who = (role: Role, run?: string): Who => ({ caller: { kind: "owlit", ...(run ? { run } : { chatId: "c1" }) }, actor: "o_12345678", role })
+    const doc: Target = { what: "file", files: ["notes.md"] }
+    const refused = (answer: unknown) => typeof answer === "object"
+    expect(refused(answerFor(who("reviewer"), "edit", doc))).toBe(true)
+    expect(refused(answerFor(who("reviewer"), "execute", doc))).toBe(true)
+    expect(answerFor(who("reviewer"), "fetch", doc)).toBe("ask")
+    expect(answerFor(who("assistant"), "edit", doc)).toBe("allow")
+    expect(answerFor(who("assistant"), "delete", doc)).toBe("allow")
+    expect(answerFor(who("coauthor"), "edit", doc)).toBe("allow")
+    // Commands follow RUNS_COMMANDS; one the role may run is still the user's to allow
+    expect(answerFor(who("assistant"), "execute", doc)).toEqual({ refuse: expect.stringMatching(/^Owlit works as Assistant in this chat/) })
+    expect(answerFor(who("coauthor"), "execute", doc)).toBe("ask")
+    // A change that names no file owlit could check is the user's to decide
+    expect(answerFor(who("assistant"), "edit", { what: "file", files: [] })).toBe("ask")
+    // owlit's own state is no engine's to change, in any role
+    expect(answerFor(who("coauthor"), "edit", { what: "file", files: [".owlit/x.json"], notDoc: true })).toEqual({ refuse: "That file isn't one of the user's docs." })
+    // A background run works with a Reviewer's role, and says it works on its own
+    expect(answerFor(who("reviewer", "digest:p1"), "edit", doc)).toEqual({ refuse: expect.stringMatching(/^Owlit works on its own here/) })
   })
 })

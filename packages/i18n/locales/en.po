@@ -7160,16 +7160,20 @@ msgid "owlit doesn't know that agent."
 msgstr "owlit doesn't know that agent."
 
 #: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it could finish."
-msgstr "Owlit was closed before it could finish."
-
-#: packages/core/src/agents/failure.ts
 msgid "{name} quit unexpectedly. It starts again with the next message."
 msgstr "{name} quit unexpectedly. It starts again with the next message."
 
 #: packages/core/src/agents/failure.ts
 msgid "{name} ran into a problem."
 msgstr "{name} ran into a problem."
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished, when you opened another workspace."
+msgstr "Owlit was closed before it finished, when you opened another workspace."
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr "Owlit was closed before it finished."
 
 #: packages/core/src/agents/fs.ts
 #: packages/core/src/agents/turns.ts
@@ -7452,6 +7456,10 @@ msgstr "This copy of owlit has no example workspace."
 #: packages/core/src/core.ts
 msgid "Owlit goes through text: a Markdown or plain-text file."
 msgstr "Owlit goes through text: a Markdown or plain-text file."
+
+#: packages/core/src/core.ts
+msgid "That file isn't there any more."
+msgstr "That file isn't there any more."
 
 #: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts

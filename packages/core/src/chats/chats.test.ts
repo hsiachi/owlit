@@ -66,7 +66,7 @@ describe("chats", () => {
     expect(onDisk().status).toBe("done")
   })
 
-  it("brings a message cut off mid-stream back as cancelled", async () => {
+  it("brings a message cut off mid-stream back as owlit closing, not as a Stop", async () => {
     const { open, chatsDir } = await setup()
     const first = await open()
     await first.call("chats.create", { chat: summary("a", 1) })
@@ -78,7 +78,7 @@ describe("chats", () => {
       await first.core.dispose()
       return open()
     })
-    expect((await second.call("chats.get", { id: "a" })).messages[0].status).toBe("cancelled")
+    expect((await second.call("chats.get", { id: "a" })).messages[0]).toMatchObject({ status: "error", error: "Owlit was closed before it finished." })
   })
 
   it("moves a deleted chat to the trash", async () => {

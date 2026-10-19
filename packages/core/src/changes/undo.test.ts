@@ -27,6 +27,8 @@ async function setup(text = "on disk") {
     return response.result
   }
   await call("workspace.open", { path: root })
+  // The chat Owlit's writes here are for
+  await call("chats.create", { chat: { id: "chat-1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
   await call("docs.list")
   const read = (rel = "a.md") => readFileSync(path.join(root, rel), "utf8")
   // The person's save in the editor

@@ -238,9 +238,9 @@ function TOOLS(): ToolSpec[] {
   },
   {
     name: "comments_reply",
-    touches: "meta",
+    touches: "own",
     description:
-      "Reply under a comment on a doc, yours or the user's: an entry of your own at the end of it. Use it when the user asks you about one of their comments or replies under one of yours; answer there, not only in the chat. The user's entries are never changed. Under your own comment it is allowed in every role.",
+      "Reply under a comment on a doc, yours or the user's: an entry of your own at the end of it. Use it when the user asks you about one of their comments or replies under one of yours; answer there, not only in the chat. The user's entries are never changed.",
     inputSchema: {
       type: "object",
       properties: { path: docPath, id: commentId, text: { type: "string", description: "Your reply" } },

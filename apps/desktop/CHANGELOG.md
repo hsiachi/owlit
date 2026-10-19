@@ -4,8 +4,16 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Keep Owlit out of a doc now holds: Owlit can't edit, delete, move or comment on that doc, in any role and on every agent.
+- An edit Owlit asks to make outside your docs (outside the workspace, in owlit's own folders, in a hidden folder) is refused before it lands, in every role.
+- A reply cut off because you quit owlit or opened another workspace says so ("Owlit was closed before it finished") instead of looking as if you pressed Stop.
+- In a Reviewer chat, Owlit can reply under your comments; resolving them still needs Assistant or Co-author.
+- Memory lines you wrote or changed in Settings stay yours: Owlit adds lines and changes its own, but no longer rewrites or removes yours.
+- In Assistant, an agent's request to run a command is refused instead of asking you; Co-author still asks.
+- A background run on Codex works in Codex's read-only mode, whichever mode Codex was left in.
+- An agent outside owlit using owlit's tools, or a program on the workspace's socket, can no longer act as a chat by naming one: only the agents owlit starts work within a chat's role.
 - In a Reviewer chat, Owlit may add papers to your library and rename its own threads, on every agent; the papers show as added by Owlit and you can undo each. Reviewer and Assistant now say they "never change anything with commands": reading with commands is fine in every role.
-- Ask Owlit in a chat to go through a meeting's transcript, reviews or someone's comments, and it starts the same Go through as the doc's menu: its reading lands beside the material, its points as comments on your docs.
+- Ask Owlit in a chat to go through a meeting's transcript, reviews or someone's comments, and it starts the same Go through as the doc's menu: its reading lands beside the material, its points as comments on your docs. A transcript attached to the chat works too; its reading goes in your Meetings folder.
 - An answer's "From N papers" line counts a paper "in full" only when Owlit read its whole text; one read in part is "from the text", or "from pp. 4–5" when Owlit asked for those pages.
 - When Owlit answers a thread's paper again from the full text, the cell says "Changed after reading in full · p. N" in Owlit's colour until you've seen it, and its card keeps the earlier answer under the new one ("was: … · from the abstract"). In About, a Read in full batch says for how many papers the answers changed.
 - On Claude Code, Owlit's reads stay inside the workspace folder in every role, for its file tools and its shell commands alike, and your papers and owlit's own state are read through owlit's tools, so what it read leaves its trace. A Reviewer or Assistant's commands write nothing in the workspace; a Co-author's write inside it only. Background work (digests, threads) runs under a Reviewer's controls. Settings › Owlit › Privacy says what the agent reads.
