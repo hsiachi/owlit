@@ -9,6 +9,8 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Once you read a paper in full, Owlit answers its thread rows again from the full text and looks again at its comments that cite it, without a setting.
 - Owlit no longer looks at your docs or your library on its own: the "On its own" setting and what ran under it (comments on a doc you open or stop editing, the daily look over your docs, a digest and threads for a paper that landed, going through a Meetings folder) are gone for now. Go through still runs from a doc's menu.
 - Owlit knows which browser the extension is in from the app that connects, so Dia and Arc are called by their names, and a sign-in opens there even when another browser is your default. A connection made before this learns its browser at its next request.
+- Sign in and Open on a waiting line bring the browser with the extension to the front, not only a new tab in it.
+- Signing in to Tsinghua's library opens tlink's sign-in page instead of a 500 error.
 - When Owlit hands work to helpers and its answer pauses for them, the chat keeps working until they report, instead of showing them stopped.
 - Background work that fails says why in Owlit's words, such as an agent that isn't signed in, and a digest no longer takes in what Owlit's helpers wrote along the way.
 - A paper a search named one way and your library files another way is the same paper in its threads: Owlit can answer its row from the full text, and your corrections to its details reach Export as a doc, the CSV and what Owlit reads of the thread.

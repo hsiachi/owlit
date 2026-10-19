@@ -53,10 +53,11 @@ export interface SettingsCheck {
 
 export type SettingsCheckTarget = SecretName | "mineruServer"
 
-// Libraries owlit knows how to reach. Others are set up from a link opened through them.
+// Libraries owlit knows how to reach. Others are set up from a link opened through them. signIn is the
+// library's own sign-in page where its proxy path alone isn't one: tlink answers a bare /go with a 500.
 export const PROXY_PRESETS = {
-  tsinghua: { name: "Tsinghua University", proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go", preset: "tsinghua" } },
-} as const satisfies Record<string, { name: string; proxy: ProxySettings }>
+  tsinghua: { name: "Tsinghua University", signIn: "https://tlink.lib.tsinghua.edu.cn/gologin", proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go", preset: "tsinghua" } },
+} as const satisfies Record<string, { name: string; signIn?: string; proxy: ProxySettings }>
 
 export type ProxyPreset = keyof typeof PROXY_PRESETS
 

@@ -26,6 +26,8 @@ export interface Host {
   // Opens a web page in the browser an extension is in: its app by bundle id when known, else by the name
   // the extension gave (Chrome, Firefox), else the default browser
   openInBrowser?(url: string, browser: { app?: string; name?: string }): Promise<void>
+  // Brings that browser to the front, as openInBrowser would, without opening a page
+  showBrowser?(browser: { app?: string; name?: string }): Promise<void>
   // The browser app on the other end of a connection to the extension's port, by the port it came from
   // (extension/browser-app.ts); undefined where the system can't tell
   browserApp?(remotePort: number): Promise<BrowserApp | undefined>

@@ -28,7 +28,7 @@ afterEach(async () => {
 // A core serving the extension on a free port, whose network serves recorded responses
 type Opened = [string, { app?: string; name?: string }]
 
-async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: Opened[]; browserApp?: (remotePort: number) => Promise<BrowserApp | undefined> } = {}) {
+async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: Opened[]; shown?: Opened[1][]; browserApp?: (remotePort: number) => Promise<BrowserApp | undefined> } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-extension-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
@@ -39,7 +39,7 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
     return typeof match[1] === "number" ? new Response("", { status: match[1] }) : new Response(match[1])
   }) as unknown as typeof globalThis.fetch
   const userDataDir = path.join(base, "userData")
-  const core = new Core({ userDataDir, host: { fetch, openInBrowser: async (url, browser) => void options.opened?.push([url, browser]), browserApp: options.browserApp }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
+  const core = new Core({ userDataDir, host: { fetch, openInBrowser: async (url, browser) => void options.opened?.push([url, browser]), showBrowser: async (browser) => void options.shown?.push(browser), browserApp: options.browserApp }, retryBaseMs: 1, extension: { port: options.port ?? 0, retryMs: options.retryMs, holdMs: options.holdMs, work: { gapMs: 0, proxyGapMs: 0 } } })
   cleanups.push(() => core.dispose())
   const call = async (method: string, params?: unknown): Promise<any> => {
     const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
@@ -316,12 +316,13 @@ describe("the extension's port", () => {
     const paperIn = async (call: (method: string) => Promise<any>) => (await call("library.list")).papers.find((p: { id: string }) => p.id === id)
 
     async function connected() {
-      const s = await setup({ holdMs: 20 })
+      const shown: Opened[1][] = []
+      const s = await setup({ holdMs: 20, shown })
       const token = await s.pair()
       s.putPaper(id, { title, ids: { doi: SAGE } })
       // Asking for work is what makes the extension connected
       expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [] })
-      return { ...s, token }
+      return { ...s, token, shown }
     }
 
     it("hands a paper the plain routes missed to the extension, and takes its PDF", async () => {
@@ -340,7 +341,7 @@ describe("the extension's port", () => {
     })
 
     it("waits for one sign-in at a site, then goes on there", async () => {
-      const { call, request, token } = await connected()
+      const { call, request, token, shown } = await connected()
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
       const noted = await request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", title: "Sign in", url: "https://journals.sagepub.com/action/showLogin" } })
@@ -354,6 +355,8 @@ describe("the extension's port", () => {
       // The line's Sign in: the extension that met it opens the page, in its own browser
       expect(await call("extension.open", { kind: "sign-in", host: "sagepub.com" })).toEqual({ by: "extension", browser: "Chrome" })
       expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "sagepub.com", url: "https://journals.sagepub.com/action/showLogin" }])
+      // and owlit brings that browser to the front, which the extension can't do from inside it
+      expect(shown).toEqual([{ name: "Chrome" }])
       // Handed over once
       expect((await request("/work", { token })).body.open).toEqual([])
       expect((await request("/work/resume", { token, body: { host: "journals.sagepub.com" } })).body).toEqual({ resumed: true })
