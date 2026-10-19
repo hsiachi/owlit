@@ -44,6 +44,8 @@ const plainText = (text: string) =>
     .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, "$2")
     .replace(/[*_`]+/g, "")
 
+const wasLine = (was: string) => `${t({ message: "was:", comment: "before the words Owlit's comment said before it corrected them" })} ${plainText(was)}`
+
 function Signed({ entry, className }: { entry: EntryView; className?: string }) {
   return (
     <span className={cn("min-w-0 truncate text-xs text-muted-foreground", className)}>
@@ -51,7 +53,9 @@ function Signed({ entry, className }: { entry: EntryView; className?: string }) 
       <span className="font-medium text-foreground">{entry.name}</span>
       {" · "}
       {ago(entry.at)}
-      {entry.editedAt ? ` · ${t({ message: "edited", comment: "after a comment's time: it was changed after it was written" })}` : ""}
+      {entry.editedAt ? " · " : ""}
+      {/* Owlit's corrected entry says on hover what it first said; the open card says it under the words */}
+      {entry.editedAt ? <span title={entry.was ? wasLine(entry.was) : undefined}>{t({ message: "edited", comment: "after a comment's time: it was changed after it was written" })}</span> : null}
     </span>
   )
 }
@@ -181,6 +185,11 @@ export function OpenCard({ view, lost, actions, focusReply, replyRun }: { view: 
             actions.onEdit(first.id, text)
             setEditing(null)
           }} onCancel={() => setEditing(null)} />
+        {first.was && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t({ message: "was:", comment: "before the words Owlit's comment said before it corrected them" })} <s>{plainText(first.was)}</s>
+          </p>
+        )}
         {cut > 0 && (
           <FoldButton open={false} onClick={() => setShownFrom(null)} className="mt-2">
             {plural(cut, { one: "# more reply", other: "# more replies" })}

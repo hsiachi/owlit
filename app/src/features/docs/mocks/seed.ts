@@ -122,8 +122,8 @@ export const seedFiles: WorkspaceFile[] = [
 
 export const seedFolders = ["writing", "notes", "meetings", "experiments"]
 
-// Notes an agent left on the draft, as if from an earlier review: one on a sentence inside a paragraph, one
-// on the closing overclaim
+// Notes an agent left on the draft, as if from an earlier review: one on a sentence inside a paragraph
+// (which Owlit has since corrected), one on the closing overclaim
 export const seedComments: Record<string, DocComment[]> = {
   d1: [
     {
@@ -136,8 +136,11 @@ export const seedComments: Record<string, DocComment[]> = {
           id: "n2-1",
           by: WEB_OWLIT,
           agent: "Claude Code",
-          text: "“Only” is stronger than the paper: the threshold varies by task. “Mostly at scale” would hold, or cite a second source.",
+          text: "“Only” holds for the arithmetic and symbolic tasks; on commonsense ones the gains are small at any size. “Mostly at scale, for multi-step tasks” would match the paper.",
           at: ago(2 * DAY + HOUR),
+          // Corrected after the reply below showed the first reading too loose
+          was: "“Only” is stronger than the paper: the threshold varies by task. “Mostly at scale” would hold, or cite a second source.",
+          editedAt: ago(DAY - HOUR),
         },
         { id: "n2-2", by: WEB_ME, text: "Which tasks break the pattern?", at: ago(DAY) },
       ],

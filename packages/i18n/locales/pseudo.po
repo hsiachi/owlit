@@ -2482,6 +2482,12 @@ msgstr ""
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr ""
 
+#. before the words Owlit's comment said before it corrected them
+#. before the words Owlit's comment said before it corrected them
+#: app/src/features/docs/comments/CommentCard.tsx
+msgid "was:"
+msgstr ""
+
 #. after a comment's time: it was changed after it was written
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "edited"
@@ -5678,6 +5684,11 @@ msgstr ""
 #. a batch of a thread: Owlit read the papers' full texts
 #: app/src/features/threads/components/About.tsx
 msgid "Read in full"
+msgstr ""
+
+#. a batch of a thread: once the user read a paper in full, Owlit answered its row again from it
+#: app/src/features/threads/components/About.tsx
+msgid "Answered again from the full text"
 msgstr ""
 
 #. a batch of a thread: Owlit answered a column's question for every paper
