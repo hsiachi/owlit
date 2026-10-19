@@ -81,7 +81,9 @@ export function createServer(options: OwlitMcpOptions) {
         client = null
         return failure(error.message)
       }
-      return failure(error instanceof Error ? error.message : String(error))
+      const message = error instanceof Error ? error.message : String(error)
+      // Core names the method it checked, which the agent never saw; the tool is what it called
+      return failure(message.replace(/^[\w.]+ got parameters it can't use/, `${spec.name} got parameters it can't use`))
     }
   })
   return server

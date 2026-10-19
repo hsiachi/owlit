@@ -82,7 +82,10 @@ export class Router {
       if (!route) throw new RpcFailure(RpcErrorCode.MethodNotFound, `owlit doesn't know how to do ${request.method}.`)
       const parsed = route.params.safeParse(request.params)
       if (!parsed.success) {
-        throw invalidParams(`${request.method} got parameters it can't use.`, { issues: parsed.error.issues })
+        // The first issue, so an agent can correct its call: "limit: Too big: expected number to be <=50"
+        const [issue] = parsed.error.issues
+        const why = issue ? `: ${issue.path.length ? `${issue.path.join(".")}: ` : ""}${issue.message}` : ""
+        throw invalidParams(`${request.method} got parameters it can't use${why}.`, { issues: parsed.error.issues })
       }
       if (route.policy.touches !== "read" && this.decide) await this.decide(caller, request.method, parsed.data, route.policy)
       const result = await route.handler(parsed.data, caller)

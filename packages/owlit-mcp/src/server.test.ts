@@ -473,6 +473,11 @@ describe("docs_read on a PDF", () => {
     expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
   }, 30_000)
 
+  it("names the tool and the parameter core couldn't use", async () => {
+    const { tool } = await setup()
+    expect(await tool("library_search", { query: "replay", limit: 100 })).toEqual({ isError: true, text: expect.stringMatching(/^library_search got parameters it can't use: limit: .*50\.$/) })
+  })
+
   it("says after a doc's text that the user keeps Owlit out of it", async () => {
     const { root, call, tool } = await setup()
     writeFileSync(path.join(root, "Intro.md"), "# Intro\n\nMine alone.\n")
