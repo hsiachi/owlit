@@ -3,7 +3,8 @@ import type { ArchiveSummary, InitiativeSettings } from "./initiative.ts"
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatMessage, ChatSummary, Connector, RunSummary, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { ConsentAction, Role } from "./roles.ts"
-import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat, VersionInfo } from "./docs.ts"
+import type { CommentAnchor, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { Change, ChangeFilter, Roster } from "./changes.ts"
 import type { FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -184,7 +185,7 @@ export interface Methods {
   // Every doc's comments, by path, resolved ones included
   "comments.all": { params: void; result: Record<string, DocComment[]> }
   // Starts a comment, or puts back one deleted
-  // agent: the comment is an agent's (owlit-mcp), kept as a version so the window can offer Undo
+  // agent: the comment is an agent's (owlit-mcp), recorded in the change log so the window can offer Undo
   // agent: from an agent over owlit-mcp, in a chat (chatId) or a background run (run, e.g. "docs.review:<task id>")
   "comments.add": { params: { path: string; comment: DocComment; agent?: { chatId?: string; run?: string } }; result: null }
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
@@ -347,23 +348,25 @@ export interface Methods {
   "ui.open": { params: UiActions["open"]["params"]; result: UiActions["open"]["result"] }
   "ui.jump": { params: UiActions["jump"]["params"]; result: UiActions["jump"]["result"] }
   "ui.mark": { params: UiActions["mark"]["params"]; result: UiActions["mark"]["result"] }
-  // Takes back what a version recorded (VersionInfo): Undo of an agent's write, note or paper, or a
-  // restore from a doc's Versions. A file that changed since is refused with Conflict unless forced.
-  // redoId undoes the restore.
-  "versions.restore": { params: { id: string; force?: boolean }; result: { path: string; kind: VersionInfo["kind"]; redoId: string } }
-  // How much an agent's writes to one file changed it, from before the first version's write to after the
-  // last one's; null when they aren't a file's or are no longer kept
-  "versions.stats": { params: { from: string; to: string }; result: EditStats | null }
-  // The versions kept, newest first; of one doc or topic, or of everything since a time
-  "versions.list": { params: { path?: string; since?: number }; result: VersionInfo[] }
+  // Takes back one change of the log by appending its reverse (undoes); redo is the undo of the undo.
+  // A doc or memory line that changed since is refused with Conflict unless forced.
+  "changes.undo": { params: { id: string; force?: boolean }; result: { change: Change } }
+  // How much a run of changes to one doc changed it, from before the first to after the last; null when
+  // they aren't one doc's or are no longer kept
+  "changes.stats": { params: { ids: string[] }; result: EditStats | null }
+  // The log, newest first
+  "changes.list": { params: ChangeFilter; result: Change[] }
+  // The workspace's members: who the ids in the log are
+  "members.get": { params: void; result: Roster }
 
   // ---- Memory: what Owlit keeps in mind about the user (.owlit/memory.md)
   // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
   "memory.list": { params: void; result: { lines: MemoryLine[]; claudeNotes: ClaudeNote[] } }
-  // An agent's change (owlit-mcp's memory_write); versionId undoes it. Errors are said to the agent.
+  // An agent's change (owlit-mcp's memory_write), absent changeId when nothing changed. Errors are said
+  // to the agent.
   "memory.write": {
     params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string }
-    result: { line: MemoryLine | null; before: MemoryLine | null; versionId?: string }
+    result: { line: MemoryLine | null; before: MemoryLine | null; changeId?: string }
   }
   // The user's change from Settings: a new line (no id), an edit, or a removed line put back (its id)
   "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }; result: MemoryLine[] }
@@ -388,13 +391,13 @@ export interface Methods {
   "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean } }
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
-  // An agent's addition is kept as a version (Undo moves the paper to .owlit/trash/); chatId says whose
+  // An agent's addition is recorded in the change log (Undo moves the paper to .owlit/trash/); chatId says whose
   "library.add": { params: { paper: ResolvedPaper; addedBy?: Paper["addedBy"]; chatId?: string }; result: Paper }
   // The user's judgement, reading position, or a field they corrected (kept over refreshes)
   "library.update": { params: { id: string; patch: PaperPatch }; result: Paper }
   // Moves papers, with their highlights and notes, to .owlit/trash/
   "library.remove": { params: { ids: string[] }; result: null }
-  // Papers an agent added and the user hasn't worked with, to .owlit/trash/ as versions (Undo); papers
+  // Papers an agent added and the user hasn't worked with, to .owlit/trash/, recorded in the change log (Undo); papers
   // it may not remove come back in refused, with why
   "library.removeByAgent": { params: { ids: string[]; chatId?: string }; result: { removed: string[]; refused: { id: string; why: string }[] } }
   // Puts back what library.remove took (Undo), from the newest trash entry of each paper; a paper that is
@@ -536,28 +539,9 @@ export interface Notifications {
   "comments.removed": { path: string; id: string }
   // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
   "memory.changed": { lines: MemoryLine[] }
-  // An agent wrote a file no window had open; versionId undoes it
-  "agent.wrote": { path: string; versionId: string; chatId?: string }
-  // An agent in a chat left a note, added a paper or wrote to a thread; versionId undoes it.
-  // label names what changed (the doc, the paper's title, the thread's title).
-  // op "removed": an agent took back a paper it added (absent: an addition or a write)
-  // kind "thread": path is the thread's id; created when the write started it, rows the papers it
-  // added and updated how many it changed, asked the question it was for
-  // kind "memory": path is the line's id and label its text (the old text when removed); op "updated"
-  // when it replaced a line, memory which kind of line
-  "agent.changed": {
-    kind: "note" | "paper" | "thread" | "memory"
-    op?: "removed" | "updated"
-    memory?: MemoryKind
-    versionId: string
-    path: string
-    label: string
-    chatId?: string
-    created?: boolean
-    rows?: string[]
-    updated?: number
-    asked?: string
-  }
+  // A change was added to the log. label names what changed (a paper's title, a thread's title, a
+  // memory line's text, a doc's name); thread: what an agent's write to a thread did, for its result row
+  "changes.added": { change: Change; label?: string; thread?: { rows: string[]; updated: number; asked?: string } }
 
   // Papers changed by core on its own (a task) or by another program; may repeat the window's own
   // changes, which the window takes as they are

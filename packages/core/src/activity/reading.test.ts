@@ -64,10 +64,9 @@ describe("readingOf", () => {
     expect(papers.get("p")?.visits).toBe(2)
   })
 
-  it("ignores what agents did and follows a paper that changed id", () => {
+  it("follows a paper that changed id", () => {
     const papers = readingOf(
       [
-        { kind: "agent.wrote", at, path: "a.md", versionId: "v", actor: "agent" },
         user({ kind: "paper.focus", at, paperId: "local-abc", view: "pdf", seconds: 90 }),
         user({ kind: "paper.focus", at: at + 1, paperId: "doi-10.1-x", view: "pdf", seconds: 30 }),
       ],

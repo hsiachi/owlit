@@ -1,4 +1,4 @@
-import type { ActivityEvent, AgentRecord, JournalEntry } from "@owlit/protocol"
+import type { ActivityEvent, Change, JournalEntry } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -10,7 +10,14 @@ const MIN = 60_000
 const DAY = 86_400_000
 const now = 1_790_000_000_000
 const user = (e: ActivityEvent): JournalEntry => ({ ...e, actor: "user" })
-const agent = (e: AgentRecord): JournalEntry => ({ ...e, actor: "agent" })
+const owlitChange = (at: number, path: string, chatId?: string): Change => ({
+  id: `${at}-${path}`,
+  at,
+  actor: "o_1234abcd",
+  action: "update",
+  target: { kind: "doc", path },
+  origin: { via: "tool", ...(chatId ? { chatId } : {}) },
+})
 const names = { paper: (id: string) => ({ p1: "Paper One", p2: "Paper Two" })[id], chat: (id: string) => ({ c1: "About tools" })[id] }
 
 // Two days ago the user read p1 for a while; yesterday glanced at p2, wrote a doc and talked in a chat;
@@ -31,14 +38,15 @@ const journal: JournalEntry[] = [
   user({ kind: "doc.edited", at: now - DAY + 6 * MIN, path: "notes/a.md" }),
   user({ kind: "doc.edited", at: now - DAY + 7 * MIN, path: "notes/a.md" }),
   user({ kind: "doc.edited", at: now - DAY + 8 * MIN, path: "notes/a.md" }),
-  agent({ kind: "agent.wrote", at: now - DAY + 9 * MIN, path: "notes/a.md", versionId: "v1", chatId: "c1" }),
-  agent({ kind: "agent.wrote", at: now - DAY + 9 * MIN, path: ".owlit/threads/x/thread.json", versionId: "v2" }),
   user({ kind: "chat.ended", at: now - DAY + 10 * MIN, chatId: "c1" }),
 ]
+// An agent changed the doc, and a note kept in owlit's own folder (not the user's doc)
+const changes = [owlitChange(now - DAY + 9 * MIN, "notes/a.md", "c1"), owlitChange(now - DAY + 9 * MIN, ".owlit/papers/x/note.md")]
+const ctx = { now, names, changes }
 
 describe("answerActivity", () => {
   it("recent: each thing touched, newest first, with facts", () => {
-    const { items, since } = answerActivity(journal, { mode: "recent" }, { now, names })
+    const { items, since } = answerActivity(journal, { mode: "recent" }, ctx)
     expect(since).toBe(now - 14 * DAY)
     expect(items!.map((i) => (i.kind === "doc" ? i.path : i.id))).toEqual(["c1", "notes/a.md", "p2", "p1"])
     expect(items!.find((i) => i.kind === "paper" && i.id === "p1")).toMatchObject({
@@ -56,17 +64,17 @@ describe("answerActivity", () => {
   })
 
   it("top: what took the user's time and hand, leaving out what was only opened", () => {
-    const { items } = answerActivity(journal, { mode: "top", since: now - 3 * DAY }, { now, names })
+    const { items } = answerActivity(journal, { mode: "top", since: now - 3 * DAY }, ctx)
     expect(items!.map((i) => (i.kind === "doc" ? i.path : i.id))).toEqual(["p1", "notes/a.md", "c1"])
   })
 
   it("looks back only as far as asked", () => {
-    expect(answerActivity(journal, { mode: "recent", since: now - DAY - 1 }, { now, names }).items!.some((i) => i.kind === "paper" && i.id === "p1")).toBe(false)
+    expect(answerActivity(journal, { mode: "recent", since: now - DAY - 1 }, ctx).items!.some((i) => i.kind === "paper" && i.id === "p1")).toBe(false)
     expect(answerActivity(journal, { mode: "top" }, { now: now + 30 * DAY, names }).items).toEqual([])
   })
 
   it("log: a visit to a paper is one line, a run of edits one line with a count, owlit's own state left out", () => {
-    const { lines } = answerActivity(journal, { mode: "log", since: now - 3 * DAY }, { now, names })
+    const { lines } = answerActivity(journal, { mode: "log", since: now - 3 * DAY }, ctx)
     expect(lines!.map((l) => [l.actor, l.what, l.paper?.id ?? l.doc ?? l.chat?.id, l.times ?? 1])).toEqual([
       ["user", "read", "p1", 1],
       ["user", "highlighted", "p1", 1],
@@ -78,12 +86,12 @@ describe("answerActivity", () => {
       ["user", "wrote in the chat", "c1", 1],
     ])
     expect(lines![0]).toMatchObject({ seconds: 90, pages: [3, 4], detail: "30 s of it on the digest" })
-    expect(answerActivity(journal, { mode: "log", since: now - 3 * DAY, actor: "agent" }, { now, names }).lines!.map((l) => l.what)).toEqual(["changed"])
+    expect(answerActivity(journal, { mode: "log", since: now - 3 * DAY, actor: "agent" }, ctx).lines!.map((l) => l.what)).toEqual(["changed"])
   })
 
   it("log: keeps the latest lines within the limit and says there are more", () => {
     const many = Array.from({ length: 500 }, (_, i) => user({ kind: "highlight.added", at: now - 1000 + i, paperId: `p${i}`, highlightId: `h${i}` }))
-    const answer = answerActivity(many, { mode: "log", limit: 1000 }, { now, names })
+    const answer = answerActivity(many, { mode: "log", limit: 1000 }, ctx)
     expect(answer.lines).toHaveLength(MAX_LINES)
     expect(answer.lines!.at(-1)!.paper!.id).toBe("p499")
     expect(answer.more).toBe(true)
@@ -98,7 +106,7 @@ describe("answerActivity", () => {
   })
 
   it("of: a doc's history has the user's edits and what agents changed", () => {
-    const { items, lines } = answerActivity(journal, { mode: "of", doc: "notes/a.md" }, { now, names })
+    const { items, lines } = answerActivity(journal, { mode: "of", doc: "notes/a.md" }, ctx)
     expect(items).toEqual([expect.objectContaining({ kind: "doc", edits: 3, agentEdits: 1 })])
     expect(lines!.map((l) => `${l.actor} ${l.what}`)).toEqual(["user opened", "user edited", "agent changed"])
   })
@@ -106,7 +114,7 @@ describe("answerActivity", () => {
   it("answers with nothing when nothing was recorded", () => {
     expect(answerActivity([], { mode: "recent" }, { now, names })).toEqual({ since: now - 14 * DAY, items: [] })
     expect(answerActivity([], { mode: "log" }, { now, names })).toEqual({ since: now - 7 * DAY, lines: [] })
-    expect(answerActivity([], { mode: "of", chat: "c9" }, { now, names })).toEqual({ items: [], lines: [] })
+    expect(answerActivity([], { mode: "of", chat: "c9" }, ctx)).toEqual({ items: [], lines: [] })
   })
 })
 

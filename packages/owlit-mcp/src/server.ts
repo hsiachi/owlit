@@ -303,13 +303,13 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "memory_write": {
       const op = str("op") as "add" | "replace" | "remove"
-      const { line, before, versionId } = await owlit.rpc.memory.write({
+      const { line, before, changeId } = await owlit.rpc.memory.write({
         op,
         ...pickArgs(args, { id: "id", text: "text" }),
         ...(optStr("kind") ? { kind: optStr("kind") as MemoryKind } : {}),
         ...asker,
       })
-      if (!versionId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
+      if (!changeId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
       if (!line) return `Removed ${before?.id} ("${before?.text}") from the memory. Tell the user in a few words.`
       return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
     }

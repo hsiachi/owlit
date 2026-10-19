@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { Core } from "@owlit/core"
-import type { PdfTry, UiRequest } from "@owlit/protocol"
+import type { Notifications, PdfTry, UiRequest } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -331,9 +331,9 @@ describe("owlit-mcp", () => {
 
   it("gathers papers into a thread, keeps what the user did, and adds to it later", async () => {
     const { root, core, call, tool } = await setup()
-    const changed: { kind: string; label: string; rows?: string[] }[] = []
+    const changed: Notifications["changes.added"][] = []
     core.onNotify((n) => {
-      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
     })
     expect((await tool("thread_list")).text).toBe("There are no threads yet.")
     await call("library.add", { paper: { id: "arxiv-2005.11401", title: "Retrieval-Augmented Generation", authors: ["Patrick Lewis"], ids: { arxiv: "2005.11401" }, year: 2020 } })
@@ -347,7 +347,7 @@ describe("owlit-mcp", () => {
     const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, note: "Semantic Scholar was not reachable." })
     const id = /owlit:\/\/threads\/([\w-]+)/.exec(wrote.text)![1]!
     expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/threads\/t-[0-9a-f]{6}\): added 1\./)
-    expect(changed).toMatchObject([{ kind: "thread", label: "检索粒度", created: true, rows: ["arxiv-2005.11401"] }])
+    expect(changed).toMatchObject([{ change: { action: "create", target: { kind: "thread" } }, label: "检索粒度", thread: { rows: ["arxiv-2005.11401"] } }])
     const c = await call("threads.get", { id })
     expect(c.rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
 
@@ -381,48 +381,49 @@ describe("owlit-mcp", () => {
   it("lets the user undo an agent's comment and paper, and undo the undo", async () => {
     const openalex = readFileSync(path.join(fixtures, "openalex-doi.json"), "utf8")
     const { root, core, call, tool } = await setup({ routes: { "api.openalex.org/works/doi:10.1145": openalex } })
-    const changed: { kind: string; versionId: string; label: string; chatId?: string }[] = []
+    const changed: Notifications["changes.added"][] = []
     const removed: unknown[] = []
     core.onNotify((n) => {
-      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
       if (n.method === "comments.removed") removed.push(n.params)
     })
     writeFileSync(path.join(root, "Draft.md"), "# Draft\n\nAttention is all you need.\n")
     await tool("docs_add_comment", { path: "Draft.md", quote: "all you need", comment: "Cite it." })
     await tool("library_add", { refs: ["10.1145/3626772.3657891"] })
+    // Owlit's, by the chat the tools were started for
     expect(changed).toMatchObject([
-      { kind: "note", label: "Draft", chatId: "chat-1" },
-      { kind: "paper", label: expect.stringMatching(/^ChroniclingAmericaQA/), chatId: "chat-1" },
+      { change: { actor: expect.stringMatching(/^o_/), action: "create", target: { kind: "comment", path: "Draft.md" }, origin: { via: "tool", chatId: "chat-1" } }, label: "Draft" },
+      { change: { actor: expect.stringMatching(/^o_/), action: "create", target: { kind: "paper" }, origin: { chatId: "chat-1" } }, label: expect.stringMatching(/^ChroniclingAmericaQA/) },
     ])
 
-    const note = await call("versions.restore", { id: changed[0].versionId })
+    const note = await call("changes.undo", { id: changed[0].change.id })
     expect((await call("comments.all"))["Draft.md"]).toBeUndefined()
     expect(removed).toMatchObject([{ path: "Draft.md" }])
-    await call("versions.restore", { id: note.redoId })
+    await call("changes.undo", { id: note.change.id })
     expect((await call("comments.all"))["Draft.md"]).toMatchObject([{ entries: [{ text: "Cite it." }] }])
 
-    const paper = await call("versions.restore", { id: changed[1].versionId })
+    const paper = await call("changes.undo", { id: changed[1].change.id })
     expect((await call("library.list")).papers).toEqual([])
-    await call("versions.restore", { id: paper.redoId })
+    await call("changes.undo", { id: paper.change.id })
     expect((await call("library.list")).papers).toMatchObject([{ id: "doi-10.1145-3626772.3657891", addedBy: "agent" }])
   })
 
   it("keeps a line in Owlit's memory for the chat, which Undo takes back", async () => {
     const { root, core, call, tool } = await setup()
-    const changed: { kind: string; op?: string; versionId: string; label: string; memory?: string; chatId?: string }[] = []
+    const changed: Notifications["changes.added"][] = []
     core.onNotify((n) => {
-      if (n.method === "agent.changed") changed.push(n.params as (typeof changed)[number])
+      if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
     })
     expect((await tool("memory_write", { op: "add", kind: "work", text: "Cite as (Author, Year)." })).text).toMatch(/^Kept as m1: "Cite as \(Author, Year\)\."/)
     expect((await tool("memory_write", { op: "replace", id: "m1", text: "Cite in APA 7." })).text).toMatch(/^Replaced m1: "Cite in APA 7\.".*replaces "Cite as/)
     expect((await tool("memory_write", { op: "remove", id: "m7" })).text).toMatch(/no line m7/)
     expect((await tool("memory_write", { op: "add", text: "No kind" })).text).toMatch(/needs kind/)
     expect(changed).toMatchObject([
-      { kind: "memory", label: "Cite as (Author, Year).", memory: "work", chatId: "chat-1" },
-      { kind: "memory", op: "updated", label: "Cite in APA 7.", chatId: "chat-1" },
+      { change: { action: "create", target: { kind: "memory", part: "m1" }, after: { kind: "work" }, origin: { chatId: "chat-1" } }, label: "Cite as (Author, Year)." },
+      { change: { action: "update", target: { kind: "memory", part: "m1" }, origin: { chatId: "chat-1" } }, label: "Cite in APA 7." },
     ])
     expect(readFileSync(path.join(root, ".owlit/memory.md"), "utf8")).toContain("- Cite in APA 7. <!-- m1 ·")
-    await call("versions.restore", { id: changed[1].versionId })
+    await call("changes.undo", { id: changed[1].change.id })
     expect((await call("memory.list")).lines).toMatchObject([{ id: "m1", text: "Cite as (Author, Year)." }])
   })
 

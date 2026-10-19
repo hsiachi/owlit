@@ -205,7 +205,7 @@ function createWindow() {
 function attachCore(core: Core) {
   ipcMain.handle("rpc", (event, request: RpcRequest) => {
     if (!isOwnPage(event.senderFrame?.url ?? "")) throw new Error("Only Owlit's own page may call core.")
-    return core.handle(request)
+    return core.handle(request, { kind: "window" })
   })
   protocol.handle(FILE_SCHEME, (request) => core.serveFile(request))
   core.onNotify((notification) => {
@@ -228,10 +228,10 @@ function isOwnPage(url: string) {
 }
 
 
-// Main is one more client of core: it calls the same methods the renderer does
+// Main is one more client of core: it calls the same methods the renderer does, for the person at the window
 let requestId = 0
 async function call<M extends MethodName>(core: Core, method: M, params?: ParamsOf<M>): Promise<ResultOf<M>> {
-  const response = await core.handle({ jsonrpc: "2.0", id: `main-${++requestId}`, method, params })
+  const response = await core.handle({ jsonrpc: "2.0", id: `main-${++requestId}`, method, params }, { kind: "window" })
   if ("error" in response) throw new Error(response.error.message)
   return response.result as ResultOf<M>
 }

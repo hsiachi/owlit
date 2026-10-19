@@ -169,12 +169,12 @@ export class MockAgentClient implements AgentClient {
     await step("Read 6 abstracts", "read", 2500, "Kept 3", 2)
     const added = FOUND.map((p) => useLibraryStore.getState().addPaper(p, "agent"))
     for (const paper of added) {
-      const versionId = `mock-${crypto.randomUUID()}`
-      setMockUndo(versionId, () => {
+      const changeId = `mock-${crypto.randomUUID()}`
+      setMockUndo(changeId, () => {
         const gone = useLibraryStore.getState().removePapers([paper.id])
         return () => useLibraryStore.getState().restorePapers(gone)
       })
-      recordResult(chatId, { kind: "paper", versionId, path: paper.id, label: paper.title, at: Date.now() })
+      recordResult(chatId, { kind: "paper", changeId, path: paper.id, label: paper.title, at: Date.now() })
     }
     await step(`Added ${added.length} papers to the Library`, "other", 400, added.map((p) => p.title).join("\n"), 3)
     await this.stream(emit, signal, FOUND_ANSWER, "agent_message_chunk", 12)

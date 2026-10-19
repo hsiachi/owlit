@@ -3,6 +3,7 @@
 
 export type * from "./chat.ts"
 export * from "./docs.ts"
+export * from "./changes.ts"
 export type * from "./library.ts"
 export * from "./search.ts"
 export * from "./rpc.ts"

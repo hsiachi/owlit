@@ -1,4 +1,4 @@
-import { CORE_KINDS, JOURNALED_CORE_KINDS, type ArchiveSummary, type InitiativeSettings, type JournalEntry, type Task } from "@owlit/protocol"
+import { CORE_KINDS, JOURNALED_CORE_KINDS, type ArchiveSummary, type Change, type InitiativeSettings, type JournalEntry, type Task } from "@owlit/protocol"
 import { createHash } from "node:crypto"
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -69,6 +69,8 @@ export interface ExportOptions {
   // .owlit/journal.jsonl, and tasks/log.jsonl in the workspace's data folder
   journal: string
   tasksLog: string
+  // Owlit's changes to docs from the change log, oldest first: each is an agent.wrote event
+  changes?: Change[]
   to: string
   since?: number
   settings: InitiativeSettings
@@ -139,6 +141,11 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
     runs.push({ at, type: `run.${task.state === "waiting_for_you" ? "waiting" : task.state}`, actor: "owlit", payload })
   }
 
+  for (const c of o.changes ?? []) {
+    if (c.at >= since) runs.push({ at: c.at, type: "agent.wrote", actor: "agent", payload: { path: c.target.path, changeId: c.id, ...(c.origin.chatId ? { chatId: c.origin.chatId } : {}) } })
+  }
+  runs.sort((a, b) => a.at - b.at)
+
   // The opening and the hourly tick aren't journaled (they carry nothing): they go in just before the
   // first decision that heard them
   const heard: Draft[] = []
@@ -153,7 +160,7 @@ export async function exportArchive(o: ExportOptions): Promise<ArchiveSummary> {
     heard.push({ at, type: kind, actor, payload })
   }
 
-  // In the journal's order (the order the rules heard things in), runs merged in by time
+  // In the journal's order (the order the rules heard things in), runs and writes merged in by time
   const drafts: Draft[] = []
   for (let i = 0, j = 0; i < heard.length || j < runs.length; ) {
     if (j < runs.length && (i >= heard.length || runs[j].at < heard[i].at)) drafts.push(runs[j++])

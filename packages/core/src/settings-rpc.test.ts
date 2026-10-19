@@ -42,7 +42,8 @@ describe("settings", () => {
     expect(await call("settings.get")).toEqual({
       appearance: { theme: "system", tone: "warm", language: "system" },
       locale: "en",
-      profile: {},
+      // Minted on the first read, and kept
+      profile: { id: expect.stringMatching(/^[0-9a-f]{8}$/) },
       library: { digestLanguageSystem: "en" },
       parsing: { auto: true },
       secrets: {},
@@ -74,8 +75,9 @@ describe("settings", () => {
 
   it("keeps the name Owlit calls the user, trimmed, and forgets it when cleared", async () => {
     const { call } = setup()
-    expect((await call("settings.update", { patch: { profile: { name: "  Xia " } } })).profile).toEqual({ name: "Xia" })
-    expect((await call("settings.update", { patch: { profile: { name: null } } })).profile).toEqual({})
+    const { id } = (await call("settings.get")).profile
+    expect((await call("settings.update", { patch: { profile: { name: "  Xia " } } })).profile).toEqual({ id, name: "Xia" })
+    expect((await call("settings.update", { patch: { profile: { name: null } } })).profile).toEqual({ id })
   })
 
   it("keeps keys sealed on disk and shows the window only how they end", async () => {

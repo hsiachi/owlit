@@ -327,7 +327,7 @@ export function openOnDisk(path: string) {
 
 // The file changed on disk since this window last saw it: the user's text isn't saved, and they choose.
 // Reload takes the disk's text (one change in the editor, so ⌘Z brings theirs back); Keep mine writes
-// theirs over it, and core keeps the disk's text as a version of the doc.
+// theirs over it, and core keeps the disk's text in the change log, so the doc's Versions can put it back.
 function conflicted(id: string, disk: DocConflict) {
   const file = useDocsStore.getState().files[id]
   if (!file) return

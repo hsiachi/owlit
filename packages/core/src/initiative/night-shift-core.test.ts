@@ -72,9 +72,10 @@ describe("The night shift, through core", () => {
     expect(await comments()).toEqual([])
     await emit({ kind: "doc.closed", path: "draft.md" })
     await vi.waitFor(async () => expect((await comments()).map((c) => c.quote)).toEqual(["Replay ratings drift from live ones."]), { timeout: 5_000, interval: 20 })
-    // Kept as a version (Undo), but no "Note added" toast
+    // Recorded in the change log (Undo), but no "Note added" toast
     expect(heard.some((n) => n.method === "comments.changed")).toBe(true)
-    expect(heard.some((n) => n.method === "agent.changed")).toBe(false)
+    expect(heard.some((n) => n.method === "changes.added")).toBe(false)
+    expect(await workspace.changes.list({ target: { kind: "comment", path: "draft.md" } })).toMatchObject([{ actor: expect.stringMatching(/^o_/), action: "create" }])
 
     // Home's Since you left reads the run
     const runs = await call("chats.runs", { since: 0 })

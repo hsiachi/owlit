@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type BuildInfo, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, isOwlit, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChatMessage, type ConsentAction, type DocComment, type CoreVersion, type PromptInput, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
@@ -14,7 +14,8 @@ import { Turns } from "./agents/turns.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
-import { noParams, Notifier, Router, RpcFailure } from "./rpc/index.ts"
+import { noParams, Notifier, Router, RpcFailure, WINDOW, type Caller } from "./rpc/index.ts"
+import { newWriteId } from "./changes/record.ts"
 import { readMemory } from "./memory/memory.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
@@ -203,8 +204,6 @@ export class Core {
     this.fs = new AgentFs({
       workspace: () => this.workspace,
       ui: this.ui,
-      journal: this.journal,
-      wrote: (record) => this.notifier.notify("agent.wrote", record),
       commentsChanged: ({ path, changed, removed }) => {
         if (changed) this.notifier.notify("comments.changed", { path, comment: changed })
         if (removed) this.notifier.notify("comments.removed", { path, id: removed })
@@ -247,7 +246,7 @@ export class Core {
         if (!mcpServers.length) throw new Error("owlit's tools aren't reachable.")
         return this.runInBackground(root, ctx, { prompt, root, mcpServers, signal: ctx.signal, memory: await readMemory(root), ...(await this.backgroundAgent()), allow: tools })
       },
-      write: (path, comment, chatId, quiet) => this.agentComment(path, comment, chatId, quiet),
+      write: (path, comment, chatId, quiet) => this.agentComment(path, comment, { kind: "owlit", ...(chatId ? { chatId } : {}) }, quiet),
       looked: (path, state) => this.notifier.notify("docs.owlit", { path, state }),
       writeRecord: (path, content, chatId) => this.fs.write(path, content, chatId),
       replied: (path, comment) => this.notifier.notify("comments.changed", { path, comment }),
@@ -291,6 +290,7 @@ export class Core {
         root: ws.root,
         journal: ws.owlitPath("journal.jsonl"),
         tasksLog: path.join(ws.dataDir, "tasks", "log.jsonl"),
+        changes: (await ws.changes.list({ target: { kind: "doc" } })).filter((c) => isOwlit(c.actor)).reverse(),
         to: path.resolve(ws.root, to),
         since,
         settings: await ws.initiative(),
@@ -372,11 +372,17 @@ export class Core {
     this.router.register("activity.query", z.object({ query: activityQuery }), async ({ query }): Promise<ActivityAnswer> => {
       const ws = this.requireWorkspace()
       if (!(await this.settings.get()).activity.enabled) return { recording: false }
-      const [{ papers, aliases }, chats, entries] = await Promise.all([ws.library.list(), ws.chats.list(), readJournal(ws.owlitPath("journal.jsonl"))])
+      const [{ papers, aliases }, chats, entries, docChanges] = await Promise.all([
+        ws.library.list(),
+        ws.chats.list(),
+        readJournal(ws.owlitPath("journal.jsonl")),
+        ws.changes.list({ target: { kind: "doc" } }),
+      ])
       const titles = new Map(papers.map((p) => [p.id, p.title]))
       const chatTitles = new Map(chats.map((c) => [c.id, c.title]))
       const alias = (id: string) => aliases[id] ?? id
-      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias })
+      const changes = docChanges.filter((c) => isOwlit(c.actor)).reverse()
+      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias, changes })
       // A paper's history also says which of its sentences Owlit's answers rested on
       if (query.mode === "of" && query.paper) {
         const { cited } = await wearOf(query.paper, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases })
@@ -397,7 +403,10 @@ export class Core {
       http: this.http,
       openExternal: options.host?.openExternal,
       systemLanguages: this.systemLanguages,
-      changed: (view) => this.notifier.notify("settings.changed", view),
+      changed: (view) => {
+        this.notifier.notify("settings.changed", view)
+        void this.workspace?.members.ensure(view.profile).catch((error) => console.error("[core] couldn't update the workspace's members", error))
+      },
     })
 
     const docs = () => this.requireWorkspace().docs
@@ -564,13 +573,13 @@ export class Core {
       z.object({ chatId, action: z.enum(["delete", "move", "add_paper"]), title: z.string().min(1) }),
       ({ chatId, action, title }) => this.turns.consent(chatId, action, title),
     )
-    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1), chatId: chatId.optional() }), async ({ paths, chatId }) => {
+    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1), chatId: chatId.optional() }), async ({ paths, chatId }, caller) => {
       await this.consented(chatId, "delete", `Delete ${paths.map(nameOf).join(", ")}`)
-      return { deleted: await this.fs.remove(paths, chatId) }
+      return { deleted: await this.fs.remove(paths, caller) }
     })
-    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1), chatId: chatId.optional() }), async ({ path: from, to, chatId }) => {
+    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1), chatId: chatId.optional() }), async ({ path: from, to, chatId }, caller) => {
       await this.consented(chatId, "move", `Move ${nameOf(from)} to ${to}`)
-      return { path: await this.fs.move(from, to, chatId) }
+      return { path: await this.fs.move(from, to, caller) }
     })
     this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), ({ clientId, paths }) =>
       this.ui.setOpenDocs(clientId, paths),
@@ -599,28 +608,15 @@ export class Core {
     this.router.register(
       "memory.write",
       z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
-      async ({ op, id, kind, text, chatId }) => {
+      async ({ op, id, kind, text }, caller) => {
         // Said to the agent, so plain English
         const need = (what: string) => {
           throw new RpcFailure(RpcErrorCode.InvalidParams, `memory_write with op "${op}" needs ${what}.`)
         }
-        const change = await this.requireWorkspace().memory.agentWrite(
+        return this.requireWorkspace().memory.agentWrite(
           op === "add" ? { op, kind: kind ?? need("kind"), text: text ?? need("text") } : op === "replace" ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}) } : { op, id: id ?? need("id") },
-          chatId ? { chatId } : {},
+          caller,
         )
-        const shown = change.line ?? change.before
-        if (change.versionId && shown) {
-          this.notifier.notify("agent.changed", {
-            kind: "memory",
-            versionId: change.versionId,
-            path: shown.id,
-            label: shown.text,
-            memory: shown.kind,
-            ...(change.line === null ? { op: "removed" as const } : change.before ? { op: "updated" as const } : {}),
-            ...(chatId ? { chatId } : {}),
-          })
-        }
-        return change
       },
     )
     this.router.register(
@@ -634,9 +630,21 @@ export class Core {
       z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }),
       ({ keep, drop }) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop),
     )
-    this.router.register("versions.restore", z.object({ id: z.string().min(1), force: z.boolean().optional() }), ({ id, force }) => this.fs.restore(id, force))
-    this.router.register("versions.stats", z.object({ from: z.string().min(1), to: z.string().min(1) }), ({ from, to }) => this.fs.stats(from, to))
-    this.router.register("versions.list", z.object({ path: z.string().optional(), since: z.number().optional() }), (filter) => this.requireWorkspace().versions.list(filter))
+    this.router.register("changes.undo", z.object({ id: z.string().min(1), force: z.boolean().optional() }), async ({ id, force }, caller) => ({ change: await this.fs.undo(id, caller, force) }))
+    this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), ({ ids }) => this.fs.stats(ids))
+    const actor = z.custom<ActorId>((v) => typeof v === "string" && /^([po]_[0-9a-f]+|other)$/.test(v))
+    this.router.register(
+      "changes.list",
+      z.object({
+        target: z.object({ kind: z.enum(["doc", "comment", "paper", "thread", "memory"]), path: z.string(), part: z.string() }).partial().optional(),
+        path: z.string().optional(),
+        chatId: z.string().optional(),
+        actor: actor.optional(),
+        since: z.number().optional(),
+      }),
+      (filter) => this.requireWorkspace().changes.list(filter),
+    )
+    this.router.register("members.get", noParams, () => this.requireWorkspace().members.get())
     this.router.register("agents.cancel", z.object({ chatId }), ({ chatId }) => this.turns.cancel(chatId))
     this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), ({ chatId, requestId, optionId }) =>
       this.turns.respondPermission(chatId, requestId, optionId),
@@ -669,13 +677,10 @@ export class Core {
     this.router.register(
       "library.add",
       z.object({ paper: resolved, addedBy: z.enum(["user", "agent"]).optional(), chatId: z.string().optional() }),
-      async ({ paper, addedBy, chatId }) => {
+      async ({ paper, addedBy }, caller) => {
         const { paper: added, existed } = await library().addNew(paper, addedBy)
         // A paper the library had already isn't the agent's to take back
-        if (addedBy === "agent" && !existed) {
-          const version = await this.requireWorkspace().versions.savePaper(added.id, "added", { chatId })
-          this.notifier.notify("agent.changed", { kind: "paper", versionId: version.id, path: added.id, label: added.title, ...(chatId ? { chatId } : {}) })
-        }
+        if (addedBy === "agent" && !existed) await this.requireWorkspace().recorder.record(caller, { action: "create", target: { kind: "paper", path: added.id } }, { label: added.title })
         return added
       },
     )
@@ -698,26 +703,24 @@ export class Core {
       .partial()
     this.router.register("library.update", z.object({ id: paperId, patch }), ({ id, patch }) => library().update(id, patch))
     this.router.register("library.remove", z.object({ ids: z.array(paperId) }), ({ ids }) => library().remove(ids))
-    // An agent's own additions, from the chat that added them; each removal is a version the user can undo
-    this.router.register("library.removeByAgent", z.object({ ids: z.array(z.string()), chatId: z.string().optional() }), async ({ ids, chatId }) => {
+    // An agent's own additions, from the chat that added them; each removal is a change the user can undo
+    this.router.register("library.removeByAgent", z.object({ ids: z.array(z.string()), chatId: z.string().optional() }), async ({ ids, chatId }, caller) => {
       // Changing the library either way: the role that may add may take back
       await this.consented(chatId, "add_paper", ids.length === 1 ? `Remove ${ids[0]} from the Library` : `Remove ${ids.length} papers from the Library`)
       const ws = this.requireWorkspace()
       const mine: string[] = []
       const refused: { id: string; why: string }[] = []
-      const versions = chatId ? await ws.versions.list() : []
+      const additions = chatId ? await ws.changes.list({ target: { kind: "paper" } }) : []
       for (const id of ids) {
-        const added = versions.find((v) => v.path === id && v.kind === "paper" && v.op === "added")
-        if (chatId && added && added.chatId !== chatId) refused.push({ id, why: "another chat added it; ask the user" })
+        const added = additions.find((c) => c.target.path === id && c.action === "create")
+        if (chatId && added && added.origin.chatId !== chatId) refused.push({ id, why: "another chat added it; ask the user" })
         else mine.push(id)
       }
       // Named as the user knows them, while they are still there to read
       const titles = new Map(await Promise.all(mine.map(async (id) => [id, (await ws.library.get(id))?.title ?? id] as const)))
       const done = await ws.library.removeByAgent(mine)
-      for (const id of done.removed) {
-        const version = await ws.versions.savePaper(id, "removed", { chatId })
-        this.notifier.notify("agent.changed", { kind: "paper", op: "removed", versionId: version.id, path: id, label: titles.get(id) ?? id, ...(chatId ? { chatId } : {}) })
-      }
+      const writeId = newWriteId()
+      for (const id of done.removed) await ws.recorder.record(caller, { action: "delete", target: { kind: "paper", path: id }, origin: { writeId } }, { label: titles.get(id) ?? id })
       return { removed: done.removed, refused: [...refused, ...done.refused] }
     })
     this.router.register("library.restore", z.object({ ids: z.array(paperId) }), ({ ids }) => library().restore(ids))
@@ -888,7 +891,7 @@ export class Core {
         run: z.string().optional(),
         docPath: z.string().optional(),
       }),
-      (params) => threads().write(params),
+      (params, caller) => threads().write(params, caller),
     )
     this.router.register(
       "threads.edit",
@@ -942,7 +945,7 @@ export class Core {
     this.router.register(
       "comments.add",
       z.object({ path: rel, comment: commentSchema, agent: z.object({ chatId: z.string().optional(), run: z.string().optional() }).optional() }),
-      async ({ path, comment, agent }) => {
+      async ({ path, comment, agent }, caller) => {
         if (!agent) {
           await docs().addComment(path, comment)
           this.notifier.notify("comments.changed", { path, comment })
@@ -956,7 +959,7 @@ export class Core {
         const { source: _claimed, ...own } = comment
         // A run Owlit started on its own: held while the user is on that page
         if (isCommentingRun(agent.run)) await this.reviews.comment(agent.run!, path, own)
-        else await this.agentComment(path, own, agent.chatId)
+        else await this.agentComment(path, own, caller)
         return null
       },
     )
@@ -1013,8 +1016,9 @@ export class Core {
     )
   }
 
-  async handle(request: RpcRequest): Promise<RpcResponse> {
-    const response = await this.router.handle(request)
+  // caller: who sent it; the in-process host (the window) by default
+  async handle(request: RpcRequest, caller: Caller = WINDOW): Promise<RpcResponse> {
+    const response = await this.router.handle(request, caller)
     // What a client changed is searched for soon after (the index waits for things to settle)
     if (this.workspace && "result" in response && CHANGES.test(request?.method ?? "")) this.workspace.search.touch()
     if (this.workspace && "result" in response && SHARED_CHANGES.test(request?.method ?? "")) {
@@ -1101,10 +1105,10 @@ export class Core {
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
-                // A chat's agent gathered papers into a thread: the chat shows it with Undo, as for any agent write
-                wrote: ({ id, ...change }) => {
-                  if (this.workspace?.root === root) this.notifier.notify("agent.changed", { kind: "thread", path: id, ...change })
-                },
+              },
+              profile: async () => (await this.settings.get()).profile,
+              changeAdded: (notification) => {
+                if (this.workspace?.root === root) this.notifier.notify("changes.added", notification)
               },
               memoryChanged: (lines) => {
                 if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
@@ -1200,17 +1204,15 @@ export class Core {
     return run
   }
 
-  // One of Owlit's comments, written as an agent's: kept as a version (Undo) and shown in the session's
-  // result card
+  // One of Owlit's comments, written as an agent's: recorded in the change log (Undo) and shown in the
+  // session's result card
   // quiet: from a run Owlit made while the user was away, which says nothing when it lands (no toast);
-  // the comment and its version are kept the same
-  private async agentComment(path: string, comment: DocComment, chatId: string | undefined, quiet = false) {
+  // the comment and its change are kept the same
+  private async agentComment(path: string, comment: DocComment, caller: Caller, quiet = false) {
     const ws = this.requireWorkspace()
     await ws.docs.addComment(path, comment)
     this.notifier.notify("comments.changed", { path, comment })
-    const agent = chatId ? { chatId } : {}
-    const version = await ws.versions.saveComment(path, comment, "added", agent)
-    if (!quiet) this.notifier.notify("agent.changed", { kind: "note", versionId: version.id, path, label: path.split("/").pop()!.replace(/\.md$/i, ""), ...agent })
+    await ws.recorder.record(caller, { action: "create", target: { kind: "comment", path, part: comment.id }, after: comment }, { label: path.split("/").pop()!.replace(/\.md$/i, ""), quiet })
   }
 
   // Whether a chat's agent may make this change, by the chat's role, asked in the chat when the role says

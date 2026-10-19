@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
+import type { Caller } from "../rpc/index.ts"
 import { Http } from "../net/http.ts"
 import { eventually, until } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
@@ -29,13 +30,15 @@ async function setup(routes: Record<string, string | number>) {
   }) as unknown as typeof globalThis.fetch
   const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch }, retryBaseMs: 1 })
   cores.push(core)
-  const call = async (method: string, params?: unknown): Promise<any> => {
-    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+  const call = async (method: string, params?: unknown, caller?: Caller): Promise<any> => {
+    const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
     if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
     return response.result
   }
+  // As owlit-mcp calls for a chat's agent, over the socket
+  const agent = (method: string, params: { chatId: string } & Record<string, unknown>) => call(method, params, { kind: "socket", chatId: params.chatId })
   await call("workspace.open", { path: root })
-  return { root, call, asked, core }
+  return { root, call, agent, asked, core }
 }
 
 const published = {
@@ -151,14 +154,14 @@ describe("keeping the library clean", () => {
   const indexed = (call: (method: string, params?: unknown) => Promise<any>, inputs: string[]) =>
     until(async () => ((await call("library.known", { inputs })) as (string | null)[]).every(Boolean), { what: "the papers in the library's index" })
 
-  it("doesn't add a copy of a paper it has under a DOI, and keeps no version an agent could undo", async () => {
-    const { root, call } = await setup({})
+  it("doesn't add a copy of a paper it has under a DOI, and records no change an agent could undo", async () => {
+    const { root, call, agent } = await setup({})
     putPaper(root, review)
     await indexed(call, [review.ids.doi])
-    const added = await call("library.add", { paper: { id: "s2-d9b08e17", title, authors: [], ids: { s2: "d9b08e17" } }, addedBy: "agent", chatId: "c1" })
+    const added = await agent("library.add", { paper: { id: "s2-d9b08e17", title, authors: [], ids: { s2: "d9b08e17" } }, addedBy: "agent", chatId: "c1" })
     expect(added.id).toBe(review.id)
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id)).toEqual([review.id])
-    expect(await call("versions.list", { path: review.id })).toEqual([])
+    expect(await call("changes.list", { path: review.id })).toEqual([])
   })
 
   it("folds a stray copy into the paper with the DOI once it is looked up again, its id kept as an alias", async () => {
@@ -182,23 +185,23 @@ describe("keeping the library clean", () => {
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
   })
 
-  it("lets an agent take back only papers its chat added that the user hasn't touched, as versions", async () => {
-    const { call } = await setup({})
+  it("lets an agent take back only papers its chat added that the user hasn't touched, each a change", async () => {
+    const { call, agent } = await setup({})
     const paper = (id: string) => ({ id, title: `Paper ${id}`, authors: [], ids: { doi: `10.9999/${id}` } })
-    await call("library.add", { paper: paper("doi-10.9999-a"), addedBy: "agent", chatId: "c1" })
-    await call("library.add", { paper: paper("doi-10.9999-b"), addedBy: "agent", chatId: "c1" })
+    await agent("library.add", { paper: paper("doi-10.9999-a"), addedBy: "agent", chatId: "c1" })
+    await agent("library.add", { paper: paper("doi-10.9999-b"), addedBy: "agent", chatId: "c1" })
     await call("library.add", { paper: paper("doi-10.9999-c"), addedBy: "user" })
     await call("library.update", { id: "doi-10.9999-b", patch: { tags: ["keep"] } })
     // A passage the agent marked itself doesn't make the paper the user's
     await call("library.putHighlight", { highlight: { id: "h", paperId: "doi-10.9999-a", page: 0, rects: [], text: "t", color: "yellow", addedBy: "agent", createdAt: 1 } })
-    expect(await call("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
-    const done = await call("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
+    expect(await agent("library.removeByAgent", { ids: ["doi-10.9999-a"], chatId: "c2" })).toMatchObject({ removed: [], refused: [{ id: "doi-10.9999-a", why: expect.stringMatching(/another chat/) }] })
+    const done = await agent("library.removeByAgent", { ids: ["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"], chatId: "c1" })
     expect(done.removed).toEqual(["doi-10.9999-a"])
     expect(done.refused.map((r: { id: string }) => r.id)).toEqual(["doi-10.9999-b", "doi-10.9999-c"])
     // The user's Undo puts it back
-    const [removal] = await call("versions.list", { path: "doi-10.9999-a" })
-    expect(removal).toMatchObject({ kind: "paper", op: "removed", chatId: "c1" })
-    await call("versions.restore", { id: removal.id })
+    const [removal] = await call("changes.list", { path: "doi-10.9999-a" })
+    expect(removal).toMatchObject({ actor: expect.stringMatching(/^o_/), action: "delete", target: { kind: "paper", path: "doi-10.9999-a" }, origin: { chatId: "c1" } })
+    await call("changes.undo", { id: removal.id })
     expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual(["doi-10.9999-a", "doi-10.9999-b", "doi-10.9999-c"])
   })
 

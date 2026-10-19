@@ -9,11 +9,23 @@ import {
 import { z } from "zod"
 import { invalidParams, RpcFailure, toRpcError } from "./errors.ts"
 
-type Handler<M extends MethodName> = (params: ParamsOf<M>) => ResultOf<M> | Promise<ResultOf<M>>
+// Who a request came from, as far as core can tell: the window (the person at it); a program on the
+// workspace's socket (owlit-mcp names the chat or run it works for, the CLI names none); core itself
+// working for Owlit (an agent's ACP write, a review); a change the watcher saw, with the chat whose turn
+// claimed the file. The change log's actor follows from it (changes/record.ts).
+export type Caller =
+  | { kind: "window" }
+  | { kind: "socket"; chatId?: string; run?: string }
+  | { kind: "owlit"; chatId?: string; run?: string }
+  | { kind: "watcher"; chatId?: string }
+
+export const WINDOW: Caller = { kind: "window" }
+
+type Handler<M extends MethodName> = (params: ParamsOf<M>, caller: Caller) => ResultOf<M> | Promise<ResultOf<M>>
 
 interface Route {
   params: z.ZodType
-  handler: (params: unknown) => unknown
+  handler: (params: unknown, caller: Caller) => unknown
 }
 
 // Methods that take no params accept a missing or empty params object
@@ -25,14 +37,14 @@ export class Router {
 
   register<M extends MethodName>(method: M, params: z.ZodType<ParamsOf<M>, any>, handler: Handler<M>) {
     if (this.routes.has(method)) throw new Error(`${method} is registered twice`)
-    this.routes.set(method, { params, handler: handler as (params: unknown) => unknown })
+    this.routes.set(method, { params, handler: handler as Route["handler"] })
   }
 
   has(method: string) {
     return this.routes.has(method)
   }
 
-  async handle(request: RpcRequest): Promise<RpcResponse> {
+  async handle(request: RpcRequest, caller: Caller): Promise<RpcResponse> {
     const id = request?.id ?? null
     try {
       if (!isRequest(request)) {
@@ -44,7 +56,7 @@ export class Router {
       if (!parsed.success) {
         throw invalidParams(`${request.method} got parameters it can't use.`, { issues: parsed.error.issues })
       }
-      const result = await route.handler(parsed.data)
+      const result = await route.handler(parsed.data, caller)
       return { jsonrpc: "2.0", id: request.id, result: result ?? null }
     } catch (error) {
       return { jsonrpc: "2.0", id: id as RpcRequest["id"], error: toRpcError(error, isRequest(request) ? request.method : undefined) }

@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import {
   applyThreadEdit,
+  type Change,
   GROUPING_COLUMN,
   groupingView,
   threadOfSubject,
@@ -28,9 +29,9 @@ import {
 import { randomBytes } from "node:crypto"
 import { mkdir, readdir, rename } from "node:fs/promises"
 import path from "node:path"
-import type { Versions } from "../docs/versions.ts"
+import type { Recorder } from "../changes/record.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
-import { RpcFailure } from "../rpc/index.ts"
+import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskContext, type TaskDefinition } from "../tasks/index.ts"
 import { checkSkill, fillSkill, gatherSkill, moreSkill, readSkill, relateSkill, rereadSkill, type Skill } from "../initiative/skills.ts"
 import { Serial } from "../util.ts"
@@ -41,9 +42,9 @@ import { Serial } from "../util.ts"
 //   history.jsonl     one line per write: who (a chat, a run, the user, an undo), which items, why
 //
 // Owlit writes its own record without asking, but never over the user: a rewrite of theirs stays word for
-// word whatever Owlit writes later, and what they removed stays out. Every agent write is kept as a
-// version, so the window can offer Undo like for any agent change; an undo takes back what Owlit did and
-// keeps what the user did since.
+// word whatever Owlit writes later, and what they removed stays out. Every agent write goes in the change
+// log with the thread as it was before, so the window can offer Undo like for any agent change; an undo
+// takes back what Owlit did and keeps what the user did since.
 
 export interface ThreadsServices {
   // A background agent session with owlit's tools, allowed these besides the read-only ones; its answer
@@ -65,8 +66,6 @@ export interface ThreadsServices {
   facts?: (id: string, paper: ThreadPaper) => Promise<ThreadPaper>
   // A thread changed under the windows (null: deleted)
   changed?: (id: string, thread: Thread | null) => void
-  // An agent in a chat wrote to a thread; versionId takes the write back
-  wrote?: (change: { versionId: string; id: string; label: string; chatId?: string; created: boolean; rows: string[]; updated: number; asked?: string }) => void
 }
 
 interface HistoryLine {
@@ -98,17 +97,17 @@ const NO_TOOLS = /^$/
 export class Threads {
   private readonly dir: string
   private readonly trashDir: string
-  private readonly versions: Versions
+  private readonly recorder: Recorder
   private readonly services: ThreadsServices
   private readonly serial = new Serial()
   private scheduler: Scheduler | null = null
   // When each chat's or run's searches were last given to a write
   private attributed = new Map<string, number>()
 
-  constructor(owlitDir: string, parts: { versions: Versions }, services: ThreadsServices = {}) {
+  constructor(owlitDir: string, parts: { recorder: Recorder }, services: ThreadsServices = {}) {
     this.dir = path.join(owlitDir, "threads")
     this.trashDir = path.join(owlitDir, "trash")
-    this.versions = parts.versions
+    this.recorder = parts.recorder
     this.services = services
   }
 
@@ -334,7 +333,7 @@ export class Threads {
 
   // ---- Owlit's writes ----
 
-  write(input: ThreadWrite) {
+  write(input: ThreadWrite, caller: Caller) {
     return this.serial.run(async () => {
       const now = Date.now()
       const existing = input.id ? await this.load(input.id) : undefined
@@ -572,7 +571,6 @@ export class Threads {
       if (!fresh && !changed.size) return { id: c.id, title: shownThread(c).title, added: 0, updated: 0, left, userKept }
 
       c.updatedAt = now
-      const version = await this.versions.saveThread(c.id, before, { ...(input.chatId ? { chatId: input.chatId } : {}) })
       await this.save(c)
       const searches = await this.searchesFor(c.id, input, now)
       await this.record(c.id, {
@@ -588,7 +586,12 @@ export class Threads {
       })
       this.services.changed?.(c.id, c)
       const title = shownThread(c).title
-      if (input.chatId) this.services.wrote?.({ versionId: version.id, id: c.id, label: title, chatId: input.chatId, created: fresh, rows: added, updated, ...(asked ? { asked } : {}) })
+      // Said only for a chat, which shows it under the answer; a run's write is shown with the run
+      await this.recorder.record(
+        caller,
+        { action: fresh ? "create" : "update", target: { kind: "thread", path: c.id }, ...(input.chatId ? { origin: { chatId: input.chatId } } : {}), ...(before !== null ? { content: before } : {}) },
+        { label: title, thread: { rows: added, updated, ...(asked ? { asked } : {}) }, quiet: !input.chatId },
+      )
       return { id: c.id, title, added: added.length, updated, left, userKept }
     })
   }
@@ -726,15 +729,15 @@ export class Threads {
     })
   }
 
-  // Undo of an agent's write: the thread as it was before, with what the user did since kept (their
-  // rewrites and removals are theirs, not the agent's). A write that started the thread is undone by
-  // putting the thread in the trash. What it replaces is kept as a version too, so the undo can be
-  // undone.
-  restoreVersion(id: string, content: string, existed: boolean, meta: { chatId?: string }) {
+  // Undo of a write in the change log (content: the thread as it was before it): the thread goes back,
+  // with what the user did since kept (their rewrites and removals are theirs, not the agent's). A write
+  // that started the thread is undone by putting the thread in the trash. The undo is recorded as a
+  // change that undoes the write, so it can be undone in turn.
+  undo(change: Change, content: string | null, caller: Caller) {
     return this.serial.run(async () => {
+      const id = change.target.path
       const now = await this.load(id)
-      const redo = await this.versions.saveThread(id, now ? JSON.stringify(now) : null, { ...meta, by: "undo" })
-      if (!existed) {
+      if (content === null) {
         if (now) await this.toTrash(id)
         this.services.changed?.(id, null)
       } else {
@@ -744,7 +747,12 @@ export class Threads {
         await this.record(id, { at: c.updatedAt, by: "undo", items: [] })
         this.services.changed?.(id, c)
       }
-      return { redoId: redo.id }
+      return this.recorder.record(caller, {
+        action: !now ? "create" : content === null ? "delete" : "update",
+        target: { kind: "thread", path: id },
+        undoes: change.id,
+        ...(now ? { content: JSON.stringify(now) } : {}),
+      })
     })
   }
 

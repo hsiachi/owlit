@@ -1,9 +1,10 @@
-import { itemId, placedKey, shownThread, type Thread, type ThreadPaper } from "@owlit/protocol"
+import { itemId, placedKey, shownThread, type Notifications, type Thread, type ThreadPaper } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { Versions } from "../docs/versions.ts"
+import { ChangeLog } from "../changes/log.ts"
+import { Recorder } from "../changes/record.ts"
 import { Scheduler, TaskStore } from "../tasks/index.ts"
 import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
@@ -15,21 +16,25 @@ const papers: Record<string, ThreadPaper> = {
 
 function setup(services: ThreadsServices = {}) {
   const owlit = mkdtempSync(path.join(tmpdir(), "owlit-threads-"))
-  const versions = new Versions(owlit)
+  const changes = new ChangeLog(owlit)
   const events: { id: string; gone: boolean }[] = []
-  const wrote: unknown[] = []
+  const wrote: Notifications["changes.added"][] = []
+  const recorder = new Recorder(changes, { profile: async () => ({ id: "1234abcd" }), added: (n) => wrote.push(n) })
   const threads = new Threads(
     owlit,
-    { versions },
+    { recorder },
     {
       paper: async (id) => papers[id],
       changed: (id, c) => events.push({ id, gone: !c }),
-      wrote: (w) => wrote.push(w),
       ...services,
     },
   )
-  return { owlit, versions, threads, events, wrote }
+  return { owlit, changes, threads, events, wrote }
 }
+
+// An agent on owlit's socket, working for a run (or the chat its write names)
+const agent = { kind: "socket" as const, run: "threads.more:t1" }
+const window = { kind: "window" as const }
 
 const start = (threads: Threads, extra: object = {}) =>
   threads.write({
@@ -44,7 +49,7 @@ const start = (threads: Threads, extra: object = {}) =>
     ],
     chatId: "chat-1",
     ...extra,
-  })
+  }, agent)
 
 describe("Threads.write", () => {
   it("starts a thread with the question as its first column and the papers as the search found them", async () => {
@@ -58,22 +63,24 @@ describe("Threads.write", () => {
     expect(c.memo.map((s) => s.id)).toEqual(["s1", "s2"])
     // Nothing in a new thread is marked as changed: the whole thing is new
     expect(c.changedAt).toEqual({})
-    expect(wrote).toMatchObject([{ id: out.id, label: "回放式标注作为研究方法", chatId: "chat-1", created: true, rows: ["doi-10.1145-1", "doi-10.1145-2"] }])
+    expect(wrote).toMatchObject([
+      { change: { action: "create", target: { kind: "thread", path: out.id }, origin: { chatId: "chat-1" } }, label: "回放式标注作为研究方法", thread: { rows: ["doi-10.1145-1", "doi-10.1145-2"] } },
+    ])
   })
 
   it("refuses a paper it can't look up, and a new thread without its question or title", async () => {
     const { threads } = setup()
-    await expect(threads.write({ title: "x" })).rejects.toThrow(/asked/)
+    await expect(threads.write({ title: "x" }, agent)).rejects.toThrow(/asked/)
     await expect(start(threads, { rows: [{ id: "doi-10.9999-x" }] })).rejects.toThrow(/doesn't know the paper doi-10.9999-x/)
   })
 
   it("adds to a thread, marking only what changed once the user has looked", async () => {
     const { threads } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] }, agent)
     expect((await threads.get(id)).changedAt).toEqual({})
     await threads.edit(id, { op: "seen" })
-    const out = await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Retrospective answers run lower.", depth: "abstract" } } }, { id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover more.", depth: "abstract" } } }] })
+    const out = await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Retrospective answers run lower.", depth: "abstract" } } }, { id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover more.", depth: "abstract" } } }] }, agent)
     expect(out).toMatchObject({ added: 0, updated: 1 })
     const c = await threads.get(id)
     expect(Object.keys(c.changedAt)).toEqual([itemId.cell("doi-10.1145-3", "q")])
@@ -84,7 +91,7 @@ describe("Threads.write", () => {
     const { id } = await start(threads)
     await threads.edit(id, { op: "seen" })
     await threads.edit(id, { op: "rewrite", item: itemId.cell("doi-10.1145-2", "q"), text: "Lifelog replay beats diaries." })
-    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Explanations from replay are more complete.", depth: "full", passage: { quote: "more complete", page: 12 } } } }] })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "Explanations from replay are more complete.", depth: "full", passage: { quote: "more complete", page: 12 } } } }] }, agent)
     const c = await threads.get(id)
     const shown = shownThread(c)
     expect(shown.rows.find((r) => r.id === "doi-10.1145-2")?.cells.q?.text).toBe("Lifelog replay beats diaries.")
@@ -98,7 +105,7 @@ describe("Threads.write", () => {
     const { threads } = setup()
     const { id } = await start(threads)
     await threads.edit(id, { op: "remove", item: itemId.row("doi-10.1145-2") })
-    const out = await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "again", depth: "abstract" } } }] })
+    const out = await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "again", depth: "abstract" } } }] }, agent)
     expect(out.left).toEqual(["doi-10.1145-2"])
     expect(shownThread(await threads.get(id)).rows.map((r) => r.id)).toEqual(["doi-10.1145-1"])
   })
@@ -108,7 +115,7 @@ describe("Threads.write", () => {
     const { id } = await start(threads)
     await threads.edit(id, { op: "rewrite", item: itemId.memo("s1"), text: "ProAgent and Kelly 2015 are the closest precedents." })
     await threads.edit(id, { op: "remove", item: itemId.memo("s2") })
-    await threads.write({ id, memo: [{ text: "Replay ratings run lower than live ones." }, { text: "Nothing compares replay with live reminders." }] })
+    await threads.write({ id, memo: [{ text: "Replay ratings run lower than live ones." }, { text: "Nothing compares replay with live reminders." }] }, agent)
     const shown = shownThread(await threads.get(id))
     expect(shown.memo.map((s) => s.text)).toEqual(["ProAgent and Kelly 2015 are the closest precedents.", "Nothing compares replay with live reminders."])
   })
@@ -116,8 +123,8 @@ describe("Threads.write", () => {
   it("groups rows in a hidden Topic grouping, and refuses a group that isn't there", async () => {
     const { threads } = setup()
     const { id } = await start(threads)
-    await expect(threads.write({ id, rows: [{ id: "doi-10.1145-1", group: "eval" }] })).rejects.toThrow(/group eval/)
-    await threads.write({ id, groups: [{ id: "eval", name: "Evaluating proactive systems" }], rows: [{ id: "doi-10.1145-1", group: "eval" }] })
+    await expect(threads.write({ id, rows: [{ id: "doi-10.1145-1", group: "eval" }] }, agent)).rejects.toThrow(/group eval/)
+    await threads.write({ id, groups: [{ id: "eval", name: "Evaluating proactive systems" }], rows: [{ id: "doi-10.1145-1", group: "eval" }] }, agent)
     const c = await threads.get(id)
     expect(c.columns.at(-1)).toEqual({ id: "topic", question: "Topic", kind: "grouping", hidden: true, groups: [{ id: "eval", name: "Evaluating proactive systems" }] })
     expect(c.rows[0]?.in).toEqual({ topic: ["eval"] })
@@ -130,10 +137,10 @@ describe("Threads.write", () => {
   it("adds a column once, however often it is asked", async () => {
     const { threads } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, columns: [{ question: "Method and sample" }] })
-    await threads.write({ id, columns: [{ question: "Method  and sample" }] })
+    await threads.write({ id, columns: [{ question: "Method and sample" }] }, agent)
+    await threads.write({ id, columns: [{ question: "Method  and sample" }] }, agent)
     expect((await threads.get(id)).columns.map((c) => c.question)).toEqual(["我的研究方法该怎么设计？", "Method and sample"])
-    await expect(threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { nope: { text: "x", depth: "abstract" } } }] })).rejects.toThrow(/no column nope/)
+    await expect(threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { nope: { text: "x", depth: "abstract" } } }] }, agent)).rejects.toThrow(/no column nope/)
   })
 })
 
@@ -151,11 +158,11 @@ describe("Threads, the user's groups", () => {
     await threads.edit(id, { op: "move", column: "topic", row: "doi-10.1145-1", group: "b" })
     expect((await threads.get(id)).yours.placed).toMatchObject({ [placedKey("topic", "doi-10.1145-1", "a")]: { in: false }, [placedKey("topic", "doi-10.1145-1", "b")]: { in: true } })
     // Owlit writes the whole grouping again, with the paper back in its old group
-    await threads.write({ id, groups: GROUPS, rows: [{ id: "doi-10.1145-1", group: "a" }, { id: "doi-10.1145-2", group: "c" }] })
+    await threads.write({ id, groups: GROUPS, rows: [{ id: "doi-10.1145-1", group: "a" }, { id: "doi-10.1145-2", group: "c" }] }, agent)
     // The paper the user didn't touch is Owlit's to move
     expect(inGroups(await threads.get(id))).toEqual({ "doi-10.1145-1": ["b"], "doi-10.1145-2": ["c"] })
     // A group the user put a paper in stays when Owlit leaves it out
-    await threads.write({ id, groups: [GROUPS[0]!, GROUPS[2]!] })
+    await threads.write({ id, groups: [GROUPS[0]!, GROUPS[2]!] }, agent)
     const c = await threads.get(id)
     expect(shownThread(c).columns.at(-1)?.groups?.map((g) => g.id)).toEqual(["a", "b", "c"])
     expect(inGroups(c)).toEqual({ "doi-10.1145-1": ["b"], "doi-10.1145-2": ["c"] })
@@ -167,7 +174,7 @@ describe("Threads, the user's groups", () => {
     await threads.edit(id, { op: "merge", column: "topic", group: "a", into: "b" })
     await threads.edit(id, { op: "ungroup", column: "topic", group: "c" })
     expect(inGroups(await threads.get(id))).toEqual({ "doi-10.1145-1": ["b"], "doi-10.1145-2": [] })
-    const out = await threads.write({ id, groups: GROUPS, rows: [{ id: "doi-10.1145-3", group: "a" }, { id: "doi-10.1145-2", group: "c" }] })
+    const out = await threads.write({ id, groups: GROUPS, rows: [{ id: "doi-10.1145-3", group: "a" }, { id: "doi-10.1145-2", group: "c" }] }, agent)
     expect(out.userKept).toEqual([expect.stringMatching(/merged group a .* into b/), expect.stringMatching(/ungrouped c/), expect.stringMatching(/doi-10.1145-2 isn't in c/)])
     const c = await threads.get(id)
     expect(shownThread(c).columns.at(-1)?.groups?.map((g) => g.id)).toEqual(["b"])
@@ -181,7 +188,7 @@ describe("Threads, the user's groups", () => {
     const { threads } = setup()
     const { id } = await start(threads, { groups: GROUPS })
     await threads.edit(id, { op: "rewrite", item: itemId.group("topic", "a"), text: "Watching it again" })
-    await threads.write({ id, groups: [{ id: "a", name: "Replay studies" }] })
+    await threads.write({ id, groups: [{ id: "a", name: "Replay studies" }] }, agent)
     expect(shownThread(await threads.get(id)).columns.at(-1)?.groups).toEqual([{ id: "a", name: "Watching it again" }])
   })
 
@@ -189,9 +196,9 @@ describe("Threads, the user's groups", () => {
     const { threads } = setup()
     const { id } = await start(threads, { groups: GROUPS })
     const before = await threads.get(id)
-    await expect(threads.write({ id, groups: [{ id: "a", name: "A" }, { id: "b", name: "B", parent: "a" }, { id: "c", name: "C", parent: "b" }] })).rejects.toThrow(/two levels/)
-    await expect(threads.write({ id, groups: [{ id: "a", name: "A", parent: "b" }, { id: "b", name: "B", parent: "a" }] })).rejects.toThrow(/two levels/)
-    await expect(threads.write({ id, groups: [{ id: "a", name: "A", parent: "a" }] })).rejects.toThrow(/two levels/)
+    await expect(threads.write({ id, groups: [{ id: "a", name: "A" }, { id: "b", name: "B", parent: "a" }, { id: "c", name: "C", parent: "b" }] }, agent)).rejects.toThrow(/two levels/)
+    await expect(threads.write({ id, groups: [{ id: "a", name: "A", parent: "b" }, { id: "b", name: "B", parent: "a" }] }, agent)).rejects.toThrow(/two levels/)
+    await expect(threads.write({ id, groups: [{ id: "a", name: "A", parent: "a" }] }, agent)).rejects.toThrow(/two levels/)
     expect(await threads.get(id)).toEqual(before)
   })
 
@@ -223,7 +230,7 @@ describe("Threads, a paper in several groups", () => {
     await threads.edit(id, { op: "place", column: "topic", row: "doi-10.1145-1", group: "a", in: false })
     expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["c"])
     // Owlit writing it into a and b again doesn't bring it back to either: the user took it out of both
-    await threads.write({ id, rows: [{ id: "doi-10.1145-1", groups: ["a", "b"] }] })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", groups: ["a", "b"] }] }, agent)
     expect(inGroups(await threads.get(id))["doi-10.1145-1"]).toEqual(["c"])
     // Undo of a change puts the user's earlier placements of the paper back
     await threads.edit(id, { op: "unplace", column: "topic", row: "doi-10.1145-1", placed: { a: null, b: null, c: null } })
@@ -265,8 +272,8 @@ describe("Threads, several groupings", () => {
   it("starts a new grouping from a chat's write, and finds it again by the same words", async () => {
     const { threads } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, newGrouping: "按方法", groups: [{ id: "m1", name: "回放" }], rows: [{ id: "doi-10.1145-1", group: "m1" }] })
-    await threads.write({ id, newGrouping: "按方法", rows: [{ id: "doi-10.1145-2", group: "m1" }] })
+    await threads.write({ id, newGrouping: "按方法", groups: [{ id: "m1", name: "回放" }], rows: [{ id: "doi-10.1145-1", group: "m1" }] }, agent)
+    await threads.write({ id, newGrouping: "按方法", rows: [{ id: "doi-10.1145-2", group: "m1" }] }, agent)
     const c = await threads.get(id)
     const groupings = c.columns.filter((col) => col.kind === "grouping")
     expect(groupings).toEqual([{ id: expect.any(String), question: "按方法", kind: "grouping", hidden: true, groups: [{ id: "m1", name: "回放" }] }])
@@ -330,15 +337,15 @@ describe("Threads, a close question", () => {
   it("keeps a later question with the thread and says which rows were added for it", async () => {
     const { threads, wrote } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, asked: "回放评价和当场评价，偏差方向有没有研究？", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower in retrospect.", depth: "abstract" } } }], chatId: "chat-2" })
+    await threads.write({ id, asked: "回放评价和当场评价，偏差方向有没有研究？", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower in retrospect.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
     expect((await threads.get(id)).alsoAsked).toMatchObject([{ text: "回放评价和当场评价，偏差方向有没有研究？", chatId: "chat-2" }])
-    expect(wrote.at(-1)).toMatchObject({ created: false, rows: ["doi-10.1145-3"], asked: "回放评价和当场评价，偏差方向有没有研究？" })
+    expect(wrote.at(-1)).toMatchObject({ change: { action: "update" }, thread: { rows: ["doi-10.1145-3"], asked: "回放评价和当场评价，偏差方向有没有研究？" } })
   })
 
   it("keeps it separate: the added rows become a thread of their own", async () => {
     const { threads } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, asked: "偏差方向？", groups: [{ id: "g", name: "G" }], columns: [{ id: "m", question: "Method" }], rows: [{ id: "doi-10.1145-3", group: "g", cells: { q: { text: "Lower.", depth: "abstract" }, m: { text: "Survey", depth: "abstract" } } }] })
+    await threads.write({ id, asked: "偏差方向？", groups: [{ id: "g", name: "G" }], columns: [{ id: "m", question: "Method" }], rows: [{ id: "doi-10.1145-3", group: "g", cells: { q: { text: "Lower.", depth: "abstract" }, m: { text: "Survey", depth: "abstract" } } }] }, agent)
     const split = await threads.split(id, ["doi-10.1145-3"], "偏差方向？")
     expect(split).toMatchObject({ title: "偏差方向？", asked: { text: "偏差方向？" }, project: "主动提醒研究" })
     expect(split.rows).toEqual([expect.objectContaining({ id: "doi-10.1145-3", cells: { q: expect.objectContaining({ text: "Lower." }) } })])
@@ -351,7 +358,7 @@ describe("Threads, a close question", () => {
   it("puts kept-apart rows back as they were, with the user's rewrite, and the new thread in the trash", async () => {
     const { threads } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, asked: "偏差方向？", groups: [{ id: "g", name: "G" }], columns: [{ id: "m", question: "Method" }], rows: [{ id: "doi-10.1145-3", group: "g", cells: { q: { text: "Lower.", depth: "abstract" }, m: { text: "Survey", depth: "abstract" } } }] })
+    await threads.write({ id, asked: "偏差方向？", groups: [{ id: "g", name: "G" }], columns: [{ id: "m", question: "Method" }], rows: [{ id: "doi-10.1145-3", group: "g", cells: { q: { text: "Lower.", depth: "abstract" }, m: { text: "Survey", depth: "abstract" } } }] }, agent)
     const split = await threads.split(id, ["doi-10.1145-3"], "偏差方向？")
     await threads.edit(split.id, { op: "rewrite", item: itemId.cell("doi-10.1145-3", "q"), text: "Lower, by a third." })
     const back = await threads.unsplit(split.id)
@@ -382,7 +389,7 @@ describe("Threads, the user's side", () => {
     expect((await threads.list())[0]?.fresh).toBe(true)
     await threads.edit(id, { op: "seen" })
     expect((await threads.list())[0]?.fresh).toBe(false)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] }, agent)
     expect((await threads.list())[0]).toMatchObject({ fresh: true, papers: 3 })
     await threads.edit(id, { op: "seen" })
     expect((await threads.list())[0]?.fresh).toBe(false)
@@ -405,28 +412,28 @@ describe("Threads, the user's side", () => {
 
 describe("Threads, undo", () => {
   it("takes back an agent's write and keeps what the user did since", async () => {
-    const { threads, versions } = setup()
+    const { threads, changes } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower.", depth: "abstract" } } }], chatId: "chat-2" })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
     await threads.edit(id, { op: "rename", title: "Replay as a method" })
-    const last = (await versions.list({ path: id }))[0]!
-    const v = (await versions.get(last.id))!
-    await threads.restoreVersion(id, v.content, v.existed !== false, {})
+    const last = (await changes.list({ path: id }))[0]!
+    expect(last).toMatchObject({ actor: "o_1234abcd", action: "update", target: { kind: "thread", path: id }, origin: { via: "tool", chatId: "chat-2" } })
+    await threads.undo(last, await changes.content(last.id), window)
     const c = await threads.get(id)
     expect(c.rows.map((r) => r.id)).toEqual(["doi-10.1145-1", "doi-10.1145-2"])
     expect(shownThread(c).title).toBe("Replay as a method")
   })
 
   it("puts a thread an agent started into the trash", async () => {
-    const { threads, versions } = setup()
+    const { threads, changes } = setup()
     const { id } = await start(threads)
-    const first = (await versions.list({ path: id })).at(-1)!
-    const v = (await versions.get(first.id))!
-    expect(v.existed).toBe(false)
-    const { redoId } = await threads.restoreVersion(id, v.content, false, {})
+    const first = (await changes.list({ path: id })).at(-1)!
+    expect(first.action).toBe("create")
+    expect(await changes.content(first.id)).toBeNull()
+    const undo = await threads.undo(first, null, window)
+    expect(undo).toMatchObject({ actor: "p_1234abcd", action: "delete", undoes: first.id })
     expect(await threads.list()).toEqual([])
-    const redo = (await versions.get(redoId))!
-    await threads.restoreVersion(id, redo.content, redo.existed !== false, {})
+    await threads.undo(undo, await changes.content(undo.id), window)
     expect((await threads.list()).map((c) => c.id)).toEqual([id])
   })
 })
@@ -439,11 +446,11 @@ describe("Threads.paperOf", () => {
       paper: async (id) => (id === "arxiv-2310.00001" ? { title: "Replay ratings", authors: ["Oh"], ids: { arxiv: "2310.00001" } } : papers[id]),
       canonical: async (id) => library[id],
     })
-    const { id } = await threads.write({ asked: "Do replay ratings hold?", title: "Replay", rows: [{ id: "arxiv-2310.00001", cells: { q: { text: "Lower.", depth: "abstract" } } }] })
+    const { id } = await threads.write({ asked: "Do replay ratings hold?", title: "Replay", rows: [{ id: "arxiv-2310.00001", cells: { q: { text: "Lower.", depth: "abstract" } } }] }, agent)
     expect(await threads.rowsOf("doi-10.1145-9")).toEqual([{ thread: id, row: "arxiv-2310.00001", fromAbstract: true }])
     expect((await threads.paperOf("doi-10.1145-9"))?.title).toBe("Replay ratings")
     // Named by its library id, the answer goes to the row there
-    await threads.write({ id, rows: [{ id: "doi-10.1145-9", cells: { q: { text: "Lower, by 0.6.", depth: "abstract" } } }] })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-9", cells: { q: { text: "Lower, by 0.6.", depth: "abstract" } } }] }, agent)
     const c = await threads.get(id)
     expect(c.rows.map((r) => [r.id, r.cells.q?.text])).toEqual([["arxiv-2310.00001", "Lower, by 0.6."]])
   })
@@ -484,11 +491,11 @@ describe("Threads, Owlit's work in the background", () => {
         // Grouping: the groups first, then every paper in one, as the prompt says
         const grouping = /The grouping: ([\w-]+)/.exec(prompt)?.[1]
         if (id && grouping) {
-          await ctx.threads.write({ id, grouping, groups: [{ id: "ch1", name: "Chapter 1" }, { id: "ch2", name: "Chapter 2" }], run })
-          await ctx.threads.write({ id, grouping, rows: [{ id: "doi-10.1145-1", group: "ch1" }, { id: "doi-10.1145-2", group: "ch2" }], run })
+          await ctx.threads.write({ id, grouping, groups: [{ id: "ch1", name: "Chapter 1" }, { id: "ch2", name: "Chapter 2" }], run }, agent)
+          await ctx.threads.write({ id, grouping, rows: [{ id: "doi-10.1145-1", group: "ch1" }, { id: "doi-10.1145-2", group: "ch2" }], run }, agent)
         }
         if (id && prompt.includes("gathering"))
-          await ctx.threads.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", run })
+          await ctx.threads.write({ id, title: "Replay ratings", rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower.", depth: "abstract" } } }], note: "Semantic Scholar wasn't reachable.", run }, agent)
         return { text: "Gathered one paper." }
       },
     })
@@ -503,7 +510,7 @@ describe("Threads, Owlit's work in the background", () => {
     const c = await threads.gather({ question: "回放评价可靠吗？", size: "few" })
     await scheduler.wait((await scheduler.list()).find((t) => t.subject === c.id)!.id)
     searched.push({ by: "chat:c9", at: Date.now(), query: "lifelog video recall", source: "arxiv", results: ["doi-10.1145-2"] })
-    await threads.write({ id: c.id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-2", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" })
+    await threads.write({ id: c.id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-2", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" }, agent)
 
     const [gathered, chat, ...rest] = await threads.about(c.id)
     expect(rest).toEqual([])

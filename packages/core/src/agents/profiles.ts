@@ -132,7 +132,7 @@ export function processSetup(connectorId: string): Pick<ProcessOptions, "clientM
 //   command that writes ask first; its auto-review mode lets it work and has its own reviewer judge what
 //   is risky.
 // - The Owlit engine is told the role and holds to it itself: a Reviewer gets no edit tools, an Assistant
-//   asks with the diff through ACP, and every write comes through ACP's fs, so owlit keeps a version.
+//   asks with the diff through ACP, and every write comes through ACP's fs, so owlit records it.
 // - Any other agent keeps the mode it starts in; owlit still refuses what a Reviewer may not do.
 export interface Guard {
   // The agent's own modes to set, in order of preference; the first it offers wins

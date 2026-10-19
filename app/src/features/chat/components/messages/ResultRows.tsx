@@ -53,7 +53,7 @@ export interface ResultRow {
 
 const FOLD_AFTER = 3
 
-// What the reply's edits to a file amounted to. Core reads it from the versions it kept, which is the whole
+// What the reply's edits to a file amounted to. Core reads it from its change log, which is the whole
 // change whatever the agent reported; without core (the browser preview) the reply's own diffs are summed.
 const statsCache = create<{ byKey: Record<string, EditStats | null>; load: (from: string, to: string) => void }>()((set, get) => ({
   byKey: {},
@@ -61,8 +61,8 @@ const statsCache = create<{ byKey: Record<string, EditStats | null>; load: (from
     const key = `${from}|${to}`
     if (key in get().byKey) return
     set((s) => ({ byKey: { ...s.byKey, [key]: null } }))
-    void rpc.versions
-      .stats({ from, to })
+    void rpc.changes
+      .stats({ ids: [from, to] })
       .then((stats) => set((s) => ({ byKey: { ...s.byKey, [key]: stats } })))
       .catch(() => undefined)
   },
@@ -112,7 +112,7 @@ async function undoResults(messageId: string, results: AgentResult[]) {
   try {
     for (const r of [...results].reverse()) {
       if (r.undone) continue
-      done[r.versionId] = await undoResult(r.versionId)
+      done[r.changeId] = await undoResult(r.changeId)
     }
   } catch (error) {
     toastError(error)
@@ -128,7 +128,7 @@ async function redoResults(messageId: string, results: AgentResult[]) {
     for (const r of results) {
       if (!r.undone || !r.redoId) continue
       await redoResult(r.redoId)
-      done.push(r.versionId)
+      done.push(r.changeId)
     }
   } catch (error) {
     toastError(error)
@@ -156,7 +156,7 @@ function useFollowDocs(messageId: string, results: AgentResult[]) {
       appliedText.delete(appliedKey(messageId, path))
       useResultsStore.getState().markRedone(
         messageId,
-        results.filter((r) => r.kind === "file" && r.path === path).map((r) => r.versionId),
+        results.filter((r) => r.kind === "file" && r.path === path).map((r) => r.changeId),
       )
     })
   })
@@ -167,11 +167,11 @@ function useResultRows(message: ChatMessage): ResultRow[] {
   const results = useResultsStore((s) => s.byMessage[message.id]) ?? []
   useFollowDocs(message.id, results)
   const stats = statsCache((s) => s.byKey)
-  // Each file's first and last version from this reply, whose stats core is asked for once
+  // Each file's first and last change from this reply, whose stats core is asked for once
   const spans = isDesktop
     ? [...new Map(results.filter((r) => r.kind === "file").map((r) => [r.path, r])).keys()].map((path) => {
         const list = results.filter((r) => r.kind === "file" && r.path === path).sort((a, b) => a.at - b.at)
-        return { path, key: `${list[0].versionId}|${list.at(-1)!.versionId}`, from: list[0].versionId, to: list.at(-1)!.versionId }
+        return { path, key: `${list[0].changeId}|${list.at(-1)!.changeId}`, from: list[0].changeId, to: list.at(-1)!.changeId }
       })
     : []
   const wanted = spans.map((s) => s.key).join(",")
@@ -256,7 +256,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
             undo: async () => {
               try {
                 await rpc.threads.unsplit({ id: separate.id })
-                useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), null)
+                useResultsStore.getState().markSeparate(message.id, list.map((r) => r.changeId), null)
               } catch (error) {
                 toastError(error)
               }
@@ -272,7 +272,7 @@ function useResultRows(message: ChatMessage): ResultRow[] {
               run: async () => {
                 try {
                   const c = await rpc.threads.split({ id, rows: rowIds, asked: asked ?? "" })
-                  useResultsStore.getState().markSeparate(message.id, list.map((r) => r.versionId), { id: c.id, title: c.title })
+                  useResultsStore.getState().markSeparate(message.id, list.map((r) => r.changeId), { id: c.id, title: c.title })
                 } catch (error) {
                   toastError(error)
                 }
@@ -286,12 +286,12 @@ function useResultRows(message: ChatMessage): ResultRow[] {
   for (const r of results.filter((r) => r.kind === "paper")) {
     // A paper the agent took back has nothing to open; Undo puts it back
     const view = r.removed ? undefined : () => navigate(`/library/${r.path}`)
-    rows.push({ key: `paper:${r.versionId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
+    rows.push({ key: `paper:${r.changeId}`, kind: "paper", icon: KIND_ICON.paper, name: r.label, detail: r.removed ? t({ message: "Removed", comment: "a paper the agent took out of the library" }) : t({ message: "Added", comment: "a paper the agent added to the library" }), ...of([r]), view, removed: r.removed })
   }
   // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
   for (const r of results.filter((r) => r.kind === "memory")) {
     rows.push({
-      key: `memory:${r.versionId}`,
+      key: `memory:${r.changeId}`,
       kind: "memory",
       icon: BookmarkIcon,
       name: r.label,

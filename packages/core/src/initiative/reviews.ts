@@ -28,7 +28,7 @@ export interface ReviewServices {
   // Owlit looked at a doc (the chip's line), or went through it
   looked: (path: string, state: DocOwlit) => void
   // Writes a new doc of Owlit's (a Go through's record), as an agent's write from the run's session:
-  // kept as a version, so the run offers Undo
+  // recorded in the change log, so the run offers Undo
   writeRecord: (path: string, content: string, chatId: string | undefined) => Promise<void>
   // One of Owlit's comments changed: it answered in it, added to it, or folded it away
   replied: (path: string, comment: DocComment) => void

@@ -163,25 +163,6 @@ msgstr "Forward"
 msgid "Every keyboard shortcut in owlit"
 msgstr "Every keyboard shortcut in owlit"
 
-#: app/src/app/agent-changes.ts
-msgid "Note added"
-msgstr "Note added"
-
-#: app/src/app/agent-changes.ts
-msgid "Paper added"
-msgstr "Paper added"
-
-#: app/src/app/agent-changes.ts
-msgid "Papers collected"
-msgstr "Papers collected"
-
-#. a line the agent now keeps in mind
-#. a toast: Owlit now keeps a line in mind about the user
-#: app/src/app/agent-changes.ts
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Remembered"
-msgstr "Remembered"
-
 #. a toast: Owlit removed a line from what it keeps in mind
 #: app/src/app/agent-changes.ts
 msgid "No longer kept in mind"
@@ -192,9 +173,28 @@ msgstr "No longer kept in mind"
 msgid "Remembered, replacing a line"
 msgstr "Remembered, replacing a line"
 
+#. a line the agent now keeps in mind
+#. a toast: Owlit now keeps a line in mind about the user
+#: app/src/app/agent-changes.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered"
+msgstr "Remembered"
+
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr "Paper removed"
+
+#: app/src/app/agent-changes.ts
+msgid "Paper added"
+msgstr "Paper added"
+
+#: app/src/app/agent-changes.ts
+msgid "Note added"
+msgstr "Note added"
+
+#: app/src/app/agent-changes.ts
+msgid "Papers collected"
+msgstr "Papers collected"
 
 #: app/src/app/app-links.ts
 msgid "Settings › {place}"
@@ -400,8 +400,8 @@ msgstr "Close the popover"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
+#: app/src/lib/changes.ts
 #: app/src/lib/toast.ts
-#: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Undo"
 msgstr "Undo"
@@ -1341,14 +1341,14 @@ msgstr "{0, plural, one {changed what it keeps in mind} other {changed # lines i
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 #: apps/desktop/src/main.ts
 msgid "Redo"
 msgstr "Redo"
 
 #. a change that was taken back
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 msgid "Undone"
 msgstr "Undone"
 
@@ -2625,24 +2625,22 @@ msgid "Versions of {name}"
 msgstr "Versions of {name}"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
-msgstr "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
+msgid "The changes made to this doc and who made them, kept for 30 days. Restore puts back the text from before a change, even if the doc changed since."
+msgstr "The changes made to this doc and who made them, kept for 30 days. Restore puts back the text from before a change, even if the doc changed since."
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Owlit hasn't changed this doc."
-msgstr "Owlit hasn't changed this doc."
+msgid "No changes to this doc are kept."
+msgstr "No changes to this doc are kept."
 
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before an undo"
-msgstr "Before an undo"
+msgid "Undone by {who}"
+msgstr "Undone by {who}"
 
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "From another program"
-msgstr "From another program"
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before Owlit's edit"
-msgstr "Before Owlit's edit"
+msgid "Changed by {who}"
+msgstr "Changed by {who}"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from “{title}”"
@@ -6301,6 +6299,25 @@ msgstr "Choose…"
 msgid "Create"
 msgstr "Create"
 
+#. who made a change: the person reading
+#: app/src/lib/actors.ts
+msgid "you"
+msgstr "you"
+
+#. who made a change: another program, or someone owlit doesn't know
+#: app/src/lib/actors.ts
+msgid "outside owlit"
+msgstr "outside owlit"
+
+#. who made a change: a person in the workspace who gave no name
+#: app/src/lib/actors.ts
+msgid "someone else"
+msgstr "someone else"
+
+#: app/src/lib/changes.ts
+msgid "Redone"
+msgstr "Redone"
+
 #: app/src/lib/clipboard.ts
 msgid "Could not write to the clipboard"
 msgstr "Could not write to the clipboard"
@@ -6331,10 +6348,6 @@ msgstr "{hours} h ago"
 #: app/src/lib/time.ts
 msgid "yesterday"
 msgstr "yesterday"
-
-#: app/src/lib/versions.ts
-msgid "Redone"
-msgstr "Redone"
 
 #: app/src/lib/words.ts
 msgctxt "the last thing in a list"
@@ -7041,8 +7054,8 @@ msgid "{name} ran into a problem."
 msgstr "{name} ran into a problem."
 
 #: packages/core/src/agents/fs.ts
-msgid "That earlier version is no longer kept."
-msgstr "That earlier version is no longer kept."
+msgid "That change is no longer kept."
+msgstr "That change is no longer kept."
 
 #: packages/core/src/agents/fs.ts
 msgid "That comment is already gone."

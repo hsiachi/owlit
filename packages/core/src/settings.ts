@@ -1,4 +1,5 @@
 import type { AppSettings } from "@owlit/protocol"
+import { randomBytes } from "node:crypto"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "./fs-util.ts"
 import type { SecretBox } from "./host.ts"
@@ -36,6 +37,7 @@ const isSealed = (value: unknown): value is Sealed => typeof value === "object" 
 export class SettingsStore {
   readonly file: string
   private value: AppSettings | undefined
+  private loading: Promise<AppSettings> | undefined
   private box: SecretBox | undefined
   // Sealed keys this launch couldn't open, by "group.key", written back as they were
   private unopened = new Map<string, Sealed>()
@@ -45,18 +47,25 @@ export class SettingsStore {
     this.box = box
   }
 
-  async get(): Promise<AppSettings> {
-    if (!this.value) {
-      let stored: Partial<AppSettings> | undefined
-      try {
-        stored = await readJson<Partial<AppSettings>>(this.file)
-      } catch (error) {
-        // A settings file that doesn't parse is replaced rather than blocking the app from starting
-        console.error(`[core] ${this.file} is unreadable, starting from defaults`, error)
-      }
-      const defaults = defaultSettings()
-      this.value = this.open({ ...defaults, ...stored, appearance: { ...defaults.appearance, ...stored?.appearance } })
+  get(): Promise<AppSettings> {
+    if (this.value) return Promise.resolve(this.value)
+    // One read for every caller of the first get(): two would each mint a profile id
+    this.loading ??= this.load()
+    return this.loading
+  }
+
+  private async load() {
+    let stored: Partial<AppSettings> | undefined
+    try {
+      stored = await readJson<Partial<AppSettings>>(this.file)
+    } catch (error) {
+      // A settings file that doesn't parse is replaced rather than blocking the app from starting
+      console.error(`[core] ${this.file} is unreadable, starting from defaults`, error)
     }
+    const defaults = defaultSettings()
+    this.value = this.open({ ...defaults, ...stored, appearance: { ...defaults.appearance, ...stored?.appearance } })
+    // The person's id in every workspace's change log, made once per profile
+    if (!this.value.profile.id) await this.update((s) => ({ ...s, profile: { ...s.profile, id: randomBytes(4).toString("hex") } }))
     return this.value
   }
 

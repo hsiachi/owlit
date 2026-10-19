@@ -1,4 +1,4 @@
-import type { RpcNotification, UiRequest } from "@owlit/protocol"
+import type { Change, RpcNotification, UiRequest } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -30,76 +30,77 @@ async function setup() {
   }
   await call("workspace.open", { path: root })
   await call("docs.list")
-  const journal = () =>
-    readFileSync(path.join(root, ".owlit/journal.jsonl"), "utf8")
-      .trim()
-      .split("\n")
-      .map((l) => JSON.parse(l))
   const of = (method: string) => heard.filter((n) => n.method === method).map((n) => n.params as any)
-  return { core, root, call, heard, journal, of }
+  // The changes windows were told of, Owlit's and the undos
+  const added = (): Change[] => of("changes.added").map((n) => n.change)
+  // Every change kept for a path, oldest first
+  const log = async (rel: string): Promise<Change[]> => (await call("changes.list", { path: rel })).reverse()
+  return { core, root, call, heard, of, added, log }
 }
 
 describe("agent fs", () => {
-  it("keeps the file as it was, journals the write as the agent's, and tells windows", async () => {
-    const { core, root, journal, of } = await setup()
+  it("keeps the file as it was, records the write as Owlit's, and tells windows", async () => {
+    const { core, root, of, added, log } = await setup()
     await core.fs.write(path.join(root, "a.md"), "agent text", "chat-1")
+    const [entry] = await log("a.md")
     await core.dispose()
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("agent text")
-    const [entry] = journal()
-    expect(entry).toMatchObject({ kind: "agent.wrote", actor: "agent", path: "a.md", chatId: "chat-1" })
-    expect(readFileSync(path.join(root, ".owlit/versions", entry.versionId), "utf8")).toBe("on disk")
-    expect(of("agent.wrote")).toEqual([{ path: "a.md", versionId: entry.versionId, chatId: "chat-1" }])
+    expect(entry).toMatchObject({ actor: expect.stringMatching(/^o_/), action: "update", target: { kind: "doc", path: "a.md" }, origin: { via: "tool", chatId: "chat-1" } })
+    expect(readFileSync(path.join(root, ".owlit/versions", entry.id), "utf8")).toBe("on disk")
+    expect(added()).toEqual([entry])
     expect(of("docs.changed")).toHaveLength(1)
   })
 
   it("says how much a reply's writes to a file changed it, from before the first to after the last", async () => {
-    const { core, root, call, of } = await setup()
+    const { core, root, call, added } = await setup()
     await core.fs.write(path.join(root, "a.md"), "on disk and more", "chat-1")
     await core.fs.write(path.join(root, "a.md"), "on paper and more words", "chat-1")
-    const [first, second] = of("agent.wrote").map((w) => w.versionId)
+    const [first, second] = added().map((c) => c.id)
     // "on disk" → "on paper and more words": the net change, not the two writes added up
-    expect(await call("versions.stats", { from: first, to: second })).toEqual({ unit: "words", added: 4, removed: 1, rewritten: false })
+    expect(await call("changes.stats", { ids: [first, second] })).toEqual({ unit: "words", added: 4, removed: 1, rewritten: false })
     // The first write alone ends where the second began
-    expect(await call("versions.stats", { from: first, to: first })).toEqual({ unit: "words", added: 2, removed: 0, rewritten: false })
+    expect(await call("changes.stats", { ids: [first] })).toEqual({ unit: "words", added: 2, removed: 0, rewritten: false })
   })
 
-  it("restores the version, unless the file changed since", async () => {
-    const { core, root, call, journal } = await setup()
+  it("undoes a change by recording its reverse, unless the file changed since", async () => {
+    const { core, root, call, log } = await setup()
     await core.fs.write(path.join(root, "a.md"), "agent text")
-    const { versionId } = await until(() => journal()[0], { what: "the write in the journal" })
-    const undone = await call("versions.restore", { id: versionId })
-    expect(undone).toMatchObject({ path: "a.md", kind: "file" })
+    const [write] = await log("a.md")
+    const { change: undone } = await call("changes.undo", { id: write.id })
+    expect(undone).toMatchObject({ actor: expect.stringMatching(/^p_/), action: "update", target: { kind: "doc", path: "a.md" }, origin: { via: "editor" }, undoes: write.id })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
     // The undo can be undone, and that too
-    const redone = await call("versions.restore", { id: undone.redoId })
+    const { change: redone } = await call("changes.undo", { id: undone.id })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("agent text")
-    await call("versions.restore", { id: redone.redoId })
+    await call("changes.undo", { id: redone.id })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
     await core.fs.write(path.join(root, "a.md"), "second")
-    const second = (await until(() => journal().filter((e) => e.kind === "agent.wrote")[1], { what: "the second write in the journal" })).versionId
+    const second = (await log("a.md")).at(-1)!.id
     writeFileSync(path.join(root, "a.md"), "the user typed more")
-    const error = await call("versions.restore", { id: second }).catch((e) => e)
+    const error = await call("changes.undo", { id: second }).catch((e) => e)
     expect(error.message).toBe("a.md changed after the agent's edit, so owlit left it as it is.")
     // A restore the user chose from the doc's versions goes ahead, keeping what was there
-    const forced = await call("versions.restore", { id: second, force: true })
+    const { change: forced } = await call("changes.undo", { id: second, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
-    await call("versions.restore", { id: forced.redoId, force: true })
+    await call("changes.undo", { id: forced.id, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("the user typed more")
-    // Every change and every undo is listed, newest first
-    const listed = await call("versions.list", { path: "a.md" })
-    expect(listed.map((v: { by: string }) => v.by)).toEqual(["undo", "undo", "agent", "undo", "undo", "undo", "agent"])
+    // Every change and every undo is in the log, each undo naming the change it takes back
+    const all = await log("a.md")
+    expect(all.map((c) => (c.undoes ? all.findIndex((u) => u.id === c.undoes) : c.actor.slice(0, 2)))).toEqual(["o_", 0, 1, 2, "o_", 4, 5])
   })
 
   it("undoes a file the agent created by moving it to the Trash", async () => {
-    const { core, root, call, journal } = await setup()
+    const { core, root, call, log } = await setup()
     await core.fs.write(path.join(root, "notes/new.md"), "made by the agent")
-    const { versionId } = await until(() => journal()[0], { what: "the write in the journal" })
-    await call("versions.restore", { id: versionId })
+    const [write] = await log("notes/new.md")
+    expect(write.action).toBe("create")
+    const { change } = await call("changes.undo", { id: write.id })
+    expect(change.action).toBe("delete")
     expect(existsSync(path.join(root, "notes/new.md"))).toBe(false)
   })
 
   it("reads and writes an open doc through the window that has it", async () => {
-    const { core, root, call, of } = await setup()
+    const { core, root, call, added } = await setup()
     const asked: UiRequest[] = []
     core.onNotify((n) => {
       if (n.method !== "ui.request") return
@@ -115,9 +116,9 @@ describe("agent fs", () => {
     expect(asked[2]).toMatchObject({ clientId: "w1", params: { path: "a.md", content: "agent text" } })
     // The window applied it: core left the disk alone and offered no Undo of its own
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
-    expect(of("agent.wrote")).toEqual([])
-    const versionId = (asked[2].params as { versionId: string }).versionId
-    expect(readFileSync(path.join(root, ".owlit/versions", versionId), "utf8")).toBe("typed in the editor")
+    expect(added()).toEqual([])
+    const changeId = (asked[2].params as { changeId: string }).changeId
+    expect(readFileSync(path.join(root, ".owlit/versions", changeId), "utf8")).toBe("typed in the editor")
   })
 
   it("tells windows of a doc it renamed, as the same doc at its new path, and makes no second folder", async () => {
@@ -127,7 +128,7 @@ describe("agent fs", () => {
     const before = await call("docs.list")
     const { id } = before.files.find((f: { path: string }) => f.path === "Proactive Support/研究故事.md")
     const told = of("docs.changed").length
-    expect(await core.fs.move("Proactive Support/研究故事.md", "Proactive Support/研究故事-v1.md", "chat-1")).toBe("Proactive Support/研究故事-v1.md")
+    expect(await core.fs.move("Proactive Support/研究故事.md", "Proactive Support/研究故事-v1.md", { kind: "socket", chatId: "chat-1" })).toBe("Proactive Support/研究故事-v1.md")
     const changes = of("docs.changed").slice(told)
     expect(changes.flatMap((c) => c.changed).map((f) => [f.id, f.path, f.content])).toEqual([[id, "Proactive Support/研究故事-v1.md", "story"]])
     expect(changes.flatMap((c) => c.deleted)).toEqual([])
@@ -137,17 +138,27 @@ describe("agent fs", () => {
   })
 
   it("tells windows of a folder a move made and of a doc it deleted", async () => {
-    const { core, call, of } = await setup()
+    const { core, call, of, added } = await setup()
+    const agent = { kind: "socket" as const, chatId: "chat-1" }
     const { id } = (await call("docs.list")).files.find((f: { path: string }) => f.path === "a.md")
     let told = of("docs.changed").length
-    await core.fs.move("a.md", "new/deeper/a.md")
+    await core.fs.move("a.md", "new/deeper/a.md", agent)
     let changes = of("docs.changed").slice(told)
     expect(changes.flatMap((c) => c.folders.created)).toEqual(["new", "new/deeper"])
     expect(changes.flatMap((c) => c.changed).map((f) => [f.id, f.path])).toEqual([[id, "new/deeper/a.md"]])
     told = of("docs.changed").length
-    await core.fs.remove(["new/deeper/a.md"])
+    await core.fs.remove(["new/deeper/a.md"], agent)
     changes = of("docs.changed").slice(told)
     expect(changes.flatMap((c) => c.deleted)).toEqual([{ id, path: "new/deeper/a.md" }])
+    // A move is a delete and a create, one write; the removal another
+    const [left, arrived, removed] = added()
+    expect([left, arrived, removed].map((c) => [c.action, c.target.path])).toEqual([
+      ["delete", "a.md"],
+      ["create", "new/deeper/a.md"],
+      ["delete", "new/deeper/a.md"],
+    ])
+    expect(arrived.origin.writeId).toBe(left.origin.writeId)
+    expect(removed.origin.writeId).not.toBe(left.origin.writeId)
   })
 
   it("refuses paths outside the workspace and owlit's own, as written or through a link", async () => {
@@ -160,7 +171,7 @@ describe("agent fs", () => {
     await expect(core.fs.write(path.join(root, "Library/papers/x/paper.json"), "{}")).rejects.toThrow("owlit's, not a doc")
     symlinkSync(path.join(root, ".owlit"), path.join(root, "state"))
     await expect(core.fs.write(path.join(root, "state/workspace.json"), "{}")).rejects.toThrow("owlit's, not a doc")
-    await expect(core.fs.remove(["state"])).rejects.toThrow("owlit's, not a doc")
+    await expect(core.fs.remove(["state"], { kind: "socket" })).rejects.toThrow("owlit's, not a doc")
     // A symlink in the folder doesn't lead outside it
     const outside = mkdtempSync(path.join(tmpdir(), "owlit-outside-"))
     writeFileSync(path.join(outside, "secret.txt"), "secret")
@@ -171,7 +182,7 @@ describe("agent fs", () => {
   })
 
   it("writes a paper's note through the library, tells windows, and undoes it", async () => {
-    const { core, root, call, journal, of } = await setup()
+    const { core, root, call, of, added } = await setup()
     const id = "arxiv-1706.03762"
     await call("library.add", { paper: { id, title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
     await call("library.setNote", { paperId: id, content: "Mine. Long and repeated." })
@@ -180,10 +191,9 @@ describe("agent fs", () => {
     expect(readFileSync(file, "utf8")).toBe("Mine.")
     // The window's own save is not news; the agent's edit is
     expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ paperId: id, content: "Mine." }) }])
-    const entry = journal().find((e) => e.kind === "agent.wrote")
-    expect(entry).toMatchObject({ path: `library/papers/${id}/note.md`, chatId: "chat-1" })
-    expect(of("agent.wrote")).toEqual([{ path: `library/papers/${id}/note.md`, versionId: entry.versionId, chatId: "chat-1" }])
-    await call("versions.restore", { id: entry.versionId })
+    const [entry] = added()
+    expect(entry).toMatchObject({ target: { kind: "doc", path: `library/papers/${id}/note.md` }, origin: { chatId: "chat-1" } })
+    await call("changes.undo", { id: entry.id })
     expect(readFileSync(file, "utf8")).toBe("Mine. Long and repeated.")
     expect(of("library.noteChanged").at(-1)).toEqual({ paperId: id, note: expect.objectContaining({ content: "Mine. Long and repeated." }) })
     // The machine state inside .owlit/papers isn't writable
@@ -191,7 +201,7 @@ describe("agent fs", () => {
   })
 
   it("keeps a note an agent wrote on disk itself as the agent's, while its tool call names the file", async () => {
-    const { core, root, call, journal, of } = await setup()
+    const { core, root, call, of, added } = await setup()
     const id = "arxiv-1706.03762"
     const rel = `library/papers/${id}/note.md`
     await call("library.add", { paper: { id, title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 } })
@@ -208,19 +218,19 @@ describe("agent fs", () => {
       { timeout: 4000, interval: 500 },
     )
     expect(of("library.noteChanged")).toEqual([{ paperId: id, note: expect.objectContaining({ content: "Mine." }) }])
-    // Journaled just after windows hear of it
-    const entry = await until(() => journal().find((e) => e.kind === "agent.wrote"), { what: "agent.wrote in the journal" })
-    expect(entry).toMatchObject({ path: rel, chatId: "chat-2" })
-    expect(of("agent.wrote")).toEqual([{ path: rel, versionId: entry.versionId, chatId: "chat-2" }])
-    await call("versions.restore", { id: entry.versionId })
+    // Recorded just after windows hear of it
+    const entry = await until(() => added()[0], { what: "the change in the log" })
+    expect(entry).toMatchObject({ actor: expect.stringMatching(/^o_/), target: { kind: "doc", path: rel }, origin: { via: "watcher", chatId: "chat-2" } })
+    await call("changes.undo", { id: entry.id })
     expect(readFileSync(path.join(root, rel), "utf8")).toBe("Mine. Long and repeated.")
     // The undo is owlit's own write: not recorded again as the agent's. An agent's write to another file,
     // heard the same way after it, is the sentinel: once it is in, the undo's turn has passed.
     ;(core as any).turns.claims.set("a.md", { chatId: "chat-3", until: Infinity })
+    const owlits = () => added().filter((c) => c.actor.startsWith("o_"))
     await eventually(() => {
-      if (!of("agent.wrote").some((w) => w.path === "a.md")) writeFileSync(path.join(root, "a.md"), "the agent's sentinel")
-      expect(of("agent.wrote").map((w) => w.path)).toContain("a.md")
+      if (!owlits().some((c) => c.target.path === "a.md")) writeFileSync(path.join(root, "a.md"), "the agent's sentinel")
+      expect(owlits().map((c) => c.target.path)).toContain("a.md")
     }, 5_000)
-    expect(of("agent.wrote").map((w) => w.path)).toEqual([rel, "a.md"])
+    expect(owlits().map((c) => c.target.path)).toEqual([rel, "a.md"])
   })
 })

@@ -163,25 +163,6 @@ msgstr ""
 msgid "Every keyboard shortcut in owlit"
 msgstr ""
 
-#: app/src/app/agent-changes.ts
-msgid "Note added"
-msgstr ""
-
-#: app/src/app/agent-changes.ts
-msgid "Paper added"
-msgstr ""
-
-#: app/src/app/agent-changes.ts
-msgid "Papers collected"
-msgstr ""
-
-#. a line the agent now keeps in mind
-#. a toast: Owlit now keeps a line in mind about the user
-#: app/src/app/agent-changes.ts
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Remembered"
-msgstr ""
-
 #. a toast: Owlit removed a line from what it keeps in mind
 #: app/src/app/agent-changes.ts
 msgid "No longer kept in mind"
@@ -192,8 +173,27 @@ msgstr ""
 msgid "Remembered, replacing a line"
 msgstr ""
 
+#. a line the agent now keeps in mind
+#. a toast: Owlit now keeps a line in mind about the user
+#: app/src/app/agent-changes.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered"
+msgstr ""
+
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Paper added"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Note added"
+msgstr ""
+
+#: app/src/app/agent-changes.ts
+msgid "Papers collected"
 msgstr ""
 
 #: app/src/app/app-links.ts
@@ -400,8 +400,8 @@ msgstr ""
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
+#: app/src/lib/changes.ts
 #: app/src/lib/toast.ts
-#: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Undo"
 msgstr ""
@@ -1341,14 +1341,14 @@ msgstr ""
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 #: apps/desktop/src/main.ts
 msgid "Redo"
 msgstr ""
 
 #. a change that was taken back
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 msgid "Undone"
 msgstr ""
 
@@ -2625,23 +2625,21 @@ msgid "Versions of {name}"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
+msgid "The changes made to this doc and who made them, kept for 30 days. Restore puts back the text from before a change, even if the doc changed since."
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Owlit hasn't changed this doc."
+msgid "No changes to this doc are kept."
 msgstr ""
 
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before an undo"
+msgid "Undone by {who}"
 msgstr ""
 
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "From another program"
-msgstr ""
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before Owlit's edit"
+msgid "Changed by {who}"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -6301,6 +6299,25 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
+#. who made a change: the person reading
+#: app/src/lib/actors.ts
+msgid "you"
+msgstr ""
+
+#. who made a change: another program, or someone owlit doesn't know
+#: app/src/lib/actors.ts
+msgid "outside owlit"
+msgstr ""
+
+#. who made a change: a person in the workspace who gave no name
+#: app/src/lib/actors.ts
+msgid "someone else"
+msgstr ""
+
+#: app/src/lib/changes.ts
+msgid "Redone"
+msgstr ""
+
 #: app/src/lib/clipboard.ts
 msgid "Could not write to the clipboard"
 msgstr ""
@@ -6330,10 +6347,6 @@ msgstr ""
 
 #: app/src/lib/time.ts
 msgid "yesterday"
-msgstr ""
-
-#: app/src/lib/versions.ts
-msgid "Redone"
 msgstr ""
 
 #: app/src/lib/words.ts
@@ -7041,7 +7054,7 @@ msgid "{name} ran into a problem."
 msgstr ""
 
 #: packages/core/src/agents/fs.ts
-msgid "That earlier version is no longer kept."
+msgid "That change is no longer kept."
 msgstr ""
 
 #: packages/core/src/agents/fs.ts

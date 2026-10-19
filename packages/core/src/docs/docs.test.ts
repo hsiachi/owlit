@@ -102,10 +102,10 @@ describe("docs.write", () => {
     expect(error.data).toMatchObject({ path: "a.md", content: "theirs" })
     await call("docs.write", { path: "a.md", content: "mine", expectedModifiedAt: 0, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("mine")
-    // Keep mine doesn't lose theirs: it is a version of the doc, and restoring it brings it back
-    const versions = await call("versions.list", { path: "a.md" })
-    expect(versions.map((v: any) => [v.kind, v.by])).toEqual([["file", "outside"]])
-    await call("versions.restore", { id: versions[0].id, force: true })
+    // Keep mine doesn't lose theirs: it is kept as the other program's change, and restoring it brings it back
+    const changes = await call("changes.list", { path: "a.md" })
+    expect(changes.map((c: any) => [c.target.kind, c.actor, c.origin.via])).toEqual([["doc", "other", "watcher"]])
+    await call("changes.undo", { id: changes[0].id, force: true })
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("theirs")
   })
 

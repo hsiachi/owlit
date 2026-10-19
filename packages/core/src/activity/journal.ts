@@ -1,4 +1,4 @@
-import { JOURNALED_KINDS, type AgentRecord, type JournaledCoreEvent, type EvaluationRecord, type FeedbackRecord, type JournalEntry, type LookedRecord } from "@owlit/protocol"
+import { JOURNALED_KINDS, type JournaledCoreEvent, type EvaluationRecord, type FeedbackRecord, type JournalEntry, type LookedRecord } from "@owlit/protocol"
 import type { ActivityBus } from "./bus.ts"
 import { appendJsonl } from "../fs-util.ts"
 
@@ -26,12 +26,6 @@ export class Journal {
         await appendJsonl(file, entry)
       })
       .catch((error) => console.error(`[core] could not write ${file}`, error))
-  }
-
-  // What core itself saw an agent do (it never comes from a window)
-  record(entry: AgentRecord) {
-    const target = this.file()
-    if (target) this.append(target, { ...entry, actor: "agent" })
   }
 
   // Each decision Owlit's rules took, with or without an action: the held-back log

@@ -163,25 +163,6 @@ msgstr "前进"
 msgid "Every keyboard shortcut in owlit"
 msgstr "owlit 的全部键盘快捷键"
 
-#: app/src/app/agent-changes.ts
-msgid "Note added"
-msgstr "已添加笔记"
-
-#: app/src/app/agent-changes.ts
-msgid "Paper added"
-msgstr "已添加论文"
-
-#: app/src/app/agent-changes.ts
-msgid "Papers collected"
-msgstr "已收集论文"
-
-#. a line the agent now keeps in mind
-#. a toast: Owlit now keeps a line in mind about the user
-#: app/src/app/agent-changes.ts
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Remembered"
-msgstr "已记下"
-
 #. a toast: Owlit removed a line from what it keeps in mind
 #: app/src/app/agent-changes.ts
 msgid "No longer kept in mind"
@@ -192,9 +173,28 @@ msgstr "不再记着"
 msgid "Remembered, replacing a line"
 msgstr "已记下，替换了原来的一条"
 
+#. a line the agent now keeps in mind
+#. a toast: Owlit now keeps a line in mind about the user
+#: app/src/app/agent-changes.ts
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered"
+msgstr "已记下"
+
 #: app/src/app/agent-changes.ts
 msgid "Paper removed"
 msgstr "已移除论文"
+
+#: app/src/app/agent-changes.ts
+msgid "Paper added"
+msgstr "已添加论文"
+
+#: app/src/app/agent-changes.ts
+msgid "Note added"
+msgstr "已添加笔记"
+
+#: app/src/app/agent-changes.ts
+msgid "Papers collected"
+msgstr "已收集论文"
 
 #: app/src/app/app-links.ts
 msgid "Settings › {place}"
@@ -400,8 +400,8 @@ msgstr "关闭弹出框"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
+#: app/src/lib/changes.ts
 #: app/src/lib/toast.ts
-#: app/src/lib/versions.ts
 #: apps/desktop/src/main.ts
 msgid "Undo"
 msgstr "撤销"
@@ -1341,14 +1341,14 @@ msgstr "{0, plural, other {改了 # 条记着的事}}"
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 #: apps/desktop/src/main.ts
 msgid "Redo"
 msgstr "重做"
 
 #. a change that was taken back
 #: app/src/features/chat/components/messages/ResultRows.tsx
-#: app/src/lib/versions.ts
+#: app/src/lib/changes.ts
 msgid "Undone"
 msgstr "已撤销"
 
@@ -2625,24 +2625,22 @@ msgid "Versions of {name}"
 msgstr "{name} 的版本"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The text from before each change Owlit made to this doc, and what another program had written when you kept yours, kept for 30 days. Restore puts it back even if the doc changed since."
-msgstr "Owlit 每次修改这篇文档之前的文本，以及你保留自己的版本时其他程序写下的内容，保留 30 天。恢复会把它放回去，即使文档之后又改过。"
+msgid "The changes made to this doc and who made them, kept for 30 days. Restore puts back the text from before a change, even if the doc changed since."
+msgstr "这篇文档的每次改动以及改动者，保留 30 天。恢复会放回某次改动之前的文字，即使文档之后又改过。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Owlit hasn't changed this doc."
-msgstr "Owlit 还没有改过这篇文档。"
+msgid "No changes to this doc are kept."
+msgstr "这篇文档没有保留任何改动。"
 
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before an undo"
-msgstr "撤销之前"
+msgid "Undone by {who}"
+msgstr "由{who}撤销"
 
+#. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "From another program"
-msgstr "来自其他程序"
-
-#: app/src/features/docs/components/VersionsDialog.tsx
-msgid "Before Owlit's edit"
-msgstr "Owlit 编辑之前"
+msgid "Changed by {who}"
+msgstr "由{who}改动"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from “{title}”"
@@ -6301,6 +6299,25 @@ msgstr "选取…"
 msgid "Create"
 msgstr "创建"
 
+#. who made a change: the person reading
+#: app/src/lib/actors.ts
+msgid "you"
+msgstr "你"
+
+#. who made a change: another program, or someone owlit doesn't know
+#: app/src/lib/actors.ts
+msgid "outside owlit"
+msgstr "owlit 之外"
+
+#. who made a change: a person in the workspace who gave no name
+#: app/src/lib/actors.ts
+msgid "someone else"
+msgstr "其他人"
+
+#: app/src/lib/changes.ts
+msgid "Redone"
+msgstr "已重做"
+
 #: app/src/lib/clipboard.ts
 msgid "Could not write to the clipboard"
 msgstr "无法写入剪贴板"
@@ -6331,10 +6348,6 @@ msgstr "{hours} 小时前"
 #: app/src/lib/time.ts
 msgid "yesterday"
 msgstr "昨天"
-
-#: app/src/lib/versions.ts
-msgid "Redone"
-msgstr "已重做"
 
 #: app/src/lib/words.ts
 msgctxt "the last thing in a list"
@@ -7041,8 +7054,8 @@ msgid "{name} ran into a problem."
 msgstr "{name} 遇到了问题。"
 
 #: packages/core/src/agents/fs.ts
-msgid "That earlier version is no longer kept."
-msgstr "那个较早的版本已不再保留。"
+msgid "That change is no longer kept."
+msgstr "那次改动已不再保留。"
 
 #: packages/core/src/agents/fs.ts
 msgid "That comment is already gone."

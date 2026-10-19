@@ -3,18 +3,22 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { Versions } from "../docs/versions.ts"
+import { ChangeLog } from "../changes/log.ts"
+import { Recorder } from "../changes/record.ts"
 import { claudeNoteOf, formatMemory, Memory, parseMemory } from "./memory.ts"
 
 function setUp() {
   const root = mkdtempSync(path.join(tmpdir(), "owlit-memory-"))
   const owlit = path.join(root, ".owlit")
   mkdirSync(owlit)
-  const versions = new Versions(owlit)
+  const changes = new ChangeLog(owlit)
   const heard: MemoryLine[][] = []
-  const memory = new Memory(owlit, root, versions, (lines) => heard.push(lines))
-  return { root, owlit, versions, memory, heard, file: path.join(owlit, "memory.md") }
+  const memory = new Memory(owlit, root, new Recorder(changes, { profile: async () => ({ id: "1234abcd" }) }), (lines) => heard.push(lines))
+  return { root, owlit, changes, memory, heard, file: path.join(owlit, "memory.md") }
 }
+
+const chat = (chatId: string) => ({ kind: "socket" as const, chatId })
+const window = { kind: "window" as const }
 
 const configDir = process.env.CLAUDE_CONFIG_DIR
 afterEach(() => {
@@ -36,49 +40,49 @@ describe("Memory", () => {
     expect(parseMemory(edited).find((l) => l.text === "My advisor is Prof. Li")).toMatchObject({ id: "m5", kind: "about", at: 0 })
   })
 
-  it("adds, replaces and removes for an agent, each change undone by its version", async () => {
-    const { memory, versions, heard, file } = setUp()
-    const added = await memory.agentWrite({ op: "add", kind: "work", text: "Answer  in Chinese." }, { chatId: "c1" })
+  it("adds, replaces and removes for an agent, each change undone through the log", async () => {
+    const { memory, changes, heard, file } = setUp()
+    const added = await memory.agentWrite({ op: "add", kind: "work", text: "Answer  in Chinese." }, chat("c1"))
     expect(added.line).toMatchObject({ id: "m1", kind: "work", text: "Answer in Chinese.", chatId: "c1" })
     expect(added.before).toBeNull()
     // The same line again is not a second line
-    expect((await memory.agentWrite({ op: "add", kind: "work", text: "answer in chinese" })).versionId).toBeUndefined()
+    expect((await memory.agentWrite({ op: "add", kind: "work", text: "answer in chinese" }, chat("c1"))).changeId).toBeUndefined()
 
-    const replaced = await memory.agentWrite({ op: "replace", id: "m1", text: "Answer in the language I write in." }, { chatId: "c2" })
+    const replaced = await memory.agentWrite({ op: "replace", id: "m1", text: "Answer in the language I write in." }, chat("c2"))
     expect(replaced.before?.text).toBe("Answer in Chinese.")
     expect(readFileSync(file, "utf8")).toContain("- Answer in the language I write in. <!-- m1 ·")
+    const entry = (await changes.get(replaced.changeId!))!
+    expect(entry).toMatchObject({ actor: "o_1234abcd", action: "update", target: { kind: "memory", path: "memory", part: "m1" }, origin: { via: "tool", chatId: "c2" } })
+    expect(entry.before).toMatchObject({ text: "Answer in Chinese." })
 
     // Undo puts the old line back, and the undo can be undone
-    const v = await versions.get(replaced.versionId!)
-    const { redoId } = await memory.restoreVersion("m1", v!.content, v!.after, false, {})
+    const undo = await memory.undo(entry, window, false)
+    expect(undo).toMatchObject({ actor: "p_1234abcd", undoes: entry.id })
     expect((await memory.list())[0].text).toBe("Answer in Chinese.")
-    const redo = await versions.get(redoId)
-    await memory.restoreVersion("m1", redo!.content, redo!.after, false, {})
+    await memory.undo(undo, window, false)
     expect((await memory.list())[0].text).toBe("Answer in the language I write in.")
 
-    const removed = await memory.agentWrite({ op: "remove", id: "m1" })
+    const removed = await memory.agentWrite({ op: "remove", id: "m1" }, chat("c2"))
     expect(removed.line).toBeNull()
     expect(await memory.list()).toEqual([])
-    const r = await versions.get(removed.versionId!)
-    await memory.restoreVersion("m1", r!.content, r!.after, false, {})
+    await memory.undo((await changes.get(removed.changeId!))!, window, false)
     expect(await memory.list()).toMatchObject([{ id: "m1", text: "Answer in the language I write in." }])
     expect(heard.length).toBeGreaterThan(4)
   })
 
   it("leaves a line the user changed since alone", async () => {
-    const { memory, versions } = setUp()
-    const { versionId } = await memory.agentWrite({ op: "add", kind: "about", text: "I study proactive agents." })
+    const { memory, changes } = setUp()
+    const { changeId } = await memory.agentWrite({ op: "add", kind: "about", text: "I study proactive agents." }, chat("c1"))
     await memory.put({ id: "m1", kind: "about", text: "I study proactive agents for ADHD." })
-    const v = await versions.get(versionId!)
-    await expect(memory.restoreVersion("m1", v!.content, v!.after, false, {})).rejects.toThrow(/changed after Owlit wrote it/)
+    await expect(memory.undo((await changes.get(changeId!))!, window, false)).rejects.toThrow(/changed after Owlit wrote it/)
   })
 
   it("tells the agent what went wrong in words it can act on", async () => {
     const { memory } = setUp()
-    await expect(memory.agentWrite({ op: "replace", id: "m9", text: "x" })).rejects.toThrow(/no line m9/)
-    await expect(memory.agentWrite({ op: "add", kind: "work", text: "x".repeat(400) })).rejects.toThrow(/one short sentence/)
+    await expect(memory.agentWrite({ op: "replace", id: "m9", text: "x" }, chat("c1"))).rejects.toThrow(/no line m9/)
+    await expect(memory.agentWrite({ op: "add", kind: "work", text: "x".repeat(400) }, chat("c1"))).rejects.toThrow(/one short sentence/)
     for (let i = 0; i < MEMORY_MAX_LINES; i++) await memory.put({ kind: "about", text: `Fact ${i}` })
-    await expect(memory.agentWrite({ op: "add", kind: "about", text: "One more" })).rejects.toThrow(/full/)
+    await expect(memory.agentWrite({ op: "add", kind: "about", text: "One more" }, chat("c1"))).rejects.toThrow(/full/)
   })
 
   it("puts a removed line back where Settings undoes it, under its own id", async () => {

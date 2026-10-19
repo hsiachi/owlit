@@ -5,6 +5,7 @@ import { chmod, rm, writeFile } from "node:fs/promises"
 import net from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import type { Caller } from "./router.ts"
 
 // The open workspace's JSON-RPC for programs other than the window (owlit-mcp, the CLI): a Unix socket
 // in the user's temp folder, $TMPDIR/owlit-<hash>.sock (the app data path is too long for a socket
@@ -29,7 +30,7 @@ export const socketPaths = (workspace: string, dir = tmpdir()) => {
 }
 
 interface Endpoint {
-  handle(request: RpcRequest): Promise<RpcResponse>
+  handle(request: RpcRequest, caller: Caller): Promise<RpcResponse>
   onNotify(listener: (notification: RpcNotification) => void): () => void
 }
 
@@ -38,6 +39,15 @@ interface Connection {
   authed: boolean
   // Topics this client asked to hear; null: none yet; empty set: all
   topics: Set<string> | null
+}
+
+// owlit-mcp names the chat or run it works for in each call's params (agent: for comments.add)
+function callerOf(request: RpcRequest): Caller {
+  const params = (request.params ?? {}) as { chatId?: unknown; run?: unknown; agent?: { chatId?: unknown; run?: unknown } }
+  const text = (value: unknown) => (typeof value === "string" && value ? value : undefined)
+  const chatId = text(params.chatId) ?? text(params.agent?.chatId)
+  const run = text(params.run) ?? text(params.agent?.run)
+  return { kind: "socket", ...(chatId ? { chatId } : {}), ...(run ? { run } : {}) }
 }
 
 export class SocketServer {
@@ -107,7 +117,7 @@ export class SocketServer {
         reply(null)
         return
       }
-      write(connection, await endpoint.handle(request))
+      write(connection, await endpoint.handle(request, callerOf(request)))
     }
     const unsubscribe = endpoint.onNotify((notification) => {
       for (const connection of connections) {
