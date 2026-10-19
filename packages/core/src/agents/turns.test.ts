@@ -52,6 +52,22 @@ async function setup() {
 }
 
 describe("turns", () => {
+  it("writes into the answer what it was built from: the papers the chat's agent read, and those it cites", async () => {
+    const { send, call, root } = await setup()
+    for (const id of ["doi-10.1-read", "doi-10.1-c"]) await call("library.add", { paper: { id, title: `Paper ${id}`, authors: ["A. Author"], ids: { doi: `10.1/${id.slice(9)}` } } })
+    writeFileSync(path.join(root, "library/papers/doi-10.1-read/text.md"), "<!-- page 1 -->\n\nThe paper's text.\n")
+    // As owlit-mcp reads for this chat's agent, and for another chat's
+    await call("library.read", { id: "doi-10.1-read", part: "text", asker: "chat:c1" })
+    await call("library.read", { id: "doi-10.1-read", part: "text", asker: "chat:c9" })
+    // The fake agent says back the first words of the prompt: a citation, short enough
+    await send("[A](owlit://library/doi-10.1-c)")
+    const chat = await call("chats.get", { id: "c1" })
+    expect(chat.messages[1].readFrom).toEqual([
+      { paperId: "doi-10.1-read", depth: "full" },
+      { paperId: "doi-10.1-c", depth: "none" },
+    ])
+  })
+
   it("streams an answer and saves both messages", async () => {
     const { send, text, call, root } = await setup()
     expect(await send("hello there")).toEqual({ stopReason: "end_turn" })

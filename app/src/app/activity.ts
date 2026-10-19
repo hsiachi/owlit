@@ -7,6 +7,7 @@
 import { isOwlit, type ActivityEvent, type ChatMessage, type PaperMark, type PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
+import { useBeside } from "@/features/agent/beside"
 import { isChatsFromDisk } from "@/features/chat/disk"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
@@ -101,7 +102,7 @@ export function reportPaperEnd(paperId: string, view: PaperView) {
   if (open.paperId === paperId) emit({ kind: "paper.end", paperId, view })
 }
 
-// ---- What is open: from the route, the agent window and the stores ----
+// ---- What is open: from the route, the agent window, the paper beside a doc and the stores ----
 
 interface Open {
   paperId?: string
@@ -121,8 +122,10 @@ function openFromRoute(pathname: string): Open {
   const chats = new Set<string>()
   if (subject?.kind === "chat") chats.add(subject.id)
   if (agent.stage === "open" && agent.chatId) chats.add(agent.chatId)
+  // A paper read beside the doc it is cited in is open as on its own page, so checking a claim counts as reading
+  const beside = docId && agent.stage !== "open" ? useBeside.getState().paper?.paperId : undefined
   return {
-    paperId: subject?.kind === "paper" ? subject.id : undefined,
+    paperId: subject?.kind === "paper" ? subject.id : beside,
     doc: docId && docPath ? { id: docId, path: docPath } : undefined,
     chats,
   }
@@ -175,6 +178,7 @@ export function startActivity(router: typeof appRouter) {
   const refresh = () => update(openFromRoute(router.state.location.pathname))
   router.subscribe(refresh)
   useAgentWindow.subscribe(refresh)
+  useBeside.subscribe(refresh)
   refresh()
 
   // Page turns in the open paper, marks, highlights and the paper's note

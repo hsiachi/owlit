@@ -13,7 +13,8 @@ import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
 import { allDocMentions, docMentionable, mentionTooltip, openMention, paperUnread } from "../lib/mentions"
-import { useLibraryStore } from "@/features/library/store"
+import { paperById, useLibraryStore } from "@/features/library/store"
+import { BESIDE_MIN_WINDOW, useBeside } from "@/features/agent/beside"
 import { freshDocIds, useDocsStore } from "../store"
 import { type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
@@ -35,7 +36,7 @@ import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
 import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
 import { routeSubject } from "@/app/route-subject"
-import { anchorAt } from "@owlit/protocol"
+import { anchorAt, parseOwlitUri } from "@owlit/protocol"
 import { useShareStore } from "../share/store"
 
 // A change the user made by hand. Agent writes come in as "input.agent", links that follow a rename
@@ -75,6 +76,18 @@ const SAVE_DELAY = 300
 // The editor works in "\n" lines; a file written with "\r\n" throughout gets them back on save. Any other
 // mix keeps its "\r"s as characters in the text, so they are written back exactly where they were.
 const usesCrlf = (text: string) => text.includes("\r\n") && !/(^|[^\r])\n|\r(?!\n)/.test(text)
+
+// A paper's citation opens the paper beside the doc, when the window is wide enough and the paper is in
+// the Library (one a thread only found has no reader); false when it should open as it always did
+function openBeside(uri: string, quote: string | undefined, from: { docId: string; pos: number }) {
+  const u = parseOwlitUri(uri)
+  if (u?.kind !== "paper" || window.innerWidth < BESIDE_MIN_WINDOW) return false
+  const { papers, aliases } = useLibraryStore.getState()
+  const paper = paperById(papers, aliases, u.id)
+  if (!paper) return false
+  useBeside.getState().open({ paperId: paper.id, ...(u.page ? { page: u.page } : {}), ...(quote ? { quote } : {}), from })
+  return true
+}
 
 // Where each doc was left, for this session: a doc reopens with the cursor where it was, scrolled as it
 // was (Back from a paper a citation opened lands on the citation, not on the cursor)
@@ -154,8 +167,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
                 if (s.papers !== prev.papers) changed()
               }),
             wikilink: wikilinkRoute,
-            // A citation's sentence goes with it, so the paper opens with it ringed
-            onOpenMention: (uri, quote) => openMention(uri, (to) => navigateRef.current(to), window.location.pathname, quote),
+            // A citation's sentence goes with it, so the paper opens with it ringed: beside the doc when the
+            // window has room for both, else (or with ⌘) on its own page
+            onOpenMention: (uri, quote, { meta, pos }) => {
+              if (!meta && openBeside(uri, quote, { docId: id, pos })) return
+              openMention(uri, (to) => navigateRef.current(to), window.location.pathname, quote)
+            },
             onOpenRoute: (route) => navigateRef.current(route),
           }),
           mentionPopup(() => allDocMentions(id)),

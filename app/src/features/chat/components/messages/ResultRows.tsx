@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { create } from "zustand"
-import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, shownThread, type ThreadAsked } from "@owlit/protocol"
+import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, shownThread, type ThreadAsked } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
@@ -9,8 +9,8 @@ import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
+import { paperById, useLibraryStore } from "@/features/library/store"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
-import { useLibraryStore } from "@/features/library/store"
 import { manageMemory } from "@/features/settings/memory"
 import { useThreadsStore } from "@/features/threads/store"
 import { labelOf, undoEntry, useChatChanges } from "../../results"
@@ -327,7 +327,8 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
 export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: string }) {
   const rows = [...useResultRows(message, chatId), ...useDigestRows(message.parts)]
   const [all, setAll] = useState(false)
-  if (!rows.length) return null
+  const built = message.readFrom ?? []
+  if (!rows.length && !built.length) return null
   const live = rows.filter((r) => !r.undone && r.undo)
   // The total counts in one unit only: words when every edit was to prose
   const edits = rows.flatMap((r) => (r.stats && !r.undone ? [r.stats] : []))
@@ -339,6 +340,7 @@ export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: 
   const rest = rows.length > FOLD_AFTER + 1 ? rows.slice(FOLD_AFTER) : []
   return (
     <div className="flex flex-col rounded-lg border p-1">
+      {built.length > 0 && <BuiltFrom readFrom={built} />}
       {/* One change says itself; several get a line saying what happened, with Undo for all of them */}
       {rows.length > 1 && (
         <div className="group/row flex h-8 items-center gap-2.5 px-2.5 text-sm">
@@ -369,6 +371,50 @@ export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: 
           </button>
         </>
       )}
+    </div>
+  )
+}
+
+// What the answer was built from, as core saw the turn read: "From 3 papers · 2 in full · 1 abstract
+// only". Resting on a count marks, in the answer above, the citations of the papers it counts.
+const PaperIcon = KIND_ICON.paper
+function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
+  const line = useRef<HTMLDivElement>(null)
+  const library = useLibraryStore((s) => s.papers)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const papers = readFrom.length
+  const mark = (ids: string[] | null) => {
+    const answer = line.current?.closest<HTMLElement>('[data-slot="message"]')
+    if (!answer) return
+    const want = new Set(ids ?? [])
+    for (const el of answer.querySelectorAll<HTMLElement>("[data-paper]")) {
+      // A citation may name the paper by an id it had before
+      const id = paperById(library, aliases, el.dataset.paper!)?.id ?? el.dataset.paper!
+      el.toggleAttribute("data-marked", want.has(id))
+    }
+  }
+  const counts: { depth: ReadFrom["depth"]; label: string }[] = [
+    { depth: "full", label: t({ message: "in full", comment: "papers an answer was built from: N in full" }) },
+    { depth: "digest", label: t({ message: "from the digest", comment: "papers an answer was built from: N from the digest" }) },
+    { depth: "abstract", label: t({ message: "abstract only", comment: "papers an answer was built from: N abstract only" }) },
+    { depth: "none", label: t({ message: "without a PDF", comment: "papers an answer was built from: N without a PDF (owlit has no text of them)" }) },
+  ]
+  return (
+    <div ref={line} className="flex min-h-8 flex-wrap items-center gap-x-1.5 px-2.5 py-1 text-sm text-muted-foreground" onPointerLeave={() => mark(null)}>
+      <PaperIcon className="mr-1 size-4 shrink-0" />
+      <span>{plural(papers, { one: "From # paper", other: "From # papers" })}</span>
+      {counts.map(({ depth, label }) => {
+        const ids = readFrom.filter((r) => r.depth === depth).map((r) => r.paperId)
+        if (!ids.length) return null
+        return (
+          <span key={depth} className="contents">
+            <span aria-hidden>·</span>
+            <span className="rounded-sm px-0.5 hover:text-foreground" onPointerEnter={() => mark(ids)} onPointerLeave={() => mark(null)}>
+              {ids.length} {label}
+            </span>
+          </span>
+        )
+      })}
     </div>
   )
 }

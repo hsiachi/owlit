@@ -138,10 +138,12 @@ msgstr ""
 #. palette footer, beside the Esc key: closes the palette
 #. verb: close the Owlit panel
 #. verb: close the find field
+#. verb: close the paper beside the doc
 #: app/src/app/CommandPalette.tsx
 #: app/src/components/ui/dialog.tsx
 #: app/src/components/ui/sheet.tsx
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/library/pages/paper/PaperBeside.tsx
 #: app/src/features/library/reader/ReaderControls.tsx
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
@@ -504,9 +506,11 @@ msgstr ""
 #. a page of a paper
 #. a page of a paper
 #. a page of a paper
+#. a page of a paper
 #. chip: a passage quoted from this page of the paper
 #: app/src/components/citation-card.tsx
 #: app/src/features/agent/page-context.ts
+#: app/src/features/library/pages/paper/PaperBeside.tsx
 #: app/src/features/library/reader/WearStrip.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -734,7 +738,7 @@ msgstr ""
 #. a view of the paper page: Owlit's digest of the paper
 #. chip: a passage quoted from the paper's digest
 #: app/src/features/agent/page-context.ts
-#: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/library/paper-view.ts
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Digest"
 msgstr ""
@@ -1046,6 +1050,7 @@ msgid "Next question"
 msgstr ""
 
 #. choice between showing the digest or the PDF
+#. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: show the Library, where the papers wait
 #. verb: unfold the card with Owlit's question
@@ -1053,6 +1058,7 @@ msgstr ""
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/extension/waits.ts
 #: app/src/features/library/pages/PaperPage.tsx
+#: app/src/features/library/pages/paper/PaperBeside.tsx
 msgid "Show"
 msgstr ""
 
@@ -1408,6 +1414,30 @@ msgstr ""
 #. placeholder {0}: rest.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
+msgstr ""
+
+#. papers an answer was built from: N in full
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "in full"
+msgstr ""
+
+#. papers an answer was built from: N from the digest
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "from the digest"
+msgstr ""
+
+#. papers an answer was built from: N abstract only
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "abstract only"
+msgstr ""
+
+#. papers an answer was built from: N without a PDF (owlit has no text of them)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "without a PDF"
+msgstr ""
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {From # paper} other {From # papers}}"
 msgstr ""
 
 #. a helper agent's status
@@ -4469,6 +4499,18 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Tried {list}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/PaperBeside.tsx
+msgid "Resize the paper"
+msgstr ""
+
+#: app/src/features/library/pages/paper/PaperBeside.tsx
+msgid "p. {page} of {pages}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/PaperBeside.tsx
+msgid "Open the paper's page"
 msgstr ""
 
 #. placeholder {0}: c.chatTitle

@@ -1,3 +1,4 @@
+import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { create } from "zustand"
 import { quoteTarget } from "./reader/passages"
@@ -25,6 +26,12 @@ export const usePaperView = create<PaperViewState>()((set) => ({
     useLibraryStore.getState().setView(paperId, view)
   },
 }))
+
+// The Digest | PDF switch's two sides
+export const paperViews = (): { value: PaperView; label: string }[] => [
+  { value: "digest", label: t({ message: "Digest", comment: "a view of the paper page: Owlit's digest of the paper" }) },
+  { value: "pdf", label: "PDF" },
+]
 
 // What the paper's page shows; fresh: a digest the user asked for and hasn't seen
 export function usePaperViewOf(paperId: string, paper: Paper | undefined, fresh: boolean): PaperView {

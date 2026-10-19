@@ -203,6 +203,16 @@ export interface ChatMessage {
   // 403 Request not allowed"), kept apart from the answer
   error?: string
   errorDetail?: string
+  // What an answer was built from, set when its turn ends: each paper it read or cited, and how far
+  // (core's view of the turn's library_read calls, not the agent's word)
+  readFrom?: ReadFrom[]
+}
+
+// full: it read the paper's text; digest: only Owlit's digest; abstract: neither, though owlit has the
+// text (it went on the abstract or the details); none: owlit has no text of the paper
+export interface ReadFrom {
+  paperId: string
+  depth: "full" | "digest" | "abstract" | "none"
 }
 
 export interface Chat {
