@@ -22,6 +22,7 @@
 //   "crash"            exits mid-turn
 //   "replied under your comment…" answers with comments_reply as the reply recipe says: "FAKE: correct"
 //                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
+//   "Try again."        after a digest recipe (owlit's Retry): writes the digest it was last asked for
 //   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
 //                      session owlit gave its owlit server, and says back the result
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
@@ -219,12 +220,18 @@ class FakeAgent implements acp.Agent {
         await say(process.env.FAKE_ACP_LIMIT)
         throw acp.RequestError.internalError(undefined, process.env.FAKE_ACP_LIMIT)
       }
-      if (text.includes("writing a literature note")) {
+      // Retry is "Try again." in the same chat: the recipe is in this session's history, or in the
+      // conversation owlit passed when it started the session over (after a quit)
+      const recipe = /^Try again\.?$/.test(text)
+        ? [...session.history, ...params.prompt.filter((b): b is acp.TextContent & { type: "text" } => b.type === "text").map((b) => b.text)].findLast((h) => h.includes("writing a literature note"))
+        : undefined
+      if (recipe || text.includes("writing a literature note")) {
+        const asked = recipe ?? text
         // Writes back what it was given (the language, the pictures it saw), so tests can tell
-        const id = text.match(/library_write_digest, id (\S+):/)?.[1] ?? "?"
-        const language = text.match(/Language of the note:\n([^.]+)\./)?.[1] ?? "?"
+        const id = asked.match(/library_write_digest, id (\S+):/)?.[1] ?? "?"
+        const language = asked.match(/Language of the note:\n([^.]+)\./)?.[1] ?? "?"
         const pictures = params.prompt.filter((b) => b.type === "image").length
-        const figure = text.match(/^- (figure-\d+) \(p\. \d+\)/m)?.[1]
+        const figure = asked.match(/^- (figure-\d+) \(p\. \d+\)/m)?.[1]
         // Slow, with a step, for watching a digest being written in the app (FAKE_ACP_SLOW_MS)
         const slow = Number(process.env.FAKE_ACP_SLOW_MS) || 0
         if (slow) {
