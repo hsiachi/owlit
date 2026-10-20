@@ -1,5 +1,8 @@
-import type { Paper, PaperKind } from "@owlit/protocol"
+import type { Paper, PaperKind, Thread } from "@owlit/protocol"
 import { externalLinks, surname } from "./format"
+
+// What a reference is made from: a Library paper, or a paper a thread found
+export type Citable = Pick<Paper, "id" | "title" | "authors" | "year" | "venue" | "ids" | "kind">
 
 // Citations built from a paper's own metadata. Titles are left as recorded: changing their case
 // would lowercase names like "Transformer" that a reader expects to keep.
@@ -25,14 +28,14 @@ function apaAuthors(authors: string[]): string {
 }
 
 // What kind of entry it is when the resolver did not say: an arXiv id and nothing else is a preprint
-export function kindOf(p: Paper): PaperKind {
+export function kindOf(p: Pick<Paper, "kind" | "ids" | "venue">): PaperKind {
   if (p.kind) return p.kind
   if (p.ids.arxiv && (!p.venue || /arxiv/i.test(p.venue))) return "preprint"
   return "other"
 }
 
 // A plain-text APA reference, enough to paste into a document
-export function apaCitation(p: Paper): string {
+export function apaCitation(p: Citable): string {
   const authors = apaAuthors(p.authors)
   const year = `(${p.year ?? "n.d."})`
   const title = p.title.replace(/[.\s]+$/, "")
@@ -59,7 +62,7 @@ const keySafe = (s: string) => s.normalize("NFKD").replace(/[^a-zA-Z0-9:._-]/g, 
 // Google Scholar's shape: first author's family name, year, first real word of the title. A family name
 // with no Latin letters (one written in Chinese) has nothing to give, so the key is the DOI's suffix or
 // the paper's id instead: something that names this paper, not "anon" shared by all of them.
-function bibtexKey(p: Paper): string {
+function bibtexKey(p: Citable): string {
   const family = ascii(splitName(p.authors[0] ?? "").family)
   if (!family) return keySafe(p.ids.doi?.split("/").slice(1).join("/") ?? "") || keySafe(p.id) || "paper"
   const word = p.title.split(/[\s:—-]+/).map(ascii).find((w) => w && !STOP_WORDS.has(w)) ?? ""
@@ -82,7 +85,7 @@ const ENTRY: Record<PaperKind, string> = {
   other: "misc",
 }
 
-export function bibtex(p: Paper, key = bibtexKey(p)): string {
+export function bibtex(p: Citable, key = bibtexKey(p)): string {
   const kind = kindOf(p)
   const fields: [string, string | number | undefined][] = [
     // Double braces keep the title's capitals through any bibliography style
@@ -112,7 +115,7 @@ export function bibtex(p: Paper, key = bibtexKey(p)): string {
 
 // Several papers as one .bib: a key two papers would share gets a letter after the first ("wang2023large",
 // "wang2023largea", "wang2023largeb"), so every entry can be cited
-export function bibtexAll(papers: Paper[]): string {
+export function bibtexAll(papers: Citable[]): string {
   const used = new Set<string>()
   return papers
     .map((p) => {
@@ -127,3 +130,27 @@ export function bibtexAll(papers: Paper[]): string {
 
 // 0 → "a", 25 → "z", 26 → "aa"
 const letters = (i: number): string => (i < 26 ? String.fromCharCode(97 + i) : letters(Math.floor(i / 26) - 1) + letters(i % 26))
+
+// A paper link's id in a doc's Markdown: [label](owlit://library/<id>…), a citation's page and sentence
+// after it or not
+const PAPER_LINK = /\]\(owlit:\/\/library\/([^)\s#"]+)/g
+
+// The papers a doc's Markdown links to, in order of first use, each once: the Library's record (an id it
+// knows under another name included), else the row of a thread that found the paper. A link to a paper
+// neither knows is left out.
+export function citedPapers(markdown: string, library: (id: string) => Paper | undefined, threads: Record<string, Thread>): Citable[] {
+  const out = new Map<string, Citable>()
+  for (const [, id] of markdown.matchAll(PAPER_LINK)) {
+    const paper = library(id!)
+    if (paper) {
+      if (!out.has(paper.id)) out.set(paper.id, paper)
+      continue
+    }
+    if (out.has(id!)) continue
+    const row = Object.values(threads)
+      .flatMap((t) => t.rows)
+      .find((r) => r.id === id)
+    if (row) out.set(id!, { id: id!, ...row.paper })
+  }
+  return [...out.values()]
+}

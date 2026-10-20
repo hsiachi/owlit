@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { Paper } from "@owlit/protocol"
-import { bibtex, bibtexAll } from "./cite"
+import type { Paper, Thread } from "@owlit/protocol"
+import { bibtex, bibtexAll, citedPapers } from "./cite"
 
 const paper = (over: Partial<Paper> & Pick<Paper, "id" | "title" | "authors">): Paper => ({
   ids: {},
@@ -48,5 +48,33 @@ describe("bibtex fields", () => {
 
   it("leave a DOI as written", () => {
     expect(bibtex(paper({ id: "a", title: "T", authors: ["Ann Lee"], ids: { doi: "10.1000/a_b" } }))).toContain("doi = {10.1000/a_b}")
+  })
+})
+
+describe("citedPapers", () => {
+  const lewis = paper({ id: "lewis", title: "Retrieval-augmented generation", authors: ["Patrick Lewis"], year: 2020 })
+  const asai = paper({ id: "asai", title: "Self-RAG", authors: ["Akari Asai"] })
+  const library: Record<string, Paper> = { lewis, asai }
+  // A paper known under an older id, as the Library's aliases map it
+  const aliases: Record<string, string> = { "arxiv-2005.11401": "lewis" }
+  const resolve = (id: string) => library[id] ?? (aliases[id] ? library[aliases[id]] : undefined)
+  const threads = {
+    t1: { rows: [{ id: "found", paper: { title: "A paper a thread found", authors: ["Mei Chen"], ids: { doi: "10.1/x" }, year: 2024 } }] },
+  } as unknown as Record<string, Thread>
+
+  it("lists the doc's papers in order of first use, each once", () => {
+    const md = [
+      "Retrieval helps [Asai et al. 2023](owlit://library/asai#p3 \"it reflects\").",
+      "It began with [Lewis et al. 2020](owlit://library/lewis) and [Asai et al.](owlit://library/asai).",
+      "The same paper by its old id: [RAG](owlit://library/arxiv-2005.11401#p2).",
+    ].join("\n\n")
+    expect(citedPapers(md, resolve, {}).map((p) => p.id)).toEqual(["asai", "lewis"])
+  })
+
+  it("takes a paper not in the Library from the thread that found it, and leaves out one nobody knows", () => {
+    const md = "[Chen 2024](owlit://library/found), [Lewis](owlit://library/lewis), [Gone](owlit://library/nobody), [a doc](owlit://docs/notes.md)"
+    const cited = citedPapers(md, resolve, threads)
+    expect(cited.map((p) => p.id)).toEqual(["found", "lewis"])
+    expect(cited[0]).toMatchObject({ title: "A paper a thread found", ids: { doi: "10.1/x" } })
   })
 })

@@ -13,6 +13,7 @@ import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
+import { copyReferences } from "@/features/library/actions"
 import { goingThrough, goThrough, setOwlitOut, stopGoingThrough, useDocOwlitStore } from "./owlit"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
@@ -30,6 +31,9 @@ export function topLevel(keys: string[]) {
   const loose = keys.filter((k) => folderOfKey(k) === null && files[k] && !top.some((f) => isWithin(files[k].path, f)))
   return { folders: top, files: loose, count: top.length + loose.length }
 }
+
+// A doc as it reads now, typing not yet saved included
+const docText = (file: WorkspaceFile) => openEditor(file.id)?.state.doc.toString() ?? file.content ?? ""
 
 const reveal = (path: string) => void rpc.docs.reveal({ path }).catch(toastError)
 
@@ -100,6 +104,17 @@ export function useDocActions() {
       [
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.file(file.id)) },
         ...(md ? [{ label: t`Duplicate`, onSelect: () => duplicate(file) }] : []),
+        ...(md
+          ? [
+              {
+                label: t`Copy references`,
+                children: [
+                  { label: t({ message: "As APA text", comment: "copy a doc's references as APA-formatted text" }), onSelect: () => void copyReferences(docText(file), "apa") },
+                  { label: t({ message: "As BibTeX", comment: "copy a doc's references as a .bib file's entries" }), onSelect: () => void copyReferences(docText(file), "bibtex") },
+                ],
+              },
+            ]
+          : []),
         ...(md && isDesktop ? [{ label: t`Versions…`, onSelect: () => useDocsUiStore.getState().showVersions(file.id) }] : []),
         // Only once something was put away: the way back to a comment after its Undo has gone
         ...(md && resolvedViews(useDocsStore.getState().comments[file.id], useShareStore.getState().comments[file.path]).length
