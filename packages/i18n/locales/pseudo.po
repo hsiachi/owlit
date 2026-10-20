@@ -461,7 +461,7 @@ msgstr ""
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
+#: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Retry"
 msgstr ""
 
@@ -1342,7 +1342,7 @@ msgstr ""
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
+#: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Stop"
 msgstr ""
 
@@ -3591,7 +3591,9 @@ msgstr ""
 msgid "Venue"
 msgstr ""
 
+#. a thread's answer written from the paper's abstract
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Abstract"
 msgstr ""
 
@@ -5891,6 +5893,32 @@ msgstr ""
 msgid "Papers like {of}"
 msgstr ""
 
+#. placeholder {0}: s.rows.length - SHOWN
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "{0, plural, one {# more paper} other {# more papers}}"
+msgstr ""
+
+#. papers of a thread in none of its groups
+#. papers of a thread in none of its groups
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/lib.ts
+msgid "Not in a group"
+msgstr ""
+
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "{total, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#. a thread's answer written from the paper's title alone
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Title only"
+msgstr ""
+
+#. a thread's answer written from the paper's full text; followed by its page
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Full text"
+msgstr ""
+
 #. chip on a thread cell Owlit answered again from the full text
 #. chip on a thread cell Owlit answered again from the full text
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5931,15 +5959,6 @@ msgstr ""
 
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Open at p. {page}"
-msgstr ""
-
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Move to project"
-msgstr ""
-
-#. a thread that belongs to no project folder
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadMenu.tsx
@@ -5987,19 +6006,6 @@ msgstr ""
 msgid "Group by"
 msgstr ""
 
-#: app/src/features/threads/components/Work.tsx
-msgid "{papers} so far"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{more, plural, one {and # more} other {and # more}}"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Owlit stopped."
-msgstr ""
-
 #. last line of a doc exported from a thread
 #: app/src/features/threads/export.ts
 msgid "From the thread {from}, {date}."
@@ -6042,11 +6048,6 @@ msgstr ""
 msgid "Related"
 msgstr ""
 
-#. papers of a thread in none of its groups
-#: app/src/features/threads/lib.ts
-msgid "Not in a group"
-msgstr ""
-
 #. papers that speak to none of the user's sentences
 #: app/src/features/threads/lib.ts
 msgid "Bear on none of them"
@@ -6069,6 +6070,38 @@ msgstr ""
 msgid "Thread actions"
 msgstr ""
 
+#. under the report at the top of a thread
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Owlit's report. To change it, ask in a chat."
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{papers, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{groups, plural, one {# group} other {# groups}}"
+msgstr ""
+
+#. the line over a thread's papers: how many, in how many groups, how many Owlit read in full
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Papers · {n}, {g} · {full} in full"
+msgstr ""
+
+#. the line over a thread's papers: how many, how many Owlit read in full
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Papers · {n} · {full} in full"
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{more, plural, one {and # more} other {and # more}}"
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "Owlit stopped."
+msgstr ""
+
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Find a thread"
 msgstr ""
@@ -6078,12 +6111,7 @@ msgid "No threads yet"
 msgstr ""
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
-msgstr ""
-
-#. placeholder {0}: summary.columns
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "{0, plural, one {# column} other {# columns}}"
+msgid "Ask Owlit in a chat to find papers; the thread appears here."
 msgstr ""
 
 #. a thread whose search found no papers
@@ -6091,36 +6119,13 @@ msgstr ""
 msgid "Found nothing"
 msgstr ""
 
+#. a thread whose project folder was renamed or deleted, then that folder's old name
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "was in {was}"
+msgstr ""
+
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Gathering papers…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Finding more papers…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Asking each paper “{question}”…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Asking each paper…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Grouping the papers by “{question}”…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Grouping the papers…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Reading papers in full…"
 msgstr ""
 
 #: app/src/features/threads/work.ts

@@ -61,7 +61,7 @@
         25%, 75% { opacity: 0.25; }
         100% { opacity: 0; }
     }
-    /* A paper reached from its other place in a thread's table (Also in): its row rings twice inside its cell */
+    /* A paper reached from its other place in a thread's table (Also in), or from a link in the thread's report: its row rings twice inside its edge */
     --animate-place-ring: place-ring 1.2s ease-out;
     @keyframes place-ring {
         0%, 50% { box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--mention) 70%, transparent); }

@@ -461,7 +461,7 @@ msgstr "Owlit 已停止"
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
+#: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Retry"
 msgstr "重试"
 
@@ -1342,7 +1342,7 @@ msgstr "从{place}添加"
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
+#: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Stop"
 msgstr "停止"
 
@@ -3591,7 +3591,9 @@ msgstr "年份"
 msgid "Venue"
 msgstr "发表处"
 
+#. a thread's answer written from the paper's abstract
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Abstract"
 msgstr "摘要"
 
@@ -5891,6 +5893,32 @@ msgstr "引用 {of} 的论文"
 msgid "Papers like {of}"
 msgstr "与 {of} 相似的论文"
 
+#. placeholder {0}: s.rows.length - SHOWN
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "{0, plural, one {# more paper} other {# more papers}}"
+msgstr "{0, plural, other {还有 # 篇}}"
+
+#. papers of a thread in none of its groups
+#. papers of a thread in none of its groups
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/lib.ts
+msgid "Not in a group"
+msgstr "未分组"
+
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "{total, plural, one {# paper} other {# papers}}"
+msgstr "{total, plural, other {# 篇}}"
+
+#. a thread's answer written from the paper's title alone
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Title only"
+msgstr "仅标题"
+
+#. a thread's answer written from the paper's full text; followed by its page
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Full text"
+msgstr "全文"
+
 #. chip on a thread cell Owlit answered again from the full text
 #. chip on a thread cell Owlit answered again from the full text
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5932,15 +5960,6 @@ msgstr "也在"
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "Open at p. {page}"
 msgstr "打开到第 {page} 页"
-
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Move to project"
-msgstr "移到项目"
-
-#. a thread that belongs to no project folder
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
-msgstr "不属于项目"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"
@@ -5987,19 +6006,6 @@ msgstr "{0, plural, other {还有 # 篇}}"
 msgid "Group by"
 msgstr "分组"
 
-#: app/src/features/threads/components/Work.tsx
-msgid "{papers} so far"
-msgstr "已有 {papers} 篇"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{more, plural, one {and # more} other {and # more}}"
-msgstr "{more, plural, other {另有 # 项}}"
-
-#: app/src/features/threads/components/Work.tsx
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Owlit stopped."
-msgstr "Owlit 停下了。"
-
 #. last line of a doc exported from a thread
 #: app/src/features/threads/export.ts
 msgid "From the thread {from}, {date}."
@@ -6042,11 +6048,6 @@ msgstr "质疑"
 msgid "Related"
 msgstr "相关"
 
-#. papers of a thread in none of its groups
-#: app/src/features/threads/lib.ts
-msgid "Not in a group"
-msgstr "未分组"
-
 #. papers that speak to none of the user's sentences
 #: app/src/features/threads/lib.ts
 msgid "Bear on none of them"
@@ -6069,6 +6070,38 @@ msgstr "回到脉络"
 msgid "Thread actions"
 msgstr "脉络操作"
 
+#. under the report at the top of a thread
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Owlit's report. To change it, ask in a chat."
+msgstr "Owlit 的报告。要改，在聊天里说。"
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{papers, plural, one {# paper} other {# papers}}"
+msgstr "{papers, plural, other {# 篇}}"
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{groups, plural, one {# group} other {# groups}}"
+msgstr "{groups, plural, other {# 组}}"
+
+#. the line over a thread's papers: how many, in how many groups, how many Owlit read in full
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Papers · {n}, {g} · {full} in full"
+msgstr "论文 · {n}，{g} · 全文 {full}"
+
+#. the line over a thread's papers: how many, how many Owlit read in full
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Papers · {n} · {full} in full"
+msgstr "论文 · {n} · 全文 {full}"
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{more, plural, one {and # more} other {and # more}}"
+msgstr "{more, plural, other {另有 # 项}}"
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "Owlit stopped."
+msgstr "Owlit 停下了。"
+
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Find a thread"
 msgstr "查找脉络"
@@ -6078,50 +6111,22 @@ msgid "No threads yet"
 msgstr "还没有脉络"
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
-msgstr "在对话里请 Owlit 找某个主题的论文。它找到的会收在这里，并写明每篇对你的问题说了什么。"
-
-#. placeholder {0}: summary.columns
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "{0, plural, one {# column} other {# columns}}"
-msgstr "{0, plural, other {# 列}}"
+msgid "Ask Owlit in a chat to find papers; the thread appears here."
+msgstr "在聊天里请 Owlit 找论文，脉络会出现在这里。"
 
 #. a thread whose search found no papers
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "什么也没找到"
 
+#. a thread whose project folder was renamed or deleted, then that folder's old name
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "was in {was}"
+msgstr "原在 {was}"
+
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
 msgstr "已删除脉络"
-
-#: app/src/features/threads/work.ts
-msgid "Gathering papers…"
-msgstr "正在收集论文…"
-
-#: app/src/features/threads/work.ts
-msgid "Finding more papers…"
-msgstr "正在找更多论文…"
-
-#: app/src/features/threads/work.ts
-msgid "Asking each paper “{question}”…"
-msgstr "正在问每篇论文“{question}”…"
-
-#: app/src/features/threads/work.ts
-msgid "Asking each paper…"
-msgstr "正在问每篇论文…"
-
-#: app/src/features/threads/work.ts
-msgid "Grouping the papers by “{question}”…"
-msgstr "正在按「{question}」给论文分组…"
-
-#: app/src/features/threads/work.ts
-msgid "Grouping the papers…"
-msgstr "正在给论文分组…"
-
-#: app/src/features/threads/work.ts
-msgid "Reading papers in full…"
-msgstr "正在读全文…"
 
 #: app/src/features/threads/work.ts
 msgid "Owlit is working on this thread…"

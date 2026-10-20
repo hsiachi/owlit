@@ -1,44 +1,47 @@
-import { t } from "@lingui/core/macro"
-import { itemId, QUESTION_COLUMN } from "@owlit/protocol"
+import { plural, t } from "@lingui/core/macro"
+import { itemId, parseOwlitUri, type ThreadRead } from "@owlit/protocol"
 import { ThreadTable } from "../components/ThreadTable"
 import { useEffect, useLayoutEffect, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
+import { NoteDot } from "@/components/marks"
 import { NotFound, PageHeader, PageTitle } from "@/components/page"
+import { Button } from "@/components/ui/button"
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { useTakeParam } from "@/hooks/use-take-param"
+import { Markdown } from "@/features/chat/components/messages/Markdown"
+import { stopChat, tryAgain } from "@/features/chat/started"
 import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
-import { WorkLine } from "../components/Work"
-import { useThreadMenu, useProjects } from "../components/ThreadMenu"
-import { Memo } from "../components/Memo"
-import { shown as shownOf } from "../lib"
+import { useThreadMenu } from "../components/ThreadMenu"
+import { isTable, paperCounts, shown as shownOf } from "../lib"
 import { useThread, useThreadsStore } from "../store"
 import { SEEN_AFTER_MS, useVisitDots } from "../seen"
 import { markSeen } from "@/app/seen"
 import { useThreadsUi } from "../ui-store"
-import { scrollMotion } from "@/lib/utils"
+import { useThreadWork, workWords } from "../work"
 
-// Where each thread's page was scrolled to, for this session: Back from a paper a cell opened lands on
-// the cell again
+// Where each thread's page was scrolled to, for this session: Back from a paper a row opened lands on
+// the row again
 const lastScroll = new Map<string, number>()
 
-// One visit per thread: going from one to another (a group made its own, Undo, a link) starts at the
-// top with that thread's own idea of what changed since the user looked
+// One visit per thread: going from one to another (Undo, a link) starts at the top with that thread's own
+// idea of what changed since the user looked
 export function ThreadPage() {
   const { threadId } = useParams()
   return <ThreadVisit key={threadId} threadId={threadId} />
 }
 
+// A thread is Owlit's to write and the user's to read: the title, Owlit's report, then the papers it rests
+// on, and where it came from. Nothing on it is edited in place; the user asks in a chat.
 function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const navigate = useNavigate()
   const thread = useThread(threadId)
   const loaded = useThreadsStore((s) => s.loaded)
-  const groups = useThreadMenu(thread, useProjects(), { afterDelete: () => navigate("/threads") })
+  const groups = useThreadMenu(thread, { afterDelete: () => navigate("/threads") })
   const set = useThreadsUi((s) => s.set)
   // What changed since the user last looked carries the dot until they leave
   const visit = useVisitDots(threadId)
-  const fresh = visit.fresh
   const id = thread?.id
   const page = useRef<HTMLDivElement>(null)
   // Back where it was left, after the first layout; a link to one of its papers scrolls to that row instead
@@ -55,10 +58,10 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   // A row left open from before closes. A layout effect, so it comes before the link's paper is taken below
   // (layout effects run in order, and before plain ones).
   useLayoutEffect(() => {
-    if (id) set({ peek: null })
+    if (id) set({ peek: null, ring: null })
   }, [id, set])
-  // Opened for one of its papers (a link to a paper the Library hasn't got, "In" on a paper's page): that
-  // paper's row opens, where it is in the list. After the reset above, so it stays open.
+  // Opened for one of its papers (a link to a paper from elsewhere, "In" on a paper's page): that paper's
+  // row opens, where it is in the list. After the reset above, so it stays open.
   useTakeParam(
     "paper",
     (want) => {
@@ -83,14 +86,16 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
     return <NotFound title={t`This thread is gone`} detail={t`It may have been deleted.`} back={{ label: t`Back to Threads`, to: "/threads" }} />
   }
   const shown = shownOf(thread)
-  // A question asked of every paper, or Owlit's groups, make it a table; a hidden grouping without groups
-  // doesn't
-  const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && (!c.hidden || (c.kind === "grouping" && !!c.groups?.length)))
-  // A paper the report names opens as its row, where it is in the list
-  const openRow = (paperId: string) => {
-    if (!shown.rows.some((r) => r.id === paperId)) return false
-    set({ peek: paperId })
-    requestAnimationFrame(() => document.getElementById(`row-${paperId}`)?.scrollIntoView({ block: "nearest", behavior: scrollMotion() }))
+  const table = isTable(shown)
+  // A paper the report names that is a row of the thread: the table opens its row; the note rings it where
+  // it is (AnswerRows). Others go where they live.
+  const onLink = (uri: string) => {
+    const u = parseOwlitUri(uri)
+    if (u?.kind !== "paper" || !shown.rows.some((r) => r.id === u.id)) return false
+    if (table) {
+      set({ peek: u.id })
+      requestAnimationFrame(() => document.getElementById(`row-${u.id}`)?.scrollIntoView({ block: "center" }))
+    } else set({ ring: { id: u.id, at: Date.now() } })
     return true
   }
   return (
@@ -103,12 +108,13 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
       </PageHeader>
       <div ref={page} className="min-h-0 flex-1 overflow-y-auto">
         {/* One frame whatever the form: the words stay in the reading column, so the title never moves when
-            a column is added, and only a table reaches into the Library's wide column below them */}
+            a column is asked, and only a table reaches into the Library's wide column below them */}
         <article className="pt-8 pb-32">
           <div className="mx-auto w-full max-w-3xl px-4">
             <PageTitle className="text-balance">{shown.title}</PageTitle>
             <WorkLine thread={thread} />
-            <Memo thread={thread} fresh={fresh} onRow={openRow} />
+            <Report thread={thread} fresh={visit.fresh(itemId.report())} onLink={onLink} />
+            <PaperCounts shown={shown} />
             {!table && <AnswerRows thread={thread} shown={shown} visit={visit} />}
           </div>
           {table && (
@@ -123,4 +129,71 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
       </div>
     </div>
   )
+}
+
+// Owlit's report, drawn as a doc is: its papers are mentions, and one that is a row of the thread goes to
+// that row (onLink). The line under it says whose it is and how it changes, with Owlit's dot while it is
+// new since the user looked.
+function Report({ thread, fresh, onLink }: { thread: ThreadRead; fresh: boolean; onLink: (uri: string) => boolean }) {
+  if (!thread.report.trim()) return null
+  return (
+    <section className="mt-4 max-w-[68ch]">
+      <Markdown text={thread.report} className="text-body" onLink={onLink} />
+      <p className="mt-3 flex items-center gap-2 text-detail text-muted-foreground">
+        {fresh && <NoteDot />}
+        {t({ message: "Owlit's report. To change it, ask in a chat.", comment: "under the report at the top of a thread" })}
+      </p>
+    </section>
+  )
+}
+
+// "Papers · 10 papers, 5 groups · 5 in full": the papers below, the groups they are in, how many Owlit read
+// in full
+function PaperCounts({ shown }: { shown: ThreadRead }) {
+  const { papers, groups, full } = paperCounts(shown)
+  if (!papers) return null
+  const n = plural(papers, { one: "# paper", other: "# papers" })
+  const g = plural(groups, { one: "# group", other: "# groups" })
+  return (
+    <p className="mt-8 border-t pt-4 text-detail text-muted-foreground">
+      {groups
+        ? t({ message: `Papers · ${n}, ${g} · ${full} in full`, comment: "the line over a thread's papers: how many, in how many groups, how many Owlit read in full" })
+        : t({ message: `Papers · ${n} · ${full} in full`, comment: "the line over a thread's papers: how many, how many Owlit read in full" })}
+    </p>
+  )
+}
+
+// What Owlit is doing on the thread, one muted line under the title while it works (its words shimmer)
+// with Stop, or why it stopped with Retry. Nothing when it isn't working. Several chats can work on the
+// thread at once: the line says the earliest, and how many more.
+function WorkLine({ thread }: { thread: ThreadRead }) {
+  const { running, failed } = useThreadWork(thread.id)
+  const chat = running[0]
+  if (chat) {
+    const more = running.length - 1
+    return (
+      <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
+        <span className="shimmer">{workWords()}</span>
+        {more > 0 && <span>{plural(more, { one: "and # more", other: "and # more" })}</span>}
+        <Button variant="text" size="inline" onClick={() => stopChat(chat)}>
+          {t({ message: "Stop", comment: "stop Owlit's work on a thread" })}
+        </Button>
+      </p>
+    )
+  }
+  if (failed) {
+    const why = failed.reply.error ?? ""
+    return (
+      <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
+        <span className="text-destructive">{t`Owlit stopped.`}</span>
+        <span className="min-w-0 truncate" title={why}>
+          {why}
+        </span>
+        <Button variant="text" size="inline" onClick={() => void tryAgain(failed.chatId)}>
+          {t`Retry`}
+        </Button>
+      </p>
+    )
+  }
+  return null
 }
