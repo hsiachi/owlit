@@ -74,7 +74,8 @@ export function createServer(options: OwlitMcpOptions) {
     try {
       // Claude Code names the tool call an MCP request is for; it is the same id as the ACP tool call
       const toolCallId = request.params._meta?.["claudecode/toolUseId"]
-      return text(await run(spec.name, args, await owlit(), options, typeof toolCallId === "string" ? toolCallId : undefined))
+      const out = await run(spec.name, args, await owlit(), options, typeof toolCallId === "string" ? toolCallId : undefined)
+      return typeof out === "string" ? text(out) : out
     } catch (error) {
       if (error instanceof OwlitNotRunning) {
         client = null
@@ -88,7 +89,8 @@ export function createServer(options: OwlitMcpOptions) {
   return server
 }
 
-async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions, toolCallId?: string): Promise<string> {
+// A tool's answer: text, or a whole result where it carries more (library_figure's picture)
+async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions, toolCallId?: string): Promise<string | CallToolResult> {
   const str = (key: string) => args[key] as string
   const num = (key: string) => args[key] as number | undefined
   const optStr = (key: string) => (args[key] as string | undefined) || undefined
@@ -100,7 +102,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
   const writer = { ...asker, ...(toolCallId ? { toolCallId } : {}) }
   switch (tool) {
     case "library_list": {
-      const { papers } = await owlit.rpc.library.list()
+      const papers = await owlit.rpc.library.papers()
       const extension = await hasExtension(owlit)
       let chosen = papers
       if (args.query) {
@@ -117,22 +119,21 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "library_get": {
       // Any id the paper goes by: a search's, or one it had before it moved or a copy was folded into it
-      const [[here], { papers, notes }] = await Promise.all([owlit.rpc.library.known({ inputs: [str("id")] }), owlit.rpc.library.list()])
-      const paper = papers.find((p) => p.id === (here ?? str("id")))
-      if (!paper) {
+      const one = await owlit.rpc.library.get({ id: str("id") })
+      if (!one) {
         // A paper a search found: its whole abstract, which the search's line cuts short
         const found = await owlit.rpc.library.found({ id: str("id") })
         if (!found) return `There is no paper ${str("id")} in the library, and no recent search showed it.`
         return JSON.stringify({ id: str("id"), ...found, inLibrary: false, note: "Not in the user's library: a search found it. Gather it into a thread with thread_write; add it with library_add only to read its full text." }, null, 2)
       }
-      const highlights = await owlit.rpc.library.highlights({ id: paper.id })
+      const { paper, highlights, note } = one
       return JSON.stringify(
         {
           ...paper,
           pdf: !!paper.pdf,
           ...(paper.pdf ? {} : { noPdf: pdfFact(paper, await hasExtension(owlit)) }),
-          highlights: highlights.length,
-          note: notes.some((n) => n.paperId === paper.id && n.content.trim()),
+          highlights,
+          note,
           cite: `[${citeAs(paper)}](owlit://library/${paper.id})`,
         },
         null,
@@ -145,6 +146,14 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const { text, pages } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
       if (!text.trim()) return part === "digest" ? "This paper has no digest yet." : part === "note" ? "The user hasn't written a note on this paper." : "The paper has no text."
       return pages && part === "text" && (args.pages || args.section) ? `${text}\n\n(The paper has ${pages} pages.)` : text
+    }
+    // The picture itself, with what it is beside it; signed like library_read, so the chat's answer can
+    // say what it looked at
+    case "library_figure": {
+      const named = optStr("figure")?.trim()
+      const picture = await owlit.rpc.library.figure({ id: str("id"), ...(named ? { figure: named } : { page: num("page") ?? 1 }), asker: searcher(options) })
+      const about = picture.label ? `${picture.label} (p. ${picture.page}): ${picture.caption || "no caption"}` : `Page ${picture.page}`
+      return { content: [{ type: "text", text: about }, { type: "image", data: picture.data, mimeType: picture.mimeType }] }
     }
     case "library_highlights": {
       const highlights = await owlit.rpc.library.highlights({ id: str("id") })

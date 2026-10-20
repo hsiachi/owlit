@@ -381,6 +381,11 @@ export interface Methods {
   "library.known": { params: { inputs: string[] }; result: (string | null)[] }
   // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
   "library.list": { params: void; result: { papers: Paper[]; highlights: Highlight[]; notes: PaperNote[]; aliases: Record<string, string> } }
+  // Every paper, without the highlights and notes library.list reads too
+  "library.papers": { params: void; result: Paper[] }
+  // One paper by any id it goes by (its own, an old one, a search's), with how many highlights it has and
+  // whether it has a note; null when the library hasn't got it
+  "library.get": { params: { id: string }; result: { paper: Paper; highlights: number; note: boolean } | null }
   // A PDF file dropped on the library: recognised (arXiv stamp, DOI) and added with its metadata, or
   // kept as local-<hash>. The same file dropped again comes back with existed; placed when the paper
   // was there without a PDF and the file became it.
@@ -444,6 +449,9 @@ export interface Methods {
   "library.figures": { params: { id: string }; result: PaperFigure[] }
   // A page of the paper's PDF as a small picture (base64), for a glance at a page a note points at
   "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
+  // A figure or table as a picture, by its id or label, or a whole page (1-based), for an agent to look at;
+  // asker: who looks, so the chat's answer can say what it read
+  "library.figure": { params: { id: string; figure?: string; page?: number; asker?: string }; result: { data: string; mimeType: string; page: number; label?: string; caption?: string } }
   // The paper's digests (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // What the digest was written from (digest.json, the text's pages), for its header

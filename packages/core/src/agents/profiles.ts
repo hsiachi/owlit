@@ -164,7 +164,7 @@ const ownPaths = (roots: string[]) => roots.flatMap((root) => [`${root}/${OWLIT_
 
 // What is read through owlit's tools rather than the agent's own, as Read deny rules (Glob and Grep
 // follow them, and the sandbox takes them as denyRead for shell commands): a paper's text, digest and
-// figures (library_read, which leaves the read's trace), and owlit's state (threads, the change log, the
+// figures (library_read and library_figure, which leave the read's trace), and owlit's state (threads, the change log, the
 // journal, chats, seen marks, the Owlit engine's transcripts). The copies of files the user attached,
 // .owlit/chats/<id>/files/, stay readable, since the rules send the agent there; a deny can't be carved
 // out by an allow, so owlit's state is named folder by folder (OWLIT_FOLDERS) instead of as .owlit/**

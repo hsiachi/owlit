@@ -34,7 +34,7 @@ export function surelyOf<P extends { doi?: string; arxiv?: string; title: string
     papers.find((p) => sameId(p, said)) ??
     papers.find((p) => {
       const title = normalize(p.title)
-      return title.length >= 20 && containsNearly(text, title, slack(title))
+      return longEnough(title) && containsNearly(text, title, slack(title))
     })
   )
 }
@@ -54,8 +54,8 @@ export function isThisPaper(said: PdfLook | undefined, paper: { doi?: string; ar
   if (!said?.text.trim()) return "unknown"
   if (sameId(paper, said)) return "yes"
   const title = normalize(paper.title)
-  if (title.length >= 20 && containsNearly(normalize(said.text), title, slack(title))) return "yes"
-  return title.length >= 20 || said.doi ? "no" : "unknown"
+  if (longEnough(title) && containsNearly(normalize(said.text), title, slack(title))) return "yes"
+  return longEnough(title) || said.doi ? "no" : "unknown"
 }
 
 // Whether text holds needle with at most `edits` letters inserted, deleted or changed (Sellers'
@@ -75,10 +75,20 @@ function containsNearly(text: string, needle: string, edits: number) {
 }
 
 // The same title, whatever its case, punctuation and spacing; only titles long enough to tell
-export const sameTitle = (a: string, b: string) => normalize(a).length >= 20 && normalize(a) === normalize(b)
+export const sameTitle = (a: string, b: string) => longEnough(normalize(a)) && normalize(a) === normalize(b)
 
+// Letters and digits of any script (a Chinese title keeps its characters), without accents, case,
+// punctuation or spaces
 const normalize = (text: string) =>
   text
     .normalize("NFKD")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+
+// A normalized title long enough to tell one paper from another: 20 letters, or 8 characters of a title
+// written mostly in Chinese characters, kana or hangul, each of which says as much as a word
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu
+function longEnough(title: string) {
+  const cjk = title.match(CJK)?.length ?? 0
+  return cjk * 2 >= title.length ? title.length >= 8 : title.length >= 20
+}

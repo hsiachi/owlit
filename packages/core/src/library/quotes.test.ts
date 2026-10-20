@@ -14,4 +14,10 @@ describe("findQuote", () => {
     const text = "<!-- page 4 -->\n\nThe retrieved document is held fixed\n\n<!-- page 5 -->\n\nfor the whole sequence.\n\n<!-- page 6 -->\n\nResults."
     expect(findQuote(text, "is held fixed for the whole sequence")).toBe(4)
   })
+
+  it("finds a Chinese quote written as it reads, though the text has a space where a line broke", () => {
+    const text = "<!-- page 2 -->\n\n检索增强生成方法在长文 本问答中表现良好。"
+    expect(findQuote(text, "检索增强生成方法在长文本问答中表现良好")).toBe(2)
+    expect(findQuote(text, "长文本问答")).toBe(2)
+  })
 })

@@ -779,6 +779,43 @@ export class Library {
     return { data: picture.toString("base64"), mimeType: "image/png" }
   }
 
+  // A figure or table of a paper as an agent sees it (library_figure), by its id ("figure-3") or its label
+  // ("Figure 3"); or a whole page (1-based), drawn from the PDF. Said to the agent, so plain English.
+  async figurePicture(name: string, which: { figure?: string; page?: number }): Promise<{ data: string; mimeType: string; page: number; label?: string; caption?: string }> {
+    const id = await this.here(name)
+    if (which.figure) {
+      const figures = await readFigures(this.root, id)
+      const want = which.figure.trim().toLowerCase().replace(/\s+/g, "-").replace(/\.$/, "")
+      const pictures = figures ? await figurePictures(this.root, id, figures) : []
+      const hit = pictures.find((p) => p.figure.id === want || p.figure.label.toLowerCase().replace(/\s+/g, "-") === want)
+      if (!hit) {
+        const known = pictures.map((p) => p.figure.id).join(", ")
+        throw new RpcFailure(RpcErrorCode.NotFound, known ? `The paper has no ${which.figure}; its figures are ${known}. Or ask for its page.` : `owlit has no pictures of this paper's figures; ask for the page instead.`, { id })
+      }
+      return { data: hit.data.toString("base64"), mimeType: hit.mimeType, page: hit.figure.page + 1, label: hit.figure.label, caption: hit.figure.caption }
+    }
+    const page = which.page ?? 1
+    return { ...(await this.pagePicture(id, page - 1)), page }
+  }
+
+  // Every paper, without the highlights and notes list() reads too
+  async papers(): Promise<Paper[]> {
+    const out: Paper[] = []
+    for (const id of await this.ids()) {
+      const paper = await this.get(id)
+      if (paper) out.push(paper)
+    }
+    return out
+  }
+
+  // One paper by any id it goes by, with how many highlights it has and whether it has a note
+  async one(name: string): Promise<{ paper: Paper; highlights: number; note: boolean } | null> {
+    const id = await this.canonical(name)
+    const paper = id ? await this.get(id) : undefined
+    if (!paper) return null
+    return { paper, highlights: (await readHighlights(this.root, paper.id)).length, note: !!(await readNote(this.root, paper.id))?.content.trim() }
+  }
+
   // When the paper's note was written, and how it stands against how notes are written now
   private async digestState(id: string): Promise<Pick<Paper, "digestAt" | "digestOutdated">> {
     const dir = paperDir(this.root, id)

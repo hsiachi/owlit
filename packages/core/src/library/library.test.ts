@@ -367,6 +367,18 @@ describe("keeping the library clean", () => {
   })
 })
 
+describe("what an agent reads of one paper", () => {
+  it("gets one paper by any id it goes by, and says when it has no picture of a figure", async () => {
+    const { root, call } = await setup({})
+    putPaper(root, { id: "doi-10.9999-x", title: "A paper", ids: { doi: "10.9999/x", arxiv: "2101.00001" } })
+    await until(async () => (await call("library.known", { inputs: ["10.9999/x"] }))[0], { what: "the paper in the index" })
+    expect(await call("library.get", { id: "arxiv-2101.00001" })).toMatchObject({ paper: { id: "doi-10.9999-x" }, highlights: 0, note: false })
+    expect(await call("library.get", { id: "doi-10.9999-nothing" })).toBeNull()
+    expect((await call("library.papers")).map((p: { id: string }) => p.id)).toEqual(["doi-10.9999-x"])
+    await expect(call("library.figure", { id: "doi-10.9999-x", figure: "Figure 3" })).rejects.toThrow(/no pictures of this paper's figures; ask for the page/)
+  })
+})
+
 describe("the monthly recount", () => {
   it("leaves paper.json alone when a count is the same, keeps when it counted on this machine, and looks preprints up again", async () => {
     const { root, core } = await setup({})
