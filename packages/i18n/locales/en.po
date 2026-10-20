@@ -6132,6 +6132,15 @@ msgid "Open at p. {page}"
 msgstr "Open at p. {page}"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
+msgid "Move to project"
+msgstr "Move to project"
+
+#. a thread that belongs to no project folder
+#: app/src/features/threads/components/ThreadMenu.tsx
+msgid "No project"
+msgstr "No project"
+
+#: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"
 msgstr "Export as a doc"
 
@@ -6293,6 +6302,15 @@ msgstr "Found nothing"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "was in {was}"
 msgstr "was in {was}"
+
+#: app/src/features/threads/store.ts
+msgid "Moved to {project}"
+msgstr "Moved to {project}"
+
+#. toast: a thread now belongs to no project folder
+#: app/src/features/threads/store.ts
+msgid "Moved out of its project"
+msgstr "Moved out of its project"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
@@ -7357,6 +7375,7 @@ msgid "{name} quit unexpectedly. It starts again with the next message."
 msgstr "{name} quit unexpectedly. It starts again with the next message."
 
 #: packages/core/src/agents/failure.ts
+#: packages/core/src/agents/turns.ts
 msgid "{name} ran into a problem."
 msgstr "{name} ran into a problem."
 

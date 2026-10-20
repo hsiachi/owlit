@@ -6132,6 +6132,15 @@ msgid "Open at p. {page}"
 msgstr "打开到第 {page} 页"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
+msgid "Move to project"
+msgstr "移到项目"
+
+#. a thread that belongs to no project folder
+#: app/src/features/threads/components/ThreadMenu.tsx
+msgid "No project"
+msgstr "不属于项目"
+
+#: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"
 msgstr "导出为文档"
 
@@ -6293,6 +6302,15 @@ msgstr "什么也没找到"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "was in {was}"
 msgstr "原在 {was}"
+
+#: app/src/features/threads/store.ts
+msgid "Moved to {project}"
+msgstr "已移到 {project}"
+
+#. toast: a thread now belongs to no project folder
+#: app/src/features/threads/store.ts
+msgid "Moved out of its project"
+msgstr "已移出项目"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
@@ -7357,6 +7375,7 @@ msgid "{name} quit unexpectedly. It starts again with the next message."
 msgstr "{name} 意外退出。发送下一条消息时会重新启动。"
 
 #: packages/core/src/agents/failure.ts
+#: packages/core/src/agents/turns.ts
 msgid "{name} ran into a problem."
 msgstr "{name} 遇到了问题。"
 

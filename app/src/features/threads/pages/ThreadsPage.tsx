@@ -56,7 +56,7 @@ export function ThreadsPage() {
               {g.label && <GroupLabel>{g.label}</GroupLabel>}
               <div className="flex flex-col gap-0.5">
                 {g.threads.map((c) => (
-                  <ThreadRow key={c.id} summary={c} was={c.was} />
+                  <ThreadRow key={c.id} summary={c} was={c.was} projects={projects} />
                 ))}
               </div>
             </section>
@@ -67,11 +67,11 @@ export function ThreadsPage() {
   )
 }
 
-// was: the project folder the thread names, which is gone
-function ThreadRow({ summary, was }: { summary: ThreadSummary; was?: string }) {
+// was: the project folder the thread names, which is gone; projects: the workspace's, for its menu
+function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: string; projects: string[] }) {
   const navigate = useNavigate()
   const thread = useThread(summary.id)
-  const groups = useThreadMenu(thread)
+  const groups = useThreadMenu(thread, projects)
   const open = () => navigate(`/threads/${summary.id}`)
   const work = useThreadWork(summary.id)
   const fresh = useThreadFresh(summary.id)
