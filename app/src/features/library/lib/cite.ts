@@ -135,22 +135,25 @@ const letters = (i: number): string => (i < 26 ? String.fromCharCode(97 + i) : l
 // after it or not
 const PAPER_LINK = /\]\(owlit:\/\/library\/([^)\s#"]+)/g
 
+// The paper ids a doc's Markdown links to, in order, as written (an id may come more than once)
+export const linkedPaperIds = (markdown: string) => [...markdown.matchAll(PAPER_LINK)].map((m) => m[1]!)
+
 // The papers a doc's Markdown links to, in order of first use, each once: the Library's record (an id it
 // knows under another name included), else the row of a thread that found the paper. A link to a paper
 // neither knows is left out.
 export function citedPapers(markdown: string, library: (id: string) => Paper | undefined, threads: Record<string, Thread>): Citable[] {
   const out = new Map<string, Citable>()
-  for (const [, id] of markdown.matchAll(PAPER_LINK)) {
-    const paper = library(id!)
+  for (const id of linkedPaperIds(markdown)) {
+    const paper = library(id)
     if (paper) {
       if (!out.has(paper.id)) out.set(paper.id, paper)
       continue
     }
-    if (out.has(id!)) continue
+    if (out.has(id)) continue
     const row = Object.values(threads)
       .flatMap((t) => t.rows)
       .find((r) => r.id === id)
-    if (row) out.set(id!, { id: id!, ...row.paper })
+    if (row) out.set(id, { id, ...row.paper })
   }
   return [...out.values()]
 }
