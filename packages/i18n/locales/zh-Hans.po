@@ -3492,7 +3492,9 @@ msgstr "年份"
 msgid "Venue"
 msgstr "发表处"
 
+#. a thread's answer written from the paper's abstract
 #: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Abstract"
 msgstr "摘要"
 
@@ -5877,6 +5879,16 @@ msgstr "{total, plural, other {# 篇}}"
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "You've read some of it"
 msgstr "你读过一部分"
+
+#. a thread's answer written from the paper's title alone
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Title only"
+msgstr "仅标题"
+
+#. a thread's answer written from the paper's full text; followed by its page
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Full text"
+msgstr "全文"
 
 #. chip on a thread cell Owlit answered again from the full text
 #. chip on a thread cell Owlit answered again from the full text
