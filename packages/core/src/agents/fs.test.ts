@@ -78,7 +78,8 @@ describe("agent fs", () => {
     expect(await core.fs.read(path.join(root, "a.md"))).toEqual({ content: "typed in the editor" })
     await core.fs.write(path.join(root, "a.md"), "agent text", { chatId: "c" })
     expect(asked.map((r) => r.method)).toEqual(["fs.read", "fs.read", "fs.write"])
-    expect(asked[2]).toMatchObject({ clientId: "w1", params: { path: "a.md", content: "agent text" } })
+    // With core's hunks from the editor's text, so the editor changes only those places
+    expect(asked[2]).toMatchObject({ clientId: "w1", params: { path: "a.md", content: "agent text", hunks: [{ from: 0, to: 5, insert: "agent" }, { from: 6, to: 19, insert: "text" }] } })
     // The window applied it: core left the disk alone, and says the change once
     expect(readFileSync(path.join(root, "a.md"), "utf8")).toBe("on disk")
     const changeId = (asked[2].params as { changeId: string }).changeId

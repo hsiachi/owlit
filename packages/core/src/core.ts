@@ -218,7 +218,7 @@ export class Core {
     })
     this.undo = new Undo({
       workspace: () => this.workspace,
-      docs: { text: (rel) => this.fs.text(rel), write: (rel, content, changeId) => this.fs.place(rel, content, changeId, true) },
+      docs: { text: (rel) => this.fs.text(rel), write: (rel, content, changeId, base) => this.fs.place(rel, content, changeId, base) },
       commentsChanged: ({ path, changed, removed }) => {
         if (changed) this.notifier.notify("comments.changed", { path, comment: changed })
         if (removed) this.notifier.notify("comments.removed", { path, id: removed })

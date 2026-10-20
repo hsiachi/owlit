@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { anchorAt, isOwlit } from "@owlit/protocol"
+import { anchorAt, isOwlit, type TextHunk } from "@owlit/protocol"
 import { myOwlit } from "@/lib/actors"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
@@ -9,7 +9,7 @@ import { clientId, registerUiHandler } from "@/lib/ui-actions"
 import { undoChange } from "@/lib/changes"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { spanChange } from "@/lib/text-diff"
-import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor } from "./editors"
+import { hunkChanges, onEditorsChanged, openEditor, openEditorIds, replaceInEditor } from "./editors"
 import { fileAt, perFiles, useDocsStore } from "./store"
 import { displayName, docUri, isMarkdown, type WorkspaceFile } from "./types"
 import { chatOnScreen, labelOf } from "@/features/chat/results"
@@ -92,15 +92,17 @@ setWorkspaceFs({
 // says them again
 const shownHere = new Set<string>()
 
-// An agent's edit to an open doc: one change in its editor, so the cursor stays where the user left it.
-// It says nothing: an edit of Owlit's is marked in the doc (editor/proposals.ts), with its Undo through
-// the change log, never the editor's history, which may hold the user's typing since. False when not open.
-function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string) {
+// An agent's edit to an open doc, in its editor as one step: core's hunks when they fit the editor's text
+// (hunkChanges), else the one span between what the two texts share at either end, so the cursor stays
+// where the user left it. It says nothing: an edit of Owlit's is marked in the doc (editor/proposals.ts),
+// with its Undo through the change log, never the editor's history, which may hold the user's typing
+// since. False when not open.
+function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string, hunks?: TextHunk[]) {
   const view = openEditor(file.id)
   if (!view) return false
-  const change = spanChange(view.state.doc.toString(), content)
-  if (change.from === change.to && !change.insert) return true
-  view.dispatch({ changes: change, userEvent: "input.agent" })
+  const text = view.state.doc.toString()
+  if (text === content) return true
+  view.dispatch({ changes: (hunks && hunkChanges(text, hunks, content)) ?? spanChange(text, content), userEvent: "input.agent" })
   if (changeId) shownHere.add(changeId)
   return true
 }
@@ -133,9 +135,9 @@ if (isDesktop) {
     const view = file ? openEditor(file.id) : undefined
     return { content: view ? view.state.doc.toString() : null }
   })
-  registerUiHandler("fs.write", ({ path, content, changeId }) => {
+  registerUiHandler("fs.write", ({ path, content, changeId, hunks }) => {
     const file = fileAt(path)
-    return { applied: !!file && applyAgentEdit(file, content, changeId) }
+    return { applied: !!file && applyAgentEdit(file, content, changeId, hunks) }
   })
 
   // An undo took a comment an agent left away

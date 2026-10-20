@@ -1,13 +1,10 @@
+import type { TextHunk } from "@owlit/protocol"
 import { diffArrays } from "diff"
 
-// The one place owlit diffs text (jsdiff), so the library can be swapped here alone
+// The one place owlit diffs text (jsdiff), so the library can be swapped here alone. An open editor
+// takes a write as these hunks too (fs.write), so the app has no diff of its own for core's writes.
 
-// text[from, to) becomes insert
-export interface Hunk {
-  from: number
-  to: number
-  insert: string
-}
+export type Hunk = TextHunk
 
 // Latin words and each space or mark are tokens; Chinese and Japanese, written without spaces, are
 // diffed character by character, so a change inside a sentence stays the size it was

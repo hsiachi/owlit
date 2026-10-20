@@ -8,7 +8,8 @@ import type { CommentView } from "../comments/model"
 // words are, so its card can sit level with them. Nothing here enters the file.
 //
 // While the doc is open a passage follows the edits: text typed at either end stays outside it, and a
-// passage deleted whole is lost until its words come back (an undo). A lost comment sits by the title.
+// passage replaced whole is looked for again by its words (they may have moved), else lost until they
+// come back (an undo). A lost comment sits by the title.
 //
 // When the page is too narrow for the column, the open card goes into the text instead: a slot under the
 // paragraph its words are in, which pushes the lines below down rather than covering them. The slot is an
@@ -121,7 +122,8 @@ const field = StateField.define<MarksState>({
         if (s.lost) return locate(s.item)
         const from = tr.changes.mapPos(s.from, 1)
         const to = tr.changes.mapPos(s.to, -1)
-        return to > from ? { ...s, from, to } : lostSpot(tr.state, s.item)
+        // A change over the words themselves: looked for again now, not on the next change
+        return to > from ? { ...s, from, to } : locate(s.item)
       })
       if (draft) draft = { from: tr.changes.mapPos(draft.from, 1), to: tr.changes.mapPos(draft.to, -1) }
     }

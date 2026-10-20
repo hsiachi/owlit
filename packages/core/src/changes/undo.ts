@@ -12,8 +12,9 @@ import { passagePart, passageSpans, proposalHunks } from "./proposals.ts"
 export interface DocAccess {
   // null when there is no such doc
   text(rel: string): Promise<string | null>
-  // Through the editor that has it open, as one step of its undo, else to disk
-  write(rel: string, content: string, changeId: string): Promise<void>
+  // Through the editor that has it open, as one step of its undo, else to disk; base: the text it was
+  // worked out from
+  write(rel: string, content: string, changeId: string, base: string | null): Promise<void>
 }
 
 interface UndoOptions {
@@ -89,7 +90,7 @@ export class Undo {
     // Recorded before the write, so the editor's save of it is known as this entry coming back
     const undo = await ws.recorder.doc(caller, rel, now, text, extra, { quiet: true })
     if (note) await ws.library.writeNoteFor(note, text)
-    else await this.options.docs.write(rel, text, undo.id)
+    else await this.options.docs.write(rel, text, undo.id, now)
     ws.recorder.say(undo)
     return { change: undo }
   }
@@ -145,7 +146,7 @@ export class Undo {
     const undo = await ws.recorder.doc(caller, rel, note ? now || null : now, note ? to || null : to, { ...extra, ...part }, { quiet: true })
     if (note) await ws.library.writeNoteFor(note, to ?? "")
     else if (to === null) await ws.docs.removeTold(rel)
-    else await this.options.docs.write(rel, to, undo.id)
+    else await this.options.docs.write(rel, to, undo.id, now)
     ws.recorder.say(undo)
     return left.length ? { change: undo, left } : { change: undo }
   }

@@ -133,7 +133,7 @@ describe("changes.undo", () => {
     await expect(undo(create!.id)).rejects.toThrow("b.md changed after it was made, so owlit left it where it is.")
   })
 
-  it("puts the result through the editor that has the doc open, as one undo step there", async () => {
+  it("puts the result through the editor that has the doc open, as hunks from the editor's text", async () => {
     const { core, root, call, log, undo } = await setup()
     await core.fs.write(path.join(root, "a.md"), "agent text")
     const asked: UiRequest[] = []
@@ -146,7 +146,7 @@ describe("changes.undo", () => {
     await call("ui.setOpenDocs", { clientId: "w1", paths: ["a.md"] })
     const [write] = await log("a.md")
     await undo(write!.id)
-    expect(asked.at(-1)).toMatchObject({ method: "fs.write", params: { path: "a.md", content: "on disk, typed", undo: true } })
+    expect(asked.at(-1)).toMatchObject({ method: "fs.write", params: { path: "a.md", content: "on disk, typed", hunks: [{ from: 0, to: 5, insert: "on" }, { from: 6, to: 10, insert: "disk" }] } })
   })
 
   it("sets a paper's field back, unless it changed since", async () => {
