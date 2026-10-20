@@ -55,6 +55,9 @@ interface TurnsOptions {
   ended?: (chatId: string, message: ChatMessage, about?: ChatAbout) => void
   // The MCP servers a chat's session gets (owlit-mcp, for that chat)
   mcpServers?: (root: string, chatId: string) => acp.McpServer[]
+  // The session they were given to has ended (replaced by another, the chat deleted, the workspace
+  // closed): they no longer work for the chat
+  mcpEnded?: (servers: acp.McpServer[]) => void
   // What the user asked Owlit to call them, read when a session starts
   userName?: () => Promise<string | undefined>
   // Owlit's memory of the user, read before every prompt (memory.ts)
@@ -80,6 +83,8 @@ interface Live {
   rules?: number
   // Calls the agent announced to owlit's own MCP server: core's policy answers those by the chat's role
   owlitCalls: Set<string>
+  // The MCP servers the session was given
+  mcp: acp.McpServer[]
   // While a turn runs
   turn: Turn | null
 }
@@ -349,11 +354,23 @@ export class Turns {
       turn.cutOff = why
       void this.cancel(chatId)
     }
+    for (const live of this.live.values()) this.options.mcpEnded?.(live.mcp)
     this.live.clear()
     this.claims.clear()
     this.callReplies.clear()
     this.accepted.clear()
     this.coauthoring.clear()
+  }
+
+  // A deleted chat: its turn stops and its sessions end, on owlit's side and the agent's
+  async forget(chatId: string) {
+    await this.cancel(chatId)
+    for (const [key, live] of [...this.live]) {
+      if (!key.startsWith(`${chatId}/`)) continue
+      this.live.delete(key)
+      this.options.mcpEnded?.(live.mcp)
+      await live.proc.closeSession(live.sessionId)
+    }
   }
 
   // The live claim on a file: the tool call of a chat's agent that is changing it, if one is
@@ -418,12 +435,18 @@ export class Turns {
     const recorded = chat.sessions?.[req.connectorId]
     const init = await proc.initialized()
     const _meta = guard.meta
+    const mcp = this.mcpServers(ws.root, req.chatId)
+    // The session this one takes the place of no longer works for the chat through owlit's tools
+    const replace = (live: Live) => {
+      this.live.set(key, live)
+      if (known) this.options.mcpEnded?.(known.mcp)
+    }
     if (recorded && init.agentCapabilities?.loadSession) {
       try {
         loading.add(key)
-        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
-        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, heard: known?.sessionId === recorded ? known.heard : undefined, rules: chat.rules?.[req.connectorId], owlitCalls: new Set(), turn: null }
-        this.live.set(key, live)
+        const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: mcp, ...(_meta ? { _meta } : {}) }, handler)
+        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, heard: known?.sessionId === recorded ? known.heard : undefined, rules: chat.rules?.[req.connectorId], owlitCalls: new Set(), mcp, turn: null }
+        replace(live)
         return { live, history: null, created: false, guard, rulesInSystemPrompt }
       } catch {
         // The agent no longer has it; a new session takes the conversation as context instead
@@ -431,9 +454,13 @@ export class Turns {
         loading.delete(key)
       }
     }
-    const created = await proc.newSession({ cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
-    const live: Live = { sessionId: created.sessionId, proc, options: created.configOptions ?? [], modes: created.modes ?? null, meta, owlitCalls: new Set(), turn: null }
-    this.live.set(key, live)
+    const created = await proc.newSession({ cwd: ws.root, mcpServers: mcp, ...(_meta ? { _meta } : {}) }, handler).catch((error: unknown) => {
+      // Given to no session after all
+      this.options.mcpEnded?.(mcp)
+      throw error
+    })
+    const live: Live = { sessionId: created.sessionId, proc, options: created.configOptions ?? [], modes: created.modes ?? null, meta, owlitCalls: new Set(), mcp, turn: null }
+    replace(live)
     await ws.chats.update(req.chatId, { sessions: { ...chat.sessions, [req.connectorId]: created.sessionId } })
     // The messages before this turn (the user's new one is already appended, so it is left out)
     const earlier = chat.messages.filter((m) => m.id !== req.userMessage.id && m.id !== req.assistantMessageId)

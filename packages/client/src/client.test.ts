@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import { eventually } from "../../core/src/test-util.ts"
 import { connect, OwlitNotRunning, socketPaths } from "./index.ts"
 
+const FAKE_AGENT = path.join(import.meta.dirname, "../../core/src/agents/fake-acp.ts")
 const cores: Core[] = []
 afterEach(async () => {
   await Promise.all(cores.splice(0).map((c) => c.dispose()))
@@ -63,6 +64,43 @@ describe("the workspace socket", () => {
     const granted = await connect(root, { dir, session })
     await expect(granted.call("library.update", star)).resolves.toMatchObject({ starred: true })
     granted.close()
+  })
+
+  it("stops taking a session's secret as its chat once the session ends", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-sock-")))
+    const root = path.join(base, "ws")
+    mkdirSync(root)
+    const dir = realpathSync(mkdtempSync("/tmp/ows-"))
+    const core = new Core({ userDataDir: path.join(base, "userData"), socket: { dir }, mcp: { command: "owlit-mcp", args: [] } })
+    cores.push(core)
+    // The secrets core gives the chat's sessions
+    const secrets: string[] = []
+    const grant = core.mcpServers.bind(core)
+    core.mcpServers = (at, chatId) => {
+      const servers = grant(at, chatId)
+      secrets.push(...servers.flatMap((s) => s.env.filter((e) => e.name === "OWLIT_SESSION").map((e) => e.value)))
+      return servers
+    }
+    const window = async (method: string, params: unknown) => {
+      const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params })
+      if ("error" in response) throw new Error(response.error.message)
+      return response.result as any
+    }
+    await window("workspace.open", { path: root })
+    const agent = await window("agents.add", { name: "Fake", command: `"${process.execPath}" "${FAKE_AGENT}"` })
+    await window("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+    await window("library.add", { paper: { id: "doi-10.9-a", title: "A", authors: [], ids: { doi: "10.9/a" } } })
+    await window("agents.prompt", { chatId: "c1", connectorId: agent.id, input: { text: "hello", mentions: [], attachments: [] }, userMessage: { id: "u1", role: "user", createdAt: 1, parts: [{ type: "text", text: "hello" }] }, assistantMessageId: "a1" })
+    expect(secrets).toHaveLength(1)
+    const star = { id: "doi-10.9-a", patch: { starred: true } }
+    const granted = await connect(root, { dir, session: secrets[0] })
+    await expect(granted.call("library.update", star)).resolves.toMatchObject({ starred: true })
+    // The chat is deleted: its session ends, the program on its secret is cut off, and the secret names no chat
+    await window("chats.delete", { id: "c1" })
+    await expect(granted.call("core.ping")).rejects.toThrow()
+    const again = await connect(root, { dir, session: secrets[0] })
+    await expect(again.call("library.update", { ...star, patch: { starred: false } })).rejects.toThrow(/^Not done: From outside owlit/)
+    again.close()
   })
 
   it("passes errors on in a sentence", async () => {
