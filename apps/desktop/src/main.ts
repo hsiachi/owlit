@@ -620,6 +620,14 @@ if (!app.requestSingleInstanceLock()) {
         showBrowser: async (browser) => {
           if (!process.env.OWLIT_NO_EXTERNAL) await showBrowser(browser)
         },
+        // The extension's Open: owlit is behind the browser, so it takes the front itself
+        showApp: async () => {
+          const win = BrowserWindow.getAllWindows()[0] ?? createWindow()
+          if (win.isMinimized()) win.restore()
+          win.show()
+          app.focus({ steal: true })
+          win.focus()
+        },
         browserApp: browserAppOf,
         // Only a release has a feed to update from; core says why the others don't
         updater: build.channel === "release" ? createUpdater() : undefined,

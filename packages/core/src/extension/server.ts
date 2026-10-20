@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -47,6 +47,9 @@ export interface ExtensionHost {
   openInBrowser?: (url: string, browser: { app?: string; name?: string }) => Promise<void>
   // Host.showBrowser
   showBrowser?: (browser: { app?: string; name?: string }) => Promise<void>
+  // Brings owlit to the front, showing the thing at an owlit:// link when one is given; false when the
+  // window couldn't show it
+  show?: (uri?: string) => Promise<boolean>
   // The browser app holding the other end of a request's connection, by its port (Host.browserApp)
   browserApp?: (remotePort: number) => Promise<BrowserApp | undefined>
 }
@@ -371,6 +374,19 @@ export class ExtensionServer {
             if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
             return { body: { paper: shown(await this.attachIfMissing(library, before.id, file, "extension")) } satisfies PaperAnswer }
           })
+        },
+      },
+      // The card's and the popup's Open: owlit comes to the front, on the paper when one is named
+      {
+        method: "POST",
+        path: is("open"),
+        handle: async ({ raw }) => {
+          const body = z.object({ paper: z.string().trim().min(1).max(300).optional() }).safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          const id = body.data.paper
+          if (id && !(await this.library().get(id))) throw new HttpFailure(404, "not-found", t`That paper is not in the library.`)
+          const shown = (await this.host.show?.(id ? `owlit://library/${encodeURIComponent(id)}` : undefined).catch(() => false)) ?? false
+          return { body: { shown } satisfies OpenAnswer }
         },
       },
       // The papers due for fetching now; held open a while when none is. Asking is what keeps the

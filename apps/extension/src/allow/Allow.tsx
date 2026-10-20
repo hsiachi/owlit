@@ -6,20 +6,22 @@ import { ext } from "../lib/browser.ts"
 import { originsOf, send } from "../lib/messages.ts"
 import { askForOrigins, type Asked } from "../lib/permissions.ts"
 
-// The page the extension opens when the user pressed Allow… on a waiting line in owlit's window: the
-// browser asks for a site's permission only from a click inside the extension, so the click is here
-export function Allow({ host, papers }: { host: string; papers: number }) {
+// The page the extension opens for a site it may not read yet: from Allow… on a waiting line in owlit's
+// window (papers wait there), or from Allow on the card in a page whose PDF is at that site (tabId: the
+// button's work is done again in that tab once allowed). The browser asks for a site's permission only
+// from a click inside the extension, so the click is here.
+export function Allow({ host, papers, tabId }: { host: string; papers: number; tabId?: number }) {
   const [asked, setAsked] = useState<Asked | null>(null)
 
   // Nothing awaited before the request: Firefox refuses one that isn't straight from the click
   const allow = async () => {
     const answer = await askForOrigins(ext.permissions, originsOf(host))
     setAsked(answer)
-    if (answer === "granted") await send({ kind: "allowed", host })
+    if (answer === "granted") await send({ kind: "allowed", host, tabId })
   }
 
   let said: string | undefined
-  if (asked === "granted") said = t`owlit goes on at ${host}. You can close this tab.`
+  if (asked === "granted") said = tabId === undefined ? t`owlit goes on at ${host}. You can close this tab.` : t`owlit gets the PDF at ${host}. You can close this tab.`
   else if (asked === "refused") said = t`owlit can't get these PDFs with your access until you allow it.`
   else if (asked === "unasked") said = t`Your browser didn't ask. Allow ${host} for owlit in the browser's extension settings.`
 
@@ -28,10 +30,12 @@ export function Allow({ host, papers }: { host: string; papers: number }) {
       <OwlitLockup className="h-5 w-auto self-start text-foreground" />
       <h1 className="text-base font-medium text-balance">{t`Let the owlit extension read ${host}`}</h1>
       <p className="text-muted-foreground">
-        {plural(papers, {
-          one: `# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.`,
-          other: `# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.`,
-        })}
+        {tabId !== undefined
+          ? t`The paper's PDF is there. The extension fetches it with your access, and reads only what owlit asks for.`
+          : plural(papers, {
+              one: `# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.`,
+              other: `# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.`,
+            })}
       </p>
       {said && (
         <p role="status" className="text-detail text-muted-foreground">

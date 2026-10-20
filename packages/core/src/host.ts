@@ -28,6 +28,8 @@ export interface Host {
   openInBrowser?(url: string, browser: { app?: string; name?: string }): Promise<void>
   // Brings that browser to the front, as openInBrowser would, without opening a page
   showBrowser?(browser: { app?: string; name?: string }): Promise<void>
+  // Brings owlit's own window to the front, opening one when none is
+  showApp?(): Promise<void>
   // The browser app on the other end of a connection to the extension's port, by the port it came from
   // (extension/browser-app.ts); undefined where the system can't tell
   browserApp?(remotePort: number): Promise<BrowserApp | undefined>

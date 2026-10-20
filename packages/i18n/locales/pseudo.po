@@ -111,6 +111,7 @@ msgstr ""
 #. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
+#. the owlit card in a web page: shows the paper in owlit
 #. toast button: open the paper's digest
 #. verb: open the chat that waits
 #. verb: open the chat that waits
@@ -130,6 +131,7 @@ msgstr ""
 #: app/src/features/welcome/WelcomePage.tsx
 #: app/src/lib/workspace.ts
 #: apps/desktop/src/main.ts
+#: apps/extension/src/lib/say.ts
 msgid "Open"
 msgstr ""
 
@@ -139,6 +141,7 @@ msgid "Navigate"
 msgstr ""
 
 #. palette footer, beside the Esc key: closes the palette
+#. the owlit card in a web page: its close button, for screen readers
 #. verb: close the Owlit panel
 #. verb: close the find field
 #. verb: close the paper beside the doc
@@ -150,6 +153,7 @@ msgstr ""
 #: app/src/features/library/reader/ReaderControls.tsx
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: apps/desktop/src/main.ts
+#: apps/extension/src/lib/say.ts
 #: apps/share-web/src/App.tsx
 msgid "Close"
 msgstr ""
@@ -1011,9 +1015,11 @@ msgstr ""
 
 #. button: let the owlit extension read this site, for the papers waiting there
 #. button: let the owlit extension read this site, for the papers waiting there
+#. the owlit card in a web page: let the owlit extension read this site
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
 #: apps/extension/src/allow/Allow.tsx
+#: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "Allow"
 msgstr ""
@@ -6863,6 +6869,10 @@ msgid "owlit goes on at {host}. You can close this tab."
 msgstr ""
 
 #: apps/extension/src/allow/Allow.tsx
+msgid "owlit gets the PDF at {host}. You can close this tab."
+msgstr ""
+
+#: apps/extension/src/allow/Allow.tsx
 msgid "owlit can't get these PDFs with your access until you allow it."
 msgstr ""
 
@@ -6871,28 +6881,187 @@ msgid "Your browser didn't ask. Allow {host} for owlit in the browser's extensio
 msgstr ""
 
 #: apps/extension/src/allow/Allow.tsx
+msgid "The paper's PDF is there. The extension fetches it with your access, and reads only what owlit asks for."
+msgstr ""
+
+#: apps/extension/src/allow/Allow.tsx
 msgid "{papers, plural, one {# paper in your Library waits for its PDF there. The extension fetches it with your access, and reads only what owlit asks for.} other {# papers in your Library wait for their PDFs there. The extension fetches them with your access, and reads only what owlit asks for.}}"
 msgstr ""
 
 #: apps/extension/src/background/index.ts
-msgid "{name} answers here instead of your owlit."
+msgid "owlit took this PDF"
 msgstr ""
 
 #: apps/extension/src/background/index.ts
 #: apps/extension/src/popup/Popup.tsx
-msgid "This page doesn't show a paper."
+msgid "Take PDFs I open for papers in my Library"
 msgstr ""
 
-#: apps/extension/src/background/index.ts
-msgid "This page names no PDF."
+#: apps/extension/src/lib/connect.ts
+msgid "Something went wrong in the owlit extension."
 msgstr ""
 
-#: apps/extension/src/background/index.ts
-msgid "This paper isn't in your Library."
+#. the owlit card or popup: bring the owlit app to the front
+#. the owlit card or popup: bring the owlit app to the front
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open owlit"
 msgstr ""
 
-#: apps/extension/src/background/index.ts
-msgid "owlit took this PDF"
+#: apps/extension/src/lib/say.ts
+msgid "owlit keeps looking."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Added to owlit"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Added to owlit with its PDF"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "The page names no PDF. owlit looks for one."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{host} gave no PDF. owlit keeps looking."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "The PDF on this page is another paper's. owlit keeps looking."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Let owlit read {host} to get its PDF with your access."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "PDF saved to owlit"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{host} gave no PDF"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "This PDF is another paper's"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "In your Library, with its PDF"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "In your Library, without its PDF"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "This page names none. owlit keeps looking."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{listing} lists papers"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Open one, then press the button on its page."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "This page doesn't show a paper"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "owlit can't tell which paper this PDF is"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Add the paper from its page."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Let owlit read {host}"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "It gets the PDF there with your access."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit has no workspace open"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open one in owlit, then press the button again."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "owlit isn't open"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "Open it, then press the button again."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "This browser isn't connected to owlit"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Connect"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "Allow it in owlit…"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Connected to owlit"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "{name} answers here instead of your owlit"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+#: apps/extension/src/popup/Popup.tsx
+msgid "Quit it, and this browser goes on with your owlit."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Press owlit's button to try again."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {# paper waits for your sign-in here} other {# papers wait for your sign-in here}}"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "Going on once you're through."
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "You're through"
+msgstr ""
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
@@ -6917,36 +7086,7 @@ msgid "Allow the publishers' sites"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
-msgid "{papers, plural, one {owlit needs {host} for # paper} other {owlit needs {host} for # papers}}"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Take PDFs I open for papers in my Library"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Connected to owlit"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Open a workspace in owlit"
-msgstr ""
-
-#. placeholder {0}: connection.workspace
-#: apps/extension/src/popup/Popup.tsx
-msgid "Connected to owlit · {0}"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Open owlit to connect"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "{name} answers here instead of your owlit. Quit it, and this browser goes on with your owlit."
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Allow it in owlit…"
+msgid "owlit can't read the browser's own pages. Open a paper's page and press the button there."
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
@@ -6954,7 +7094,7 @@ msgid "You didn't allow it in owlit."
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
-msgid "Nobody answered in owlit."
+msgid "Nobody answered in owlit in time. Press Connect to ask again."
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
@@ -6971,10 +7111,6 @@ msgid "Connect to owlit"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
-msgid "owlit can't tell which paper this PDF is."
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
 msgid "Add to owlit"
 msgstr ""
 
@@ -6983,48 +7119,27 @@ msgid "Save PDF to owlit"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
-msgid "In your Library, without its PDF. This page names no PDF to save."
+msgid "Give this PDF to owlit"
+msgstr ""
+
+#. placeholder {0}: authors[0]
+#. placeholder {0}: paper.authors[0]
+#: apps/extension/src/popup/Popup.tsx
+#: apps/share-web/src/App.tsx
+msgid "{0} et al."
+msgstr ""
+
+#. popup: owlit fetches the papers that waited at this site; how many came so far
+#: apps/extension/src/popup/Popup.tsx
+msgid "Going on · {done} of {total}"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
-msgid "Added to owlit with its PDF"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Added to owlit. owlit looks for its PDF."
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Added; {host} gave no PDF"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "Added; the PDF there isn't this paper's"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "PDF saved to owlit"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "{host} gave no PDF"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "This isn't the paper's PDF"
-msgstr ""
-
-#: apps/extension/src/popup/Popup.tsx
-msgid "This browser isn't connected to owlit."
+msgid "Open in owlit"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "Something went wrong in the owlit extension. Close this and try again."
-msgstr ""
-
-#. placeholder {0}: paper.authors[0]
-#: apps/share-web/src/App.tsx
-msgid "{0} et al."
 msgstr ""
 
 #: apps/share-web/src/App.tsx

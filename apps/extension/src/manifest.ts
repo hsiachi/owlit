@@ -16,7 +16,14 @@ export const FIREFOX_ANDROID_MIN = "142.0"
 // Module service workers, and webRequest's responseHeaders without extraHeaders
 export const CHROME_MIN = "116"
 
+// The store's and the extensions page's: the app icon itself
 const ICONS = { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 128: "icons/128.png" }
+// The toolbar button's: the feather alone (scripts/icons.mjs), in ink, and light for a dark toolbar.
+// Firefox picks between them by its theme (theme_icons); Chrome takes the light one from the background
+// once a page or the popup says the browser is dark (action.setIcon).
+export const FEATHER = { 16: "icons/feather-16.png", 32: "icons/feather-32.png", 48: "icons/feather-48.png" }
+export const FEATHER_LIGHT = { 16: "icons/feather-light-16.png", 32: "icons/feather-light-32.png", 48: "icons/feather-light-48.png" }
+const THEME_ICONS = ([16, 32, 48] as const).map((size) => ({ light: FEATHER_LIGHT[size], dark: FEATHER[size], size }))
 
 export interface Manifest {
   manifest_version: 3
@@ -24,7 +31,9 @@ export interface Manifest {
   version: string
   description: string
   icons: Record<number, string>
-  action: { default_title: string; default_popup: string; default_icon: Record<number, string> }
+  // No default_popup: the click acts (background/index.ts), and the popup is set for a tab only when the
+  // page can't say what came of it
+  action: { default_title: string; default_icon: Record<number, string>; theme_icons?: { light: string; dark: string; size: number }[] }
   background: { service_worker: string; type: "module" } | { scripts: string[]; type: "module" }
   content_scripts: { matches: string[]; js: string[]; run_at: "document_idle" }[]
   permissions: string[]
@@ -45,9 +54,10 @@ export function manifest(target: Target, { version, publishers, dev = false }: {
     version,
     description: "Add the paper of the page you're on to owlit, with its PDF, using your browser's access.",
     icons: ICONS,
-    action: { default_title: "owlit", default_popup: "popup.html", default_icon: ICONS },
+    action: { default_title: "Add to owlit", default_icon: FEATHER },
     content_scripts: [{ matches: publishers, js: ["content.js"], run_at: "document_idle" as const }],
-    permissions: ["storage", "activeTab", "scripting", "notifications", "webRequest", "alarms"],
+    // contextMenus: the button's right-click menu, where the one setting is
+    permissions: ["storage", "activeTab", "scripting", "notifications", "webRequest", "alarms", "contextMenus"],
     // owlit on this machine (any port: a match pattern takes none), and the publishers owlit knows
     host_permissions: ["http://127.0.0.1/*", ...publishers],
     // Any other site, asked for one at a time from a click in the popup or on the Allow page
@@ -57,6 +67,8 @@ export function manifest(target: Target, { version, publishers, dev = false }: {
   if (target === "chrome") return { ...shared, background: { service_worker: "background.js", type: "module" }, minimum_chrome_version: CHROME_MIN }
   return {
     ...shared,
+    // light: the icon drawn light, for a theme with light text on a dark toolbar
+    action: { ...shared.action, theme_icons: THEME_ICONS },
     // Firefox runs no extension service worker: its manifest v3 background is an event page, the same
     // module loaded as a script, which Firefox unloads when idle as Chrome stops a worker
     background: { scripts: ["background.js"], type: "module" },
