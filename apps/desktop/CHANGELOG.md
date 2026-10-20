@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The card under an answer says in one line what it was built from: "From 6 papers · 3 abstract only", or "all read". Click it for the papers, each with how Owlit read it. In a narrow Owlit panel the rest of the card is shorter too: the line saying what the reply changed is a count ("4 changes"), and a thread, paper or doc no longer shrinks to one character beside its detail. A table's columns of sentences keep a readable width and the table scrolls sideways.
 - Threads has a new icon in the rail, on Home and in mentions: a route, a line through two points, in place of the stack of layers.
 - The Owlit button in a doc's header is gone. The dot it carried, for comments Owlit left since you last looked, sits on the comments button instead, and a click there opens the first of them.
 - The browser extension's button acts at once: on a paper's page it adds the paper (or saves the PDF the page names for a paper you have without one), and a small card in the page's corner says how it went, with Open to see it in owlit. The button opens its panel only to connect, when owlit has no workspace open, or on pages where no card can be drawn. Its one setting is on the button's right-click menu.

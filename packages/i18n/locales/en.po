@@ -532,6 +532,14 @@ msgstr "Owlit, from the abstract"
 msgid "Owlit, from the full text"
 msgstr "Owlit, from the full text"
 
+#. a thread's answer written from the paper's abstract
+#. label before the first lines of a cited paper's abstract, in its card
+#: app/src/components/citation-card.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Abstract"
+msgstr "Abstract"
+
 #: app/src/components/citation-card.tsx
 msgid "No abstract in owlit."
 msgstr "No abstract in owlit."
@@ -559,11 +567,6 @@ msgstr "Owlit couldn't find this sentence in the paper"
 #: app/src/components/citation-card.tsx
 msgid "The paper's text isn't in owlit"
 msgstr "The paper's text isn't in owlit"
-
-#: app/src/components/citation-card.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
-msgstr "From the abstract"
 
 #. the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6
 #: app/src/components/citation-card.tsx
@@ -1443,6 +1446,10 @@ msgid "{papers, plural, one {New thread · # paper} other {New thread · # paper
 msgstr "{papers, plural, one {New thread · # paper} other {New thread · # papers}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{papers, plural, one {New · # paper} other {New · # papers}}"
+msgstr "{papers, plural, one {New · # paper} other {New · # papers}}"
+
+#: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {paper} other {papers}}"
 msgstr "{papers, plural, one {paper} other {papers}}"
 
@@ -1532,6 +1539,10 @@ msgstr "Redo"
 msgid "Undone"
 msgstr "Undone"
 
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "{changes, plural, one {# change} other {# changes}}"
+msgstr "{changes, plural, one {# change} other {# changes}}"
+
 #. verb: take back every change of the reply
 #. verb: undo every passage Owlit changed
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1544,44 +1555,62 @@ msgstr "Undo all"
 msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, one {Show # more} other {Show # more}}"
 
-#. papers an answer was built from: N in full
+#. how Owlit read a paper an answer was built from
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "in full"
-msgstr "in full"
+msgctxt "read depth"
+msgid "Read in full"
+msgstr "Read in full"
 
-#. papers an answer was built from: N from the text (some of its pages or a section)
+#. how Owlit read a paper an answer was built from
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "from the text"
-msgstr "from the text"
+msgctxt "read depth"
+msgid "From the digest"
+msgstr "From the digest"
 
-#. papers an answer was built from: N from the digest
+#. how Owlit read a paper an answer was built from
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "from the digest"
-msgstr "from the digest"
+msgctxt "read depth"
+msgid "Abstract only"
+msgstr "Abstract only"
 
-#. papers an answer was built from: N abstract only
+#. how Owlit read a paper an answer was built from: owlit has no text of it
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "abstract only"
-msgstr "abstract only"
+msgctxt "read depth"
+msgid "No PDF"
+msgstr "No PDF"
 
-#. papers an answer was built from: N without a PDF (owlit has no text of them)
+#. how Owlit read a paper an answer was built from: some of its pages or a section
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "without a PDF"
-msgstr "without a PDF"
+msgctxt "read depth"
+msgid "Part of the text"
+msgstr "Part of the text"
+
+#. how Owlit read a paper an answer was built from: pages 4–5 of it
+#. placeholder {0}: r.pages
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgctxt "read depth"
+msgid "pp. {0}"
+msgstr "pp. {0}"
+
+#. how Owlit read a paper an answer was built from: page 4 of it
+#. placeholder {0}: r.pages
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgctxt "read depth"
+msgid "p. {0}"
+msgstr "p. {0}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {From # paper} other {From # papers}}"
 msgstr "{papers, plural, one {From # paper} other {From # papers}}"
 
-#. one paper an answer was built from: 1 from pp. 4–5
+#. placeholder {0}: thin.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "from pp. {pages}"
-msgstr "from pp. {pages}"
+msgid "{0, plural, one {# abstract only} other {# abstract only}}"
+msgstr "{0, plural, one {# abstract only} other {# abstract only}}"
 
-#. one paper an answer was built from: 1 from p. 4
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "from p. {pages}"
-msgstr "from p. {pages}"
+msgid "{papers, plural, one {read} other {all read}}"
+msgstr "{papers, plural, one {read} other {all read}}"
 
 #. a helper agent's status
 #. a step that failed
@@ -3632,12 +3661,6 @@ msgstr "Year"
 #: app/src/features/library/components/PaperList.tsx
 msgid "Venue"
 msgstr "Venue"
-
-#. a thread's answer written from the paper's abstract
-#: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Abstract"
-msgstr "Abstract"
 
 #. in: Opened in your browser
 #: app/src/features/library/components/ExtensionWaitLines.tsx
@@ -6109,6 +6132,10 @@ msgstr "was: {text}"
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "From the title only"
 msgstr "From the title only"
+
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "From the abstract"
+msgstr "From the abstract"
 
 #. how Owlit came to a thread's paper: a search's words, or the paper that cites it
 #: app/src/features/threads/components/AnswerRows.tsx

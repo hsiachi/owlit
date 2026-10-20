@@ -57,6 +57,11 @@ const mathClass = (className: unknown) => {
 }
 
 // The words of rendered Markdown, without its emphasis or code marks
+// A cell of prose (a finding, a sentence) gets a floor width (.prose-cell in index.css). Without one, a
+// table wider than a narrow panel squeezes every column to its longest word, and Chinese, which breaks
+// between any two characters, to one character a line. Width counted in Latin letters, CJK as two.
+const proseCell = (children: ReactNode) => ([...textOf(children)].reduce((w, c) => w + (c > "\u2e7f" ? 2 : 1), 0) > 24 ? "prose-cell" : undefined)
+
 function textOf(node: ReactNode): string {
   if (node === null || node === undefined || typeof node === "boolean") return ""
   if (typeof node === "string" || typeof node === "number") return String(node)
@@ -114,6 +119,11 @@ export function Markdown({
             <div className="table-scroll">
               <table>{children}</table>
             </div>
+          ),
+          td: ({ children, ...rest }) => (
+            <td {...rest} className={proseCell(children)}>
+              {children}
+            </td>
           ),
           // Workspace references look the same as the user's @-mentions, which are plain text: an agent
           // may still format inside the link ("[Lam et al., *Concept Induction*](owlit://…)"). The tooltip

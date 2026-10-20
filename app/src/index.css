@@ -702,11 +702,13 @@
   color: var(--muted-foreground);
 }
 /* Tables are ruled, not boxed: a tinted header and a hairline under each row, no outer frame or column lines.
-   Columns share the width by their content, none narrower than its longest word; a table too wide for the
-   column scrolls sideways in its own box (.table-scroll, Markdown.tsx) rather than squeezing a column */
+   Columns share the width by their content, none narrower than its longest word and a cell of prose none
+   narrower than 12em (.prose-cell, Markdown.tsx); a table too wide for the column scrolls sideways in its
+   own box (.table-scroll) rather than squeezing a column */
 .markdown .table-scroll { margin: 0.75rem 0; overflow-x: auto; }
 .markdown table { margin: 0.75rem 0; width: 100%; border-collapse: collapse; font-size: 0.9em; overflow-wrap: break-word; word-break: normal; }
 .markdown .table-scroll > table { margin: 0; }
+.markdown td.prose-cell { min-width: 12em; }
 .markdown th, .markdown td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
 .markdown th { background: var(--muted); font-weight: 500; border-bottom: 0; }
 .markdown th:first-child { border-radius: calc(var(--radius) * 0.8) 0 0 calc(var(--radius) * 0.8); }

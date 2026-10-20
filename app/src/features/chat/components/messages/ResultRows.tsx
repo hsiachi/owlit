@@ -4,6 +4,7 @@ import { create } from "zustand"
 import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, RpcErrorCode } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { FoldChevron } from "@/components/fold"
 import { Unfold } from "@/components/unfold"
 import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
@@ -228,7 +229,11 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
       created,
       papers,
       detail: created ? (
-        plural(papers, { one: "New thread · # paper", other: "New thread · # papers" })
+        // "New thread" is said by the row's icon too, so a narrow card keeps only "New"
+        <>
+          <span className="hidden @md:inline">{plural(papers, { one: "New thread · # paper", other: "New thread · # papers" })}</span>
+          <span className="@md:hidden">{plural(papers, { one: "New · # paper", other: "New · # papers" })}</span>
+        </>
       ) : papers ? (
         <span className="tabular-nums">
           <span className="text-owlit">+{papers}</span> {plural(papers, { one: "paper", other: "papers" })}
@@ -305,6 +310,10 @@ function summary(rows: ResultRow[]) {
 }
 
 const SHOW_ON_HOVER = "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+// The buttons a row offers on hover take no width at rest: in a narrow panel, an invisible Undo beside the
+// detail would squeeze the name down to a character or two. Still in the tab order, so focus shows them.
+const HOVER_ONLY =
+  "flex shrink-0 max-w-0 -mr-1.5 items-center gap-1.5 overflow-hidden opacity-0 group-hover/row:mr-0 group-hover/row:max-w-none group-hover/row:opacity-100 group-focus-within/row:mr-0 group-focus-within/row:max-w-none group-focus-within/row:opacity-100"
 
 // Undo draws the strike across the name from the left (the `strike` rule in index.css), then the row settles
 // into the muted tone; done at once, it would look like a different row had replaced it. Redo takes the
@@ -318,30 +327,36 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
       {/* The whole row opens what it names; Undo sits above that click */}
       {row.view && live && <button type="button" onClick={row.view} aria-label={t`Open ${name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
       <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span
-        data-struck={live ? undefined : ""}
-        className={`strike min-w-0 truncate transition-colors duration-(--t-mark) ease-(--ease) ${live ? "text-foreground" : "text-muted-foreground"}`}
-      >
-        {row.name}
+      {/* In a narrow panel the detail gives way once the name is down to 40% of the row, so neither is cut
+          to nothing. The strike is drawn across the words only, not the room the name is given. */}
+      <span className="flex min-w-[40%] flex-1">
+        <span
+          data-struck={live ? undefined : ""}
+          className={`strike w-fit max-w-full truncate transition-colors duration-(--t-mark) ease-(--ease) ${live ? "text-foreground" : "text-muted-foreground"}`}
+        >
+          {row.name}
+        </span>
       </span>
-      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
-        {live && row.extra && (
-          <Button variant="text" size="inline" onClick={() => void row.extra!.run()} className={`relative ${SHOW_ON_HOVER}`}>
-            {row.extra.label}
-          </Button>
-        )}
-        {live && row.undo && (
-          <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
-            {t({ message: "Undo", comment: "verb: take back a change the agent made" })}
-          </Button>
-        )}
-        {!live && row.redo && (
-          <Button variant="text" size="inline" onClick={() => void row.redo!()} className={`relative ${SHOW_ON_HOVER}`}>
-            {t({ message: "Redo", comment: "verb: put back a change that was undone" })}
-          </Button>
-        )}
-        {live ? row.detail : t({ message: "Undone", comment: "a change that was taken back" })}
-        <ArrowUpRightIcon className={`size-3.5 ${row.view && live ? SHOW_ON_HOVER : "invisible"}`} />
+      <span className="flex min-w-0 items-center gap-1.5 text-detail text-muted-foreground">
+        <span className={HOVER_ONLY}>
+          {live && row.extra && (
+            <Button variant="text" size="inline" onClick={() => void row.extra!.run()} className="relative">
+              {row.extra.label}
+            </Button>
+          )}
+          {live && row.undo && (
+            <Button variant="text" size="inline" onClick={() => void row.undo!()} className="relative">
+              {t({ message: "Undo", comment: "verb: take back a change the agent made" })}
+            </Button>
+          )}
+          {!live && row.redo && (
+            <Button variant="text" size="inline" onClick={() => void row.redo!()} className="relative">
+              {t({ message: "Redo", comment: "verb: put back a change that was undone" })}
+            </Button>
+          )}
+        </span>
+        <span className="min-w-0 truncate">{live ? row.detail : t({ message: "Undone", comment: "a change that was taken back" })}</span>
+        <ArrowUpRightIcon className={`size-3.5 shrink-0 ${row.view && live ? SHOW_ON_HOVER : "invisible"}`} />
       </span>
     </div>
   )
@@ -353,6 +368,7 @@ export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: 
   const built = message.readFrom ?? []
   if (!rows.length && !built.length) return null
   const live = rows.filter((r) => !r.undone && r.undo)
+  const changes = rows.length
   // The total counts in one unit only: words when every edit was to prose
   const edits = rows.flatMap((r) => (r.stats && !r.undone ? [r.stats] : []))
   const total: EditStats | undefined =
@@ -362,17 +378,23 @@ export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: 
   // The rest unfold above the "Show N more" line, which stays as "Show less" to fold them back
   const rest = rows.length > FOLD_AFTER + 1 ? rows.slice(FOLD_AFTER) : []
   return (
-    <div className="flex flex-col rounded-lg border p-1">
+    <div className="@container flex flex-col rounded-lg border p-1">
       {built.length > 0 && <BuiltFrom readFrom={built} />}
       {/* One change says itself; several get a line saying what happened, with Undo for all of them */}
       {rows.length > 1 && (
-        <div className="group/row flex h-8 items-center gap-2.5 px-2.5 text-sm">
-          <span className="min-w-0 truncate text-foreground">{summary(rows)}</span>
+        // A sentence, which a narrow card shortens to a count: the rows under it say the rest
+        <div className="group/row flex min-h-8 items-center gap-2.5 px-2.5 py-1.5 text-sm">
+          <span className="min-w-0 text-foreground">
+            <span className="hidden @md:inline">{summary(rows)}</span>
+            <span className="@md:hidden">{plural(changes, { one: "# change", other: "# changes" })}</span>
+          </span>
           <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
             {live.length > 1 && (
-              <Button variant="text" size="inline" onClick={() => void live.reduce((done, r) => done.then(() => r.undo!()), Promise.resolve())} className={SHOW_ON_HOVER}>
-                {t({ message: "Undo all", comment: "verb: take back every change of the reply" })}
-              </Button>
+              <span className={HOVER_ONLY}>
+                <Button variant="text" size="inline" onClick={() => void live.reduce((done, r) => done.then(() => r.undo!()), Promise.resolve())}>
+                  {t({ message: "Undo all", comment: "verb: take back every change of the reply" })}
+                </Button>
+              </span>
             )}
             {total && (total.added > 0 || total.removed > 0) && <EditCounts stats={total} />}
             <ArrowUpRightIcon className="invisible size-3.5" />
@@ -398,14 +420,21 @@ export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: 
   )
 }
 
-// What the answer was built from, as core saw the turn read: "From 3 papers · 2 in full · 1 abstract
-// only". Resting on a count marks, in the answer above, the citations of the papers it counts.
+// What the answer was built from, as core saw the turn read. Closed, one line that says how many papers it
+// knew only from their abstracts ("From 6 papers · 3 abstract only", or "all read"): the one fact that bears
+// on how far to trust the answer, and short enough for the narrowest panel. A paper without a PDF counts
+// as abstract only, one read from its digest as read. Open, each paper with how it was read. Resting on the
+// count or a paper marks, in the answer above, the citations it stands for.
 const PaperIcon = KIND_ICON.paper
+const THIN: ReadFrom["depth"][] = ["abstract", "none"]
 function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
   const line = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const navigate = useOpenFromChat()
   const library = useLibraryStore((s) => s.papers)
   const aliases = useLibraryStore((s) => s.aliases)
   const papers = readFrom.length
+  const thin = readFrom.filter((r) => THIN.includes(r.depth))
   const mark = (ids: string[] | null) => {
     const answer = line.current?.closest<HTMLElement>('[data-slot="message"]')
     if (!answer) return
@@ -416,33 +445,61 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
       el.toggleAttribute("data-marked", want.has(id))
     }
   }
-  const counts: { depth: ReadFrom["depth"]; label: string }[] = [
-    { depth: "full", label: t({ message: "in full", comment: "papers an answer was built from: N in full" }) },
-    { depth: "text", label: t({ message: "from the text", comment: "papers an answer was built from: N from the text (some of its pages or a section)" }) },
-    { depth: "digest", label: t({ message: "from the digest", comment: "papers an answer was built from: N from the digest" }) },
-    { depth: "abstract", label: t({ message: "abstract only", comment: "papers an answer was built from: N abstract only" }) },
-    { depth: "none", label: t({ message: "without a PDF", comment: "papers an answer was built from: N without a PDF (owlit has no text of them)" }) },
-  ]
+  const depthOf = (r: ReadFrom) => {
+    if (r.depth === "full") return t({ message: "Read in full", context: "read depth", comment: "how Owlit read a paper an answer was built from" })
+    if (r.depth === "digest") return t({ message: "From the digest", context: "read depth", comment: "how Owlit read a paper an answer was built from" })
+    if (r.depth === "abstract") return t({ message: "Abstract only", context: "read depth", comment: "how Owlit read a paper an answer was built from" })
+    if (r.depth === "none") return t({ message: "No PDF", context: "read depth", comment: "how Owlit read a paper an answer was built from: owlit has no text of it" })
+    if (!r.pages) return t({ message: "Part of the text", context: "read depth", comment: "how Owlit read a paper an answer was built from: some of its pages or a section" })
+    return /[–,]/.test(r.pages) ? t({ message: `pp. ${r.pages}`, context: "read depth", comment: "how Owlit read a paper an answer was built from: pages 4–5 of it" }) : t({ message: `p. ${r.pages}`, context: "read depth", comment: "how Owlit read a paper an answer was built from: page 4 of it" })
+  }
   return (
-    <div ref={line} className="flex min-h-8 flex-wrap items-center gap-x-1.5 px-2.5 py-1 text-sm text-muted-foreground" onPointerLeave={() => mark(null)}>
-      <PaperIcon className="mr-1 size-4 shrink-0" />
-      <span>{plural(papers, { one: "From # paper", other: "From # papers" })}</span>
-      {counts.map(({ depth, label: each }) => {
-        const these = readFrom.filter((r) => r.depth === depth)
-        const ids = these.map((r) => r.paperId)
-        if (!ids.length) return null
-        // One paper read in part says which pages, when the reads named them
-        const pages = these.length === 1 ? these[0]!.pages : undefined
-        const label = !pages ? each : /[–,]/.test(pages) ? t({ message: `from pp. ${pages}`, comment: "one paper an answer was built from: 1 from pp. 4–5" }) : t({ message: `from p. ${pages}`, comment: "one paper an answer was built from: 1 from p. 4" })
-        return (
-          <span key={depth} className="contents">
-            <span aria-hidden>·</span>
-            <span className="rounded-sm px-0.5 hover:text-foreground" onPointerEnter={() => mark(ids)} onPointerLeave={() => mark(null)}>
-              {ids.length} {label}
+    <div ref={line} className="text-sm text-muted-foreground" onPointerLeave={() => mark(null)}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left outline-none hover:bg-muted focus-key:bg-muted"
+      >
+        <PaperIcon className="size-4 shrink-0" />
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="shrink-0">{plural(papers, { one: "From # paper", other: "From # papers" })}</span>
+          <span aria-hidden>·</span>
+          {thin.length ? (
+            <span className="truncate rounded-sm hover:text-foreground" onPointerEnter={() => mark(thin.map((r) => r.paperId))} onPointerLeave={() => mark(null)}>
+              {plural(thin.length, { one: "# abstract only", other: "# abstract only" })}
             </span>
-          </span>
-        )
-      })}
+          ) : (
+            <span className="truncate">{plural(papers, { one: "read", other: "all read" })}</span>
+          )}
+        </span>
+        <FoldChevron open={open} className="-ml-1" />
+      </button>
+      <Unfold open={open}>
+        <div className="flex flex-col pb-1">
+          {readFrom.map((r) => {
+            const paper = paperById(library, aliases, r.paperId)
+            const row = "flex h-7 w-full items-center gap-2.5 rounded-md pr-2.5 pl-[38px] text-left text-detail"
+            const inner = (
+              <>
+                <span className="min-w-0 flex-1 truncate text-foreground">{paper?.title ?? r.paperId}</span>
+                <span className="shrink-0">{depthOf(r)}</span>
+              </>
+            )
+            const hover = { onPointerEnter: () => mark([paper?.id ?? r.paperId]), onPointerLeave: () => mark(null) }
+            // A paper in the Library opens there; one only cited has nowhere to go
+            return paper ? (
+              <button key={r.paperId} type="button" onClick={() => navigate(`/library/${paper.id}`)} className={`${row} outline-none hover:bg-muted focus-key:bg-muted`} {...hover}>
+                {inner}
+              </button>
+            ) : (
+              <div key={r.paperId} className={row} {...hover}>
+                {inner}
+              </div>
+            )
+          })}
+        </div>
+      </Unfold>
     </div>
   )
 }
