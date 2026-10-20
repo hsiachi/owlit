@@ -342,7 +342,7 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, startedBy, about, help } = chat
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, rules, startedBy, about, help } = chat
   return {
     id,
     title,
@@ -354,6 +354,7 @@ function summaryOf(chat: Chat | ChatFile): ChatSummary {
     ...(role ? { role } : {}),
     effortId,
     ...(sessions ? { sessions } : {}),
+    ...(rules ? { rules } : {}),
     ...(startedBy ? { startedBy, ...(about ? { about } : {}) } : {}),
     ...(help ? { help } : {}),
   }

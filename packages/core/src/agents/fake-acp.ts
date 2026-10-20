@@ -276,7 +276,8 @@ class FakeAgent implements acp.Agent {
         return { stopReason: "end_turn" }
       }
       if (text.includes("rules?")) {
-        await say(rules ? "got the rules" : "no rules this time")
+        const again = params.prompt.some((b) => b.type === "text" && b.text.startsWith("[owlit] owlit's rules changed"))
+        await say(rules ? "got the rules" : again ? "got the new rules" : "no rules this time")
         return { stopReason: "end_turn" }
       }
       // As Claude Code fails a turn the API refused: its error as answer text, then auth_required

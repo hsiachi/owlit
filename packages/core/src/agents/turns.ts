@@ -40,7 +40,7 @@ import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questio
 import type { Who } from "./policy.ts"
 import { answerFor, roleNote, takesRules, withUserName, type EngineAnswer } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
-import { memoryNote, preamble, USER_FOLLOWS } from "./rules.ts"
+import { memoryNote, preamble, RULES_VERSION, rulesChangedNote, USER_FOLLOWS } from "./rules.ts"
 import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
 
 export type TurnRequest = ParamsOf<"agents.prompt">
@@ -75,6 +75,9 @@ interface Live {
   told?: Role
   // The memory as the agent last heard it (memoryNote), so it is told again only when it changed
   heard?: string
+  // The version of owlit's rules the session was told; none when the chat doesn't record it, which is
+  // taken as an older one
+  rules?: number
   // Calls the agent announced to owlit's own MCP server: core's policy answers those by the chat's role
   owlitCalls: Set<string>
   // While a turn runs
@@ -249,9 +252,16 @@ export class Turns {
       const lines = (await this.options.memory?.().catch(() => [])) ?? []
       const heard = JSON.stringify(lines.map((l) => [l.id, l.kind, l.text]))
       const memory = live.heard !== heard && (lines.length || live.heard !== undefined) ? memoryNote(lines, live.heard !== undefined) : undefined
-      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached, memory)
+      // A session that outlived a change to the rules (a long-lived chat) hears the version in force
+      const rulesAgain = !preamble && !fresh.rulesInSystemPrompt && live.rules !== RULES_VERSION ? rulesChangedNote() : undefined
+      const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached, memory, rulesAgain)
       live.told = turn.role
       live.heard = heard
+      if (preamble || rulesAgain) {
+        live.rules = RULES_VERSION
+        const chat = await ws.chats.get(req.chatId)
+        await ws.chats.update(req.chatId, { rules: { ...chat.rules, [req.connectorId]: RULES_VERSION } })
+      }
       const response = await live.proc.prompt({ sessionId: live.sessionId, prompt })
       log(`answered (${response.stopReason})`)
       await quiet(turn)
@@ -407,7 +417,7 @@ export class Turns {
       try {
         loading.add(key)
         const loaded = await proc.loadSession({ sessionId: recorded, cwd: ws.root, mcpServers: this.mcpServers(ws.root, req.chatId), ...(_meta ? { _meta } : {}) }, handler)
-        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, heard: known?.sessionId === recorded ? known.heard : undefined, owlitCalls: new Set(), turn: null }
+        const live: Live = { sessionId: recorded, proc, options: loaded.configOptions ?? [], modes: loaded.modes ?? null, meta, told: known?.sessionId === recorded ? known.told : undefined, heard: known?.sessionId === recorded ? known.heard : undefined, rules: chat.rules?.[req.connectorId], owlitCalls: new Set(), turn: null }
         this.live.set(key, live)
         return { live, history: null, created: false, guard, rulesInSystemPrompt }
       } catch {
@@ -685,10 +695,10 @@ const loading = new Set<string>()
 // What the user sent, as content blocks: the text (mentions as their names), each mentioned or on-screen
 // doc as a link to its file, papers and threads by their owlit:// address, and a selected passage
 // quoted. A session started over gets the conversation so far first.
-// What the agent is told for one turn, in this order: owlit's rules (a new session), the role (when it is
-// new to the session), owlit's memory (when it is new to the session or changed), the conversation so far
-// (a session started over), then the user's own words after a line marking where they begin, and last the
-// attached files (attachmentBlocks)
+// What the agent is told for one turn, in this order: owlit's rules (a new session, or one told an older
+// version), the role (when it is new to the session), owlit's memory (when it is new to the session or
+// changed), the conversation so far (a session started over), then the user's own words after a line
+// marking where they begin, and last the attached files (attachmentBlocks)
 export function promptBlocks(
   input: PromptInput,
   root: string,
@@ -698,10 +708,13 @@ export function promptBlocks(
   role?: string,
   attached?: acp.ContentBlock[],
   memory?: string,
+  rulesAgain?: string,
 ): acp.ContentBlock[] {
   const blocks: acp.ContentBlock[] = []
-  // A new session hears owlit's rules first; a loaded one heard them when it began
+  // A new session hears owlit's rules first; a loaded one heard them when it began, and hears them again
+  // when they changed since (rulesAgain)
   if (fresh) blocks.push({ type: "text", text: preamble(root, userName) })
+  else if (rulesAgain) blocks.push({ type: "text", text: rulesAgain })
   if (role) blocks.push({ type: "text", text: role })
   if (memory) blocks.push({ type: "text", text: memory })
   if (history) blocks.push({ type: "text", text: `The conversation so far, for context:\n\n${history}\n\n---\n` })

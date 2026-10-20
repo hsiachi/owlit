@@ -88,6 +88,9 @@ export function memoryNote(lines: MemoryLine[], changed: boolean) {
   return `${opening}\nHow they want you to work:\n${list("work")}\nAbout their work:\n${list("about")}`
 }
 
+// Said before the next prompt of a session that was told an older version of the rules
+export const rulesChangedNote = () => `[owlit] owlit's rules changed since this chat started; follow this version.\n\n${AGENT_RULES}`
+
 // Said before the first prompt of every new session, never shown or kept in the chat. The user's name,
 // when they gave one in Settings, is said here rather than in the rules, which owlit-mcp also serves
 // and which stay the same for everyone.

@@ -239,6 +239,9 @@ export interface Chat {
   // The ACP session this chat has on each agent (connector id → session id), so it continues where it
   // left off after a restart; kept by core
   sessions?: Record<string, string>
+  // The version of owlit's rules each of those sessions was told (connector id → version), so one that
+  // outlives a change to the rules hears them again; kept by core
+  rules?: Record<string, number>
   // A chat owlit started for the person (a button, a tool), not one they typed into: it isn't in the chat
   // list and nothing opens it; its work shows where it lands, and its file is the work's record. Its first
   // message is the recipe it was given.
