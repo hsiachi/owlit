@@ -1,22 +1,22 @@
 import type { ChatAbout } from "@owlit/protocol"
 import { goThrough } from "./go-through.ts"
 import { reply } from "./reply.ts"
-import { THREAD_RECIPES } from "./threads.ts"
+import { threadSkill } from "./threads.ts"
 
-// The recipes: what Owlit is told for each piece of work owlit offers as a button. A chat owlit starts for
-// the person (chats.ts startFor) is given one as its first message; an agent in any chat reads the same
-// one through owlit_help, so work asked for in words is done the way the button does it. Recipes are text
-// for agents: English, never translated.
+// The recipes: how Owlit does a piece of work, read whole through owlit_help (topic its name) before doing
+// it in a chat. A chat owlit starts for the person (chats.ts startFor) may be given one as its first
+// message, so work asked for in words is done the way owlit's own does it. Recipes are text for agents:
+// English, never translated.
 
 export interface Recipe<I> {
-  // What the work is on; whoever owns that kind works out the recipe's input (Threads.recipeInput)
+  // What the work is on
   about: ChatAbout["kind"]
   // One line on what it does and what it needs, for owlit_help's list
   description: string
   text: (input: I) => string
 }
 
-export const RECIPES = { ...THREAD_RECIPES, "go-through": goThrough, reply }
+export const RECIPES = { threads: threadSkill, "go-through": goThrough, reply }
 
 export type RecipeName = keyof typeof RECIPES
 
