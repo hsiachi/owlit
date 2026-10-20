@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { itemId, type Paper, QUESTION_COLUMN, readInFull, type Thread, type ThreadColumn, type ThreadRow, threadUri } from "@owlit/protocol"
+import { itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadRead, type ThreadColumn, type ThreadRowRead, threadUri } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
 import { CitationHover } from "@/components/citation-card"
@@ -17,11 +17,11 @@ import { useThreadsUi } from "../ui-store"
 import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
 
 // The papers of a thread without columns, one line each: what the paper says about the question
-// first, the paper after it, named as the memo names it ("CiteSee · 2023"). Every answer is in ink: one from
+// first, the paper after it, named as the report names it ("CiteSee · 2023"). Every answer is in ink: one from
 // the full text ends in the page it rests on, so an answer without a page is from the abstract, and grey
 // keeps meaning only "secondary" or "unread". The slot before it is Owlit's dot while the answer is new
 // since the user looked; their own reading is a half ring after the paper's name, on the thing it is about.
-export function AnswerRows({ thread, shown, visit }: { thread: Thread; shown: Thread; visit: VisitDots }) {
+export function AnswerRows({ thread, shown, visit }: { thread: ThreadRead; shown: ThreadRead; visit: VisitDots }) {
   const peek = useThreadsUi((s) => s.peek)
   if (!shown.rows.length) return null
   return (
@@ -41,7 +41,7 @@ export function ReadingMark({ paper, className }: { paper: Paper | undefined; cl
 
 // reread: the dot's change is Owlit answering again from the full text: the page says so while the dot
 // lasts, and the opened row keeps the answer it replaced after
-function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: Thread; row: ThreadRow; items: string[]; fresh: boolean; reread: ReturnType<typeof readInFull>; open: boolean }) {
+function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: ThreadRead; row: ThreadRowRead; items: string[]; fresh: boolean; reread: ReturnType<typeof readInFull>; open: boolean }) {
   const seenRef = useSeenOnScreen<HTMLDivElement>(thread.id, items)
   const set = useThreadsUi((s) => s.set)
   const library = useLibraryPaper(row)
@@ -91,7 +91,7 @@ function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: Thread
 
 // The groups of a grouping, ticked where the paper is: ticking one puts it in that group too, unticking
 // takes it out of that one only. The menu stays open, so several can be changed at once.
-function GroupsMenu({ thread, row, grouping, here }: { thread: Thread; row: ThreadRow; grouping: ThreadColumn; here?: string }) {
+function GroupsMenu({ thread, row, grouping, here }: { thread: ThreadRead; row: ThreadRowRead; grouping: ThreadColumn; here?: string }) {
   const isIn = row.in?.[grouping.id] ?? []
   const groups = grouping.groups ?? []
   return (
@@ -155,13 +155,13 @@ export function WasLine({ was, className }: { was: ReturnType<typeof readInFull>
 // grouping: the shown grouping whose groups the card lists, when there is one; here: the group the row
 // was opened under; was: the answer Owlit replaced when it read the paper in full (the list's rows; a
 // table's cell says it on its own card)
-export function RowPeek({ thread, row, grouping, here, library, className, was }: { thread: Thread; row: ThreadRow; grouping?: ThreadColumn; here?: string; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
+export function RowPeek({ thread, row, grouping, here, library, className, was }: { thread: ThreadRead; row: ThreadRowRead; grouping?: ThreadColumn; here?: string; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
   const answer = shown(thread).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
   const all = useThreadsStore((s) => s.threads)
-  const others = Object.values(all).filter((c) => c.id !== thread.id && c.rows.some((r) => r.id === row.id && !c.overrides.removed[itemId.row(r.id)]))
+  const others = Object.values(all).filter((c) => c.id !== thread.id && c.rows.some((r) => r.id === row.id))
   const published = [facts.venue, facts.year].filter(Boolean).join(" · ")
   const bring = () => library ?? addPaper({ id: row.id, title: facts.title, authors: facts.authors, ids: facts.ids, year: facts.year, venue: facts.venue, abstract: facts.abstract, kind: facts.kind })
   const page = answer?.passage?.page
@@ -184,7 +184,7 @@ export function RowPeek({ thread, row, grouping, here, library, className, was }
             )}
           </p>
         )}
-        {answer && !thread.overrides.edits[itemId.cell(row.id, QUESTION_COLUMN)] && <WasLine was={was ?? null} className="mt-1" />}
+        {answer && <WasLine was={was ?? null} className="mt-1" />}
         {answer?.passage && (
           <Quote size="sm" className="mt-2">
             “{answer.passage.quote}” <span className="text-detail">{t({ message: `p. ${answer.passage.page}`, comment: "a page of a paper" })}</span>

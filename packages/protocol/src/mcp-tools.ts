@@ -377,7 +377,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_read",
     touches: "read",
     description:
-      "One thread as the user sees it: its question, columns, groupings with their groups, memo (sentences with their ids) and every paper with its answers, each marked abstract or full text, and the groups it is in. Also what the user rewrote (keep it), removed (never bring it back) and changed in the groups (keep it so).",
+      "One thread as the user sees it: its question, columns, groupings with their groups, your report and every paper with its answers, each marked abstract or full text, and the groups it is in.",
     inputSchema: { type: "object", properties: { id: { type: "string", description: "The thread's id" } }, required: ["id"] },
     annotations: { readOnlyHint: true },
   },

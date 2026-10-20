@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ChatAbout, ChatMessage, StartedChat, Thread, ThreadSize } from "@owlit/protocol"
+import type { ChatAbout, ChatMessage, StartedChat, ThreadRead, ThreadSize } from "@owlit/protocol"
 import { toast } from "sonner"
 import { mockStarted, useRunning, useStand } from "@/features/chat/started"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -28,7 +28,7 @@ export function useThreadWork(id: string): ThreadWork {
 
 // What a chat is doing on the thread, as a line on the page, from the recipe it was started with; a
 // column's question names the column
-export function workWords(chat: StartedChat, c: Thread | undefined): string {
+export function workWords(chat: StartedChat, c: ThreadRead | undefined): string {
   const column = c?.columns.find((col) => col.id === chat.about.column)
   const question = column?.question ?? ""
   switch (chat.about.recipe) {
@@ -50,7 +50,7 @@ export function workWords(chat: StartedChat, c: Thread | undefined): string {
 // Without core (pnpm dev:web) the work runs a few seconds and is then cut off (started.ts)
 const mock = (id: string, recipe: string, column?: string) => mockStarted({ kind: "thread", id, recipe, ...(column ? { column } : {}) })
 
-export async function gather(question: string, size: ThreadSize, project: string): Promise<Thread | undefined> {
+export async function gather(question: string, size: ThreadSize, project: string): Promise<ThreadRead | undefined> {
   if (!isDesktop) {
     toast(t`Owlit gathers papers in the desktop app.`)
     return undefined
@@ -72,7 +72,7 @@ export async function startWork(id: string, work: "more" | "read", what?: string
 }
 
 // Group another way: a new grouping Owlit works out; the thread with it
-export async function groupAnotherWay(id: string, question: string): Promise<Thread | undefined> {
+export async function groupAnotherWay(id: string, question: string): Promise<ThreadRead | undefined> {
   if (!isDesktop) return void mock(id, "group")
   try {
     const { thread } = await rpc.threads.group({ id, question })

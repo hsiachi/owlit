@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { citationLink, cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Thread, type ThreadColumn, type ThreadRow } from "@owlit/protocol"
+import { citationLink, cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
@@ -10,11 +10,11 @@ const cell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 
 // The thread as a table to open in a spreadsheet: one row per paper, one column per question, with
 // how far Owlit read for each answer
-function threadCsv(c: Thread) {
+function threadCsv(c: ThreadRead) {
   const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   // A column per grouping with groups, its papers' groups by name
   const groupings = c.columns.filter((col) => col.kind === "grouping" && col.groups?.length)
-  const groupsOf = (r: ThreadRow, col: ThreadColumn) => (r.in?.[col.id] ?? []).map((id) => col.groups?.find((g) => g.id === id)?.name ?? "").join("; ")
+  const groupsOf = (r: ThreadRowRead, col: ThreadColumn) => (r.in?.[col.id] ?? []).map((id) => col.groups?.find((g) => g.id === id)?.name ?? "").join("; ")
   const head = ["Paper", "Authors", "Year", "Venue", "DOI", "arXiv", ...groupings.map((col) => (groupings.length > 1 ? col.question : "Group")), ...columns.flatMap((col) => [col.id === QUESTION_COLUMN ? "Answer" : col.question, "From"])]
   const lines = c.rows.map((r) => [
     r.paper.title,
@@ -34,7 +34,7 @@ function threadCsv(c: Thread) {
   return [head, ...lines].map((l) => l.map(cell).join(",")).join("\n") + "\n"
 }
 
-export function downloadCsv(c: Thread) {
+export function downloadCsv(c: ThreadRead) {
   const blob = new Blob([threadCsv(c)], { type: "text/csv;charset=utf-8" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
@@ -47,15 +47,15 @@ export function downloadCsv(c: Thread) {
 // Markdown keeps a table cell to one line, and | ends the cell
 const mdCell = (s: string) => s.replace(/\s*\n+\s*/g, " ").replace(/\|/g, "\\|").trim()
 
-// The thread as a doc of the user's to write from: its title, the memo, and a table per group of
+// The thread as a doc of the user's to write from: its title, the report, and a table per group of
 // the papers with every answer. Papers and the thread stay owlit:// links, so they show as mentions
 // and open; an answer read in full ends with its page, cited with the sentence it rests on. Taken as it
 // is now: the doc doesn't follow later changes to the thread.
-export function threadMarkdown(c: Thread, now = new Date()) {
+export function threadMarkdown(c: ThreadRead, now = new Date()) {
   const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   const head = `| ${[t({ message: "Paper", comment: "table header in an exported thread" }), ...columns.map(columnLabel)].map(mdCell).join(" | ")} |`
   const rule = `|${" --- |".repeat(columns.length + 1)}`
-  const line = (r: ThreadRow) => {
+  const line = (r: ThreadRowRead) => {
     const paper = `${mentionLink(r.paper.title, paperUri(r.id))} (${citeOf(r.paper)})`
     const answers = columns.map((col) => {
       const cell = r.cells[col.id]
@@ -67,10 +67,10 @@ export function threadMarkdown(c: Thread, now = new Date()) {
     })
     return `| ${[paper, ...answers].map(mdCell).join(" | ")} |`
   }
-  const table = (rows: ThreadRow[]) => [head, rule, ...rows.map(line)].join("\n")
+  const table = (rows: ThreadRowRead[]) => [head, rule, ...rows.map(line)].join("\n")
 
   const out = [`# ${c.title}`]
-  if (c.memo.length) out.push(c.memo.map((s) => `- ${s.text}`).join("\n"))
+  if (c.report.trim()) out.push(c.report.trim())
   // The first grouping's groups as headings, a subgroup under its parent (a paper in two groups is under
   // both); papers in no group after them
   const grouping = c.columns.find((col) => col.kind === "grouping" && col.groups?.length)
@@ -100,7 +100,7 @@ export function threadMarkdown(c: Thread, now = new Date()) {
 }
 
 // Writes it as a new doc in the thread's project, named after the thread
-export function exportAsDoc(c: Thread, navigate: NavigateFunction) {
+export function exportAsDoc(c: ThreadRead, navigate: NavigateFunction) {
   const { files, folders, createDocAt } = useDocsStore.getState()
   const path = uniquePath(c.project, cleanName(c.title).slice(0, 80) || t`Thread`, ".md", pathTaken(files, folders))
   const doc = createDocAt(path, threadMarkdown(c))

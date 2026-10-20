@@ -312,13 +312,14 @@ export class Library {
 
   // Adds a looked-up paper, saying whether the library had it already (under one of its ids, or as the
   // same title where one of the two has no DOI); one it had is returned as it is. An import hands over the PDF it has (nothing is downloaded then)
-  // and the paper's tags.
+  // and the paper's tags. fetchPdf false leaves the PDF unsought: a paper a thread names waits until
+  // someone reads it.
   addNew(
     resolved: ResolvedPaper,
     // The person when not given
     addedBy?: ActorId,
     priority: TaskPriority = "asked",
-    extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean } } = {},
+    extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean }; fetchPdf?: boolean } = {},
   ): Promise<{ paper: Paper; existed: boolean }> {
     return this.serial.run(async () => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
@@ -355,6 +356,7 @@ export class Library {
       if (!resolution) this.queue("paper.metadata", id, priority)
       else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
       if (extra.pdf) await this.placePdf(id, extra.pdf, await sha256Of(extra.pdf), priority)
+      else if (extra.fetchPdf === false) this.queue("index.paper", id, priority)
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
       return { paper: (await this.get(id))!, existed: false }
     })
@@ -1681,13 +1683,25 @@ export class Library {
     return clean({ title: p.title, authors: p.authors, ids: p.ids, year: p.year, venue: p.venue, abstract: p.abstract, tldr: p.tldr, kind: p.kind, citationCount: p.citationCount, openPdf: p.openPdf })
   }
 
-  // A thread row's paper as the user sees it: the Library's facts, with their corrections, when the
-  // library has it under any of its ids; otherwise what the search showed when the row was made
-  async rowFacts(id: string, kept: ThreadPaper): Promise<ThreadPaper> {
-    const here = await this.canonical(id, kept.ids)
+  // A thread row's paper as the user sees it: the Library's facts, with their corrections; undefined when
+  // the library hasn't got it
+  async threadFacts(id: string): Promise<ThreadPaper | undefined> {
+    const here = await this.canonical(id)
     const paper = here ? await this.get(here) : undefined
-    if (!paper) return kept
-    return { ...kept, title: paper.title, authors: paper.authors, year: paper.year, venue: paper.venue, abstract: paper.abstract ?? kept.abstract }
+    if (!paper) return undefined
+    const record = await readRecord(this.root, paper.id)
+    return clean({
+      title: paper.title,
+      authors: paper.authors,
+      ids: paper.ids,
+      year: paper.year,
+      venue: paper.venue,
+      abstract: paper.abstract,
+      tldr: record?.tldr,
+      kind: paper.kind,
+      citationCount: paper.citations?.count,
+      openPdf: !!paper.pdf || (record?.pdfUrls?.length ?? 0) > 0 || undefined,
+    })
   }
 
   // The search that showed a paper lately, for a row's foundBy

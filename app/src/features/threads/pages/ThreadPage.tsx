@@ -69,13 +69,13 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
     },
     { enabled: !!id },
   )
-  // A moment on the page is a look at the thread as a whole, and at its title and memo at the top; its rows
+  // A moment on the page is a look at the thread as a whole, and at its title and report at the top; its rows
   // are seen one by one as they come on screen (useSeenOnScreen)
   useEffect(() => {
     if (!id) return
     const timer = setTimeout(() => {
       const c = useThreadsStore.getState().threads[id]
-      if (c) markSeen({ kind: "thread", id, items: [itemId.title(), ...c.memo.map((s) => itemId.memo(s.id))] })
+      if (c) markSeen({ kind: "thread", id, items: [itemId.title(), itemId.report()] })
     }, SEEN_AFTER_MS)
     return () => clearTimeout(timer)
   }, [id])
@@ -88,7 +88,7 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   // A question asked of every paper, or Owlit's groups, make it a table; a hidden grouping without groups
   // doesn't
   const table = shown.columns.some((c) => c.id !== QUESTION_COLUMN && (!c.hidden || (c.kind === "grouping" && !!c.groups?.length)))
-  // A paper the memo names opens as its row, where it is in the list
+  // A paper the report names opens as its row, where it is in the list
   const openRow = (paperId: string) => {
     if (!shown.rows.some((r) => r.id === paperId)) return false
     set({ peek: paperId })
@@ -122,7 +122,7 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
               <PageTitle className="text-balance">{shown.title}</PageTitle>
             )}
             <WorkLine thread={thread} />
-            <Memo thread={thread} shown={shown} fresh={fresh} onRow={openRow} />
+            <Memo thread={thread} fresh={fresh} onRow={openRow} />
             {/* What can be asked of the papers, in one place for both forms, before them, so a long list
                 doesn't bury it */}
             <ThreadActions thread={thread} />

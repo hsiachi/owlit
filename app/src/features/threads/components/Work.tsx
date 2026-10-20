@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import type { Thread } from "@owlit/protocol"
+import type { ThreadRead } from "@owlit/protocol"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { PlusIcon } from "lucide-react"
@@ -8,8 +8,7 @@ import { Tip } from "@/components/tip"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { stopChat, tryAgain } from "@/features/chat/started"
-import { useLibraryStore } from "@/features/library/store"
-import { libraryPaperOf, shown as shownOf } from "../lib"
+import { shown as shownOf } from "../lib"
 import { askEach, startWork, useThreadWork, workWords } from "../work"
 
 // What a paper read in full costs in the agent's time, roughly: one turn that adds it, reads the parts
@@ -20,7 +19,7 @@ const MINUTES_PER_PAPER = 0.8
 // What Owlit is doing on the thread, one muted line under the title while it works (its words
 // shimmer) with Stop, or why it stopped with Retry. Nothing when it isn't working. Several chats can work
 // on the thread at once: the line says the earliest, and how many more.
-export function WorkLine({ thread }: { thread: Thread }) {
+export function WorkLine({ thread }: { thread: ThreadRead }) {
   const { running, failed } = useThreadWork(thread.id)
   const chat = running[0]
   if (chat) {
@@ -54,22 +53,20 @@ export function WorkLine({ thread }: { thread: Thread }) {
   return null
 }
 
-// What the user can ask of the thread, as plain text buttons under the memo, the same for a list and a
+// What the user can ask of the thread, as plain text buttons under the report, the same for a list and a
 // table. Each one starts a chat about the thread; while it works, its button rests. With no papers there is nothing
 // to ask of each or to draft from: only searching further, here or with a wider question in a chat. The
 // two that run at once say their size first: Read N in full counts the papers it will read (and on hover
 // how long, and how many have no PDF and are left out), Find more papers asks what to look for.
-export function ThreadActions({ thread }: { thread: Thread }) {
+export function ThreadActions({ thread }: { thread: ThreadRead }) {
   const navigate = useNavigate()
   const { running } = useThreadWork(thread.id)
   const busy = (recipe: string) => running.some((chat) => chat.about.recipe === recipe)
   const shown = shownOf(thread)
   // The rows Read in full would read, as core counts them (threads.ts toRead): answered from the
-  // abstract or title, with a free PDF known or the paper's text in the Library already
-  const papers = useLibraryStore((s) => s.papers)
-  const aliases = useLibraryStore((s) => s.aliases)
+  // abstract or title, with a PDF there or a free one known (the facts core gave each row say it)
   const fromAbstract = shown.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
-  const toRead = fromAbstract.filter((r) => r.paper.openPdf || !!libraryPaperOf(r, papers, aliases)?.pdf).length
+  const toRead = fromAbstract.filter((r) => r.paper.openPdf).length
   const noPdf = fromAbstract.length - toRead
   const minutes = Math.max(1, Math.round(toRead * MINUTES_PER_PAPER))
   const readTip = [
@@ -113,7 +110,7 @@ export function ThreadActions({ thread }: { thread: Thread }) {
 
 // Find more papers…: what to look for this time, prefilled with the thread's question, since a search
 // further usually has a narrower target than the question as it stands
-function FindMore({ thread, disabled }: { thread: Thread; disabled: boolean }) {
+function FindMore({ thread, disabled }: { thread: ThreadRead; disabled: boolean }) {
   const [open, setOpen] = useState(false)
   const [what, setWhat] = useState("")
   const find = () => {
@@ -161,9 +158,9 @@ function FindMore({ thread, disabled }: { thread: Thread; disabled: boolean }) {
 }
 
 // Ask each paper…: a question for every paper, typed or picked, which becomes a column; or Compare with a
-// doc…, sentences of the user's that every paper is set against. From the text button under the memo, or
+// doc…, sentences of the user's that every paper is set against. From the text button under the report, or
 // the + at the end of a table's header.
-export function AskEach({ thread, trigger = "text" }: { thread: Thread; trigger?: "text" | "plus" }) {
+export function AskEach({ thread, trigger = "text" }: { thread: ThreadRead; trigger?: "text" | "plus" }) {
   const [comparing, setComparing] = useState(false)
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState("")

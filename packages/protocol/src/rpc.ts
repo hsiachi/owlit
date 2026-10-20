@@ -5,7 +5,7 @@ import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
-import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
+import type { ThreadBatch, ThreadEdit, ThreadPaper, ThreadRead, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -199,44 +199,36 @@ export interface Methods {
   "share.reply": { params: { path: string; parent: string; text: string }; result: ShareComment }
   "share.resolve": { params: { path: string; id: string; resolved: boolean }; result: null }
 
-  // ---- Threads: papers Owlit gathered for a question and what it makes of them, in .owlit/threads/
+  // ---- Threads: Owlit's reports on the user's questions with the papers they rest on, in .owlit/threads/
   "threads.list": { params: void; result: ThreadSummary[] }
-  // As stored: Owlit's text with the user's changes beside it (shownThread gives what the user sees)
-  "threads.get": { params: { id: string }; result: Thread }
-  // An agent's write, merged so the user's changes stay; left names rows not written because the user
-  // removed them, userKept what of the write gave way to the user's own changes to the groups
-  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number; left: string[]; userKept: string[] } }
-  "threads.edit": { params: { id: string; edit: ThreadEdit }; result: Thread }
-  // Keep it separate: the rows an agent added to this thread become a thread of their own, for
-  // the question they were found for; or a group's rows (group), copied where they are in other groups too
-  // chatId: the chat whose result card asked, which then finds the split in the change log
-  "threads.split": { params: { id: string; rows: string[]; asked: string; group?: { column: string; id: string }; chatId?: string }; result: Thread }
-  // Undo of a split: the rows go back where they came from, as they were there, and this thread to
-  // the trash; the thread they went back to
-  "threads.unsplit": { params: { id: string; chatId?: string }; result: Thread }
+  // The thread with each row's paper as the Library has it
+  "threads.get": { params: { id: string }; result: ThreadRead }
+  // An agent's write; papers it names that the Library hasn't got are added to it as Owlit's
+  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number } }
+  "threads.edit": { params: { id: string; edit: ThreadEdit }; result: ThreadRead }
   // Owlit's work on the thread in batches, oldest first, for About
   "threads.about": { params: { id: string }; result: ThreadBatch[] }
   // Each of Owlit's pieces of work on a thread is a chat owlit starts about it (Chat.about), whose id
   // comes back; several run side by side.
   // Owlit gathers papers for a question: the thread is there at once (empty, titled by the question until
   // Owlit names it) and fills as the chat works
-  "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: { thread: Thread; chatId: string } }
+  "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: { thread: ThreadRead; chatId: string } }
   // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full
   // more: what to look for this time (what), when it isn't the thread's question; read: the rows answered
   // from their abstracts whose paper has a PDF to read (the button says how many)
   "threads.start": { params: { id: string; work: "more" | "read"; what?: string }; result: { chatId: string } }
   // A new column: a question Owlit answers for every paper
-  "threads.ask": { params: { id: string; question: string }; result: { thread: Thread; chatId: string } }
+  "threads.ask": { params: { id: string; question: string }; result: { thread: ThreadRead; chatId: string } }
   // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
   "threads.fill": { params: { id: string; column: string }; result: { chatId: string } }
   // Group another way: a new grouping, by what the user said to group by, which Owlit fills (groups
   // first, then each paper's)
-  "threads.group": { params: { id: string; question: string }; result: { thread: Thread; chatId: string } }
+  "threads.group": { params: { id: string; question: string }; result: { thread: ThreadRead; chatId: string } }
   // A column that sets every paper against sentences the user picked from a doc of theirs
-  "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: { thread: Thread; chatId: string } }
+  "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: { thread: ThreadRead; chatId: string } }
   // Moves the thread to .owlit/trash/
   "threads.delete": { params: { id: string }; result: null }
-  "threads.undelete": { params: { id: string }; result: Thread }
+  "threads.undelete": { params: { id: string }; result: ThreadRead }
 
   // ---- Chats, in .owlit/chats/. A message still streaming when owlit stopped comes back cancelled.
   // Most recently updated first, without messages
@@ -586,7 +578,7 @@ export interface Notifications {
   "library.noteChanged": { paperId: string; note: PaperNote | null }
   // A thread changed (an agent wrote to it, the user changed it in another window, an undo); null:
   // it was deleted
-  "threads.changed": { id: string; thread: Thread | null }
+  "threads.changed": { id: string; thread: ThreadRead | null }
   // A shared doc's state changed (pushed, couldn't push, renamed); share null: no longer shared
   "share.changed": { path: string; share: DocShare | null }
   // New or changed comments on a shared doc: all of them, as they are now
