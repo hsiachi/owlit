@@ -216,7 +216,7 @@ function TOOLS(): ToolSpec[] {
     name: "docs_read",
     touches: "read",
     description:
-      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers. A PDF in the Library is read with library_read instead. A doc the user keeps Owlit out of says so after its text: read it, but don't change it or comment on it.",
+      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers. A PDF in the Library is read with library_read instead.",
     inputSchema: {
       type: "object",
       properties: {

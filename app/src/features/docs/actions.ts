@@ -13,7 +13,7 @@ import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
-import { goingThrough, goThrough, setOwlitOut, stopGoingThrough, useDocOwlitStore } from "./owlit"
+import { goingThrough, goThrough, stopGoingThrough } from "./owlit"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -106,8 +106,7 @@ export function useDocActions() {
           ? [{ label: t`Resolved comments…`, onSelect: () => useDocsUiStore.getState().showResolved(file.id) }]
           : []),
       ],
-      // Owlit is a member of every doc unless kept out of it: no chip, no work of its own there. Without
-      // core (pnpm dev:web) Go through runs on a mock, and Keep Owlit out isn't offered.
+      // Without core (pnpm dev:web) Go through runs on a mock
       ...(md
         ? [
             [
@@ -119,11 +118,6 @@ export function useDocActions() {
                 : going?.state === "failed"
                   ? { label: t`Retry going through`, detail: going.reply.error ?? t`Owlit couldn't go through it.`, onSelect: () => goThrough(file, { retry: true }) }
                   : { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
-              ...(!isDesktop
-                ? []
-                : useDocOwlitStore.getState().byPath[file.path]?.out
-                  ? [{ label: t`Let Owlit in`, onSelect: () => setOwlitOut(file.path, false) }]
-                  : [{ label: t`Keep Owlit out`, onSelect: () => setOwlitOut(file.path, true) }]),
             ],
           ]
         : []),

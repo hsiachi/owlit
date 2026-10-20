@@ -544,41 +544,6 @@ describe("turns", () => {
     }
   })
 
-  describe("a doc the user keeps Owlit out of", () => {
-    const KEPT_OUT = "The user keeps Owlit out of this doc: read it if you need to, but don't change it or comment on it."
-    const kept = async () => {
-      const turns = await setup()
-      await turns.call("docs.setOwlitOut", { path: "notes.md", out: true })
-      return turns
-    }
-
-    it("refuses an engine's edit before any card", async () => {
-      const { send, updates, text, root } = await kept()
-      await send("rewrite notes.md thirteen chars", { role: "coauthor" })
-      expect(text()).toBe("you chose no")
-      expect(updates.some((u) => u.type === "permission_request")).toBe(false)
-      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
-    })
-
-    it("refuses an agent's write, delete and move", async () => {
-      const { send, call, root } = await kept()
-      await expect(send("write notes.md other words", { role: "coauthor" })).rejects.toThrow(KEPT_OUT)
-      const mcp: Caller = { kind: "socket", chatId: "c1" }
-      await call("chats.update", { id: "c1", patch: { role: "coauthor" } })
-      await expect(call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)).rejects.toThrow(`Not done: ${KEPT_OUT}`)
-      await expect(call("agents.moveDoc", { path: "notes.md", to: "kept.md" }, mcp)).rejects.toThrow(`Not done: ${KEPT_OUT}`)
-      expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("twelve chars")
-    })
-
-    it("refuses Owlit's comments there, and leaves the person's own", async () => {
-      const { call } = await kept()
-      const comment = (id: string) => ({ id, quote: "twelve", prefix: "", suffix: "", entries: [{ id: `${id}-e`, text: "A word.", at: 1 }], createdAt: 1 })
-      await expect(call("comments.add", { path: "notes.md", comment: comment("o1") }, { kind: "socket", chatId: "c1" })).rejects.toThrow(`Not done: ${KEPT_OUT}`)
-      await call("comments.add", { path: "notes.md", comment: comment("p1") })
-      expect((await call("comments.all"))["notes.md"].map((c: { id: string }) => c.id)).toEqual(["p1"])
-    })
-  })
-
   it("writes files for the agent and tells clients", async () => {
     const { send, root, core } = await setup()
     const heard: unknown[] = []

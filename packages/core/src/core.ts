@@ -459,7 +459,6 @@ export class Core {
       },
     )
     this.router.register("docs.open", z.object({ path: rel }), "admin", ({ path }) => docs().open(path))
-    this.router.register("docs.owlit", z.object({ path: rel }), "read", ({ path }) => docs().owlitOf(path))
     // The user asks Owlit to go through some material (a meeting's transcript, reviews) against their docs
     this.router.register("docs.goThrough", z.object({ path: rel }), "own", async ({ path: file }) => {
       if (!MATERIAL.test(file)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit goes through text: a Markdown or plain-text file.`)
@@ -472,11 +471,6 @@ export class Core {
         if (!there) throw new RpcFailure(RpcErrorCode.NotFound, t`That file isn't there any more.`, { path: attached })
       } else await docs().read(file)
       return this.goThrough(attached ?? file)
-    })
-    this.router.register("docs.setOwlitOut", z.object({ path: rel, out: z.boolean() }), "admin", async ({ path, out }) => {
-      const state = await docs().setOwlitOut(path, out)
-      this.notifier.notify("docs.owlit", { path, state })
-      return state
     })
     this.router.register("docs.reveal", z.object({ path: rel }), "admin", ({ path }) => docs().reveal(path))
 
@@ -1101,16 +1095,14 @@ export class Core {
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
     this.router.register("comments.all", noParams, "read", () => docs().commentsAll())
     // A comment is whoever started it (its first entry); others: who replied under it
-    // adding: a comment or reply made on the doc, which the user may have kept Owlit out of
-    const commentTarget = async (path: string, id: string, { replies = false, adding = false } = {}): Promise<Target> => {
-      const out = adding && (await docs().owlitOf(path)).out ? { out: true } : {}
+    const commentTarget = async (path: string, id: string, { replies = false } = {}): Promise<Target> => {
       const was = (await docs().listComments(path)).find((c) => c.id === id)
-      if (!was) return { what: "comment", ...out }
+      if (!was) return { what: "comment" }
       const by = was.entries[0]?.by
-      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}), ...out }
+      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}) }
     }
     const ownComment: Policy<"comments.dismiss"> = { touches: "own", target: ({ path, id }) => commentTarget(path, id) }
-    const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id, { adding: true }) }
+    const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id) }
     this.router.register("comments.add", z.object({ path: rel, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
       const agent = caller.kind !== "window"
       // Never over an existing comment (add replaces one with the same id)
@@ -1131,9 +1123,9 @@ export class Core {
     const COMMENT_PUT: Policy<"comments.put"> = {
       touches: ({ comment }, target, who) => commentTouches(comment, target, who),
       target: async ({ path, comment }) => {
-        const target = await commentTarget(path, comment.id, { adding: true })
+        const target = await commentTarget(path, comment.id)
         // A reply alone is a new entry of the caller's, whoever started the comment
-        if (target.was && replyOnly(comment, target.was as DocComment)) return { what: "reply", was: target.was, ...(target.out ? { out: true } : {}) }
+        if (target.was && replyOnly(comment, target.was as DocComment)) return { what: "reply", was: target.was }
         return target
       },
     }

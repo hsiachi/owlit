@@ -2,7 +2,7 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
-import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { CommentAnchor, CommentInput, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
@@ -160,13 +160,10 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit and a doc: kept out or let in
-  "docs.owlit": { params: { path: string }; result: DocOwlit }
   // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
   // the user's docs, in a chat owlit starts about it (or a new turn in the one that broke): a record
   // beside it, and the points as comments where they belong
   "docs.goThrough": { params: { path: string }; result: { chatId: string } }
-  "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }
@@ -545,8 +542,6 @@ export interface Notifications {
   "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
-  // Owlit was kept out of a doc or let in, or looked at it
-  "docs.owlit": { path: string; state: DocOwlit }
   // An agent's state changed (it started, ended, crashed, was checked)
   "agents.changed": Connector
   // One streamed update of a chat's running turn, for that turn's reply (messageId)

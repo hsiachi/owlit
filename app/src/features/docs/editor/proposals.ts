@@ -145,7 +145,7 @@ class HeadWidget extends WidgetType {
     bar.contentEditable = "false"
     const label = document.createElement("span")
     const count = plural(this.count, { one: "Owlit changed # passage", other: "Owlit changed # passages" })
-    label.textContent = this.first ? `${count} · ${t`Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu`}` : count
+    label.textContent = this.first ? `${count} · ${t`Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change`}` : count
     const button = (text: string, keep: boolean) => {
       const b = document.createElement("button")
       b.type = "button"

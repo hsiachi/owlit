@@ -72,9 +72,8 @@ describe("Go through", () => {
     expect((await call("changes.list", { target: { kind: "doc", path: RECORD } }))[0]).toMatchObject({ actor: MY_OWLIT, action: "create", origin: { chatId } })
     // Its point points back to the record, as core says and not the agent
     expect(await comments()).toMatchObject([{ quote: "故事从数据集讲起。", source: { path: RECORD, label: "P5 周会 2026-10-15 · 解读" }, entries: [{ by: MY_OWLIT, text: `A point, from ${RECORD}.` }] }])
-    // Not one of the person's chats, and nothing kept on the doc about it
+    // Not one of the person's chats
     expect(await call("chats.list")).toEqual([])
-    expect(await call("docs.owlit", { path: MATERIAL })).toEqual({})
   })
 
   it("refuses a point before the record it points back to", async () => {
