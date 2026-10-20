@@ -4,7 +4,7 @@ import type { DigestSource, Paper, PaperFigure } from "@owlit/protocol"
 import { reportPaperEnd } from "@/app/activity"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
-import { rpc } from "@/lib/rpc"
+import { fileUrl, rpc } from "@/lib/rpc"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { useSelectionMenu } from "@/components/selection-menu"
@@ -323,7 +323,7 @@ function Figure({ figure, onShowPage }: { figure: PaperFigure; onShowPage: (page
         aria-label={t`${label}, page ${page}: go to it in the PDF`}
         className="block w-full overflow-hidden rounded-lg border border-border bg-white outline-none focus-key:ring-2 focus-key:ring-ring/50"
       >
-        <img src={figure.url} alt={figure.caption} className="mx-auto max-h-[28rem] w-auto" />
+        <img src={fileUrl(figure.url)} alt={figure.caption} className="mx-auto max-h-[28rem] w-auto" />
       </button>
       <span className="mt-1.5 block text-detail text-muted-foreground">
         {t`${label} · p. ${page}`}

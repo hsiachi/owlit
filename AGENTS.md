@@ -14,12 +14,12 @@ pnpm exec vitest run packages/core/src/library/import.test.ts   # one test file;
 pnpm typecheck                                # all packages
 pnpm lint                                     # oxlint; also enforces core's import boundary
 pnpm i18n:extract                             # after adding or changing UI text
-pnpm dev:web                                  # the renderer alone in a browser, on mock data
+pnpm dev:web                                  # the renderer in a browser on a dev core and a copy of the example workspace
 pnpm try                                      # the whole app (Owlit Dev) for this checkout, on a copy of the user's data
 ```
 
-Electron can't run inside most agent sandboxes or preview panes: check UI with `pnpm dev:web` in a browser,
-and leave `pnpm try` for a person to open.
+Electron can't run inside most agent sandboxes or preview panes: check UI with `pnpm dev:web` in a browser
+(the real core, without the app's own windows, menu and pickers), and leave `pnpm try` for a person to open.
 
 ## Where things are
 

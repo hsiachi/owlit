@@ -31,7 +31,7 @@ build and the dev scripts are Mac-only for now.
 pnpm install
 pnpm dev          # Owlit Dev: renderer from Vite with HMR; main/preload rebuild restarts it
 pnpm try          # pnpm dev in a fresh worktree: installs packages and Electron first
-pnpm dev:web      # the renderer alone in a browser, on mock data
+pnpm dev:web      # the renderer in a browser on a dev core (scripts/dev-web.mjs); --mocks for mock data alone
 pnpm build        # unsigned apps/desktop/release/mac-arm64/Owlit.app
 pnpm app:install  # build this checkout into /Applications as the Owlit you use
 pnpm check        # typecheck, lint and test, as CI runs it

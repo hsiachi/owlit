@@ -1,6 +1,7 @@
 // Typed client for core. In the desktop app every call goes over window.owlit (the Electron preload);
-// in a plain browser (pnpm dev:web) there is no core, calls fail with a readable error and the
-// feature stores keep running on their mock data.
+// in a browser (pnpm dev:web) over the web bridge to the dev core, when one is served; without either
+// there is no core, calls fail with a readable error and the feature stores keep running on their mock
+// data.
 
 import { t } from "@lingui/core/macro"
 import type {
@@ -11,8 +12,8 @@ import type {
   ParamsOf,
   ResultOf,
   RpcNotification,
-  RpcResponse,
 } from "@owlit/protocol"
+import { NO_CORE, webBridge, webFileUrl } from "./web-bridge"
 
 declare global {
   interface Window {
@@ -20,58 +21,18 @@ declare global {
   }
 }
 
-// SPIKE (local/work/2026-10-20-devweb-on-core): with VITE_OWLIT_CORE=ws://127.0.0.1:5182 a plain browser
-// talks to the core that scripts/spike-devweb-core.mjs serves, and the window's own extras are stood in
-// for. Everything else then runs its desktop path. Not for shipping.
-function webBridge(url: string): OwlitBridge {
-  const socket = new WebSocket(url)
-  const ready = new Promise<void>((resolve) => socket.addEventListener("open", () => resolve()))
-  const pending = new Map<number, (response: RpcResponse) => void>()
-  const notified = new Set<(notification: RpcNotification) => void>()
-  socket.addEventListener("message", (event) => {
-    const message = JSON.parse(String(event.data)) as RpcResponse | RpcNotification
-    if ("id" in message) {
-      pending.get(message.id as number)?.(message)
-      pending.delete(message.id as number)
-    } else for (const listener of notified) listener(message)
-  })
-  let nextId = 1
-  const never = () => () => {}
-  return {
-    platform: /Mac/.test(navigator.userAgent) ? "darwin" : "other",
-    rpc: async (method, params) => {
-      await ready
-      const id = nextId++
-      return new Promise((resolve) => {
-        pending.set(id, resolve)
-        socket.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }))
-      })
-    },
-    onNotify: (listener) => {
-      notified.add(listener)
-      return () => notified.delete(listener)
-    },
-    pathForFile: () => "",
-    controlsRoom: 0,
-    onControlsRoom: never,
-    appearance: { theme: "system", tone: "warm", language: "system" },
-    locale: "en",
-    onMenu: never,
-    chooseFolder: async (options) => window.prompt(options.title) || null,
-    chooseFile: async () => null,
-    textMenuAsk: () => {},
-    onTextMenuAsk: never,
-    notify: (notification) => console.log("[notify]", notification),
-    restartToUpdate: async () => {},
-    onNotificationClick: never,
-  }
-}
+// The dev core pnpm dev:web serves, if any (scripts/dev-web.mjs sets it for Vite)
+const devCore: string | undefined = import.meta.env.VITE_OWLIT_CORE
 
-// The Electron preload's API; undefined in a plain browser
-export const bridge =
-  typeof window === "undefined" ? undefined : (window.owlit ?? (import.meta.env.VITE_OWLIT_CORE ? webBridge(import.meta.env.VITE_OWLIT_CORE) : undefined))
+// The Electron preload's API, or its stand-in for the dev core; undefined in a plain browser
+export const bridge = typeof window === "undefined" ? undefined : (window.owlit ?? (devCore ? webBridge(devCore) : undefined))
 
+// There is a core to talk to (the app, or the dev core)
 export const isDesktop = bridge !== undefined
+
+// Where the window reads a file of the workspace (a paper's PDF, a figure): owlit-file://workspace/<path>
+// as core names it in the app, the dev core's http route in a browser
+export const fileUrl = (url: string) => (devCore && !window.owlit ? webFileUrl(devCore, url) : url)
 
 // Where a dropped or picked file is on disk, for core to read it
 export function filePath(file: File) {
@@ -92,9 +53,6 @@ export class RpcError extends Error {
     this.data = data
   }
 }
-
-// Not one of JSON-RPC's codes: the request never left the renderer
-const NO_CORE = -32099
 
 type Args<M extends MethodName> = ParamsOf<M> extends void ? [] : [params: ParamsOf<M>]
 
