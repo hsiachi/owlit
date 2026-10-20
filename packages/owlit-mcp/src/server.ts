@@ -357,15 +357,13 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "thread_read":
       return threadText(await owlit.rpc.threads.get({ id: str("id") }))
     case "thread_write": {
-      const parsed = parseJsonArgs(args, ["rows", "memo", "groups"])
+      const parsed = parseJsonArgs(args, ["rows", "groups"])
       if (typeof parsed === "string") return parsed
       const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
       if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
       const done = await owlit.rpc.threads.write({
-        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
+        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", report: "report", one: "one", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
         ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
-        // The memo's sentences are the report, as one paragraph
-        ...(parsed.memo ? { report: (parsed.memo as { text?: string }[]).map((m) => String(m.text ?? "").trim()).filter(Boolean).join(" ") } : {}),
         ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
         ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
         ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
@@ -416,6 +414,8 @@ interface RowArg {
   answer?: string
   depth?: string
   quote?: string
+  is?: string
+  found_by?: string
   group?: string
   groups?: string[]
   cells?: Record<string, { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }>
@@ -435,7 +435,7 @@ function rowWrite(r: RowArg): ThreadRowWrite | string {
   })
   const cells = Object.fromEntries(Object.entries(r.cells ?? {}).map(([col, c]) => [col, cell(c)]))
   if (r.answer) cells[QUESTION_COLUMN] = cell({ text: r.answer, depth: r.depth, quote: r.quote })
-  return { id: r.id, ...(Object.keys(cells).length ? { cells } : {}), ...(r.group !== undefined ? { group: r.group } : {}), ...(Array.isArray(r.groups) ? { groups: r.groups.map(String) } : {}) }
+  return { id: r.id, ...(r.is ? { is: r.is } : {}), ...(r.found_by ? { foundBy: r.found_by } : {}), ...(Object.keys(cells).length ? { cells } : {}), ...(r.group !== undefined ? { group: r.group } : {}), ...(Array.isArray(r.groups) ? { groups: r.groups.map(String) } : {}) }
 }
 
 function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<string, unknown[] | undefined> | string {
