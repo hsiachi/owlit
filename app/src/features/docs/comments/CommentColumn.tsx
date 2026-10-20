@@ -100,7 +100,6 @@ export function CommentColumn({ fileId, pins, width }: { fileId: string; pins: b
       view={view}
       lost={!!tops?.[view.key]?.lost}
       focusReply={started === view.key}
-      // Without core (pnpm dev:web) Owlit's answer runs on a mock (model.ts reply), so the line shows there too
       owlitsComment={!!view.doc && view.entries[0]?.who === "owlit" && path ? `${path}#${view.doc.id}` : undefined}
       actions={{
         onAsk: () => askAbout(fileId, view, fromOf(view.key)),

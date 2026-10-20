@@ -15,6 +15,7 @@ import { startAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
 import { startStartedChats } from "@/features/chat/started"
+import { startConnectors } from "@/features/chat/store"
 import { startUpdates } from "@/features/updates/store"
 import { PairDialog } from "@/features/extension/PairDialog"
 import { startExtension } from "@/features/extension/store"
@@ -44,6 +45,7 @@ startExtension()
 startWorkspace()
 startTasks()
 startStartedChats()
+startConnectors()
 startShares()
 startImports()
 startUiActions()

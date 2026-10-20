@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { applyThreadEdit, type ThreadRead, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
+import type { ThreadRead, ThreadEdit, ThreadSummary } from "@owlit/protocol"
 import { create } from "zustand"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { shown, summaryOf } from "./lib"
 
@@ -27,22 +27,13 @@ export const drop = (id: string) =>
 // One of the user's changes (a thread's project, what its table is grouped by). Resolves to whether it
 // was made.
 export async function editThread(id: string, edit: ThreadEdit): Promise<boolean> {
-  if (hasCore) {
-    try {
-      put(await rpc.threads.edit({ id, edit }))
-      return true
-    } catch (error) {
-      toastError(error)
-      return false
-    }
+  try {
+    put(await rpc.threads.edit({ id, edit }))
+    return true
+  } catch (error) {
+    toastError(error)
+    return false
   }
-  const was = useThreadsStore.getState().threads[id]
-  if (!was) return false
-  const c = structuredClone(was)
-  applyThreadEdit(c, edit)
-  if (edit.op !== "view") c.updatedAt = Date.now()
-  put(c)
-  return true
 }
 
 // The person files a thread under another project (a top-level folder; "" for none), with Undo
@@ -60,19 +51,14 @@ export async function deleteThread(id: string) {
   const c = useThreadsStore.getState().threads[id]
   if (!c) return
   const title = shown(c).title
-  if (hasCore) {
-    try {
-      await rpc.threads.delete({ id })
-    } catch (error) {
-      toastError(error)
-      return
-    }
+  try {
+    await rpc.threads.delete({ id })
+  } catch (error) {
+    toastError(error)
+    return
   }
   drop(id)
-  toastUndo(t`Thread deleted`, async () => {
-    if (hasCore) put(await rpc.threads.undelete({ id }))
-    else put(c)
-  }, { description: title })
+  toastUndo(t`Thread deleted`, async () => put(await rpc.threads.undelete({ id })), { description: title })
 }
 
 // Newest change first

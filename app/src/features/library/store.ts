@@ -30,9 +30,6 @@ interface LibraryState {
   setTags: (id: string, tags: string[]) => void
   addTag: (ids: string[], tag: string) => void
   removeTag: (ids: string[], tag: string) => void
-  // dev:web's stand-in for core's library.opened (disk.ts markReading): records the last-read time Home's
-  // recent papers order by and moves unread → reading
-  markReading: (id: string) => void
   setPosition: (id: string, position: ReadingPosition) => void
   // The side of the paper being read (the digest or the PDF), kept so it reopens there
   setView: (id: string, view: PaperView) => void
@@ -149,9 +146,6 @@ export const useLibraryStore = create<LibraryState>()(
       },
 
       removeTag: (ids, tag) => set((s) => patchPapers(s, ids, (p) => (p.tags.includes(tag) ? { tags: p.tags.filter((x) => x !== tag) } : undefined))),
-
-      markReading: (id) =>
-        set((s) => patchPapers(s, [id], (p) => ({ lastOpenedAt: Date.now(), status: p.status === "unread" ? "reading" : p.status }))),
 
       setPosition: (id, position) =>
         set((s) => patchPapers(s, [id], (p) => (p.position?.page === position.page && p.position.y === position.y ? undefined : { position }))),

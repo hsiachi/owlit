@@ -5,7 +5,7 @@ import type { UpdatedNote, UpdatesView } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { create } from "zustand"
-import { bridge, hasCore, onNotify, rpc } from "@/lib/rpc"
+import { bridge, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 
 interface UpdatesState {
@@ -43,7 +43,6 @@ function receive(view: UpdatesView) {
 }
 
 export function startUpdates() {
-  if (!hasCore) return
   onNotify("updates.changed", receive)
   rpc.updates
     .get()

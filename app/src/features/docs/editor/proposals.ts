@@ -223,8 +223,8 @@ class WholeWidget extends WidgetType {
 }
 
 export interface ProposalOptions {
-  // Undo of passages, as the log takes them back (spots: where they are, for a window without core)
-  undo: (steps: UndoStep[], spots: ProposalSpot[]) => void
+  // Undo of passages, as the log takes them back
+  undo: (steps: UndoStep[]) => void
   // A chat's title, when this window knows it
   chatTitle: (chatId: string) => string | undefined
   openChat: (chatId: string) => void
@@ -266,7 +266,7 @@ export function proposalMarks(options: ProposalOptions): Extension {
   let first: boolean | undefined
   const undo = (spots: ProposalSpot[]) => {
     if (!view || !spots.length) return
-    options.undo(undoSteps(view.state.field(field).proposals, spots), spots)
+    options.undo(undoSteps(view.state.field(field).proposals, spots))
   }
   const act = (key: string) => {
     const spot = view?.state.field(field).spots.find((s) => s.key === key)

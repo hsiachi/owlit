@@ -6,7 +6,6 @@ import { citationLabel } from "../lib/format"
 import { PassageChange } from "@/components/passage-change"
 import { Button } from "@/components/ui/button"
 import { undoAll, undoChange } from "@/lib/changes"
-import { hasCore } from "@/lib/rpc"
 import { sha1 } from "@/lib/sha1"
 import { useLibraryStore } from "../store"
 import { notePathOf } from "./note-actions"
@@ -75,20 +74,12 @@ export function NoteChanges({ paperId }: { paperId: string }) {
 
   const undo = (p: Proposal) => {
     setUndone((s) => new Set([...s, p.id]))
-    if (hasCore) {
-      const found = useLibraryStore.getState().papers[paperId]
-      const paper = found && citationLabel(found)
-      const what = paper ? t`Your note on ${paper}` : t`Your note`
-      // A note Owlit wrote whole goes back with Owlit's later changes to it, newest first
-      if (p.whole) void undoAll([...p.whole.also.toReversed(), p.id], what)
-      else undoChange(p.id, what)
-      return
-    }
-    // The browser preview has no change log: the passages go back in the note as it reads
-    const { notes, setNote } = useLibraryStore.getState()
-    let text = notes[paperId]?.content ?? ""
-    for (const h of p.hunks) text = text.replace(h.before + h.insert + h.after, h.before + h.removed + h.after)
-    setNote(paperId, text)
+    const found = useLibraryStore.getState().papers[paperId]
+    const paper = found && citationLabel(found)
+    const what = paper ? t`Your note on ${paper}` : t`Your note`
+    // A note Owlit wrote whole goes back with Owlit's later changes to it, newest first
+    if (p.whole) void undoAll([...p.whole.also.toReversed(), p.id], what)
+    else undoChange(p.id, what)
   }
 
   return (

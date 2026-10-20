@@ -4,7 +4,7 @@
 import { t } from "@lingui/core/macro"
 import { isOwlit, type Change } from "@owlit/protocol"
 import { chatOnScreen } from "@/features/chat/results"
-import { hasCore, onNotify } from "@/lib/rpc"
+import { onNotify } from "@/lib/rpc"
 import { toastUndo } from "@/lib/toast"
 import { undoChange } from "@/lib/changes"
 
@@ -28,7 +28,6 @@ function titleOf({ target, action }: Change) {
 }
 
 export function startAgentChanges() {
-  if (!hasCore) return
   onNotify("changes.added", ({ change, label }) => {
     // Owlit's changes only (an undo is the person's); a chat on screen says it in its own result row,
     // with the same Undo

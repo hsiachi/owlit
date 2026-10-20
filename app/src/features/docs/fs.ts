@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { isOwlit, type TextHunk } from "@owlit/protocol"
 import { isDiskChange } from "./disk"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { clientId, registerUiHandler } from "@/lib/ui-actions"
 import { undoChange } from "@/lib/changes"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -87,68 +87,66 @@ function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string,
   return true
 }
 
-// ---- The desktop app: agents' reads and writes come from core ----
+// ---- Agents' reads and writes come from core ----
 
-if (hasCore) {
-  // Core routes an agent's reads and writes of a doc to the window that has it open
-  let reported = ""
-  const report = () => {
-    const { files } = useDocsStore.getState()
-    const paths = openEditorIds()
-      .map((id) => files[id]?.path)
-      .filter((p): p is string => !!p)
-      .sort()
-    const key = paths.join("\n")
-    if (key === reported || !useWorkspace.getState().current) return
-    reported = key
-    void rpc.ui.setOpenDocs({ clientId, paths }).catch(() => undefined)
-  }
-  onEditorsChanged(report)
-  useDocsStore.subscribe((s, prev) => s.files !== prev.files && report())
-  onWorkspaceOpened(() => {
-    reported = ""
-    report()
-  })
-
-  registerUiHandler("fs.read", ({ path }) => {
-    const file = fileAt(path)
-    const view = file ? openEditor(file.id) : undefined
-    return { content: view ? view.state.doc.toString() : null }
-  })
-  registerUiHandler("fs.write", ({ path, content, changeId, hunks }) => {
-    const file = fileAt(path)
-    return { applied: !!file && applyAgentEdit(file, content, changeId, hunks) }
-  })
-
-  // An undo took a comment an agent left away
-  onNotify("comments.removed", ({ path, id }) => {
-    const file = fileAt(path)
-    if (!file || !useDocsStore.getState().comments[file.id]?.some((c) => c.id === id)) return
-    useDocsStore.setState((s) => ({ comments: { ...s.comments, [file.id]: (s.comments[file.id] ?? []).filter((c) => c.id !== id) } }))
-  })
-
-  // A comment an agent left, replied under or resolved over owlit-mcp, or one an undo put back; the
-  // window's own changes are here already
-  onNotify("comments.changed", ({ path, comment }) => {
-    const file = fileAt(path)
-    if (!file) return
-    useDocsStore.setState((s) => ({
-      comments: { ...s.comments, [file.id]: [...(s.comments[file.id] ?? []).filter((c) => c.id !== comment.id), comment].sort((a, b) => a.createdAt - b.createdAt) },
-    }))
-  })
-
-  // Owlit changed a doc that isn't open here: the text itself arrives as docs.changed; one open in an
-  // editor here marks it there
-  onNotify("changes.added", ({ change }) => {
-    if (change.target.kind !== "doc" || !isOwlit(change.actor) || change.undoes) return
-    const { path } = change.target
-    if (shownHere.delete(change.id)) return
-    // A chat on screen says it in its own result row, with the same Undo
-    if (chatOnScreen(change.origin.chatId)) return
-    const paper = labelOf(path)
-    toastUndo(t`Edit applied`, () => undoChange(change.id, paper), {
-      // A paper's note is named by its paper
-      description: paperOfNotePath(path) ? t`Your note on ${paper}` : displayName(path),
-    })
-  })
+// Core routes an agent's reads and writes of a doc to the window that has it open
+let reported = ""
+const report = () => {
+  const { files } = useDocsStore.getState()
+  const paths = openEditorIds()
+    .map((id) => files[id]?.path)
+    .filter((p): p is string => !!p)
+    .sort()
+  const key = paths.join("\n")
+  if (key === reported || !useWorkspace.getState().current) return
+  reported = key
+  void rpc.ui.setOpenDocs({ clientId, paths }).catch(() => undefined)
 }
+onEditorsChanged(report)
+useDocsStore.subscribe((s, prev) => s.files !== prev.files && report())
+onWorkspaceOpened(() => {
+  reported = ""
+  report()
+})
+
+registerUiHandler("fs.read", ({ path }) => {
+  const file = fileAt(path)
+  const view = file ? openEditor(file.id) : undefined
+  return { content: view ? view.state.doc.toString() : null }
+})
+registerUiHandler("fs.write", ({ path, content, changeId, hunks }) => {
+  const file = fileAt(path)
+  return { applied: !!file && applyAgentEdit(file, content, changeId, hunks) }
+})
+
+// An undo took a comment an agent left away
+onNotify("comments.removed", ({ path, id }) => {
+  const file = fileAt(path)
+  if (!file || !useDocsStore.getState().comments[file.id]?.some((c) => c.id === id)) return
+  useDocsStore.setState((s) => ({ comments: { ...s.comments, [file.id]: (s.comments[file.id] ?? []).filter((c) => c.id !== id) } }))
+})
+
+// A comment an agent left, replied under or resolved over owlit-mcp, or one an undo put back; the
+// window's own changes are here already
+onNotify("comments.changed", ({ path, comment }) => {
+  const file = fileAt(path)
+  if (!file) return
+  useDocsStore.setState((s) => ({
+    comments: { ...s.comments, [file.id]: [...(s.comments[file.id] ?? []).filter((c) => c.id !== comment.id), comment].sort((a, b) => a.createdAt - b.createdAt) },
+  }))
+})
+
+// Owlit changed a doc that isn't open here: the text itself arrives as docs.changed; one open in an
+// editor here marks it there
+onNotify("changes.added", ({ change }) => {
+  if (change.target.kind !== "doc" || !isOwlit(change.actor) || change.undoes) return
+  const { path } = change.target
+  if (shownHere.delete(change.id)) return
+  // A chat on screen says it in its own result row, with the same Undo
+  if (chatOnScreen(change.origin.chatId)) return
+  const paper = labelOf(path)
+  toastUndo(t`Edit applied`, () => undoChange(change.id, paper), {
+    // A paper's note is named by its paper
+    description: paperOfNotePath(path) ? t`Your note on ${paper}` : displayName(path),
+  })
+})

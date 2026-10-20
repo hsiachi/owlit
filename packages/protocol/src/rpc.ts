@@ -597,7 +597,7 @@ export interface CoreVersion {
 
 export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics" | "new-workspace" | "whats-new"
 
-// What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
+// What the desktop preload exposes as window.owlit; pnpm dev:web stands it in over a WebSocket to a dev core.
 export interface OwlitBridge {
   platform: string
   // Sends one request and resolves with core's response envelope; never rejects for an RPC error

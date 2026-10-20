@@ -19,7 +19,7 @@ import { countParts } from "../../lib/edit-counts"
 import { partsUndone, replyEntries, undoneBy } from "../../lib/reply-changes"
 import { useChatStore } from "../../store"
 import { toastLeft } from "@/lib/changes"
-import { hasCore, rpc, RpcError } from "@/lib/rpc"
+import { rpc, RpcError } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { toast } from "sonner"
 import { capital, joinActions } from "@/lib/words"
@@ -57,7 +57,7 @@ export interface ResultRow {
 const FOLD_AFTER = 3
 
 // What the reply's edits to a file amounted to. Core reads it from its change log, which is the whole
-// change whatever the agent reported; without core (the browser preview) the reply's own diffs are summed.
+// change whatever the agent reported.
 const statsCache = create<{ byKey: Record<string, (EditStats & { passages?: number }) | null>; load: (from: string, to: string) => void }>()((set, get) => ({
   byKey: {},
   load: (from, to) => {
@@ -142,7 +142,7 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   }
   const docs = byKind("doc")
   // Each doc's first and last change from this reply, whose stats core is asked for once
-  const spans = hasCore ? [...docs].map(([path, list]) => ({ path, key: `${list[0].id}|${list.at(-1)!.id}`, from: list[0].id, to: list.at(-1)!.id })) : []
+  const spans = [...docs].map(([path, list]) => ({ path, key: `${list[0].id}|${list.at(-1)!.id}`, from: list[0].id, to: list.at(-1)!.id }))
   const wanted = spans.map((s) => s.key).join(",")
   useEffect(() => {
     for (const s of spans) statsCache.getState().load(s.from, s.to)

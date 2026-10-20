@@ -1,9 +1,8 @@
 import { useDebouncedQuery } from "@/hooks/use-debounced-query"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 
 // What core's search index finds in papers' text, asked once typing pauses. Metadata, docs and chats are
-// searched in the window itself; only a paper's text lives in core. Without the desktop app there is
-// no index and both stay empty.
+// searched in the window itself; only a paper's text lives in core.
 
 interface FullTextHits {
   papers: Record<string, string>
@@ -18,7 +17,7 @@ const NONE: FullTextHits = { papers: {}, indexing: false }
 export function useFullText(query: string): FullTextHits {
   const q = query.trim()
   const hits = useDebouncedQuery(
-    hasCore && q.length >= 3 ? q : null,
+    q.length >= 3 ? q : null,
     (q) => rpc.search.palette({ q }).then((r) => ({ papers: Object.fromEntries(r.papers.map((p) => [p.key, p.snippet])), indexing: r.indexing })),
     120,
   )
@@ -32,7 +31,7 @@ const EMPTY: ReadonlyMap<string, string> = new Map()
 export function useTextHits(query: string): ReadonlyMap<string, string> {
   const q = query.trim()
   const hits = useDebouncedQuery(
-    hasCore && q.length >= 2 ? q : null,
+    q.length >= 2 ? q : null,
     (q) => rpc.search.papers({ q, marked: true }).then((found): ReadonlyMap<string, string> => new Map(found.map((h) => [h.key, h.snippet]))),
     150,
   )

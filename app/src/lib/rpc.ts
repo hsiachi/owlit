@@ -26,8 +26,8 @@ const devCore: string | undefined = import.meta.env.VITE_OWLIT_CORE
 // The Electron preload's API, or its stand-in for the dev core; undefined in a plain browser
 export const bridge = typeof window === "undefined" ? undefined : (window.owlit ?? (devCore ? webBridge(devCore) : undefined))
 
-// There is a core to talk to (the app, or the dev core)
-export const hasCore = bridge !== undefined
+// What only the app's own window can do, not a browser tab on the dev core: show a file in the Finder
+export const canReveal = typeof window !== "undefined" && window.owlit !== undefined
 
 // Where the window reads a file of the workspace (a paper's PDF, a figure): owlit-file://workspace/<path>
 // as core names it in the app, the dev core's http route in a browser
@@ -86,7 +86,7 @@ bridge?.onNotify((notification: RpcNotification) => {
   for (const listener of listeners.get(notification.method) ?? []) listener(notification.params as never)
 })
 
-// Hear one kind of notification from core; returns an unsubscribe. A no-op without the desktop app.
+// Hear one kind of notification from core; returns an unsubscribe. A no-op without a bridge.
 export function onNotify<T extends NotificationName>(topic: T, listener: (payload: Notifications[T]) => void) {
   const set = listeners.get(topic) ?? new Set()
   set.add(listener as Listener)

@@ -1762,22 +1762,6 @@ msgstr "已在文献库中"
 msgid "No answer"
 msgstr "没有回答"
 
-#: app/src/features/chat/connectors.ts
-#: packages/core/src/agents/agents.ts
-msgid "Custom agent"
-msgstr "自定义智能体"
-
-#: app/src/features/chat/connectors.ts
-msgid "Custom ACP agent"
-msgstr "自定义 ACP 智能体"
-
-#. the model an agent uses when none is picked
-#. the model an agent uses when none is picked
-#: app/src/features/chat/connectors.ts
-#: packages/core/src/agents/agents.ts
-msgid "Default"
-msgstr "默认"
-
 #: app/src/features/chat/disk.ts
 msgid "Couldn't save the chat."
 msgstr "无法保存对话。"
@@ -2831,10 +2815,6 @@ msgstr "回复已删除"
 #: app/src/features/docs/comments/model.ts
 msgid "Comment resolved"
 msgstr "评论已解决"
-
-#: app/src/features/docs/components/DocsListPanel.tsx
-msgid "{name} opens in the system app"
-msgstr "{name} 会用系统应用打开"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 #: app/src/features/docs/pages/DocPage.tsx
@@ -7331,6 +7311,10 @@ msgid "The command is empty."
 msgstr "命令为空。"
 
 #: packages/core/src/agents/agents.ts
+msgid "Custom agent"
+msgstr "自定义智能体"
+
+#: packages/core/src/agents/agents.ts
 msgid "{agent} is built in and can't be removed."
 msgstr "{agent} 是内置的，无法移除。"
 
@@ -7378,6 +7362,11 @@ msgstr "owlit 在这里无法设置 agent。"
 #: packages/core/src/agents/agents.ts
 msgid "owlit doesn't know that agent."
 msgstr "owlit 不认识这个智能体。"
+
+#. the model an agent uses when none is picked
+#: packages/core/src/agents/agents.ts
+msgid "Default"
+msgstr "默认"
 
 #: packages/core/src/agents/failure.ts
 msgid "{name} quit unexpectedly. It starts again with the next message."

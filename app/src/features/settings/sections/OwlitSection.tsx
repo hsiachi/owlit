@@ -2,7 +2,6 @@ import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { DEFAULT_ROLE, FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { RoleLines } from "@/components/role-lines"
-import { hasCore } from "@/lib/rpc"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
@@ -29,7 +28,7 @@ export function OwlitSection() {
       <Group id="profile">
         <List>
           <NameRow />
-          {(workspace || !hasCore) && <KeptInMindRow />}
+          {workspace && <KeptInMindRow />}
         </List>
       </Group>
       <Group id="roles" label={t`What Owlit may do`} note={t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy.`}>
@@ -41,11 +40,9 @@ export function OwlitSection() {
       <Group id="privacy" label={t`Privacy`} note={t`What owlit remembers stays on this Mac and is never sent anywhere but to the agent. The agent reads the files of this workspace and your papers through owlit, and what you did in owlit when Remember is on; nothing outside the workspace folder. Claude Code is held to that by its sandbox; Codex can't be.`}>
         <MemoryRow />
       </Group>
-      {hasCore && (
-        <Group id="updates" label={t`Updates`}>
-          <UpdatesRows />
-        </Group>
-      )}
+      <Group id="updates" label={t`Updates`}>
+        <UpdatesRows />
+      </Group>
     </>
   )
 }

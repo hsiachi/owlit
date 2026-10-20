@@ -10,7 +10,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { shortDate } from "@/lib/time"
 import { toastError } from "@/lib/toast"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
@@ -140,7 +140,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const wait = pdfWait(paper) ?? "finding"
   // A thread's paper nobody had opened: opening it is what fetches its PDF
   useEffect(() => {
-    if (wait === "unsought" && hasCore) void rpc.library.seek({ id: paper.id }).catch(() => undefined)
+    if (wait === "unsought") void rpc.library.seek({ id: paper.id }).catch(() => undefined)
   }, [wait, paper.id])
   const state: CardState = looking ? "looking" : wait
   const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper)

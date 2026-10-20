@@ -5,7 +5,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useSeen } from "@/app/seen"
 import { chatStatus, useSeenStore } from "@/features/chat/status"
 import { chatIsAbout } from "./chats-about"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PageRect, PromptInput, QuotedSelection } from "@owlit/protocol"
 
@@ -149,34 +149,32 @@ export const useAgentWindow = create<AgentWindowState>()(
         void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
       },
     }),
-    // Only the current chat and the panel's width are kept, so ⇧⌘J after a reload picks the chat up again;
-    // the window starts closed. In the desktop app the chat is kept with the workspace instead
-    // (workspace.json's layout), while the width is the user's, whichever workspace is open.
-    { name: "owlit-agent-window", partialize: (s) => (hasCore ? { panelWidth: s.panelWidth } : { chatId: s.chatId, panelWidth: s.panelWidth }) },
+    // Only the panel's width is this profile's, whichever workspace is open; the current chat is kept with
+    // the workspace (workspace.json's layout), so ⇧⌘J after a reload picks it up again. The window starts
+    // closed.
+    { name: "owlit-agent-window", partialize: (s) => ({ panelWidth: s.panelWidth }) },
   ),
 )
 
-if (hasCore) {
-  // Set while the window takes the workspace's saved chat, which needs no saving back
-  let restoring = false
-  const restore = (chatId: string | null) => {
-    restoring = true
-    useAgentWindow.setState({ chatId })
-    restoring = false
-  }
-  onWorkspaceOpened(() => {
-    restore(null)
-    useAgentWindow.setState({ stage: "closed" })
-    rpc.workspace
-      .layout()
-      .then((layout) => restore(typeof layout.agentChatId === "string" ? layout.agentChatId : null))
-      .catch(() => undefined)
-  })
-  useAgentWindow.subscribe((state, prev) => {
-    if (restoring || state.chatId === prev.chatId || !useWorkspace.getState().current) return
-    rpc.workspace.setLayout({ patch: { agentChatId: state.chatId } }).catch(() => undefined)
-  })
+// Set while the window takes the workspace's saved chat, which needs no saving back
+let restoring = false
+const restore = (chatId: string | null) => {
+  restoring = true
+  useAgentWindow.setState({ chatId })
+  restoring = false
 }
+onWorkspaceOpened(() => {
+  restore(null)
+  useAgentWindow.setState({ stage: "closed" })
+  rpc.workspace
+    .layout()
+    .then((layout) => restore(typeof layout.agentChatId === "string" ? layout.agentChatId : null))
+    .catch(() => undefined)
+})
+useAgentWindow.subscribe((state, prev) => {
+  if (restoring || state.chatId === prev.chatId || !useWorkspace.getState().current) return
+  rpc.workspace.setLayout({ patch: { agentChatId: state.chatId } }).catch(() => undefined)
+})
 
 // Help › Ask Owlit How To…: the ask bar with the how-to hint. The agent window isn't offered on Chat, which
 // is the same conversation at full size, so from there it goes Home first.

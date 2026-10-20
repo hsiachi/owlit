@@ -2,7 +2,7 @@ import type { LibraryClient, Resolved } from "./client"
 import type { Paper } from "@owlit/protocol"
 import { filePath, rpc } from "@/lib/rpc"
 
-// The desktop app's library client: lookups and PDFs go to core
+// The library client: lookups and PDFs go to core
 export class RpcLibraryClient implements LibraryClient {
   async resolve(input: string): Promise<Resolved> {
     const { paper, existingId, learned } = await rpc.library.resolve({ input })

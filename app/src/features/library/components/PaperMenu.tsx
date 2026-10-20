@@ -1,7 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { useLocation } from "react-router-dom"
 import { MenuItems, type MenuGroups } from "@/components/action-menu"
-import { hasCore } from "@/lib/rpc"
 import { refreshDetails, usePaperActions } from "../actions"
 import { markSeen } from "@/app/seen"
 import { askDigest, waitForDigest } from "../digests"
@@ -35,7 +34,7 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
   if (single) copy.push({ label: t`Edit details`, onSelect: () => actions.editDetails(single.id) })
   // Asks the paper services again (a title missing its subtitle, a wrong abstract); a paper they can't
   // know (a local PDF without a DOI) has nobody to ask. The user's own corrections stay.
-  if (hasCore && single && (single.ids.doi || single.ids.arxiv || single.ids.s2 || single.ids.openalex)) {
+  if (single && (single.ids.doi || single.ids.arxiv || single.ids.s2 || single.ids.openalex)) {
     copy.push({
       label: t`Refresh details`,
       onSelect: () => void refreshDetails(single, actions.open),
@@ -44,7 +43,7 @@ function usePaperMenu(papers: Paper[], afterRemove?: () => void): MenuGroups {
   // A paper with something to read; one with a digest can have it written again (a better model, after a
   // change of language), which only the user ever asks for. Asked for here, it is waited for: the user
   // hears when it is done.
-  if (hasCore && single && (single.pdf || single.text)) {
+  if (single && (single.pdf || single.text)) {
     copy.push({
       label: single.hasDigest ? t`Rewrite the digest` : t`Write a digest`,
       onSelect: () => {

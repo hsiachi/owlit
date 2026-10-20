@@ -6,7 +6,7 @@ import { applySeen, unseenOf, type Change, type ChangedPassage, type ChangeFilte
 import { create } from "zustand"
 import { useChatStore } from "@/features/chat/store"
 import { me } from "@/lib/actors"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
 
 interface SeenState {
@@ -56,7 +56,6 @@ export function markSeen(seen: SeenMark) {
   if (!next) return
   // Shown at once
   useSeen.setState(next)
-  if (!hasCore) return
   pending.set(mark, Infinity)
   rpc.seen.mark(mark).then(
     () => {
@@ -111,7 +110,6 @@ export function startSeen() {
   refresh()
   // A reply ending, or a digest coming, can make something new
   useChatStore.subscribe((s, prev) => s.streaming !== prev.streaming && Object.keys(prev.streaming).some((id) => !s.streaming[id]) && refresh())
-  if (!hasCore) return
   onWorkspaceOpened(() => {
     logGrew()
     pending.clear()

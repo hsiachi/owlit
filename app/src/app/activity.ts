@@ -2,7 +2,7 @@
 // is open, time spent reading it and on which pages, page turns, stars, status and tags, highlights,
 // note and doc edits, chats written in and left.
 // Core journals the coarse ones (unless settings.activity.enabled is off) and hands all of them to live
-// listeners (a visit's end, for whether it read the paper in full). Nothing is sent without the desktop app.
+// listeners (a visit's end, for whether it read the paper in full).
 
 import { isOwlit, type ActivityEvent, type ChatMessage, type PaperMark, type PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
@@ -13,7 +13,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { ReadingClock } from "@/app/reading-clock"
 import { routeSubject } from "@/app/route-subject"
 
@@ -165,7 +165,7 @@ function update(next: Open) {
 let started = false
 
 export function startActivity(router: typeof appRouter) {
-  if (!hasCore || started) return
+  if (started) return
   started = true
 
   const refresh = () => update(openFromRoute(router.state.location.pathname))

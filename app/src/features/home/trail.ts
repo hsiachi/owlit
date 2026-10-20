@@ -24,8 +24,8 @@ export const useTrail = create<TrailState>()(
   persist((): TrailState => ({ docs: {} }), { name: "owlit-home", version: 1, partialize: (s) => ({ docs: s.docs }) }),
 )
 
-// The browser preview has no workspace; it gets one shared key
-export const workspaceKey = () => useWorkspace.getState().current?.path ?? "browser"
+// Until a workspace is open there is one shared key
+export const workspaceKey = () => useWorkspace.getState().current?.path ?? "none"
 
 // Privacy › "Remember what I do" turns this off along with the activity journal
 const remembering = () => useSettings.getState().view?.activity.enabled !== false

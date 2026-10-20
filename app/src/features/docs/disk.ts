@@ -3,7 +3,7 @@ import { RpcErrorCode } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { toastError } from "@/lib/toast"
-import { hasCore, onNotify, rpc, RpcError } from "@/lib/rpc"
+import { onNotify, rpc, RpcError } from "@/lib/rpc"
 import { countDown, countUp } from "@/lib/counts"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
@@ -25,8 +25,6 @@ const written = new Map<string, string>()
 // Ops queued and not yet done, by id; a file's path is reconciled only once it has none left
 let pending: Record<string, number> = {}
 const queue = createWorkspaceQueue({ onError: failed })
-
-export const onDisk = hasCore
 
 function enqueue(ids: string[], op: () => Promise<void>) {
   for (const id of ids) pending = countUp(pending, id)
@@ -374,19 +372,17 @@ function conflicted(id: string, disk: DocConflict) {
 
 // ---- Workspace ----
 
-if (onDisk) {
-  onWorkspaceOpened(() => {
-    queue.reset()
-    known.clear()
-    written.clear()
-    pending = {}
-    freshDocIds.clear()
-    useDocsStore.setState({ files: {}, folders: [], comments: {}, missing: {}, loaded: false })
-    reload()
-  })
-  onNotify("docs.changed", (change) => enqueue([], () => applyChange(change)))
-  // Opened before this module was loaded (a reload of the window)
-  queueMicrotask(() => {
-    if (useWorkspace.getState().current && !useDocsStore.getState().loaded) reload()
-  })
-}
+onWorkspaceOpened(() => {
+  queue.reset()
+  known.clear()
+  written.clear()
+  pending = {}
+  freshDocIds.clear()
+  useDocsStore.setState({ files: {}, folders: [], comments: {}, missing: {}, loaded: false })
+  reload()
+})
+onNotify("docs.changed", (change) => enqueue([], () => applyChange(change)))
+// Opened before this module was loaded (a reload of the window)
+queueMicrotask(() => {
+  if (useWorkspace.getState().current && !useDocsStore.getState().loaded) reload()
+})

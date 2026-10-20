@@ -97,7 +97,7 @@ export const useDocsStore = create<DocsState>()(
         const now = Date.now()
         const file: WorkspaceFile = { id: newId(), path, content, createdAt: now, modifiedAt: now, nameLocked: true }
         set((s) => ({ files: { ...s.files, [file.id]: file } }))
-        if (disk.onDisk) disk.saveDoc(file.id)
+        disk.saveDoc(file.id)
         return file
       },
 
@@ -118,7 +118,7 @@ export const useDocsStore = create<DocsState>()(
         // Core names the file on disk the same way; the store predicts it so the tree doesn't wait
         const path = f.nameLocked ? f.path : (followFirstLine(f.path, content, f.createdAt, pathTaken(get().files, get().folders, id)) ?? f.path)
         set((s) => ({ files: { ...s.files, [id]: { ...f, content, path, modifiedAt: keepTime ? f.modifiedAt : Date.now() } } }))
-        if (disk.onDisk) disk.saveDoc(id)
+        disk.saveDoc(id)
       },
 
       renameFile: (id, name) => {
@@ -128,7 +128,7 @@ export const useDocsStore = create<DocsState>()(
         if (!f || !stem) return
         const path = uniquePath(parentPath(f.path), stem, extOf(f.path), pathTaken(s.files, s.folders, id))
         set({ files: { ...s.files, [id]: { ...f, path, nameLocked: isMarkdown(f.path) ? true : f.nameLocked } } })
-        if (disk.onDisk) disk.renameOnDisk(id, baseName(path))
+        disk.renameOnDisk(id, baseName(path))
       },
 
       moveFile: (id, folder) => {
@@ -139,7 +139,7 @@ export const useDocsStore = create<DocsState>()(
         const ext = extOf(name)
         const path = uniquePath(folder, ext ? name.slice(0, -ext.length) : name, ext, pathTaken(s.files, s.folders, id))
         set({ files: { ...s.files, [id]: { ...f, path } } })
-        if (disk.onDisk) disk.moveOnDisk(id, folder)
+        disk.moveOnDisk(id, folder)
       },
 
       deleteFile: (id) => {
@@ -150,7 +150,7 @@ export const useDocsStore = create<DocsState>()(
           delete files[id]
           return { files }
         })
-        if (disk.onDisk) disk.deleteOnDisk(id)
+        disk.deleteOnDisk(id)
         return { files: [f], folders: [] }
       },
 
@@ -158,7 +158,7 @@ export const useDocsStore = create<DocsState>()(
         const { files, folders } = get()
         const path = uniquePath(parent, t`New folder`, "", pathTaken(files, folders))
         set((s) => ({ folders: [...s.folders, path] }))
-        if (disk.onDisk) disk.createFolderOnDisk(path)
+        disk.createFolderOnDisk(path)
         return path
       },
 
@@ -169,7 +169,7 @@ export const useDocsStore = create<DocsState>()(
         // A change of case only is the same folder, so it can't collide with itself
         const to = clean.toLowerCase() === baseName(path).toLowerCase() ? joinPath(parentPath(path), clean) : uniquePath(parentPath(path), clean, "", pathTaken(s.files, s.folders))
         set(relocate(s, path, to))
-        if (disk.onDisk) disk.renameFolderOnDisk(path, to)
+        disk.renameFolderOnDisk(path, to)
         return to
       },
 
@@ -179,7 +179,7 @@ export const useDocsStore = create<DocsState>()(
         const s = get()
         const to = uniquePath(parent, baseName(path), "", pathTaken(s.files, s.folders))
         set(relocate(s, path, to))
-        if (disk.onDisk) disk.moveFolderOnDisk(path, to, parent)
+        disk.moveFolderOnDisk(path, to, parent)
         return to
       },
 
@@ -193,44 +193,44 @@ export const useDocsStore = create<DocsState>()(
           files: Object.fromEntries(Object.values(s.files).filter((f) => !within(f.path, path)).map((f) => [f.id, f])),
           folders: s.folders.filter((f) => !within(f, path)),
         })
-        if (disk.onDisk) disk.deleteFolderOnDisk(path)
+        disk.deleteFolderOnDisk(path)
         return removed
       },
 
       addComment: (fileId, comment) => {
         set((s) => ({ comments: { ...s.comments, [fileId]: [...(s.comments[fileId] ?? []).filter((c) => c.id !== comment.id), comment].sort((a, b) => a.createdAt - b.createdAt) } }))
-        if (disk.onDisk) disk.addCommentOnDisk(fileId, comment)
+        disk.addCommentOnDisk(fileId, comment)
       },
 
       putComment: (fileId, comment) => {
         const before = get().comments[fileId]?.find((c) => c.id === comment.id)
         if (!before) return void get().addComment(fileId, comment)
         set((s) => ({ comments: { ...s.comments, [fileId]: (s.comments[fileId] ?? []).map((c) => (c.id === comment.id ? comment : c)) } }))
-        if (disk.onDisk) disk.putCommentOnDisk(fileId, comment)
+        disk.putCommentOnDisk(fileId, comment)
         return before
       },
 
       removeComment: (fileId, commentId) => {
         const comment = get().comments[fileId]?.find((c) => c.id === commentId)
         set((s) => ({ comments: { ...s.comments, [fileId]: (s.comments[fileId] ?? []).filter((c) => c.id !== commentId) } }))
-        if (comment && disk.onDisk) disk.removeCommentOnDisk(fileId, commentId)
+        if (comment) disk.removeCommentOnDisk(fileId, commentId)
         return comment
       },
 
       reanchorComments: (fileId, moved) => {
         set((s) => ({ comments: { ...s.comments, [fileId]: (s.comments[fileId] ?? []).map((c) => (moved[c.id] ? { ...c, ...moved[c.id] } : c)) } }))
-        if (disk.onDisk) disk.reanchorOnDisk(fileId, moved)
+        disk.reanchorOnDisk(fileId, moved)
       },
 
-      // Undo of a delete. On disk only Markdown comes back (from the text kept here); other files
-      // stay in the system Trash, so they aren't put back in the tree either.
+      // Undo of a delete. Only Markdown comes back (from the text kept here); other files stay in the
+      // system Trash, so they aren't put back in the tree either.
       restore: ({ files, folders }) => {
-        const back = disk.onDisk ? files.filter((f) => isMarkdown(f.path) && f.content !== undefined) : files
+        const back = files.filter((f) => isMarkdown(f.path) && f.content !== undefined)
         set((s) => ({
           files: { ...s.files, ...Object.fromEntries(back.map((f) => [f.id, f])) },
           folders: [...s.folders, ...folders.filter((f) => !s.folders.includes(f))],
         }))
-        if (disk.onDisk) disk.restoreOnDisk(back, folders)
+        disk.restoreOnDisk(back, folders)
       },
     }),
 )

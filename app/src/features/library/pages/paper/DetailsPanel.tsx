@@ -14,7 +14,6 @@ import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsLi
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
 import { externalLinks, type ExternalLink } from "../../lib/format"
-import { linkedPaperIds } from "../../lib/cite"
 import { stripLatex } from "../../lib/latex"
 import { useHighlightCount } from "../../lib/use-highlights"
 import { NoteChanges } from "../../notes/NoteChanges"
@@ -26,7 +25,7 @@ import { docUri, paperUri, type Highlight, type Paper } from "@owlit/protocol"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { mentionRoute } from "@/features/docs/lib/mentions"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { useLibraryUi } from "../../ui-store"
 
 // Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back
@@ -190,18 +189,17 @@ function About({ paper }: { paper: Paper }) {
 }
 
 // The docs that link to this paper, from the search index's links (an old id of the paper included), so
-// reading a paper shows where the person's writing leans on it. Asked again when the paper changes;
-// the browser preview has no index and reads its mock docs.
+// reading a paper shows where the person's writing leans on it. Asked again when the paper changes.
 function CitedIn({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
   const [paths, setPaths] = useState<string[]>([])
   const docs = useDocsStore((s) => s.files)
   useEffect(() => {
     let live = true
-    const found = hasCore
-      ? rpc.links.to({ uri: paperUri(paper.id) }).then((links) => links.filter((l) => l.source === "doc").map((l) => l.key))
-      : Promise.resolve(Object.values(useDocsStore.getState().files).filter((f) => linkedPaperIds(f.content ?? "").includes(paper.id)).map((f) => f.path))
-    found.then(
+    rpc.links
+      .to({ uri: paperUri(paper.id) })
+      .then((links) => links.filter((l) => l.source === "doc").map((l) => l.key))
+      .then(
       (next) => live && setPaths(next.sort((a, b) => a.localeCompare(b))),
       () => undefined,
     )

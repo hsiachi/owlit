@@ -2,7 +2,6 @@ import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { FolderPlusIcon, UsersIcon } from "lucide-react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick } from "@/components/action-menu"
 import { NoteDot } from "@/components/marks"
@@ -12,7 +11,7 @@ import { SidebarContent } from "@/components/ui/sidebar"
 import { Tip } from "@/components/tip"
 import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
-import { onDisk, openOnDisk } from "../disk"
+import { openOnDisk } from "../disk"
 import { useNewOwlitComments } from "../owlit"
 import { useDocsStore } from "../store"
 import { useShareStore } from "../share/store"
@@ -52,11 +51,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
 
   const open = () => {
     if (node.markdown) navigate(`/docs/${node.file.id}`)
-    else if (onDisk) openOnDisk(node.file.path)
-    else {
-      const name = node.name
-      toast(t`${name} opens in the system app`)
-    }
+    else openOnDisk(node.file.path)
   }
 
   return (

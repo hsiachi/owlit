@@ -47,7 +47,7 @@ function checkPassage(paperId: string, quote: string): Promise<Check> {
   if (!check) {
     check = rpc.library.findPassage({ id: paperId, quote }).then(
       (r): Check => (r ? { found: r.page } : "missing"),
-      // Without core (the browser preview), or core failing: the card says nothing about it
+      // Core failing: the card says nothing about it
       (): Check => "unknown",
     )
     checks.set(key, check)
