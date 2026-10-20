@@ -16,6 +16,7 @@ import { TagsEditor } from "../../components/TagsEditor"
 import { externalLinks, type ExternalLink } from "../../lib/format"
 import { stripLatex } from "../../lib/latex"
 import { useHighlightCount } from "../../lib/use-highlights"
+import { NoteChanges } from "../../notes/NoteChanges"
 import { NoteEditor } from "../../notes/NoteEditor"
 import { addHighlightToNote } from "../../notes/note-actions"
 import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../../prefs-store"
@@ -75,6 +76,7 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
             {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
           </div>
           <TabsContent value="notes" className="flex flex-col">
+            <NoteChanges key={paper.id} paperId={paper.id} />
             <NoteEditor paperId={paper.id} />
           </TabsContent>
           <TabsContent value="highlights">
