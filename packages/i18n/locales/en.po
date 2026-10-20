@@ -7574,30 +7574,14 @@ msgstr "That chat is no longer in the trash."
 msgid "That isn't a file of this chat."
 msgstr "That isn't a file of this chat."
 
-#: packages/core/src/core.ts
-msgid "The browser extension needs the owlit desktop app."
-msgstr "The browser extension needs the owlit desktop app."
-
-#: packages/core/src/core.ts
-msgid "This copy of owlit has no example workspace."
-msgstr "This copy of owlit has no example workspace."
-
-#: packages/core/src/core.ts
+#: packages/core/src/chats/rpc.ts
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't open files in other apps here."
 msgstr "owlit can't open files in other apps here."
 
-#: packages/core/src/core.ts
+#: packages/core/src/chats/rpc.ts
 msgid "owlit no longer has that file."
 msgstr "owlit no longer has that file."
-
-#: packages/core/src/core.ts
-msgid "That paper isn't in the library."
-msgstr "That paper isn't in the library."
-
-#: packages/core/src/core.ts
-msgid "That comment is already there."
-msgstr "That comment is already there."
 
 #: packages/core/src/core.ts
 msgid "Owlit couldn't get this paper's text to read."
@@ -7667,6 +7651,10 @@ msgstr "{name} is no longer on disk."
 msgid "{name} changed on disk."
 msgstr "{name} changed on disk."
 
+#: packages/core/src/docs/rpc.ts
+msgid "That comment is already there."
+msgstr "That comment is already there."
+
 #: packages/core/src/extension/http.ts
 #: packages/core/src/rpc/errors.ts
 msgid "Something went wrong inside owlit."
@@ -7700,6 +7688,10 @@ msgstr "Nobody answered in owlit. Press Connect again."
 #: packages/core/src/extension/papers.ts
 msgid "This page doesn't say which paper it is."
 msgstr "This page doesn't say which paper it is."
+
+#: packages/core/src/extension/rpc.ts
+msgid "The browser extension needs the owlit desktop app."
+msgstr "The browser extension needs the owlit desktop app."
 
 #: packages/core/src/extension/server.ts
 msgid "Only owlit's browser extension can connect here."
@@ -7839,6 +7831,10 @@ msgstr "owlit couldn't open that page to see which paper it is."
 #: packages/core/src/library/resolve.ts
 msgid "That page doesn't say which paper it is."
 msgstr "That page doesn't say which paper it is."
+
+#: packages/core/src/library/rpc.ts
+msgid "That paper isn't in the library."
+msgstr "That paper isn't in the library."
 
 #: packages/core/src/library/text/extract.ts
 msgid "The PDF is password-protected."
@@ -8053,6 +8049,10 @@ msgstr "GitHub turned the check away for now. Try again in an hour."
 #: packages/core/src/updates/updates.ts
 msgid "The update didn't come through: {0}"
 msgstr "The update didn't come through: {0}"
+
+#: packages/core/src/workspace/rpc.ts
+msgid "This copy of owlit has no example workspace."
+msgstr "This copy of owlit has no example workspace."
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts
