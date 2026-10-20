@@ -41,8 +41,9 @@ describe("a grouping's groups in the table", () => {
 
 describe("a table grouped by a comparison", () => {
   const paper = (id: string, cell?: ThreadRowRead["cells"][string]): ThreadRowRead => ({ id, paper: { title: id, authors: [], ids: {} }, cells: cell ? { cmp: cell } : {}, addedAt: 0 })
+  const cell = { text: "", depth: "abstract" as const, at: 0 }
   const column: ThreadColumn = { id: "cmp", question: "Against my draft", kind: "compare", sentences: [{ id: "s1", text: "Readers skim." }] }
-  const thread = { columns: [column], rows: [paper("p1", { rel: "supports", sentence: "s1" }), paper("p2", { rel: "challenges", sentence: "gone" }), paper("p3")] } as unknown as ThreadRead
+  const thread = { columns: [column], rows: [paper("p1", { ...cell, rel: "supports", sentence: "s1" }), paper("p2", { ...cell, rel: "challenges", sentence: "gone" }), paper("p3")] } as unknown as ThreadRead
 
   it("puts a paper whose sentence the column no longer has with those that bear on none", () => {
     expect(sectionsOf(thread, "column:cmp").map((s) => [s.key, s.rows.map((r) => r.id)])).toEqual([
