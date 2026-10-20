@@ -29,16 +29,20 @@ const languages = (): { value: InterfaceLanguage; label: string }[] => [
   ...(import.meta.env.DEV ? [{ value: "pseudo" as const, label: "Pseudo" }] : []),
 ]
 
+// The interface's language; also asked in the first launch's About you, so a reader who doesn't read the
+// system's language finds theirs before the steps that need reading
+export function InterfaceLanguageRow() {
+  const { language } = useSettings((s) => appearanceOf(s.view))
+  return <Row name={t`Language`} control={<Picker label={t`Language`} value={language} options={languages()} onChange={(value) => void updateSettings({ appearance: { language: value } })} />} />
+}
+
 export function AppearanceSection() {
-  const { theme, tone, language } = useSettings((s) => appearanceOf(s.view))
+  const { theme, tone } = useSettings((s) => appearanceOf(s.view))
   const dimPdf = usePrefsStore((s) => s.dimPdf)
   const setDimPdf = usePrefsStore((s) => s.setDimPdf)
   return (
     <List>
-      <Row
-        name={t`Language`}
-        control={<Picker label={t`Language`} value={language} options={languages()} onChange={(value) => void updateSettings({ appearance: { language: value } })} />}
-      />
+      <InterfaceLanguageRow />
       <Row
         name={t`Theme`}
         control={

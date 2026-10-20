@@ -13,6 +13,9 @@ import { useFileDrop } from "@/hooks/use-file-drop"
 import { Quote } from "@/components/quote"
 import { KIND_ICON } from "@/lib/kinds"
 import { useNewDoc } from "@/features/docs/use-new-doc"
+import { FRESH_CHAT } from "@/features/chat/components/ChatEmpty"
+import { starterPrompt, starters } from "@/features/chat/lib/starters"
+import { i18n } from "@/lib/i18n"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
@@ -25,6 +28,7 @@ import { type News, type Place, useNews, usePlaces } from "./where"
 // anywhere on it go to the Library.
 
 const RECENT = 8
+const findStarter = starters.find((s) => s.id === "find")!
 
 export function HomePage() {
   const places = usePlaces()
@@ -136,7 +140,8 @@ function didWords(place: Place) {
   return ago(place.at)
 }
 
-// A workspace with nothing in it yet: three ways in, no checklist
+// A workspace with nothing in it yet: four ways in, no checklist. Finding papers on a question starts as
+// a chat, since Owlit gathers them only when asked and the question is said best in its own words.
 function Start() {
   const navigate = useNavigate()
   const newDoc = useNewDoc()
@@ -145,7 +150,8 @@ function Start() {
   const rows = [
     { key: "papers", icon: KIND_ICON.paper, title: t`Add papers`, detail: t`Drop PDFs anywhere here, or choose them from your disk`, run: () => fileInput?.click() },
     { key: "doc", icon: KIND_ICON.doc, title: t`New doc`, detail: t`Notes and drafts are Markdown files in this folder`, run: () => newDoc("") },
-    { key: "chat", icon: KIND_ICON.chat, title: t`Chat with Owlit`, detail: t`Ask, or have Owlit find papers`, run: () => navigate("/chat") },
+    { key: "find", icon: KIND_ICON.thread, title: i18n._(findStarter.label), detail: t`Owlit gathers papers for it, with what each one says`, run: () => navigate("/chat", { state: { starter: starterPrompt("find") } }) },
+    { key: "chat", icon: KIND_ICON.chat, title: t`Chat with Owlit`, detail: t`Ask about anything in this folder`, run: () => navigate("/chat", { state: FRESH_CHAT }) },
   ]
   const palette = keysFor("palette")
   const owlit = keysFor("owlit")

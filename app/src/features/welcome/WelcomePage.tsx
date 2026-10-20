@@ -19,7 +19,7 @@ import { bridge, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { useControlsRoom } from "@/lib/window-frame"
 import { pickParent, pickWorkspaceFolder, switchWorkspace, tilde } from "@/lib/workspace"
-import { AgentCheck } from "./AgentCheck"
+import { AgentSetup } from "@/features/onboarding/AgentSetup"
 import { cn } from "@/lib/utils"
 
 // The page the window shows while no workspace is open once the first launch is over (a first launch gets
@@ -171,7 +171,7 @@ export function WelcomePage() {
               </section>
             )}
 
-            <AgentCheck />
+            <AgentSetup variant="line" />
           </div>
         </main>
       </div>
