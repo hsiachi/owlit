@@ -111,16 +111,14 @@ export type Request =
   // The popup's button: the click's work again, for this tab
   | { kind: "act"; tabId: number }
   | { kind: "takePdfs"; on: boolean }
-  // From the content script on every page it runs on: its head, and whether the browser is dark
-  | { kind: "page"; html: string; url: string; dark?: boolean }
+  // From the content script on every page it runs on: its head
+  | { kind: "page"; html: string; url: string }
   // The user let the extension read this site: owlit goes on there, and a click that needed it (tabId)
   // is done again
   | { kind: "allowed"; host: string; tabId?: number }
   // A card's button
   | { kind: "card"; action: CardAction }
   | { kind: "open"; paperId?: string }
-  // The popup, when it opens: the browser's light or dark, which a background can't read
-  | { kind: "scheme"; dark: boolean }
   // The person closed a card that has a key
   | { kind: "closed"; key: string }
 
@@ -134,7 +132,6 @@ export interface Answers {
   allowed: null
   card: null
   open: boolean
-  scheme: null
   closed: null
 }
 

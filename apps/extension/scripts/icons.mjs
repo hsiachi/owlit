@@ -1,9 +1,12 @@
 // node scripts/icons.mjs: the extension's icons in public/icons, drawn with apps/desktop/scripts/icon-draw.mjs
 // (which says where sharp comes from). Run it again after the app icon changes.
 //
-// The toolbar button's icon is the feather alone, with no tile: feather-<size>.png in ink for light
-// toolbars and feather-light-<size>.png for dark ones, at 16, 32 and 48 px. As the app icon does, the line
-// is heavier at the small sizes, so it keeps about a pixel and a half.
+// The toolbar button's icon is one tile for every toolbar, light or dark: the feather in white on a flat
+// rounded square in owlit's green, feather-<size>.png at 16, 32 and 48 px. A flat tile, not the app icon's:
+// at a toolbar's size its gradient, highlight and bars only blur, and a flat square sits beside the other
+// buttons' shapes. The feather's box is centred and three quarters of the tile's side, the corners a
+// quarter of it. As in the app icon, the line is heavier at the small sizes, so it keeps about a pixel
+// and a half at 16 px.
 //
 // The store's and the extensions page's icons are the app icon itself, each drawn for the point size of
 // its slot, as the app's own icon files are: 32 is the 16 slot at 2x, 64 the 32 slot and 96 the 48 slot,
@@ -17,21 +20,20 @@ const out = path.resolve(import.meta.dirname, "../public/icons")
 
 // The feather's own box with room for the widest line, square
 const VIEW = "28 22 216 216"
-// The app's foreground ink (DESIGN.md), and its dark mode's foreground for a dark toolbar
-const INK = "#25211e"
-const LIGHT = "#ecebe7"
+// oklch(0.56 0.14 155), as sRGB: one step livelier than the app icon's forest green, which beside other
+// extensions' saturated icons reads as the dark one
+const GREEN = "#008b4e"
+const WHITE = "#ffffff"
 // Line weight in the feather's units by the pixel size
-const strokeFor = (px) => (px <= 16 ? 20 : px <= 32 ? 16 : 14)
+const strokeFor = (px) => (px <= 16 ? 24 : 18)
 
-const svg = (px, color) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW}" width="${px}" height="${px}"><path d="${FEATHER}" fill="none" stroke="${color}" stroke-width="${strokeFor(px)}" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-
-for (const px of [16, 32, 48]) {
-  // Drawn at eight times the size and scaled down, for smooth edges
-  const draw = (color, file) => sharp(Buffer.from(svg(px, color)), { density: 72 * 8 }).resize(px, px).png().toFile(path.join(out, file))
-  await draw(INK, `feather-${px}.png`)
-  await draw(LIGHT, `feather-light-${px}.png`)
+const tile = (px) => {
+  const box = px * 0.75, at = (px - box) / 2
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${px} ${px}" width="${px}" height="${px}"><rect width="${px}" height="${px}" rx="${px / 4}" fill="${GREEN}"/><svg x="${at}" y="${at}" width="${box}" height="${box}" viewBox="${VIEW}"><path d="${FEATHER}" fill="none" stroke="${WHITE}" stroke-width="${strokeFor(px)}" stroke-linecap="round" stroke-linejoin="round"/></svg></svg>`
 }
+
+// Drawn at eight times the size and scaled down, for smooth edges
+for (const px of [16, 32, 48]) await sharp(Buffer.from(tile(px)), { density: 72 * 8 }).resize(px, px).png().toFile(path.join(out, `feather-${px}.png`))
 
 for (const [pt, px] of [[16, 16], [16, 32], [48, 48], [32, 64], [48, 96], [128, 128]])
   writeFileSync(path.join(out, `${px}.png`), await render(OWLIT, pt, px))

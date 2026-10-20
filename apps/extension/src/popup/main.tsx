@@ -5,14 +5,11 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { followColorScheme } from "../lib/color-scheme.ts"
 import { startI18n } from "../lib/i18n.ts"
-import { send } from "../lib/messages.ts"
 import { Popup } from "./Popup.tsx"
 import "./popup.css"
 
 document.documentElement.lang = intlLocale(startI18n())
 followColorScheme()
-// The toolbar's feather follows the browser's light or dark (background/index.ts followScheme)
-void send({ kind: "scheme", dark: matchMedia("(prefers-color-scheme: dark)").matches }).catch(() => undefined)
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

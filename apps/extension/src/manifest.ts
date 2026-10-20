@@ -20,12 +20,10 @@ export const CHROME_MIN = "116"
 // scripts/icons.mjs draws them. 64 and 96 are the 32 and 48 slots on a 2x display (the extensions page
 // asks for 96): the browser takes the nearest size listed, and 128 scaled down looks soft.
 const ICONS = { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 64: "icons/64.png", 96: "icons/96.png", 128: "icons/128.png" }
-// The toolbar button's: the feather alone (scripts/icons.mjs), in ink, and light for a dark toolbar.
-// Firefox picks between them by its theme (theme_icons); Chrome takes the light one from the background
-// once a page or the popup says the browser is dark (action.setIcon).
+// The toolbar button's: the white feather on a green tile (scripts/icons.mjs), one icon for light and dark
+// toolbars. Chrome has no API for the toolbar's colour and a page's colour scheme is a poor guess at it
+// (Dia pairs a dark system with a light toolbar), so no theme_icons and no setIcon: the tile reads on both.
 export const FEATHER = { 16: "icons/feather-16.png", 32: "icons/feather-32.png", 48: "icons/feather-48.png" }
-export const FEATHER_LIGHT = { 16: "icons/feather-light-16.png", 32: "icons/feather-light-32.png", 48: "icons/feather-light-48.png" }
-const THEME_ICONS = ([16, 32, 48] as const).map((size) => ({ light: FEATHER_LIGHT[size], dark: FEATHER[size], size }))
 
 export interface Manifest {
   manifest_version: 3
@@ -35,7 +33,7 @@ export interface Manifest {
   icons: Record<number, string>
   // No default_popup: the click acts (background/index.ts), and the popup is set for a tab only when the
   // page can't say what came of it
-  action: { default_title: string; default_icon: Record<number, string>; theme_icons?: { light: string; dark: string; size: number }[] }
+  action: { default_title: string; default_icon: Record<number, string> }
   background: { service_worker: string; type: "module" } | { scripts: string[]; type: "module" }
   content_scripts: { matches: string[]; js: string[]; run_at: "document_idle" }[]
   permissions: string[]
@@ -69,8 +67,6 @@ export function manifest(target: Target, { version, publishers, dev = false }: {
   if (target === "chrome") return { ...shared, background: { service_worker: "background.js", type: "module" }, minimum_chrome_version: CHROME_MIN }
   return {
     ...shared,
-    // light: the icon drawn light, for a theme with light text on a dark toolbar
-    action: { ...shared.action, theme_icons: THEME_ICONS },
     // Firefox runs no extension service worker: its manifest v3 background is an event page, the same
     // module loaded as a script, which Firefox unloads when idle as Chrome stops a worker
     background: { scripts: ["background.js"], type: "module" },

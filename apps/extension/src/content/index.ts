@@ -5,8 +5,8 @@ import { drawCard } from "./card.ts"
 
 // On a publisher's page (and any site the user let the extension read, or one the button was pressed on):
 // the page's <head> and the scripts that describe its paper (page.ts paperMarkup) go to the background, which reads it (lib/page.ts)
-// and asks owlit whether the paper is in the Library; and whether the browser is dark, which the toolbar
-// icon follows. Nothing else of the page leaves it. The background's cards are drawn here (card.ts).
+// and asks owlit whether the paper is in the Library. Nothing else of the page leaves it. The background's
+// cards are drawn here (card.ts).
 
 const send = (request: Request) => ext.runtime.sendMessage(request).catch(() => undefined)
 
@@ -23,5 +23,5 @@ if (!scope.owlitContent) {
     respond(true)
     return false
   })
-  void send({ kind: "page", html: paperMarkup(), url: location.href, dark: matchMedia("(prefers-color-scheme: dark)").matches })
+  void send({ kind: "page", html: paperMarkup(), url: location.href })
 }

@@ -14,7 +14,6 @@ import { badgeOf, cardOf, sayIn, TAKEN, WAITING, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
-import { FEATHER, FEATHER_LIGHT } from "../manifest.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
 // owlit and fetches with the user's cookies. The toolbar button has no popup of its own: its click does the
@@ -691,7 +690,6 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       if (tabId === undefined || !/^https?:/.test(request.url)) return null
       const page = { url: request.url, host: new URL(request.url).hostname, pdfTab: false, paper: paperOfPage(request.html, request.url) }
       await rememberPage(tabId, page)
-      await followScheme(request.dark)
       await mark(tabId, page)
       await sayWait(tabId, page.host)
       return null
@@ -701,9 +699,6 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       return null
     case "open":
       return openInOwlit(request.paperId)
-    case "scheme":
-      await followScheme(request.dark)
-      return null
     case "closed":
       await session(async () => {
         const all = ((await ext.storage.session.get(closedKey))[closedKey] ?? []) as string[]
@@ -742,17 +737,6 @@ ext.runtime.onMessage.addListener((request: Request, sender, respond) => {
   })
   return true
 })
-
-// ---- The button's icon
-
-// The feather in ink, or light while the browser is dark. A background can't read the browser's light or
-// dark, so the pages and the popup say it. Firefox picks by its own theme (the manifest's theme_icons).
-let iconDark: boolean | undefined
-async function followScheme(dark: boolean | undefined) {
-  if (dark === undefined || dark === iconDark || ext.runtime.getManifest().action?.theme_icons) return
-  iconDark = dark
-  await ext.action.setIcon({ path: dark ? FEATHER_LIGHT : FEATHER }).catch(() => (iconDark = undefined))
-}
 
 // ---- The button's menu
 
