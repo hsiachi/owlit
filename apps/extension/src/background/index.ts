@@ -326,14 +326,22 @@ async function drawCard(tabId: number, card: CardView | null): Promise<boolean> 
   try {
     return await tell()
   } catch {
+    const url = (await ext.tabs.get(tabId).catch(() => undefined))?.url
+    if (url) injected.set(tabId, url)
     try {
       await ext.scripting.executeScript({ target: { tabId }, files: ["content.js"] })
       return await tell()
     } catch {
+      injected.delete(tabId)
       return false
     }
   }
 }
+
+// Tabs the content script was injected into to draw a card, with the page's address: its first report of
+// that page is already the click's, so it doesn't mark the page again (taking the click's ✓) or draw the
+// wait card over the card the click drew
+const injected = new Map<number, string>()
 
 // owlit to the front, on a Library paper when one is named; false when owlit couldn't show it
 async function openInOwlit(paperId?: string): Promise<boolean> {
@@ -690,6 +698,9 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       if (tabId === undefined || !/^https?:/.test(request.url)) return null
       const page = { url: request.url, host: new URL(request.url).hostname, pdfTab: false, paper: paperOfPage(request.html, request.url) }
       await rememberPage(tabId, page)
+      const drawing = injected.get(tabId)
+      injected.delete(tabId)
+      if (drawing === request.url) return null
       await mark(tabId, page)
       await sayWait(tabId, page.host)
       return null
