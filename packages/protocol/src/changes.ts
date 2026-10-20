@@ -143,11 +143,13 @@ export interface ProposalHunk {
 }
 
 // changes.since: a paragraph of a doc as it reads now that someone other than the person wrote since
-// the text they last had on screen
+// the text they last had on screen, or one they removed (removed: text is what it said, after the
+// paragraph it followed in the doc as it reads now, null at the top)
 export interface ChangedPassage {
   text: string
   actor: ActorId
   at: number
+  removed?: { after: string | null }
 }
 
 // A thread item's entry by someone else carries a dot when it is something the person reads: the title,

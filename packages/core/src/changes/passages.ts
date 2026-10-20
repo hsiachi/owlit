@@ -1,4 +1,5 @@
 import type { ActorId, ChangedPassage, PersonId } from "@owlit/protocol"
+import { diffLists } from "./hunks.ts"
 import { sha1 } from "../fs-util.ts"
 import type { ChangeLog } from "./log.ts"
 
@@ -20,9 +21,10 @@ const paragraphs = (text: string) =>
     .filter(Boolean)
 
 // The paragraphs of current that aren't in base, each with the step that last wrote it, leaving out those
-// the person wrote themselves. Steps are the doc's changes after base, oldest first; a paragraph no step
-// wrote (base and the steps don't meet) is left out too, so a gap in the log shows nothing rather than
-// everything.
+// the person wrote themselves; then the paragraphs of base someone else took out with nothing in their
+// place (one rewritten is its new text, above), each after the paragraph it followed. Steps are the doc's
+// changes after base, oldest first; a paragraph no step wrote or removed (base and the steps don't meet)
+// is left out too, so a gap in the log shows nothing rather than everything.
 export function passagesSince(base: string, current: string, steps: DocStep[], me: PersonId): ChangedPassage[] {
   const was = new Set(paragraphs(base))
   const sides = steps.map((s) => ({ step: s, before: new Set(paragraphs(s.before)), after: new Set(paragraphs(s.after)) }))
@@ -32,6 +34,19 @@ export function passagesSince(base: string, current: string, steps: DocStep[], m
     const by = sides.findLast((s) => s.after.has(text) && !s.before.has(text))?.step
     if (by && by.actor !== me) out.push({ text, actor: by.actor, at: by.at })
   }
+  let after: string | null = null
+  const parts = diffLists(paragraphs(base), paragraphs(current))
+  parts.forEach((part, i) => {
+    if (!part.removed) {
+      if (part.value.length) after = part.value.at(-1)!
+      return
+    }
+    if (parts[i - 1]?.added || parts[i + 1]?.added) return
+    for (const text of part.value) {
+      const by = sides.findLast((s) => s.before.has(text) && !s.after.has(text))?.step
+      if (by && by.actor !== me) out.push({ text, actor: by.actor, at: by.at, removed: { after } })
+    }
+  })
   return out
 }
 

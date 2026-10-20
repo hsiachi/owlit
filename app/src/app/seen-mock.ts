@@ -51,7 +51,14 @@ export const MOCK_MARKS: SeenMarks = {
   digests: {},
 }
 
-export const MOCK_PASSAGES: Record<string, ChangedPassage[]> = { [relatedWork.path]: [{ text: retrieval, actor: WEB_OWLIT, at: now - 2 * HOUR }] }
+// The paragraph before Owlit's, and one a co-author removed after it
+const acting = relatedWork.content!.split("\n\n").find((p) => p.startsWith("[Yao et al."))!.trim()
+export const MOCK_PASSAGES: Record<string, ChangedPassage[]> = {
+  [relatedWork.path]: [
+    { text: retrieval, actor: WEB_OWLIT, at: now - 2 * HOUR },
+    { text: "Memory networks kept facts in a table the model could read from.", actor: "other", at: now - 2 * HOUR, removed: { after: acting } },
+  ],
+}
 
 // The same paragraph as the passage Owlit's edit landed, with the words either side as core gives them;
 // the mock agent adds to this as it edits (chat/agent/mock-client.ts)

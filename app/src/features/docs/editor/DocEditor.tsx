@@ -144,6 +144,18 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           editable.of(lock(missing)),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          // Tab indents in the text; after Esc it moves to what can be acted on in it (a passage's Undo,
+          // a citation) for a moment, so the keyboard isn't trapped in the editor. Esc goes on to whatever
+          // else listens for it (a comment's card, the paper beside the doc).
+          keymap.of([
+            {
+              key: "Escape",
+              run: (v) => {
+                v.setTabFocusMode(2000)
+                return false
+              },
+            },
+          ]),
           markdown({ base: markdownLanguage, extensions: [Highlight, Wikilinks, MathSyntax] }),
           blockPreview,
           EditorView.lineWrapping,

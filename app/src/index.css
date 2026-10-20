@@ -652,6 +652,9 @@
    from the first frame, never drawn in. */
 .changed-line { position: relative; }
 .changed-line::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 1.5px; background: color-mix(in oklch, var(--owlit-mark) 55%, transparent); }
+/* Where someone else removed a paragraph: the same rule, short and hollow, in the gap it left */
+.changed-removed { position: relative; height: 0; }
+.changed-removed::before { content: ""; position: absolute; left: -18px; top: -2px; width: 5px; height: 12px; border: 1.5px solid color-mix(in oklch, var(--owlit-mark) 55%, transparent); border-radius: 2px; }
 /* A note's block rule reaches down over the 0.5rem gap after it; the bar's bridges its own top margin */
 .suggest-block::before { bottom: -0.5rem; }
 .suggest-bar::before { top: -2px; }

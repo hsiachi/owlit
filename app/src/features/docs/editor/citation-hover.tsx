@@ -7,7 +7,7 @@ const CITATION = '.cm-mention[data-uri^="owlit://library/"]'
 
 // The citation card over a doc's paper mentions. CodeMirror draws them as plain DOM, so the card is one
 // popover for the whole editor, anchored to the mention the pointer rests on, with the same delays as
-// the hover card elsewhere. It never takes focus from the text.
+// the hover card elsewhere, or at once when one gets the keyboard's focus. It never takes focus itself.
 export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null> }) {
   const [shown, setShown] = useState<{ el: HTMLElement; citation: Citation } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
@@ -47,13 +47,30 @@ export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null>
       clear()
       setShown(null)
     }
+    // A citation reached by keyboard shows its card at once, and leaving it puts the card away
+    const focus = (e: FocusEvent) => {
+      const mention = (e.target as HTMLElement).closest<HTMLElement>(CITATION)
+      if (!mention) return
+      const citation = citationOf(mention.dataset.uri!, mention.dataset.quote)
+      if (!citation) return
+      clear()
+      anchor.current = mention
+      setShown({ el: mention, citation })
+    }
+    const blur = (e: FocusEvent) => {
+      if ((e.target as HTMLElement).closest(CITATION)) closeSoon()
+    }
     el.addEventListener("pointerover", over)
     el.addEventListener("pointerout", out)
     el.addEventListener("mousedown", down)
+    el.addEventListener("focusin", focus)
+    el.addEventListener("focusout", blur)
     return () => {
       el.removeEventListener("pointerover", over)
       el.removeEventListener("pointerout", out)
       el.removeEventListener("mousedown", down)
+      el.removeEventListener("focusin", focus)
+      el.removeEventListener("focusout", blur)
       clear()
     }
   }, [host])

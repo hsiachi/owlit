@@ -33,6 +33,11 @@ export function hunks(a: string, b: string): Hunk[] {
   return out
 }
 
+// Two lists (a doc's paragraphs) compared item by item, as runs kept, added or removed, in order
+export function diffLists(a: string[], b: string[]): { value: string[]; added?: boolean; removed?: boolean }[] {
+  return diffArrays(a, b)
+}
+
 // Both sets of hunks of the same text, applied together: `wanted` where it fits, and all of `since`. A
 // wanted hunk is left out when it overlaps one of since's, when either only inserts inside the other, or
 // when both insert at one place (their order can't be told). An insert at the edge of a replacement goes
