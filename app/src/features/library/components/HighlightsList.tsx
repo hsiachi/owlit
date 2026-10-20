@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { nameOf, useMe } from "@/lib/actors"
+import { nameOf, useMe, useNames } from "@/lib/actors"
 import { useEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
 import { cn, scrollMotion } from "@/lib/utils"
@@ -66,6 +66,7 @@ export function HighlightsList({ paperId, hasPdf, onAddToNote }: { paperId: stri
 }
 
 function HighlightItem({ highlight: h, onAddToNote }: { highlight: Highlight; onAddToNote: () => void }) {
+  useNames()
   const viewer = useMe()
   const who = nameOf(h.addedBy)
   const active = useReaderStore((s) => s.activeId === h.id)

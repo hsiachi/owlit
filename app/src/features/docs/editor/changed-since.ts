@@ -62,12 +62,20 @@ export function changedPlaces(state: EditorState, changed: ChangedLine[]): Chang
   if (!changed.length) return []
   const written = new Map(changed.flatMap((c) => (c.removed ? [] : [[c.text, c] as const])))
   const removed = changed.filter((c) => c.removed)
-  const out: ChangedPlace[] = removed.filter((c) => c.removed!.after === null).map((c) => ({ key: `removed:${c.text}`, from: 0, to: 0, line: c, side: -1 }))
+  // Keyed by text and by which time that text comes, so two paragraphs that read the same are each looked
+  // at on their own (changed.ts › look)
+  const seen = new Map<string, number>()
+  const keyOf = (base: string) => {
+    const n = seen.get(base) ?? 0
+    seen.set(base, n + 1)
+    return n ? `${base}#${n}` : base
+  }
+  const out: ChangedPlace[] = removed.filter((c) => c.removed!.after === null).map((c) => ({ key: keyOf(`removed:${c.text}`), from: 0, to: 0, line: c, side: -1 }))
   for (const p of paragraphs(state)) {
     const line = written.get(p.text)
-    if (line) out.push({ key: `written:${p.text}`, from: state.doc.line(p.from).from, to: state.doc.line(p.to).to, line })
+    if (line) out.push({ key: keyOf(`written:${p.text}`), from: state.doc.line(p.from).from, to: state.doc.line(p.to).to, line })
     const end = state.doc.line(p.to).to
-    for (const c of removed) if (c.removed!.after === p.text) out.push({ key: `removed:${c.text}`, from: end, to: end, line: c, side: 1 })
+    for (const c of removed) if (c.removed!.after === p.text) out.push({ key: keyOf(`removed:${c.text}`), from: end, to: end, line: c, side: 1 })
   }
   return out
 }

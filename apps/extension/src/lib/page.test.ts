@@ -111,6 +111,17 @@ describe("paperOfPage, beyond citation tags", () => {
     expect(paperOfPage(`<meta property="og:title" content="Our team">`, "https://example.org/team")).toBeUndefined()
   })
 
+  it("takes no og:title from a news piece about a study, nor from a page citing several DOIs", () => {
+    const news = `<head><meta property="og:type" content="article"><meta property="article:section" content="Science">
+      <meta property="og:title" content="Scientists find things"></head><a href="https://doi.org/10.5555/things.2020.7">the study</a>`
+    expect(paperOfPage(news, "https://news.example.org/science/things")).toBeUndefined()
+    const blog = `<head><meta property="og:title" content="What I read"></head>
+      <script type="application/ld+json">{"@type":"BlogPosting","citation":"https://doi.org/10.5555/things.2020.7"}</script>`
+    expect(paperOfPage(blog, "https://blog.example.org/read")).toBeUndefined()
+    const cites = `<head><meta property="og:title" content="Reading list"></head><a href="https://doi.org/10.5555/a.1">a</a><a href="https://doi.org/10.5555/b.2">b</a>`
+    expect(paperOfPage(cites, "https://example.org/list")).toBeUndefined()
+  })
+
   it("finds no paper on Google Scholar's results, however many DOIs they link", () => {
     const results = `<head><title>attention - Google Scholar</title></head><a href="https://doi.org/10.1145/3626772.3657891">x</a>`
     expect(paperOfPage(results, "https://scholar.google.com/scholar?q=attention")).toBeUndefined()

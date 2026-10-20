@@ -59,8 +59,23 @@ export function proposalSpots(state: EditorState, proposals: Proposal[]): Propos
     })
   }
   spots.sort((a, b) => a.from - b.from)
-  // Two passages in one place can't both be drawn; the later one waits for the first to be undone
-  return spots.filter((s, i) => i === 0 || (s.from >= spots[i - 1]!.to && s.from !== spots[i - 1]!.from))
+  // Two passages in one place can't both be drawn; the later one waits for the first to be undone. Each is
+  // weighed against the last one kept, so one inside a long passage stays out though a short one between
+  // them was dropped.
+  const kept: ProposalSpot[] = []
+  for (const s of spots) {
+    const last = kept.at(-1)
+    if (!last || (s.from >= last.to && s.from !== last.from)) kept.push(s)
+  }
+  return kept
+}
+
+// A passage's words as its marks draw them: the blank lines a landed paragraph brings with it are part of
+// the passage, not of its marks, and its Undo sits at the end of these
+function drawnRange(state: EditorState, s: ProposalSpot) {
+  const text = state.sliceDoc(s.from, s.to)
+  const from = s.from + (text.length - text.trimStart().length)
+  return { from, to: Math.max(from, s.to - (text.length - text.trimEnd().length)) }
 }
 
 // The words a passage replaced, struck before it
@@ -237,12 +252,12 @@ export function undoSteps(proposals: Proposal[], spots: ProposalSpot[]): UndoSte
   return steps
 }
 
-// The passage whose end the cursor is at, with nothing selected: ⌘⌫ undoes it there and only there, so
-// anywhere else it keeps its usual meaning (delete to the line's start)
+// The passage whose drawn end (where its Undo sits) the cursor is at, with nothing selected: ⌘⌫ undoes it
+// there and only there, so anywhere else it keeps its usual meaning (delete to the line's start)
 export function spotAt(state: EditorState, spots: ProposalSpot[]) {
   const { head, empty } = state.selection.main
   if (!empty) return undefined
-  return spots.find((s) => s.to === head)
+  return spots.find((s) => drawnRange(state, s).to === head)
 }
 
 export function proposalMarks(options: ProposalOptions): Extension {
@@ -273,10 +288,7 @@ export function proposalMarks(options: ProposalOptions): Extension {
       decos.push(Decoration.widget({ widget: new HeadWidget(spots.length, all, first), block: true, side: -1 }).range(state.doc.lineAt(start).from))
     }
     for (const s of spots) {
-      // The blank lines a landed paragraph brings with it are part of the passage, not of its marks
-      const text = state.sliceDoc(s.from, s.to)
-      const from = s.from + (text.length - text.trimStart().length)
-      const to = Math.max(from, s.to - (text.length - text.trimEnd().length))
+      const { from, to } = drawnRange(state, s)
       for (let n = state.doc.lineAt(from).number; n <= state.doc.lineAt(to).number; n++) decos.push(Decoration.line({ class: "suggest-line" }).range(state.doc.line(n).from))
       if (s.removed) decos.push(Decoration.widget({ widget: new RemovedWidget(s.removed.trim()), side: -1 }).range(from))
       if (to > from) decos.push(Decoration.mark({ class: s.removed ? "suggest-ins suggest-ins-after" : "suggest-ins" }).range(from, to))

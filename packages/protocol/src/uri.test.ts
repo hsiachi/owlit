@@ -37,5 +37,9 @@ describe("a citation's link", () => {
     expect(parseOwlitUri(title[1]!)).toEqual({ kind: "paper", id: "doi-10.1-x", page: 4 })
     expect(linkTitleText(title[2]!)).toBe(quote)
   })
+
+  it("puts a quote that runs over lines on one", () => {
+    expect(citationLink("p. 2", "x", { quote: "Readers skim\n\nthe abstract\nfirst. ", page: 2 })).toBe('[p. 2](owlit://library/x#p2 "Readers skim the abstract first.")')
+  })
 })
 

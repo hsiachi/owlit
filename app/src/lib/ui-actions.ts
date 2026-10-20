@@ -34,6 +34,8 @@ export function startUiActions() {
 
   const focus = () => void rpc.ui.focus({ clientId }).catch(() => undefined)
   window.addEventListener("focus", focus)
+  // A window opened to show something (the extension's Open) was focused before this page could hear it
+  if (document.hasFocus()) focus()
   window.addEventListener("pagehide", () => void rpc.ui.leave({ clientId }).catch(() => undefined))
   // Core forgets windows when it switches workspace
   onWorkspaceOpened(focus)

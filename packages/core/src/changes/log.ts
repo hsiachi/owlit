@@ -1,5 +1,5 @@
 import type { Change, ChangeFilter } from "@owlit/protocol"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { appendJsonl, writeFileAtomic } from "../fs-util.ts"
 import { Serial } from "../util.ts"
@@ -21,6 +21,9 @@ export class ChangeLog {
   private appended = 0
   // Appends and cleanup's rewrite take turns: a line appended while cleanup rewrites the file would be lost
   private readonly indexTurn = new Serial()
+  // The file's lines as last read, with the file's identity then (inode, size, mtime): read again only
+  // once the file changed, by this log or anyone else writing it
+  private read?: { key: string; lines: Line[] }
 
   constructor(owlitDir: string) {
     this.dir = path.join(owlitDir, "versions")
@@ -108,8 +111,13 @@ export class ChangeLog {
   // target), and a line can be one this build can't parse: the log never reads those, and
   // replace() and cleanup() write them back as they were, where they were, so that owlit keeps its history
   private async lines(): Promise<Line[]> {
-    const text = await readFile(path.join(this.dir, "index.jsonl"), "utf8").catch(() => "")
-    return text
+    const file = path.join(this.dir, "index.jsonl")
+    const info = await stat(file).catch(() => null)
+    const key = info ? `${info.ino}:${info.size}:${info.mtimeMs}` : ""
+    // A copy, since replace() changes the array it is given
+    if (this.read?.key === key) return [...this.read.lines]
+    const text = info ? await readFile(file, "utf8").catch(() => "") : ""
+    const lines = text
       .split("\n")
       .filter((line) => line.trim())
       .map((line) => {
@@ -120,6 +128,8 @@ export class ChangeLog {
           return { text: line }
         }
       })
+    this.read = { key, lines }
+    return [...lines]
   }
 
   private rewrite(lines: Line[]) {

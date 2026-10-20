@@ -25,6 +25,11 @@ const NO_MARKS: SeenMarks = { since: 0, docs: {}, threads: {}, chats: {}, commen
 
 export const useSeen = create<SeenState>(() => ({ loaded: !isDesktop, marks: isDesktop ? NO_MARKS : MOCK_MARKS, unseen: NONE }))
 
+// Counts the times the change log gained an entry (or a workspace opened): what reads the log reads it
+// again when this moves, not each time a mark is made
+export const useLogVersion = create<{ version: number }>(() => ({ version: 0 }))
+const logGrew = () => useLogVersion.setState((s) => ({ version: s.version + 1 }))
+
 // Marks made here that core's answer may not hold yet, each with the first load asked after core took it
 // (Infinity while it is on its way). An answer older than that has the mark put on it again, so a reply
 // that ends as it is seen doesn't flash as unseen between core's answer and the mark.
@@ -132,6 +137,7 @@ export function landMockProposal(chatId: string, path: string, before: string, a
   const change: Change = { id: `mock-${crypto.randomUUID()}`, at: Date.now(), actor: WEB_OWLIT, action: "update", target: { kind: "doc", path }, origin: { via: "apply", chatId } }
   MOCK_PROPOSALS[path] = [...(MOCK_PROPOSALS[path] ?? []), { id: change.id, at: change.at, actor: WEB_OWLIT, hunks: [{ insert, removed, before: after.slice(Math.max(0, at - 24), at), after: after.slice(at + insert.length, at + insert.length + 24) }] }]
   MOCK_CHANGES.unshift(change)
+  logGrew()
   addMockChange(change, () => {
     void getWorkspaceFs()?.writeTextFile(path, before)
     return () => void getWorkspaceFs()?.writeTextFile(path, after)
@@ -148,6 +154,7 @@ export function startSeen() {
     return
   }
   onWorkspaceOpened(() => {
+    logGrew()
     pending.clear()
     useSeen.setState({ loaded: false, marks: NO_MARKS, unseen: NONE })
     refresh()
@@ -156,6 +163,7 @@ export function startSeen() {
     useSeen.setState({ marks })
     refresh()
   })
+  onNotify("changes.added", logGrew)
   for (const topic of ["changes.added", "threads.changed", "comments.changed", "library.changed", "chats.turn"] as const) onNotify(topic, refresh)
 }
 

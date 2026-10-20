@@ -11,5 +11,8 @@ export const hasUnspaced = (text: string) => UNSPACED.test(text)
 // Chinese or Japanese is not a space), else one space. before and after: the text on either side, of
 // which only the character next to the break counts.
 export function lineJoint(before: string, after: string): "" | " " {
-  return UNSPACED.test(before.at(-1) ?? "") && UNSPACED.test(after.charAt(0)) ? "" : " "
+  // By code point: a Han character outside the BMP (Extension B on) is two UTF-16 units
+  const last = [...before.slice(-2)].at(-1) ?? ""
+  const first = after.codePointAt(0)
+  return UNSPACED.test(last) && first !== undefined && UNSPACED.test(String.fromCodePoint(first)) ? "" : " "
 }

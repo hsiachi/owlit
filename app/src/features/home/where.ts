@@ -7,7 +7,7 @@ import { authorsYear } from "@/features/library/lib/format"
 import { useThreadsStore } from "@/features/threads/store"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { isOwlit, type Change } from "@owlit/protocol"
-import { listChanges, useSeen } from "@/app/seen"
+import { listChanges, useLogVersion, useSeen } from "@/app/seen"
 import { nameOf, useMe } from "@/lib/actors"
 import { useTrail, workspaceKey } from "./trail"
 import { chatPlace, docPlaces, lastParagraph, placeNews, threadPlace, type News, type Place } from "./places"
@@ -16,9 +16,9 @@ export type { News, Place } from "./places"
 
 // Home's places from the stores, kept current (places.ts says what counts as one)
 
-// The change log's entries for one kind, newest first; asked again whenever something new came
+// The change log's entries for one kind, newest first; asked again whenever the log gained an entry
 function useChanges(kind: "doc" | "thread") {
-  const unseen = useSeen((s) => s.unseen)
+  const version = useLogVersion((s) => s.version)
   const [changes, setChanges] = useState<Change[]>([])
   useEffect(() => {
     let live = true
@@ -29,7 +29,7 @@ function useChanges(kind: "doc" | "thread") {
     return () => {
       live = false
     }
-  }, [unseen, kind])
+  }, [version, kind])
   return changes
 }
 

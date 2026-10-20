@@ -220,7 +220,9 @@ function PagePaper({ state, page, busy, outcome, onAct }: { state: PopupState; p
         </div>
       )}
       {/* What was just done takes the button's place; the button stays while there is still something to do */}
-      {outcome ? <Said outcome={outcome} /> : plan.do === "say" && <Said outcome={plan.outcome} />}
+      {/* Allow on what was just done (added, its PDF's site not readable yet) asks for the site from this
+          click and does the work again, which then gets the PDF */}
+      {outcome ? <Said outcome={outcome} onAllow={() => onAct(page)} busy={busy} /> : plan.do === "say" && <Said outcome={plan.outcome} />}
       {label && (!outcome || outcome.kind === "failed" || outcome.kind === "needs-site") && (
         <Button disabled={busy} onClick={() => onAct(page)}>
           {busy && <Spinner wait={false} />}
@@ -249,9 +251,11 @@ function Waiting({ state }: { state: PopupState }) {
   )
 }
 
-function Said({ outcome }: { outcome: Outcome }) {
+function Said({ outcome, onAllow, busy }: { outcome: Outcome; onAllow?: () => void; busy?: boolean }) {
   const { text, detail, action } = cardOf(outcome)
   const paperId = action?.do.kind === "open-paper" ? action.do.paperId : undefined
+  // needs-site has the page's own button, which asks for the site
+  const allow = action?.do.kind === "allow" && outcome.kind !== "needs-site" && onAllow
   return (
     <div role="status" className="flex flex-col items-start gap-2">
       <div className="flex flex-col gap-0.5">
@@ -261,6 +265,12 @@ function Said({ outcome }: { outcome: Outcome }) {
       {paperId && (
         <Button size="sm" variant="outline" onClick={() => void send({ kind: "open", paperId })}>
           {t`Open in owlit`}
+        </Button>
+      )}
+      {allow && (
+        <Button size="sm" variant="outline" disabled={busy} onClick={allow}>
+          {busy && <Spinner wait={false} />}
+          {action.label}
         </Button>
       )}
     </div>

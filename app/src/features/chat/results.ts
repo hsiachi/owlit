@@ -19,10 +19,15 @@ const useChatLog = create<{ byChat: Record<string, Change[]> }>(() => ({ byChat:
 
 const EMPTY: Change[] = []
 const reloads = new Map<string, ReturnType<typeof setTimeout>>()
+// The chats whose log was asked for, by the number of their latest read: a change heard while the first
+// read is under way reads it again, and only the latest read's list is taken
+const reads = new Map<string, number>()
 
 async function load(chatId: string) {
+  const mine = (reads.get(chatId) ?? 0) + 1
+  reads.set(chatId, mine)
   const list = await rpc.changes.list({ chatId }).catch(() => null)
-  if (list) useChatLog.setState((s) => ({ byChat: { ...s.byChat, [chatId]: list } }))
+  if (list && reads.get(chatId) === mine) useChatLog.setState((s) => ({ byChat: { ...s.byChat, [chatId]: list } }))
 }
 
 // The chat's entries, newest first
@@ -37,7 +42,7 @@ export function useChatChanges(chatId: string): Change[] {
 if (isDesktop) {
   onNotify("changes.added", ({ change }) => {
     const chatId = change.origin.chatId
-    if (!chatId || !(chatId in useChatLog.getState().byChat)) return
+    if (!chatId || !reads.has(chatId)) return
     // One write can be many entries said once; a burst of them is read once
     clearTimeout(reloads.get(chatId))
     reloads.set(

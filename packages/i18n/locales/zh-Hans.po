@@ -7410,6 +7410,10 @@ msgid "{name}'s usage limit is reached."
 msgstr "{name} 的用量已达上限。"
 
 #: packages/core/src/agents/failure.ts
+msgid "{name}'s usage limit is reached; it resets in {after}."
+msgstr "{name} 的用量已达上限，{after} 后恢复。"
+
+#: packages/core/src/agents/failure.ts
 msgid "{name}'s usage limit is reached; it resets at {at}."
 msgstr "{name} 的用量已达上限，{at} 恢复。"
 

@@ -62,6 +62,10 @@ import { registerWorkspace } from "./workspace/rpc.ts"
 export const CORE_VERSION = "0.0.0"
 
 // Methods that may change what a shared doc's reader sees: the doc, the papers it cites, their notes
+// How long the extension's Open waits for a window the host opened to load before saying none is open: a
+// cold window loads the renderer and the workspace first
+const WINDOW_LOADS_WITHIN_MS = 15_000
+
 const SHARED_CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|library\.(add|update|remove|restore|setNote|refresh|requestDigest|importPdf|attachPdf))$/
 
 // Methods that change what the search index covers
@@ -218,7 +222,9 @@ export class Core {
             show: async (uri) => {
               await options.host?.showApp?.()
               if (!uri) return true
-              // The window the user was in last shows it; none open (or none answering) shows nothing
+              // The window the user was in last shows it; one the host opened just now is given time to
+              // load first. None there (or none answering) shows nothing.
+              if (!(await this.ui.whenWindow(WINDOW_LOADS_WITHIN_MS))) return false
               return this.ui.act("open", { uri }).then(
                 () => true,
                 () => false,

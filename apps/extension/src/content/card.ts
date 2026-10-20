@@ -33,7 +33,7 @@ const CSS = `
   }
 }
 .card.shown { opacity: 1; transform: none; }
-.card.leaving { opacity: 0; transition-duration: 150ms; }
+.card.leaving { opacity: 0; transition-duration: 150ms; pointer-events: none; }
 svg.mark { flex: none; width: 16px; height: 16px; margin-top: 2px; }
 .words { min-width: 0; flex: 1; }
 .text { font-weight: 500; overflow-wrap: anywhere; }
@@ -98,6 +98,8 @@ export function drawCard(doc: Document, view: CardView | null, handlers: CardHan
     timers.clear(fade)
     host.remove()
   }
+  // A card on its way out takes no pointer (.leaving): a hover then would cancel its removal and leave it
+  // invisible over the page, catching clicks
   const leave = () => {
     card.classList.add("leaving")
     fade = timers.set(remove, 150)

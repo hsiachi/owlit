@@ -66,10 +66,14 @@ export class SettingsStore {
     const appearance = { ...defaults.appearance, ...stored?.appearance }
     // Neutral was merged into Warm: beside each other the two tones couldn't be told apart
     if ((appearance.tone as string) === "neutral") appearance.tone = "warm"
-    this.value = this.open({ ...defaults, ...stored, appearance })
-    // The person's id in every workspace's change log, made once per profile
-    if (!this.value.profile.id) await this.update((s) => ({ ...s, profile: { ...s.profile, id: randomBytes(4).toString("hex") } }))
-    return this.value
+    let value = this.open({ ...defaults, ...stored, appearance })
+    // The person's id in every workspace's change log, made once per profile; in place before anyone can
+    // read the settings (peek, or a get() while the file is written), so none sees them without it
+    const minted = !value.profile.id
+    if (minted) value = { ...value, profile: { ...value.profile, id: randomBytes(4).toString("hex") } }
+    this.value = value
+    if (minted) await writeJsonAtomic(this.file, this.seal(value))
+    return value
   }
 
   // The settings as last read, for a listener that can't wait; undefined before the first get()

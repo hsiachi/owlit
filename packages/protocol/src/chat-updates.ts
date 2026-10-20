@@ -12,10 +12,11 @@ export const sameAbout = (a: ChatAbout | undefined, b: ChatAbout | undefined) =>
 const AGENT_ERROR = /^(?:[\w ]+\.\s+)?API Error\b|^Failed to authenticate\b|^(?:Error|Request failed):\s|^You['’]ve (?:hit|reached) your\b/
 // Claude Code also ends a turn it counts as finished with its own error line ("API Error: Your computer
 // went to sleep mid-response. The response above may be incomplete."), as one more message, which can run
-// straight on from the answer's last sentence. Only that exact prefix is taken from a finished reply,
-// since an answer may well end on a paragraph of its own that starts "Error:". Codex has no such prefix:
-// codex-acp sends a service error's own message as text.
-const ENDED_ON_ERROR = /(?:^|\n|(?<=[.!?。)]))[ \t]*(API Error: [^\n]{1,600})\s*$/
+// straight on from the answer's last sentence. Only Claude Code's own lines are taken from a finished
+// reply: the prefix with a status and the API's JSON body, or one of its fixed sentences. An answer may
+// well end on a paragraph of its own that starts "Error:", or "API Error: 401 means…". Codex has no such
+// prefix: codex-acp sends a service error's own message as text.
+const ENDED_ON_ERROR = /(?:^|\n|(?<=[.!?。)]))[ \t]*(API Error: (?:\d{3} [{[]|Your computer went to sleep|Request timed out|Request was aborted|Connection error|Claude's response exceeded)[^\n]{0,600})\s*$/
 export function withoutAgentError(message: ChatMessage): ChatMessage {
   const last = message.parts.at(-1)
   if (last?.type !== "text") return message

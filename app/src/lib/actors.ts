@@ -38,7 +38,7 @@ export const myOwlit = (): ActorId => {
 }
 
 // The open workspace's roster, read when first needed and again after the workspace or a name changed
-let roster: Roster = isDesktop ? {} : { [WEB_RUTH]: { kind: "person", name: "Ruth" } }
+const useRoster = create<{ roster: Roster }>(() => ({ roster: isDesktop ? {} : { [WEB_RUTH]: { kind: "person", name: "Ruth" } } }))
 let asked = false
 if (isDesktop) {
   const forget = () => {
@@ -52,15 +52,21 @@ function rosterNow() {
     asked = true
     rpc.members
       .get()
-      .then((r) => {
-        roster = r
-      })
+      .then((roster) => useRoster.setState({ roster }))
       .catch(() => {
         asked = false
       })
   }
-  return roster
+  return useRoster.getState().roster
 }
 
 // actorLabel for the person at this window
 export const nameOf = (actor: ActorId) => actorLabel(actor, me(), rosterNow())
+
+// For a component that shows names with nameOf: draws again once the roster has arrived or changed.
+// Returns the roster, for a memo of names to depend on.
+export function useNames() {
+  const roster = useRoster((s) => s.roster)
+  rosterNow()
+  return roster
+}

@@ -218,11 +218,14 @@ export function sectionsOf(shown: ThreadRead, groupBy: GroupBy): Section[] {
     if (loose.length) out.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a thread in none of its groups" }), rows: loose, total: loose, depth: 0 })
   } else if (groupBy.startsWith("column:")) {
     const col = shown.columns.find((c) => c.id === groupBy.slice(7))!
+    const placed = new Set<string>()
     for (const s of col.sentences ?? []) {
       const rows = shown.rows.filter((r) => r.cells[col.id]?.sentence === s.id && r.cells[col.id]?.rel)
+      for (const r of rows) placed.add(r.id)
       out.push({ key: s.id, sentence: s, label: s.text, rows, total: rows, depth: 0 })
     }
-    const none = shown.rows.filter((r) => !r.cells[col.id]?.rel)
+    // With the papers that bear on none, those whose cell names a sentence the column no longer has
+    const none = shown.rows.filter((r) => !placed.has(r.id))
     if (none.length) out.push({ key: "", label: t({ message: "Bear on none of them", comment: "papers that speak to none of the user's sentences" }), rows: none, total: none, depth: 0 })
   } else out.push({ key: "", label: "", rows: shown.rows, total: shown.rows, depth: 0 })
   return out

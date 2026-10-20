@@ -447,6 +447,25 @@ describe("turns", () => {
     }
   })
 
+  it("brings no silence line once a turn has ended, though its open question closed after it", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    const gate = path.join(realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-gate-"))), "crash")
+    process.env.FAKE_ACP_CRASH_GATE = gate
+    try {
+      const { send, updates, call } = await setup()
+      const turn = send("crash while asking")
+      await until(() => updates.some((u) => u.type === "question_request"), { what: "a question_request" })
+      writeFileSync(gate, "")
+      await expect(turn).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(SILENT_MS + 1000)
+      expect(updates.filter((u) => u.type === "notice")).toEqual([])
+      expect((await call("chats.get", { id: "c1" })).messages[1].parts.some((p: any) => p.type === "notice")).toBe(false)
+    } finally {
+      delete process.env.FAKE_ACP_CRASH_GATE
+      vi.useRealTimers()
+    }
+  })
+
   it("takes the agent's error line off a finished answer and says the reply broke", async () => {
     const { send, call } = await setup()
     expect(await send("sleep through it")).toEqual({ stopReason: "end_turn" })
@@ -467,8 +486,9 @@ describe("turns", () => {
       const notices = () => updates.filter((u) => u.type === "notice")
       const turn = send("mute")
       await until(async () => (await call("agents.running")).length, { what: "the turn to start" })
-      // The agent takes most of the two minutes to start its session
-      await vi.advanceTimersByTimeAsync(SILENT_MS - 20_000)
+      // The agent takes longer than the two minutes to start its session
+      await vi.advanceTimersByTimeAsync(SILENT_MS + 20_000)
+      expect(notices()).toEqual([])
       writeFileSync(gate, "")
       await until(() => existsSync(`${gate}.prompted`), { what: "the prompt to reach the agent" })
       await vi.advanceTimersByTimeAsync(SILENT_MS - 1000)
