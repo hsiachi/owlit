@@ -11,6 +11,7 @@ import {
   shownThread,
   type CommentInput,
   type ThreadCell,
+  type ThreadColumn,
   type ThreadGroup,
   type ThreadRead,
   type ThreadRowWrite,
@@ -351,7 +352,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return all
         .map((c) => {
           const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
-          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${c.question}`
+          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size}\n  Asked: ${c.question}${c.one ? `\n  ${c.one}` : ""}`
         })
         .join("\n")
     }
@@ -473,17 +474,29 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
   return out
 }
 
-// A thread as the agent reads it
-function threadText(stored: ThreadRead) {
+// A thread as the agent reads it: the question and later ones, the columns (a comparison with its
+// sentences; one out of the user's sight marked so), the groupings with their groups, the report, and each
+// paper as what it is · how it bears on the question · how it was found · its groups, then its other answers
+export function threadText(stored: ThreadRead) {
   const c = shownThread(stored)
-  const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
+  const asks = c.columns.filter((col) => col.kind !== "grouping")
   const groupings = c.columns.filter((col) => col.kind === "grouping")
   const groupName = new Map(groupings.flatMap((col) => (col.groups ?? []).map((g) => [`${col.id}:${g.id}`, g.name] as const)))
+  const hidden = (col: ThreadColumn) => (col.hidden ? " (hidden from the user)" : "")
+  const columnLine = (col: ThreadColumn) =>
+    col.kind === "compare"
+      ? `${col.id}${hidden(col)} = set against sentences of ${col.doc ?? col.question}: ${(col.sentences ?? []).map((l) => `${l.id} «${l.text}»`).join("; ")}`
+      : `${col.id}${hidden(col)} = ${col.question}`
+  const answer = (cell: ThreadCell) => `${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`
   const lines = [
     `${c.title} (${threadUri(c.id)})`,
     `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
-    `Columns: ${columns.map((col) => `${col.id} = ${col.question}`).join("; ")}`,
-    ...groupings.map((col) => `Grouping ${col.id} (${col.question})${(col.groups ?? []).length ? `: ${(col.groups ?? []).map((g) => `${g.id} = ${g.name}${g.parent ? ` (in ${g.parent})` : ""}`).join("; ")}` : ", no groups yet"}`),
+    ...(c.alsoAsked?.length ? [`Later questions added here: ${c.alsoAsked.map((a) => `«${a.text}»`).join("; ")}`] : []),
+    `Columns: ${asks.map(columnLine).join("; ")}`,
+    ...groupings.map(
+      (col) =>
+        `Grouping ${col.id} (${col.question})${(col.groups ?? []).length ? `: ${(col.groups ?? []).map((g) => `${g.id} = ${g.name}${g.one ? ` (${g.one})` : ""}${g.parent ? ` [in ${g.parent}]` : ""}`).join("; ")}` : ", no groups yet"}`,
+    ),
     "",
     "Report:",
     c.report || "(none yet)",
@@ -492,13 +505,19 @@ function threadText(stored: ThreadRead) {
   ]
   for (const r of c.rows) {
     const p = r.paper
+    const q = r.cells[QUESTION_COLUMN]
     const placed = groupings
       .filter((col) => r.in?.[col.id]?.length)
       .map((col) => `${groupings.length > 1 ? `${col.id}: ` : ""}in ${r.in![col.id]!.map((g) => `${g} (${groupName.get(`${col.id}:${g}`) ?? g})`).join(", ")}`)
-    lines.push(`- ${r.id} · ${p.title} · ${[p.authors[0], p.year, p.venue].filter(Boolean).join(", ")}${placed.length ? ` · ${placed.join(" · ")}` : ""}`)
-    for (const col of columns) {
+    const facts = [p.authors[0], p.year, p.venue].filter(Boolean).join(", ")
+    const parts = [`- ${r.id} · ${p.title}${facts ? ` (${facts})` : ""}`, r.is ?? "what it is: not said", q ? answer(q) : "no answer yet", ...(r.foundBy ? [`found by ${r.foundBy}`] : []), ...placed]
+    lines.push(parts.join(" · "))
+    for (const col of asks) {
       const cell = r.cells[col.id]
-      if (cell) lines.push(`  ${col.id}: ${cell.rel ? `${cell.rel} ` : ""}${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`)
+      if (!cell || col.id === QUESTION_COLUMN) continue
+      const said = col.sentences?.find((l) => l.id === cell.sentence)?.text
+      const sentence = cell.sentence ? ` ${cell.sentence}${said ? ` «${said}»` : ""}` : ""
+      lines.push(`  ${col.id}: ${cell.rel ? `${cell.rel}${sentence}: ` : ""}${answer(cell)}`)
     }
   }
   return lines.join("\n")
