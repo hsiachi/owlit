@@ -74,8 +74,8 @@ const STOPS: Stop[] = [
   },
   {
     kicker: () => t`Threads`,
-    title: () => t`Papers gathered for a question`,
-    body: () => t`Give Owlit a question and it gathers papers on it, with what each one says, groups them, and writes a short memo. The example has threads to look through.`,
+    title: () => t`Owlit's report on a question`,
+    body: () => t`Ask Owlit a question in a chat and it finds papers on it, says what each one is and how it bears on your question, and writes a report on them. To change a thread, ask in the chat. The example has threads to look through.`,
     // The rail's own Threads button: the page's parts are the thread's, and the place is what to learn
     target: ['a[href="/threads"]'],
     enter: (navigate, pathname) => !pathname.startsWith("/threads") && navigate("/threads"),

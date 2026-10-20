@@ -241,6 +241,7 @@ msgstr "Home"
 #. open the chat a line Owlit keeps in mind came from
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Chat"
@@ -248,7 +249,6 @@ msgstr "Chat"
 
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/threads/pages/ThreadPage.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
 #: app/src/features/tour/TourOverlay.tsx
@@ -807,6 +807,7 @@ msgstr "Loading"
 
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 msgid "Ask Owlit…"
 msgstr "Ask Owlit…"
 
@@ -4933,12 +4934,12 @@ msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>
 msgstr "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>longer work</1>, like finding papers."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Owlit gathers papers."
-msgstr "Owlit gathers papers."
+msgid "Owlit reports back."
+msgstr "Owlit reports back."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Give Owlit a question and it gathers papers on it, with <0>what each one says</0> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer."
-msgstr "Give Owlit a question and it gathers papers on it, with <0>what each one says</0> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer."
+msgid "Ask Owlit a question in a chat and it finds papers on it, says <0>what each one is and how it bears</0> on your question, and writes its report on them. To change a thread, ask in the chat."
+msgstr "Ask Owlit a question in a chat and it finds papers on it, says <0>what each one is and how it bears</0> on your question, and writes its report on them. To change a thread, ask in the chat."
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "A little about you."
@@ -5004,15 +5005,6 @@ msgstr "Searching arXiv and Semantic Scholar"
 msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
 msgstr "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
 
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-msgid "Collect papers on…"
-msgstr "Collect papers on…"
-
-#. after a sentence of Owlit's that the user rewrote
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-msgid "you edited"
-msgstr "you edited"
-
 #. a page of a paper
 #. a page of a paper
 #. placeholder {0}: cell.passage.page
@@ -5021,6 +5013,10 @@ msgstr "you edited"
 #: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "p. {0}"
+
+#: app/src/features/onboarding/demos/CollectDemo.tsx
+msgid "Ask Owlit to change this thread…"
+msgstr "Ask Owlit to change this thread…"
 
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 #: app/src/lib/time.ts
@@ -6165,12 +6161,12 @@ msgid "Select any sentence: pick a colour to highlight it, comment on it, or ask
 msgstr "Select any sentence: pick a colour to highlight it, comment on it, or ask Owlit about it."
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Papers gathered for a question"
-msgstr "Papers gathered for a question"
+msgid "Owlit's report on a question"
+msgstr "Owlit's report on a question"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Give Owlit a question and it gathers papers on it, with what each one says, groups them, and writes a short memo. The example has threads to look through."
-msgstr "Give Owlit a question and it gathers papers on it, with what each one says, groups them, and writes a short memo. The example has threads to look through."
+msgid "Ask Owlit a question in a chat and it finds papers on it, says what each one is and how it bears on your question, and writes a report on them. To change a thread, ask in the chat. The example has threads to look through."
+msgstr "Ask Owlit a question in a chat and it finds papers on it, says what each one is and how it bears on your question, and writes a report on them. To change a thread, ask in the chat. The example has threads to look through."
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Cite as you write"

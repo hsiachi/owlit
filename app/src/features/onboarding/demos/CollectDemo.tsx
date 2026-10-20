@@ -12,23 +12,22 @@ interface CollectState {
   typed: string
   gathered: boolean
   rows: number
-  memo: number
-  // The person rewrites one of Owlit's answers, which then stays theirs
-  editing: boolean
-  rewritten: string | null
-  corrected: boolean
+  report: number
+  // The second question, asked under the thread, and the paper it added
+  asking: string | null
+  added: boolean
 }
 
-const FIRST: CollectState = { typed: "", gathered: false, rows: 0, memo: 0, editing: false, rewritten: null, corrected: false }
+const FIRST: CollectState = { typed: "", gathered: false, rows: 0, report: 0, asking: null, added: false }
 
-// Collect: a question typed on the Threads page becomes papers, each with what it says about the
-// question (with its page when it came from the full text) and the paper's name, and Owlit's short reading
-// of them, which names the papers the same way; one answer is corrected by hand
+// Collect: a question asked becomes a thread: papers, each with what it is and how it bears on the
+// question (with its page when it came from the full text), and Owlit's report on them above. A second
+// question adds a paper and the report changes with it: the thread changes by asking, not by hand.
 export function CollectDemo() {
   useDemoPlace("threads")
   const { layers, cursor, root, reg } = useScript<CollectState>({
     initial: () => FIRST,
-    final: () => ({ ...FIRST, typed: COLLECT.question, gathered: true, rows: COLLECT.rows.length, memo: COLLECT.memo.length, rewritten: COLLECT.corrected, corrected: true }),
+    final: () => ({ ...FIRST, typed: COLLECT.question, gathered: true, rows: COLLECT.rows.length, report: COLLECT.report.length, asking: COLLECT.followUp, added: true }),
     script: async (c) => {
       await c.sleep(400)
       await c.type("typed", COLLECT.question, 34)
@@ -38,21 +37,21 @@ export function CollectDemo() {
         await c.sleep(650)
         c.set({ rows: i })
       }
-      for (let i = 1; i <= COLLECT.memo.length; i++) {
+      for (let i = 1; i <= COLLECT.report.length; i++) {
         await c.sleep(700)
-        c.set({ memo: i })
+        c.set({ report: i })
       }
       await c.sleep(900)
       await c.moveTo(470, 390, 10)
       await c.sleep(30)
-      await c.moveToEl("answer", 0.4, 0.6, 800)
+      await c.moveToEl("ask", 0.3, 0.5, 800)
       await c.click()
       c.hideCursor()
-      c.set({ editing: true, rewritten: "" })
+      c.set({ asking: "" })
       await c.sleep(300)
-      await c.type("rewritten", COLLECT.corrected, 28)
-      await c.sleep(500)
-      c.set({ editing: false, corrected: true })
+      await c.type("asking", COLLECT.followUp, 28)
+      await c.sleep(700)
+      c.set({ added: true })
       await c.sleep(3000)
     },
   })
@@ -68,41 +67,43 @@ export function CollectDemo() {
 type Reg = (name: string) => (el: HTMLElement | null) => () => void
 
 function ThreadView({ st, reg }: { st: CollectState; reg: Reg }) {
+  const report = COLLECT.report.slice(0, st.report).map((line, i) => (st.added && i === 1 ? COLLECT.reportAfter : line))
+  const rows = [...COLLECT.rows.slice(0, st.rows), ...(st.added ? [COLLECT.added] : [])]
   return (
     <div className={s.kn}>
       {!st.gathered ? (
         <>
-          <div className={s.h}>{t`Threads`}</div>
+          <div className={s.h}>{t`Chat`}</div>
           <div className={s.collectField}>
             <SearchIcon />
-            <span className={cn(!st.typed && s.mut)}>{st.typed || t`Collect papers on…`}</span>
+            <span className={cn(!st.typed && s.mut)}>{st.typed || t`Ask Owlit…`}</span>
           </div>
         </>
       ) : (
         <div className={s.fadein}>
           <div className={s.h}>{COLLECT.title}</div>
-          <ul className={s.memo}>
-            {COLLECT.memo.slice(0, st.memo).map((line, i) => (
-              <li key={i} className={s.fadein}>
+          <p className={s.report}>
+            {report.map((line, i) => (
+              <span key={`${i}-${line}`} className={s.fadein}>
+                {i > 0 && " "}
                 {line}
-              </li>
+              </span>
             ))}
-          </ul>
+          </p>
           <div className={s.crows}>
-            {COLLECT.rows.slice(0, st.rows).map((row, i) => {
-              const mine = i === 1 && st.rewritten != null
-              return (
-                <div key={i} className={cn(s.crow, s.fadein)}>
-                  <span ref={i === 1 ? reg("answer") : undefined} className={cn(i === 1 && st.editing && s.editBox)}>
-                    {mine ? st.rewritten : row.text}
-                  </span>{" "}
-                  <span className={s.cite}>{row.cite}</span>
-                  {mine && st.corrected && <span className={s.cite}> · {t({ message: "you edited", comment: "after a sentence of Owlit's that the user rewrote" })}</span>}
-                  {row.page > 0 && <span className={s.pageNo}>{t({ message: `p. ${row.page}`, comment: "a page of a paper" })}</span>}
-                </div>
-              )
-            })}
+            {rows.map((row) => (
+              <div key={row.cite} className={cn(s.crow, s.fadein)}>
+                <span className={s.cite}>{row.is} · </span>
+                {row.text} <span className={s.cite}>{row.cite}</span>
+                {row.page > 0 && <span className={s.pageNo}>{t({ message: `p. ${row.page}`, comment: "a page of a paper" })}</span>}
+              </div>
+            ))}
           </div>
+          {st.report === COLLECT.report.length && (
+            <div ref={reg("ask")} className={cn(s.collectField, s.fadein)}>
+              <span className={cn(st.asking == null && s.mut)}>{st.asking ?? t`Ask Owlit to change this thread…`}</span>
+            </div>
+          )}
         </div>
       )}
     </div>
