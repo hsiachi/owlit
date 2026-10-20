@@ -4,18 +4,32 @@ import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
-import { citeOf, columnLabel, relWord } from "./lib"
+import { citeOf, columnLabel, groupByOf, relWord, sectionsOf, shown } from "./lib"
 
 const cell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
 
-// The thread as a table to open in a spreadsheet: one row per paper, one column per question, with
-// how far Owlit read for each answer
-function threadCsv(c: ThreadRead) {
+// Excel reads a UTF-8 file without it as the system's legacy encoding (Mac Roman, GBK), garbling every
+// accent and every Chinese title
+const BOM = "﻿"
+
+// The thread as a table to open in a spreadsheet: one row per paper with what it is, its groups, and a
+// column per question with how far Owlit read for each answer
+export function threadCsv(c: ThreadRead) {
   const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   // A column per grouping with groups, its papers' groups by name
   const groupings = c.columns.filter((col) => col.kind === "grouping" && col.groups?.length)
   const groupsOf = (r: ThreadRowRead, col: ThreadColumn) => (r.in?.[col.id] ?? []).map((id) => col.groups?.find((g) => g.id === id)?.name ?? "").join("; ")
-  const head = ["Paper", "Authors", "Year", "Venue", "DOI", "arXiv", ...groupings.map((col) => (groupings.length > 1 ? col.question : "Group")), ...columns.flatMap((col) => [col.id === QUESTION_COLUMN ? "Answer" : col.question, "From"])]
+  const head = [
+    "Paper",
+    "Authors",
+    "Year",
+    "Venue",
+    "DOI",
+    "arXiv",
+    "What it is",
+    ...groupings.map((col) => (groupings.length > 1 ? col.question : "Group")),
+    ...columns.flatMap((col) => (col.id === QUESTION_COLUMN ? ["Answer", "Depth"] : [col.question, `Depth (${col.question})`])),
+  ]
   const lines = c.rows.map((r) => [
     r.paper.title,
     r.paper.authors.join("; "),
@@ -23,6 +37,7 @@ function threadCsv(c: ThreadRead) {
     r.paper.venue ?? "",
     r.paper.ids.doi ?? "",
     r.paper.ids.arxiv ?? "",
+    r.is ?? "",
     ...groupings.map((col) => groupsOf(r, col)),
     ...columns.flatMap((col) => {
       const answer = r.cells[col.id]
@@ -31,7 +46,7 @@ function threadCsv(c: ThreadRead) {
       return [text, answer.depth === "full" ? `full text${answer.passage ? `, p. ${answer.passage.page}` : ""}` : answer.depth === "title" ? "title only" : "abstract"]
     }),
   ])
-  return [head, ...lines].map((l) => l.map(cell).join(",")).join("\n") + "\n"
+  return BOM + [head, ...lines].map((l) => l.map(cell).join(",")).join("\n") + "\n"
 }
 
 export function downloadCsv(c: ThreadRead) {
@@ -44,17 +59,19 @@ export function downloadCsv(c: ThreadRead) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-// Markdown keeps a table cell to one line, and | ends the cell
+// Markdown keeps a table cell (and a heading) to one line, and | ends the cell
 const mdCell = (s: string) => s.replace(/\s*\n+\s*/g, " ").replace(/\|/g, "\\|").trim()
 
-// The thread as a doc of the user's to write from: its title, the report, and a table per group of
-// the papers with every answer. Papers and the thread stay owlit:// links, so they show as mentions
-// and open; an answer read in full ends with its page, cited with the sentence it rests on. Taken as it
-// is now: the doc doesn't follow later changes to the thread.
+// The thread as a doc of the user's to write from: its title, the report, and a table of the papers with
+// what each is and every answer, under the headings of the grouping the table shows (a subgroup under its
+// parent). Papers and the thread stay owlit:// links, so they show as mentions and open; an answer read in
+// full ends with its page, cited with the sentence it rests on. Taken as it is now: the doc doesn't follow
+// later changes to the thread.
 export function threadMarkdown(c: ThreadRead, now = new Date()) {
-  const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
-  const head = `| ${[t({ message: "Paper", comment: "table header in an exported thread" }), ...columns.map(columnLabel)].map(mdCell).join(" | ")} |`
-  const rule = `|${" --- |".repeat(columns.length + 1)}`
+  const view = shown(c)
+  const columns = view.columns.filter((col) => !col.hidden && col.kind !== "grouping")
+  const head = `| ${[t({ message: "Paper", comment: "table header in an exported thread" }), t({ message: "What it is", comment: "table column: what kind of paper each is and its material" }), ...columns.map(columnLabel)].map(mdCell).join(" | ")} |`
+  const rule = `|${" --- |".repeat(columns.length + 2)}`
   const line = (r: ThreadRowRead) => {
     const paper = `${mentionLink(r.paper.title, paperUri(r.id))} (${citeOf(r.paper)})`
     const answers = columns.map((col) => {
@@ -65,33 +82,14 @@ export function threadMarkdown(c: ThreadRead, now = new Date()) {
       // The page is a citation with the sentence it rests on, so the doc's reader can check it
       return cell.depth === "full" && cell.passage ? `${text} (${citationLink(t({ message: `p. ${cell.passage.page}`, comment: "a page of a paper" }), r.id, cell.passage)})` : text
     })
-    return `| ${[paper, ...answers].map(mdCell).join(" | ")} |`
+    return `| ${[paper, r.is ?? "", ...answers].map(mdCell).join(" | ")} |`
   }
-  const table = (rows: ThreadRowRead[]) => [head, rule, ...rows.map(line)].join("\n")
 
   const out = [`# ${c.title}`]
   if (c.report.trim()) out.push(c.report.trim())
-  // The first grouping's groups as headings, a subgroup under its parent (a paper in two groups is under
-  // both); papers in no group after them
-  const grouping = c.columns.find((col) => col.kind === "grouping" && col.groups?.length)
-  const groups = grouping?.groups ?? []
-  const placed = new Set<string>()
-  const section = (parent: string | undefined, level: number) => {
-    for (const g of groups.filter((g) => g.parent === parent)) {
-      const rows = c.rows.filter((r) => r.in?.[grouping!.id]?.includes(g.id))
-      const nested = groups.some((o) => o.parent === g.id)
-      if (!rows.length && !nested) continue
-      out.push(`${"#".repeat(level)} ${g.name}`)
-      if (rows.length) out.push(table(rows))
-      rows.forEach((r) => placed.add(r.id))
-      section(g.id, Math.min(level + 1, 6))
-    }
-  }
-  section(undefined, 2)
-  const rest = c.rows.filter((r) => !placed.has(r.id))
-  if (rest.length) {
-    if (placed.size) out.push(`## ${t({ message: "Other papers", comment: "heading in an exported thread: papers in no group" })}`)
-    out.push(table(rest))
+  for (const section of sectionsOf(view, groupByOf(view))) {
+    if (section.label) out.push(`${"#".repeat(Math.min(2 + section.depth, 6))} ${mdCell(section.label)}`)
+    if (section.rows.length) out.push([head, rule, ...section.rows.map(line)].join("\n"))
   }
   const from = mentionLink(c.title, threadUri(c.id))
   const date = now.toLocaleDateString()

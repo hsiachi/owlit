@@ -508,7 +508,6 @@ msgid "Read"
 msgstr "Read"
 
 #: app/src/components/citation-card.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Not in your Library"
 msgstr "Not in your Library"
 
@@ -585,6 +584,7 @@ msgid "Copied"
 msgstr "Copied"
 
 #: app/src/components/fade-clip.tsx
+#: app/src/components/paper-card.tsx
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show less"
@@ -636,6 +636,107 @@ msgstr "Added by Owlit, not opened yet"
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
 msgstr "Breadcrumb"
+
+#. heading of what a thread says about one of its papers, on the paper's card
+#: app/src/components/paper-card.tsx
+msgid "In this thread"
+msgstr "In this thread"
+
+#. on a paper's card: its PDF is in the Library
+#: app/src/components/paper-card.tsx
+msgid "PDF"
+msgstr "PDF"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "You've read some of it"
+msgstr "You've read some of it"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/components/PaperByline.tsx
+#: app/src/features/library/lib/format.ts
+msgid "Unknown authors"
+msgstr "Unknown authors"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Could not find a PDF."
+msgstr "Could not find a PDF."
+
+#. button: owlit looks for the paper's PDF again, by its own routes
+#. button: owlit looks for the paper's PDF again, by its own routes
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Look again"
+msgstr "Look again"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Finding a PDF…"
+msgstr "Finding a PDF…"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waiting for the network"
+msgstr "Waiting for the network"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for your library sign-in"
+msgstr "Waits for your library sign-in"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a sign-in at {site}"
+msgstr "Waits for a sign-in at {site}"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a check at {site}"
+msgstr "Waits for a check at {site}"
+
+#: app/src/components/paper-card.tsx
+msgid "Waits for a check"
+msgstr "Waits for a check"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for the extension to be allowed on {site}"
+msgstr "Waits for the extension to be allowed on {site}"
+
+#: app/src/components/paper-card.tsx
+msgid "Waits for the extension to be allowed"
+msgstr "Waits for the extension to be allowed"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No PDF found"
+msgstr "No PDF found"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No access through your library"
+msgstr "No access through your library"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your library doesn't offer this paper"
+msgstr "Your library doesn't offer this paper"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} has no PDF of this paper"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "The publisher has no PDF of this paper"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Show more"
+msgstr "Show more"
 
 #: app/src/components/segmented-control.tsx
 msgid "New since you last looked"
@@ -1179,7 +1280,6 @@ msgid "Adding…"
 msgstr "Adding…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 #: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "In your Library"
@@ -1191,7 +1291,6 @@ msgstr "Open {name}"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/step-results.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Add to Library"
 msgstr "Add to Library"
 
@@ -3865,12 +3964,6 @@ msgid "No tags yet."
 msgstr "No tags yet."
 
 #: app/src/features/library/components/PaperByline.tsx
-#: app/src/features/library/lib/format.ts
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Unknown authors"
-msgstr "Unknown authors"
-
-#: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
 msgstr "More actions"
@@ -4332,10 +4425,6 @@ msgstr "Basic"
 msgid "Cited in"
 msgstr "Cited in"
 
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "Show more"
-msgstr "Show more"
-
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Owlit is reading this paper…"
@@ -4395,10 +4484,6 @@ msgid "Page {number}"
 msgstr "Page {number}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Finding a PDF…"
-msgstr "Finding a PDF…"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr "{tried}; now trying {site} through your browser."
 
@@ -4439,10 +4524,6 @@ msgid "If you already have it, drop it here."
 msgstr "If you already have it, drop it here."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for your library sign-in"
-msgstr "Waits for your library sign-in"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{at} wants a sign-in · {date}"
 msgstr "{at} wants a sign-in · {date}"
 
@@ -4451,16 +4532,8 @@ msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "One sign-in to your library covers every paper waiting for it."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a sign-in at {site}"
-msgstr "Waits for a sign-in at {site}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in there covers every paper waiting at {site}."
 msgstr "One sign-in there covers every paper waiting at {site}."
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a check at {site}"
-msgstr "Waits for a check at {site}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{at} asked for a check · {date}"
@@ -4471,10 +4544,6 @@ msgid "One check passed there covers every paper waiting at {site}."
 msgstr "One check passed there covers every paper waiting at {site}."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for the extension to be allowed on {site}"
-msgstr "Waits for the extension to be allowed on {site}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The owlit extension may not read {site} yet · {date}"
 msgstr "The owlit extension may not read {site} yet · {date}"
 
@@ -4483,16 +4552,8 @@ msgid "Once it may, owlit goes on with every paper waiting there."
 msgstr "Once it may, owlit goes on with every paper waiting there."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waiting for the network"
-msgstr "Waiting for the network"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
 msgstr "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
-msgstr "No PDF found"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -4523,10 +4584,6 @@ msgid "It has no DOI, so owlit could only look by its title."
 msgstr "It has no DOI, so owlit could only look by its title."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No access through your library"
-msgstr "No access through your library"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} offered access instead of the PDF · {date}"
 msgstr "{host} offered access instead of the PDF · {date}"
 
@@ -4535,20 +4592,8 @@ msgid "The publisher offered access instead of the PDF · {date}"
 msgstr "The publisher offered access instead of the PDF · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library doesn't offer this paper"
-msgstr "Your library doesn't offer this paper"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Your library's proxy doesn't have it · {date}"
 msgstr "Your library's proxy doesn't have it · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr "{host} has no PDF of this paper"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
-msgstr "The publisher has no PDF of this paper"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "It answered “{words}” · {date}"
@@ -4571,17 +4616,8 @@ msgid "PDF found"
 msgstr "PDF found"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Could not find a PDF."
-msgstr "Could not find a PDF."
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Choose file"
 msgstr "Choose file"
-
-#. button: owlit looks for the paper's PDF again, by its own routes
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Look again"
-msgstr "Look again"
 
 #. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4979,12 +5015,9 @@ msgstr "you edited"
 
 #. a page of a paper
 #. a page of a paper
-#. a page of a paper
-#. placeholder {0}: answer.passage.page
 #. placeholder {0}: cell.passage.page
 #. placeholder {0}: row.page
 #: app/src/features/onboarding/demos/CollectDemo.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "p. {0}"
@@ -5868,17 +5901,13 @@ msgstr "{0, plural, one {# more paper} other {# more papers}}"
 #. papers of a thread in none of its groups
 #. papers of a thread in none of its groups
 #: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
+#: app/src/features/threads/lib.ts
 msgid "Not in a group"
 msgstr "Not in a group"
 
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "{total, plural, one {# paper} other {# papers}}"
 msgstr "{total, plural, one {# paper} other {# papers}}"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "You've read some of it"
-msgstr "You've read some of it"
 
 #. a thread's answer written from the paper's title alone
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5916,6 +5945,11 @@ msgstr "was: {text}"
 msgid "From the title only"
 msgstr "From the title only"
 
+#. how Owlit came to a thread's paper: a search's words, or the paper that cites it
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Found: {foundBy}"
+msgstr "Found: {foundBy}"
+
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5934,11 +5968,6 @@ msgstr "Export as a doc"
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as CSV"
 msgstr "Export as CSV"
-
-#. papers that speak to none of the user's sentences
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Bear on none of them"
-msgstr "Bear on none of them"
 
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -5961,6 +5990,13 @@ msgstr "Newest first"
 msgid "Paper"
 msgstr "Paper"
 
+#. table column: what kind of paper each is and its material
+#. table column: what kind of paper each is and its material
+#: app/src/features/threads/components/ThreadTable.tsx
+#: app/src/features/threads/export.ts
+msgid "What it is"
+msgstr "What it is"
+
 #. placeholder {0}: rows.length - SHOWN
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{0, plural, one {# more} other {# more}}"
@@ -5969,20 +6005,6 @@ msgstr "{0, plural, one {# more} other {# more}}"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group by"
 msgstr "Group by"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "{done} of {of}"
-msgstr "{done} of {of}"
-
-#. placeholder {0}: cell.passage.page
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Open at p. {0}"
-msgstr "Open at p. {0}"
-
-#. heading in an exported thread: papers in no group
-#: app/src/features/threads/export.ts
-msgid "Other papers"
-msgstr "Other papers"
 
 #. last line of a doc exported from a thread
 #: app/src/features/threads/export.ts
@@ -6025,6 +6047,11 @@ msgstr "Challenges"
 #: app/src/features/threads/lib.ts
 msgid "Related"
 msgstr "Related"
+
+#. papers that speak to none of the user's sentences
+#: app/src/features/threads/lib.ts
+msgid "Bear on none of them"
+msgstr "Bear on none of them"
 
 #: app/src/features/threads/pages/ThreadPage.tsx
 msgid "This thread is gone"

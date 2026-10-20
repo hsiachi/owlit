@@ -7,12 +7,13 @@ import { NoteDot, ReadingRing } from "@/components/marks"
 import { CitationHover } from "@/components/citation-card"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
+import { PaperCard, PaperCardThread } from "@/components/paper-card"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
+import { StarButton } from "@/features/library/components/StarButton"
 import { useLibraryStore } from "@/features/library/store"
-import { stripLatex } from "@/features/library/lib/latex"
 import { cn, scrollMotion } from "@/lib/utils"
-import { noteSections, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
+import { columnLabel, noteSections, paperFacts, passageRoute, relWord, shown, useLibraryPaper } from "../lib"
 import { shortAuthors, shortVenue } from "@/features/library/lib/format"
 import { useThreadsStore } from "../store"
 import { useThreadsUi } from "../ui-store"
@@ -223,69 +224,95 @@ export function WasLine({ was, className }: { was: ReturnType<typeof readInFull>
   )
 }
 
-// A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
-// the Library: opening it, or adding it, brings it in, since it is then being used.
-// was: the answer Owlit replaced when it read the paper in full (the list's rows; a table's cell says it on
-// its own card)
+// A row opened in place: the paper's card, as the Library shows it, with what this thread says of the paper.
+// The paper is in the Library already (a row is a Library paper), so Open only opens it.
+// was: the answer Owlit replaced when it read the paper in full
 export function RowPeek({ thread, row, library, className, was }: { thread: ThreadRead; row: ThreadRowRead; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
   const navigate = useNavigate()
-  const addPaper = useLibraryStore((s) => s.addPaper)
+  const setStarred = useLibraryStore((s) => s.setStarred)
   const facts = paperFacts(row, library)
-  const answer = shown(thread).rows.find((r) => r.id === row.id)?.cells[QUESTION_COLUMN]
+  const view = shown(thread)
+  const placed = view.rows.find((r) => r.id === row.id) ?? row
   const all = useThreadsStore((s) => s.threads)
   const others = Object.values(all).filter((c) => c.id !== thread.id && c.rows.some((r) => r.id === row.id))
-  const published = [facts.venue, facts.year].filter(Boolean).join(" · ")
-  const bring = () => library ?? addPaper({ id: row.id, title: facts.title, authors: facts.authors, ids: facts.ids, year: facts.year, venue: facts.venue, abstract: facts.abstract, kind: facts.kind })
-  const page = answer?.passage?.page
+  const groups = view.columns.flatMap((col) => (col.kind === "grouping" ? (placed.in?.[col.id] ?? []).flatMap((id) => col.groups?.find((g) => g.id === id)?.name ?? []) : []))
+  const answer = placed.cells[QUESTION_COLUMN]
+  const foundBy = row.foundBy
+  // The other questions asked of every paper, and comparisons with a doc, each with the words it rests on
+  const asked = view.columns.filter((col) => col.id !== QUESTION_COLUMN && col.kind !== "grouping" && !col.hidden && placed.cells[col.id]?.text && (col.kind !== "compare" || placed.cells[col.id]?.rel))
+  const citations = library?.citations ?? (facts.citationCount ? { count: facts.citationCount, source: "", at: 0 } : undefined)
   return (
-    <div data-peek-body className={className ?? "px-2.5 pt-1 pb-1.5 pl-[38px]"}>
-      <div className="max-w-[68ch]">
-        <p className="text-detail leading-normal text-muted-foreground">
-          {facts.authors.join(", ") || t`Unknown authors`}
-          {published && <br />}
-          {published}
-          {published && " · "}
-          {library ? t`In your Library` : t`Not in your Library`}
-        </p>
-        {answer && (
-          // An answer from the title only (the paper's record has no abstract) is thin: muted, and said so
-          <p className={cn("mt-2.5 text-sm leading-relaxed", answer.depth === "title" && "text-muted-foreground")}>
-            {answer.text}
-            {answer.depth !== "full" && (
-              <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{answer.depth === "title" ? t`From the title only` : t`From the abstract`}</span>
-            )}
-          </p>
-        )}
-        {answer && <WasLine was={was ?? null} className="mt-1" />}
-        {answer?.passage && (
-          <Quote size="sm" className="mt-2">
-            “{answer.passage.quote}” <span className="text-detail">{t({ message: `p. ${answer.passage.page}`, comment: "a page of a paper" })}</span>
-          </Quote>
-        )}
-        {facts.abstract && <p className="mt-2.5 line-clamp-3 text-detail leading-relaxed text-muted-foreground">{stripLatex(facts.abstract)}</p>}
-        {others.length > 0 && (
-          <p className="mt-2.5 text-detail text-muted-foreground">
-            {t({ message: "Also in", comment: "followed by the other threads that hold this paper" })}{" "}
-            {others.map((c, i) => (
-              <span key={c.id}>
-                {i > 0 && ", "}
-                <MentionToken label={shown(c).title} title={threadUri(c.id)} onClick={() => navigate(`/threads/${c.id}`)} />
-              </span>
-            ))}
-          </p>
-        )}
-      </div>
-      <div className="mt-3.5 flex items-center gap-1">
-        <span className="flex-1" />
-        {!library && (
-          <Button variant="outline" size="sm" onClick={() => bring()}>
-            {t`Add to Library`}
+    <PaperCard
+      facts={{ ...facts, citations }}
+      paper={library}
+      className={className ?? "px-2.5 pt-1 pb-1.5 pl-[38px]"}
+      thread={
+        <PaperCardThread groups={groups}>
+          {(placed.is || answer) && (
+            // An answer from the title only (the paper's record has no abstract) is thin: muted, and said so
+            <p className={cn("mt-1 text-sm leading-relaxed", answer?.depth === "title" && "text-muted-foreground")}>
+              {placed.is && <span className="text-muted-foreground">{placed.is}</span>}
+              {placed.is && answer && " · "}
+              {answer?.text}
+              {answer && answer.depth !== "full" && <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{answer.depth === "title" ? t`From the title only` : t`From the abstract`}</span>}
+            </p>
+          )}
+          {answer && <WasLine was={was ?? null} className="mt-1" />}
+          {answer?.passage && <Passage paperId={row.id} passage={answer.passage} />}
+          {asked.map((col) => {
+            const cell = placed.cells[col.id]!
+            const sentence = col.kind === "compare" ? col.sentences?.find((s) => s.id === cell.sentence) : undefined
+            return (
+              <div key={col.id} className="mt-2.5">
+                <p className="text-detail text-muted-foreground">{columnLabel(col)}</p>
+                <p className={cn("text-sm leading-relaxed", cell.depth === "title" && "text-muted-foreground")}>
+                  {cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
+                  {cell.text}
+                </p>
+                {sentence && <p className="text-detail text-muted-foreground">“{sentence.text}”</p>}
+                {cell.passage && <Passage paperId={row.id} passage={cell.passage} />}
+              </div>
+            )
+          })}
+          {(foundBy || others.length > 0) && (
+            <p className="mt-2.5 text-detail text-muted-foreground">
+              {foundBy && t({ message: `Found: ${foundBy}`, comment: "how Owlit came to a thread's paper: a search's words, or the paper that cites it" })}
+              {foundBy && others.length > 0 && " · "}
+              {others.length > 0 && (
+                <>
+                  {t({ message: "Also in", comment: "followed by the other threads that hold this paper" })}{" "}
+                  {others.map((c, i) => (
+                    <span key={c.id}>
+                      {i > 0 && ", "}
+                      <MentionToken label={shown(c).title} title={threadUri(c.id)} onClick={() => navigate(`/threads/${c.id}`)} />
+                    </span>
+                  ))}
+                </>
+              )}
+            </p>
+          )}
+        </PaperCardThread>
+      }
+      footer={
+        <>
+          <span className="flex-1" />
+          {library && <StarButton starred={library.starred} onToggle={() => setStarred([library.id], !library.starred)} />}
+          <Button size="sm" className="ml-1" onClick={() => navigate(`/library/${library?.id ?? row.id}`)}>
+            {t({ message: "Open", comment: "button: open a paper to read" })}
           </Button>
-        )}
-        <Button size="sm" className="ml-1" onClick={() => navigate(passageRoute(bring().id, answer?.passage))}>
-          {page ? t`Open at p. ${page}` : t({ message: "Open", comment: "button: open a paper to read" })}
-        </Button>
-      </div>
-    </div>
+        </>
+      }
+    />
+  )
+}
+
+// The words an answer rests on, and the page they are on, which opens the paper there
+function Passage({ paperId, passage }: { paperId: string; passage: { quote: string; page: number } }) {
+  const navigate = useNavigate()
+  const page = passage.page
+  return (
+    <Quote size="sm" className="mt-2">
+      “{passage.quote}” <MentionToken label={t`Open at p. ${page}`} title={null} className="text-detail whitespace-nowrap" onClick={() => navigate(passageRoute(paperId, passage))} />
+    </Quote>
   )
 }

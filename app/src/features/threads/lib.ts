@@ -156,10 +156,8 @@ export function groupSections(shown: ThreadRead, grouping: ThreadColumn) {
 // with groups. A grouping is not a column, so a thread with groups and no asked column still reads as a
 // note, its groups as headings.
 export function shownGrouping(shown: ThreadRead): ThreadColumn | undefined {
-  const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length)
-  const want = shown.view?.groupBy
-  if (want === "none") return undefined
-  return groupings.find((c) => want === `grouping:${c.id}`) ?? groupings[0]
+  const by = groupByOf(shown)
+  return by.startsWith("grouping:") ? shown.columns.find((c) => c.id === by.slice(9)) : undefined
 }
 
 // The note's sections: a grouping's groups with their papers (groupSections), then the papers in none;
@@ -183,4 +181,57 @@ export function paperCounts(shown: ThreadRead) {
   const groups = grouping ? groupSections(shown, grouping).groups.filter((g) => g.depth === 0).length : 0
   const full = shown.rows.filter((r) => r.cells[QUESTION_COLUMN]?.depth === "full").length
   return { papers: shown.rows.length, groups, full }
+}
+
+// What a thread's table is grouped by: one of its groupings, a comparison's sentences, or none
+export type GroupBy = "none" | `grouping:${string}` | `column:${string}`
+
+// The groupings the table can be grouped by: those with groups, hidden or not (a grouping's own sections
+// already say what it would show as a column)
+export const groupingsWithGroups = (shown: ThreadRead) => shown.columns.filter((c) => c.kind === "grouping" && !!c.groups?.length)
+
+// What the table is grouped by, and an export after it: what the user chose (`want`, else the thread's
+// view) while it names something the thread still has, else the first grouping
+export function groupByOf(shown: ThreadRead, want: string | undefined = shown.view?.groupBy): GroupBy {
+  const groupings = groupingsWithGroups(shown)
+  if (want === "none") return want
+  if (want?.startsWith("grouping:") && groupings.some((c) => c.id === want.slice(9))) return want as GroupBy
+  if (want?.startsWith("column:") && shown.columns.some((c) => c.kind === "compare" && !c.hidden && c.id === want.slice(7))) return want as GroupBy
+  return groupings[0] ? `grouping:${groupings[0].id}` : "none"
+}
+
+export interface Section {
+  key: string
+  group?: ThreadGroup
+  // A sentence of the user's, when grouped by a comparison
+  sentence?: { id: string; text: string }
+  // "" for the one unlabelled section of a table grouped by nothing
+  label: string
+  one?: string
+  // The papers right in it
+  rows: ThreadRowRead[]
+  // Its rows and its subgroups' rows, which its counts cover
+  total: ThreadRowRead[]
+  depth: number
+}
+
+// The thread's papers in the sections a grouping makes, in order, a subgroup after its parent; then the
+// papers in none
+export function sectionsOf(shown: ThreadRead, groupBy: GroupBy): Section[] {
+  const out: Section[] = []
+  if (groupBy.startsWith("grouping:")) {
+    const grouping = shown.columns.find((c) => c.id === groupBy.slice(9))!
+    const { groups, loose } = groupSections(shown, grouping)
+    for (const g of groups) out.push({ key: g.group.id, group: g.group, label: g.group.name, one: g.group.one, rows: g.rows, total: g.total, depth: g.depth })
+    if (loose.length) out.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a thread in none of its groups" }), rows: loose, total: loose, depth: 0 })
+  } else if (groupBy.startsWith("column:")) {
+    const col = shown.columns.find((c) => c.id === groupBy.slice(7))!
+    for (const s of col.sentences ?? []) {
+      const rows = shown.rows.filter((r) => r.cells[col.id]?.sentence === s.id && r.cells[col.id]?.rel)
+      out.push({ key: s.id, sentence: s, label: s.text, rows, total: rows, depth: 0 })
+    }
+    const none = shown.rows.filter((r) => !r.cells[col.id]?.rel)
+    if (none.length) out.push({ key: "", label: t({ message: "Bear on none of them", comment: "papers that speak to none of the user's sentences" }), rows: none, total: none, depth: 0 })
+  } else out.push({ key: "", label: "", rows: shown.rows, total: shown.rows, depth: 0 })
+  return out
 }
