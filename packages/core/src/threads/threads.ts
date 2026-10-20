@@ -352,22 +352,27 @@ export class Threads {
 
   // ---- Owlit's writes ----
 
+  // A write goes in as far as it can: a row with a problem is left out whole, a report that links a paper
+  // the thread hasn't got stays as it was, and each is named in `left` for the agent to fix and write
+  // again. It is refused whole when it can't be read at all (a new thread without its question, groups
+  // that don't fit together) or when nothing in it could go in.
   write(input: ThreadWrite, caller: Caller) {
     return this.serial.run(async () => {
       const now = Date.now()
       const existing = input.id ? await this.load(input.id) : undefined
       if (input.id && !existing) throw new RpcFailure(RpcErrorCode.NotFound, `There is no thread ${input.id}; leave id out to start one.`)
-      const problems: string[] = []
-      if (!existing && !input.asked?.trim()) problems.push("A new thread needs asked: the question as the user put it.")
-      if (!existing && !input.title?.trim()) problems.push("A new thread needs a title: a short, neutral name for what it gathers.")
-      if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+      const refused: string[] = []
+      if (!existing && !input.asked?.trim()) refused.push("A new thread needs asked: the question as the user put it.")
+      if (!existing && !input.title?.trim()) refused.push("A new thread needs a title: a short, neutral name for what it gathers.")
+      if (refused.length) throw refusal(refused)
 
       const c: Thread = existing ? structuredClone(existing) : await this.blank(input, now)
+      const before = structuredClone(c)
       const fresh = !existing
-      // Every item the write changed goes in the history and the log (which of them carry a dot is
-      // threadDot's to say)
+      // Every item the write changed goes in the log (which of them carry a dot is threadDot's to say)
       const changed = new Set<string>()
       const mark = (item: string) => changed.add(item)
+      const left: string[] = []
 
       if (existing && input.title?.trim() && input.title.trim() !== c.title) {
         c.title = input.title.trim()
@@ -394,6 +399,8 @@ export class Threads {
       // Groups: the whole of one grouping as Owlit means it now
       const wantsGroups = !!input.groups || (input.rows ?? []).some((r) => r.group !== undefined || r.groups !== undefined)
       const newGrouping = input.newGrouping?.trim()
+      // The Topic grouping this write starts only because its rows name groups
+      let topic: string | undefined
       let grouping = newGrouping
         ? c.columns.find((col) => col.kind === "grouping" && sameWords(col.question, newGrouping))
         : wantsGroups
@@ -405,13 +412,14 @@ export class Threads {
         grouping = { id: freshId("g", c.columns.map((col) => col.id)), question: newGrouping, kind: "grouping", hidden: true, groups: [] }
         c.columns.push(grouping)
         mark(`column:${grouping.id}`)
-      } else if (wantsGroups && input.grouping && grouping?.kind !== "grouping") problems.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic), or give new_grouping to start one.`)
+      } else if (wantsGroups && input.grouping && grouping?.kind !== "grouping") refused.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic), or give new_grouping to start one.`)
       else if (wantsGroups && !grouping) {
         let id = GROUPING_COLUMN
         for (let n = 2; c.columns.some((col) => col.id === id); n++) id = `${GROUPING_COLUMN}${n}`
         grouping = { id, question: "Topic", kind: "grouping", hidden: true, groups: [] }
         c.columns.push(grouping)
         mark(`column:${id}`)
+        topic = `column:${id}`
       }
       const col = grouping?.kind === "grouping" ? grouping : undefined
       if (col && input.groups) {
@@ -419,16 +427,16 @@ export class Threads {
         for (const g of input.groups) {
           if (!g.parent) continue
           const parent = given.get(g.parent)
-          if (!parent) problems.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
-          else if (parent.parent || g.parent === g.id) problems.push(`Groups go two levels deep at most: ${g.id} sits under ${g.parent}, which is itself under ${parent.parent}.`)
+          if (!parent) refused.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
+          else if (parent.parent || g.parent === g.id) refused.push(`Groups go two levels deep at most: ${g.id} sits under ${g.parent}, which is itself under ${parent.parent}.`)
         }
-        const before = col.groups ?? []
+        const was = col.groups ?? []
         const next: ThreadGroup[] = input.groups.map((g) => ({ ...g }))
         for (const g of next) {
-          const was = before.find((have) => have.id === g.id)
-          if (!was || was.name !== g.name || was.one !== g.one || was.parent !== g.parent) mark(itemId.group(col.id, g.id))
+          const had = was.find((have) => have.id === g.id)
+          if (!had || had.name !== g.name || had.one !== g.one || had.parent !== g.parent) mark(itemId.group(col.id, g.id))
         }
-        for (const g of before) if (!next.some((have) => have.id === g.id)) changed.add(itemId.group(col.id, g.id))
+        for (const g of was) if (!next.some((have) => have.id === g.id)) changed.add(itemId.group(col.id, g.id))
         col.groups = next
         // Papers in a group that is gone fall out of it
         const ids = new Set(next.map((g) => g.id))
@@ -440,47 +448,35 @@ export class Threads {
           changed.add(itemId.row(row.id))
         }
       }
+      if (refused.length) throw refusal(refused)
 
-      // Rows: new papers, and answers for the ones there. A new paper the Library hasn't got is added to
-      // it once the write is known to be good (toAdd); until then its row goes by the id it was named by.
+      // Rows: new papers, and answers for the ones there. Each row is checked whole before any of it
+      // goes in. A new paper the Library hasn't got is added to it once the write is known to go in
+      // (toAdd); until then its row goes by the id it was named by.
       const added: string[] = []
       const toAdd = new Map<string, ThreadPaper>()
       let updated = 0
-      for (const asked of input.rows ?? []) {
+      for (const given of input.rows ?? []) {
+        const problems: string[] = []
         // A paper the thread has under the Library's id is that row
-        let row = await this.rowOf(c.rows, asked.id)
-        const r = row ? { ...asked, id: row.id } : asked
+        let row = await this.rowOf(c.rows, given.id)
+        let paper: ThreadPaper | undefined
+        let id = row?.id ?? given.id
         if (!row) {
-          const here = await this.services.canonical?.(r.id)
+          const here = await this.services.canonical?.(given.id)
           if (!here) {
-            const paper = await this.services.paper?.(r.id)
+            paper = await this.services.paper?.(given.id)
             if (!paper && this.services.paper) {
-              problems.push(`owlit doesn't know the paper ${r.id}: name papers by the id a search gave you.`)
+              left.push(`owlit doesn't know the paper ${given.id}: name papers by the id a search gave you.`)
               continue
             }
-            if (paper) toAdd.set(r.id, paper)
           }
-          const id = here ?? r.id
-          const foundBy = r.foundBy?.trim() || foundByOf(this.services.foundBy?.(r.id))
-          row = { id, cells: {}, addedAt: now, ...(foundBy ? { foundBy } : {}) }
-          c.rows.push(row)
-          added.push(id)
-          mark(itemId.row(id))
-        } else if (r.foundBy?.trim() && !row.foundBy) {
-          row.foundBy = r.foundBy.trim()
-          changed.add(itemId.row(row.id))
-        }
-        const id = row.id
-        let touched = false
-        const is = r.is?.trim()
-        if (is && is !== row.is) {
-          row.is = is
-          touched = true
-          mark(itemId.row(id))
+          id = here ?? given.id
         }
         // Whether the paper's record has an abstract, asked once per row and only for answers not from the full text
         let abstract: boolean | undefined
-        for (const [colId, cell] of Object.entries(r.cells ?? {})) {
+        const cells: Record<string, ThreadCell> = {}
+        for (const [colId, cell] of Object.entries(given.cells ?? {})) {
           if (!c.columns.some((have) => have.id === colId)) {
             problems.push(`There is no column ${colId}; add it under columns first.`)
             continue
@@ -491,16 +487,16 @@ export class Threads {
           let passage = cell.passage
           if (cell.depth === "full") {
             if (!passage) {
-              problems.push(`${r.id}'s answer for ${colId} says it is from the full text but gives no passage; quote the words it rests on.`)
+              problems.push(`${given.id}'s answer for ${colId} says it is from the full text but gives no passage; quote the words it rests on.`)
               continue
             }
-            const page = this.services.findPassage ? await this.services.findPassage(r.id, passage.quote) : passage.page
+            const page = this.services.findPassage ? await this.services.findPassage(id, passage.quote) : passage.page
             if (page === undefined) {
-              problems.push(`owlit has no full text of ${r.id}, so its answer can only be from the abstract (depth abstract).`)
+              problems.push(`owlit has no full text of ${given.id}, so its answer can only be from the abstract (depth abstract).`)
               continue
             }
             if (page === null) {
-              problems.push(`The passage for ${r.id} isn't in its text word for word; quote it as library_read gives it.`)
+              problems.push(`The passage for ${given.id} isn't in its text word for word; quote it as library_read gives it.`)
               continue
             }
             passage = { quote: passage.quote, page }
@@ -509,26 +505,57 @@ export class Threads {
           // the cell and the export to say
           let depth = cell.depth
           if (depth === "abstract") {
-            abstract ??= !!(toAdd.get(id) ?? (await this.services.facts?.(id)))?.abstract?.trim()
+            abstract ??= !!(paper ?? (await this.services.facts?.(id)))?.abstract?.trim()
             if (!abstract) depth = "title"
           }
-          const was = row.cells[colId]
           const next: ThreadCell = { ...cell, depth, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
           if (cell.depth !== "full") delete next.passage
-          if (was && sameCell(was, next)) continue
-          row.cells[colId] = next
+          const was = row?.cells[colId]
+          if (!was || !sameCell(was, next)) cells[colId] = next
+        }
+        let groups: string[] | undefined
+        if (col && (given.group !== undefined || given.groups !== undefined)) {
+          groups = placeIn(col.groups ?? [], given.groups ?? (given.group ? [given.group] : []), (gid) => {
+            if ((col.groups ?? []).some((g) => g.id === gid)) return gid
+            problems.push(`Row ${given.id} is put in group ${gid}, which isn't one of the groups.`)
+            return null
+          })
+        }
+        if (problems.length) {
+          left.push(...problems)
+          continue
+        }
+
+        if (!row) {
+          const foundBy = given.foundBy?.trim() || foundByOf(this.services.foundBy?.(given.id))
+          row = { id, cells: {}, addedAt: now, ...(foundBy ? { foundBy } : {}) }
+          c.rows.push(row)
+          added.push(id)
+          if (paper) toAdd.set(id, paper)
+          mark(itemId.row(id))
+        }
+        let touched = false
+        const foundBy = given.foundBy?.trim()
+        if (foundBy && foundBy !== row.foundBy) {
+          row.foundBy = foundBy
+          touched = true
+          changed.add(itemId.row(id))
+        }
+        const is = given.is?.trim()
+        if (is && is !== row.is) {
+          row.is = is
+          touched = true
+          mark(itemId.row(id))
+        }
+        for (const [colId, cell] of Object.entries(cells)) {
+          row.cells[colId] = cell
           touched = true
           mark(itemId.cell(id, colId))
         }
-        if (col && (r.group !== undefined || r.groups !== undefined)) {
-          const ids = placeIn(col.groups ?? [], r.groups ?? (r.group ? [r.group] : []), (gid) => {
-            if ((col.groups ?? []).some((g) => g.id === gid)) return gid
-            problems.push(`Row ${r.id} is put in group ${gid}, which isn't one of the groups.`)
-            return null
-          })
+        if (col && groups) {
           const was = row.in?.[col.id] ?? []
-          if (ids.join() !== was.join()) {
-            if (ids.length) row.in = { ...row.in, [col.id]: ids }
+          if (groups.join() !== was.join()) {
+            if (groups.length) row.in = { ...row.in, [col.id]: groups }
             else if (row.in) delete row.in[col.id]
             touched = true
             mark(itemId.row(id))
@@ -538,15 +565,24 @@ export class Threads {
       }
       for (const name of input.removeRows ?? []) {
         const row = await this.rowOf(c.rows, name)
-        if (!row) continue
+        if (!row) {
+          left.push(`${name} isn't a paper of this thread, so there was nothing to take out.`)
+          continue
+        }
         c.rows.splice(c.rows.indexOf(row), 1)
         changed.add(itemId.row(row.id))
       }
 
-      // The report, whole, and the one line: the report's first sentence when the write gives no line
-      if (input.report !== undefined && input.report.trim() !== c.report) {
-        c.report = input.report.trim()
-        mark(itemId.report())
+      // The report, whole, and the one line: the report's first sentence when the write gives no line. A
+      // report's papers are rows of the thread, its links named by their ids.
+      if (input.report !== undefined) {
+        const { text, strangers } = await this.linkRows(c.rows, input.report.trim())
+        if (strangers.length)
+          left.push(`The report links ${strangers.join(", ")}, which ${strangers.length === 1 ? "isn't a paper" : "aren't papers"} of this thread, so the report stays as it was: link only papers that are rows (add them in rows first).`)
+        else if (text !== c.report) {
+          c.report = text
+          mark(itemId.report())
+        }
       }
       const one = input.one?.trim() || (changed.has(itemId.report()) && !input.one ? firstSentence(c.report) : undefined)
       if (one !== undefined && one !== c.one) {
@@ -554,7 +590,9 @@ export class Threads {
         mark(itemId.one())
       }
 
-      if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+      // Nothing could go in: a new thread whose papers all had problems is no thread either, and a Topic
+      // grouping started for rows that were left out is nothing either
+      if (left.length && (fresh ? !c.rows.length : ![...changed].some((item) => item !== topic))) throw refusal(left)
       if (!fresh && !changed.size) return { id: c.id, title: c.title, added: 0, updated: 0 }
 
       // The papers new to the Library, added as the writer's; a row then goes by the Library's id
@@ -583,11 +621,25 @@ export class Threads {
       const origin = { writeId: (caller.kind !== "window" && caller.toolCallId) || newWriteId(), ...(input.chatId ? { chatId: input.chatId } : {}) }
       const entries = fresh
         ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })]
-        : await this.recordItems(caller, existing!, c, [...changed], origin)
+        : await this.recordItems(caller, before, c, [...changed], origin)
       // Said once per write and only for a chat, which shows it under the answer
       if (input.chatId && entries[0]) this.recorder.say(entries[0], { label: c.title, thread: { rows: added, updated, ...(asked ? { asked } : {}) } })
-      return { id: c.id, title: c.title, added: added.length, updated }
+      return { id: c.id, title: c.title, added: added.length, updated, ...(left.length ? { left } : {}) }
     })
+  }
+
+  // The report with each owlit://library/ link naming its row by the row's id, and the papers it links
+  // that are no row of the thread
+  private async linkRows(rows: ThreadRow[], report: string) {
+    const strangers: string[] = []
+    const named = new Map<string, string>()
+    for (const [, id] of report.matchAll(LIBRARY_LINK)) {
+      if (named.has(id!)) continue
+      const row = await this.rowOf(rows, id!)
+      named.set(id!, row?.id ?? id!)
+      if (!row) strangers.push(id!)
+    }
+    return { text: report.replace(LIBRARY_LINK, (link, id: string) => link.replace(id, named.get(id) ?? id)), strangers }
   }
 
   // ---- The user's changes ----
@@ -931,6 +983,11 @@ function rekeyRow(c: Thread, from: string, to: string, write?: { added: string[]
     write.changed.add(kind === "row" ? itemId.row(to) : itemId.cell(to, rest!))
   }
 }
+
+// A paper named in a report: [Short title](owlit://library/<id>), maybe with a page after the id
+const LIBRARY_LINK = /\(owlit:\/\/library\/([^)\s#?]+)[^)\s]*\)/g
+
+const refusal = (problems: string[]) => new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
 
 // A logged search as a row's foundBy says it
 function foundByOf(query: string | undefined) {

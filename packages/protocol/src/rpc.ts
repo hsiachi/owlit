@@ -203,8 +203,9 @@ export interface Methods {
   "threads.list": { params: void; result: ThreadSummary[] }
   // The thread with each row's paper as the Library has it
   "threads.get": { params: { id: string }; result: ThreadRead }
-  // An agent's write; papers it names that the Library hasn't got are added to it as Owlit's
-  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number } }
+  // An agent's write; papers it names that the Library hasn't got are added to it as Owlit's. left: what
+  // didn't go in and why (a row with a problem, a report linking a paper that is no row), one sentence each
+  "threads.write": { params: ThreadWrite; result: { id: string; title: string; added: number; updated: number; left?: string[] } }
   "threads.edit": { params: { id: string; edit: ThreadEdit }; result: ThreadRead }
   // Owlit's work on the thread in batches, oldest first, for About
   "threads.about": { params: { id: string }; result: ThreadBatch[] }

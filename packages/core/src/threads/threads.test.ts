@@ -204,6 +204,45 @@ describe("Threads.write", () => {
     expect((await threads.get(id)).columns.map((c) => c.question)).toEqual(["我的研究方法该怎么设计？", "Method and sample"])
     await expect(threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { nope: { text: "x", depth: "abstract" } } }] }, agent)).rejects.toThrow(/no column nope/)
   })
+
+  it("writes the rows that are fine and names the one that isn't", async () => {
+    const { threads } = setup({ findPassage: async (_id, quote) => (quote === "0.6 points lower" ? 7 : null) })
+    const { id } = await start(threads)
+    const out = await threads.write(
+      {
+        id,
+        rows: [
+          { id: "doi-10.1145-3", is: "Diary study, 40 people", cells: { q: { text: "Recall ran lower.", depth: "abstract" } } },
+          { id: "doi-10.1145-2", cells: { q: { text: "Own explanations recover more.", depth: "full", passage: { quote: "not in the paper", page: 1 } } } },
+          { id: "doi-10.9999-x" },
+        ],
+      },
+      agent,
+    )
+    expect(out).toMatchObject({ added: 1, updated: 0, left: [expect.stringMatching(/passage for doi-10\.1145-2 isn't in its text/), expect.stringMatching(/doesn't know the paper doi-10\.9999-x/)] })
+    const c = await threads.get(id)
+    expect(c.rows.find((r) => r.id === "doi-10.1145-3")).toMatchObject({ is: "Diary study, 40 people", cells: { q: { text: "Recall ran lower." } } })
+    expect(c.rows.find((r) => r.id === "doi-10.1145-2")?.cells.q).toMatchObject({ depth: "abstract" })
+    // Nothing that could go in: refused whole
+    await expect(threads.write({ id, rows: [{ id: "doi-10.9999-x" }] }, agent)).rejects.toThrow(/owlit didn't write it:\n- owlit doesn't know the paper doi-10\.9999-x/)
+  })
+
+  it("keeps a report that links a paper that is no row of the thread, naming it, and writes the rest", async () => {
+    const { threads } = setup({ canonical: async (id) => (id === "W2" ? "doi-10.1145-2" : id in papers ? id : undefined) })
+    const { id } = await start(threads)
+    const out = await threads.write(
+      { id, report: "[Kelly](owlit://library/W2) and [van Berkel](owlit://library/doi-10.1145-3) disagree.", rows: [{ id: "doi-10.1145-1", is: "Field study" }] },
+      agent,
+    )
+    expect(out.left).toEqual([expect.stringMatching(/^The report links doi-10\.1145-3, which isn't a paper of this thread/)])
+    let c = await threads.get(id)
+    expect(c.report).toBe("Two precedents had wearers replay their own footage. Replay ratings run lower than live ones.")
+    expect(c.rows[0]?.is).toBe("Field study")
+    // A link by another id of a row's paper names the row
+    await threads.write({ id, report: "[Kelly](owlit://library/W2) found more." }, agent)
+    c = await threads.get(id)
+    expect(c.report).toBe("[Kelly](owlit://library/doi-10.1145-2) found more.")
+  })
 })
 
 const GROUPS = [

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { makePdf, paragraph } from "../../core/src/library/text/make-pdf.ts"
-import { pdfFact } from "./server.ts"
+import { pdfFact, threadWriteOf } from "./server.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 const fixtures = path.join(import.meta.dirname, "../../core/src/library/fixtures")
@@ -344,7 +344,7 @@ describe("owlit-mcp", () => {
     expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "No owlit window is open.", isError: true })
   })
 
-  it("gathers papers into a thread, with the memo as its report, and adds to it later", async () => {
+  it("gathers papers into a thread and adds to it later", async () => {
     const { root, core, call, tool } = await setup()
     const changed: Notifications["changes.added"][] = []
     core.onNotify((n) => {
@@ -358,8 +358,7 @@ describe("owlit-mcp", () => {
     expect(unknown).toEqual({ isError: true, text: "owlit didn't write it:\n- owlit doesn't know the paper doi-10.9999-nope: name papers by the id a search gave you." })
 
     const rows = JSON.stringify([{ id: "arxiv-2005.11401", answer: "Each token may draw on its own retrieved document.", depth: "full", quote: "a different latent document for each target token" }])
-    const memo = JSON.stringify([{ text: "One paper so far: [Lewis et al. 2020](owlit://library/arxiv-2005.11401) retrieves per token." }])
-    const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, note: "Semantic Scholar was not reachable." })
+    const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, note: "Semantic Scholar was not reachable." })
     const id = /owlit:\/\/threads\/([\w-]+)/.exec(wrote.text)![1]!
     expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/threads\/t-[0-9a-f]{6}\): added 1\./)
     expect(changed).toMatchObject([{ change: { action: "create", target: { kind: "thread" } }, label: "检索粒度", thread: { rows: ["arxiv-2005.11401"] } }])
@@ -368,11 +367,11 @@ describe("owlit-mcp", () => {
 
     await call("threads.edit", { id, edit: { op: "rename", title: "Retrieval granularity" } })
     expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper · asked: 检索粒度有什么研究？`)
-    expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\nOne paper so far/)
+    expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\n\(none yet\)/)
     expect((await tool("thread_read", { id })).text).toMatch(/q: Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
 
     const wrongQuote = JSON.stringify([{ id: "arxiv-2005.11401", answer: "x", depth: "full", quote: "not in the paper" }])
-    expect((await tool("thread_write", { id, rows: wrongQuote })).text).toMatch(/isn't in its text word for word/)
+    expect(await tool("thread_write", { id, rows: wrongQuote })).toMatchObject({ isError: true, text: expect.stringMatching(/isn't in its text word for word/) })
     expect((await tool("thread_write", { id, rows: "[{" })).text).toBe("rows should be a JSON array.")
 
     // Groups, as thread_read gives them
@@ -553,5 +552,19 @@ describe("docs_read on a PDF", () => {
     expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "Recurrent models." })).text).toMatch(/^Not done: That highlight is the user's/)
     expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "nowhere" })).text).toMatch(/^No highlight in arxiv-1706.03762 reads that way/)
     expect((await call("library.highlights", { id: "arxiv-1706.03762" })).map((h: { id: string }) => h.id)).toEqual(["h2"])
+  })
+})
+
+describe("threadWriteOf", () => {
+  it("takes the report, the thread's line and each row's what it is, answer and how it was found", () => {
+    const rows = JSON.stringify([{ id: "arxiv-2005.11401", is: "Method paper, no user study", answer: "Per token.", depth: "full", quote: "each target token", found_by: "cited by Lewis 2021", groups: ["tok"] }])
+    expect(threadWriteOf({ id: "t1", report: "## Granularity\n\n[RAG](owlit://library/arxiv-2005.11401) retrieves per token.", one: "Per token or per document.", rows, remove_rows: ["arxiv-1"] })).toEqual({
+      id: "t1",
+      report: "## Granularity\n\n[RAG](owlit://library/arxiv-2005.11401) retrieves per token.",
+      one: "Per token or per document.",
+      rows: [{ id: "arxiv-2005.11401", is: "Method paper, no user study", foundBy: "cited by Lewis 2021", cells: { q: { text: "Per token.", depth: "full", passage: { quote: "each target token", page: 1 } } }, groups: ["tok"] }],
+      removeRows: ["arxiv-1"],
+    })
+    expect(threadWriteOf({ rows: [{ answer: "x" }] })).toBe("Every row needs the paper's id, as a search gave it.")
   })
 })

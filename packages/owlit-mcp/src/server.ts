@@ -14,6 +14,7 @@ import {
   type ThreadGroup,
   type ThreadRead,
   type ThreadRowWrite,
+  type ThreadWrite,
   type DocComment,
   type FoundPaper,
   type FoundPapers,
@@ -362,22 +363,12 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "thread_read":
       return threadText(await owlit.rpc.threads.get({ id: str("id") }))
     case "thread_write": {
-      const parsed = parseJsonArgs(args, ["rows", "memo", "groups"])
-      if (typeof parsed === "string") return parsed
-      const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
-      if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
-      const done = await owlit.rpc.threads.write({
-        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
-        ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
-        // The memo's sentences are the report, as one paragraph
-        ...(parsed.memo ? { report: (parsed.memo as { text?: string }[]).map((m) => String(m.text ?? "").trim()).filter(Boolean).join(" ") } : {}),
-        ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
-        ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
-        ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
-        ...writer,
-      })
+      const write = threadWriteOf(args)
+      if (typeof write === "string") return write
+      const done = await owlit.rpc.threads.write({ ...write, ...writer })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
-      return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}. Link it in your answer as [${done.title}](${threadUri(done.id)}).`
+      const wrote = `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}. Link it in your answer as [${done.title}](${threadUri(done.id)}).`
+      return done.left?.length ? `${wrote}\nLeft out, the rest went in; fix these and write them again:\n- ${done.left.join("\n- ")}` : wrote
     }
     case "thread_edit": {
       // The title is Owlit's own, so it goes through a write of its own (a threads.edit rename is the
@@ -418,16 +409,34 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
 
 interface RowArg {
   id?: string
+  is?: string
   answer?: string
   depth?: string
   quote?: string
+  found_by?: string
   group?: string
   groups?: string[]
   cells?: Record<string, { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }>
 }
 
-// A row as the agent gives it (answer, depth and quote for the question; other columns in cells), as
-// core takes it; or what to tell the agent
+// thread_write's arguments as core takes them (rows, groups as JSON text or arrays), or what to tell the agent
+export function threadWriteOf(args: Record<string, unknown>): ThreadWrite | string {
+  const parsed = parseJsonArgs(args, ["rows", "groups"])
+  if (typeof parsed === "string") return parsed
+  const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
+  const problem = rows?.find((r) => typeof r === "string")
+  if (problem) return problem
+  return {
+    ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", report: "report", one: "one", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
+    ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
+    ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
+    ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
+    ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
+  }
+}
+
+// A row as the agent gives it (what it is, how it was found, answer, depth and quote for the question;
+// other columns in cells), as core takes it; or what to tell the agent
 function rowWrite(r: RowArg): ThreadRowWrite | string {
   if (!r.id) return "Every row needs the paper's id, as a search gave it."
   // The page is found by owlit from the quote
@@ -440,7 +449,14 @@ function rowWrite(r: RowArg): ThreadRowWrite | string {
   })
   const cells = Object.fromEntries(Object.entries(r.cells ?? {}).map(([col, c]) => [col, cell(c)]))
   if (r.answer) cells[QUESTION_COLUMN] = cell({ text: r.answer, depth: r.depth, quote: r.quote })
-  return { id: r.id, ...(Object.keys(cells).length ? { cells } : {}), ...(r.group !== undefined ? { group: r.group } : {}), ...(Array.isArray(r.groups) ? { groups: r.groups.map(String) } : {}) }
+  return {
+    id: r.id,
+    ...(typeof r.is === "string" && r.is.trim() ? { is: r.is } : {}),
+    ...(typeof r.found_by === "string" && r.found_by.trim() ? { foundBy: r.found_by } : {}),
+    ...(Object.keys(cells).length ? { cells } : {}),
+    ...(r.group !== undefined ? { group: r.group } : {}),
+    ...(Array.isArray(r.groups) ? { groups: r.groups.map(String) } : {}),
+  }
 }
 
 function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<string, unknown[] | undefined> | string {
