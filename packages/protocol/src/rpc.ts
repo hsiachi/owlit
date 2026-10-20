@@ -371,8 +371,9 @@ export interface Methods {
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
-  // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
-  "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
+  // already has for it. Asks OpenAlex, Semantic Scholar and arXiv. Writes only the ids the lookup found
+  // for the paper the library has that it lacked (learned: their kinds), which may bring its PDF.
+  "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string; learned?: ("arxiv" | "s2" | "openalex")[] } }
   // A paper a search showed lately, as it showed it (the whole abstract), or the Library's record of it;
   // null when owlit knows nothing of it
   "library.found": { params: { id: string }; result: ThreadPaper | null }

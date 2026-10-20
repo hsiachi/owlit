@@ -52,6 +52,7 @@ export function toPaper(record: PaperRecord, state: PaperState, pdf: boolean): P
     position: state.position,
     view: state.view,
     digestPosition: state.digestPosition,
+    copyOf: state.copyOf,
   })
 }
 

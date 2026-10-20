@@ -197,9 +197,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const lines: string[] = []
       for (const ref of refs) {
         try {
-          const { paper, existingId } = await owlit.rpc.library.resolve({ input: ref })
+          const { paper, existingId, learned } = await owlit.rpc.library.resolve({ input: ref })
           if (existingId) {
-            lines.push(`Already in the library as ${existingId}: ${paper.title}`)
+            const taught = learned?.length ? ` It now knows the paper's ${learned.map((k) => ID_NAMES[k]).join(" and ")} too, and looks for its PDF there when it has none.` : ""
+            lines.push(`Already in the library as ${existingId}: ${paper.title}.${taught}`)
             continue
           }
           const added = await owlit.rpc.library.add({ paper, ...writer })
@@ -647,6 +648,7 @@ function pickArgs(args: Record<string, unknown>, names: Record<string, string>) 
   return Object.fromEntries(Object.entries(names).flatMap(([to, from]) => (args[from] === undefined || args[from] === null || args[from] === "" ? [] : [[to, args[from]]])))
 }
 
+const ID_NAMES = { arxiv: "arXiv id", s2: "Semantic Scholar id", openalex: "OpenAlex id" } as const
 const citeAs = (p: Pick<Paper, "authors" | "year">) => [shortAuthors(p.authors) || "Anonymous", p.year].filter(Boolean).join(" ")
 
 // The arguments against the tool's schema, in a sentence when they don't fit

@@ -208,13 +208,45 @@ describe("keeping the library clean", () => {
     expect(existsSync(path.join(root, "library/papers/s2-d9b08e17"))).toBe(false)
   })
 
-  it("keeps a copy the user has worked with", async () => {
+  it("keeps a copy the user has worked with, and the copy says which paper it looks like", async () => {
     const { root, core, call } = await setup(strayRoutes)
     putPaper(root, review)
     putPaper(root, { id: "s2-d9b08e17", title, ids: { s2: "d9b08e17" } })
     await call("library.update", { id: "s2-d9b08e17", patch: { starred: true } })
+    await indexed(call, [review.ids.doi])
     expect((await workspaceOf(core).tasks.run("paper.metadata", "s2-d9b08e17")).state).toBe("done")
-    expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
+    const { papers } = await call("library.list")
+    expect(papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
+    expect(papers.find((p: { id: string }) => p.id === "s2-d9b08e17").copyOf).toBe(review.id)
+  })
+
+  it("teaches a paper it has the ids a lookup found, and looks for its PDF by them", async () => {
+    // arXiv's record of the preprint names the published DOI the library files the paper under
+    const feed = `<feed><entry><id>http://arxiv.org/abs/2101.00001v1</id><published>2021-01-01T00:00:00Z</published><title>A paper</title><author><name>A. Author</name></author><arxiv:doi>10.9999/x</arxiv:doi></entry></feed>`
+    const { root, call } = await setup({ "export.arxiv.org/api/query?id_list=2101.00001": feed, "arxiv.org/pdf/2101.00001": "%PDF-1.4\n%%EOF\n" })
+    putPaper(root, { id: "doi-10.9999-x", title: "A paper", ids: { doi: "10.9999/x" } })
+    const acquisition = path.join(root, "library/papers/doi-10.9999-x/acquisition.json")
+    writeFileSync(acquisition, JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "search", ended: "no-copy", at: Date.now() - 60_000 }], dropHere: "", looks: 1 }))
+    await indexed(call, ["10.9999/x"])
+    const looked = await call("library.resolve", { input: "arXiv:2101.00001" })
+    expect(looked).toMatchObject({ existingId: "doi-10.9999-x", learned: ["arxiv"] })
+    const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.9999-x/paper.json"), "utf8")) as PaperRecord
+    expect(record.ids).toEqual({ doi: "10.9999/x", arxiv: "2101.00001" })
+    await eventually(() => expect(JSON.parse(readFileSync(acquisition, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+  })
+
+  it("makes a preprint and its published version, added later under another title, one paper", async () => {
+    const { root, core, call } = await setup(published)
+    putPaper(root, { id: "arxiv-2403.17859", title: "Questions over a century of newspapers", ids: { arxiv: "2403.17859" } })
+    await indexed(call, ["arXiv:2403.17859"])
+    const doi = "doi-10.1145-3626772.3657891"
+    await call("library.add", { paper: { id: doi, title: "ChroniclingAmericaQA", authors: [], ids: { doi: "10.1145/3626772.3657891" } } })
+    const tasks = workspaceOf(core).tasks
+    const lookup = await until(() => tasks.list().find((t) => t.kind === "paper.metadata" && t.subject === doi), { what: "the paper's lookup" })
+    expect((await tasks.wait(lookup.id)).state).toBe("done")
+    const listed = await call("library.list")
+    expect(listed.papers.map((p: { id: string }) => p.id)).toEqual([doi])
+    expect(listed.aliases).toEqual({ "arxiv-2403.17859": doi })
   })
 
   it("lets an agent take back only papers Owlit added that the user hasn't touched, each a change", async () => {

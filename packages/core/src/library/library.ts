@@ -149,6 +149,10 @@ export interface SearchLine {
 
 const RECENT_SEARCHES = 2000
 
+// The ids a lookup may teach a paper the library has (Library.learnIds)
+const LEARNABLE = ["arxiv", "s2", "openalex"] as const
+export type LearnedId = (typeof LEARNABLE)[number]
+
 export class Library {
   readonly root: string
   // This workspace's folder in owlit's data directory (machine-specific state)
@@ -262,7 +266,7 @@ export class Library {
 
   // What a reference means, and whether the library already has it. Asks the services directly rather
   // than as a task: someone is waiting, nothing is written, and each service's rate still holds.
-  async resolve(input: string, signal?: AbortSignal): Promise<{ paper: ResolvedPaper; existingId?: string }> {
+  async resolve(input: string, signal?: AbortSignal): Promise<{ paper: ResolvedPaper; existingId?: string; learned?: LearnedId[] }> {
     const ref = parseRef(input)
     if (ref && ref.kind !== "url") {
       // The library may know it without asking anyone
@@ -285,8 +289,39 @@ export class Library {
         resolution = known.resolution
       }
     }
-    const existingId = (await this.index.find(resolution.ids)) ?? (await this.index.twin(resolution.title, resolution.ids))
-    return { paper: { id: resolution.id, ...pick(resolution) }, existingId }
+    const byIds = await this.index.find(resolution.ids)
+    const existingId = byIds ?? (await this.index.twin(resolution.title, resolution.ids))
+    // Matched by one id, the lookup may know others the paper lacks (its arXiv copy): kept, and used
+    const learned = byIds ? await this.learnIds(byIds, resolution.ids) : []
+    return { paper: { id: resolution.id, ...pick(resolution) }, existingId, ...(learned.length ? { learned } : {}) }
+  }
+
+  // Ids a lookup found for a paper the library has, merged into its record when it lacks them: an arXiv
+  // id, a Semantic Scholar or OpenAlex id. Never a DOI (a second DOI is another work), and never a key
+  // another paper owns (that is a copy, which refreshRecord folds). A paper without its PDF looks again at
+  // once, since the arXiv route may now give it; one nobody has sought yet (a thread's) waits to be read.
+  async learnIds(id: string, ids: PaperIds): Promise<LearnedId[]> {
+    const learned = await this.serial.run(async () => {
+      const record = await readRecord(this.root, id)
+      if (!record) return []
+      const fresh: PaperIds = {}
+      for (const kind of LEARNABLE) {
+        const value = ids[kind]
+        if (!value || record.ids[kind]) continue
+        const owner = await this.index.find({ [kind]: value })
+        if (owner && owner !== id) continue
+        fresh[kind] = value
+      }
+      const kinds = Object.keys(fresh) as LearnedId[]
+      if (!kinds.length) return []
+      const next = { ...record, ids: { ...record.ids, ...fresh } }
+      await writeRecord(this.root, next)
+      this.index.set(id, next.ids, next.title)
+      if (!(await hasPdfFile(this.root, id)) && (await this.acquisitions.read(id))) this.queue("paper.pdf", id, "asked")
+      return kinds
+    })
+    if (learned.length) await this.announce([id])
+    return learned
   }
 
   // The paper with exactly this title, as OpenAlex knows it: an import's entry with nothing else to go on
@@ -314,20 +349,20 @@ export class Library {
   // same title where one of the two has no DOI); one it had is returned as it is. An import hands over the PDF it has (nothing is downloaded then)
   // and the paper's tags. fetchPdf false leaves the PDF unsought: a paper a thread names waits until
   // someone reads it.
-  addNew(
+  async addNew(
     resolved: ResolvedPaper,
     // The person when not given
     addedBy?: ActorId,
     priority: TaskPriority = "asked",
     extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean }; fetchPdf?: boolean } = {},
-  ): Promise<{ paper: Paper; existed: boolean }> {
-    return this.serial.run(async () => {
+  ): Promise<{ paper: Paper; existed: boolean; learned?: LearnedId[] }> {
+    const added = await this.serial.run(async (): Promise<{ paper: Paper; existed: boolean; existing?: string }> => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
       if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit can't tell which paper that is.`)
       // A folder already there is that paper even if the index missed it: never written over
-      const existing =
-        (await this.index.find(resolved.ids)) ?? ((await readRecord(this.root, id)) ? id : undefined) ?? (await this.index.twin(resolved.title, resolved.ids))
-      if (existing) return { paper: (await this.get(existing))!, existed: true }
+      const byIds = await this.index.find(resolved.ids)
+      const existing = byIds ?? ((await readRecord(this.root, id)) ? id : undefined) ?? (await this.index.twin(resolved.title, resolved.ids))
+      if (existing) return { paper: (await this.get(existing))!, existed: true, ...(byIds ? { existing: byIds } : {}) }
       const resolution = this.recent(id)
       const record: PaperRecord = resolution
         ? recordFrom(id, resolution)
@@ -360,6 +395,10 @@ export class Library {
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
       return { paper: (await this.get(id))!, existed: false }
     })
+    if (!added.existing) return added
+    // Outside the lock, which learnIds takes
+    const learned = await this.learnIds(added.existing, resolved.ids)
+    return { paper: learned.length ? ((await this.get(added.existing)) ?? added.paper) : added.paper, existed: true, ...(learned.length ? { learned } : {}) }
   }
 
   // The user's judgement, position or corrections
@@ -1488,9 +1527,10 @@ export class Library {
   // ---- inside
 
   // Asks the services about a paper and rewrites its paper.json. A record that turns out to be a copy
-  // of another paper in the library (the DOI it was found to have is that paper's, or the titles match
-  // where one has no DOI) is folded into that paper when the user has done nothing with it.
-  private async refreshRecord(id: string, signal: AbortSignal, fresh = false) {
+  // of another paper in the library (an id it was found to have is that paper's, or the titles match
+  // where one has no DOI) is folded into that paper when the user has done nothing with it. The paper it
+  // was folded into, if it was.
+  private async refreshRecord(id: string, signal: AbortSignal, fresh = false): Promise<string | undefined> {
     const record = await readRecord(this.root, id)
     if (!record) throw new TaskFailure(`${id} is not in the library.`)
     const ref = refOfIds(record.ids)
@@ -1502,29 +1542,41 @@ export class Library {
     const twin = await this.serial.run(async () => {
       const current = await readRecord(this.root, id)
       if (!current) return undefined
-      // Its DOI is another paper's: writing it here would give two papers one id
-      const holder = found.ids.doi ? await this.index.find({ doi: found.ids.doi }) : undefined
-      if (holder && holder !== id) return holder
+      // Another paper has one of its ids: the same paper (a preprint and its published version, under
+      // titles that differ). Its DOI being the other's, writing it here would give two papers one id.
+      let holder = await this.index.other(found.ids, id)
+      // Two DOIs are two works, even sharing a preprint (a conference paper and its journal version)
+      const theirDoi = holder ? (await readRecord(this.root, holder))?.ids.doi : undefined
+      if (theirDoi && found.ids.doi && theirDoi !== found.ids.doi) holder = undefined
+      if (holder && found.ids.doi && (await this.index.find({ doi: found.ids.doi })) === holder) return holder
       await keepSources(this.root, id, found.records)
       const next = recordFrom(id, found, current)
       await writeRecord(this.root, next)
       this.index.set(id, next.ids, next.title)
-      return this.index.twin(next.title, next.ids, id)
+      return holder ?? (await this.index.twin(next.title, next.ids, id))
     })
-    if (twin) await this.fold(id, twin)
+    const kept = twin ? await this.fold(id, twin) : undefined
     await this.announce([id])
+    return kept === id ? undefined : kept
   }
 
   // Two records of one paper: the one without a DOI goes (to the trash, its id kept as an alias of the
-  // other), unless the user has starred, tagged, marked, highlighted or written about it. Then both stay.
-  private async fold(a: string, b: string) {
-    await this.serial.run(async () => {
+  // other), unless the user has starred, tagged, marked, highlighted or written about it. Then both stay,
+  // and the copy's state names the other (copyOf), for its page to say so; moving the person's marks
+  // onto the kept paper (a Merge) isn't built. The paper kept, when one was folded into it.
+  private async fold(a: string, b: string): Promise<string | undefined> {
+    return this.serial.run(async () => {
       const [ra, rb] = await Promise.all([readRecord(this.root, a), readRecord(this.root, b)])
-      if (!ra || !rb) return
+      if (!ra || !rb) return undefined
       const [copy, kept] = !ra.ids.doi && rb.ids.doi ? [a, b] : !rb.ids.doi && ra.ids.doi ? [b, a] : [a, b]
       if (await this.touched(copy)) {
-        console.log(`[core] ${copy} looks like a copy of ${kept}, but the user has worked with it; both stay`)
-        return
+        const state = await readState(this.root, copy)
+        if (state && state.copyOf !== kept) {
+          await writeState(this.root, copy, { ...state, copyOf: kept })
+          const paper = await this.get(copy)
+          if (paper) this.onChange({ papers: [paper], removed: [] })
+        }
+        return undefined
       }
       // The lookup that found the copy (paper.metadata, running) ends on its own
       await this.moveToTrash(copy, Date.now(), (task) => task.kind === "paper.metadata" && task.state === "running")
@@ -1534,6 +1586,7 @@ export class Library {
       await writeJsonAtomic(this.aliasFile(), { version: 1, aliases })
       const paper = await this.get(kept)
       this.onChange({ papers: paper ? [paper] : [], removed: [copy], renamed: { [copy]: kept } })
+      return kept
     })
   }
 

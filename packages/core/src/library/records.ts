@@ -118,6 +118,16 @@ export class PaperIndex {
     return undefined
   }
 
+  // Another paper that has any of these ids: the same paper under another record
+  async other(ids: PaperIds, self: string): Promise<string | undefined> {
+    await this.load()
+    for (const key of keysOf(ids)) {
+      const id = this.byKey.get(key)
+      if (id && id !== self) return id
+    }
+    return undefined
+  }
+
   // Every paper the index knows
   ids() {
     return [...this.keysOf.keys()]

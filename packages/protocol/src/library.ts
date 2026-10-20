@@ -108,6 +108,9 @@ export interface Paper {
   view?: PaperView
   // How far down the digest was read
   digestPosition?: DigestPosition
+  // Another paper of the library this one looks like a copy of (the same DOI, arXiv id or title), kept
+  // apart because the person worked with this one
+  copyOf?: string
 }
 
 export interface DigestPosition {
@@ -336,6 +339,8 @@ export interface PaperState {
   lastOpenedAt?: number
   // Fields the user corrected by hand; they win over paper.json and survive a metadata refresh
   overrides?: PaperOverrides
+  // The paper this one was found to be a copy of, not folded into it since the person worked with this one
+  copyOf?: string
 }
 
 // null: the user cleared a field the record has
