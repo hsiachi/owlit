@@ -16,13 +16,19 @@ interface PrefsState {
   // The tab last used, so someone taking notes keeps Notes open from paper to paper. Notes first: About
   // repeats the title, authors and abstract the page beside it already shows.
   panelTab: PanelTab
-  // In the dark theme, a white page under a 12% shade, so it doesn't glare beside the dark panel
-  dimPdf: boolean
   setLayout: (layout: Layout) => void
   setPanelOpen: (open: boolean) => void
   setPanelWidth: (width: number) => void
   setPanelTab: (tab: PanelTab) => void
-  setDimPdf: (dim: boolean) => void
+}
+
+// Dim PDF pages was kept here before it became one of core's appearance settings; one turned off here is
+// handed to core once (settings/store.ts)
+let dimPdfOff = false
+export function takeDimPdfOff() {
+  const off = dimPdfOff
+  dimPdfOff = false
+  return off
 }
 
 export const usePrefsStore = create<PrefsState>()(
@@ -32,19 +38,18 @@ export const usePrefsStore = create<PrefsState>()(
       panelOpen: true,
       panelWidth: PANEL_DEFAULT,
       panelTab: "notes",
-      dimPdf: true,
       setLayout: (layout) => set({ layout }),
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setPanelWidth: (panelWidth) => set({ panelWidth }),
       setPanelTab: (panelTab) => set({ panelTab }),
-      setDimPdf: (dimPdf) => set({ dimPdf }),
     }),
     {
       name: "owlit-paper-page",
-      version: 2,
+      version: 3,
       // Version 1 opened on About, so nearly everyone has it stored without having picked it
       migrate: (state, version) => {
-        const s = state as PrefsState
+        const { dimPdf, ...s } = state as PrefsState & { dimPdf?: boolean }
+        if (version < 3 && dimPdf === false) dimPdfOff = true
         return version < 2 && s.panelTab === "about" ? { ...s, panelTab: "notes" } : s
       },
     },

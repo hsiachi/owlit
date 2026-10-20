@@ -8,6 +8,7 @@ import {
   PROXY_PRESETS,
   proxyFromLink,
   RpcErrorCode,
+  SECRET_LOCKED,
   type AppSettings,
   type ProxySettings,
   type SecretName,
@@ -43,11 +44,14 @@ export function defaultNoteLanguage(s: AppSettings, systemLanguages: readonly st
   return chosen && chosen !== "system" ? noteLanguageOfLocale(chosen) : noteLanguageFor(systemLanguages)
 }
 
-export function settingsView(s: AppSettings, systemLanguages: readonly string[] = []): SettingsView {
+// unopened: the keys the keychain didn't open (SettingsStore.unopenedKeys), shown as "locked" rather than
+// as not set, since they are still there and come back once the keychain allows it
+export function settingsView(s: AppSettings, systemLanguages: readonly string[] = [], unopened: ReadonlySet<string> = new Set()): SettingsView {
   const secrets: SettingsView["secrets"] = {}
   for (const [name, [group, key]] of Object.entries(SECRET_FIELDS) as [SecretName, readonly [keyof AppSettings, string]][]) {
     const value = (s[group] as Record<string, unknown>)[key]
     if (typeof value === "string" && value) secrets[name] = value.slice(-4)
+    else if (unopened.has(`${group}.${key}`)) secrets[name] = SECRET_LOCKED
   }
   const { library, parsing } = s
   return {
@@ -102,8 +106,9 @@ const patchSchema = z.object({
   appearance: z
     .object({
       theme: z.enum(["system", "light", "dark"]).optional(),
-      tone: z.enum(["warm", "neutral", "slate", "sepia"]).optional(),
+      tone: z.enum(["warm", "slate", "sepia"]).optional(),
       language: z.enum(["system", ...LOCALES, "pseudo"]).optional(),
+      dimPdf: z.boolean().optional(),
     })
     .optional(),
   profile: z.object({ name: nullable(z.string().trim().max(60)) }).optional(),
@@ -139,16 +144,17 @@ interface Deps {
 
 export function registerSettings({ router, settings, http, openExternal, systemLanguages, changed }: Deps) {
   const save = async (change: (s: AppSettings) => AppSettings) => {
-    const view = settingsView(await settings.update(change), systemLanguages)
+    const view = settingsView(await settings.update(change), systemLanguages, settings.unopenedKeys())
     changed(view)
     return view
   }
 
-  router.register("settings.get", noParams, "read", async () => settingsView(await settings.get(), systemLanguages))
+  router.register("settings.get", noParams, "read", async () => settingsView(await settings.get(), systemLanguages, settings.unopenedKeys()))
   router.register("settings.update", z.object({ patch: patchSchema }), "admin", ({ patch }) => save((s) => applyPatch(s, patch)))
   router.register("settings.setSecret", z.object({ name: secretName, value: z.string().trim().max(4096).nullable() }), "admin", ({ name, value }) =>
     save((s) => {
       const [group, key] = SECRET_FIELDS[name]
+      if (value === null) settings.forgetUnopened(group, key)
       return { ...s, [group]: merge(s[group], { [key]: value }) }
     }),
   )

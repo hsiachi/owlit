@@ -381,7 +381,7 @@ export class Core {
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), "admin", async ({ enabled }) => {
       const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
       this.notifier.notify("activity.status", next.activity)
-      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages))
+      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages, this.settings.unopenedKeys()))
       return next.activity
     })
 

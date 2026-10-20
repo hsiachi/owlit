@@ -74,12 +74,15 @@ export interface ProfileSettings {
 // How owlit looks on this machine. A paper tone swaps the whole neutral family (surfaces, text, lines);
 // marks that carry meaning (star, notes, tags, highlights, warning, red) keep their colours in every tone.
 export type ThemeChoice = "system" | "light" | "dark"
-export type PaperTone = "warm" | "neutral" | "slate" | "sepia"
+export type PaperTone = "warm" | "slate" | "sepia"
 export interface AppearanceSettings {
   theme: ThemeChoice
   tone: PaperTone
   // The interface's language; "system" follows the system's languages
   language: InterfaceLanguage
+  // In the dark theme, PDF pages under a light shade so they don't glare beside the dark panels; absent
+  // means on
+  dimPdf?: boolean
 }
 
 export interface ParsingSettings {

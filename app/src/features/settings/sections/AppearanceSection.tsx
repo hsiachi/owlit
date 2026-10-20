@@ -3,7 +3,6 @@ import type { InterfaceLanguage, PaperTone, ThemeChoice } from "@owlit/protocol"
 import { cn } from "@/lib/utils"
 import { SegmentedControl } from "@/components/segmented-control"
 import { Switch } from "@/components/ui/switch"
-import { usePrefsStore } from "@/features/library/prefs-store"
 import { List, Picker, Row } from "../parts"
 import { appearanceOf, updateSettings, useSettings } from "../store"
 
@@ -15,7 +14,6 @@ const themes = (): { value: ThemeChoice; label: string }[] => [
 
 const tones = (): { value: PaperTone; label: string }[] => [
   { value: "warm", label: t`Warm` },
-  { value: "neutral", label: t`Neutral` },
   { value: "slate", label: t`Slate` },
   { value: "sepia", label: t`Sepia` },
 ]
@@ -37,9 +35,7 @@ export function InterfaceLanguageRow() {
 }
 
 export function AppearanceSection() {
-  const { theme, tone } = useSettings((s) => appearanceOf(s.view))
-  const dimPdf = usePrefsStore((s) => s.dimPdf)
-  const setDimPdf = usePrefsStore((s) => s.setDimPdf)
+  const { theme, tone, dimPdf = true } = useSettings((s) => appearanceOf(s.view))
   return (
     <List>
       <InterfaceLanguageRow />
@@ -51,7 +47,7 @@ export function AppearanceSection() {
       />
       <div className="pt-3 pb-4">
         <div className="text-sm">{t`Paper tone`}</div>
-        <div role="radiogroup" aria-label={t`Paper tone`} className="mt-3 grid grid-cols-4 gap-3">
+        <div role="radiogroup" aria-label={t`Paper tone`} className="mt-3 grid grid-cols-3 gap-3">
           {tones().map((o) => (
             <button
               key={o.value}
@@ -70,7 +66,7 @@ export function AppearanceSection() {
       <Row
         name={t`Dim PDF pages in the dark theme`}
         help={t`Pages stay white in both themes; dimmed, they don't glare beside the dark panels.`}
-        control={<Switch checked={dimPdf} onCheckedChange={setDimPdf} aria-label={t`Dim PDF pages in the dark theme`} />}
+        control={<Switch checked={dimPdf} onCheckedChange={(on) => void updateSettings({ appearance: { dimPdf: on } })} aria-label={t`Dim PDF pages in the dark theme`} />}
       />
     </List>
   )
