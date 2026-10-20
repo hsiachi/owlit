@@ -66,9 +66,11 @@ const thread = (over: Partial<Thread> = {}): Thread =>
   }) as Thread
 
 describe("threadPlace", () => {
-  it("is titled by the question, dated by the person's last question or change, and quotes Owlit's one line", () => {
+  it("is named by its title, dated by the person's last question or change, and quotes Owlit's one line", () => {
     const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] }), 450)
-    expect(place).toMatchObject({ kind: "thread", title: "What tools help people read papers?", at: 450, to: "/threads/t1", detail: "lit-review", words: "Most tools annotate the PDF." })
+    expect(place).toMatchObject({ kind: "thread", title: "Reading tools", at: 450, to: "/threads/t1", detail: "lit-review", words: "Most tools annotate the PDF." })
+    // The question as typed is nowhere on its row
+    expect(JSON.stringify(place)).not.toContain("What tools help people read papers?")
     // Owlit's own later writes don't date it
     expect(threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] })).at).toBe(300)
   })

@@ -101,14 +101,15 @@ export function chatPlace(c: Chat): Place[] {
   return [place]
 }
 
-// A thread is a place from the moment it was asked: titled by the question, dated by the person's last
-// question or own change to it (mine: their newest entry in its log), quoting Owlit's one line on it
+// A thread is a place from the moment it was asked: named by Owlit's short title (the question as typed
+// can run to a paragraph, and says less than the name), dated by the person's last question or own change
+// to it (mine: their newest entry in its log), quoting Owlit's one line on it
 export function threadPlace(c: Pick<Thread, "id" | "title" | "asked" | "alsoAsked" | "project" | "one">, mine?: number): Place {
   return {
     kind: "thread",
     key: `thread:${c.id}`,
     id: c.id,
-    title: c.asked.text || c.title,
+    title: c.title,
     detail: c.project,
     at: Math.max(c.asked.at, ...(c.alsoAsked ?? []).map((a) => a.at), mine ?? 0),
     to: `/threads/${c.id}`,
