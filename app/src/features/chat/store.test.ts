@@ -70,7 +70,7 @@ describe("the chat store mirrors the client's turns", () => {
     useChatStore.setState({ chats: { c1: chat("c1", [question("u1"), reply("a1", { parts: [{ type: "text", text: "He" }] })]) } })
     adoptRunning([{ chatId: "c1", messageId: "a1", message: reply("a1", { parts: [{ type: "text", text: "Hello" }] }) }])
     expect(useChatStore.getState().streaming).toEqual({ c1: "a1" })
-    expect(chatStatus(useChatStore.getState().chats.c1!, true, false, undefined)).toBe("working")
+    expect(chatStatus(useChatStore.getState().chats.c1!, true, false)).toBe("working")
     client.update("c1", "a1", { type: "agent_message_chunk", text: " world" })
     expect(text(messageOf("c1", "a1"))).toBe("Hello world")
     client.end("c1", "a1", reply("a1", { status: "done", parts: [{ type: "text", text: "Hello world." }] }))

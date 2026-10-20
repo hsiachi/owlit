@@ -1,4 +1,4 @@
-import type { RpcNotification } from "@owlit/protocol"
+import type { RpcNotification, SettingsView } from "@owlit/protocol"
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -100,12 +100,29 @@ describe("settings", () => {
     const settings = await core.settings.get()
     expect(settings.parsing.token).toBe("plain-token")
     expect(settings.library).not.toHaveProperty("openalexApiKey")
+    // The window hears it is there, locked, rather than not set
+    const view = await core.handle({ jsonrpc: "2.0", id: 1, method: "settings.get" })
+    expect("result" in view && (view.result as SettingsView).secrets).toEqual({ mineruToken: "oken", openalexApiKey: "locked" })
     await core.settings.update((s) => s)
     expect(onDisk().parsing.token).toEqual({ sealed: expect.any(String) })
     expect(onDisk().library.openalexApiKey).toEqual({ sealed: "garbage" })
     await core.settings.update((s) => ({ ...s, library: { ...s.library, openalexApiKey: "new-key" } }))
     expect(onDisk().library.openalexApiKey).not.toEqual({ sealed: "garbage" })
     expect((await make().settings.get()).library.openalexApiKey).toBe("new-key")
+  })
+
+  it("reads the Neutral tone, merged into Warm, as Warm, and keeps Dim PDF pages", async () => {
+    const { userDataDir, make } = setup()
+    writeFileSync(path.join(userDataDir, "settings.json"), JSON.stringify({ appearance: { theme: "dark", tone: "neutral", language: "system", dimPdf: false } }))
+    expect((await make().settings.get()).appearance).toEqual({ theme: "dark", tone: "warm", language: "system", dimPdf: false })
+  })
+
+  it("removes a key the keychain didn't open when asked to", async () => {
+    const { userDataDir, make, onDisk } = setup()
+    writeFileSync(path.join(userDataDir, "settings.json"), JSON.stringify({ library: { openalexApiKey: { sealed: "garbage" } } }))
+    const core = make()
+    await core.handle({ jsonrpc: "2.0", id: 1, method: "settings.setSecret", params: { name: "openalexApiKey", value: null } })
+    expect(onDisk().library).not.toHaveProperty("openalexApiKey")
   })
 
   it("writes keys as they are when nothing can seal them", async () => {

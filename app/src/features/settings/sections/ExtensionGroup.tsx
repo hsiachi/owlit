@@ -1,11 +1,13 @@
 import { t } from "@lingui/core/macro"
+import { RELEASES_URL } from "@owlit/protocol"
 import { Button } from "@/components/ui/button"
 import { ago, shortDate } from "@/lib/time"
 import { forgetPairing, useExtension } from "@/features/extension/store"
 import { Group, List, Row } from "../parts"
 
-// Where the extension's page is; it says how to install it in each browser
-const INSTALL_URL = "https://owlit.ink/extension"
+// Where to get the extension until owlit has a site of its own: the latest release's page, which the
+// release checklist keeps saying where it is (CONTRIBUTING.md › Releases)
+const INSTALL_URL = RELEASES_URL
 
 // The browsers whose owlit extension may connect, each forgettable; with none, how to get one
 export function ExtensionGroup() {

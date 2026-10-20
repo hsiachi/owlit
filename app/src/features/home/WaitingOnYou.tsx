@@ -1,10 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { ChevronRightIcon, XIcon } from "lucide-react"
+import { ChevronRightIcon } from "lucide-react"
 import { GroupLabel } from "@/components/group-label"
-import { IconButton } from "@/components/icon-button"
-import { revealOnHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import { useWaitingOnYou, type WaitingItem } from "@/app/waiting-on-you"
 import { useExtensionWaits } from "@/features/extension/store"
@@ -59,20 +56,14 @@ function WaitingRows({ items }: { items: WaitingItem[] }) {
       <ul className="flex flex-col gap-0.5">
         {items.map((w) => (
           <li key={w.key} className="group/row relative flex min-h-9 items-center gap-2.5 rounded-md py-1 pr-2.5 pl-2.5 hover:bg-muted has-focus-key:bg-muted">
-            {/* The row's own button lies under its words, so the Retry and Dismiss buttons inside stay
-                buttons of their own rather than buttons in a button */}
+            {/* The row's own button lies under its words, so the Retry button inside stays a button of its
+                own rather than a button in a button */}
             <button type="button" onClick={w.open.run} title={w.detail} aria-label={rowLabel(w)} className="absolute inset-0 rounded-md outline-none" />
             <w.icon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
             <p className="pointer-events-none min-w-0 flex-1 truncate text-sm">
               {w.what}
               {w.where && <span className="text-muted-foreground"> {w.where}</span>}
             </p>
-            {w.dismiss && (
-              // Leaving a broken reply as it is: a quiet way out, shown where the pointer or focus is
-              <IconButton label={t`Dismiss`} onClick={w.dismiss} className={cn("relative", revealOnHover)}>
-                <XIcon />
-              </IconButton>
-            )}
             {w.action ? (
               <Button size="sm" variant="outline" onClick={w.action.run} className="relative -mr-1.5">
                 {w.action.label}

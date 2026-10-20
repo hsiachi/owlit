@@ -10,7 +10,7 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import { useEffect, useRef, useState } from "react"
-import type { SecretName, SettingsCheck } from "@owlit/protocol"
+import { SECRET_LOCKED, type SecretName, type SettingsCheck } from "@owlit/protocol"
 import { CheckIcon, ChevronsUpDownIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChoiceMenu } from "@/components/choice-menu"
@@ -216,18 +216,34 @@ export function SecretRow({ name, label, info, help, getFrom, service }: { name:
     void check.run(name)
   }
 
+  // Kept, sealed, but the keychain didn't let owlit open it this run (a new build's signature, a denied
+  // prompt): it isn't lost, so it doesn't read as not set
+  const locked = last4 === SECRET_LOCKED
+  const remove = () => {
+    check.reset()
+    void setSecret(name, null)
+  }
   let control: React.ReactNode
   if (editing) {
     control = <KeyInput onSave={(value) => void save(value)} onCancel={fold} />
+  } else if (locked) {
+    control = (
+      <>
+        <IconAction label={t`Remove key`} className={revealOnHover} onClick={remove}>
+          <Trash2Icon />
+        </IconAction>
+        <span className="text-detail text-muted-foreground">{t({ message: "Saved", comment: "a key kept that macOS didn't let owlit read" })}</span>
+        <IconAction label={t`Change key`} onClick={() => setEditing(true)}>
+          <PencilIcon />
+        </IconAction>
+      </>
+    )
   } else if (last4) {
     control = (
       <MaskedKey
         last4={last4}
         onChange={() => setEditing(true)}
-        onRemove={() => {
-          check.reset()
-          void setSecret(name, null)
-        }}
+        onRemove={remove}
       >
         <CheckMark {...check} service={service} />
       </MaskedKey>
@@ -246,6 +262,7 @@ export function SecretRow({ name, label, info, help, getFrom, service }: { name:
   return (
     <Row name={label} info={info} help={help} control={control}>
       {editing && getFrom && <GetKeyNote site={getFrom.label} href={getFrom.href} />}
+      {!editing && locked && <Note>{t`Saved, but macOS didn't let Owlit read it. Allow it in the keychain prompt at the next launch.`}</Note>}
       {!editing && <CheckNote {...check} />}
     </Row>
   )

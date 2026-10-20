@@ -13,7 +13,9 @@ let current: AppearanceSettings = bridge?.appearance ?? storedAppearance()
 export function storedAppearance(): AppearanceSettings {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<AppearanceSettings> | null
-    return { theme: stored?.theme ?? "system", tone: stored?.tone ?? "warm", language: stored?.language ?? "system" }
+    // A tone no longer offered (Neutral, merged into Warm) is Warm
+    const tone = stored?.tone === "slate" || stored?.tone === "sepia" ? stored.tone : "warm"
+    return { theme: stored?.theme ?? "system", tone, language: stored?.language ?? "system", ...(stored?.dimPdf === false && { dimPdf: false }) }
   } catch {
     return { theme: "system", tone: "warm", language: "system" }
   }

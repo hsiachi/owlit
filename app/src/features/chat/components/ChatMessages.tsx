@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/message-scroller"
 import { saveAnswerAsDoc } from "@/features/docs/save-as-doc"
 import { useChatStore } from "../store"
-import { useBrokenReply, useSeenStore } from "../status"
 import { regenerate } from "../lib/regenerate"
 import { modelNameOf, roleName, roleOf } from "../lib/selection"
 import { DEFAULT_ROLE, type Chat, type ChatMessage } from "@owlit/protocol"
@@ -39,7 +38,6 @@ export function ChatMessages({
 }) {
   const connectors = useChatStore((s) => s.connectors)
   const queued = useChatStore((s) => !!s.queued[chat.id])
-  const broken = useBrokenReply(chat)
   return (
     // One scroller per chat, so switching chats opens the next one at its end
     <MessageScrollerProvider key={chat.id}>
@@ -66,7 +64,6 @@ export function ChatMessages({
                   index={i}
                   modelName={m.role === "assistant" ? modelNameOf(connectors, m.connectorId, m.modelId) : undefined}
                   canRegenerate={m.role === "assistant" && !streaming}
-                  broken={broken?.messageId === m.id}
                   onEdit={onEdit}
                 />
               </MessageScrollerItem>
@@ -104,7 +101,6 @@ const MessageRow = memo(function MessageRow({
   index,
   modelName,
   canRegenerate,
-  broken,
   onEdit,
 }: {
   chatId: string
@@ -112,8 +108,6 @@ const MessageRow = memo(function MessageRow({
   index: number
   modelName?: string
   canRegenerate: boolean
-  // The chat's broken reply, which can be dismissed while it still asks for the user
-  broken: boolean
   onEdit?: (text: string) => void
 }) {
   const navigate = useNavigate()
@@ -124,7 +118,6 @@ const MessageRow = memo(function MessageRow({
       message={message}
       modelName={modelName}
       onRegenerate={canRegenerate ? () => regenerate(chatId, index) : undefined}
-      onDismiss={broken ? () => useSeenStore.getState().dismiss(chatId, message.id) : undefined}
       onSaveAsDoc={(markdown) => saveAnswerAsDoc(useChatStore.getState().chats[chatId]?.title ?? "", markdown, navigate)}
     />
   )

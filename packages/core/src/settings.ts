@@ -63,7 +63,10 @@ export class SettingsStore {
       console.error(`[core] ${this.file} is unreadable, starting from defaults`, error)
     }
     const defaults = defaultSettings()
-    this.value = this.open({ ...defaults, ...stored, appearance: { ...defaults.appearance, ...stored?.appearance } })
+    const appearance = { ...defaults.appearance, ...stored?.appearance }
+    // Neutral was merged into Warm: beside each other the two tones couldn't be told apart
+    if ((appearance.tone as string) === "neutral") appearance.tone = "warm"
+    this.value = this.open({ ...defaults, ...stored, appearance })
     // The person's id in every workspace's change log, made once per profile
     if (!this.value.profile.id) await this.update((s) => ({ ...s, profile: { ...s.profile, id: randomBytes(4).toString("hex") } }))
     return this.value
@@ -115,6 +118,16 @@ export class SettingsStore {
       }
     }
     return copy as unknown as AppSettings
+  }
+
+  // The keys kept sealed because the keychain didn't open them this run, as "<group>.<key>"
+  unopenedKeys(): ReadonlySet<string> {
+    return new Set(this.unopened.keys())
+  }
+
+  // Lets a key that couldn't be opened go, so the next write leaves it out: removing it in Settings
+  forgetUnopened(group: string, key: string) {
+    this.unopened.delete(`${group}.${key}`)
   }
 
   private seal(settings: AppSettings): unknown {

@@ -7,10 +7,11 @@ import { KIND_ICON } from "@/lib/kinds"
 import { connectorProblem, problemSentence } from "@/features/chat/lib/connector-status"
 import { regenerate } from "@/features/chat/lib/regenerate"
 import { askSentence } from "@/features/chat/lib/step-words"
-import { callOf, chatWait, useSeenStore } from "@/features/chat/status"
+import { callOf, chatWait } from "@/features/chat/status"
 import { useSeen } from "./seen"
 import { useChatStore } from "@/features/chat/store"
 import { importOrigin } from "@/features/library/components/ImportBanner"
+import type { Chat, Connector, ExtensionWait, ImportSummary } from "@owlit/protocol"
 import { useAskingImports } from "@/features/library/imports"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { useExtensionWaits } from "@/features/extension/store"
@@ -35,8 +36,22 @@ export interface WaitingItem {
   open: { label: string; run: () => void }
   // A fix that isn't just going there, as a button at the right end instead of the words
   action?: { label: string; run: () => void }
-  // Leave it as it is: only for a broken reply, which otherwise waits until it is run again
-  dismiss?: () => void
+}
+
+// What the list is worked out from, each time
+export interface WaitingSources {
+  // Newest first
+  chats: Chat[]
+  streaming: Record<string, unknown>
+  connectors: Connector[]
+  // The agents picked for chats and for the tasks handed to Owlit
+  selected?: string
+  background?: string
+  imports: ImportSummary[]
+  siteWaits: ExtensionWait[]
+  // A reply Owlit finished while the user wasn't looking at its chat
+  finished: boolean
+  now?: number
 }
 
 // What holds up work comes first: a chat or an agent stopped on the user. A missing PDF only keeps a
@@ -44,13 +59,12 @@ export interface WaitingItem {
 export function useWaitingOnYou(): WaitingItem[] {
   const navigate = useNavigate()
   const streaming = useChatStore((s) => s.streaming)
-  const dismissed = useSeenStore((s) => s.dismissed)
   // Only the chats that wait on the user, newest first: a streamed reply changes its own chat, which
   // isn't one of them, so it redraws nothing here
-  const stuck = useChatStore(
+  const chats = useChatStore(
     useShallow((s) =>
       Object.values(s.chats)
-        .filter((c) => chatWait(c, !!s.streaming[c.id], dismissed[c.id]))
+        .filter((c) => chatWait(c, !!s.streaming[c.id]))
         .sort((a, b) => b.updatedAt - a.updatedAt),
     ),
   )
@@ -63,70 +77,77 @@ export function useWaitingOnYou(): WaitingItem[] {
   const imports = useAskingImports()
   const siteWaits = useExtensionWaits()
 
-  return useMemo(() => {
-    const out: WaitingItem[] = []
-    for (const chat of stuck) {
-      const wait = chatWait(chat, !!streaming[chat.id], dismissed[chat.id])
-      const title = chat.title
-      const open = { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate(`/chat/${chat.id}`) }
-      const base = { place: "/chat", tone: "warning" as const, icon: KIND_ICON.chat, where: t`in “${title}”`, open }
-      if (wait?.ask) {
-        // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
-        const { ask } = wait
-        const what = ask.type === "permission" ? askSentence(ask.title, callOf(chat, ask.toolCallId)) : t`Owlit has a question`
-        out.push({ ...base, key: `ask:${chat.id}`, what })
-      } else if (wait?.broken) {
-        const { broken } = wait
-        const index = chat.messages.length - 1
-        out.push({
-          ...base,
-          key: `fail:${chat.id}`,
-          what: t`Owlit stopped`,
-          detail: broken.error || undefined,
-          // The row only opens the chat, so a stray click never runs anything again
-          action: {
-            label: t`Retry`,
-            run: () => {
-              navigate(`/chat/${chat.id}`)
-              regenerate(chat.id, index)
-            },
+  return useMemo(
+    () => waitingItems({ chats, streaming, connectors, selected, background, imports, siteWaits, finished }, navigate),
+    [chats, streaming, finished, connectors, selected, background, imports, siteWaits, navigate],
+  )
+}
+
+// The list itself: each row the thing and the way to its fix. Nothing in it needs clearing: a row is
+// there while the work it blocks is, and leaves when that moves.
+export function waitingItems(src: WaitingSources, navigate: (to: string) => unknown): WaitingItem[] {
+  const { streaming, connectors, selected, background, imports, siteWaits, finished, now = Date.now() } = src
+  const out: WaitingItem[] = []
+  for (const chat of src.chats) {
+    const wait = chatWait(chat, !!streaming[chat.id], now)
+    const title = chat.title
+    const open = { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate(`/chat/${chat.id}`) }
+    const base = { place: "/chat", tone: "warning" as const, icon: KIND_ICON.chat, where: t`in “${title}”`, open }
+    if (wait?.ask) {
+      // In Owlit's words, as the card above the chat's composer says it: "Owlit wants to edit untitled.md"
+      const { ask } = wait
+      const what = ask.type === "permission" ? askSentence(ask.title, callOf(chat, ask.toolCallId)) : t`Owlit has a question`
+      out.push({ ...base, key: `ask:${chat.id}`, what })
+    } else if (wait?.broken) {
+      const { broken } = wait
+      const index = chat.messages.length - 1
+      out.push({
+        ...base,
+        key: `fail:${chat.id}`,
+        what: t`Owlit stopped`,
+        detail: broken.error || undefined,
+        // The row only opens the chat, so a stray click never runs anything again
+        action: {
+          label: t`Retry`,
+          run: () => {
+            navigate(`/chat/${chat.id}`)
+            regenerate(chat.id, index)
           },
-          dismiss: () => useSeenStore.getState().dismiss(chat.id, broken.id),
-        })
-      }
-    }
-    // Only agents owlit would run: the one picked for chats and the one doing the tasks you hand Owlit.
-    // One nobody uses keeps its problem on its own row in Settings, unmarked.
-    const used = new Set([selected, background].filter(Boolean))
-    for (const c of connectors) {
-      const problem = connectorProblem(c)
-      if (!used.has(c.id) || !problem) continue
-      const role = c.id === selected ? t`picked for chats` : t`picked for tasks you hand Owlit`
-      out.push({
-        key: `agent:${c.id}`,
-        place: "settings:agents",
-        tone: "warning",
-        icon: KIND_ICON.agent,
-        what: problemSentence(c) ?? "",
-        where: problem === "error" && c.error ? `· ${c.error}` : `· ${role}`,
-        open: { label: t`Manage agents`, run: () => openSettings("agents") },
+        },
       })
     }
-    // An import started from the CLI stops to ask about MinerU; the Library's line has the answers
-    for (const i of imports) {
-      out.push({
-        key: `import:${i.id}`,
-        place: "/library",
-        tone: "warning",
-        icon: LibraryIcon,
-        what: t`An import asks about MinerU`,
-        where: importOrigin(i),
-        open: { label: t`Answer`, run: () => navigate("/library") },
-      })
-    }
-    // PDFs: only the sites the extension waits at, once the user asked for one of their papers
-    out.push(...siteWaitItems(siteWaits, () => navigate("/library")))
-    if (finished) out.push({ key: "chat:finished", place: "/chat", tone: "owlit", icon: KIND_ICON.chat, what: t`Owlit finished since you last looked`, open: { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate("/chat") } })
-    return out
-  }, [stuck, streaming, dismissed, finished, connectors, selected, background, imports, siteWaits, navigate])
+  }
+  // Only agents owlit would run: the one picked for chats and the one doing the tasks you hand Owlit.
+  // One nobody uses keeps its problem on its own row in Settings, unmarked.
+  const used = new Set([selected, background].filter(Boolean))
+  for (const c of connectors) {
+    const problem = connectorProblem(c)
+    if (!used.has(c.id) || !problem) continue
+    const role = c.id === selected ? t`picked for chats` : t`picked for tasks you hand Owlit`
+    out.push({
+      key: `agent:${c.id}`,
+      place: "settings:agents",
+      tone: "warning",
+      icon: KIND_ICON.agent,
+      what: problemSentence(c) ?? "",
+      where: problem === "error" && c.error ? `· ${c.error}` : `· ${role}`,
+      open: { label: t`Manage agents`, run: () => openSettings("agents") },
+    })
+  }
+  // An import started from the CLI stops to ask about MinerU; the Library's line has the answers
+  for (const i of imports) {
+    out.push({
+      key: `import:${i.id}`,
+      place: "/library",
+      tone: "warning",
+      icon: LibraryIcon,
+      what: t`An import asks about MinerU`,
+      where: importOrigin(i),
+      open: { label: t`Answer`, run: () => navigate("/library") },
+    })
+  }
+  // PDFs: only the sites the extension waits at, once the user asked for one of their papers
+  out.push(...siteWaitItems(siteWaits, () => navigate("/library")))
+  if (finished) out.push({ key: "chat:finished", place: "/chat", tone: "owlit", icon: KIND_ICON.chat, what: t`Owlit finished since you last looked`, open: { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate("/chat") } })
+  return out
 }

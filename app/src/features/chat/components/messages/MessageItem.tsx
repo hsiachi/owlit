@@ -21,11 +21,11 @@ import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
 
 // The one red mark a reply can have, as a small bordered block (the result card's frame) so it reads as
 // one thing apart from the answer and its results, rather than a line that wraps: "Owlit stopped"
-// with Retry and Dismiss on its right, then why in owlit's words as a muted sentence, and what it was still
+// with Retry on its right, then why in owlit's words as a muted sentence, and what it was still
 // asking to do, since that never happened and the steps line alone reads as done. The agent's own words (an
 // API error) are a detail folded under Details, since they mean little on their own and the agent is named
 // only where it is picked.
-function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; onRetry?: () => void; onDismiss?: () => void }) {
+function StoppedNote({ message, onRetry }: { message: ChatMessage; onRetry?: () => void }) {
   const [details, setDetails] = useState(false)
   const detail = message.errorDetail && message.errorDetail !== message.error ? message.errorDetail : undefined
   const why = [message.error, unansweredSentence(message.parts)].filter(Boolean).join(" ")
@@ -38,11 +38,6 @@ function StoppedNote({ message, onRetry, onDismiss }: { message: ChatMessage; on
           {detail && (
             <Button variant="text" size="inline" aria-expanded={details} onClick={() => setDetails((d) => !d)}>
               {t`Details`}
-            </Button>
-          )}
-          {onDismiss && (
-            <Button variant="text" size="inline" onClick={onDismiss}>
-              {t({ message: "Dismiss", comment: "verb: leave a broken reply as it is" })}
             </Button>
           )}
           {onRetry && (
@@ -201,15 +196,12 @@ export function AssistantMessage({
   message: saved,
   modelName,
   onRegenerate,
-  onDismiss,
   onSaveAsDoc,
 }: {
   chatId: string
   message: ChatMessage
   modelName?: string
   onRegenerate?: () => void
-  // Leaves a broken reply as it is, so the chat stops asking for the user (only while it does)
-  onDismiss?: () => void
   // Keeps the answer's text as a doc
   onSaveAsDoc?: (markdown: string) => void
 }) {
@@ -264,7 +256,7 @@ export function AssistantMessage({
         )}
         {silent && <SilenceLine chatId={chatId} since={silent.since} connectorId={message.connectorId} />}
         {!streaming && <ResultCard message={message} chatId={chatId} />}
-        {message.status === "error" && !message.cutOff && <StoppedNote message={message} onRetry={onRegenerate} onDismiss={onDismiss} />}
+        {message.status === "error" && !message.cutOff && <StoppedNote message={message} onRetry={onRegenerate} />}
       </MessageContent>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">

@@ -156,6 +156,8 @@ export class Agents {
   private readonly options: AgentsOptions
   private processes = new Map<string, AcpProcess>()
   private signingIn = new Map<string, ChildProcess>()
+  // Sign-ins stopped on purpose (replaced or cancelled), which end without an error
+  private stopped = new WeakSet<ChildProcess>()
   private live = new Map<string, Live>()
   private readonly setups: AgentSetups | undefined
 
@@ -299,15 +301,17 @@ export class Agents {
 
   // Claude Code's sign-in is the agent's own command with the method's args, meant for a terminal. Run
   // without one it opens the browser, waits for the sign-in to come back to it, and exits (claude-agent-acp
-  // ≥0.91), so people need neither Terminal nor their own `claude`. One at a time per
-  // agent; a sign-in left in the browser is given up after a while.
+  // ≥0.91), so people need neither Terminal nor their own `claude`. One at a time per agent: a new one
+  // (the page opened again) or Cancel stops the one waiting, which then ends quietly with the agent as it
+  // is, since nothing went wrong. A sign-in left in the browser is given up after a while.
   private async signInOutside(id: string, methodArgs: string[]): Promise<Connector> {
-    this.signingIn.get(id)?.kill()
+    this.stopSignIn(id)
     const { file, args, env } = await this.spawnSpec(await this.def(id))
     const proxy = (await this.options.proxyEnv?.()) ?? {}
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(file, [...args, ...methodArgs], { env: { ...env, ...proxy }, stdio: ["ignore", "ignore", "pipe"], timeout: SIGN_IN_WAIT_MS })
-      this.signingIn.set(id, child)
+    const child = spawn(file, [...args, ...methodArgs], { env: { ...env, ...proxy }, stdio: ["ignore", "ignore", "pipe"], timeout: SIGN_IN_WAIT_MS })
+    this.signingIn.set(id, child)
+    this.announce(id)
+    const ended = await new Promise<"done" | "stopped">((resolve, reject) => {
       let stderr = ""
       child.stderr.setEncoding("utf8")
       child.stderr.on("data", (chunk: string) => {
@@ -315,15 +319,35 @@ export class Agents {
       })
       child.on("error", reject)
       child.on("close", (code, signal) => {
-        if (this.signingIn.get(id) === child) this.signingIn.delete(id)
-        if (code === 0) resolve()
+        if (this.signingIn.get(id) === child) {
+          this.signingIn.delete(id)
+          this.announce(id)
+        }
+        if (this.stopped.has(child)) resolve("stopped")
+        else if (code === 0) resolve("done")
         else reject(new RpcFailure(RpcErrorCode.Unavailable, signal ? t`The sign-in stopped before it was done.` : stderr.trim().split("\n").at(-1) || t`The sign-in didn't finish.`))
       })
     })
+    if (ended === "stopped") return this.connectorOf(await this.def(id))
     // Its process started before the sign-in, without it
     this.processes.get(id)?.stop()
     this.processes.delete(id)
     return this.check(id)
+  }
+
+  // Stops a sign-in waiting in the browser; its call ends with the agent as it is
+  async cancelSignIn(id: string): Promise<Connector> {
+    this.stopSignIn(id)
+    return this.connectorOf(await this.def(id))
+  }
+
+  private stopSignIn(id: string) {
+    const child = this.signingIn.get(id)
+    if (!child) return
+    this.stopped.add(child)
+    this.signingIn.delete(id)
+    child.kill()
+    this.announce(id)
   }
 
   async signOut(id: string, methodId?: string): Promise<Connector> {
@@ -415,11 +439,16 @@ export class Agents {
     return def
   }
 
-  private setLive(id: string, patch: Live) {
-    this.live.set(id, { ...this.live.get(id), ...patch })
+  // Tells the window the agent as it is now
+  private announce(id: string) {
     void this.def(id)
       .then((def) => this.connectorOf(def))
       .then(this.options.notify, () => undefined)
+  }
+
+  private setLive(id: string, patch: Live) {
+    this.live.set(id, { ...this.live.get(id), ...patch })
+    this.announce(id)
   }
 
   private async connectorOf(def: ConnectorDef): Promise<Connector> {
@@ -439,6 +468,7 @@ export class Agents {
       signInMethods: live.signInMethods,
       signIns: live.signIns,
       ...(live.browserSignIn ? { browserSignIn: live.browserSignIn.id } : {}),
+      ...(this.signingIn.has(def.id) ? { signingIn: true } : {}),
       ...(def.launch ? { signsInHere: true } : {}),
       builtIn: def.builtIn,
       // Checked before: ready unless something since says otherwise

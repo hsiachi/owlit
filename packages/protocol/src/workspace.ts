@@ -34,6 +34,9 @@ export interface WelcomeInfo {
 // .owlit/workspace.json: settings that belong to the workspace and move with it
 export interface WorkspaceSettings {
   version: 1
+  // The workspace's own id, made when owlit first opens it: what this machine keeps for it (the share
+  // links' keys, the task log, the index) is filed under it, so a renamed or moved folder keeps them
+  id?: string
   layout: Record<string, unknown>
 }
 
@@ -74,12 +77,15 @@ export interface ProfileSettings {
 // How owlit looks on this machine. A paper tone swaps the whole neutral family (surfaces, text, lines);
 // marks that carry meaning (star, notes, tags, highlights, warning, red) keep their colours in every tone.
 export type ThemeChoice = "system" | "light" | "dark"
-export type PaperTone = "warm" | "neutral" | "slate" | "sepia"
+export type PaperTone = "warm" | "slate" | "sepia"
 export interface AppearanceSettings {
   theme: ThemeChoice
   tone: PaperTone
   // The interface's language; "system" follows the system's languages
   language: InterfaceLanguage
+  // In the dark theme, PDF pages under a light shade so they don't glare beside the dark panels; absent
+  // means on
+  dimPdf?: boolean
 }
 
 export interface ParsingSettings {

@@ -5,6 +5,7 @@ vi.mock("@/app/seen", () => ({ markSeen: () => {} }))
 vi.mock("./store", () => ({ useChatStore: { getState: () => ({ chats: {} }), subscribe: () => () => {} } }))
 
 const { brokenReply, chatStatus, chatWait, pendingAsk } = await import("./status.ts")
+const { DAY } = await import("@/lib/time")
 
 const chat = (last: Partial<ChatMessage>): Chat => ({
   id: "c1",
@@ -22,34 +23,35 @@ const permission: MessagePart = { type: "permission", requestId: "r1", toolCallI
 
 describe("where a chat stands", () => {
   it("works while its turn runs, and waits while that turn asks the person", () => {
-    expect(chatStatus(chat({ status: "streaming" }), true, false, undefined)).toBe("working")
+    expect(chatStatus(chat({ status: "streaming" }), true, false)).toBe("working")
     const asking = chat({ status: "streaming", parts: [permission] })
-    expect(chatStatus(asking, true, false, undefined)).toBe("waiting")
-    expect(chatWait(asking, true, undefined)?.ask?.requestId).toBe("r1")
+    expect(chatStatus(asking, true, false)).toBe("waiting")
+    expect(chatWait(asking, true)?.ask?.requestId).toBe("r1")
     // Answered, it works again
     expect(pendingAsk(chat({ status: "streaming", parts: [{ ...permission, outcome: "reject_once" }] }))).toBeUndefined()
   })
 
   it("goes by the running turns, not by a reply's own status", () => {
     // A reply still saved as streaming with no turn running is not at work
-    expect(chatStatus(chat({ status: "streaming" }), false, false, undefined)).toBe("idle")
+    expect(chatStatus(chat({ status: "streaming" }), false, false)).toBe("idle")
   })
 
-  it("asks for the person when a reply broke, until they dismiss it", () => {
+  it("waits on the person for a few days after a reply broke, and stays red after", () => {
     const broken = chat({ status: "error", error: "Claude Code quit unexpectedly." })
-    expect(chatStatus(broken, false, false, undefined)).toBe("failed")
-    expect(chatWait(broken, false, undefined)?.broken?.id).toBe("a1")
-    expect(chatStatus(broken, false, false, "a1")).toBe("idle")
+    expect(chatStatus(broken, false, false)).toBe("failed")
+    expect(chatWait(broken, false, 2 + 2 * DAY)?.broken?.id).toBe("a1")
+    expect(chatWait(broken, false, 2 + 3 * DAY)).toBeUndefined()
+    expect(chatStatus(broken, false, false)).toBe("failed")
   })
 
   it("doesn't call a reply owlit cut off by closing or switching broken", () => {
     const cut = chat({ status: "error", error: "Owlit was closed before it finished.", cutOff: "closed" })
-    expect(brokenReply(cut, undefined)).toBeUndefined()
-    expect(chatStatus(cut, false, false, undefined)).toBe("idle")
-    expect(chatWait(cut, false, undefined)).toBeUndefined()
+    expect(brokenReply(cut)).toBeUndefined()
+    expect(chatStatus(cut, false, false)).toBe("idle")
+    expect(chatWait(cut, false)).toBeUndefined()
   })
 
   it("is finished when a reply ended while the person was elsewhere", () => {
-    expect(chatStatus(chat({ status: "done" }), false, true, undefined)).toBe("finished")
+    expect(chatStatus(chat({ status: "done" }), false, true)).toBe("finished")
   })
 })

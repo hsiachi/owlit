@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { isPerson, RpcErrorCode, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
-import { mkdir, readFile, realpath, stat } from "node:fs/promises"
+import { randomBytes } from "node:crypto"
+import { mkdir, readFile, realpath, rename, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
 import { Docs } from "../docs/docs.ts"
@@ -29,11 +30,48 @@ import { socketHash } from "../rpc/socket.ts"
 
 export { OWLIT_DIR }
 
-// <userData>/workspaces/<first 12 hex of sha1(path)>/: what is derived from this workspace or tied to
-// this machine (index, task log, lock). Paths are hashed in NFC so the same folder gets the same
-// directory however its name reached us.
-export function workspaceDataDir(userDataDir: string, workspacePath: string) {
-  return path.join(userDataDir, "workspaces", socketHash(workspacePath))
+// <userData>/workspaces/<the workspace's id>/: what is derived from this workspace or tied to this
+// machine (index, task log, share keys). A workspace whose workspace.json can't be read, and so has no
+// id, is filed under the first 12 hex of sha1(its path), in NFC so the same folder gets the same
+// directory however its name reached us; a folder that gets an id takes that directory over once
+// (dataDirFor).
+export function workspaceDataDir(userDataDir: string, workspacePath: string, id?: string) {
+  return path.join(userDataDir, "workspaces", id ?? socketHash(workspacePath))
+}
+
+// <dataDir>/folder.json: where the folder was when it was last opened, to tell a moved folder (which
+// keeps its id and data) from a copy of one (which gets an id of its own)
+interface FolderRecord {
+  path: string
+}
+
+// The data directory for the folder at root with the id its workspace.json has (undefined: none). Takes
+// over the directory its path was filed under; a copy of a folder that is still where the original
+// was opened gets a new id here, so the two never share a task log or share keys.
+async function dataDirFor(userDataDir: string, root: string, id: string | undefined): Promise<string> {
+  if (!id) return workspaceDataDir(userDataDir, root)
+  let dir = workspaceDataDir(userDataDir, root, id)
+  const record = await readJson<FolderRecord>(path.join(dir, "folder.json")).catch(() => undefined)
+  if (record && record.path !== root && (await idAt(record.path)) === id) {
+    dir = workspaceDataDir(userDataDir, root, await newId(root))
+  }
+  const byPath = workspaceDataDir(userDataDir, root)
+  if (!(await exists(dir)) && (await exists(byPath))) await rename(byPath, dir)
+  await mkdir(dir, { recursive: true })
+  await writeJsonAtomic(path.join(dir, "folder.json"), { path: root } satisfies FolderRecord)
+  return dir
+}
+
+const exists = (file: string) => stat(file).then(() => true, () => false)
+const workspaceFile = (root: string) => path.join(root, OWLIT_DIR, "workspace.json")
+const idAt = (root: string) => readJson<WorkspaceSettings>(workspaceFile(root)).then((s) => s?.id, () => undefined)
+
+// Gives the workspace at root a new id, kept with the rest of its workspace.json
+async function newId(root: string) {
+  const id = randomBytes(8).toString("hex")
+  const stored = await readJson<WorkspaceSettings>(workspaceFile(root))
+  await writeJsonAtomic(workspaceFile(root), { ...stored, version: 1, id, layout: stored?.layout ?? {} } satisfies WorkspaceSettings)
+  return id
 }
 
 export interface WorkspaceOptions {
@@ -197,8 +235,6 @@ export class Workspace {
   // Creates nothing else inside the folder.
   static async open(folder: string, userDataDir: string, options: WorkspaceOptions = {}) {
     const root = await resolveFolder(folder)
-    const dataDir = workspaceDataDir(userDataDir, root)
-    await mkdir(dataDir, { recursive: true })
     let release: () => Promise<void>
     try {
       release = await acquireLock(lockFileFor(root), root)
@@ -212,7 +248,7 @@ export class Workspace {
       throw error
     }
     try {
-      await ensureWorkspaceFile(root)
+      const dataDir = await dataDirFor(userDataDir, root, await ensureWorkspaceFile(root))
       const settings = options.profile ? undefined : new SettingsStore(userDataDir)
       const profile = options.profile ?? (() => settings!.get().then((s) => s.profile))
       const workspace = new Workspace(root, dataDir, release, options, profile)
@@ -285,15 +321,17 @@ export async function resolveFolder(folder: string) {
   return realpath(absolute)
 }
 
-async function ensureWorkspaceFile(root: string) {
-  const file = path.join(root, OWLIT_DIR, "workspace.json")
+// Makes sure .owlit/workspace.json exists and has an id; the id, or undefined when the file is there but
+// unreadable (it is the user's, and left alone)
+async function ensureWorkspaceFile(root: string): Promise<string | undefined> {
+  const file = workspaceFile(root)
+  let stored: WorkspaceSettings | undefined
   try {
-    if (await readJson<WorkspaceSettings>(file)) return
+    stored = await readJson<WorkspaceSettings>(file)
   } catch (error) {
-    // There but unreadable: leave the user's file alone
     console.error(`[core] ${file} is not valid JSON; leaving it as it is`, error)
-    return
+    return undefined
   }
-  const fresh: WorkspaceSettings = { version: 1, layout: {} }
-  await writeJsonAtomic(file, fresh)
+  if (stored?.id) return stored.id
+  return newId(root)
 }

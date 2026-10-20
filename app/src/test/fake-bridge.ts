@@ -74,8 +74,11 @@ const localStorage = {
   removeItem: (key: string) => void kept.delete(key),
 }
 
-// The window the modules under test see: events (pagehide), the bridge and localStorage
-const fakeWindow = Object.assign(new EventTarget(), { owlit: bridge, localStorage })
+// A light system appearance that never changes, for the stores that follow it
+const matchMedia = (media: string) => Object.assign(new EventTarget(), { media, matches: false })
+
+// The window the modules under test see: events (pagehide), the bridge, localStorage and matchMedia
+const fakeWindow = Object.assign(new EventTarget(), { owlit: bridge, localStorage, matchMedia })
 ;(globalThis as { window?: unknown }).window = fakeWindow
 
 export const pageHide = () => fakeWindow.dispatchEvent(new Event("pagehide"))

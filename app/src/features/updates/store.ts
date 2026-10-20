@@ -18,6 +18,14 @@ interface UpdatesState {
 export const useUpdates = create<UpdatesState>(() => ({ view: null, whatsNew: null, whatsNewOpen: false }))
 
 export const openWhatsNew = () => useUpdates.setState({ whatsNewOpen: true })
+
+// What's new in a release this build can't install: its notes from GitHub, in the same dialog
+export function openReleaseNotes() {
+  const status = useUpdates.getState().view?.status
+  const available = status?.kind === "off" ? status.available : undefined
+  if (!available?.notes) return
+  useUpdates.setState({ whatsNew: { version: available.version, notes: available.notes }, whatsNewOpen: true })
+}
 export const closeWhatsNew = () => useUpdates.setState({ whatsNewOpen: false })
 
 export const restartToUpdate = () => bridge?.restartToUpdate().catch(toastError)
@@ -25,6 +33,7 @@ export const restartToUpdate = () => bridge?.restartToUpdate().catch(toastError)
 export async function checkForUpdates() {
   const found = await rpc.updates.check()
   if (found.kind === "current") toast(t`You're up to date`, { description: t`Owlit ${found.version} is the newest version.` })
+  // An unsigned build's newer release shows in the row itself, with Download
 }
 
 export const setAutoUpdate = async (auto: boolean) => receive(await rpc.updates.setAuto({ auto }))

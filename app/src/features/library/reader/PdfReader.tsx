@@ -21,7 +21,7 @@ import { cleanPdfText } from "../lib/highlights"
 import { useLibraryStore } from "../store"
 import type { Highlight, Paper } from "@owlit/protocol"
 import { useHighlightsByPage } from "../lib/use-highlights"
-import { usePrefsStore } from "../prefs-store"
+import { appearanceOf, useSettings } from "@/features/settings/store"
 import { HighlightLayer } from "./HighlightLayer"
 import { useHighlightHitTest } from "./highlight-hits"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
@@ -262,7 +262,7 @@ function Page({
   onFollow: (mark: ReturnMark) => void
 }) {
   const hit = useHighlightHitTest(documentId, highlights, pageIndex)
-  const dim = usePrefsStore((s) => s.dimPdf)
+  const dim = useSettings((s) => appearanceOf(s.view).dimPdf !== false)
   return (
     // The rendered page is an <img>: without this the browser starts dragging the picture,
     // cancels the pointer, and a text selection never ends

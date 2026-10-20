@@ -16,6 +16,7 @@ import { docPassages } from "./changes/passages.ts"
 import { docProposals } from "./changes/proposals.ts"
 import { Turns } from "./agents/turns.ts"
 import { ReadLog, readFromOf } from "./agents/read-from.ts"
+import { latestRelease } from "./updates/github.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
@@ -250,6 +251,7 @@ export class Core {
       changelog: options.changelog,
       onboarded: async () => (await this.settings.get()).onboardedAt !== undefined,
       answering: () => this.turns.answering(),
+      latest: () => latestRelease((url) => this.http.json(url)),
       notify: (view) => this.notifier.notify("updates.changed", view),
     })
     // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down
@@ -369,7 +371,7 @@ export class Core {
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), "admin", async ({ enabled }) => {
       const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
       this.notifier.notify("activity.status", next.activity)
-      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages))
+      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages, this.settings.unopenedKeys()))
       return next.activity
     })
 
@@ -476,6 +478,7 @@ export class Core {
       modelId: z.string().optional(),
       role: roleSchema.optional(),
       effortId: z.string().optional(),
+      help: z.literal(true).optional(),
     })
     // Messages are the app's own shape (protocol/chat.ts); core checks only what it relies on
     const message = z.looseObject({
@@ -531,6 +534,7 @@ export class Core {
     this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), "admin", ({ name, command }) => this.agents.add(name, command))
     this.router.register("agents.remove", z.object({ id: z.string() }), "admin", ({ id }) => this.agents.remove(id))
     this.router.register("agents.signIn", z.object({ id: z.string(), methodId: z.string(), apiKey: z.string().optional() }), "admin", ({ id, methodId, apiKey }) => this.agents.signIn(id, methodId, apiKey))
+    this.router.register("agents.cancelSignIn", z.object({ id: z.string() }), "admin", ({ id }) => this.agents.cancelSignIn(id))
     this.router.register("agents.signOut", z.object({ id: z.string(), methodId: z.string().optional() }), "admin", ({ id, methodId }) => this.agents.signOut(id, methodId))
     this.router.register(
       "agents.prompt",
@@ -1095,7 +1099,7 @@ export class Core {
     this.router.register("share.update", z.object({ path: rel, permission: permission.optional(), notes: z.boolean().optional() }), "admin", ({ path, ...change }) =>
       shares().update(path, change),
     )
-    this.router.register("share.stop", z.object({ path: rel }), "admin", ({ path }) => shares().stop(path))
+    this.router.register("share.stop", z.object({ path: rel, forget: z.boolean().optional() }), "admin", ({ path, forget }) => shares().stop(path, forget))
     this.router.register("share.comments", z.object({ path: rel }), "read", ({ path }) => shares().commentsOf(path))
     this.router.register("share.reply", z.object({ path: rel, parent: z.string().min(1), text: z.string().trim().min(1).max(4000) }), "admin", ({ path, parent, text }) =>
       shares().reply(path, parent, text),

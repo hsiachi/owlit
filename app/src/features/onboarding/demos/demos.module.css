@@ -412,18 +412,6 @@
     left 0.25s var(--ease),
     width 0.25s var(--ease);
 }
-.sdot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--owlit-mark);
-  transform: scale(0);
-  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
-  display: inline-block;
-}
-.sdot[data-on] {
-  transform: scale(1);
-}
 .reader {
   position: absolute;
   left: 0;
@@ -596,6 +584,29 @@
   opacity: 1;
   transform: none;
 }
+/* The Digest side before it is asked for: the sentence and the outline button, as the paper page has them */
+.digestView > .offer {
+  opacity: 1;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+.obtn {
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-weight: 500;
+}
+.digestView > .dmeta.shimmer {
+  opacity: 1;
+  transform: none;
+}
 .dmeta {
   font-size: 10.5px;
   color: var(--muted-foreground);
@@ -739,8 +750,8 @@
 :global(.dark) .txtsel {
   background: color-mix(in oklch, var(--mention) 35%, transparent);
 }
-/* Owlit's proposed edit, as a doc draws it (index.css › suggest-*): the old words muted with a strike in
-   Owlit's green, the new ones in the green with an underline, a rule at the left, and the bar under them */
+/* Owlit's landed edit, as a doc draws it (index.css › suggest-*): the old words muted with a strike in
+   Owlit's green, the new ones in the green with an underline, a rule at the left, and the line under them */
 .old {
   transition: color 0.3s;
 }
@@ -755,10 +766,6 @@
   transition:
     color 0.5s,
     text-decoration-color 0.5s;
-}
-.ins[data-applied] {
-  color: var(--foreground);
-  text-decoration-color: transparent;
 }
 .ruled::before {
   content: "";
@@ -792,10 +799,9 @@
   display: inline-flex;
   align-items: center;
 }
-.suggestBar .pri {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  font-weight: 500;
+.suggestBar .b[data-hover] {
+  background: var(--muted);
+  color: var(--foreground);
 }
 .selmenu {
   position: absolute;
@@ -1101,11 +1107,6 @@
 }
 .ans {
   line-height: 1.6;
-}
-.lookpage {
-  position: absolute;
-  inset: 0;
-  padding: 20px 22px;
 }
 
 /* Reduced motion: nothing moves in size or place; the fades stay */

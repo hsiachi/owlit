@@ -143,7 +143,6 @@ ipcMain.on("notify", (event, n: { title: string; body: string; chatId?: string }
 // The frame colour (the sidebar token) of each tone, light and dark; app/src/index.css has the source
 const FRAME: Record<AppearanceSettings["tone"], [light: string, dark: string]> = {
   warm: ["#edece7", "#0d0c0a"],
-  neutral: ["#ececec", "#0c0c0c"],
   slate: ["#e6ecf3", "#090c11"],
   sepia: ["#efe7d8", "#120d09"],
 }
@@ -335,6 +334,9 @@ async function updateMenu(core: Core) {
     {
       label: t`File`,
       submenu: [
+        // The window's own form (the welcome page's Create), so it needs an open workspace's window; with
+        // none, the welcome page itself has Create
+        { label: t`New Workspace…`, enabled: !!current, click: () => send("new-workspace") },
         { label: t`Open Workspace…`, accelerator: "CmdOrCtrl+O", click: () => void chooseWorkspace(core) },
         {
           label: t`Open Recent`,
@@ -449,6 +451,14 @@ async function checkForUpdates(core: Core) {
   const found = await call(core, "updates.check")
   if (found.kind === "current") {
     await showBox({ message: t`You're up to date`, detail: t`Owlit ${found.version} is the newest version.`, buttons: [t`OK`] })
+  } else if (found.kind === "available") {
+    // An unsigned build: the release is downloaded from its page, by hand
+    const { release } = found
+    const next = release.version
+    const buttons = [t`Download`, ...(release.notes ? [t`What's New`] : []), t`Later`]
+    const { response } = await showBox({ message: t`Owlit ${next} is out`, detail: t`This build can't install updates itself yet. Download the new version from its release page.`, buttons, defaultId: 0, cancelId: buttons.length - 1 })
+    if (response === 0) void shell.openExternal(release.url)
+    else if (release.notes && response === 1) frontWindow()?.webContents.send("menu", "whats-new" satisfies MenuCommand)
   } else if (found.kind === "found") {
     const { status } = await call(core, "updates.get")
     if (status.kind === "ready") {
@@ -466,7 +476,7 @@ async function checkForUpdates(core: Core) {
     const label = [build.channel, build.commit].filter(Boolean).join(" · ")
     const detail =
       found.reason === "unsigned"
-        ? t`This copy isn't signed by Owlit's developer, so it can't install updates. Download the latest Owlit from GitHub.`
+        ? t`This build can't install updates itself yet. Download the latest Owlit from its release page.`
         : t`This Owlit was built from source (${label}), so it doesn't update itself.`
     await showBox({ message: t`This Owlit doesn't update itself`, detail, buttons: [t`OK`] })
   }

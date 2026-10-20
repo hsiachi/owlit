@@ -7,6 +7,7 @@ import type { MessageDescriptor } from "@lingui/core"
 import { msg } from "@lingui/core/macro"
 import { create } from "zustand"
 import { setProfileId, WEB_PROFILE_ID } from "@/lib/actors"
+import { takeDimPdfOff } from "@/features/library/prefs-store"
 import { applyLocale, i18n } from "@/lib/i18n"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, storedAppearance } from "./appearance"
@@ -70,6 +71,7 @@ export const closeSettings = () => useSettings.setState({ open: false })
 export const showSection = (section: SettingsSection) => useSettings.setState({ section, group: null })
 
 function receive(view: SettingsView) {
+  if (isDesktop && view.appearance.dimPdf === undefined && takeDimPdfOff()) void updateSettings({ appearance: { dimPdf: false } })
   useSettings.setState({ view })
   setProfileId(view.profile.id)
   applyAppearance(view.appearance)

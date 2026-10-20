@@ -1,7 +1,7 @@
 import type { DocShare, RpcNotification, ShareComment, ShareView } from "@owlit/protocol"
 import { createShareServer } from "@owlit/share-server/server"
 import { Store } from "@owlit/share-server/store"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
@@ -157,6 +157,58 @@ describe("sharing a doc", () => {
     await call("share.stop", { path: "Survey.md" })
     expect((await reader(`/api/shares/${shared.id}`)).status).toBe(410)
     expect((await call<{ shares: DocShare[] }>("share.list")).shares).toEqual([])
+  })
+
+  it("forgets a link here when its server can't be reached to stop it", async () => {
+    await call<DocShare>("share.create", { path: "Survey.md", notes: false })
+    share.close()
+    server.closeAllConnections()
+    await new Promise((resolve) => server.close(resolve))
+    const response = await core.handle(request("share.stop", { path: "Survey.md" }))
+    expect(response).toMatchObject({ error: { data: { unreachable: true } } })
+    expect((await call<{ shares: DocShare[] }>("share.list")).shares).toHaveLength(1)
+    await call("share.stop", { path: "Survey.md", forget: true })
+    expect((await call<{ shares: DocShare[] }>("share.list")).shares).toEqual([])
+    // afterEach closes them again
+    server = createServer()
+    share = createShareServer({ store, publicUrl: base })
+  })
+
+  it("makes a new link when the record's server isn't the one links are made on now", async () => {
+    const old = await call<DocShare>("share.create", { path: "Survey.md", notes: false })
+    // A second server, and owlit pointed at it
+    const nextStore = new Store(path.join(path.dirname(root), "next.db"))
+    let next: ReturnType<typeof createShareServer>
+    const nextServer = createServer((req, res) => void next.handler(req, res))
+    await new Promise<void>((resolve) => nextServer.listen(0, "127.0.0.1", resolve))
+    const nextBase = `http://127.0.0.1:${(nextServer.address() as AddressInfo).port}`
+    next = createShareServer({ store: nextStore, publicUrl: nextBase })
+    await core.dispose()
+    core = new Core({ userDataDir: path.join(path.dirname(root), "user"), shareServer: nextBase, shareTimings: { settleMs: 30, pollMs: 100 } })
+    await call("workspace.open", { path: root })
+
+    expect((await call<{ shares: DocShare[] }>("share.list")).shares[0]).toMatchObject({ id: old.id, oldServer: true })
+    const made = await call<DocShare>("share.create", { path: "Survey.md", notes: false })
+    expect(made.url.startsWith(nextBase)).toBe(true)
+    expect(made.oldServer).toBeUndefined()
+    // The old link was stopped on its own server, which still answers
+    expect((await reader(`/api/shares/${old.id}`)).status).toBe(410)
+    expect((await call<{ shares: DocShare[] }>("share.list")).shares.map((s) => s.id)).toEqual([made.id])
+    next.close()
+    await new Promise((resolve) => nextServer.close(resolve))
+    nextStore.close()
+  })
+
+  it("keeps a renamed folder's links its own, so it can still stop them", async () => {
+    const shared = await call<DocShare>("share.create", { path: "Survey.md", notes: false })
+    await core.dispose()
+    const renamed = path.join(path.dirname(root), "Renamed")
+    renameSync(root, renamed)
+    core = new Core({ userDataDir: path.join(path.dirname(root), "user"), shareServer: base, shareTimings: { settleMs: 30, pollMs: 100 } })
+    await call("workspace.open", { path: renamed })
+    expect((await call<{ shares: DocShare[] }>("share.list")).shares[0]?.foreign).toBeUndefined()
+    await call("share.stop", { path: "Survey.md" })
+    expect((await reader(`/api/shares/${shared.id}`)).status).toBe(410)
   })
 
   it("says plainly when no server is set up", async () => {

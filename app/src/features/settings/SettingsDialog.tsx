@@ -28,12 +28,12 @@ import { closeSettings, SECTIONS, showSection, useSettings, type SettingsSection
 const PARTS: Record<SettingsSection, { icon: React.ComponentType; about: MessageDescriptor; body: React.ComponentType }> = {
   owlit: {
     icon: OwlitMark,
-    about: msg`What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with.`,
+    about: msg`What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name signs what you share and is kept in the workspace's members list, so the agent and your co-authors see it.`,
     body: OwlitSection,
   },
   agents: {
     icon: BotIcon,
-    about: msg`Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them.`,
+    about: msg`Coding agents on this Mac that Owlit works through. Each agent signs in its own way; an API key for the Owlit engine is kept on this Mac.`,
     body: AgentsSection,
   },
   papers: {
