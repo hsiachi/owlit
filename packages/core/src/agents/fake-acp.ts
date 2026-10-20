@@ -19,7 +19,8 @@
 //                      <gate>.prompted, so a test knows the prompt arrived
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
-//   "crash"            exits mid-turn
+//   "crash"            exits mid-turn; "crash while asking" first asks a question and, with
+//                      FAKE_ACP_CRASH_GATE, exits once that file exists, the question still open
 //   "replied under your comment…" answers with comments_reply as the reply recipe says: "FAKE: correct"
 //                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
 //   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
@@ -291,6 +292,12 @@ class FakeAgent implements acp.Agent {
       if (text.includes("refuse me")) {
         await say("Failed to authenticate. API Error: 403 Request not allowed")
         throw acp.RequestError.authRequired()
+      }
+      if (text.includes("crash while asking")) {
+        void this.conn.createElicitation({ mode: "form", sessionId: params.sessionId, message: "Which one?", requestedSchema: { type: "object", properties: { question_0: { type: "string", title: "Pick" } } } }).catch(() => undefined)
+        const gate = process.env.FAKE_ACP_CRASH_GATE
+        while (gate && !existsSync(gate)) await new Promise((resolve) => setTimeout(resolve, 20))
+        process.exit(3)
       }
       if (text.includes("crash")) {
         await say("about to crash")

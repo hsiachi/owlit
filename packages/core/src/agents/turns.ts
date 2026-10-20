@@ -188,10 +188,13 @@ export class Turns {
       void ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
     }
     // After SILENT_MS with nothing from the agent the reply says so, unless the turn waits on the person;
-    // the next update takes the notice away and starts the count again
+    // the next update takes the notice away and starts the count again. Once the turn is over nothing
+    // starts it: closing its open questions still emits their resolution.
     let silence: ReturnType<typeof setTimeout> | undefined
+    let over = false
     const listen = () => {
       clearTimeout(silence)
+      if (over) return
       const since = Date.now()
       silence = setTimeout(() => {
         if (!turn.permissions.size && !turn.questions.size) say({ type: "notice", notice: "silent", since })
@@ -204,7 +207,6 @@ export class Turns {
       listen()
     }
     turn.emit = emit
-    listen()
     if (turn.role === "coauthor") this.coauthoring.set(req.chatId, Infinity)
     const finish = async (status: ChatMessage["status"], error?: string, errorDetail?: string, cutOff?: CutOff) => {
       // An agent of the agent's that hadn't finished won't go on once the answer has ended
@@ -289,6 +291,7 @@ export class Turns {
       await finish("error", text, detail, cutOff)
       throw new RpcFailure(RpcErrorCode.InternalError, text, detail ? { detail } : undefined)
     } finally {
+      over = true
       clearTimeout(silence)
       this.closePermissions(turn)
       if (live) live.turn = null
