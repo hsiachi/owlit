@@ -18,7 +18,7 @@ import { AgentAskBar } from "@/features/agent/AgentAskBar"
 import { AgentPanel, AgentToggle } from "@/features/agent/AgentWindow"
 import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
 import { useAgentWindow } from "@/features/agent/store"
-import { useBeside } from "@/features/agent/beside"
+import { besideShown, useBeside, useWideForBoth } from "@/features/agent/beside"
 import { PaperBesideSlot } from "@/features/library/pages/paper/PaperBeside"
 import { routeSubject } from "@/app/route-subject"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
@@ -63,9 +63,10 @@ function AppShell() {
   const listShown = useAgentWindow((s) => s.listShown)
   const panelWidth = useAgentWindow((s) => s.panelWidth)
   const setListShown = useAgentWindow((s) => s.setListShown)
-  // A paper beside the doc it was cited in: the slot's other occupant, only while a doc is open
+  // A paper beside the doc it was cited in, only while a doc is open: in the agent panel's slot, or next
+  // to the panel on a window wide enough for both
   const onDoc = routeSubject(pathname)?.kind === "doc"
-  const besidePaper = useBeside((s) => !!s.paper) && onDoc && !docked
+  const besidePaper = besideShown(useBeside((s) => !!s.paper) && onDoc, docked, useWideForBoth())
   useEffect(() => {
     if (!onDoc && useBeside.getState().paper) useBeside.getState().close()
   }, [onDoc])
@@ -121,7 +122,8 @@ function AppShell() {
                   <Outlet />
                   <AgentAskBar />
                 </div>
-                {docked ? <AgentPanel /> : besidePaper && <PaperBesideSlot />}
+                {besidePaper && <PaperBesideSlot withPanel={besidePaper === "with-panel"} />}
+                {docked && <AgentPanel />}
               </div>
             </SidebarInset>
           </div>

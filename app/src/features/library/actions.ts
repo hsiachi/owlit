@@ -2,13 +2,14 @@ import { plural, t } from "@lingui/core/macro"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { copyText } from "@/lib/clipboard"
-import { apaCitation, bibtex } from "./lib/cite"
-import { useLibraryStore } from "./store"
+import { apaCitation, bibtexAll, citedPapers } from "./lib/cite"
+import { paperById, useLibraryStore } from "./store"
 import { useLibraryUi } from "./ui-store"
 import { toastUndo } from "@/lib/toast"
 import { useAgentWindow } from "@/features/agent/store"
 import type { PageRect, Paper, QuotedSelection } from "@owlit/protocol"
 import { paperMentionable } from "@/features/docs/lib/mentions"
+import { useThreadsStore } from "@/features/threads/store"
 
 // Actions on one or several papers, shared by the row menu, the detail pane and the paper page
 export function usePaperActions() {
@@ -31,7 +32,7 @@ export function usePaperActions() {
   }
 
   const copyBibtex = async (papers: Paper[]) => {
-    if (await copyText(papers.map(bibtex).join("\n\n"))) toast(papers.length > 1 ? plural(papers.length, { one: "BibTeX for # paper copied", other: "BibTeX for # papers copied" }) : t`BibTeX copied`)
+    if (await copyText(bibtexAll(papers))) toast(papers.length > 1 ? plural(papers.length, { one: "BibTeX for # paper copied", other: "BibTeX for # papers copied" }) : t`BibTeX copied`)
   }
 
   // Removal is immediate; the toast's Undo puts everything back
@@ -48,6 +49,16 @@ export function usePaperActions() {
   const editDetails = (id: string) => setEditingId(id)
 
   return { open, setStarred, setStatus, copyCitation, copyBibtex, remove, editDetails }
+}
+
+// A doc's reference list, from the papers its Markdown links to in order of first use: APA, one per
+// paragraph, or a .bib whose keys don't collide
+export async function copyReferences(markdown: string, format: "apa" | "bibtex") {
+  const { papers, aliases } = useLibraryStore.getState()
+  const cited = citedPapers(markdown, (id) => paperById(papers, aliases, id), useThreadsStore.getState().threads)
+  if (!cited.length) return void toast(t`This doc doesn't cite any papers`)
+  const text = format === "apa" ? cited.map(apaCitation).join("\n\n") : bibtexAll(cited)
+  if (await copyText(text)) toast(plural(cited.length, { one: "# reference copied", other: "# references copied" }))
 }
 
 // Deleting is immediate; the toast's Undo brings the highlight back

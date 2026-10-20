@@ -25,6 +25,7 @@ import { usePrefsStore } from "../prefs-store"
 import { HighlightLayer } from "./HighlightLayer"
 import { useHighlightHitTest } from "./highlight-hits"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
+import { scrollMotion } from "@/lib/utils"
 import { boundsOf, locatePassage, type PassageTarget } from "./passages"
 import { PassageRing } from "./PassageRing"
 import { CitedLayer } from "./CitedLayer"
@@ -122,7 +123,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
         pageNumber: h.page + 1,
         pageCoordinates: { x: 0, y: r?.y ?? 0 },
         alignY: 30,
-        behavior: "smooth",
+        behavior: scrollMotion(),
       })
       useReaderStore.getState().flash(h.id)
     }
@@ -140,7 +141,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
         // Like a highlight reached from the list: in the upper part of the pane. The rings start once the
         // scroll has landed, or they play while the page is still moving.
         useReaderStore.getState().setRing(null)
-        scroll.scrollToPage({ pageNumber: at.page + 1, pageCoordinates: { x: 0, y: box.y }, alignY: 25, behavior: "smooth" })
+        scroll.scrollToPage({ pageNumber: at.page + 1, pageCoordinates: { x: 0, y: box.y }, alignY: 25, behavior: scrollMotion() })
         setTimeout(() => useReaderStore.getState().setRing({ ...ring, pulse: true }), 450)
         return true
       },
@@ -149,12 +150,12 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
         if (!at || !selectionCap) return false
         const box = boundsOf(at.rects)
         useReaderStore.getState().setRing(null)
-        scroll.scrollToPage({ pageNumber: at.page + 1, pageCoordinates: { x: 0, y: box.y }, alignY: 25, behavior: "smooth" })
+        scroll.scrollToPage({ pageNumber: at.page + 1, pageCoordinates: { x: 0, y: box.y }, alignY: 25, behavior: scrollMotion() })
         await selectionCap.forDocument(documentId).setSelection({ start: { page: at.page, index: at.from }, end: { page: at.page, index: at.to } }).toPromise()
         return true
       },
       jumpToHighlight,
-      showPage: (page) => scroll.scrollToPage({ pageNumber: page + 1, behavior: "smooth" }),
+      showPage: (page) => scroll.scrollToPage({ pageNumber: page + 1, behavior: scrollMotion() }),
       markPassage: async (p, color, chatId) => {
         const at = await locate(p)
         if (!at || !at.rects.length || !registry || !pdf) return null
@@ -237,7 +238,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
             </Viewport>
           </GlobalPointerProvider>
           <ReaderControls documentId={documentId} back={trail.at(-1) ?? null} onBack={() => setTrail((t) => t.slice(0, -1))} />
-          <WearStrip pageCount={pdf?.pageCount ?? 0} onPage={(i) => scrollCap?.forDocument(documentId).scrollToPage({ pageNumber: i + 1, behavior: "smooth" })} />
+          <WearStrip pageCount={pdf?.pageCount ?? 0} onPage={(i) => scrollCap?.forDocument(documentId).scrollToPage({ pageNumber: i + 1, behavior: scrollMotion() })} />
         </>
       )}
     </div>

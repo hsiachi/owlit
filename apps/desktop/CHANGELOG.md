@@ -4,6 +4,13 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Copy references in a doc's menu copies the papers the doc cites, in the order you first cite them, as APA text or as BibTeX. Papers a thread found that aren't in your Library come along too.
+- Owlit's edits to a paper's note show above the note until you have seen them: the old words struck, the new ones underlined, each with Undo.
+- On a window 1400px wide or more, clicking a citation in a doc while the chat is docked opens the paper between the doc and the chat, instead of closing the chat.
+- A paper's About says which of your docs cite it.
+- Highlights, Add to note, Ask Owlit and a paper's text read Chinese without stray spaces where the PDF's lines broke, and a quote in Chinese is found and ringed across a line break.
+- Copy BibTeX gives every paper its own key: two papers that would share one get a, b after it, and a paper whose first author is written in Chinese is keyed by its DOI instead of "anon". Braces, backslashes, ~ and ^ in a title are escaped.
+- With reduced motion on, the PDF reader jumps to a passage, highlight or page instead of scrolling there smoothly.
 - A digest you ask for starts at once, beside whatever else Owlit is doing, instead of waiting its turn behind a thread's work. The paper's page says "Owlit is reading this paper…" with Stop.
 - Asking for a digest of a paper whose text owlit hasn't read yet answers at once: the paper's page says "Owlit is getting the text…", then "Owlit is reading this paper…" once Owlit starts. If the text can't be read, the page says so with Retry.
 - Retry runs on the agent and model Settings › Owlit picks now. A digest's Retry after you changed its language writes it afresh in the new one.

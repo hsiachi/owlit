@@ -398,10 +398,12 @@ msgstr ""
 #. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: undo a passage Owlit changed
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/docs/editor/proposals.ts
+#: app/src/features/library/notes/NoteChanges.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
@@ -1356,6 +1358,7 @@ msgstr ""
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/fs.ts
+#: app/src/features/library/notes/NoteChanges.tsx
 msgid "Your note on {paper}"
 msgstr ""
 
@@ -2549,6 +2552,20 @@ msgid "Duplicate"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
+msgid "Copy references"
+msgstr ""
+
+#. copy a doc's references as APA-formatted text
+#: app/src/features/docs/actions.ts
+msgid "As APA text"
+msgstr ""
+
+#. copy a doc's references as a .bib file's entries
+#: app/src/features/docs/actions.ts
+msgid "As BibTeX"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
 msgid "Versions…"
 msgstr ""
 
@@ -3343,6 +3360,15 @@ msgid "{0, plural, one {Removed # paper} other {Removed # papers}}"
 msgstr ""
 
 #: app/src/features/library/actions.ts
+msgid "This doc doesn't cite any papers"
+msgstr ""
+
+#. placeholder {0}: cited.length
+#: app/src/features/library/actions.ts
+msgid "{0, plural, one {# reference copied} other {# references copied}}"
+msgstr ""
+
+#: app/src/features/library/actions.ts
 msgid "Highlight deleted"
 msgstr ""
 
@@ -4112,6 +4138,19 @@ msgstr ""
 msgid "That does not look like a DOI, an arXiv id or a URL."
 msgstr ""
 
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Your note"
+msgstr ""
+
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Owlit's edits to this note"
+msgstr ""
+
+#. above the passages Owlit changed in a paper's note
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Owlit edited your note since you last looked"
+msgstr ""
+
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "What do you take from this paper?"
 msgstr ""
@@ -4256,6 +4295,11 @@ msgstr ""
 #. the paper's text: read plainly, without layout
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Basic"
+msgstr ""
+
+#. label before the docs that cite this paper
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Cited in"
 msgstr ""
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx

@@ -7,7 +7,7 @@
 import { isOwlit, type ActivityEvent, type ChatMessage, type PaperMark, type PaperView } from "@owlit/protocol"
 import type { router as appRouter } from "@/app/router"
 import { useAgentWindow } from "@/features/agent/store"
-import { useBeside } from "@/features/agent/beside"
+import { besideShown, useBeside, wideForBoth } from "@/features/agent/beside"
 import { isChatsFromDisk } from "@/features/chat/disk"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
@@ -121,7 +121,8 @@ function openFromRoute(pathname: string): Open {
   if (subject?.kind === "chat") chats.add(subject.id)
   if (agent.stage === "open" && agent.chatId) chats.add(agent.chatId)
   // A paper read beside the doc it is cited in is open as on its own page, so checking a claim counts as reading
-  const beside = docId && agent.stage !== "open" ? useBeside.getState().paper?.paperId : undefined
+  const besidePaper = useBeside.getState().paper?.paperId
+  const beside = docId && besideShown(!!besidePaper, agent.stage === "open", wideForBoth()) ? besidePaper : undefined
   return {
     paperId: subject?.kind === "paper" ? subject.id : beside,
     doc: docId && docPath ? { id: docId, path: docPath } : undefined,

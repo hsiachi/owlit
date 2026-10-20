@@ -1,6 +1,6 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models"
 import { rectsWithinSlice } from "@embedpdf/plugin-selection"
-import type { Rect } from "@owlit/protocol"
+import { hasUnspaced, type Rect } from "@owlit/protocol"
 
 // Finding a quoted passage again in the PDF. A passage is known by its words, not by coordinates, so it
 // survives a re-downloaded PDF. A long passage rarely matches as one search (line breaks, hyphens,
@@ -29,10 +29,22 @@ const SPAN = 2500
 
 const cache = new WeakMap<PdfDocumentObject, Map<string, Promise<Located | null>>>()
 
-// "a b c d e" → ["a b c d e", "a b c d", "a b c"]: shorter phrases for when the full one breaks across lines
-function shorter(phrase: string, fromEnd: boolean) {
-  const words = phrase.trim().split(/\s+/)
+// Characters a passage's opening or closing phrase is cut to when its text has no spaces between words
+const UNSPACED_PHRASE = 12
+// The shortest such phrase tried; shorter ones turn up in too many places
+const UNSPACED_MIN = 4
+
+// "a b c d e" → ["a b c d e", "a b c d", "a b c"]: shorter phrases for when the full one breaks across
+// lines. Text written without spaces (Chinese, Japanese) gets shorter by characters instead.
+export function shorter(phrase: string, fromEnd: boolean) {
+  const text = phrase.trim()
   const out: string[] = []
+  if (hasUnspaced(text)) {
+    const chars = [...text]
+    for (let n = chars.length; n >= Math.min(UNSPACED_MIN, chars.length); n--) out.push((fromEnd ? chars.slice(chars.length - n) : chars.slice(0, n)).join("").trim())
+    return [...new Set(out)]
+  }
+  const words = text.split(/\s+/)
   for (let n = words.length; n >= Math.min(3, words.length); n--) out.push((fromEnd ? words.slice(words.length - n) : words.slice(0, n)).join(" "))
   return out
 }
@@ -90,9 +102,18 @@ export function boundsOf(rects: Rect[]): Rect {
 }
 
 // A sentence an answer quoted, as a passage to find: its opening words and its closing words, so it is
-// found across line breaks; a short one is its own start and end. page is 1-based, as in the citation.
+// found across line breaks; a short one is its own start and end. Text written without spaces between
+// words (Chinese, Japanese) opens and closes with characters instead, since a line break can fall
+// between any two. page is 1-based, as in the citation.
 export function quoteTarget(quote: string, page?: number): PassageTarget {
-  const words = quote.trim().split(/\s+/)
+  const text = quote.trim()
+  const at = page ? { page: page - 1 } : {}
+  if (hasUnspaced(text)) {
+    const chars = [...text.replace(/\s+/g, " ")]
+    const n = Math.min(UNSPACED_PHRASE, chars.length)
+    return { id: `quote:${quote}`, start: chars.slice(0, n).join("").trim(), end: chars.slice(-n).join("").trim(), ...at }
+  }
+  const words = text.split(/\s+/)
   const n = Math.min(8, words.length)
-  return { id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), ...(page ? { page: page - 1 } : {}) }
+  return { id: `quote:${quote}`, start: words.slice(0, n).join(" "), end: words.slice(-n).join(" "), ...at }
 }
