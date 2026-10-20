@@ -8,8 +8,7 @@ import { Tip } from "@/components/tip"
 import { CompareDialog } from "./CompareDialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { stopChat, tryAgain } from "@/features/chat/started"
-import { useLibraryStore } from "@/features/library/store"
-import { libraryPaperOf, shown as shownOf } from "../lib"
+import { shown as shownOf } from "../lib"
 import { askEach, startWork, useThreadWork, workWords } from "../work"
 
 // What a paper read in full costs in the agent's time, roughly: one turn that adds it, reads the parts
@@ -65,11 +64,9 @@ export function ThreadActions({ thread }: { thread: ThreadRead }) {
   const busy = (recipe: string) => running.some((chat) => chat.about.recipe === recipe)
   const shown = shownOf(thread)
   // The rows Read in full would read, as core counts them (threads.ts toRead): answered from the
-  // abstract or title, with a free PDF known or the paper's text in the Library already
-  const papers = useLibraryStore((s) => s.papers)
-  const aliases = useLibraryStore((s) => s.aliases)
+  // abstract or title, with a PDF there or a free one known (the facts core gave each row say it)
   const fromAbstract = shown.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
-  const toRead = fromAbstract.filter((r) => r.paper.openPdf || !!libraryPaperOf(r, papers, aliases)?.pdf).length
+  const toRead = fromAbstract.filter((r) => r.paper.openPdf).length
   const noPdf = fromAbstract.length - toRead
   const minutes = Math.max(1, Math.round(toRead * MINUTES_PER_PAPER))
   const readTip = [

@@ -29,53 +29,17 @@ export const memoOf = perThread((c) => {
     .filter((s) => s.text)
 })
 
-// The Library's papers by lowercased DOI and by arXiv id, each with its place in the list, built once per
-// papers object (the store replaces it on every change). A row looks its paper up on every change to the
-// Library, so this saves walking every paper per row.
-type ByIds = { doi: Map<string, [number, Paper]>; arxiv: Map<string, [number, Paper]> }
-const idIndexes = new WeakMap<Record<string, Paper>, ByIds>()
-function byIds(papers: Record<string, Paper>): ByIds {
-  let index = idIndexes.get(papers)
-  if (index) return index
-  index = { doi: new Map(), arxiv: new Map() }
-  Object.values(papers).forEach((p, at) => {
-    const doi = p.ids.doi?.toLowerCase()
-    if (doi && !index.doi.has(doi)) index.doi.set(doi, [at, p])
-    if (p.ids.arxiv && !index.arxiv.has(p.ids.arxiv)) index.arxiv.set(p.ids.arxiv, [at, p])
-  })
-  idIndexes.set(papers, index)
-  return index
-}
+// A row is a Library paper by its id (core names every row so); the Library's own record of it, for what
+// only the Library says (the PDF, the reading mark) and for the user's corrections since core gave the
+// thread out. Only the row's own paper: a row draws again when that paper changes, not on every change to
+// the Library.
+export const useLibraryPaper = (row: Pick<ThreadRowRead, "id">) => useLibraryStore((s) => paperById(s.papers, s.aliases, row.id))
 
-// The Library's own record of a row's paper, when the paper is there: by the row's id, an id it had
-// before, or a shared DOI or arXiv id (a paper added by hand gets the same id, but one dropped in as a PDF
-// may not). Of two papers sharing them, the first in the Library.
-export function libraryPaperOf(row: Pick<ThreadRowRead, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
-  const direct = paperById(papers, aliases, row.id)
-  if (direct) return direct
-  const { doi, arxiv } = row.paper.ids
-  if (!doi && !arxiv) return undefined
-  const index = byIds(papers)
-  const byDoi = doi ? index.doi.get(doi.toLowerCase()) : undefined
-  const byArxiv = arxiv ? index.arxiv.get(arxiv) : undefined
-  if (byDoi && byArxiv) return byDoi[0] <= byArxiv[0] ? byDoi[1] : byArxiv[1]
-  return (byDoi ?? byArxiv)?.[1]
-}
-
-// Only the row's own paper: a row draws again when that paper changes, not on every change to the Library
-export const useLibraryPaper = (row: Pick<ThreadRowRead, "id" | "paper">) => useLibraryStore((s) => libraryPaperOf(row, s.papers, s.aliases))
-
-// What a paper is, as the user sees it: the Library's record wins (their corrections are in it)
+// What a paper is, as the user sees it: the Library's record when the window has it, else the facts core
+// gave with the row
 export function paperFacts(row: ThreadRowRead, library: Paper | undefined): ThreadPaper {
   if (!library) return row.paper
   return { ...row.paper, title: library.title, authors: library.authors, year: library.year, venue: library.venue, abstract: library.abstract ?? row.paper.abstract }
-}
-
-// The thread as the user sees it, for what leaves the app (Export as a doc, CSV): each row's paper with
-// the Library's facts, as the table shows it
-export function withLibraryFacts(c: ThreadRead): ThreadRead {
-  const { papers, aliases } = useLibraryStore.getState()
-  return { ...c, rows: c.rows.map((r) => ({ ...r, paper: paperFacts(r, libraryPaperOf(r, papers, aliases)) })) }
 }
 
 // "Chang et al. 2023"
@@ -163,15 +127,14 @@ export const relWord = (rel: Relation) =>
     related: t({ message: "Related", comment: "a paper on the same matter as one of the user's sentences, without settling it" }),
   })[rel]
 
-// Which threads hold each Library paper, newest change first: by the row's id, or a shared DOI or
-// arXiv id, with what each says about it. Rows the user removed don't count.
+// Which threads hold each Library paper, newest change first, with what each says about it
 export function threadsByPaper(threads: Record<string, ThreadRead>, papers: Record<string, Paper>, aliases: Record<string, string>): Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]> {
   const out = new Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]>()
   const ordered = Object.values(threads).sort((a, b) => b.updatedAt - a.updatedAt)
   for (const c of ordered) {
     const view = shown(c)
     for (const row of view.rows) {
-      const paper = libraryPaperOf(row, papers, aliases)
+      const paper = paperById(papers, aliases, row.id)
       if (!paper) continue
       const list = out.get(paper.id) ?? []
       if (!list.some((x) => x.id === c.id)) list.push({ id: c.id, title: view.title, lines: paperLines(view, row) })
