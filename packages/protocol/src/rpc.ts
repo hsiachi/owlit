@@ -293,6 +293,7 @@ export interface Methods {
   // Signs in with one of the agent's own sign-ins (Connector.signInMethods), then checks it again. A
   // browser sign-in resolves once the user has finished in the browser.
   "agents.signIn": { params: { id: string; methodId: string; apiKey?: string }; result: Connector }
+  "agents.cancelSignIn": { params: { id: string }; result: Connector }
   // One sign-in (methodId), or all of them
   "agents.signOut": { params: { id: string; methodId?: string }; result: Connector }
   // One turn of a chat on an agent. Core appends both messages to the chat, streams the answer as

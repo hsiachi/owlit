@@ -354,6 +354,8 @@ export interface Connector {
   // The agent's own sign-in in the browser that owlit runs (Claude Code's Claude subscription, Codex's
   // ChatGPT): the methodId for agents.signIn
   browserSignIn?: string
+  // That sign-in waits in the browser now (agents.cancelSignIn stops it)
+  signingIn?: true
   builtIn: boolean
   status: ConnectorStatus
   version?: string

@@ -28,7 +28,8 @@
 // FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
 // as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
-// FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back.
+// FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back; with
+// FAKE_ACP_LOGIN_WAIT it first waits for that file to appear, as a person still in the browser.
 
 import * as acp from "@agentclientprotocol/sdk"
 import { createHash, randomUUID } from "node:crypto"
@@ -39,8 +40,13 @@ import path from "node:path"
 import { Readable, Writable } from "node:stream"
 
 if (process.argv.includes("--login")) {
-  writeFileSync(process.env.FAKE_ACP_SIGNED_IN!, "")
-  process.exit(0)
+  const done = () => {
+    writeFileSync(process.env.FAKE_ACP_SIGNED_IN!, "")
+    process.exit(0)
+  }
+  const wait = process.env.FAKE_ACP_LOGIN_WAIT
+  if (wait) setInterval(() => existsSync(wait) && done(), 20)
+  else done()
 }
 
 const sleep = (ms: number, signal?: AbortSignal) =>

@@ -1,5 +1,5 @@
 import type { Connector } from "@owlit/protocol"
-import { mkdtempSync, realpathSync } from "node:fs"
+import { mkdtempSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -22,6 +22,7 @@ const made: Agents[] = []
 afterEach(() => {
   for (const a of made.splice(0)) a.dispose()
   delete process.env.FAKE_ACP_AUTH
+  delete process.env.FAKE_ACP_LOGIN_WAIT
 })
 
 async function setup(idleMs = 60_000, searchPath = async () => process.env.PATH ?? "", proxyEnv?: () => Promise<Record<string, string>>) {
@@ -167,6 +168,33 @@ describe("agents", () => {
     const after = await agents.signIn(id, "claude-ai-login")
     expect(after).toMatchObject({ authenticated: true })
     expect(after.status === "available" || after.status === "connected").toBe(true)
+  })
+
+  it("lets a sign-in waiting in the browser be opened again or cancelled, without an error", async () => {
+    const { agents, heard, id, dir } = await setup()
+    process.env.FAKE_ACP_AUTH = "browser"
+    process.env.FAKE_ACP_SIGNED_IN = path.join(dir, "signed-in")
+    const back = path.join(dir, "back")
+    process.env.FAKE_ACP_LOGIN_WAIT = back
+    await agents.check(id)
+
+    const first = agents.signIn(id, "claude-ai-login")
+    await eventually(() => expect(heard.at(-1)?.signingIn).toBe(true))
+    // The page opened again: the first ends quietly, the second waits
+    const second = agents.signIn(id, "claude-ai-login")
+    expect((await first).authenticated).toBe(false)
+    await eventually(() => expect(heard.at(-1)?.signingIn).toBe(true))
+    // Cancelled: the second ends quietly too, and nothing waits any more
+    const cancelled = await agents.cancelSignIn(id)
+    expect(cancelled.signingIn).toBeUndefined()
+    expect((await second).signingIn).toBeUndefined()
+
+    // A third comes back from the browser and signs in
+    const third = agents.signIn(id, "claude-ai-login")
+    await eventually(() => expect(heard.at(-1)?.signingIn).toBe(true))
+    writeFileSync(back, "")
+    expect(await third).toMatchObject({ authenticated: true })
+    delete process.env.FAKE_ACP_LOGIN_WAIT
   })
 
   it("ends the process when idle and starts it again when needed", async () => {
