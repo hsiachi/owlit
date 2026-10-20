@@ -139,6 +139,9 @@ export const PUBLISHERS: Publisher[] = [
     },
   },
   { name: "ieee", prefixes: ["10.1109/"], hosts: ["ieeexplore.ieee.org"], browser: {} },
+  // doi.org sends APA's DOIs to doi.apa.org, which sends on to PsycNet; the PDF's address there isn't
+  // known from the DOI
+  { name: "apa", prefixes: ["10.1037/"], hosts: ["psycnet.apa.org", "doi.apa.org"], browser: {} },
   { name: "bmc", prefixes: ["10.1186/"], pdf: SPRINGER_PDF },
   { name: "nature", prefixes: ["10.1038/"], hosts: ["www.nature.com"], pdf: "https://www.nature.com/articles/{suffix}.pdf" },
   { name: "acs", prefixes: ["10.1021/"], hosts: ["pubs.acs.org"], pdf: "https://pubs.acs.org/doi/pdf/{doi}" },

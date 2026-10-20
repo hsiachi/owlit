@@ -2,6 +2,10 @@
 
 Each version's section goes, as it is, into the notes sent with its dmg (scripts/release-notes.mjs).
 
+## Unreleased
+
+- When a paper's page sends the owlit extension on to a site it may not read (your library's link to an APA paper lands on doi.apa.org), Owlit now asks you to let the extension read that site, instead of asking you to sign in to your library again and again. APA's PsycNet is one of the sites the extension knows.
+
 ## 0.2.1
 
 PDFs Owlit can't get alone now come through the owlit extension for your browser, using your library's access. Owlit no longer opens tabs in your browser, watches Downloads or runs a hidden browser.
