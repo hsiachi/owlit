@@ -1,9 +1,9 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type DocComment, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPerson, normalizeNoteLanguage, RpcErrorCode, type ActorId, type BuildInfo, type ChangeOrigin, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type ReadTrace, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-import { readFile } from "node:fs/promises"
+
 import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
@@ -21,23 +21,21 @@ import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure, WINDOW, type Caller, type Policy } from "./rpc/index.ts"
-import { commentTouches, decide, replyOnly, type Target, type Who } from "./agents/policy.ts"
+import { decide, type Target, type Who } from "./agents/policy.ts"
 import { newWriteId } from "./changes/record.ts"
-import { commentChanges, correctable, corrected, correctionOf, signed } from "./docs/comments.ts"
+
 import { replyRecipe } from "./recipes/reply.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
-import { AGENT_RULES } from "./agents/rules.ts"
-import { guide } from "./agents/guide.ts"
+
 import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
-import { pickFromText } from "./library/library.ts"
-import { extractText, toMarkdown, UnreadablePdf } from "./library/text/extract.ts"
+
 import { serveWorkspaceFile } from "./files/serve.ts"
-import { attachFile, chatFile } from "./chats/attach.ts"
+
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { isMissing, sha1 } from "./fs-util.ts"
@@ -46,11 +44,16 @@ import { defaultNoteLanguage, registerSettings } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
-import { OWLIT_DIR } from "./workspace/paths.ts"
+
 import { registerActivity } from "./activity/rpc.ts"
 import { registerExtension } from "./extension/rpc.ts"
 import { registerUpdates } from "./updates/rpc.ts"
 import { registerWorkspace } from "./workspace/rpc.ts"
+import { registerAgents } from "./agents/rpc.ts"
+import { registerChats } from "./chats/rpc.ts"
+import { registerDocs } from "./docs/rpc.ts"
+import { registerShare } from "./share/rpc.ts"
+import { registerUi } from "./ui/rpc.ts"
 
 export const CORE_VERSION = "0.0.0"
 
@@ -294,12 +297,9 @@ export class Core {
     // Router refuses a method registered twice, so the order here carries no meaning.
     const requireWorkspace = () => this.requireWorkspace()
     const workspace = () => this.workspace
-    const { router, notifier, settings } = this
+    const { router, notifier, settings, turns } = this
     // core.* is about this object itself (diagnostics reads most of it), so it stays here
     router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
-    // What agents are told about owlit (owlit-mcp's instructions)
-    this.router.register("agents.rules", noParams, "read", () => AGENT_RULES)
-    this.router.register("agents.guide", z.object({ topic: z.string().optional() }), "read", ({ topic }) => guide(topic))
     router.register("core.version", noParams, "read", () => this.version())
     router.register("core.diagnostics", noParams, "read", () => this.diagnostics())
     registerExtension({ router, extension: this.extension })
@@ -318,211 +318,12 @@ export class Core {
         void this.workspace?.members.ensure(view.profile).catch((error) => console.error("[core] couldn't update the workspace's members", error))
       },
     })
+    registerDocs({ router, notifier, requireWorkspace, answerReply: (ws, path, id) => this.answerReply(ws, path, id), pdfiumWasm: options.pdfiumWasm })
+    registerChats({ router, turns, requireWorkspace, host: options.host, workAgent: () => this.workAgent(), announceStarted: (ws, chatId) => this.announceStarted(ws, chatId) })
+    registerAgents({ router, agents: this.agents, turns, fs: this.fs, requireWorkspace })
+    registerUi({ router, ui: this.ui })
+    registerShare({ router, requireWorkspace })
 
-    const docs = () => this.requireWorkspace().docs
-    const rel = z.string()
-    this.router.register("docs.list", noParams, "read", () => docs().list())
-    this.router.register("docs.read", z.object({ path: rel }), "read", ({ path }) => docs().read(path))
-    // Any agent reads a PDF the user has in the workspace (an attachment, a file that isn't in the Library)
-    // through owlit, with the page numbers it would cite; the Owlit engine has no other way to read one
-    this.router.register("docs.readPdf", z.object({ path: rel, pages: z.string().optional() }), "read", async ({ path: file, pages }) => {
-      const ws = this.requireWorkspace()
-      const relPath = ws.docs.resolve(file)
-      // Of owlit's own folder, only the copies of files attached in chats are the user's to read
-      if (relPath.split("/")[0].toLowerCase() === OWLIT_DIR && !chatOfFile(relPath)) {
-        throw new RpcFailure(RpcErrorCode.InvalidParams, `${relPath} is owlit's own state, not a document.`, { path: relPath })
-      }
-      const bytes = await readFile(path.join(ws.root, relPath)).catch(() => {
-        throw new RpcFailure(RpcErrorCode.NotFound, `There is no ${relPath} in the workspace.`, { path: relPath })
-      })
-      const text = await extractText(bytes, { wasmPath: this.options.pdfiumWasm }).catch((error) => {
-        throw error instanceof UnreadablePdf ? new RpcFailure(RpcErrorCode.InvalidParams, `${relPath} isn't a PDF owlit can read.`, { path: relPath }) : error
-      })
-      const markdown = toMarkdown(text)
-      if (!markdown.replace(/<!-- page \d+ -->/g, "").trim()) return { text: `${relPath} has no text to read: its pages are images (a scan).`, pages: text.pages.length }
-      return pickFromText(markdown, { pages })
-    })
-    this.router.register(
-      "docs.create",
-      z.object({ path: rel, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), "words",
-      async ({ path, content, ...options }, caller) => {
-        const made = await docs().create(path, content, options)
-        await this.requireWorkspace().recorder.doc(caller, made.path, null, content, {}, { quiet: true })
-        return made
-      },
-    )
-    this.router.register(
-      "docs.write",
-      z.object({ path: rel, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }), "words",
-      ({ path, content, expectedModifiedAt, force }) => docs().write(path, content, expectedModifiedAt, force),
-    )
-    this.router.register("docs.rename", z.object({ path: rel, name: z.string() }), "structure", ({ path, name }, caller) => this.movingDocs(path, caller, () => docs().rename(path, name)))
-    this.router.register("docs.move", z.object({ path: rel, folder: z.string() }), "structure", ({ path, folder }, caller) => this.movingDocs(path, caller, () => docs().move(path, folder)))
-    this.router.register("docs.delete", z.object({ path: rel }), "structure", async ({ path }, caller) => {
-      const texts = await docs().textsUnder(path)
-      await docs().delete(path)
-      const writeId = newWriteId()
-      for (const t of texts) await this.requireWorkspace().recorder.doc(caller, t.path, t.content, null, { origin: { writeId } }, { quiet: true })
-      return null
-    })
-    this.router.register("docs.createFolder", z.object({ path: rel }), "structure", ({ path }) => docs().createFolder(path))
-    this.router.register(
-      "docs.restore",
-      z.object({ files: z.array(z.object({ id: z.string(), path: rel, content: z.string() })), folders: z.array(rel) }), "structure",
-      async ({ files, folders }, caller) => {
-        const restored = await docs().restore(files, folders)
-        const writeId = newWriteId()
-        for (const [i, file] of restored.files.entries()) await this.requireWorkspace().recorder.doc(caller, file.path, null, files[i]!.content, { origin: { writeId } }, { quiet: true })
-        return restored
-      },
-    )
-    this.router.register("docs.open", z.object({ path: rel }), "admin", ({ path }) => docs().open(path))
-    this.router.register("docs.reveal", z.object({ path: rel }), "admin", ({ path }) => docs().reveal(path))
-
-    const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
-    const commentSchema = anchor.extend({
-      id: z.string().min(1),
-      entries: z.array(
-        z.object({
-          id: z.string().min(1),
-          agent: z.string().optional(),
-          text: z.string(),
-          at: z.number(),
-          editedAt: z.number().optional(),
-          chatId: z.string().optional(),
-        }),
-      ),
-      createdAt: z.number(),
-      resolvedAt: z.number().optional(),
-      foldedAt: z.number().optional(),
-      source: z.object({ path: z.string(), label: z.string() }).optional(),
-    })
-    const chats = () => this.requireWorkspace().chats
-    const chatId = z.string().regex(/^[\w-]+$/)
-    const roleSchema = z.enum(ROLES.map((r) => r.id) as [Role, ...Role[]])
-    const summary = z.object({
-      id: chatId,
-      title: z.string(),
-      createdAt: z.number(),
-      updatedAt: z.number(),
-      pinned: z.boolean(),
-      connectorId: z.string().optional(),
-      modelId: z.string().optional(),
-      role: roleSchema.optional(),
-      effortId: z.string().optional(),
-      help: z.literal(true).optional(),
-    })
-    // Messages are the app's own shape (protocol/chat.ts); core checks only what it relies on
-    const message = z.looseObject({
-      id: z.string().min(1),
-      role: z.enum(["user", "assistant"]),
-      parts: z.array(z.unknown()),
-      createdAt: z.number(),
-    }) as unknown as z.ZodType<ChatMessage>
-    this.router.register("chats.list", noParams, "read", () => chats().list())
-    this.router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
-    this.router.register("chats.tryAgain", z.object({ chatId }), "admin", async ({ chatId }) => {
-      const ws = this.requireWorkspace()
-      const started = await tryAgain(this.turns, ws.chats, chatId, await this.workAgent())
-      await this.announceStarted(ws, started.chatId)
-      return { chatId: started.chatId }
-    })
-    this.router.register("chats.get", z.object({ id: chatId }), "read", ({ id }) => chats().get(id))
-    this.router.register("chats.create", z.object({ chat: summary }), "admin", ({ chat }) => chats().create(chat))
-    this.router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), "admin", ({ id, patch }) =>
-      chats().update(id, patch),
-    )
-    this.router.register("chats.delete", z.object({ id: chatId }), "admin", ({ id }) => chats().delete(id))
-    this.router.register("chats.appendMessage", z.object({ id: chatId, message }), "admin", ({ id, message }) =>
-      chats().appendMessage(id, message),
-    )
-    this.router.register("chats.removeMessages", z.object({ id: chatId, messageIds: z.array(z.string()) }), "admin", ({ id, messageIds }) =>
-      chats().removeMessages(id, messageIds),
-    )
-    this.router.register("chats.patchMessage", z.object({ id: chatId, message, final: z.boolean().optional() }), "admin", ({ id, message, final }) =>
-      chats().patchMessage(id, message, final),
-    )
-    this.router.register("chats.restore", z.object({ id: chatId }), "admin", ({ id }) => chats().restore(id))
-    this.router.register(
-      "chats.attach",
-      z.object({ chatId, path: z.string().min(1).optional(), name: z.string().optional(), mimeType: z.string().optional(), data: z.string().optional() }), "admin",
-      (params) => attachFile(this.requireWorkspace(), params),
-    )
-    this.router.register("chats.detach", z.object({ chatId, path: z.string() }), "admin", ({ chatId, path }) => chats().removeFile(chatId, chatFile(path)))
-    this.router.register("chats.openFile", z.object({ path: z.string() }), "admin", async ({ path: rel }) => {
-      const ws = this.requireWorkspace()
-      const host = this.options.host
-      if (!host?.openPath) throw new RpcFailure(RpcErrorCode.InternalError, t`owlit can't open files in other apps here.`)
-      const file = path.join(ws.root, ...chatFile(rel).split("/"))
-      if (!existsSync(file)) throw new RpcFailure(RpcErrorCode.NotFound, t`owlit no longer has that file.`, { path: rel })
-      await host.openPath(file)
-      return null
-    })
-
-    this.router.register("agents.list", noParams, "read", () => this.agents.list())
-    this.router.register("agents.check", z.object({ id: z.string() }), "read", ({ id }) => this.agents.check(id))
-    this.router.register("agents.setUp", z.object({ id: z.string() }), "admin", ({ id }) => this.agents.setUp(id))
-    this.router.register("agents.cancelSetUp", z.object({ id: z.string() }), "admin", ({ id }) => this.agents.cancelSetUp(id))
-    this.router.register("agents.add", z.object({ name: z.string(), command: z.string() }), "admin", ({ name, command }) => this.agents.add(name, command))
-    this.router.register("agents.remove", z.object({ id: z.string() }), "admin", ({ id }) => this.agents.remove(id))
-    this.router.register("agents.signIn", z.object({ id: z.string(), methodId: z.string(), apiKey: z.string().optional() }), "admin", ({ id, methodId, apiKey }) => this.agents.signIn(id, methodId, apiKey))
-    this.router.register("agents.cancelSignIn", z.object({ id: z.string() }), "admin", ({ id }) => this.agents.cancelSignIn(id))
-    this.router.register("agents.signOut", z.object({ id: z.string(), methodId: z.string().optional() }), "admin", ({ id, methodId }) => this.agents.signOut(id, methodId))
-    this.router.register(
-      "agents.prompt",
-      z.object({
-        chatId,
-        connectorId: z.string(),
-        modelId: z.string().optional(),
-        role: roleSchema.optional(),
-        effortId: z.string().optional(),
-        input: z.looseObject({ text: z.string(), mentions: z.array(z.looseObject({ uri: z.string(), title: z.string() })), attachments: z.array(z.looseObject({ name: z.string() })) }) as unknown as z.ZodType<PromptInput>,
-        userMessage: message,
-        assistantMessageId: z.string().min(1),
-      }), "admin",
-      async (req) => {
-        return { stopReason: await this.turns.prompt(req) }
-      },
-    )
-    this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), { touches: "structure", target: ({ paths }) => this.fs.target(paths) }, async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
-    // A doc of Owlit's own (a reading of material it went through): own, decided on whose the doc is (docTarget), so every
-    // role may write one and none may write the person's this way
-    this.router.register("agents.writeDoc", z.object({ path: z.string().min(1), content: z.string() }), { touches: "own", target: ({ path: file }) => this.docTarget(file) }, ({ path: file, content }, caller) => this.fs.writeOwn(file, content, caller))
-    this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), { touches: "structure", target: ({ path: from, to }) => this.fs.target([from, to]) }, async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
-    // What a window says of itself: which docs it holds open (Owlit's writes to them go through it), its
-    // answers to core's requests, its focus. Changing nothing, they pass the policy as reads, so a program
-    // on the socket that said it held a doc open could take Owlit's writes and drop them: only a window
-    // may say them.
-    const windowOnly = (caller: Caller) => {
-      if (caller.kind !== "window") throw new RpcFailure(RpcErrorCode.Forbidden, "Not done: only owlit's window says what it has open and answers its requests.")
-    }
-    this.router.register("ui.setOpenDocs", z.object({ clientId: z.string().min(1), paths: z.array(z.string()) }), "read", ({ clientId, paths }, caller) => {
-      windowOnly(caller)
-      return this.ui.setOpenDocs(clientId, paths)
-    })
-    this.router.register("ui.respond", z.object({ requestId: z.string(), result: z.unknown().optional(), error: z.string().optional() }), "read", ({ requestId, result, error }, caller) => {
-      windowOnly(caller)
-      return this.ui.respond(requestId, result, error)
-    })
-    this.router.register("ui.focus", z.object({ clientId: z.string().min(1) }), "read", ({ clientId }, caller) => {
-      windowOnly(caller)
-      return this.ui.focus(clientId)
-    })
-    this.router.register("ui.leave", z.object({ clientId: z.string().min(1) }), "read", ({ clientId }, caller) => {
-      windowOnly(caller)
-      return this.ui.leave(clientId)
-    })
-    const owlitUri = z.string().regex(/^owlit:\/\/[a-z]+\/.+/, "an owlit:// link")
-    const asker = z.string().min(1).optional()
-    this.router.register("ui.open", z.object({ uri: owlitUri, chatId: asker }), "read", (params) => this.ui.act("open", params))
-    this.router.register("ui.jump", z.object({ uri: owlitUri, page: z.number().int().positive().optional(), quote: z.string().min(1).optional(), chatId: asker }), "read", (params) =>
-      this.ui.act("jump", params),
-    )
-    this.router.register(
-      "ui.mark",
-      z.object({ uri: owlitUri, quote: z.string().min(1), color: z.enum(["yellow", "green", "blue", "pink"]).optional(), chatId: asker }), "own",
-      (params) => this.ui.act("mark", params),
-    )
     this.router.register("memory.list", noParams, "read", async () => {
       const memory = this.requireWorkspace().memory
       return { lines: await memory.list(), claudeNotes: await memory.claudeNotes() }
@@ -555,6 +356,7 @@ export class Core {
       z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }), "own",
       ({ keep, drop }, caller) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop, caller),
     )
+    const rel = z.string()
     this.router.register(
       "changes.undo",
       z.object({ id: z.string().min(1) }),
@@ -620,15 +422,6 @@ export class Core {
         if (mark.kind === "doc") ws.shares.touched({ docs: [mark.path] })
         return marks
       },
-    )
-    this.router.register("agents.cancel", z.object({ chatId }), "admin", ({ chatId }) => this.turns.cancel(chatId))
-    this.router.register("agents.running", noParams, "read", () => this.turns.inFlight())
-    this.router.register("agents.respondPermission", z.object({ chatId, requestId: z.string(), optionId: z.string() }), "admin", ({ chatId, requestId, optionId }) =>
-      this.turns.respondPermission(chatId, requestId, optionId),
-    )
-    const answer = z.object({ picks: z.array(z.string()).optional(), text: z.string().optional() })
-    this.router.register("agents.answerQuestion", z.object({ chatId, requestId: z.string(), answers: z.record(z.string(), answer).nullable() }), "admin", ({ chatId, requestId, answers }) =>
-      this.turns.answerQuestion(chatId, requestId, answers),
     )
 
     const library = () => this.requireWorkspace().library
@@ -983,78 +776,7 @@ export class Core {
     this.router.register("threads.about", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().about(id))
     this.router.register("threads.delete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().delete(id, caller))
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
-    this.router.register("comments.all", noParams, "read", () => docs().commentsAll())
-    // A comment is whoever started it (its first entry); others: who replied under it
-    const commentTarget = async (path: string, id: string, { replies = false } = {}): Promise<Target> => {
-      const was = (await docs().listComments(path)).find((c) => c.id === id)
-      if (!was) return { what: "comment" }
-      const by = was.entries[0]?.by
-      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}) }
-    }
-    const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id) }
-    this.router.register("comments.add", z.object({ path: rel, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
-      const agent = caller.kind !== "window"
-      // Never over an existing comment (add replaces one with the same id)
-      if ((await docs().listComments(path)).some((c) => c.id === comment.id)) throw new RpcFailure(RpcErrorCode.Conflict, agent ? "That comment is already there; an agent adds new ones." : t`That comment is already there.`)
-      if (!agent) {
-        const made = signed(comment, null, await this.requireWorkspace().recorder.actorOf(caller))
-        await docs().addComment(path, made)
-        this.notifier.notify("comments.changed", { path, comment: made })
-        await this.recordComment(caller, path, null, made)
-        return null
-      }
-      // The record a carried-over point names is checked and named by core (recordSource)
-      const { source: claimed, ...own } = signed(comment, null, await this.requireWorkspace().recorder.actorOf(caller))
-      const source = claimed ? await this.recordSource(caller, claimed.path) : undefined
-      await this.agentComment(path, source ? { ...own, source } : own, caller)
-      return null
-    })
-    const COMMENT_PUT: Policy<"comments.put"> = {
-      touches: ({ comment }, target, who) => commentTouches(comment, target, who),
-      target: async ({ path, comment }) => {
-        const target = await commentTarget(path, comment.id)
-        // A reply alone is a new entry of the caller's, whoever started the comment
-        if (target.was && replyOnly(comment, target.was as DocComment)) return { what: "reply", was: target.was }
-        return target
-      },
-    }
-    this.router.register("comments.put", z.object({ path: rel, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
-      const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
-      const comment = correcting(signed(input, was, await this.requireWorkspace().recorder.actorOf(caller)), was, caller)
-      const before = await this.putComment(path, comment, caller)
-      // A reply of the user's under one of Owlit's comments: Owlit answers it there
-      const first = comment.entries[0]
-      const last = comment.entries.at(-1)
-      if (first && isOwlit(first.by) && last && isPerson(last.by) && !before?.entries.some((e) => e.id === last.id) && isOpenComment(comment)) {
-        this.answerReply(this.requireWorkspace(), path, comment.id)
-      }
-      return before
-    })
-    this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
-      const removed = await docs().removeComment(path, id)
-      if (removed && caller.kind !== "window") this.notifier.notify("comments.removed", { path, id })
-      await this.recordComment(caller, path, removed, null)
-      return removed
-    })
-    this.router.register("comments.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), "words", ({ path, moved }) =>
-      docs().reanchorComments(path, moved),
-    )
 
-    const shares = () => this.requireWorkspace().shares
-    const permission = z.enum(["comment", "view"])
-    this.router.register("share.list", noParams, "read", () => shares().list())
-    this.router.register("share.create", z.object({ path: rel, notes: z.boolean() }), "admin", ({ path, notes }) => shares().create(path, notes))
-    this.router.register("share.update", z.object({ path: rel, permission: permission.optional(), notes: z.boolean().optional() }), "admin", ({ path, ...change }) =>
-      shares().update(path, change),
-    )
-    this.router.register("share.stop", z.object({ path: rel, forget: z.boolean().optional() }), "admin", ({ path, forget }) => shares().stop(path, forget))
-    this.router.register("share.comments", z.object({ path: rel }), "read", ({ path }) => shares().commentsOf(path))
-    this.router.register("share.reply", z.object({ path: rel, parent: z.string().min(1), text: z.string().trim().min(1).max(4000) }), "admin", ({ path, parent, text }) =>
-      shares().reply(path, parent, text),
-    )
-    this.router.register("share.resolve", z.object({ path: rel, id: z.string().min(1), resolved: z.boolean() }), "admin", ({ path, id, resolved }) =>
-      shares().resolve(path, id, resolved),
-    )
   }
 
   // caller: who sent it; the in-process host (the window) by default
@@ -1234,34 +956,6 @@ export class Core {
     return run
   }
 
-  // One of Owlit's comments, written as an agent's: recorded in the change log (Undo) and shown in the
-  // chat's result card
-  private async agentComment(path: string, comment: DocComment, caller: Caller) {
-    const ws = this.requireWorkspace()
-    await ws.docs.addComment(path, comment)
-    this.notifier.notify("comments.changed", { path, comment })
-    await ws.recorder.record(caller, { action: "create", target: { kind: "comment", path, part: comment.id }, after: comment }, { label: path.split("/").pop()!.replace(/\.md$/i, "") })
-  }
-
-  // A comment as it reads now, replacing the one with its id, and recorded. A window drew its own change
-  // already; an agent's (a reply from the hidden chat about the comment, through comments_reply) reaches
-  // the windows only through comments.changed. The comment as it was.
-  private async putComment(path: string, comment: DocComment, caller: Caller) {
-    const before = await this.requireWorkspace().docs.putComment(path, comment)
-    if (caller.kind !== "window") this.notifier.notify("comments.changed", { path, comment })
-    await this.recordComment(caller, path, before, comment)
-    return before
-  }
-
-  // How a comment changed, one entry per comment or reply that did, sharing one writeId
-  private async recordComment(caller: Caller, path: string, before: DocComment | null, after: DocComment | null, origin: Partial<ChangeOrigin> = {}) {
-    const recorder = this.requireWorkspace().recorder
-    const writeId = newWriteId()
-    for (const { part, ...change } of commentChanges(before, after)) {
-      await recorder.record(caller, { ...change, target: { kind: "comment", path, part }, origin: { ...origin, writeId } }, { quiet: true })
-    }
-  }
-
   // The window's change to a paper: one entry per field it changed (starred, status, tags, each
   // correction as overrides.<field>), sharing one writeId; where it was left (the reader's position, the
   // side last read, the digest's scroll) and when it was opened aren't changes worth keeping
@@ -1280,21 +974,6 @@ export class Core {
       await ws.recorder.record(caller, { action: "update", target: { kind: "paper", path: after.id, part }, origin: { ...origin, writeId }, ...(was !== undefined ? { before: was } : {}), ...(now !== undefined ? { after: now } : {}) }, { quiet: true })
     }
     return after
-  }
-
-  // The window renames or moves a doc or folder: each file under it recorded as leaving its old place and
-  // arriving at the new one, sharing one writeId
-  private async movingDocs(from: string, caller: Caller, move: () => Promise<{ path: string }>) {
-    const ws = this.requireWorkspace()
-    const texts = await ws.docs.textsUnder(from)
-    const moved = await move()
-    if (moved.path === from) return moved
-    const writeId = newWriteId()
-    for (const t of texts) {
-      await ws.recorder.doc(caller, t.path, t.content, null, { origin: { writeId } }, { quiet: true })
-      await ws.recorder.doc(caller, moved.path + t.path.slice(from.length), null, t.content, { origin: { writeId } }, { quiet: true })
-    }
-    return moved
   }
 
   // Who changed a file the watcher saw change: the tool call claiming it (Owlit, and the user's when they
@@ -1337,22 +1016,6 @@ export class Core {
     const theirs = papers.find((p) => !isOwlit(p.addedBy))
     const by = theirs?.addedBy ?? adders[0]
     return { what: theirs ? `paper ${theirs.id}` : "paper", ...(by ? { by } : {}), touchedBy }
-  }
-
-  // Whose a doc is, for an agent writing one of its own (agents.writeDoc): nobody's while it isn't there,
-  // so making it is the caller's; else whoever made it, as the change log says, and whoever changed it
-  // since. A doc the log has no record of making (made before the log, or outside owlit, or its entries
-  // since dropped) is the person's.
-  private async docTarget(file: string): Promise<Target> {
-    const ws = this.requireWorkspace()
-    const files = await this.fs.target([file])
-    const rel = files.files?.[0]
-    if (!rel || files.notDoc || (await this.fs.text(rel)) === null) return { ...files, what: "doc" }
-    const changes = (await ws.changes.list({ target: { kind: "doc", path: rel } })).reverse()
-    const made = changes.findLast((c) => c.action === "create")
-    const by = made?.actor ?? (await ws.recorder.actorOf(WINDOW))
-    const since = made ? changes.slice(changes.indexOf(made) + 1) : []
-    return { ...files, what: "doc", by, touchedBy: since.map((c) => c.actor) }
   }
 
   // Whose a memory line is: whoever kept it, as the change log says, and whoever changed it since. A line
@@ -1483,18 +1146,6 @@ export class Core {
     if (answered) return
     await ws.chats.patchMessage(started.chatId, { ...reply, status: "error", error: t`Owlit finished without answering in the comment.` }, true)
     await this.announceStarted(ws, started.chatId)
-  }
-
-  // A point an agent carries over from a record of what people said (going through material): the
-  // comment points back to the record, a doc its chat wrote with docs_write, as the change log says.
-  // Core names the record; one not written yet is refused, so a comment never points at nothing.
-  private async recordSource(caller: Caller, file: string) {
-    const ws = this.requireWorkspace()
-    const chatId = caller.kind === "socket" || caller.kind === "owlit" ? caller.chatId : undefined
-    const rel = ws.docs.resolve(file)
-    const made = chatId && (await ws.changes.list({ chatId, target: { kind: "doc", path: rel } })).some((c) => c.action === "create")
-    if (!made) throw new RpcFailure(RpcErrorCode.InvalidParams, "Write the reading with docs_write first: each comment points back to it, a doc this chat wrote.")
-    return { path: rel, label: rel.split("/").pop()!.replace(/\.md$/i, "") }
   }
 
   // A chat owlit starts for the person, on the agent and model Settings chooses for its work. Every window
@@ -1633,14 +1284,3 @@ export class Core {
 
 // The card's icon for a change the policy asks about, from what the method does
 
-// An agent's reply under its own comment that starts with CORRECT: (recipes/reply.ts) rewrites the
-// comment's first entry instead of standing under it; the old words are kept as was. Under a comment that
-// isn't that Owlit's to rewrite, it stands as a reply without the word.
-function correcting(comment: DocComment, was: DocComment | null, caller: Caller): DocComment {
-  if (caller.kind === "window" || !was) return comment
-  const added = comment.entries.filter((e) => !was.entries.some((w) => w.id === e.id))
-  const fix = added.length === 1 && isOwlit(added[0]!.by) ? correctionOf(added[0]!.text) : null
-  if (!fix) return comment
-  if (correctable(was) && was.entries[0]!.by === added[0]!.by) return corrected(was, fix, Date.now())
-  return { ...comment, entries: comment.entries.map((e) => (e === added[0] ? { ...e, text: fix } : e)) }
-}
