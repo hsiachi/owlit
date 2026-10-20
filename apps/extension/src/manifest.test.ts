@@ -23,13 +23,13 @@ describe("manifest", () => {
     for (const origin of [...m.host_permissions, ...m.optional_host_permissions]) expect(origin).toMatch(/^https?:\/\/(\*|\*\.[^/:*]+|[^/:*]+)\/\*$/)
   })
 
-  it.each(TARGETS)("puts the feather tile on the toolbar and the app icon in the store, for %s", (target) => {
+  it.each(TARGETS)("shows the one tile on the toolbar, the extensions page and in the store, for %s", (target) => {
     const m = built(target)
-    expect(Object.keys(m.action.default_icon).map(Number)).toEqual([16, 32, 48])
-    expect(Object.values(m.action.default_icon).every((icon) => /^icons\/feather-\d+\.png$/.test(icon))).toBe(true)
     // The extensions page asks for 96 and the 32 slot for 64 on a 2x display; scripts/icons.mjs draws them
     expect(Object.keys(m.icons).map(Number)).toEqual([16, 32, 48, 64, 96, 128])
-    for (const icon of [...Object.values(m.icons), ...Object.values(m.action.default_icon)]) expect(existsSync(path.join(import.meta.dirname, "../public", icon)), icon).toBe(true)
+    // The button's are the same files, not a second drawing
+    expect(m.action.default_icon).toEqual({ 16: m.icons[16], 32: m.icons[32], 48: m.icons[48] })
+    for (const icon of Object.values(m.icons)) expect(existsSync(path.join(import.meta.dirname, "../public", icon)), icon).toBe(true)
   })
 
   it.each(TARGETS)("shows one toolbar icon whatever the toolbar's colour, for %s", (target) => {
