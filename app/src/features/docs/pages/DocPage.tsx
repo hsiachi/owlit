@@ -18,7 +18,6 @@ import { openEditor } from "../editors"
 import { setInlineCards } from "../editor/comment-marks"
 import { useCommentSteps, useCommentViews } from "../comments/hooks"
 import { CommentsToggle } from "../comments/CommentsToggle"
-import { OwlitChip } from "../OwlitChip"
 import { cn } from "@/lib/utils"
 
 // One doc: a one-line header with where it lives, then the text in the reading column
@@ -64,8 +63,7 @@ export function DocPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader trail={trail} current={displayName(file.path)}>
         <DeletedOnDisk docId={file.id} />
-        <OwlitChip file={file} />
-        <CommentsToggle docId={file.id} />
+        <CommentsToggle file={file} />
         <DocShareControls file={file} />
         <DropdownMenu>
           <MenuButton label={t`Doc actions`} />

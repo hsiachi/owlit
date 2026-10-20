@@ -34,7 +34,7 @@ function FileRow({ node, depth, ...p }: { node: FileNode; depth: number } & Tree
   const renaming = useDocsUiStore((s) => s.renaming === key)
   const active = node.file.id === p.activeId
   const shared = useShareStore((s) => !!s.byPath[node.file.path])
-  // Owlit left comments here the user hasn't seen (its chip on the doc carries the same dot)
+  // Owlit left comments here the user hasn't seen (the doc's comments button carries the same dot)
   const fresh = useNewOwlitComments(node.file).length > 0
 
   if (renaming)

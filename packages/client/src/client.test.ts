@@ -77,8 +77,8 @@ describe("the workspace socket", () => {
     const a = await connect(root, { dir })
     const b = await connect(root, { dir })
     const heard: string[] = []
-    a.on("activity.status", () => heard.push("a"))
-    b.on("activity.status", () => heard.push("b"))
+    a.on("settings.changed", () => heard.push("a"))
+    b.on("settings.changed", () => heard.push("b"))
     // Each client's subscribe went out before this call on the same connection, so is in by its reply
     await Promise.all([a.call("core.ping"), b.call("core.ping")])
     // The settings are the person's: changed from the window, heard on the socket

@@ -353,7 +353,6 @@ export class Core {
       if (this.workspace) this.activity.publish(event)
       return null
     })
-    this.router.register("activity.status", noParams, "read", async () => (await this.settings.get()).activity)
     // What the user did lately, for an agent: nothing at all while recording is turned off
     this.router.register("activity.query", z.object({ query: activityQuery }), "read", async ({ query }): Promise<ActivityAnswer> => {
       const ws = this.requireWorkspace()
@@ -379,7 +378,6 @@ export class Core {
     })
     this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), "admin", async ({ enabled }) => {
       const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
-      this.notifier.notify("activity.status", next.activity)
       this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages, this.settings.unopenedKeys()))
       return next.activity
     })

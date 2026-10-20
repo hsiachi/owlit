@@ -14,7 +14,7 @@ export type TaskState = "queued" | "running" | "waiting_for_you" | "done" | "fai
 
 // What the user has to do before the task can go on. A state shown beside the subject, not a dialog.
 export interface TaskWaiting {
-  reason: "login" | "challenge" | "drop_pdf" | "confirm_spend"
+  reason: "confirm_spend"
   // One sentence a person can read
   detail: string
 }

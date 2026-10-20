@@ -114,7 +114,6 @@ export interface Methods {
   "workspace.setLayout": { params: { patch: Record<string, unknown> }; result: Record<string, unknown> }
   // One thing the user did; dropped when activity is turned off or no workspace is open
   "activity.emit": { params: { event: ActivityEvent }; result: null }
-  "activity.status": { params: void; result: { enabled: boolean } }
   // What the user did lately, for an agent (owlit-mcp's activity_read)
   "activity.query": { params: { query: ActivityQuery }; result: ActivityAnswer }
   "activity.setEnabled": { params: { enabled: boolean }; result: { enabled: boolean } }
@@ -529,8 +528,6 @@ export interface Notifications {
   "workspace.opened": WorkspaceInfo
   // A workspace started or stopped opening, or one opened
   "workspace.state": WorkspaceState
-  // The activity switch changed; renderers stop or start reporting
-  "activity.status": { enabled: boolean }
   // Any setting changed, from any window or the app menu
   "settings.changed": SettingsView
   // An extension asked to connect, was answered, connected or was forgotten; the port opened or was taken

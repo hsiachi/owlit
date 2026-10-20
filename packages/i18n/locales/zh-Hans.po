@@ -701,30 +701,6 @@ msgctxt "verb: say something about the selected words"
 msgid "Comment"
 msgstr "评论"
 
-#: app/src/components/sentence-editor.tsx
-#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/docs/share/ShareDialog.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/settings/parts.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/settings/sections/BrowserSignIn.tsx
-#: app/src/features/tour/TourOverlay.tsx
-#: app/src/features/welcome/CreateForm.tsx
-#: apps/desktop/src/cli-tool.ts
-#: apps/share-web/src/App.tsx
-msgid "Cancel"
-msgstr "取消"
-
-#. save an edited comment
-#: app/src/components/sentence-editor.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-msgid "Save"
-msgstr "保存"
-
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
 msgstr "命令面板"
@@ -1328,6 +1304,22 @@ msgstr "owlit 会在工作区里为对话保存一份你附加的每个文件的
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 msgstr "{0, plural, other {要拷贝 # 个大文件吗？}}"
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: app/src/features/tour/TourOverlay.tsx
+#: app/src/features/welcome/CreateForm.tsx
+#: apps/desktop/src/cli-tool.ts
+#: apps/share-web/src/App.tsx
+msgid "Cancel"
+msgstr "取消"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "Skip large files"
@@ -2549,10 +2541,6 @@ msgstr "在“{title}”中"
 msgid "In “{title}”: {error}"
 msgstr "在“{title}”中：{error}"
 
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Owlit works here only when you ask"
-msgstr "只有你开口，Owlit 才在这里动手"
-
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "链接已复制"
@@ -2691,6 +2679,12 @@ msgstr "这条评论所在的文字已改动：“{0}”"
 msgid "{cut, plural, one {# more reply} other {# more replies}}"
 msgstr "{cut, plural, other {还有 # 条回复}}"
 
+#. save an edited comment
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Save"
+msgstr "保存"
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "More"
 msgstr "更多"
@@ -2769,6 +2763,11 @@ msgid "Comment by {0}"
 msgstr "{0} 的评论"
 
 #: app/src/features/docs/comments/CommentsToggle.tsx
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Owlit commented since you last looked"
+msgstr "自你上次查看后 Owlit 留了评论"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "Hide comments"
 msgstr "隐藏评论"
 
@@ -2815,10 +2814,6 @@ msgstr "{name} 会用系统应用打开"
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Doc actions"
 msgstr "文档操作"
-
-#: app/src/features/docs/components/DocsListPanel.tsx
-msgid "Owlit commented since you last looked"
-msgstr "自你上次查看后 Owlit 留了评论"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Shared by link"
