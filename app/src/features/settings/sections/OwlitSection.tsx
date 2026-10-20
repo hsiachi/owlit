@@ -226,7 +226,7 @@ function MemoryRow() {
         name={t`Remember what I do in owlit`}
         // A machine setting (settings.json), for every workspace opened here. Off also stops a finished
         // paper turning Read: the read-in-full check (core's read-in-full.ts) reads only the journal.
-        help={t`What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. Off: nothing is noted, and papers you finish stay as you left them.`}
+        help={t`What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. This file goes wherever the folder goes. Off: nothing is noted, and papers you finish stay as you left them.`}
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>
