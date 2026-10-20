@@ -2,14 +2,11 @@ import { me, myOwlit } from "@/lib/actors"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
-import { hasCore } from "@/lib/rpc"
-import type { LibraryClient } from "./client"
-import { MockLibraryClient } from "./mock-client"
 import { RpcLibraryClient } from "./rpc-client"
 import type { Highlight, HighlightColor, Paper, PaperNote, DigestPosition, PaperView, ReadingPosition, ReadStatus, ResolvedPaper } from "@owlit/protocol"
 import { normalizeTag } from "./lib/tags"
 
-export const libraryClient: LibraryClient = hasCore ? new RpcLibraryClient() : new MockLibraryClient()
+export const libraryClient = new RpcLibraryClient()
 
 // Papers live in the workspace (library/papers/ and .owlit/papers/, through ./disk): core lists them when a
 // workspace opens, and every change below goes to it.

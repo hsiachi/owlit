@@ -3498,7 +3498,6 @@ msgid "PDF attached"
 msgstr "已附加 PDF"
 
 #: app/src/features/library/actions.ts
-#: app/src/features/library/lib/add-pdfs.ts
 msgid "Added to library"
 msgstr "已添加到文献库"
 
@@ -4258,11 +4257,6 @@ msgstr "{existing} 篇已在你的文献库中"
 msgid "{unreadCount} couldn't be read"
 msgstr "{unreadCount} 篇无法读取"
 
-#. placeholder {0}: pdfs.length
-#: app/src/features/library/lib/add-pdfs.ts
-msgid "{0, plural, one {Added # paper} other {Added # papers}}"
-msgstr "{0, plural, other {已添加 # 篇论文}}"
-
 #: app/src/features/library/lib/digest-source.ts
 msgid "Read from the text only; figures not seen."
 msgstr "只读了正文，没看图。"
@@ -4443,10 +4437,6 @@ msgstr "第 {list} 页"
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
 msgstr "无法查找。"
-
-#: app/src/features/library/mock-client.ts
-msgid "That does not look like a DOI, an arXiv id or a URL."
-msgstr "这看起来不像 DOI、arXiv 编号或 URL。"
 
 #: app/src/features/library/notes/NoteChanges.tsx
 msgid "Your note"
