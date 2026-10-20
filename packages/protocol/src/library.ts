@@ -226,6 +226,8 @@ export interface ImportSummary {
   added: string[]
   // How many the library had already
   existed: number
+  // How many of those had no PDF and got the source's
+  attached?: number
   failed: { key: string; title?: string; error: string }[]
   finishedAt?: number
   // Whether MinerU reads the added papers' PDFs; false when the user said not to for this import

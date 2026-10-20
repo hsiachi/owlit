@@ -24,7 +24,8 @@ const KEEP_MS = 14 * 24 * 60 * 60_000
 
 const KINDS: Record<ImportSource, string> = { zotero: "import.zotero", bibtex: "import.bibtex", folder: "import.folder" }
 
-type Outcome = { result: "added" | "existed"; id: string } | { result: "failed"; title?: string; error: string }
+// attached: a paper the library had without a PDF got the source's
+type Outcome = { result: "added" | "existed"; id: string; attached?: true } | { result: "failed"; title?: string; error: string }
 
 interface ImportRecord {
   version: 1
@@ -56,7 +57,9 @@ export interface ImportHost {
   // imported is told back (note) before the paper's text is read
   add(paper: ResolvedPaper, extra: Extra & { pdf?: string }): Promise<{ paper: Paper; existed: boolean }>
   // A PDF with nothing else to go on: recognised from its pages, or kept as local-<hash>
-  addPdf(file: string, extra: Extra): Promise<{ paper: Paper; existed: boolean }>
+  addPdf(file: string, extra: Extra): Promise<{ paper: Paper; existed: boolean; placed?: boolean }>
+  // The file as the PDF of a paper the library has, when it has none; whether it was placed
+  attachPdf(id: string, file: string): Promise<boolean>
   // Looks a title up with the services
   resolve(title: string): Promise<{ paper: ResolvedPaper; existingId?: string }>
   // Whether MinerU would read every added PDF on its own
@@ -242,12 +245,16 @@ export class Imports {
   // One entry: skipped when the library has it, else added from what the source says
   private async addOne(entry: ImportEntry, record: ImportRecord, interrupted: boolean): Promise<Outcome> {
     const extra: Extra = { ...(record.collectionsAsTags && entry.tags?.length ? { tags: entry.tags } : {}), imported: { parse: record.parse !== false }, importId: record.id }
-    // Found in the library: there before, unless this import added it just before owlit stopped
-    const ours = (id: string): Outcome => ({ result: interrupted ? "added" : "existed", id })
+    // Found in the library: there before, unless this import added it just before owlit stopped. One
+    // there without a PDF gets the source's, rather than the file in hand being thrown away.
+    const ours = async (id: string): Promise<Outcome> => {
+      const attached = !interrupted && !!entry.pdf && (await this.host.attachPdf(id, entry.pdf))
+      return { result: interrupted ? "added" : "existed", id, ...(attached ? { attached } : {}) }
+    }
     try {
       const existing = await this.host.find(entry.ids)
-      if (existing) return ours(existing)
-      let result: { paper: Paper; existed: boolean }
+      if (existing) return await ours(existing)
+      let result: { paper: Paper; existed: boolean; placed?: boolean }
       if (paperIdOf(entry.ids)) {
         result = await this.host.add(describe(entry), { ...extra, ...(entry.pdf ? { pdf: entry.pdf } : {}) })
       } else if (entry.pdf) {
@@ -255,12 +262,13 @@ export class Imports {
       } else if (entry.title) {
         // Only a title: the services say which paper it is
         const { paper, existingId } = await this.host.resolve(entry.title)
-        if (existingId) return ours(existingId)
+        if (existingId) return await ours(existingId)
         result = await this.host.add(paper, extra)
       } else {
         return { result: "failed", error: t`It has no title, identifier or PDF.` }
       }
-      return result.existed ? ours(result.paper.id) : { result: "added", id: result.paper.id }
+      if (result.placed) return { result: "existed", id: result.paper.id, attached: true }
+      return result.existed ? await ours(result.paper.id) : { result: "added", id: result.paper.id }
     } catch (error) {
       return { result: "failed", ...(entry.title ? { title: entry.title } : {}), error: messageOf(error) }
     }
@@ -331,6 +339,7 @@ function summarize(record: ImportRecord): ImportSummary {
     ...(record.entries ? { total: record.entries.length } : {}),
     added: outcomes.flatMap(([, o]) => (o.result === "added" ? [o.id] : [])),
     existed: outcomes.filter(([, o]) => o.result === "existed").length,
+    ...(outcomes.some(([, o]) => o.result === "existed" && o.attached) ? { attached: outcomes.filter(([, o]) => o.result === "existed" && o.attached).length } : {}),
     failed: outcomes.flatMap(([key, o]) => (o.result === "failed" ? [{ key, ...(o.title ? { title: o.title } : {}), error: o.error }] : [])),
     ...(record.finishedAt ? { finishedAt: record.finishedAt } : {}),
     ...(record.parse !== undefined ? { parse: record.parse } : {}),

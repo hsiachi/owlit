@@ -10,7 +10,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import type { PageRect, Paper, QuotedSelection } from "@owlit/protocol"
 import { paperMentionable } from "@/features/docs/lib/mentions"
 import { useThreadsStore } from "@/features/threads/store"
-import { isDesktop } from "@/lib/rpc"
+import { isDesktop, rpc } from "@/lib/rpc"
 import type { LearnedId, Resolved } from "./client"
 import { importPdf, undoAdds } from "./disk"
 import { libraryClient } from "./store"
@@ -163,3 +163,28 @@ export async function addAndSay(source: AddSource, open: (id: string) => void): 
     return null
   }
 }
+
+// The paper menu's Refresh details: the services asked again, and what that did said. A paper found to
+// be a copy of another goes into it (core folds it), and the toast names that one.
+export async function refreshDetails(paper: Paper, open: (id: string) => void) {
+  try {
+    const after = await rpc.library.refresh({ id: paper.id })
+    if (after && after.id !== paper.id) {
+      const title = after.title
+      return void toast(t`Folded into “${title}”`, { description: t`It was a copy of a paper already in your library.`, action: { label: t({ message: "Open", comment: "button: open a paper to read" }), onClick: () => open(after.id) } })
+    }
+    const changed = after ? DETAIL_FIELDS.filter(([key]) => JSON.stringify(after[key]) !== JSON.stringify(paper[key])).map(([, name]) => name()) : []
+    toast(changed.length ? t`Details refreshed` : t`Details checked; nothing changed`, { description: changed.length ? changed.join(", ") : paper.title })
+  } catch (error) {
+    toast.error((error instanceof Error && error.message) || t`Couldn't refresh the details.`)
+  }
+}
+
+const DETAIL_FIELDS: [keyof Paper, () => string][] = [
+  ["title", () => t({ message: "title", comment: "a paper's field, in a list of what Refresh details changed" })],
+  ["authors", () => t({ message: "authors", comment: "a paper's field, in a list of what Refresh details changed" })],
+  ["year", () => t({ message: "year", comment: "a paper's field, in a list of what Refresh details changed" })],
+  ["venue", () => t({ message: "venue", comment: "a paper's field, in a list of what Refresh details changed" })],
+  ["abstract", () => t({ message: "abstract", comment: "a paper's field, in a list of what Refresh details changed" })],
+  ["ids", () => t({ message: "ids", comment: "a paper's DOI, arXiv id and the like, in a list of what Refresh details changed" })],
+]

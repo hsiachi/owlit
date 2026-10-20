@@ -105,9 +105,14 @@ export function aclAnthologyId(ids: PaperRecord["ids"]) {
   return id?.replace(/^([a-z]\d{2}-\d{4})$/, (old) => old.toUpperCase())
 }
 
-// Unpaywall's open copies of a DOI, repositories before publishers. Needs an email to ask.
+// Who Unpaywall may write to about owlit's requests when the person gave no address of their own
+// (Settings › Papers): it asks for an email to contact, not an account, and without one its open copies,
+// the way to most paywalled journal papers, would never be looked for
+export const UNPAYWALL_CONTACT = "contact@owlit.ink"
+
+// Unpaywall's open copies of a DOI, repositories before publishers. email: the person's, else owlit's.
 export async function unpaywallRoutes(http: Http, doi: string, email: string | undefined, signal?: AbortSignal): Promise<Route[]> {
-  if (!email) return []
+  email = email?.trim() || UNPAYWALL_CONTACT
   interface Location {
     url_for_pdf?: string | null
     host_type?: string

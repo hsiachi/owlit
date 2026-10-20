@@ -147,6 +147,7 @@ function Done({ summary }: { summary: ImportSummary }) {
 
   const parts: React.ReactNode[] = []
   if (summary.existed) parts.push(plural(summary.existed, { one: "# was here already", other: "# were here already" }))
+  if (summary.attached) parts.push(plural(summary.attached, { one: "# of those got its PDF", other: "# of those got their PDF" }))
   if (summary.failed.length) parts.push(<Failures key="failed" summary={summary} />)
   if (withoutPdf) parts.push(plural(withoutPdf, { one: "# without a PDF", other: "# without a PDF" }))
 

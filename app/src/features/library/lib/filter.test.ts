@@ -56,7 +56,7 @@ describe("papers without a PDF", () => {
     const visible = visiblePapers(library, { query: "", filter: "no-pdf", tags: [], sort })
     const groups = groupPapers(visible, sort, false, Date.now(), undefined, true)
     expect(groups.map((g) => [g.label, g.papers.map((p) => p.id).sort()])).toEqual([
-      ["Not found", ["check", "found", "noDoi", "signIn"]],
+      ["No PDF found", ["check", "found", "noDoi", "signIn"]],
       ["No access", ["noAccess", "notOffered"]],
       ["No PDF there", ["notThere"]],
       ["Finding", ["looking", "offline"]],

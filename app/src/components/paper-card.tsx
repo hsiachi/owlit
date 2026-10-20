@@ -8,7 +8,7 @@ import { useExtensionWaits } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 import { citationsSource, citationsText } from "@/features/library/lib/format"
 import { stripLatex } from "@/features/library/lib/latex"
-import { pdfWait, type PdfWait } from "@/features/library/lib/pdf-wait"
+import { noPdfTitle, pdfWait, type PdfWait } from "@/features/library/lib/pdf-wait"
 import { statusLabel } from "@/features/library/lib/status"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import { toastError } from "@/lib/toast"
@@ -92,15 +92,14 @@ function Byline({ facts, paper }: { facts: PaperCardFacts; paper: Paper | undefi
   )
 }
 
-// A paper without its PDF: where getting it stands, in the words the paper's No PDF card titles it with
-// (lib/pdf-wait.ts reads the state), and that card's one thing to do when there is one: the site's sign-in,
-// check or permission where the extension waits, or Look again once owlit has stopped looking
+// A paper without its PDF: where getting it stands, titled as the paper's No PDF card is (noPdfTitle),
+// and that card's one thing to do when there is one: the site's sign-in, check or permission where the
+// extension waits, or Look again once owlit has stopped looking
 function PdfLine({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [looking, setLooking] = useState(false)
   const waits = useExtensionWaits()
   const wait = pdfWait(paper) ?? "finding"
-  const site = paper.pdfState?.extension?.host ?? paper.pdfState?.reason?.host?.replace(/^www\./, "")
   const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
   const lookAgain = async () => {
     setLooking(true)
@@ -125,7 +124,7 @@ function PdfLine({ paper }: { paper: Paper }) {
     ) : null
   return (
     <>
-      {looking ? t`Finding a PDF…` : noPdfTitle(wait, site, !!paper.pdfState?.extension?.proxied)}
+      {looking ? t`Finding a PDF…` : noPdfTitle(paper)}
       {action && !looking && <span className="ml-1.5">{action}</span>}
     </>
   )
@@ -133,33 +132,6 @@ function PdfLine({ paper }: { paper: Paper }) {
 
 const WAITS: ReadonlySet<PdfWait> = new Set(["for-sign-in", "for-check", "for-permission"])
 const ENDED: ReadonlySet<PdfWait> = new Set(["not-found", "no-access", "not-offered", "not-there"])
-
-// The No PDF card's title for each state (pages/paper/NoPdf.tsx says the same with the try's details)
-function noPdfTitle(wait: PdfWait, site: string | undefined, proxied: boolean): string {
-  switch (wait) {
-    case "finding":
-      return t`Finding a PDF…`
-    case "offline":
-      return t`Waiting for the network`
-    case "for-sign-in":
-      if (proxied || !site) return t`Waits for your library sign-in`
-      return t`Waits for a sign-in at ${site}`
-    case "for-check":
-      return site ? t`Waits for a check at ${site}` : t`Waits for a check`
-    case "for-permission":
-      return site ? t`Waits for the extension to be allowed on ${site}` : t`Waits for the extension to be allowed`
-    case "not-found":
-      return t`No PDF found`
-    case "no-access":
-      return t`No access through your library`
-    case "not-offered":
-      return t`Your library doesn't offer this paper`
-    case "not-there": {
-      const host = site
-      return host ? t`${host} has no PDF of this paper` : t`The publisher has no PDF of this paper`
-    }
-  }
-}
 
 // The abstract in its first three lines, with Show more only when it runs longer
 function Abstract({ text }: { text: string }) {

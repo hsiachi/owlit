@@ -310,6 +310,25 @@ describe("keeping the library clean", () => {
     await eventually(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
   })
 
+  it("looks again within the hour, while owlit stays open, for a paper whose look reached nothing", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    try {
+      const { root, core } = await setup({ "arxiv.org/pdf/1706.03762": "%PDF-1.4\n%%EOF\n" })
+      // The open's daily look is over before the papers come
+      await workspaceOf(core).library.missingRetried
+      putPaper(root, { id: "arxiv-1706.03762", title: "Attention", ids: { arxiv: "1706.03762" } })
+      const offline = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+      writeFileSync(offline, JSON.stringify({ version: 2, state: "finding", tried: [{ by: "search", ended: "offline", at: Date.now() - 60_000 }], dropHere: "" }))
+      // A thread's paper nobody has read: never sought, so left alone
+      putPaper(root, { id: "arxiv-2101.00001", title: "Unsought", ids: { arxiv: "2101.00001" } })
+      vi.advanceTimersByTime(60 * 60_000)
+      await eventually(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+      expect(existsSync(path.join(root, "library/papers/arxiv-2101.00001/acquisition.json"))).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {
     const { root, core } = await setup({})
     const id = "doi-10.1145-3626772.3657891"

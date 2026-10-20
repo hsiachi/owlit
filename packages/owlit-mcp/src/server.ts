@@ -23,7 +23,7 @@ import {
   type MemoryKind,
   type ReadStatus,
   type Paper,
-  type ExtensionWait,
+  pdfWait,
   type PdfEnded,
   type ToolSpec,
 } from "@owlit/protocol"
@@ -561,29 +561,26 @@ function paperLine(p: Paper, extension: boolean) {
 // and the ending of the try that says why), as the window shows it: with only "no PDF", an agent
 // suggests a library proxy the user already has, and can't say which sign-in a paper waits for.
 const DROP = "the user can drop the PDF on the paper"
-const BY_ENDED: Record<PdfEnded, string> = {
-  "no-copy": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
+// A paper with no PDF, by its state's reason; a not-found that an older record's check or sign-in gave
+// says so, since an agent may be asked why
+const NO_PDF: Record<"not-found" | "no-access" | "not-offered" | "not-there", string> = {
+  "not-found": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
   "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
   "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
   "not-there": `no PDF: the publisher has no PDF at the paper's address; ${DROP}`,
-  // Only owlit's own looks give these as a reason for no PDF (an older record); the extension's are WAITS
+}
+const OWN_LOOK: Partial<Record<PdfEnded, string>> = {
   check: `no PDF: the publisher stopped owlit's own look with a check; ${DROP}`,
   "sign-in": `no PDF: the publisher wanted a sign-in from owlit's own look; ${DROP}`,
-  // Not reasons for having no PDF; core never gives them as one
-  pdf: `no PDF; ${DROP}`,
-  offline: `no PDF yet (waiting for the network)`,
-  // The extension's ending, never a reason for no PDF: such a paper is still finding (WAITS)
-  "no-permission": `no PDF yet; ${DROP}`,
 }
 
 // A paper still finding while the owlit extension in the user's browser waits at its site for them: one
 // sign-in, check or permission there covers every paper waiting at that site
-const WAITS: Record<ExtensionWait["kind"], string> = {
-  "sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
-  check: "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
-  permission: "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
-}
-const WAITED: Partial<Record<PdfEnded, keyof typeof WAITS>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
+const WAITS = {
+  "for-sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
+  "for-check": "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
+  "for-permission": "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
+} as const
 
 // Without a browser extension allowed to connect, owlit has nothing more to try: an agent can say what
 // would. extension: one is (or owlit couldn't say).
@@ -595,19 +592,28 @@ const SIGN_IN_AT = (host: string) =>
   `no PDF yet: waits for the user to sign in at ${host} in their browser (Home says so; one sign-in covers every paper waiting there, and owlit goes on by itself)`
 const SIGN_IN_UNKNOWN = "no PDF yet: waits for the user's sign-in (the library's or the publisher's) in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)"
 
+// Why a paper has no PDF, in words an agent can pass on, from the window's own reading (pdfWait): with
+// only "no PDF", an agent suggests a library proxy the user already has, and can't say which sign-in a
+// paper waits for
 export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) {
-  if (p.pdf) return ""
+  const wait = pdfWait(p)
   const s = p.pdfState
-  if (!s || s.state === "finding") {
-    // The extension's queue says where it is now; its last try says so before the queue has it again
-    const waits = s?.extension ? s.extension.waits : s?.reason?.by === "extension" ? WAITED[s.reason.ended] : undefined
-    if (waits === "sign-in" && !s?.extension) return SIGN_IN_UNKNOWN
-    if (waits === "sign-in" && !s?.extension?.proxied) return SIGN_IN_AT(s!.extension!.host)
-    if (waits) return WAITS[waits]
-    if (s?.extension) return "no PDF yet (owlit is getting it through the user's browser)"
-    return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
+  switch (wait) {
+    case undefined:
+      return ""
+    case "finding":
+      return s?.extension ? "no PDF yet (owlit is getting it through the user's browser)" : "no PDF yet (owlit is looking)"
+    case "offline":
+      return "no PDF yet (waiting for the network)"
+    case "for-sign-in":
+      if (!s?.extension) return SIGN_IN_UNKNOWN
+      return s.extension.proxied ? WAITS[wait] : SIGN_IN_AT(s.extension.host)
+    case "for-check":
+    case "for-permission":
+      return WAITS[wait]
+    default:
+      return ((s?.reason && OWN_LOOK[s.reason.ended]) ?? NO_PDF[wait]) + (extension ? "" : NO_EXTENSION)
   }
-  return BY_ENDED[s.reason?.ended ?? "no-copy"] + (extension ? "" : NO_EXTENSION)
 }
 
 // Whether the user allowed a browser's extension to connect; true when owlit couldn't say, so nothing

@@ -92,6 +92,22 @@ describe("library.import", () => {
     expect(await summary(started.id)).toMatchObject({ dismissed: true })
   })
 
+  it("gives a paper the library has without a PDF the PDF the import brings, and counts it", async () => {
+    const { base, root, call, open, until, summary } = setup()
+    await open()
+    await call("library.add", { paper: { id: "arxiv-1706.03762", title: "Attention Is All You Need", authors: [], ids: { arxiv: "1706.03762" } } })
+    // owlit's own look found no copy
+    await until(((await call("tasks.list")) as Task[]).find((t) => t.kind === "paper.pdf")!.id, ["done", "failed"])
+    const pdf = path.join(base, "attention.pdf")
+    writeFileSync(pdf, arxivPdf)
+    const file = path.join(base, "export.json")
+    writeFileSync(file, JSON.stringify({ items: [{ itemType: "preprint", key: "A", title: "Attention Is All You Need", archiveID: "arXiv:1706.03762", attachments: [{ path: pdf }] }] }))
+    const started: ImportSummary = await call("library.import", { source: "zotero", path: file })
+    await until(started.taskId, ["done"])
+    expect(await summary(started.id)).toMatchObject({ added: [], existed: 1, attached: 1 })
+    expect(readFileSync(path.join(root, "library/papers/arxiv-1706.03762/paper.pdf"))).toEqual(Buffer.from(arxivPdf))
+  })
+
   it("brings in a folder of PDFs: recognised ones with their metadata, the rest as local papers whose text can be read", async () => {
     const { base, call, open, until, summary } = setup()
     await open()

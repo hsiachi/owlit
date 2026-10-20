@@ -80,6 +80,12 @@ const RESOLUTION_TTL_MS = 10 * 60_000
 const FOUND_TTL_MS = 12 * 3_600_000
 // How long changes under library/papers/ settle before they are read
 const SETTLE_MS = 300
+// How often an open library sees whether a daily step is due (each keeps its own day in library.json)
+// and looks again for papers whose look reached nothing: a Mac app stays open for days
+const HOURLY_MS = 60 * 60_000
+// A download or a copy left half-written by a run that never finished (owlit quit or crashed): one this
+// old belongs to no run still going, since a run moves or removes its file when it ends
+const PARTIAL_MS = 60 * 60_000
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
 
@@ -149,6 +155,12 @@ export interface SearchLine {
 
 const RECENT_SEARCHES = 2000
 
+// <dataDir>/library.json
+interface MachineNotes {
+  missingRetriedOn?: string
+  citationsCountedOn?: string
+}
+
 // The ids a lookup may teach a paper the library has (Library.learnIds)
 const LEARNABLE = ["arxiv", "s2", "openalex"] as const
 export type LearnedId = (typeof LEARNABLE)[number]
@@ -177,8 +189,11 @@ export class Library {
   private watcher: FSWatcher | null = null
   private dirty = new Set<string>()
   private timer: ReturnType<typeof setTimeout> | undefined
+  private hourly: ReturnType<typeof setInterval> | undefined
   // Writes, one at a time, so a paper's files never race
   private readonly serial = new Serial()
+  // Writes of library.json: the daily look and the recount run side by side, each keeping the other's day
+  private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
   // Libraries brought in at once (Zotero, BibTeX, a folder of PDFs)
@@ -196,6 +211,14 @@ export class Library {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
       add: async (paper, { importId, ...extra }) => this.importedBy(importId, await this.addNew(paper, undefined, "background", extra)),
       addPdf: async (file, { importId, ...extra }) => this.importedBy(importId, await this.importPdf(file, { priority: "background", ...extra })),
+      attachPdf: (id, file) =>
+        this.attachPdf(id, file, "dropped", { ifMissing: true }).then(
+          () => true,
+          (error) => {
+            if (error instanceof RpcFailure && error.code === RpcErrorCode.Conflict) return false
+            throw error
+          },
+        ),
       resolve: (title) => this.byTitle(title),
       parsingOn: async () => {
         const settings = (await this.services.parsing?.()) ?? {}
@@ -1189,7 +1212,9 @@ export class Library {
   // they predate the current round of checks (METADATA_CHECKS)
   private async catchUp() {
     const ids = await this.ids()
+    const now = Date.now()
     for (const id of ids) {
+      await this.removePartials(id, now)
       if ((await hasPdfFile(this.root, id)) && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
       // Only details the services gave: a record written some other way (by hand, by another program)
       // is left as its author wrote it
@@ -1198,14 +1223,39 @@ export class Library {
     }
   }
 
+  // The steps owlit takes once a day, each skipped when it ran today already
+  private daily() {
+    this.missingRetried = this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
+    this.citationsRecounted = this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
+  }
+
+  // Papers whose newest look reached nothing (offline) are looked for again: the network may be back.
+  // Papers nobody has sought (a thread's, unread) have no acquisition.json and stay unsought.
+  private async retryOffline() {
+    for (const id of await this.ids()) {
+      const newest = (await this.acquisitions.read(id))?.tried.at(-1)
+      if (newest?.by === "search" && newest.ended === "offline" && !(await hasPdfFile(this.root, id))) this.queue("paper.pdf", id, "background")
+    }
+  }
+
+  // Downloads (.download) and copies (.part) a run left in the paper's folder when owlit stopped in the
+  // middle: up to a PDF's size each, and synced with the workspace
+  private async removePartials(id: string, now: number) {
+    const dir = paperDir(this.root, id)
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
+      if (!/\.(download|part)$/.test(name)) continue
+      const file = path.join(dir, name)
+      const at = await mtimeOf(file)
+      if (at && now - at > PARTIAL_MS) await rm(file, { force: true })
+    }
+  }
+
   // Papers left without a PDF get another try once a day, spaced out (lookDue): open copies appear over
   // time. One whose last look reached nothing goes again too: nothing else would look for it.
   private async retryMissingDaily() {
-    const file = path.join(this.dataDir, "library.json")
     const today = new Date().toISOString().slice(0, 10)
-    const kept = (await readJson<{ missingRetriedOn?: string }>(file).catch(() => undefined)) ?? {}
-    if (kept.missingRetriedOn === today) return
-    await writeJsonAtomic(file, { ...kept, missingRetriedOn: today })
+    const due = await this.machine((kept) => (kept.missingRetriedOn === today ? undefined : { ...kept, missingRetriedOn: today }))
+    if (!due) return
     const now = Date.now()
     for (const id of await this.ids()) {
       const acquisition = await this.acquisitions.read(id)
@@ -1214,16 +1264,28 @@ export class Library {
     }
   }
 
-  // The last open's recount, settled once it has counted or found it had nothing to do (tests wait on it)
+  // <dataDir>/library.json, this machine's notes about the library (which day each daily step ran),
+  // changed one writer at a time: change gives the next content, or undefined to leave it; whether it wrote
+  private machine(change: (kept: MachineNotes) => MachineNotes | undefined): Promise<boolean> {
+    return this.machineFile.run(async () => {
+      const file = path.join(this.dataDir, "library.json")
+      const next = change((await readJson<MachineNotes>(file).catch(() => undefined)) ?? {})
+      if (next) await writeJsonAtomic(file, next)
+      return !!next
+    })
+  }
+
+  // The last daily look and recount, each settled once it has run or found it had nothing to do (tests
+  // wait on them)
+  missingRetried: Promise<void> = Promise.resolve()
   citationsRecounted: Promise<void> = Promise.resolve()
 
   // Citation counts over a month old counted again (citations.ts), once a day at most, quietly: a count is
   // the service's fact, not something Owlit wrote, so nothing marks it. A day the services can't be
   // reached is tried again on the next open.
   private async recountCitationsDaily() {
-    const file = path.join(this.dataDir, "library.json")
     const today = new Date().toISOString().slice(0, 10)
-    if ((await readJson<{ citationsCountedOn?: string }>(file).catch(() => undefined))?.citationsCountedOn === today) return
+    if ((await readJson<MachineNotes>(path.join(this.dataDir, "library.json")).catch(() => undefined))?.citationsCountedOn === today) return
     const now = Date.now()
     const due: { id: string; ids: PaperIds }[] = []
     for (const id of await this.ids()) {
@@ -1244,8 +1306,7 @@ export class Library {
       return changed
     })
     // Written after the counts, so a day they couldn't be had is tried again on the next open
-    const kept = (await readJson<Record<string, unknown>>(file).catch(() => undefined)) ?? {}
-    await writeJsonAtomic(file, { ...kept, citationsCountedOn: today })
+    await this.machine((kept) => ({ ...kept, citationsCountedOn: today }))
     if (changed.length) await this.announce(changed)
   }
 
@@ -1255,8 +1316,12 @@ export class Library {
   async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null, before: string, own: boolean) => void) {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
-    void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
-    this.citationsRecounted = this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
+    this.daily()
+    clearInterval(this.hourly)
+    this.hourly = setInterval(() => {
+      this.daily()
+      void this.retryOffline().catch((error) => console.error("[core] couldn't look again for PDFs", error))
+    }, HOURLY_MS)
     // Before any paper is read: imported papers skip the digest and maybe MinerU
     await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
@@ -1294,6 +1359,7 @@ export class Library {
 
   dispose() {
     clearTimeout(this.timer)
+    clearInterval(this.hourly)
     for (const timer of this.noteTimers.values()) clearTimeout(timer)
     this.watcher?.close()
     this.watcher = null
