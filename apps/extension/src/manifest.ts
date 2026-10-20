@@ -17,7 +17,9 @@ export const FIREFOX_ANDROID_MIN = "142.0"
 export const CHROME_MIN = "116"
 
 // The store's and the extensions page's: the app icon itself
-const ICONS = { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 128: "icons/128.png" }
+// scripts/icons.mjs draws them. 64 and 96 are the 32 and 48 slots on a 2x display (the extensions page
+// asks for 96): the browser takes the nearest size listed, and 128 scaled down looks soft.
+const ICONS = { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 64: "icons/64.png", 96: "icons/96.png", 128: "icons/128.png" }
 // The toolbar button's: the feather alone (scripts/icons.mjs), in ink, and light for a dark toolbar.
 // Firefox picks between them by its theme (theme_icons); Chrome takes the light one from the background
 // once a page or the popup says the browser is dark (action.setIcon).
