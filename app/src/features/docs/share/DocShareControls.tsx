@@ -3,7 +3,7 @@ import type { WorkspaceFile } from "@owlit/protocol"
 import { UsersIcon } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import { ShareDialog } from "./ShareDialog"
 import { useShareStore } from "./store"
 
@@ -14,7 +14,7 @@ export function DocShareControls({ file }: { file: WorkspaceFile }) {
   const shared = useShareStore((s) => !!s.byPath[file.path])
   const problem = useShareStore((s) => !!s.byPath[file.path]?.problem)
   const held = useShareStore((s) => !!s.byPath[file.path]?.held)
-  if (!isDesktop) return null
+  if (!hasCore) return null
 
   return (
     <>

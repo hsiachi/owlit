@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { toast } from "sonner"
-import { filePath, isDesktop } from "@/lib/rpc"
+import { filePath, hasCore } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { addPaperFrom, sayAdded, undoAdded, type Added } from "../actions"
 import { libraryClient, useLibraryStore } from "../store"
@@ -15,7 +15,7 @@ export async function addPdfFiles(files: File[], open: (id: string) => void) {
     toast.error(t`Only PDF files can be added this way.`)
     return
   }
-  const last = isDesktop ? await importInCore(pdfs, open) : await addInBrowser(pdfs)
+  const last = hasCore ? await importInCore(pdfs, open) : await addInBrowser(pdfs)
   if (last) useLibraryUi.getState().revealPaper(last)
 }
 

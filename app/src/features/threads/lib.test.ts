@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { summarize, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
+import { exampleThreads } from "@/test/example-workspace"
 import { byProject, groupSections, isTable, noteSections, paperCounts, sectionsOf, shown } from "./lib"
-import { seedThreads } from "./mocks/seed"
 
 describe("a grouping's groups in the table", () => {
   const paper = (id: string): ThreadRowRead => ({ id, paper: { title: id, authors: [], ids: {} }, cells: {}, addedAt: 0 })
@@ -53,52 +53,53 @@ describe("a table grouped by a comparison", () => {
   })
 })
 
-describe("a thread's page, on the preview's seed", () => {
-  const seed = seedThreads()
-  const reading = shown(seed["reading-support-tools"]!)
+describe("a thread's page, on the example workspace", () => {
+  const example = exampleThreads()
+  const testData = shown(example["test-data-behind-the-papers"]!)
+  const question = shown(example["context-versus-own-knowledge"]!)
 
-  it("reads as a note with its groups as headings, two levels, until a column is asked", () => {
-    expect(isTable(reading)).toBe(false)
-    expect(isTable(shown(seed["uist-2026-papers"]!))).toBe(true)
-    expect(noteSections(reading).map((s) => [s.group?.name, s.depth, s.total])).toEqual([
-      ["Inside the paper", 0, 4],
-      ["Citations", 1, 1],
-      ["Skimming and summaries", 1, 3],
-      ["Across papers", 0, 3],
-      ["Overviews", 0, 1],
+  it("reads as a note until a column is asked, then as a table", () => {
+    expect(isTable(question)).toBe(false)
+    expect(isTable(testData)).toBe(true)
+  })
+
+  it("sections the papers by the grouping, two levels, a paper in two groups counted in both", () => {
+    expect(noteSections(testData).map((s) => [s.group?.name, s.depth, s.total])).toEqual([
+      ["Shared benchmarks", 0, 4],
+      ["RAGTruth", 1, 2],
+      ["Open QA sets", 1, 2],
+      ["Data the paper made for itself", 0, 5],
     ])
-    expect(paperCounts(reading)).toEqual({ papers: 8, groups: 3, full: 3 })
+    expect(paperCounts(testData)).toEqual({ papers: 8, groups: 2, full: 3 })
   })
 
   it("has a report in sections whose paper links are its rows, and what each paper is", () => {
-    const thread = seed["reading-support-tools"]!
+    const thread = example["test-data-behind-the-papers"]!
     expect(thread.report).toMatch(/^## /m)
     const linked = [...thread.report.matchAll(/\(owlit:\/\/library\/([^)]+)\)/g)].map((m) => m[1])
     expect(linked.every((id) => thread.rows.some((r) => r.id === id))).toBe(true)
-    expect(thread.rows.filter((r) => r.is).length).toBeGreaterThan(0)
+    expect(thread.rows.every((r) => r.is)).toBe(true)
   })
 
   it("without a grouping, is one section of every paper", () => {
-    const tools = shown(seed["llm-tool-use"]!)
-    expect(noteSections(tools)).toEqual([{ key: "", rows: tools.rows, total: tools.rows.length, depth: 0 }])
-    expect(noteSections({ ...reading, view: { groupBy: "none" } }).length).toBe(1)
+    expect(noteSections(question)).toEqual([{ key: "", rows: question.rows, total: question.rows.length, depth: 0 }])
+    expect(noteSections({ ...testData, view: { groupBy: "none" } }).length).toBe(1)
   })
 })
 
 describe("the list of threads", () => {
-  const summaries = Object.values(seedThreads()).map((c) => summarize(c))
+  const summaries = Object.values(exampleThreads()).map((c) => summarize(c))
 
   it("carries Owlit's one line for each thread", () => {
     expect(summaries.every((c) => c.one)).toBe(true)
   })
 
   it("puts a thread whose project folder is gone with those in none, naming the folder it was in", () => {
-    const groups = byProject(summaries, ["writing"])
-    expect(groups.map((g) => g.key)).toEqual(["writing", ""])
-    const gone = groups[1]!.threads.find((c) => c.id === "replay-vs-live-ratings")
-    expect(gone?.was).toBe("Reading tools study")
-    expect(groups[1]!.threads.find((c) => c.id === "llm-tool-use")?.was).toBeUndefined()
+    expect(byProject(summaries, ["Hallucination in RAG"]).map((g) => g.key)).toEqual(["Hallucination in RAG"])
+    const gone = byProject(summaries, ["writing"])
+    expect(gone.map((g) => g.key)).toEqual([""])
+    expect(gone[0]!.threads.every((c) => c.was === "Hallucination in RAG")).toBe(true)
     // Until the folders are known, every project counts
-    expect(byProject(summaries).map((g) => g.key)).toEqual(["writing", "Reading tools study", ""])
+    expect(byProject(summaries).map((g) => g.key)).toEqual(["Hallucination in RAG"])
   })
 })

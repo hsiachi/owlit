@@ -1,7 +1,7 @@
 import type { CitedPassage, CollectedPassage, Rect } from "@owlit/protocol"
 import { useEffect } from "react"
 import { create } from "zustand"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { quoteTarget, type PassageTarget } from "./passages"
 
 // Read wear (Hill et al. 1992): what has been read of the open paper, shown on it. The sentences Owlit's
@@ -35,7 +35,7 @@ type Locate = (p: PassageTarget) => Promise<{ page: number; from: number; rects:
 // Loads the paper's wear once its PDF is open, and clears it when the paper closes
 export function useReadWear(paperId: string, locate: Locate | null) {
   useEffect(() => {
-    if (!isDesktop || !locate) return
+    if (!hasCore || !locate) return
     let live = true
     useWearStore.setState({ paperId, marks: [], pages: {} })
     void rpc.library

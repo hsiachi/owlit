@@ -2552,7 +2552,6 @@ msgid "a paper's note"
 msgstr "一篇论文的笔记"
 
 #: app/src/features/chat/started.ts
-#: app/src/features/chat/store.ts
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished."
 msgstr "Owlit 在完成之前被关闭了。"

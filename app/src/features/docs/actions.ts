@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import { mentionLink } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
 import { copyText } from "@/lib/clipboard"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
 import { useDocsStore, type Removed } from "./store"
 import { baseName, displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
@@ -115,7 +115,7 @@ export function useDocActions() {
               },
             ]
           : []),
-        ...(md && isDesktop ? [{ label: t`Versions…`, onSelect: () => useDocsUiStore.getState().showVersions(file.id) }] : []),
+        ...(md && hasCore ? [{ label: t`Versions…`, onSelect: () => useDocsUiStore.getState().showVersions(file.id) }] : []),
         // Only once something was put away: the way back to a comment after its Undo has gone
         ...(md && resolvedViews(useDocsStore.getState().comments[file.id], useShareStore.getState().comments[file.path]).length
           ? [{ label: t`Resolved comments…`, onSelect: () => useDocsUiStore.getState().showResolved(file.id) }]
@@ -123,7 +123,7 @@ export function useDocActions() {
       ],
       [
         ...(md ? [{ label: t`Copy link`, onSelect: () => void copyLink(file) }] : []),
-        ...(isDesktop ? [{ label: t`Show in Finder`, onSelect: () => reveal(file.path) }] : []),
+        ...(hasCore ? [{ label: t`Show in Finder`, onSelect: () => reveal(file.path) }] : []),
       ],
       [{ label: t`Delete`, destructive: true, onSelect: () => deleteFile(file) }],
     ]
@@ -150,7 +150,7 @@ export function useDocActions() {
         },
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.folder(path)) },
       ],
-      isDesktop ? [{ label: t`Show in Finder`, onSelect: () => reveal(path) }] : [],
+      hasCore ? [{ label: t`Show in Finder`, onSelect: () => reveal(path) }] : [],
       // A folder of nothing but PDFs is papers kept as files: the Library takes them in (moving them
       // there, since the folder is inside the workspace)
       onlyPdfs(path) ? [{ label: t`Import as papers…`, onSelect: () => importAsPapers(path) }] : [],
@@ -175,7 +175,7 @@ export function useDocActions() {
 
 // Whether a folder holds files, and every one a PDF (the desktop app's import reads it from disk)
 function onlyPdfs(folder: string) {
-  if (!isDesktop) return false
+  if (!hasCore) return false
   const inside = Object.values(useDocsStore.getState().files).filter((f) => isWithin(f.path, folder))
   return inside.length > 0 && inside.every((f) => /\.pdf$/i.test(f.path))
 }

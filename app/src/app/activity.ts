@@ -13,7 +13,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
 import { isLibraryFromCore } from "@/features/library/disk"
 import { useLibraryStore } from "@/features/library/store"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { ReadingClock } from "@/app/reading-clock"
 import { routeSubject } from "@/app/route-subject"
 
@@ -165,7 +165,7 @@ function update(next: Open) {
 let started = false
 
 export function startActivity(router: typeof appRouter) {
-  if (!isDesktop || started) return
+  if (!hasCore || started) return
   started = true
 
   const refresh = () => update(openFromRoute(router.state.location.pathname))

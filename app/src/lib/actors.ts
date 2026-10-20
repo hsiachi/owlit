@@ -1,15 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { isOwlit, owlitOf, type ActorId, type OwlitId, type PersonId, type Roster } from "@owlit/protocol"
+import { isOwlit, owlitOf, type ActorId, type PersonId, type Roster } from "@owlit/protocol"
 import { create } from "zustand"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
-
-// The profile id dev:web runs as, with no core to mint one, and its person and their Owlit, the mock
-// data's authors
-export const WEB_PROFILE_ID = "0000000a"
-export const WEB_ME: PersonId = `p_${WEB_PROFILE_ID}`
-export const WEB_OWLIT: OwlitId = owlitOf(WEB_ME)
-// A co-author in the mock data, whose edits came through a sync
-export const WEB_RUTH: PersonId = "p_0000000b"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 
 // Who made a change, as the viewer reads it: "you" for their own id (me), a person's name from the
 // workspace's roster, "Owlit" for any person's Owlit, "outside owlit" when owlit couldn't tell
@@ -38,9 +30,9 @@ export const myOwlit = (): ActorId => {
 }
 
 // The open workspace's roster, read when first needed and again after the workspace or a name changed
-const useRoster = create<{ roster: Roster }>(() => ({ roster: isDesktop ? {} : { [WEB_RUTH]: { kind: "person", name: "Ruth" } } }))
+const useRoster = create<{ roster: Roster }>(() => ({ roster: {} }))
 let asked = false
-if (isDesktop) {
+if (hasCore) {
   const forget = () => {
     asked = false
   }
@@ -48,7 +40,7 @@ if (isDesktop) {
   onNotify("settings.changed", forget)
 }
 function rosterNow() {
-  if (isDesktop && !asked) {
+  if (hasCore && !asked) {
     asked = true
     rpc.members
       .get()

@@ -3,7 +3,7 @@ import { RpcErrorCode } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { toastError } from "@/lib/toast"
-import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
+import { hasCore, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { countDown, countUp } from "@/lib/counts"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
@@ -26,7 +26,7 @@ const written = new Map<string, string>()
 let pending: Record<string, number> = {}
 const queue = createWorkspaceQueue({ onError: failed })
 
-export const onDisk = isDesktop
+export const onDisk = hasCore
 
 function enqueue(ids: string[], op: () => Promise<void>) {
   for (const id of ids) pending = countUp(pending, id)

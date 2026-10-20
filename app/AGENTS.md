@@ -14,6 +14,6 @@ The renderer: React, Vite, Tailwind, shadcn. `src/features/<place>/` per place, 
 - **UI text goes through Lingui**: `t` / `<Trans>` from `@lingui/core/macro`, then `pnpm i18n:extract`.
   Leave room for the Chinese text; don't size labels to the English width.
 - **Check it in a browser**: `pnpm dev:web` runs the renderer on a dev core with a copy of the example
-  workspace and the fake engine as an agent, at light and dark (`--mocks`: the renderer alone on its mock
-  data). Electron doesn't run in most agent sandboxes, so leave `pnpm try` for a person.
+  workspace and the fake engine as an agent, at light and dark. Electron doesn't run in most agent
+  sandboxes, so leave `pnpm try` for a person.
 - **Nothing in `public/` is private**: Vite copies it into every build that ships.

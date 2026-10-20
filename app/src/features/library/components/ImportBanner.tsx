@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { fileName } from "@/lib/names"
 import { cancelTask, useTasksStore } from "@/features/tasks/store"
 import { answerImport, continueImport, dismissImport, importAsks, undoImport, useAskingImports, useImports } from "../imports"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import { pdfWait } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
@@ -166,7 +166,7 @@ function Done({ summary }: { summary: ImportSummary }) {
           </p>
         )}
       </div>
-      {added > 0 && isDesktop && (
+      {added > 0 && hasCore && (
         <Button variant="ghost" size="sm" onClick={() => void undoImport(summary, t`The import ${origin}`)}>
           {t({ message: "Undo", comment: "verb: take back what was just done" })}
         </Button>

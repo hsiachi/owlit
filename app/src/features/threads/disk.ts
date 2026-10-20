@@ -1,13 +1,13 @@
 import type { ThreadRead } from "@owlit/protocol"
 import { followCore } from "@/lib/follow-core"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
 import { drop, put, useThreadsStore } from "./store"
 
 // In the desktop app the threads live in the workspace (.owlit/threads/): the store loads them
 // when a workspace opens and takes what core says changed (an agent's write, an undo, another window).
 
-if (isDesktop) {
+if (hasCore) {
   // A change heard while the threads are read is laid over them once they arrive
   const follow = followCore({
     read: async () => {

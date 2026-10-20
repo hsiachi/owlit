@@ -26,7 +26,7 @@ import { docUri, paperUri, type Highlight, type Paper } from "@owlit/protocol"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { mentionRoute } from "@/features/docs/lib/mentions"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { useLibraryUi } from "../../ui-store"
 
 // Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back
@@ -198,7 +198,7 @@ function CitedIn({ paper }: { paper: Paper }) {
   const docs = useDocsStore((s) => s.files)
   useEffect(() => {
     let live = true
-    const found = isDesktop
+    const found = hasCore
       ? rpc.links.to({ uri: paperUri(paper.id) }).then((links) => links.filter((l) => l.source === "doc").map((l) => l.key))
       : Promise.resolve(Object.values(useDocsStore.getState().files).filter((f) => linkedPaperIds(f.content ?? "").includes(paper.id)).map((f) => f.path))
     found.then(

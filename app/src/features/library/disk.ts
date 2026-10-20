@@ -1,7 +1,7 @@
 import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { followCore } from "@/lib/follow-core"
 import { undoAll } from "@/lib/changes"
@@ -16,7 +16,7 @@ import { markedFor, useLibraryStore } from "./store"
 // with every keystroke or scroll, are sent once they rest. Papers core changes on its own come in
 // through library.changed and are taken as they are, without being sent back.
 
-const onDisk = isDesktop
+const onDisk = hasCore
 
 const NOTE_REST_MS = 500
 const POSITION_REST_MS = 1000

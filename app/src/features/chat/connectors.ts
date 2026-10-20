@@ -1,14 +1,13 @@
 import { t } from "@lingui/core/macro"
 import type { StateCreator, StoreApi } from "zustand"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { agentClient } from "./agent"
-import { builtInConnectors } from "./mocks/connectors"
 import { resolveSelection } from "./lib/selection"
 import type { ChatState } from "./store"
 import type { Connector } from "@owlit/protocol"
 
-// The local agents chats run on. In the desktop app core says which exist (listed once, then kept current);
-// until it answers there are none. In a plain browser they are the built-in mocks and the user's own.
+// The local agents chats run on. Core says which exist (listed once, then kept current); until it answers
+// there are none.
 export interface ConnectorSlice {
   connectors: Connector[]
   checkConnector: (id: string) => Promise<void>
@@ -29,7 +28,7 @@ export interface ConnectorSlice {
 export const withConnector = (connectors: Connector[], next: Connector) => connectors.map((c) => (c.id === next.id ? next : c))
 
 export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknown]], [], ConnectorSlice> = (set, get) => ({
-  connectors: isDesktop ? [] : builtInConnectors,
+  connectors: [],
 
   async checkConnector(id) {
     const c = get().connectors.find((x) => x.id === id)
@@ -65,7 +64,7 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
   },
 
   async addCustomConnector(name, command) {
-    if (isDesktop) {
+    if (hasCore) {
       const c = await rpc.agents.add({ name, command })
       set((s) => ({ connectors: [...s.connectors, c] }))
       return c
@@ -85,7 +84,7 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
   },
 
   removeConnector(id) {
-    if (isDesktop) void rpc.agents.remove({ id }).catch(() => undefined)
+    if (hasCore) void rpc.agents.remove({ id }).catch(() => undefined)
     set((s) => {
       const connectors = s.connectors.filter((c) => c.id !== id)
       const selection =
@@ -112,7 +111,7 @@ function checkUnchecked(store: StoreApi<ChatState>) {
 }
 
 export function watchConnectors(store: StoreApi<ChatState>) {
-  if (!isDesktop) return checkUnchecked(store)
+  if (!hasCore) return checkUnchecked(store)
   // Agents are this machine's, not the workspace's: listed once, then kept current by core
   void rpc.agents.list().then((connectors) => {
     store.setState({ connectors })

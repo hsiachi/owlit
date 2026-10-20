@@ -2,7 +2,6 @@ import { type AgentQuestion, applyUpdate, type ChatMessage, type Connector, DEFA
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { myOwlit } from "@/lib/actors"
-import { mockCheckResults } from "../mocks/connectors"
 import { getWorkspaceFs, getWorkspaceNotes, type AgentClient, type PromptRequest, type RunningTurn } from "./client"
 import { addMockChange, mockEntry } from "../results"
 import { landMockProposal } from "@/app/seen"
@@ -18,6 +17,12 @@ const sleep = (ms: number, signal: AbortSignal) =>
   })
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError"
+
+// What the mock "check" discovers on this machine
+const mockCheckResults: Record<string, Partial<Connector>> = {
+  "claude-code": { status: "available", version: "2.0.14", authenticated: true },
+  codex: { status: "not_installed", error: "`codex` not found on PATH" },
+}
 
 // A Reviewer never writes; a Co-author writes without asking; an Assistant asks first
 const READ_ONLY_ROLES = new Set<string>(["reviewer"])
@@ -322,7 +327,7 @@ export class MockAgentClient implements AgentClient {
     }
     const after = replacePassage(now, selection, rewritten.text)
     await fs.writeTextFile(path, after)
-    if (mode === "assistant") landMockProposal(chatId, path, now, after, selection.text, rewritten.text)
+    if (mode === "assistant") landMockProposal(chatId, path, now, after)
     emit({ type: "tool_call_update", toolCallId, status: "completed", content: `Replaced 1 passage in ${path}` })
     return "end_turn"
   }

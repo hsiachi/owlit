@@ -4,7 +4,7 @@ import { myOwlit } from "@/lib/actors"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { isDiskChange } from "./disk"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { clientId, registerUiHandler } from "@/lib/ui-actions"
 import { undoChange } from "@/lib/changes"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
@@ -110,7 +110,7 @@ function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string,
 
 // ---- The desktop app: agents' reads and writes come from core ----
 
-if (isDesktop) {
+if (hasCore) {
   // Core routes an agent's reads and writes of a doc to the window that has it open
   let reported = ""
   const report = () => {

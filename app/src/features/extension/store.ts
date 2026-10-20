@@ -6,7 +6,7 @@ import type { ExtensionView, ExtensionWait } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
-import { bridge, isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { bridge, hasCore, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { MINUTE } from "@/lib/time"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
@@ -26,11 +26,11 @@ export async function answerPairing(id: string, allow: boolean) {
   const view = useExtension.getState().view
   // The question goes at once; core's answer (extension.changed) follows
   if (view) useExtension.setState({ view: { ...view, asking: view.asking.filter((a) => a.id !== id) } })
-  if (isDesktop) await rpc.extension.answer({ id, allow }).catch(toastError)
+  if (hasCore) await rpc.extension.answer({ id, allow }).catch(toastError)
 }
 
 export async function forgetPairing(id: string) {
-  if (!isDesktop) return receive({ ...useExtension.getState().view!, paired: [] })
+  if (!hasCore) return receive({ ...useExtension.getState().view!, paired: [] })
   await rpc.extension.forget({ id }).then(receive, toastError)
 }
 
@@ -89,7 +89,7 @@ function mockView(): ExtensionView {
 }
 
 export function startExtension() {
-  if (!isDesktop) {
+  if (!hasCore) {
     useExtension.setState({ view: mockView() })
     return
   }

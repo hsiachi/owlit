@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
 import type { ThreadRead } from "@owlit/protocol"
+import { exampleThreads } from "@/test/example-workspace"
 import { threadCsv, threadMarkdown } from "./export"
-import { seedThreads } from "./mocks/seed"
 
 describe("a thread exported as a doc", () => {
-  const all = Object.values(seedThreads())
+  const all = Object.values(exampleThreads())
 
   it("starts with the title and the report, papers and the thread kept as links", () => {
     const c = all.find((c) => c.report)!
@@ -17,8 +17,8 @@ describe("a thread exported as a doc", () => {
   it("has one table row per paper, under its group's heading, every line with the same cells", () => {
     const c = all.find((c) => c.columns.some((col) => col.groups?.length))!
     const md = threadMarkdown(c)
-    const groups = c.columns.find((col) => col.kind === "grouping")!.groups!
-    for (const g of groups.filter((g) => c.rows.some((r) => r.in?.topic?.includes(g.id)))) expect(md).toMatch(new RegExp(`^#{2,} ${g.name}$`, "m"))
+    const grouping = c.columns.find((col) => col.kind === "grouping")!
+    for (const g of grouping.groups!.filter((g) => c.rows.some((r) => r.in?.[grouping.id]?.includes(g.id)))) expect(md).toMatch(new RegExp(`^#{2,} ${g.name}$`, "m"))
     const lines = md.split("\n").filter((l) => l.startsWith("| ["))
     expect(lines).toHaveLength(c.rows.length)
     const cells = (l: string) => l.replace(/\\\|/g, "").split("|").length
@@ -32,39 +32,42 @@ describe("a thread exported as a doc", () => {
     expect(threadMarkdown(c)).toContain(`(owlit://library/${row.id}#p${page} "${quote}")`)
   })
 
-  // The table thread with a second way of grouping its papers, by study kind
+  // The table thread with a second way of grouping its papers, by where they appeared
   const twoWays = (): ThreadRead => {
-    const c = all.find((c) => c.id === "uist-2026-papers")!
+    const c = all.find((c) => c.id === "test-data-behind-the-papers")!
     return {
       ...c,
-      columns: [...c.columns, { id: "kind", question: "Study kind", kind: "grouping", groups: [{ id: "lab", name: "Lab studies" }, { id: "field", name: "Studies in the field" }] }],
-      rows: c.rows.map((r, i) => ({ ...r, in: { ...r.in, kind: [i % 2 ? "field" : "lab"] } })),
+      columns: [...c.columns, { id: "where", question: "Where it appeared", kind: "grouping", groups: [{ id: "arxiv", name: "arXiv only" }, { id: "venue", name: "At a venue" }] }],
+      rows: c.rows.map((r, i) => ({ ...r, in: { ...r.in, where: [i % 2 ? "venue" : "arxiv"] } })),
     }
   }
 
+  // The doc after Owlit's report, which has headings of its own
+  const tables = (c: ThreadRead, md: string) => md.slice(md.indexOf(c.report) + c.report.length)
+
   it("groups by the grouping the table shows, not the first one", () => {
     const c = twoWays()
-    const md = threadMarkdown({ ...c, view: { groupBy: "grouping:kind" } })
-    expect(md).toMatch(/^## Lab studies$/m)
-    expect(md).toMatch(/^## Studies in the field$/m)
-    expect(md).not.toMatch(/^## Reading and writing aids$/m)
+    const md = tables(c, threadMarkdown({ ...c, view: { groupBy: "grouping:where" } }))
+    expect(md).toMatch(/^## arXiv only$/m)
+    expect(md).toMatch(/^## At a venue$/m)
+    expect(md).not.toMatch(/^## Shared benchmarks$/m)
     expect(md.split("\n").filter((l) => l.startsWith("| ["))).toHaveLength(c.rows.length)
     // With no view, the first grouping, a subgroup a level under its parent
-    const first = threadMarkdown(c)
-    expect(first).toMatch(/^## Reading and writing aids$/m)
-    expect(first).toMatch(/^### Inside one paper$/m)
-    expect(first).not.toMatch(/^## Lab studies$/m)
+    const first = tables(c, threadMarkdown(c))
+    expect(first).toMatch(/^## Shared benchmarks$/m)
+    expect(first).toMatch(/^### RAGTruth$/m)
+    expect(first).not.toMatch(/^## arXiv only$/m)
   })
 
   it("has no group headings when the table is grouped by nothing", () => {
     const c = { ...twoWays(), view: { groupBy: "none" } }
-    const md = threadMarkdown(c)
+    const md = tables(c, threadMarkdown(c))
     expect(md).not.toMatch(/^##/m)
     expect(md.split("\n").filter((l) => l.startsWith("| ["))).toHaveLength(c.rows.length)
   })
 
   it("says what each paper is, in the doc and the CSV", () => {
-    const c = all.find((c) => c.id === "uist-2026-papers")!
+    const c = all.find((c) => c.id === "test-data-behind-the-papers")!
     const row = c.rows.find((r) => r.is)!
     expect(threadMarkdown(c)).toMatch(new RegExp(`\\(owlit://library/${row.id}\\) \\([^)]*\\) \\| ${row.is} \\|`))
     const [head, first] = threadCsv(c).split("\n")
@@ -76,7 +79,7 @@ describe("a thread exported as a doc", () => {
 
 describe("a thread exported as a CSV", () => {
   it("starts with a byte-order mark, so a spreadsheet reads it as UTF-8", () => {
-    const c = Object.values(seedThreads())[0]!
+    const c = Object.values(exampleThreads())[0]!
     const csv = threadCsv(c)
     expect(csv.charCodeAt(0)).toBe(0xfeff)
     expect(csv.slice(1).startsWith("Paper,")).toBe(true)
