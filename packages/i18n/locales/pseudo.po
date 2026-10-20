@@ -5972,7 +5972,9 @@ msgid "Paper"
 msgstr ""
 
 #. table column: what kind of paper each is and its material
+#. table column: what kind of paper each is and its material
 #: app/src/features/threads/components/ThreadTable.tsx
+#: app/src/features/threads/export.ts
 msgid "What it is"
 msgstr ""
 
@@ -5996,11 +5998,6 @@ msgstr ""
 #: app/src/features/threads/components/Work.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Owlit stopped."
-msgstr ""
-
-#. heading in an exported thread: papers in no group
-#: app/src/features/threads/export.ts
-msgid "Other papers"
 msgstr ""
 
 #. last line of a doc exported from a thread

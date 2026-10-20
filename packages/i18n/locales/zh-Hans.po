@@ -5972,7 +5972,9 @@ msgid "Paper"
 msgstr "论文"
 
 #. table column: what kind of paper each is and its material
+#. table column: what kind of paper each is and its material
 #: app/src/features/threads/components/ThreadTable.tsx
+#: app/src/features/threads/export.ts
 msgid "What it is"
 msgstr "它是什么"
 
@@ -5997,11 +5999,6 @@ msgstr "{more, plural, other {另有 # 项}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Owlit stopped."
 msgstr "Owlit 停下了。"
-
-#. heading in an exported thread: papers in no group
-#: app/src/features/threads/export.ts
-msgid "Other papers"
-msgstr "其他论文"
 
 #. last line of a doc exported from a thread
 #: app/src/features/threads/export.ts
