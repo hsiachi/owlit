@@ -13,6 +13,10 @@ msgid "{place} · {needsYou}"
 msgstr ""
 
 #: app/src/app/AppSidebar.tsx
+msgid "Resize the list"
+msgstr ""
+
+#: app/src/app/AppSidebar.tsx
 #: apps/desktop/src/main.ts
 msgid "Help"
 msgstr ""
