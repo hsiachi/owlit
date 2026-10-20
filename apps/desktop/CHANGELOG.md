@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A doc with Owlit's notes from before comments opens again instead of showing an error page; they read as Owlit's comments.
 - A doc Owlit wrote opens clean, with one line above it: "Owlit wrote this doc · from <chat> · Undo". Underlines are for Owlit's edits to words that were already there, and ⌘⌫ undoes a passage only with the cursor at its end.
 - One Undo per Owlit edit: Undo on a passage, Undo all, the chat's card and Versions all take back the same change, and the card says when you undid part of it in the doc. Keep and Keep all are gone; the marks leave once you've seen the doc. An edit to the doc you have open no longer raises an "Edit applied" toast.
 - A doc counts as seen once each of Owlit's passages and each changed paragraph has been on screen a moment, not after three seconds anywhere in it. A paragraph someone else removed leaves a small mark in the margin where it was.
