@@ -80,6 +80,12 @@ const RESOLUTION_TTL_MS = 10 * 60_000
 const FOUND_TTL_MS = 12 * 3_600_000
 // How long changes under library/papers/ settle before they are read
 const SETTLE_MS = 300
+// How often an open library sees whether a daily step is due (each keeps its own day in library.json)
+// and looks again for papers whose look reached nothing: a Mac app stays open for days
+const HOURLY_MS = 60 * 60_000
+// A download or a copy left half-written by a run that never finished (owlit quit or crashed): one this
+// old belongs to no run still going, since a run moves or removes its file when it ends
+const PARTIAL_MS = 60 * 60_000
 // A note saved in bursts (an editor's autosave) is told once it rests
 const NOTE_SETTLE_MS = 150
 
@@ -149,6 +155,18 @@ export interface SearchLine {
 
 const RECENT_SEARCHES = 2000
 
+// <dataDir>/library.json
+interface MachineNotes {
+  missingRetriedOn?: string
+  citationsCountedOn?: string
+  // When each paper's citations were last counted, by id
+  citationsAt?: Record<string, number>
+}
+
+// The ids a lookup may teach a paper the library has (Library.learnIds)
+const LEARNABLE = ["arxiv", "s2", "openalex"] as const
+export type LearnedId = (typeof LEARNABLE)[number]
+
 export class Library {
   readonly root: string
   // This workspace's folder in owlit's data directory (machine-specific state)
@@ -173,8 +191,11 @@ export class Library {
   private watcher: FSWatcher | null = null
   private dirty = new Set<string>()
   private timer: ReturnType<typeof setTimeout> | undefined
+  private hourly: ReturnType<typeof setInterval> | undefined
   // Writes, one at a time, so a paper's files never race
   private readonly serial = new Serial()
+  // Writes of library.json: the daily look and the recount run side by side, each keeping the other's day
+  private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
   // Libraries brought in at once (Zotero, BibTeX, a folder of PDFs)
@@ -191,7 +212,16 @@ export class Library {
     this.imports = new Imports(dataDir, {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
       add: async (paper, { importId, ...extra }) => this.importedBy(importId, await this.addNew(paper, undefined, "background", extra)),
-      addPdf: async (file, { importId, ...extra }) => this.importedBy(importId, await this.importPdf(file, { priority: "background", ...extra })),
+      // A folder of PDFs inside the workspace (shown in Docs) gives its files up to the library
+      addPdf: async (file, { importId, ...extra }) => this.importedBy(importId, await this.importPdf(file, { priority: "background", ...extra, move: this.isOwnFile(file) })),
+      attachPdf: (id, file) =>
+        this.attachPdf(id, file, "dropped", { ifMissing: true }).then(
+          () => true,
+          (error) => {
+            if (error instanceof RpcFailure && error.code === RpcErrorCode.Conflict) return false
+            throw error
+          },
+        ),
       resolve: (title) => this.byTitle(title),
       parsingOn: async () => {
         const settings = (await this.services.parsing?.()) ?? {}
@@ -239,6 +269,8 @@ export class Library {
     const state = (await readState(this.root, id)) ?? freshState("other", record.fetchedAt ?? Date.now())
     const pdf = await hasPdfFile(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
+    const counted = this.countedAt.get(id)
+    if (paper.citations && counted && counted > paper.citations.at) paper.citations.at = counted
     if (await exists(path.join(paperDir(this.root, id), "digest.md"))) {
       paper.hasDigest = true
       Object.assign(paper, await this.digestState(id))
@@ -247,6 +279,7 @@ export class Library {
     if (text) paper.text = text
     if (!pdf) {
       paper.pdfState = await this.acquisitions.shown(id)
+      if (await this.unsought(id)) paper.pdfState.unsought = true
       // In the extension's queue, or being fetched: owlit is still finding it, whatever its own look said
       const held = this.services.extension?.holding(this, id)
       if (held) {
@@ -262,7 +295,7 @@ export class Library {
 
   // What a reference means, and whether the library already has it. Asks the services directly rather
   // than as a task: someone is waiting, nothing is written, and each service's rate still holds.
-  async resolve(input: string, signal?: AbortSignal): Promise<{ paper: ResolvedPaper; existingId?: string }> {
+  async resolve(input: string, signal?: AbortSignal): Promise<{ paper: ResolvedPaper; existingId?: string; learned?: LearnedId[] }> {
     const ref = parseRef(input)
     if (ref && ref.kind !== "url") {
       // The library may know it without asking anyone
@@ -285,8 +318,39 @@ export class Library {
         resolution = known.resolution
       }
     }
-    const existingId = (await this.index.find(resolution.ids)) ?? (await this.index.twin(resolution.title, resolution.ids))
-    return { paper: { id: resolution.id, ...pick(resolution) }, existingId }
+    const byIds = await this.index.find(resolution.ids)
+    const existingId = byIds ?? (await this.index.twin(resolution.title, resolution.ids))
+    // Matched by one id, the lookup may know others the paper lacks (its arXiv copy): kept, and used
+    const learned = byIds ? await this.learnIds(byIds, resolution.ids) : []
+    return { paper: { id: resolution.id, ...pick(resolution) }, existingId, ...(learned.length ? { learned } : {}) }
+  }
+
+  // Ids a lookup found for a paper the library has, merged into its record when it lacks them: an arXiv
+  // id, a Semantic Scholar or OpenAlex id. Never a DOI (a second DOI is another work), and never a key
+  // another paper owns (that is a copy, which refreshRecord folds). A paper without its PDF looks again at
+  // once, since the arXiv route may now give it; one nobody has sought yet (a thread's) waits to be read.
+  async learnIds(id: string, ids: PaperIds): Promise<LearnedId[]> {
+    const learned = await this.serial.run(async () => {
+      const record = await readRecord(this.root, id)
+      if (!record) return []
+      const fresh: PaperIds = {}
+      for (const kind of LEARNABLE) {
+        const value = ids[kind]
+        if (!value || record.ids[kind]) continue
+        const owner = await this.index.find({ [kind]: value })
+        if (owner && owner !== id) continue
+        fresh[kind] = value
+      }
+      const kinds = Object.keys(fresh) as LearnedId[]
+      if (!kinds.length) return []
+      const next = { ...record, ids: { ...record.ids, ...fresh } }
+      await writeRecord(this.root, next)
+      this.index.set(id, next.ids, next.title)
+      if (!(await hasPdfFile(this.root, id)) && (await this.acquisitions.read(id))) this.queue("paper.pdf", id, "asked")
+      return kinds
+    })
+    if (learned.length) await this.announce([id])
+    return learned
   }
 
   // The paper with exactly this title, as OpenAlex knows it: an import's entry with nothing else to go on
@@ -314,20 +378,20 @@ export class Library {
   // same title where one of the two has no DOI); one it had is returned as it is. An import hands over the PDF it has (nothing is downloaded then)
   // and the paper's tags. fetchPdf false leaves the PDF unsought: a paper a thread names waits until
   // someone reads it.
-  addNew(
+  async addNew(
     resolved: ResolvedPaper,
     // The person when not given
     addedBy?: ActorId,
     priority: TaskPriority = "asked",
     extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean }; fetchPdf?: boolean } = {},
-  ): Promise<{ paper: Paper; existed: boolean }> {
-    return this.serial.run(async () => {
+  ): Promise<{ paper: Paper; existed: boolean; learned?: LearnedId[] }> {
+    const added = await this.serial.run(async (): Promise<{ paper: Paper; existed: boolean; existing?: string }> => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
       if (!id || !isPaperId(id)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`owlit can't tell which paper that is.`)
       // A folder already there is that paper even if the index missed it: never written over
-      const existing =
-        (await this.index.find(resolved.ids)) ?? ((await readRecord(this.root, id)) ? id : undefined) ?? (await this.index.twin(resolved.title, resolved.ids))
-      if (existing) return { paper: (await this.get(existing))!, existed: true }
+      const byIds = await this.index.find(resolved.ids)
+      const existing = byIds ?? ((await readRecord(this.root, id)) ? id : undefined) ?? (await this.index.twin(resolved.title, resolved.ids))
+      if (existing) return { paper: (await this.get(existing))!, existed: true, ...(byIds ? { existing: byIds } : {}) }
       const resolution = this.recent(id)
       const record: PaperRecord = resolution
         ? recordFrom(id, resolution)
@@ -360,6 +424,10 @@ export class Library {
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
       return { paper: (await this.get(id))!, existed: false }
     })
+    if (!added.existing) return added
+    // Outside the lock, which learnIds takes
+    const learned = await this.learnIds(added.existing, resolved.ids)
+    return { paper: learned.length ? ((await this.get(added.existing)) ?? added.paper) : added.paper, existed: true, ...(learned.length ? { learned } : {}) }
   }
 
   // The user's judgement, position or corrections
@@ -592,6 +660,22 @@ export class Library {
     this.onNote(paperId, note ?? null, before, own)
   }
 
+  // Nobody has looked for the paper's PDF (no acquisition.json) and no look is queued: a paper added
+  // without one (a thread's), waiting to be opened or read
+  private async unsought(id: string) {
+    return !!this.scheduler?.knows("paper.pdf") && !(await this.acquisitions.read(id)) && !this.scheduler.isOpen("paper.pdf", id) && !(await hasPdfFile(this.root, id))
+  }
+
+  // Starts looking for the PDF of a paper nobody has sought yet, now that someone opened or reads it;
+  // whether it started. A paper sought before is left to its own looks (Look again asks for another).
+  async seek(name: string): Promise<boolean> {
+    const id = await this.here(name)
+    if (!(await this.unsought(id))) return false
+    for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, "asked")
+    await this.announce([id])
+    return true
+  }
+
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
   async fetchPdf(id: string): Promise<Paper> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
@@ -712,6 +796,43 @@ export class Library {
     return { data: picture.toString("base64"), mimeType: "image/png" }
   }
 
+  // A figure or table of a paper as an agent sees it (library_figure), by its id ("figure-3") or its label
+  // ("Figure 3"); or a whole page (1-based), drawn from the PDF. Said to the agent, so plain English.
+  async figurePicture(name: string, which: { figure?: string; page?: number }): Promise<{ data: string; mimeType: string; page: number; label?: string; caption?: string }> {
+    const id = await this.here(name)
+    if (which.figure) {
+      const figures = await readFigures(this.root, id)
+      const want = which.figure.trim().toLowerCase().replace(/\s+/g, "-").replace(/\.$/, "")
+      const pictures = figures ? await figurePictures(this.root, id, figures) : []
+      const hit = pictures.find((p) => p.figure.id === want || p.figure.label.toLowerCase().replace(/\s+/g, "-") === want)
+      if (!hit) {
+        const known = pictures.map((p) => p.figure.id).join(", ")
+        throw new RpcFailure(RpcErrorCode.NotFound, known ? `The paper has no ${which.figure}; its figures are ${known}. Or ask for its page.` : `owlit has no pictures of this paper's figures; ask for the page instead.`, { id })
+      }
+      return { data: hit.data.toString("base64"), mimeType: hit.mimeType, page: hit.figure.page + 1, label: hit.figure.label, caption: hit.figure.caption }
+    }
+    const page = which.page ?? 1
+    return { ...(await this.pagePicture(id, page - 1)), page }
+  }
+
+  // Every paper, without the highlights and notes list() reads too
+  async papers(): Promise<Paper[]> {
+    const out: Paper[] = []
+    for (const id of await this.ids()) {
+      const paper = await this.get(id)
+      if (paper) out.push(paper)
+    }
+    return out
+  }
+
+  // One paper by any id it goes by, with how many highlights it has and whether it has a note
+  async one(name: string): Promise<{ paper: Paper; highlights: number; note: boolean } | null> {
+    const id = await this.canonical(name)
+    const paper = id ? await this.get(id) : undefined
+    if (!paper) return null
+    return { paper, highlights: (await readHighlights(this.root, paper.id)).length, note: !!(await readNote(this.root, paper.id))?.content.trim() }
+  }
+
   // When the paper's note was written, and how it stands against how notes are written now
   private async digestState(id: string): Promise<Pick<Paper, "digestAt" | "digestOutdated">> {
     const dir = paperDir(this.root, id)
@@ -818,13 +939,20 @@ export class Library {
 
   // Part of a paper as text for an agent: its full text (all of it, some pages, or one section), its
   // digest or the user's note. id: any id the paper goes by.
-  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number }> {
+  // pending: no text yet, and owlit is getting it (the PDF, or the text of the PDF it has).
+  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number; pending?: "pdf" | "text" }> {
     const id = await this.here(name)
     if (part === "digest") return { text: (await this.digest(id)) ?? "" }
     if (part === "note") return { text: (await readNote(this.root, id))?.content ?? "" }
     const markdown = await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => null)
-    if (markdown === null) throw new RpcFailure(RpcErrorCode.NotFound, "The paper's text hasn't been read yet (no PDF, or still reading it).", { id })
-    return pickFromText(markdown, where)
+    if (markdown !== null) return pickFromText(markdown, where)
+    // No text yet: reading the paper is what fetches a thread's paper's PDF, and its text follows
+    if (await hasPdfFile(this.root, id)) {
+      this.queueText(id, "asked")
+      return { text: "", pending: "text" }
+    }
+    if ((await this.seek(id)) || this.scheduler?.isOpen("paper.pdf", id)) return { text: "", pending: "pdf" }
+    throw new RpcFailure(RpcErrorCode.NotFound, "The paper's text hasn't been read: owlit has no PDF of it.", { id })
   }
 
   // Papers out in the world for a query, from one source, each marked with the library's id when it is
@@ -1033,6 +1161,15 @@ export class Library {
     return lookAtPdf(file, this.services.pdfiumWasm)
   }
 
+  // A file of the workspace's own, outside what owlit keeps (library/, .owlit/): the person's documents
+  private isOwnFile(file: string) {
+    const rel = path.relative(this.root, file)
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return false
+    // As Docs tells owlit's folders, whatever their case (a case-insensitive disk)
+    const top = rel.split(path.sep)[0]!.toLowerCase()
+    return top !== "library" && top !== OWLIT_DIR
+  }
+
   // The paper whose PDF is this very file (the same bytes), if the library has one; reads nothing else
   async paperOfFile(file: string): Promise<string | undefined> {
     const sha = await sha256Of(file)
@@ -1044,7 +1181,8 @@ export class Library {
   // file. The same file dropped again is the paper it already is.
   // Reading and looking up happen outside the write queue, so a slow service never holds up a star or a
   // note; only placing the paper is queued.
-  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean } } = {}): Promise<{ paper: Paper; existed: boolean }> {
+  // placed: the paper was there without a PDF, and this file became it.
+  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean }; move?: boolean } = {}): Promise<{ paper: Paper; existed: boolean; placed?: boolean }> {
     const priority = options.priority ?? "asked"
     await assertPdf(file)
     const sha = await sha256Of(file)
@@ -1076,8 +1214,9 @@ export class Library {
       // A folder already there is that paper even if the index missed it: never written over
       const existing = (await this.index.find(ids)) ?? ((await readRecord(this.root, id)) ? id : undefined)
       if (existing) {
-        if (!(await hasPdfFile(this.root, existing))) await this.placePdf(existing, file, sha)
-        return { paper: (await this.get(existing))!, existed: true }
+        if (await hasPdfFile(this.root, existing)) return { paper: (await this.get(existing))!, existed: true }
+        await this.placePdf(existing, file, sha, priority, "dropped", options.move)
+        return { paper: (await this.get(existing))!, existed: true, placed: true }
       }
       const record: PaperRecord = resolution
         ? recordFrom(id, resolution)
@@ -1097,13 +1236,15 @@ export class Library {
       this.index.set(id, record.ids, record.title)
       // An id the services couldn't be asked about (offline) gets its metadata later
       if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, priority)
-      await this.placePdf(id, file, sha, priority)
+      await this.placePdf(id, file, sha, priority, "dropped", options.move)
       return { paper: (await this.get(id))!, existed: false }
     })
   }
 
   // The file becomes the paper's PDF, and the steps that read it follow. Under the library's lock.
-  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked", route: PlacedBy = "dropped") {
+  // move: the file is the person's own copy inside the workspace (a folder of PDFs imported from there),
+  // taken rather than copied, so the workspace doesn't hold every PDF twice, once as a doc
+  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked", route: PlacedBy = "dropped", move = false) {
     // A download or a publisher's page still looking must not replace the user's file when it lands, nor
     // a reading of the old file (its text, its parse, its figures, a digest of it) come back over the new
     // one's: every open step of the paper stops but the lookup of its details, which reads no PDF
@@ -1111,7 +1252,8 @@ export class Library {
     const dest = pdfFile(this.root, id)
     // Its own temporary name: a cancelled download may still be cleaning up its .part
     const part = `${dest}.${process.pid}-${Date.now()}.part`
-    await copyFile(file, part)
+    if (move) await rename(file, part)
+    else await copyFile(file, part)
     await rename(part, dest)
     // What was read from the file it replaces goes, so the new one is read (and MinerU reads it again)
     const dir = paperDir(this.root, id)
@@ -1148,7 +1290,9 @@ export class Library {
   // they predate the current round of checks (METADATA_CHECKS)
   private async catchUp() {
     const ids = await this.ids()
+    const now = Date.now()
     for (const id of ids) {
+      await this.removePartials(id, now)
       if ((await hasPdfFile(this.root, id)) && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
       // Only details the services gave: a record written some other way (by hand, by another program)
       // is left as its author wrote it
@@ -1157,14 +1301,39 @@ export class Library {
     }
   }
 
+  // The steps owlit takes once a day, each skipped when it ran today already
+  private daily() {
+    this.missingRetried = this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
+    this.citationsRecounted = this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
+  }
+
+  // Papers whose newest look reached nothing (offline) are looked for again: the network may be back.
+  // Papers nobody has sought (a thread's, unread) have no acquisition.json and stay unsought.
+  private async retryOffline() {
+    for (const id of await this.ids()) {
+      const newest = (await this.acquisitions.read(id))?.tried.at(-1)
+      if (newest?.by === "search" && newest.ended === "offline" && !(await hasPdfFile(this.root, id))) this.queue("paper.pdf", id, "background")
+    }
+  }
+
+  // Downloads (.download) and copies (.part) a run left in the paper's folder when owlit stopped in the
+  // middle: up to a PDF's size each, and synced with the workspace
+  private async removePartials(id: string, now: number) {
+    const dir = paperDir(this.root, id)
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
+      if (!/\.(download|part)$/.test(name)) continue
+      const file = path.join(dir, name)
+      const at = await mtimeOf(file)
+      if (at && now - at > PARTIAL_MS) await rm(file, { force: true })
+    }
+  }
+
   // Papers left without a PDF get another try once a day, spaced out (lookDue): open copies appear over
   // time. One whose last look reached nothing goes again too: nothing else would look for it.
   private async retryMissingDaily() {
-    const file = path.join(this.dataDir, "library.json")
     const today = new Date().toISOString().slice(0, 10)
-    const kept = (await readJson<{ missingRetriedOn?: string }>(file).catch(() => undefined)) ?? {}
-    if (kept.missingRetriedOn === today) return
-    await writeJsonAtomic(file, { ...kept, missingRetriedOn: today })
+    const due = await this.machine((kept) => (kept.missingRetriedOn === today ? undefined : { ...kept, missingRetriedOn: today }))
+    if (!due) return
     const now = Date.now()
     for (const id of await this.ids()) {
       const acquisition = await this.acquisitions.read(id)
@@ -1173,21 +1342,45 @@ export class Library {
     }
   }
 
-  // The last open's recount, settled once it has counted or found it had nothing to do (tests wait on it)
+  // <dataDir>/library.json, this machine's notes about the library (which day each daily step ran),
+  // changed one writer at a time: change gives the next content, or undefined to leave it; whether it wrote
+  private machine(change: (kept: MachineNotes) => MachineNotes | undefined): Promise<boolean> {
+    return this.machineFile.run(async () => {
+      const file = path.join(this.dataDir, "library.json")
+      const next = change((await readJson<MachineNotes>(file).catch(() => undefined)) ?? {})
+      if (next) await writeJsonAtomic(file, next)
+      return !!next
+    })
+  }
+
+  // The last daily look and recount, each settled once it has run or found it had nothing to do (tests
+  // wait on them)
+  missingRetried: Promise<void> = Promise.resolve()
   citationsRecounted: Promise<void> = Promise.resolve()
 
+  // When each paper's citations were last counted, from library.json (recountCitationsDaily keeps it),
+  // laid over paper.json's own time, which moves only when a count changes
+  private countedAt = new Map<string, number>()
+
   // Citation counts over a month old counted again (citations.ts), once a day at most, quietly: a count is
-  // the service's fact, not something Owlit wrote, so nothing marks it. A day the services can't be
-  // reached is tried again on the next open.
+  // the service's fact, not something Owlit wrote, so nothing marks it. paper.json is written only when
+  // a count changed: rewriting every record a month would re-index every paper and show the whole
+  // library as changed in a synced or versioned workspace. When each was counted is this machine's note
+  // (library.json). The same monthly pass looks up preprints again, so a published version's DOI is
+  // learnt. A day the services can't be reached is tried again on the next open.
   private async recountCitationsDaily() {
-    const file = path.join(this.dataDir, "library.json")
     const today = new Date().toISOString().slice(0, 10)
-    if ((await readJson<{ citationsCountedOn?: string }>(file).catch(() => undefined))?.citationsCountedOn === today) return
+    const notes = (await readJson<MachineNotes>(path.join(this.dataDir, "library.json")).catch(() => undefined)) ?? {}
+    for (const [id, at] of Object.entries(notes.citationsAt ?? {})) this.countedAt.set(id, at)
+    if (notes.citationsCountedOn === today) return
     const now = Date.now()
     const due: { id: string; ids: PaperIds }[] = []
-    for (const id of await this.ids()) {
+    const ids = await this.ids()
+    for (const id of ids) {
       const record = await readRecord(this.root, id)
-      if (record && citationsDue(record, now)) due.push({ id, ids: record.ids })
+      if (!record || !citationsDue({ ...record, citationsAt: Math.max(record.citationsAt ?? 0, this.countedAt.get(id) ?? 0) || undefined }, now)) continue
+      due.push({ id, ids: record.ids })
+      if (record.ids.arxiv && !record.ids.doi) this.queue("paper.metadata", id, "background")
     }
     const counted = due.length ? await countCitations(this.services.http, due, await this.services.settings(), { retries: 1 }) : new Map()
     const changed = await this.serial.run(async () => {
@@ -1196,15 +1389,18 @@ export class Library {
         const found = counted.get(id)
         const current = await readRecord(this.root, id)
         if (!found || !current) continue
-        const same = current.citationCount === found.count && current.fields.citationCount === found.source
+        this.countedAt.set(id, now)
+        if (current.citationCount === found.count && current.fields.citationCount === found.source) continue
         await writeRecord(this.root, { ...current, citationCount: found.count, citationsAt: now, fields: { ...current.fields, citationCount: found.source } })
-        if (!same) changed.push(id)
+        changed.push(id)
       }
       return changed
     })
-    // Written after the counts, so a day they couldn't be had is tried again on the next open
-    const kept = (await readJson<Record<string, unknown>>(file).catch(() => undefined)) ?? {}
-    await writeJsonAtomic(file, { ...kept, citationsCountedOn: today })
+    // Written after the counts, so a day they couldn't be had is tried again on the next open. Papers no
+    // longer in the library are dropped from the notes.
+    const here = new Set(ids)
+    const citationsAt = Object.fromEntries([...this.countedAt].filter(([id]) => here.has(id)))
+    await this.machine((kept) => ({ ...kept, citationsCountedOn: today, citationsAt }))
     if (changed.length) await this.announce(changed)
   }
 
@@ -1214,8 +1410,12 @@ export class Library {
   async watch(onChange: (change: LibraryChange) => void, onNote?: (paperId: string, note: PaperNote | null, before: string, own: boolean) => void) {
     this.onChange = onChange
     if (onNote) this.onNote = onNote
-    void this.retryMissingDaily().catch((error) => console.error("[core] couldn't retry missing PDFs", error))
-    this.citationsRecounted = this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
+    this.daily()
+    clearInterval(this.hourly)
+    this.hourly = setInterval(() => {
+      this.daily()
+      void this.retryOffline().catch((error) => console.error("[core] couldn't look again for PDFs", error))
+    }, HOURLY_MS)
     // Before any paper is read: imported papers skip the digest and maybe MinerU
     await this.imports.load().catch((error) => console.error("[core] couldn't read the imports", error))
     void this.catchUp().catch((error) => console.error("[core] couldn't catch up on the library", error))
@@ -1253,6 +1453,7 @@ export class Library {
 
   dispose() {
     clearTimeout(this.timer)
+    clearInterval(this.hourly)
     for (const timer of this.noteTimers.values()) clearTimeout(timer)
     this.watcher?.close()
     this.watcher = null
@@ -1488,9 +1689,10 @@ export class Library {
   // ---- inside
 
   // Asks the services about a paper and rewrites its paper.json. A record that turns out to be a copy
-  // of another paper in the library (the DOI it was found to have is that paper's, or the titles match
-  // where one has no DOI) is folded into that paper when the user has done nothing with it.
-  private async refreshRecord(id: string, signal: AbortSignal, fresh = false) {
+  // of another paper in the library (an id it was found to have is that paper's, or the titles match
+  // where one has no DOI) is folded into that paper when the user has done nothing with it. The paper it
+  // was folded into, if it was.
+  private async refreshRecord(id: string, signal: AbortSignal, fresh = false): Promise<string | undefined> {
     const record = await readRecord(this.root, id)
     if (!record) throw new TaskFailure(`${id} is not in the library.`)
     const ref = refOfIds(record.ids)
@@ -1502,29 +1704,41 @@ export class Library {
     const twin = await this.serial.run(async () => {
       const current = await readRecord(this.root, id)
       if (!current) return undefined
-      // Its DOI is another paper's: writing it here would give two papers one id
-      const holder = found.ids.doi ? await this.index.find({ doi: found.ids.doi }) : undefined
-      if (holder && holder !== id) return holder
+      // Another paper has one of its ids: the same paper (a preprint and its published version, under
+      // titles that differ). Its DOI being the other's, writing it here would give two papers one id.
+      let holder = await this.index.other(found.ids, id)
+      // Two DOIs are two works, even sharing a preprint (a conference paper and its journal version)
+      const theirDoi = holder ? (await readRecord(this.root, holder))?.ids.doi : undefined
+      if (theirDoi && found.ids.doi && theirDoi !== found.ids.doi) holder = undefined
+      if (holder && found.ids.doi && (await this.index.find({ doi: found.ids.doi })) === holder) return holder
       await keepSources(this.root, id, found.records)
       const next = recordFrom(id, found, current)
       await writeRecord(this.root, next)
       this.index.set(id, next.ids, next.title)
-      return this.index.twin(next.title, next.ids, id)
+      return holder ?? (await this.index.twin(next.title, next.ids, id))
     })
-    if (twin) await this.fold(id, twin)
+    const kept = twin ? await this.fold(id, twin) : undefined
     await this.announce([id])
+    return kept === id ? undefined : kept
   }
 
   // Two records of one paper: the one without a DOI goes (to the trash, its id kept as an alias of the
-  // other), unless the user has starred, tagged, marked, highlighted or written about it. Then both stay.
-  private async fold(a: string, b: string) {
-    await this.serial.run(async () => {
+  // other), unless the user has starred, tagged, marked, highlighted or written about it. Then both stay,
+  // and the copy's state names the other (copyOf), for its page to say so; moving the person's marks
+  // onto the kept paper (a Merge) isn't built. The paper kept, when one was folded into it.
+  private async fold(a: string, b: string): Promise<string | undefined> {
+    return this.serial.run(async () => {
       const [ra, rb] = await Promise.all([readRecord(this.root, a), readRecord(this.root, b)])
-      if (!ra || !rb) return
+      if (!ra || !rb) return undefined
       const [copy, kept] = !ra.ids.doi && rb.ids.doi ? [a, b] : !rb.ids.doi && ra.ids.doi ? [b, a] : [a, b]
       if (await this.touched(copy)) {
-        console.log(`[core] ${copy} looks like a copy of ${kept}, but the user has worked with it; both stay`)
-        return
+        const state = await readState(this.root, copy)
+        if (state && state.copyOf !== kept) {
+          await writeState(this.root, copy, { ...state, copyOf: kept })
+          const paper = await this.get(copy)
+          if (paper) this.onChange({ papers: [paper], removed: [] })
+        }
+        return undefined
       }
       // The lookup that found the copy (paper.metadata, running) ends on its own
       await this.moveToTrash(copy, Date.now(), (task) => task.kind === "paper.metadata" && task.state === "running")
@@ -1534,6 +1748,7 @@ export class Library {
       await writeJsonAtomic(this.aliasFile(), { version: 1, aliases })
       const paper = await this.get(kept)
       this.onChange({ papers: paper ? [paper] : [], removed: [copy], renamed: { [copy]: kept } })
+      return kept
     })
   }
 

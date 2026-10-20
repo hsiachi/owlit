@@ -6,6 +6,8 @@ import { waitsOnYou } from "@/features/library/lib/pdf-wait"
 import { KIND_ICON } from "@/lib/kinds"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
+import { create } from "zustand"
+import { useLibraryStore } from "@/features/library/store"
 
 // The sites where the extension in the user's browser waits for them: one line each, with one thing to
 // do, said the same on Home, atop the Library, on a paper's card and in a notification
@@ -48,8 +50,12 @@ export function waitWords(wait: ExtensionWait): WaitWords {
 // opens a sign-in or a check in that browser itself; being allowed can only be asked from inside it, so
 // the line then says where the extension's button is.
 export async function actOnWait(wait: ExtensionWait) {
-  if (!isDesktop) return void window.open(wait.url, "_blank", "noreferrer")
+  if (!isDesktop) {
+    window.open(wait.url, "_blank", "noreferrer")
+    return follow(wait, undefined)
+  }
   const opened = await rpc.extension.open({ kind: wait.kind, host: wait.host }).catch(toastError)
+  if (opened && opened.by !== "none") return follow(wait, opened.browser)
   if (opened?.by !== "none") return
   const { host } = wait
   if (wait.kind === "permission") toast(t`Press owlit's button in your browser's toolbar, then Allow.`, { description: t`The extension asks to read ${host} for the papers waiting there.` })
@@ -75,3 +81,43 @@ export function siteWaitItem(wait: ExtensionWait, showLibrary: () => void): Wait
 
 // The ones that wait on the user
 export const siteWaitItems = (waits: ExtensionWait[], showLibrary: () => void) => waits.filter((wait) => waitsOnYou(wait)).map((wait) => siteWaitItem(wait, showLibrary))
+
+// ---- What came of a click
+
+// A site whose waiting line the person acted on, followed until they put its outcome away: the papers
+// waiting there when they clicked (the queue forgets them as it goes, so the window keeps them), and the
+// browser the page opened in. The Library's line says, in turn, that the page is open there, how many
+// PDFs have come while the site's queue drains, and what came of it all (ExtensionWaitLines).
+export interface FollowedWait {
+  kind: ExtensionWait["kind"]
+  host: string
+  ids: string[]
+  browser?: string
+  at: number
+  // The site's wait went once since the click: a wait there again (another check) is a new one to act on
+  through?: boolean
+}
+
+export const useFollowedWaits = create<{ list: FollowedWait[] }>(() => ({ list: [] }))
+
+function follow(wait: ExtensionWait, browser: string | undefined) {
+  const ids = Object.values(useLibraryStore.getState().papers)
+    .filter((p) => !p.pdf && p.pdfState?.extension?.host === wait.host)
+    .map((p) => p.id)
+  useFollowedWaits.setState((s) => {
+    const before = s.list.find((f) => f.host === wait.host)
+    // A second click on the same site (it asked again) keeps the papers counted from the first
+    const all = [...new Set([...(before?.ids ?? []), ...ids])]
+    const next: FollowedWait = { kind: wait.kind, host: wait.host, ids: all, ...(browser ? { browser } : {}), at: Date.now() }
+    return { list: [...s.list.filter((f) => f.host !== wait.host), next] }
+  })
+}
+
+export const putAwayFollowed = (host: string) => useFollowedWaits.setState((s) => ({ list: s.list.filter((f) => f.host !== host) }))
+
+// The sites followed whose wait has gone, as through, from the waits core reports now
+export function noteThrough(waits: ExtensionWait[]) {
+  const { list } = useFollowedWaits.getState()
+  if (!list.some((f) => !f.through && !waits.some((w) => w.host === f.host))) return
+  useFollowedWaits.setState({ list: list.map((f) => (f.through || waits.some((w) => w.host === f.host) ? f : { ...f, through: true })) })
+}

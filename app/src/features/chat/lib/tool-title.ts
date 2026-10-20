@@ -25,6 +25,8 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`Look up a paper`, done: t`Looked up a paper` }
     case "library_read":
       return { now: t`Read a paper`, done: t({ message: "Read a paper", context: "a step that ran" }) }
+    case "library_figure":
+      return { now: t`Look at a figure`, done: t`Looked at a figure` }
     case "library_highlights":
       return { now: t`Read your highlights`, done: t({ message: "Read your highlights", context: "a step that ran" }) }
     case "library_search":

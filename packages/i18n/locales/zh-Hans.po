@@ -107,6 +107,8 @@ msgstr "什么也没找到。"
 #. button: open a paper to read
 #. button: open a paper to read
 #. button: open a paper to read
+#. button: open a paper to read
+#. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
@@ -118,6 +120,7 @@ msgstr "什么也没找到。"
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
+#: app/src/features/library/actions.ts
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
@@ -417,6 +420,7 @@ msgstr "关闭弹出框"
 #. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: take back what was just done
+#. verb: take back what was just done
 #. verb: undo a passage Owlit changed
 #. verb: undo a passage Owlit changed
 #. verb: undo a passage Owlit changed
@@ -424,6 +428,7 @@ msgstr "关闭弹出框"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/docs/editor/proposals.ts
+#: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/notes/NoteChanges.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
@@ -671,67 +676,10 @@ msgid "Look again"
 msgstr "再找一次"
 
 #: app/src/components/paper-card.tsx
+#: app/src/features/library/lib/pdf-wait.ts
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Finding a PDF…"
 msgstr "正在查找 PDF…"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waiting for the network"
-msgstr "等待网络"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for your library sign-in"
-msgstr "等你登录图书馆"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a sign-in at {site}"
-msgstr "等你在 {site} 登录"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a check at {site}"
-msgstr "等你完成 {site} 的验证"
-
-#: app/src/components/paper-card.tsx
-msgid "Waits for a check"
-msgstr "等你完成验证"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for the extension to be allowed on {site}"
-msgstr "等你允许扩展读取 {site}"
-
-#: app/src/components/paper-card.tsx
-msgid "Waits for the extension to be allowed"
-msgstr "等你允许扩展读取"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
-msgstr "未找到 PDF"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No access through your library"
-msgstr "通过你的图书馆无法访问"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library doesn't offer this paper"
-msgstr "你的图书馆没有这篇论文"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr "{host} 上没有这篇论文的 PDF"
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
-msgstr "出版方没有这篇论文的 PDF"
 
 #: app/src/components/paper-card.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -1172,10 +1120,12 @@ msgstr "下一个问题"
 #. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: show the Library, where the papers wait
+#. verb: show these papers in the Library
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/extension/waits.ts
+#: app/src/features/library/components/ExtensionWaitLines.tsx
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/features/library/pages/paper/PaperBeside.tsx
 msgid "Show"
@@ -1774,18 +1724,6 @@ msgid "A question went unanswered"
 msgstr "有一个问题未回答"
 
 #: app/src/features/chat/components/messages/step-results.tsx
-msgid "Already in your Library"
-msgstr "已在你的文献库中"
-
-#: app/src/features/chat/components/messages/step-results.tsx
-msgid "Added “{title}”"
-msgstr "已添加“{title}”"
-
-#: app/src/features/chat/components/messages/step-results.tsx
-msgid "Couldn't add that paper."
-msgstr "无法添加这篇论文。"
-
-#: app/src/features/chat/components/messages/step-results.tsx
 msgid "In Library"
 msgstr "已在文献库中"
 
@@ -1826,18 +1764,6 @@ msgstr "暂不支持附加文件夹。"
 #: app/src/features/chat/lib/attachments.ts
 msgid "Pasted file"
 msgstr "粘贴的文件"
-
-#: app/src/features/chat/lib/attachments.ts
-#: app/src/features/library/lib/add-pdfs.ts
-#: app/src/features/library/lib/use-ref-lookup.ts
-msgid "Added to library"
-msgstr "已添加到文献库"
-
-#: app/src/features/chat/lib/attachments.ts
-#: app/src/features/library/components/AddCandidate.tsx
-#: app/src/features/library/lib/add-pdfs.ts
-msgid "Already in your library"
-msgstr "已在你的文献库中"
 
 #: app/src/features/chat/lib/attachments.ts
 #: app/src/features/library/lib/add-pdfs.ts
@@ -2194,6 +2120,10 @@ msgid "{n, plural, one {read a paper} other {read # papers}}"
 msgstr "{n, plural, other {阅读了 # 篇论文}}"
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {looked at a figure} other {looked at # figures}}"
+msgstr "{n, plural, other {看了 # 张图}}"
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr "{n, plural, other {请求了 # 份导读}}"
 
@@ -2377,6 +2307,14 @@ msgstr "阅读论文"
 msgctxt "a step that ran"
 msgid "Read a paper"
 msgstr "阅读了一篇论文"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Look at a figure"
+msgstr "查看图表"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Looked at a figure"
+msgstr "看了图表"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Read your highlights"
@@ -2669,6 +2607,10 @@ msgstr "在访达中显示"
 #: app/src/features/docs/store.ts
 msgid "New folder"
 msgstr "新建文件夹"
+
+#: app/src/features/docs/actions.ts
+msgid "Import as papers…"
+msgstr "作为论文导入…"
 
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
@@ -3494,6 +3436,104 @@ msgstr "{0, plural, other {已复制 # 条参考文献}}"
 msgid "Highlight deleted"
 msgstr "已删除高亮"
 
+#. in: Already in your library · owlit added its arXiv id
+#: app/src/features/library/actions.ts
+msgid "arXiv id"
+msgstr "arXiv 编号"
+
+#. in: Already in your library · owlit added its Semantic Scholar id
+#: app/src/features/library/actions.ts
+msgid "Semantic Scholar id"
+msgstr "Semantic Scholar 编号"
+
+#. in: Already in your library · owlit added its OpenAlex id
+#: app/src/features/library/actions.ts
+msgid "OpenAlex id"
+msgstr "OpenAlex 编号"
+
+#. names: the ids owlit learnt, e.g. arXiv id
+#: app/src/features/library/actions.ts
+msgid "Already in your library · owlit added its {names}"
+msgstr "已在你的文献库中 · owlit 补上了它的{names}"
+
+#: app/src/features/library/actions.ts
+msgid "Already in your library"
+msgstr "已在你的文献库中"
+
+#: app/src/features/library/actions.ts
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "PDF attached"
+msgstr "已附加 PDF"
+
+#: app/src/features/library/actions.ts
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Added to library"
+msgstr "已添加到文献库"
+
+#: app/src/features/library/actions.ts
+msgid "Couldn't add that paper."
+msgstr "无法添加这篇论文。"
+
+#: app/src/features/library/actions.ts
+msgid "Folded into “{title}”"
+msgstr "已并入《{title}》"
+
+#: app/src/features/library/actions.ts
+msgid "It was a copy of a paper already in your library."
+msgstr "它是文献库中已有论文的副本。"
+
+#: app/src/features/library/actions.ts
+msgid "Details refreshed"
+msgstr "信息已更新"
+
+#: app/src/features/library/actions.ts
+msgid "Details checked; nothing changed"
+msgstr "信息已核对，没有变化"
+
+#: app/src/features/library/actions.ts
+msgid "Couldn't refresh the details."
+msgstr "无法刷新信息。"
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "title"
+msgstr "标题"
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "authors"
+msgstr "作者"
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "year"
+msgstr "年份"
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "venue"
+msgstr "发表处"
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "abstract"
+msgstr "摘要"
+
+#. a paper's DOI, arXiv id and the like, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+msgid "ids"
+msgstr "编号"
+
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "Looking up {input}…"
 msgstr "正在查找 {input}…"
@@ -3598,6 +3638,59 @@ msgstr "发表处"
 msgid "Abstract"
 msgstr "摘要"
 
+#. in: Opened in your browser
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "your browser"
+msgstr "你的浏览器"
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Sign in there; owlit goes on by itself."
+msgstr "已在{browser}中打开。在那里登录，owlit 会自己继续。"
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Pass the check there; owlit goes on by itself."
+msgstr "已在{browser}中打开。在那里完成验证，owlit 会自己继续。"
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Allow the extension there; owlit goes on by itself."
+msgstr "已在{browser}中打开。在那里允许扩展，owlit 会自己继续。"
+
+#. button: opens the sign-in or check page in the user's browser once more
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Open again"
+msgstr "再次打开"
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
+msgstr "{total, plural, other {正在从 {host} 获取 # 篇 PDF}}"
+
+#. how many PDFs have come so far
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{got} so far"
+msgstr "已到 {got} 篇"
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "From {host}"
+msgstr "来自 {host}"
+
+#. verb: put a stopped import away
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Dismiss"
+msgstr "忽略"
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
+msgstr "{got, plural, other {从 {host} 拿到 # 篇 PDF}}"
+
+#. placeholder {0}: without.length
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{0, plural, one {# without} other {# without}}"
+msgstr "{0, plural, other {# 篇没有}}"
+
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
 msgstr "全部复制为 Markdown"
@@ -3658,11 +3751,6 @@ msgstr "来自 {name}"
 msgid "from the {name} folder"
 msgstr "来自文件夹 {name}"
 
-#. verb: put a stopped import away
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Dismiss"
-msgstr "忽略"
-
 #: app/src/features/library/components/ImportBanner.tsx
 msgctxt "carry on with a stopped import"
 msgid "Continue"
@@ -3709,6 +3797,11 @@ msgstr "正在导入（{origin}）· {done}/{total}"
 msgid "{0, plural, one {# was here already} other {# were here already}}"
 msgstr "{0, plural, other {# 篇已在库中}}"
 
+#. placeholder {0}: summary.attached
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{0, plural, one {# of those got its PDF} other {# of those got their PDF}}"
+msgstr "{0, plural, other {其中 # 篇补上了 PDF}}"
+
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "{withoutPdf, plural, one {# without a PDF} other {# without a PDF}}"
 msgstr "{withoutPdf, plural, other {# 篇没有 PDF}}"
@@ -3720,6 +3813,10 @@ msgstr "{added, plural, other {导入了 # 篇论文（{origin}）}}"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Nothing new came in {origin}"
 msgstr "没有新论文（{origin}）"
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin}"
+msgstr "导入（{origin}）"
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "From this import"
@@ -3953,6 +4050,16 @@ msgstr "不再只看「{0}」"
 msgid "Stop filtering by {tag}"
 msgstr "取消按 {tag} 筛选"
 
+#. filter menu: show only the papers one thread holds
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "In thread"
+msgstr "按脉络"
+
+#. chip: the Library shows only the papers of this thread
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "In thread “{title}”"
+msgstr "脉络「{title}」"
+
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -3999,10 +4106,6 @@ msgstr "复制引用"
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Refresh details"
 msgstr "刷新信息"
-
-#: app/src/features/library/components/PaperMenu.tsx
-msgid "Couldn't refresh the details."
-msgstr "无法刷新信息。"
 
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -4087,6 +4190,11 @@ msgstr "无法写出导读"
 msgid "Couldn't save the library."
 msgstr "无法保存文献库。"
 
+#. placeholder {0}: found.length
+#: app/src/features/library/disk.ts
+msgid "{0} papers"
+msgstr "{0} 篇论文"
+
 #. toast: owlit set a paper's status to Read because it was read to the end
 #: app/src/features/library/disk.ts
 msgid "Marked as read"
@@ -4109,8 +4217,12 @@ msgid "Adding {number} of {total}…"
 msgstr "正在添加第 {number} 篇，共 {total} 篇…"
 
 #: app/src/features/library/lib/add-pdfs.ts
-msgid "{added} added"
-msgstr "已添加 {added} 篇"
+msgid "{count} added"
+msgstr "添加了 {count} 篇"
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "{placed, plural, one {# PDF attached} other {# PDFs attached}}"
+msgstr "{placed, plural, other {附加了 # 个 PDF}}"
 
 #: app/src/features/library/lib/add-pdfs.ts
 msgid "{existing} already in your library"
@@ -4194,8 +4306,8 @@ msgstr "查找中"
 
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Not found"
-msgstr "未找到"
+msgid "No PDF found"
+msgstr "未找到 PDF"
 
 #. the user's library doesn't give them this paper
 #: app/src/features/library/lib/pdf-wait.ts
@@ -4206,6 +4318,58 @@ msgstr "无权限"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
 msgstr "出版方无 PDF"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No PDF yet"
+msgstr "还没有 PDF"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "The PDF is gone"
+msgstr "PDF 不见了"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for the network"
+msgstr "等待网络"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for your library sign-in"
+msgstr "等你登录图书馆"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for a sign-in at {site}"
+msgstr "等你在 {site} 登录"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for a check at {site}"
+msgstr "等你完成 {site} 的验证"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for a check"
+msgstr "等你完成验证"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for the extension to be allowed on {site}"
+msgstr "等你允许扩展读取 {site}"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for the extension to be allowed"
+msgstr "等你允许扩展读取"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No access through your library"
+msgstr "通过你的图书馆无法访问"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Your library doesn't offer this paper"
+msgstr "你的图书馆没有这篇论文"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "{site} has no PDF of this paper"
+msgstr "{site} 没有这篇论文的 PDF"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "The publisher has no PDF of this paper"
+msgstr "出版方没有这篇论文的 PDF"
 
 #. time spent in a paper, then the pages read, e.g. 12 min, pp. 1–6
 #: app/src/features/library/lib/trace.ts
@@ -4382,6 +4546,11 @@ msgstr "高亮"
 msgid "About"
 msgstr "信息"
 
+#. followed by a link to the other paper in the library
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "This looks like the same paper as"
+msgstr "这篇看起来和这篇是同一篇论文："
+
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No abstract."
 msgstr "无摘要。"
@@ -4391,9 +4560,9 @@ msgstr "无摘要。"
 msgid "{when} by {who}"
 msgstr "{when}，由{who}添加"
 
+#. label before the threads that hold this paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgctxt "label before the threads that hold this paper"
-msgid "In"
+msgid "In threads"
 msgstr "所在脉络"
 
 #. the paper's PDF file
@@ -4485,6 +4654,10 @@ msgid "Page {number}"
 msgstr "第 {number} 页"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets it now that the paper is open."
+msgstr "论文已打开，owlit 正在获取。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr "{tried}；正在经你的浏览器尝试 {site}。"
 
@@ -4499,10 +4672,6 @@ msgstr "{tried}；owlit 将经你的浏览器尝试 {site}。"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit will try {site} through your browser."
 msgstr "owlit 将经你的浏览器尝试 {site}。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The PDF is gone"
-msgstr "PDF 不见了"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Its file was deleted or moved outside owlit. If you have it, drop it here."
@@ -4553,8 +4722,8 @@ msgid "Once it may, owlit goes on with every paper waiting there."
 msgstr "允许后，owlit 会继续获取那里所有在等的论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
-msgstr "owlit 查找时连不上任何 PDF 来源。下次打开时会再找。"
+msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
+msgstr "owlit 查找时连不上任何 PDF 来源，一小时内会再找一次。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -4605,10 +4774,6 @@ msgid "It answered 404 · {date}"
 msgstr "它的回复是 404 · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "PDF attached"
-msgstr "已附加 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Couldn't attach that file."
 msgstr "无法附加该文件。"
 
@@ -4617,13 +4782,16 @@ msgid "PDF found"
 msgstr "已找到 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Still no copy; owlit looks again on {date}"
+msgstr "仍未找到副本；owlit 会在 {date} 再找"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Still no copy"
+msgstr "仍未找到副本"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Choose file"
 msgstr "选择文件"
-
-#. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Install the extension"
-msgstr "安装扩展"
 
 #. button: opens the paper's page at its publisher in the user's browser
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4631,8 +4799,8 @@ msgid "Open the page"
 msgstr "打开页面"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit couldn't get this alone. With the owlit extension, your browser can use your library's access."
-msgstr "owlit 自己拿不到这篇。装上 owlit 扩展后，你的浏览器可以用你的图书馆权限去取。"
+msgid "Download it there, then drop it here."
+msgstr "在那里下载，再拖到这里。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit looks again on {nextDate}"
@@ -4643,8 +4811,8 @@ msgid "owlit won't look again"
 msgstr "owlit 不会再找"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library may have it. <0>Set up library proxy</0>"
-msgstr "你的图书馆可能有。<0>设置图书馆代理</0>"
+msgid "Use your library's access · <0>Set up</0>"
+msgstr "使用你所在图书馆的访问权限 · <0>设置</0>"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "the library proxy"
@@ -5740,8 +5908,8 @@ msgid "Contact email"
 msgstr "联系邮箱"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
-msgid "With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies."
-msgstr "填写邮箱后，OpenAlex 和 Unpaywall 会响应得更快、更稳定，Unpaywall 还能找到开放获取的副本。"
+msgid "OpenAlex and Crossref answer faster and more often to your own address. Unpaywall is asked under owlit's address until you give one."
+msgstr "填上你自己的邮箱，OpenAlex 和 Crossref 会回应得更快、更稳定。在你填写之前，owlit 用自己的地址询问 Unpaywall。"
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
 msgid "Semantic Scholar API key"
@@ -7231,31 +7399,6 @@ msgstr "阅读状态"
 #: packages/core/src/changes/undo.ts
 msgid "tags"
 msgstr "标签"
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "title"
-msgstr "标题"
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "authors"
-msgstr "作者"
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "year"
-msgstr "年份"
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "venue"
-msgstr "发表处"
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "abstract"
-msgstr "摘要"
 
 #. a paper's field: its kind or ids
 #: packages/core/src/changes/undo.ts

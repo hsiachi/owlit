@@ -17,6 +17,7 @@ import { FRESH_CHAT } from "@/features/chat/components/ChatEmpty"
 import { starterPrompt, starters } from "@/features/chat/lib/starters"
 import { i18n } from "@/lib/i18n"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
+import { usePaperActions } from "@/features/library/actions"
 import { useWorkspace } from "@/lib/workspace"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
 import { ago } from "@/lib/time"
@@ -31,9 +32,10 @@ const RECENT = 8
 const findStarter = starters.find((s) => s.id === "find")!
 
 export function HomePage() {
+  const { open } = usePaperActions()
   const places = usePlaces()
   const workspace = useWorkspace((s) => s.current)
-  const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files)))
+  const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files), open))
   const [lead, ...rest] = places
 
   return (
@@ -144,6 +146,7 @@ function didWords(place: Place) {
 // a chat, since Owlit gathers them only when asked and the question is said best in its own words.
 function Start() {
   const navigate = useNavigate()
+  const { open } = usePaperActions()
   const newDoc = useNewDoc()
   // The element itself rather than a ref, since the rows below hand its click out during render
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null)
@@ -178,7 +181,7 @@ function Start() {
           </button>
         </Trans>
       </p>
-      <PdfFileInput ref={setFileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
+      <PdfFileInput ref={setFileInput} multiple onFiles={(files) => void addPdfFiles(files, open)} />
     </>
   )
 }

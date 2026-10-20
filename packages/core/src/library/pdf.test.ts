@@ -148,11 +148,14 @@ describe("paper.pdf", () => {
     await expect(call("library.attachPdf", { id: "doi-10.1145-1", path: file })).rejects.toThrow("That file isn't a PDF.")
   })
 
-  it("names no route it didn't try, and still counts the look", async () => {
-    const { call } = await setup(serving({}))
+  it("names no route that gave nothing, and still counts the look", async () => {
+    const asked: string[] = []
+    const fetch = serving({})
+    const { call } = await setup(((url: string) => (asked.push(url), fetch(url))) as typeof globalThis.fetch)
     await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
     await call("library.fetchPdf", { id: "doi-10.9999-x" })
-    // Unpaywall wasn't asked without a contact email, so it isn't named
+    // Unpaywall is asked under owlit's contact when the person gave none
+    expect(asked.some((u) => u.startsWith("https://api.unpaywall.org/v2/10.9999/x?email=contact%40owlit.ink"))).toBe(true)
     expect((await call("library.list")).papers[0].pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "search", ended: "no-copy" }] })
     expect((await call("library.list")).papers[0].pdfState.tried[0].route).toBeUndefined()
   })

@@ -2,8 +2,6 @@ import { msg, t } from "@lingui/core/macro"
 import { ago } from "@/lib/time"
 import { i18n } from "@/lib/i18n"
 import { MARK_CLOSE, MARK_OPEN, type Paper } from "@owlit/protocol"
-import { me, nameOf, useMe } from "@/lib/actors"
-import { capital } from "@/lib/words"
 import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import { cn } from "@/lib/utils"
@@ -15,7 +13,7 @@ import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
 import { type PaperGroup } from "../lib/filter"
 import { pdfWait, pdfWord } from "../lib/pdf-wait"
-import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue } from "../lib/format"
+import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue, venueOf } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { useTraceTitle } from "../lib/trace"
 import { tagsFirst } from "../lib/tags"
@@ -199,24 +197,16 @@ type ByThread = ReadonlyMap<string, { id: string; title: string }[]>
 
 // Columns no paper in view fills (no tags yet, every paper unread) are left out rather than shown blank
 const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
-  venue: (p) => !!p.venue,
+  venue: (p) => !!venueOf(p),
   citations: (p) => !!p.citations,
   tags: (p) => p.tags.length > 0,
   status: (p) => p.status !== "unread" || !!noPdfWord(p),
 }
 
-// Added says "Oct 8 · Owlit" for a paper someone else added (Owlit, mostly), which needs a wider cell than
-// a date alone
-const ADDED_BY_OWLIT_WIDTH = 136
-
 function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byThread: ByThread | undefined): Column[] {
   const kept = useMemo(() => {
-    const viewer = me()
-    const byOwlit = papers.some((p) => p.addedBy !== viewer)
     const filled = { ...FILLED, thread: (p: Paper) => !!byThread?.get(p.id)?.length }
-    return COLUMNS.filter((c) => !filled[c.key] || papers.some(filled[c.key]!)).map((c) =>
-      c.key === "added" && byOwlit ? { ...c, width: ADDED_BY_OWLIT_WIDTH } : c,
-    ) as Column[]
+    return COLUMNS.filter((c) => !filled[c.key] || papers.some(filled[c.key]!)) as Column[]
   }, [papers, byThread])
   // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
   // before paint, so the table never shows a frame with every column squeezed in; and it only
@@ -253,7 +243,6 @@ const TableRow = memo(TableRowView, (a, b) => {
 })
 
 function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holding }: TableRowProps) {
-  const viewer = useMe()
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   // How far the person got, on hover of the Status cell
@@ -266,7 +255,8 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
     (last || peeked) && "border-b-transparent",
     selected && "bg-accent group-hover/row:bg-accent",
   )
-  const venue = paper.venue && shortVenue(paper.venue)
+  const full = venueOf(paper)
+  const venue = full && shortVenue(full)
   // Status says "Read" in its own column; only when that column has given way does the title recede instead
   const muted = paper.status === "read" && !columns.has("status")
   return (
@@ -288,7 +278,7 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
         {columns.has("authors") && <td className={td}>{shortAuthors(paper.authors)}</td>}
         <td className={cn(td, "tabular-nums")}>{paper.year}</td>
         {columns.has("venue") && (
-          <td className={td} title={paper.venue}>
+          <td className={td} title={full}>
             {venue}
           </td>
         )}
@@ -327,10 +317,10 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
           </td>
         )}
         <td className={cn(td, "tabular-nums")}>
-          {/* Owlit signs what it added, as everywhere it leaves something; the date gives way to the row's actions */}
+          {/* The date alone: Owlit adds most papers, so a mark on its rows would say nothing (the card and the
+              paper page say who added it). It gives way to the row's actions */}
           <span className="group-hover/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
             {ago(paper.addedAt)}
-            {paper.addedBy !== viewer && ` · ${capital(nameOf(paper.addedBy))}`}
           </span>
           <RowActions paper={paper} className="-my-1 -mr-1.5 justify-end" />
         </td>

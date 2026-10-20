@@ -2,6 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import { intlLocale } from "@owlit/i18n"
 import { shortDate } from "@/lib/time"
 import type { Paper } from "@owlit/protocol"
+import { venueAlias } from "./venues"
 
 // An author's family name, taken as the last word: "Aidan N. Gomez" → "Gomez"
 export const surname = (name: string) => name.trim().split(/\s+/).at(-1) ?? name
@@ -21,17 +22,28 @@ export const authorsYear = (p: Pick<Paper, "authors" | "year">) => [shortAuthors
 // A paper's details wherever a list names it, after or beside its title: "Pirolli & Card · 2005 · CHI".
 // The venue only by its acronym, so a list's details line up in a column instead of pushing the title
 // aside; a venue without one is left to the table and the paper's page.
-export function paperMeta(p: Pick<Paper, "authors" | "year" | "venue">): string {
-  const venue = p.venue && shortVenue(p.venue)
-  return [shortAuthors(p.authors), p.year, venue !== p.venue?.trim() && venue].filter(Boolean).join(" · ")
+export function paperMeta(p: Pick<Paper, "authors" | "year" | "venue"> & Partial<Pick<Paper, "ids" | "kind">>): string {
+  const full = venueOf(p)
+  const venue = full && shortVenue(full)
+  return [shortAuthors(p.authors), p.year, venue !== full?.trim() && venue].filter(Boolean).join(" · ")
 }
 
-// A venue short enough for a table cell, without making up a name: a name that carries its own acronym
-// keeps just that ("… Human Factors in Computing Systems (CHI)" → "CHI", "CHI Conference on Human
+// Where a paper appeared, as the Library shows it: its venue, or arXiv for a preprint the services name
+// no venue for (arXiv is where it is)
+export function venueOf(p: Pick<Paper, "venue"> & Partial<Pick<Paper, "ids" | "kind">>): string | undefined {
+  if (p.venue?.trim()) return p.venue
+  return p.ids?.arxiv && (p.kind === "preprint" || !p.ids.doi) ? "arXiv" : undefined
+}
+
+// A venue short enough for a table cell, without making up a name: a well-known venue's own acronym
+// (venues.ts: "… Interactive, Mobile, Wearable and Ubiquitous Technologies" → "IMWUT"), else a name that
+// carries its own acronym keeps just that ("… Human Factors in Computing Systems (CHI)" → "CHI", "CHI Conference on Human
 // Factors…" → "CHI", "ACM SIGIR Conference on…" → "SIGIR"). Anything else stays whole, cut by its cell
 // with the full name on hover; initials ("Applied Cognitive Psychology" → "ACP") read as noise.
 export function shortVenue(venue: string): string {
   const v = venue.trim()
+  const known = venueAlias(v)
+  if (known) return known
   const acronym = v.match(/\(([A-Z][A-Za-z]*[A-Z])\)/)
   if (acronym) return acronym[1]
   const lead = v.match(/^(?:Proceedings of (?:the )?)?(?:\d{4}\s+)?(?:(?:ACM|IEEE)\s+)?([A-Z][A-Z0-9]*[A-Z0-9])\s+(?:International\s+)?(?:Conference|Symposium|Workshop)\b/)

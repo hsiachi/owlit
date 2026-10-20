@@ -706,6 +706,8 @@ export class Core {
     this.router.register("library.found", z.object({ id: z.string().min(1) }), "read", async ({ id }) => (await library().snapshot(id)) ?? null)
     this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), "read", ({ inputs }) => library().known(inputs))
     this.router.register("library.list", noParams, "read", () => library().list())
+    this.router.register("library.papers", noParams, "read", () => library().papers())
+    this.router.register("library.get", z.object({ id: z.string().min(1) }), "read", ({ id }) => library().one(id))
     const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
     const ids = z.object({ doi: z.string(), arxiv: z.string(), s2: z.string(), openalex: z.string(), url: z.string() }).partial()
     const kind = z.enum(["article", "conference", "preprint", "book", "thesis", "other"])
@@ -870,6 +872,18 @@ export class Core {
       },
     )
     this.router.register("library.figures", z.object({ id: paperId }), "read", ({ id }) => library().figures(id))
+    // An agent looking at a figure or a page: a read, recorded as one of that page (read-from.ts)
+    this.router.register(
+      "library.figure",
+      z.object({ id: z.string().min(1), figure: z.string().min(1).optional(), page: z.number().int().min(1).optional(), asker: z.string().optional() }),
+      "read",
+      async ({ id, figure, page, asker }) => {
+        const picture = await library().figurePicture(id, { figure, page })
+        const paperId = (await library().canonical(id)) ?? id
+        if (asker) this.reads.record({ asker, paperId, part: "text", pages: String(picture.page), at: Date.now() })
+        return picture
+      },
+    )
     this.router.register("library.pagePicture", z.object({ id: paperId, page: z.number().int().min(0) }), "read", ({ id, page }) => library().pagePicture(id, page))
     this.router.register(
       "library.read",
@@ -953,6 +967,7 @@ export class Core {
       for (const id of ids) out[id] = traceOf(readings.get(aliases[id] ?? id), (await ws.library.get(id))?.status)
       return out
     })
+    this.router.register("library.seek", z.object({ id: paperId }), "meta", ({ id }) => library().seek(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), "meta", ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), "meta", ({ id, path }) =>
       library().attachPdf(id, path),

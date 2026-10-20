@@ -23,7 +23,7 @@ import {
   type MemoryKind,
   type ReadStatus,
   type Paper,
-  type ExtensionWait,
+  pdfWait,
   type PdfEnded,
   type ToolSpec,
 } from "@owlit/protocol"
@@ -74,7 +74,8 @@ export function createServer(options: OwlitMcpOptions) {
     try {
       // Claude Code names the tool call an MCP request is for; it is the same id as the ACP tool call
       const toolCallId = request.params._meta?.["claudecode/toolUseId"]
-      return text(await run(spec.name, args, await owlit(), options, typeof toolCallId === "string" ? toolCallId : undefined))
+      const out = await run(spec.name, args, await owlit(), options, typeof toolCallId === "string" ? toolCallId : undefined)
+      return typeof out === "string" ? text(out) : out
     } catch (error) {
       if (error instanceof OwlitNotRunning) {
         client = null
@@ -88,7 +89,8 @@ export function createServer(options: OwlitMcpOptions) {
   return server
 }
 
-async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions, toolCallId?: string): Promise<string> {
+// A tool's answer: text, or a whole result where it carries more (library_figure's picture)
+async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClient, options: OwlitMcpOptions, toolCallId?: string): Promise<string | CallToolResult> {
   const str = (key: string) => args[key] as string
   const num = (key: string) => args[key] as number | undefined
   const optStr = (key: string) => (args[key] as string | undefined) || undefined
@@ -100,7 +102,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
   const writer = { ...asker, ...(toolCallId ? { toolCallId } : {}) }
   switch (tool) {
     case "library_list": {
-      const { papers } = await owlit.rpc.library.list()
+      const papers = await owlit.rpc.library.papers()
       const extension = await hasExtension(owlit)
       let chosen = papers
       if (args.query) {
@@ -117,22 +119,21 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "library_get": {
       // Any id the paper goes by: a search's, or one it had before it moved or a copy was folded into it
-      const [[here], { papers, notes }] = await Promise.all([owlit.rpc.library.known({ inputs: [str("id")] }), owlit.rpc.library.list()])
-      const paper = papers.find((p) => p.id === (here ?? str("id")))
-      if (!paper) {
+      const one = await owlit.rpc.library.get({ id: str("id") })
+      if (!one) {
         // A paper a search found: its whole abstract, which the search's line cuts short
         const found = await owlit.rpc.library.found({ id: str("id") })
         if (!found) return `There is no paper ${str("id")} in the library, and no recent search showed it.`
         return JSON.stringify({ id: str("id"), ...found, inLibrary: false, note: "Not in the user's library: a search found it. Gather it into a thread with thread_write; add it with library_add only to read its full text." }, null, 2)
       }
-      const highlights = await owlit.rpc.library.highlights({ id: paper.id })
+      const { paper, highlights, note } = one
       return JSON.stringify(
         {
           ...paper,
           pdf: !!paper.pdf,
           ...(paper.pdf ? {} : { noPdf: pdfFact(paper, await hasExtension(owlit)) }),
-          highlights: highlights.length,
-          note: notes.some((n) => n.paperId === paper.id && n.content.trim()),
+          highlights,
+          note,
           cite: `[${citeAs(paper)}](owlit://library/${paper.id})`,
         },
         null,
@@ -142,9 +143,19 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_read": {
       const part = (args.part as "text" | "digest" | "note" | undefined) ?? "text"
       // Signed like a search, so the chat's answer can say what it read
-      const { text, pages } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
+      const { text, pages, pending } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
+      if (pending === "pdf") return "owlit is fetching the paper's PDF now; read it again in a minute."
+      if (pending === "text") return "owlit is reading the paper's text now; read it again in a minute."
       if (!text.trim()) return part === "digest" ? "This paper has no digest yet." : part === "note" ? "The user hasn't written a note on this paper." : "The paper has no text."
       return pages && part === "text" && (args.pages || args.section) ? `${text}\n\n(The paper has ${pages} pages.)` : text
+    }
+    // The picture itself, with what it is beside it; signed like library_read, so the chat's answer can
+    // say what it looked at
+    case "library_figure": {
+      const named = optStr("figure")?.trim()
+      const picture = await owlit.rpc.library.figure({ id: str("id"), ...(named ? { figure: named } : { page: num("page") ?? 1 }), asker: searcher(options) })
+      const about = picture.label ? `${picture.label} (p. ${picture.page}): ${picture.caption || "no caption"}` : `Page ${picture.page}`
+      return { content: [{ type: "text", text: about }, { type: "image", data: picture.data, mimeType: picture.mimeType }] }
     }
     case "library_highlights": {
       const highlights = await owlit.rpc.library.highlights({ id: str("id") })
@@ -197,9 +208,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const lines: string[] = []
       for (const ref of refs) {
         try {
-          const { paper, existingId } = await owlit.rpc.library.resolve({ input: ref })
+          const { paper, existingId, learned } = await owlit.rpc.library.resolve({ input: ref })
           if (existingId) {
-            lines.push(`Already in the library as ${existingId}: ${paper.title}`)
+            const taught = learned?.length ? ` It now knows the paper's ${learned.map((k) => ID_NAMES[k]).join(" and ")} too, and looks for its PDF there when it has none.` : ""
+            lines.push(`Already in the library as ${existingId}: ${paper.title}.${taught}`)
             continue
           }
           const added = await owlit.rpc.library.add({ paper, ...writer })
@@ -560,29 +572,26 @@ function paperLine(p: Paper, extension: boolean) {
 // and the ending of the try that says why), as the window shows it: with only "no PDF", an agent
 // suggests a library proxy the user already has, and can't say which sign-in a paper waits for.
 const DROP = "the user can drop the PDF on the paper"
-const BY_ENDED: Record<PdfEnded, string> = {
-  "no-copy": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
+// A paper with no PDF, by its state's reason; a not-found that an older record's check or sign-in gave
+// says so, since an agent may be asked why
+const NO_PDF: Record<"not-found" | "no-access" | "not-offered" | "not-there", string> = {
+  "not-found": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
   "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
   "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
   "not-there": `no PDF: the publisher has no PDF at the paper's address; ${DROP}`,
-  // Only owlit's own looks give these as a reason for no PDF (an older record); the extension's are WAITS
+}
+const OWN_LOOK: Partial<Record<PdfEnded, string>> = {
   check: `no PDF: the publisher stopped owlit's own look with a check; ${DROP}`,
   "sign-in": `no PDF: the publisher wanted a sign-in from owlit's own look; ${DROP}`,
-  // Not reasons for having no PDF; core never gives them as one
-  pdf: `no PDF; ${DROP}`,
-  offline: `no PDF yet (waiting for the network)`,
-  // The extension's ending, never a reason for no PDF: such a paper is still finding (WAITS)
-  "no-permission": `no PDF yet; ${DROP}`,
 }
 
 // A paper still finding while the owlit extension in the user's browser waits at its site for them: one
 // sign-in, check or permission there covers every paper waiting at that site
-const WAITS: Record<ExtensionWait["kind"], string> = {
-  "sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
-  check: "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
-  permission: "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
-}
-const WAITED: Partial<Record<PdfEnded, keyof typeof WAITS>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
+const WAITS = {
+  "for-sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
+  "for-check": "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
+  "for-permission": "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
+} as const
 
 // Without a browser extension allowed to connect, owlit has nothing more to try: an agent can say what
 // would. extension: one is (or owlit couldn't say).
@@ -594,19 +603,30 @@ const SIGN_IN_AT = (host: string) =>
   `no PDF yet: waits for the user to sign in at ${host} in their browser (Home says so; one sign-in covers every paper waiting there, and owlit goes on by itself)`
 const SIGN_IN_UNKNOWN = "no PDF yet: waits for the user's sign-in (the library's or the publisher's) in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)"
 
+// Why a paper has no PDF, in words an agent can pass on, from the window's own reading (pdfWait): with
+// only "no PDF", an agent suggests a library proxy the user already has, and can't say which sign-in a
+// paper waits for
 export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) {
-  if (p.pdf) return ""
+  const wait = pdfWait(p)
   const s = p.pdfState
-  if (!s || s.state === "finding") {
-    // The extension's queue says where it is now; its last try says so before the queue has it again
-    const waits = s?.extension ? s.extension.waits : s?.reason?.by === "extension" ? WAITED[s.reason.ended] : undefined
-    if (waits === "sign-in" && !s?.extension) return SIGN_IN_UNKNOWN
-    if (waits === "sign-in" && !s?.extension?.proxied) return SIGN_IN_AT(s!.extension!.host)
-    if (waits) return WAITS[waits]
-    if (s?.extension) return "no PDF yet (owlit is getting it through the user's browser)"
-    return s?.reason?.ended === "offline" ? "no PDF yet (waiting for the network)" : "no PDF yet (owlit is looking)"
+  switch (wait) {
+    case undefined:
+      return ""
+    case "unsought":
+      return "no PDF yet: owlit fetches it the first time the paper is read (library_read starts it)"
+    case "finding":
+      return s?.extension ? "no PDF yet (owlit is getting it through the user's browser)" : "no PDF yet (owlit is looking)"
+    case "offline":
+      return "no PDF yet (waiting for the network)"
+    case "for-sign-in":
+      if (!s?.extension) return SIGN_IN_UNKNOWN
+      return s.extension.proxied ? WAITS[wait] : SIGN_IN_AT(s.extension.host)
+    case "for-check":
+    case "for-permission":
+      return WAITS[wait]
+    default:
+      return ((s?.reason && OWN_LOOK[s.reason.ended]) ?? NO_PDF[wait]) + (extension ? "" : NO_EXTENSION)
   }
-  return BY_ENDED[s.reason?.ended ?? "no-copy"] + (extension ? "" : NO_EXTENSION)
 }
 
 // Whether the user allowed a browser's extension to connect; true when owlit couldn't say, so nothing
@@ -647,6 +667,7 @@ function pickArgs(args: Record<string, unknown>, names: Record<string, string>) 
   return Object.fromEntries(Object.entries(names).flatMap(([to, from]) => (args[from] === undefined || args[from] === null || args[from] === "" ? [] : [[to, args[from]]])))
 }
 
+const ID_NAMES = { arxiv: "arXiv id", s2: "Semantic Scholar id", openalex: "OpenAlex id" } as const
 const citeAs = (p: Pick<Paper, "authors" | "year">) => [shortAuthors(p.authors) || "Anonymous", p.year].filter(Boolean).join(" ")
 
 // The arguments against the tool's schema, in a sentence when they don't fit

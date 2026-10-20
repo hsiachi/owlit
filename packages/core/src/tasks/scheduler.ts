@@ -169,6 +169,11 @@ export class Scheduler {
     return this.entries.get(id)?.task
   }
 
+  // Whether (kind, subject) has a task queued or running
+  isOpen(kind: string, subject: string) {
+    return !!this.findOpen(kind, subject)
+  }
+
   // The unfinished task for (kind, subject), raised to priority if that is more urgent, or a new one
   enqueue(kind: string, subject: string, priority: TaskPriority = "background", parent?: string): Task {
     const existing = this.findOpen(kind, subject)

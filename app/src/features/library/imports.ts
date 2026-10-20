@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow"
 import { bridge, isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { useTasksStore } from "@/features/tasks/store"
+import { undoAll } from "@/lib/changes"
 
 const isImportTask = (task: Pick<Task, "kind">) => /^import\.(zotero|bibtex|folder)$/.test(task.kind)
 
@@ -65,6 +66,17 @@ export const continueImport = (id: string) => refresh(rpc.library.continueImport
 export const dismissImport = (id: string) => {
   useImports.setState((s) => ({ list: s.list.map((i) => (i.id === id ? { ...i, dismissed: true } : i)) }))
   return rpc.library.dismissImport({ id })
+}
+
+// Takes a whole import back: its papers' entries in the change log (one change, sharing the import's id
+// as their writeId), undone as one Undo whose toast offers Redo; the card goes with them
+export async function undoImport(summary: ImportSummary, what: string) {
+  const entries = (await rpc.changes.list({ target: { kind: "paper" }, since: summary.createdAt })).filter(
+    (c) => c.origin.writeId === summary.id && c.action === "create" && !c.target.part,
+  )
+  if (!entries.length) return
+  await undoAll(entries.map((c) => c.id), what)
+  await dismissImport(summary.id)
 }
 
 // ---- The dialog that starts one

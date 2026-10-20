@@ -3,7 +3,7 @@ import { CheckIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { Spinner } from "@/components/ui/spinner"
-import { usePaperActions } from "../actions"
+import { alreadyWords, usePaperActions } from "../actions"
 import { authorsYear, shortAuthors } from "../lib/format"
 import type { Lookup } from "../lib/use-ref-lookup"
 
@@ -42,7 +42,7 @@ export function AddCandidate({ lookup, onAdd, input }: { lookup: Lookup | null; 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <CheckIcon className="size-3.5" />
-              {t`Already in your library`}
+              {alreadyWords(lookup.learned)}
             </div>
             <div className="mt-0.5 truncate text-sm font-medium">{lookup.paper.title}</div>
             <div className="mt-0.5 text-detail text-muted-foreground">

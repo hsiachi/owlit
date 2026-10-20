@@ -371,8 +371,9 @@ export interface Methods {
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
-  // already has for it. Asks OpenAlex, Semantic Scholar and arXiv; writes nothing.
-  "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string } }
+  // already has for it. Asks OpenAlex, Semantic Scholar and arXiv. Writes only the ids the lookup found
+  // for the paper the library has that it lacked (learned: their kinds), which may bring its PDF.
+  "library.resolve": { params: { input: string }; result: { paper: ResolvedPaper; existingId?: string; learned?: ("arxiv" | "s2" | "openalex")[] } }
   // A paper a search showed lately, as it showed it (the whole abstract), or the Library's record of it;
   // null when owlit knows nothing of it
   "library.found": { params: { id: string }; result: ThreadPaper | null }
@@ -380,9 +381,15 @@ export interface Methods {
   "library.known": { params: { inputs: string[] }; result: (string | null)[] }
   // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
   "library.list": { params: void; result: { papers: Paper[]; highlights: Highlight[]; notes: PaperNote[]; aliases: Record<string, string> } }
+  // Every paper, without the highlights and notes library.list reads too
+  "library.papers": { params: void; result: Paper[] }
+  // One paper by any id it goes by (its own, an old one, a search's), with how many highlights it has and
+  // whether it has a note; null when the library hasn't got it
+  "library.get": { params: { id: string }; result: { paper: Paper; highlights: number; note: boolean } | null }
   // A PDF file dropped on the library: recognised (arXiv stamp, DOI) and added with its metadata, or
-  // kept as local-<hash>. The same file dropped again comes back with existed.
-  "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean } }
+  // kept as local-<hash>. The same file dropped again comes back with existed; placed when the paper
+  // was there without a PDF and the file became it.
+  "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean; placed?: boolean } }
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
   // An agent's addition is recorded in the change log (Undo moves the paper to .owlit/trash/); chatId says whose
@@ -414,7 +421,10 @@ export interface Methods {
   // the user's note. pages: how many the paper has.
   // asker: who reads, as library.searchOnline's by ("chat:<id>", "run:<id>"), so a chat's answer can say
   // what it was built from
-  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number } }
+  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number; pending?: "pdf" | "text" } }
+  // Starts getting the PDF of a paper nobody has sought yet (a thread's), as opening or reading it does;
+  // whether it started
+  "library.seek": { params: { id: string }; result: boolean }
   // Papers out in the world for a query, from one source (OpenAlex unless asked); inLibrary when the
   // library has one already. A filter the source can't apply is refused. Each search, and each of the
   // two below, is kept in .owlit/searches.jsonl.
@@ -442,6 +452,9 @@ export interface Methods {
   "library.figures": { params: { id: string }; result: PaperFigure[] }
   // A page of the paper's PDF as a small picture (base64), for a glance at a page a note points at
   "library.pagePicture": { params: { id: string; page: number }; result: { data: string; mimeType: string } }
+  // A figure or table as a picture, by its id or label, or a whole page (1-based), for an agent to look at;
+  // asker: who looks, so the chat's answer can say what it read
+  "library.figure": { params: { id: string; figure?: string; page?: number; asker?: string }; result: { data: string; mimeType: string; page: number; label?: string; caption?: string } }
   // The paper's digests (digest.md) as Markdown, or null
   "library.digest": { params: { id: string }; result: string | null }
   // What the digest was written from (digest.json, the text's pages), for its header

@@ -68,7 +68,7 @@ describe("the workspace socket", () => {
   it("passes errors on in a sentence", async () => {
     const { root, dir } = await running()
     const client = await connect(root, { dir })
-    await expect(client.call("library.get" as never)).rejects.toMatchObject({ code: -32601 })
+    await expect(client.call("library.nothing" as never)).rejects.toMatchObject({ code: -32601 })
     client.close()
   })
 

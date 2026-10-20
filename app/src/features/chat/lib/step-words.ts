@@ -259,6 +259,8 @@ function kindPhrase(group: string, n: number): string | undefined {
       return plural(n, { one: "looked up a paper", other: "looked up # papers" })
     case "owlit:library_read":
       return plural(n, { one: "read a paper", other: "read # papers" })
+    case "owlit:library_figure":
+      return plural(n, { one: "looked at a figure", other: "looked at # figures" })
     case "owlit:library_highlights":
       return plural(n, { one: "read your highlights", "=2": "read your highlights twice", other: "read your highlights # times" } as Twice)
     case "owlit:library_search":

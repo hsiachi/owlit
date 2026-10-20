@@ -67,6 +67,9 @@ export interface PdfState {
   // held while the site waits for the user (waits: a sign-in, a check, the extension being allowed
   // there). Kept in memory only, with the extension's queue.
   extension?: { host: string; fetching?: boolean; waits?: "sign-in" | "check" | "permission"; proxied?: boolean }
+  // Nobody has looked for it yet, and nothing is about to: a paper a thread brought in, whose PDF is
+  // fetched the first time someone opens or reads it (library.seek)
+  unsought?: true
 }
 
 export interface Paper {
@@ -108,6 +111,9 @@ export interface Paper {
   view?: PaperView
   // How far down the digest was read
   digestPosition?: DigestPosition
+  // Another paper of the library this one looks like a copy of (the same DOI, arXiv id or title), kept
+  // apart because the person worked with this one
+  copyOf?: string
 }
 
 export interface DigestPosition {
@@ -223,6 +229,8 @@ export interface ImportSummary {
   added: string[]
   // How many the library had already
   existed: number
+  // How many of those had no PDF and got the source's
+  attached?: number
   failed: { key: string; title?: string; error: string }[]
   finishedAt?: number
   // Whether MinerU reads the added papers' PDFs; false when the user said not to for this import
@@ -336,6 +344,8 @@ export interface PaperState {
   lastOpenedAt?: number
   // Fields the user corrected by hand; they win over paper.json and survive a metadata refresh
   overrides?: PaperOverrides
+  // The paper this one was found to be a copy of, not folded into it since the person worked with this one
+  copyOf?: string
 }
 
 // null: the user cleared a field the record has

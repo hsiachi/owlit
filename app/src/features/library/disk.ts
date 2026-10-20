@@ -4,6 +4,7 @@ import { create } from "zustand"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { followCore } from "@/lib/follow-core"
+import { undoAll } from "@/lib/changes"
 import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
 import { markedFor, useLibraryStore } from "./store"
@@ -106,6 +107,18 @@ export async function importPdf(path: string) {
   const imported = await rpc.library.importPdf({ path })
   takePaper(imported.paper)
   return imported
+}
+
+// Papers just added, taken back through their entries in the change log (library.add records each as
+// a create; changes.list gives the newest first), once what is queued has reached core: undoing an entry puts the paper in the trash, and the
+// toast that says so offers Redo
+export async function undoAdds(ids: string[]) {
+  await queue.settled()
+  const entries = await Promise.all(ids.map(async (id) => (await rpc.changes.list({ path: id })).find((c) => c.target.kind === "paper" && c.action === "create" && !c.target.part)))
+  const found = entries.filter((c) => !!c)
+  if (!found.length) return
+  const what = found.length === 1 ? (useLibraryStore.getState().papers[found[0].target.path]?.title ?? "") : t`${found.length} papers`
+  await undoAll(found.map((c) => c.id), what)
 }
 
 // ---- The trash

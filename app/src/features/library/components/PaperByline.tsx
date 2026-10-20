@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import { cn } from "@/lib/utils"
 import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
-import { citationsSource, citationsText } from "../lib/format"
+import { citationsSource, citationsText, venueOf } from "../lib/format"
 import { useLibraryStore } from "../store"
 import type { Paper } from "@owlit/protocol"
 import { PaperMenu } from "./PaperMenu"
@@ -12,7 +12,7 @@ import { StatusMenu } from "./StatusMenu"
 // Under a paper's title, in the peek and on the paper page: the authors, then venue · year · citations,
 // the count saying on hover who counted it and when
 export function PaperByline({ paper, className }: { paper: Paper; className?: string }) {
-  const published = [paper.venue, paper.year].filter(Boolean).join(" · ")
+  const published = [venueOf(paper), paper.year].filter(Boolean).join(" · ")
   const citations = paper.citations
   return (
     <p className={cn("text-detail leading-normal text-muted-foreground", className)}>

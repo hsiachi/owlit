@@ -64,6 +64,7 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
       <aside style={{ width }} className="flex shrink-0 flex-col overflow-y-auto px-6 pt-2.5 pb-4">
         <h1 className="text-lg leading-snug font-medium text-balance">{paper.title}</h1>
         <PaperByline paper={paper} className="mt-2" />
+        <CopyOf paper={paper} />
         <div className="mt-3 -ml-2.5 flex items-center gap-0.5">
           <PaperQuickActions paper={paper} align="start" afterRemove={() => navigate("/library")} />
         </div>
@@ -93,6 +94,21 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
         </Tabs>
       </aside>
     </div>
+  )
+}
+
+// A paper core found to be a copy of another (copyOf), kept apart because the person worked with this one.
+// The line links the other paper; a Merge that moves this one's star, tags, highlights and note onto it
+// isn't built, so the person compares and removes one by hand.
+function CopyOf({ paper }: { paper: Paper }) {
+  const navigate = useNavigate()
+  const other = useLibraryStore((s) => (paper.copyOf ? s.papers[paper.copyOf] : undefined))
+  if (!other) return null
+  return (
+    <p className="mt-2 text-detail text-muted-foreground">
+      {t({ message: "This looks like the same paper as", comment: "followed by a link to the other paper in the library" })}{" "}
+      <MentionToken label={other.title} onClick={() => navigate(`/library/${other.id}`)} />
+    </p>
   )
 }
 
@@ -140,7 +156,7 @@ function About({ paper }: { paper: Paper }) {
         <dd>{paper.addedBy === viewer ? when : t({ message: `${when} by ${who}`, comment: "when a paper was added, and who added it: Owlit, a name or outside owlit" })}</dd>
         {inThreads.length > 0 && (
           <>
-            <dt className="text-muted-foreground">{t({ message: "In", context: "label before the threads that hold this paper" })}</dt>
+            <dt className="text-muted-foreground">{t({ message: "In threads", comment: "label before the threads that hold this paper" })}</dt>
             {/* Each thread with what it says about this paper, so reading the paper shows Owlit's take on
                 it without going there */}
             <dd className="flex min-w-0 flex-col gap-2.5">

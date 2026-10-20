@@ -67,6 +67,22 @@ function TOOLS(): ToolSpec[] {
     },
   },
   {
+    name: "library_figure",
+    touches: "read",
+    description:
+      "Look at a paper's figure or table as a picture, by its id or label as the text names it ('figure-3', 'Figure 3', 'table-2'), or at a whole page of its PDF (1-based). Comes back as an image with its caption. Use it when a question turns on what a figure shows; the caption alone is in the text.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id,
+        figure: { type: "string", description: "The figure or table, e.g. 'figure-3' or 'Table 2'" },
+        page: { type: "number", description: "A page of the PDF, 1-based, when no figure is named" },
+      },
+      required: ["id"],
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
     name: "library_highlights",
     touches: "read",
     description: "What the user highlighted in a paper, in reading order: the quote, its page (1-based), colour and their comment.",

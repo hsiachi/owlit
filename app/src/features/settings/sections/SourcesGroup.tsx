@@ -11,7 +11,7 @@ export function SourcesGroup() {
       <List>
         <Row
           name={t`Contact email`}
-          info={t`With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies.`}
+          info={t`OpenAlex and Crossref answer faster and more often to your own address. Unpaywall is asked under owlit's address until you give one.`}
           control={
             <CommitInput
               type="email"

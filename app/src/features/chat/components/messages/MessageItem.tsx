@@ -1,4 +1,5 @@
 import { t } from "@lingui/core/macro"
+import { usePaperActions } from "@/features/library/actions"
 import { useEffect, useState } from "react"
 import { type AttachmentFile, type ChatMessage, chatOfFile, type MessagePart, withoutAgentError } from "@owlit/protocol"
 import { CircleXIcon, FilePlusIcon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react"
@@ -118,8 +119,8 @@ function segment(parts: MessagePart[], streaming: boolean): { segments: Segment[
 }
 
 // A PDF sent with a message, added to the Library from its chip: the chip says so from then on
-async function addSentToLibrary(message: ChatMessage, file: AttachmentFile) {
-  const paper = await importCopy(file)
+async function addSentToLibrary(message: ChatMessage, file: AttachmentFile, open: (id: string) => void) {
+  const paper = await importCopy(file, open)
   const chatId = file.path ? chatOfFile(file.path) : null
   if (paper && chatId) useChatStore.getState().setAttachmentPaper(chatId, message.id, file.id, paper.id)
 }
@@ -138,6 +139,7 @@ function renderWithMentions(text: string, mentions: ChatMessage["mentions"]) {
 
 export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?: (text: string) => void }) {
   const text = messageText(message)
+  const { open } = usePaperActions()
   return (
     <Message align="end" className="text-body">
       <MessageContent className="items-end">
@@ -148,7 +150,7 @@ export function UserMessage({ message, onEdit }: { message: ChatMessage; onEdit?
           </Quote>
         )}
         {message.attachments && message.attachments.length > 0 && (
-          <AttachmentList files={message.attachments} size="xs" onOpen={openAttached} onAddToLibrary={(file) => addSentToLibrary(message, file)} />
+          <AttachmentList files={message.attachments} size="xs" onOpen={openAttached} onAddToLibrary={(file) => addSentToLibrary(message, file, open)} />
         )}
         <Bubble variant="secondary" align="end">
           <BubbleContent className="whitespace-pre-wrap">{renderWithMentions(text, message.mentions)}</BubbleContent>

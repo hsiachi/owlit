@@ -64,7 +64,8 @@ export const addBody = z.object({
 export async function addPaper(library: Library, body: AddPaperBody): Promise<{ paper: Paper; existed: boolean }> {
   const ids = idsOfPage(body)
   const already = await findPaper(library, body)
-  if (already) return { paper: already, existed: true }
+  // The page may name an id the paper lacks (its arXiv id, on arxiv.org)
+  if (already) return { paper: (await library.learnIds(already.id, ids)).length ? ((await library.get(already.id)) ?? already) : already, existed: true }
   const input = ids.doi ? `doi:${ids.doi}` : ids.arxiv ? `arXiv:${ids.arxiv}` : undefined
   if (input) {
     const looked = await library.resolve(input).catch(() => undefined)

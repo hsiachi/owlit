@@ -208,13 +208,45 @@ describe("keeping the library clean", () => {
     expect(existsSync(path.join(root, "library/papers/s2-d9b08e17"))).toBe(false)
   })
 
-  it("keeps a copy the user has worked with", async () => {
+  it("keeps a copy the user has worked with, and the copy says which paper it looks like", async () => {
     const { root, core, call } = await setup(strayRoutes)
     putPaper(root, review)
     putPaper(root, { id: "s2-d9b08e17", title, ids: { s2: "d9b08e17" } })
     await call("library.update", { id: "s2-d9b08e17", patch: { starred: true } })
+    await indexed(call, [review.ids.doi])
     expect((await workspaceOf(core).tasks.run("paper.metadata", "s2-d9b08e17")).state).toBe("done")
-    expect((await call("library.list")).papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
+    const { papers } = await call("library.list")
+    expect(papers.map((p: { id: string }) => p.id).sort()).toEqual([review.id, "s2-d9b08e17"])
+    expect(papers.find((p: { id: string }) => p.id === "s2-d9b08e17").copyOf).toBe(review.id)
+  })
+
+  it("teaches a paper it has the ids a lookup found, and looks for its PDF by them", async () => {
+    // arXiv's record of the preprint names the published DOI the library files the paper under
+    const feed = `<feed><entry><id>http://arxiv.org/abs/2101.00001v1</id><published>2021-01-01T00:00:00Z</published><title>A paper</title><author><name>A. Author</name></author><arxiv:doi>10.9999/x</arxiv:doi></entry></feed>`
+    const { root, call } = await setup({ "export.arxiv.org/api/query?id_list=2101.00001": feed, "arxiv.org/pdf/2101.00001": "%PDF-1.4\n%%EOF\n" })
+    putPaper(root, { id: "doi-10.9999-x", title: "A paper", ids: { doi: "10.9999/x" } })
+    const acquisition = path.join(root, "library/papers/doi-10.9999-x/acquisition.json")
+    writeFileSync(acquisition, JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "search", ended: "no-copy", at: Date.now() - 60_000 }], dropHere: "", looks: 1 }))
+    await indexed(call, ["10.9999/x"])
+    const looked = await call("library.resolve", { input: "arXiv:2101.00001" })
+    expect(looked).toMatchObject({ existingId: "doi-10.9999-x", learned: ["arxiv"] })
+    const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.9999-x/paper.json"), "utf8")) as PaperRecord
+    expect(record.ids).toEqual({ doi: "10.9999/x", arxiv: "2101.00001" })
+    await eventually(() => expect(JSON.parse(readFileSync(acquisition, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+  })
+
+  it("makes a preprint and its published version, added later under another title, one paper", async () => {
+    const { root, core, call } = await setup(published)
+    putPaper(root, { id: "arxiv-2403.17859", title: "Questions over a century of newspapers", ids: { arxiv: "2403.17859" } })
+    await indexed(call, ["arXiv:2403.17859"])
+    const doi = "doi-10.1145-3626772.3657891"
+    await call("library.add", { paper: { id: doi, title: "ChroniclingAmericaQA", authors: [], ids: { doi: "10.1145/3626772.3657891" } } })
+    const tasks = workspaceOf(core).tasks
+    const lookup = await until(() => tasks.list().find((t) => t.kind === "paper.metadata" && t.subject === doi), { what: "the paper's lookup" })
+    expect((await tasks.wait(lookup.id)).state).toBe("done")
+    const listed = await call("library.list")
+    expect(listed.papers.map((p: { id: string }) => p.id)).toEqual([doi])
+    expect(listed.aliases).toEqual({ "arxiv-2403.17859": doi })
   })
 
   it("lets an agent take back only papers Owlit added that the user hasn't touched, each a change", async () => {
@@ -278,6 +310,25 @@ describe("keeping the library clean", () => {
     await eventually(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
   })
 
+  it("looks again within the hour, while owlit stays open, for a paper whose look reached nothing", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+    try {
+      const { root, core } = await setup({ "arxiv.org/pdf/1706.03762": "%PDF-1.4\n%%EOF\n" })
+      // The open's daily look is over before the papers come
+      await workspaceOf(core).library.missingRetried
+      putPaper(root, { id: "arxiv-1706.03762", title: "Attention", ids: { arxiv: "1706.03762" } })
+      const offline = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+      writeFileSync(offline, JSON.stringify({ version: 2, state: "finding", tried: [{ by: "search", ended: "offline", at: Date.now() - 60_000 }], dropHere: "" }))
+      // A thread's paper nobody has read: never sought, so left alone
+      putPaper(root, { id: "arxiv-2101.00001", title: "Unsought", ids: { arxiv: "2101.00001" } })
+      vi.advanceTimersByTime(60 * 60_000)
+      await eventually(() => expect(JSON.parse(readFileSync(offline, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+      expect(existsSync(path.join(root, "library/papers/arxiv-2101.00001/acquisition.json"))).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {
     const { root, core } = await setup({})
     const id = "doi-10.1145-3626772.3657891"
@@ -313,6 +364,67 @@ describe("keeping the library clean", () => {
     // Settles once the second open's recount has found it already ran today
     await workspaceOf(second).library.citationsRecounted
     expect(asked.filter((u) => u.includes("api.openalex.org/works?"))).toEqual([])
+  })
+})
+
+describe("what an agent reads of one paper", () => {
+  it("gets one paper by any id it goes by, and says when it has no picture of a figure", async () => {
+    const { root, call } = await setup({})
+    putPaper(root, { id: "doi-10.9999-x", title: "A paper", ids: { doi: "10.9999/x", arxiv: "2101.00001" } })
+    await until(async () => (await call("library.known", { inputs: ["10.9999/x"] }))[0], { what: "the paper in the index" })
+    expect(await call("library.get", { id: "arxiv-2101.00001" })).toMatchObject({ paper: { id: "doi-10.9999-x" }, highlights: 0, note: false })
+    expect(await call("library.get", { id: "doi-10.9999-nothing" })).toBeNull()
+    expect((await call("library.papers")).map((p: { id: string }) => p.id)).toEqual(["doi-10.9999-x"])
+    await expect(call("library.figure", { id: "doi-10.9999-x", figure: "Figure 3" })).rejects.toThrow(/no pictures of this paper's figures; ask for the page/)
+  })
+})
+
+describe("a thread's papers", () => {
+  it("come in without a PDF fetch, which reading one starts", async () => {
+    const { root, core, call } = await setup({ "arxiv.org/pdf/1706.03762": "%PDF-1.4\n%%EOF\n" })
+    const workspace = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+    await workspace.library.addNew({ id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } }, undefined, "background", { fetchPdf: false })
+    expect(workspace.tasks.list().some((t) => t.kind === "paper.pdf")).toBe(false)
+    const [listed] = (await call("library.list")).papers
+    expect(listed.pdfState).toMatchObject({ unsought: true })
+    expect(await call("library.read", { id: "arxiv-1706.03762", part: "text" })).toEqual({ text: "", pending: "pdf" })
+    const acquisition = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+    await eventually(() => expect(JSON.parse(readFileSync(acquisition, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+    // Sought now: opening it again starts nothing
+    expect(await call("library.seek", { id: "arxiv-1706.03762" })).toBe(false)
+  })
+})
+
+describe("the monthly recount", () => {
+  it("leaves paper.json alone when a count is the same, keeps when it counted on this machine, and looks preprints up again", async () => {
+    const { root, core } = await setup({})
+    const id = "doi-10.1145-3626772.3657891"
+    const old = Date.now() - 40 * 86_400_000
+    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 31, citationsAt: old, fields: { citationCount: "openalex" }, checked: 1 })
+    putPaper(root, { id: "arxiv-2101.00001", title: "A preprint", ids: { arxiv: "2101.00001" }, fetchedAt: 1, checked: 1 })
+    const file = path.join(root, "library/papers", id, "paper.json")
+    const before = readFileSync(file, "utf8")
+    await core.dispose()
+    const workspaces = path.join(path.dirname(root), "userData/workspaces")
+    for (const dir of readdirSync(workspaces)) rmSync(path.join(workspaces, dir, "library.json"), { force: true })
+    const fetch = (async (url: string) => {
+      if (url.includes("api.openalex.org/works?") && url.includes("W4393248081")) return new Response(JSON.stringify({ results: [{ id: "https://openalex.org/W4393248081", doi: "https://doi.org/10.1145/3626772.3657891", cited_by_count: 31 }] }))
+      // Semantic Scholar counts the preprint: it knows nothing of it
+      if (url.includes("api.semanticscholar.org/graph/v1/paper/batch")) return new Response(JSON.stringify([null]))
+      return new Response("not found", { status: 404 })
+    }) as unknown as typeof globalThis.fetch
+    const again = new Core({ userDataDir: path.join(path.dirname(root), "userData"), host: { fetch }, retryBaseMs: 1 })
+    cores.push(again)
+    await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const workspace = (again as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+    await workspace.library.citationsRecounted
+    expect(readFileSync(file, "utf8")).toBe(before)
+    const [dir] = readdirSync(workspaces)
+    const notes = JSON.parse(readFileSync(path.join(workspaces, dir!, "library.json"), "utf8"))
+    expect(notes.citationsAt[id]).toBeGreaterThan(old)
+    const listed = await again.handle({ jsonrpc: "2.0", id: 2, method: "library.list" }).then((r) => (r as { result: { papers: { id: string; citations?: { at: number } }[] } }).result)
+    expect(listed.papers.find((p) => p.id === id)?.citations?.at).toBe(notes.citationsAt[id])
+    expect(workspace.tasks.list().some((t) => t.kind === "paper.metadata" && t.subject === "arxiv-2101.00001")).toBe(true)
   })
 })
 

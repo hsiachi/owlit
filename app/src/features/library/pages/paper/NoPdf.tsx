@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { isTaskFinished, type Paper, type PdfTry } from "@owlit/protocol"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
@@ -10,11 +10,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { shortDate } from "@/lib/time"
 import { toastError } from "@/lib/toast"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
-import { pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
+import { noPdfTitle, pdfGone, pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
 import { useExtension, useExtensionWaits } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 
@@ -27,69 +28,59 @@ const LOOKING = new Set(["paper.pdf"])
 // "dl.acm.org" for "www.dl.acm.org"; the publisher's own name where the page had none
 const hostName = (reason: PdfTry | undefined) => reason?.host?.replace(/^www\./, "") ?? ""
 
-// The card's title and its why line (from the try that says where the paper stands), in one place, so a
-// title says the state's one name with the host and the why says what that try found
-function card(state: CardState, paper: Paper, now: string | undefined): { title: string; detail: string } {
+// The card's why line, from the try that says where the paper stands; its title is the state's one name
+// as noPdfTitle says it, the paper card's too
+function detailOf(state: CardState, paper: Paper, now: string | undefined): string {
   const s = paper.pdfState
   const reason = s?.reason
   const host = hostName(reason)
   const date = reason ? shortDate(reason.at) : ""
   const tried = triedSentence(s?.tried ?? [])
   switch (state) {
+    case "unsought":
+      return t`owlit gets it now that the paper is open.`
     case "looking":
     case "finding": {
       // The extension has it: owlit's routes are done, and the publisher is tried through the user's
       // browser, now or once its turn at the site comes
       const site = s?.extension?.host
-      if (!now && site && s?.extension?.fetching) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.` }
-      if (!now && site) return { title: t`Finding a PDF…`, detail: tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.` }
-      if (state === "finding" && gone(paper)) return { title: t`The PDF is gone`, detail: t`Its file was deleted or moved outside owlit. If you have it, drop it here.` }
-      return { title: t`Finding a PDF…`, detail: now ? (tried ? t`${tried}; now trying ${now}.` : t`Now trying ${now}.`) : tried ? t`${tried}.` : t`If you already have it, drop it here.` }
+      if (!now && site && s?.extension?.fetching) return tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.`
+      if (!now && site) return tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.`
+      if (state === "finding" && pdfGone(paper)) return t`Its file was deleted or moved outside owlit. If you have it, drop it here.`
+      return now ? (tried ? t`${tried}; now trying ${now}.` : t`Now trying ${now}.`) : tried ? t`${tried}.` : t`If you already have it, drop it here.`
     }
     case "for-sign-in":
     case "for-check":
     case "for-permission": {
-      // The site the extension waits at; its own try's host and date when it met the wait itself, else
-      // it is one of the papers in line behind
+      // Its own try's host and date when it met the wait itself, else it is one of the papers in line behind
       const site = s?.extension?.host ?? host
       const own = waitedFor(reason) ? reason : undefined
       const at = own ? hostName(own) : site
-      // The library's sign-in only through its proxy; a publisher's own login page is that site's
-      if (state === "for-sign-in" && s?.extension?.proxied)
-        return { title: t`Waits for your library sign-in`, detail: own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.` }
-      if (state === "for-sign-in") return { title: t`Waits for a sign-in at ${site}`, detail: own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.` }
-      if (state === "for-check") return { title: t`Waits for a check at ${site}`, detail: own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.` }
-      return { title: t`Waits for the extension to be allowed on ${site}`, detail: own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.` }
+      if (state === "for-sign-in" && s?.extension?.proxied) return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.`
+      if (state === "for-sign-in") return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.`
+      if (state === "for-check") return own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.`
+      return own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.`
     }
     case "offline":
-      return { title: t`Waiting for the network`, detail: t`owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens.` }
+      return t`owlit couldn't reach any source of PDFs when it looked. It looks again within the hour.`
     case "not-found":
       // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
       if (reason?.ended === "check" || reason?.ended === "sign-in") {
         const signIn = reason.ended === "sign-in"
-        if (host) return { title: t`No PDF found`, detail: signIn ? t`${host} wanted a sign-in · ${date}` : t`${host} stopped owlit with a check · ${date}` }
-        return { title: t`No PDF found`, detail: signIn ? t`The publisher wanted a sign-in · ${date}` : t`The publisher stopped owlit with a check · ${date}` }
+        if (host) return signIn ? t`${host} wanted a sign-in · ${date}` : t`${host} stopped owlit with a check · ${date}`
+        return signIn ? t`The publisher wanted a sign-in · ${date}` : t`The publisher stopped owlit with a check · ${date}`
       }
-      return {
-        title: t`No PDF found`,
-        detail: paper.ids.doi ? (tried ? t`${tried}.` : t`owlit knows of no open copy of this paper.`) : tried ? t`${tried}. It has no DOI, so owlit could only look by its title.` : t`It has no DOI, so owlit could only look by its title.`,
-      }
+      return paper.ids.doi ? (tried ? t`${tried}.` : t`owlit knows of no open copy of this paper.`) : tried ? t`${tried}. It has no DOI, so owlit could only look by its title.` : t`It has no DOI, so owlit could only look by its title.`
     case "no-access":
-      return { title: t`No access through your library`, detail: host ? t`${host} offered access instead of the PDF · ${date}` : t`The publisher offered access instead of the PDF · ${date}` }
+      return host ? t`${host} offered access instead of the PDF · ${date}` : t`The publisher offered access instead of the PDF · ${date}`
     case "not-offered":
-      return { title: t`Your library doesn't offer this paper`, detail: t`Your library's proxy doesn't have it · ${date}` }
+      return t`Your library's proxy doesn't have it · ${date}`
     case "not-there": {
       const words = reason?.title ?? ""
-      return {
-        title: host ? t`${host} has no PDF of this paper` : t`The publisher has no PDF of this paper`,
-        detail: words ? t`It answered “${words}” · ${date}` : t`It answered 404 · ${date}`,
-      }
+      return words ? t`It answered “${words}” · ${date}` : t`It answered 404 · ${date}`
     }
   }
 }
-
-// The paper had its PDF and the file was deleted outside owlit: nothing looks for it until the daily look
-const gone = (paper: Paper) => paper.pdfState?.reason?.ended === "pdf" && !paper.pdfState.extension
 
 // What owlit does next on its own, for a card that waits on nobody
 const NO_PDF: ReadonlySet<CardState> = new Set(["not-found", "no-access", "not-offered", "not-there"])
@@ -118,9 +109,17 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const lookAgain = async () => {
     setFetching(true)
     try {
+      const before = pdfWait(paper)
       const found = await libraryClient.fetchPdf(paper)
       updatePaper(paper.id, { pdf: found.pdf, pdfState: found.pdfState })
+      const after = pdfWait(found)
+      const next = found.pdfState?.nextLook
       if (found.pdf) toast(t`PDF found`)
+      // A look that ended where it began would otherwise just stop spinning
+      else if (after === before && NO_PDF.has(after ?? "finding")) {
+        const date = next ? shortDate(next) : ""
+        toast(next ? t`Still no copy; owlit looks again on ${date}` : t`Still no copy`)
+      }
     } catch (e) {
       toastError(e, t`Could not find a PDF.`)
     } finally {
@@ -139,9 +138,14 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
   const wait = pdfWait(paper) ?? "finding"
+  // A thread's paper nobody had opened: opening it is what fetches its PDF
+  useEffect(() => {
+    if (wait === "unsought" && isDesktop) void rpc.library.seek({ id: paper.id }).catch(() => undefined)
+  }, [wait, paper.id])
   const state: CardState = looking ? "looking" : wait
-  const { title, detail } = card(state, paper, task?.progress?.note && routeName(task.progress.note))
-  const lost = state === "finding" && gone(paper)
+  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper)
+  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note))
+  const lost = state === "finding" && pdfGone(paper)
   const working = (state === "looking" || state === "finding") && !lost
   const nextLook = paper.pdfState?.nextLook
   const nextDate = nextLook ? shortDate(nextLook) : ""
@@ -160,7 +164,16 @@ export function NoPdf({ paper }: { paper: Paper }) {
   // browser may try with their library's access. The publisher's page is a plain link; nothing watches
   // what happens there.
   const doi = paper.ids.doi
-  const offerExtension = state === "not-found" && !!doi && !hasExtension
+  // owlit couldn't get it alone: its own routes found no copy of a paper a publisher has
+  const alone = state === "not-found" && !!doi
+  const noExtension = alone && !hasExtension
+  const askAccess = alone && (!hasExtension || proxyMissing)
+  // The page opens in the person's browser, where owlit can't follow: the card says the next step
+  const [opened, setOpened] = useState(false)
+  const openPage = () => {
+    window.open(`https://doi.org/${doi}`, "_blank", "noreferrer")
+    setOpened(true)
+  }
 
   return (
     <div className="flex flex-1 items-center justify-center p-6" {...dropProps}>
@@ -191,14 +204,12 @@ export function NoPdf({ paper }: { paper: Paper }) {
               {lookAgainButton(true)}
               {chooseFile}
             </>
-          ) : state === "looking" || state === "finding" ? (
+          ) : state === "looking" || state === "finding" || state === "unsought" ? (
             chooseFile
-          ) : offerExtension ? (
+          ) : noExtension ? (
+            // No extension to try with the person's access: the page and the file come first
             <>
-              <Button size="sm" onClick={() => openSettings("extension")}>
-                {t({ message: "Install the extension", comment: "button: opens Settings › Papers › Browser extension, where the owlit extension is installed from" })}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => window.open(`https://doi.org/${doi}`, "_blank", "noreferrer")}>
+              <Button size="sm" onClick={openPage}>
                 {t({ message: "Open the page", comment: "button: opens the paper's page at its publisher in the user's browser" })}
               </Button>
               {chooseFile}
@@ -212,17 +223,18 @@ export function NoPdf({ paper }: { paper: Paper }) {
           )
         }
       >
-        {offerExtension && <p className="max-w-72 text-sm text-muted-foreground">{t`owlit couldn't get this alone. With the owlit extension, your browser can use your library's access.`}</p>}
+        {opened && <p className="max-w-72 text-sm text-foreground">{t`Download it there, then drop it here.`}</p>}
         {NO_PDF.has(state) && (
           <p className="max-w-72 text-sm text-muted-foreground">{nextLook ? t`owlit looks again on ${nextDate}` : t`owlit won't look again`}</p>
         )}
-        {/* A publisher's paper may be one sign-in away, through the extension: say so where the PDF is missing */}
-        {state === "not-found" && doi && hasExtension && proxyMissing && (
+        {/* The first paywalled PDF is where owlit asks for the library's access: the proxy, and the
+            extension that uses it in the person's browser (Settings › Papers, the two rows together) */}
+        {askAccess && (
           <p className="max-w-72 text-sm text-muted-foreground">
             <Trans>
-              Your library may have it.{" "}
+              Use your library's access ·{" "}
               <button type="button" className={linkClass} onClick={() => openSettings("proxy")}>
-                Set up library proxy
+                Set up
               </button>
             </Trans>
           </p>

@@ -15,6 +15,7 @@ import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } fr
 import { PaperList, PaperTable } from "../components/PaperList"
 import { RecentlyRemoved } from "../components/RecentlyRemoved"
 import { addPdfFiles } from "../lib/add-pdfs"
+import { usePaperActions } from "../actions"
 import { openImportDialog, reviewImport } from "../imports"
 import { filePath } from "@/lib/rpc"
 import { groupPapers, matchesQuery, visiblePapers } from "../lib/filter"
@@ -32,6 +33,7 @@ import { starterPrompt } from "@/features/chat/lib/starters"
 // All papers: everything in the library, narrowed by search, status and tags
 export function LibraryPage() {
   const navigate = useNavigate()
+  const actions = usePaperActions()
   const papers = useLibraryStore((s) => s.papers)
   const query = useLibraryUi((s) => s.query)
   const filter = useLibraryUi((s) => s.filter)
@@ -42,7 +44,7 @@ export function LibraryPage() {
   const { dragging, dropProps } = useFileDrop((data) => {
     const dropped = droppedImport(data)
     if (dropped) reviewImport(dropped.source, dropped.path)
-    else void addPdfFiles(Array.from(data.files))
+    else void addPdfFiles(Array.from(data.files), actions.open)
   })
 
   // One field, two paths: a DOI, arXiv id or link (one token, see looksLikeRef) is a reference to add and
@@ -105,7 +107,7 @@ export function LibraryPage() {
         />
         <ImportBanner />
         <ExtensionWaitLines />
-        <LibraryFindField onSubmit={submit} onPickFiles={addPdfFiles} />
+        <LibraryFindField onSubmit={submit} onPickFiles={(files) => addPdfFiles(files, actions.open)} />
         {refInput ? (
           <AddCandidate lookup={lookup} onAdd={add} input={refInput} />
         ) : empty ? (
@@ -168,6 +170,7 @@ function droppedImport(data: DataTransfer): { source: "bibtex" | "folder"; path:
 // learn what Chat is for.
 function EmptyLibrary() {
   const navigate = useNavigate()
+  const actions = usePaperActions()
   const fileInput = useRef<HTMLInputElement>(null)
   return (
     <div className="mt-12 flex justify-center">
@@ -189,7 +192,7 @@ function EmptyLibrary() {
           {t`Coming from Zotero or BibTeX?`} <InlineLink onClick={openImportDialog}>{t`Import your library`}</InlineLink>
         </p>
       </DropCard>
-      <PdfFileInput ref={fileInput} multiple onFiles={(files) => void addPdfFiles(files)} />
+      <PdfFileInput ref={fileInput} multiple onFiles={(files) => void addPdfFiles(files, actions.open)} />
     </div>
   )
 }

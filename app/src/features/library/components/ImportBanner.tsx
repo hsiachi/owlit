@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { fileName } from "@/lib/names"
 import { cancelTask, useTasksStore } from "@/features/tasks/store"
-import { answerImport, continueImport, dismissImport, importAsks, useAskingImports, useImports } from "../imports"
+import { answerImport, continueImport, dismissImport, importAsks, undoImport, useAskingImports, useImports } from "../imports"
+import { isDesktop } from "@/lib/rpc"
 import { pdfWait } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
@@ -146,6 +147,7 @@ function Done({ summary }: { summary: ImportSummary }) {
 
   const parts: React.ReactNode[] = []
   if (summary.existed) parts.push(plural(summary.existed, { one: "# was here already", other: "# were here already" }))
+  if (summary.attached) parts.push(plural(summary.attached, { one: "# of those got its PDF", other: "# of those got their PDF" }))
   if (summary.failed.length) parts.push(<Failures key="failed" summary={summary} />)
   if (withoutPdf) parts.push(plural(withoutPdf, { one: "# without a PDF", other: "# without a PDF" }))
 
@@ -164,6 +166,11 @@ function Done({ summary }: { summary: ImportSummary }) {
           </p>
         )}
       </div>
+      {added > 0 && isDesktop && (
+        <Button variant="ghost" size="sm" onClick={() => void undoImport(summary, t`The import ${origin}`)}>
+          {t({ message: "Undo", comment: "verb: take back what was just done" })}
+        </Button>
+      )}
       {added > 0 && (
         <Button size="sm" onClick={() => showOnly(summary.added, t`From this import`)}>
           {plural(added, { one: "Show it", other: "Show the #" })}
