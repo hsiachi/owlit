@@ -26,12 +26,14 @@ describe("withoutAgentError", () => {
     expect(withoutAgentError(reply("done", "The first half.\n\n" + SLEPT))).toMatchObject({ status: "error", errorDetail: SLEPT, parts: [{ type: "text", text: "The first half." }] })
     // Run straight on from the answer, as two messages without ids fold into one part
     expect(withoutAgentError(reply("done", "The first half." + SLEPT))).toMatchObject({ status: "error", parts: [{ type: "text", text: "The first half." }] })
+    // A status with the API's own body
+    expect(withoutAgentError(reply("done", "Partly.", 'API Error: 529 {"type":"error","error":{"type":"overloaded_error"}}'))).toMatchObject({ status: "error", parts: [{ type: "text", text: "Partly." }] })
     // Its own message, after the answer's
     expect(withoutAgentError(reply("done", "The first half.", SLEPT))).toMatchObject({ status: "error", parts: [{ type: "text", text: "The first half." }] })
   })
 
   it("leaves a finished answer that only mentions an error, or ends on a paragraph of its own starting Error:", () => {
-    for (const text of ["When the API Error: 529 shows, wait a minute.", "The log said:\n\nError: file not found", "Look for API Error: lines in the log, then tell me."]) {
+    for (const text of ["When the API Error: 529 shows, wait a minute.", "The log said:\n\nError: file not found", "Look for API Error: lines in the log, then tell me.", "The key is wrong.\n\nAPI Error: 401 means the API refused it."]) {
       const message = reply("done", text)
       expect(withoutAgentError(message)).toBe(message)
     }
