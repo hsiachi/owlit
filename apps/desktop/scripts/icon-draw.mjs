@@ -1,5 +1,5 @@
 // Owlit's icon, drawn for a given point size: the feather on a green tile, as icon.mjs writes it into
-// resources/ and apps/extension/scripts/icons.mjs into the extension, so the two match at every size.
+// resources/. apps/extension/scripts/icons.mjs draws the extension's own tile from the same feather.
 // Icons change rarely, so sharp is not a dependency: SHARP_PATH points at any installed copy, else the one
 // a workspace package pulls into node_modules/.pnpm is used.
 import { readdirSync } from "node:fs"

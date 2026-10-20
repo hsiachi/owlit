@@ -16,14 +16,14 @@ export const FIREFOX_ANDROID_MIN = "142.0"
 // Module service workers, and webRequest's responseHeaders without extraHeaders
 export const CHROME_MIN = "116"
 
-// The store's and the extensions page's: the app icon itself
-// scripts/icons.mjs draws them. 64 and 96 are the 32 and 48 slots on a 2x display (the extensions page
-// asks for 96): the browser takes the nearest size listed, and 128 scaled down looks soft.
+// One icon everywhere, the white feather on owlit's green tile (scripts/icons.mjs draws it): the extensions
+// page and the store take all six sizes, the toolbar button 16, 32 and 48. 64 and 96 are the 32 and 48
+// slots on a 2x display (the extensions page asks for 96): the browser takes the nearest size listed, and
+// 128 scaled down looks soft. One icon for light and dark toolbars too: Chrome has no API for the
+// toolbar's colour and a page's colour scheme is a poor guess at it (Dia pairs a dark system with a light
+// toolbar), so no theme_icons and no setIcon: the tile reads on both.
 const ICONS = { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 64: "icons/64.png", 96: "icons/96.png", 128: "icons/128.png" }
-// The toolbar button's: the white feather on a green tile (scripts/icons.mjs), one icon for light and dark
-// toolbars. Chrome has no API for the toolbar's colour and a page's colour scheme is a poor guess at it
-// (Dia pairs a dark system with a light toolbar), so no theme_icons and no setIcon: the tile reads on both.
-export const FEATHER = { 16: "icons/feather-16.png", 32: "icons/feather-32.png", 48: "icons/feather-48.png" }
+const BUTTON = { 16: ICONS[16], 32: ICONS[32], 48: ICONS[48] }
 
 export interface Manifest {
   manifest_version: 3
@@ -54,7 +54,7 @@ export function manifest(target: Target, { version, publishers, dev = false }: {
     version,
     description: "Add the paper of the page you're on to owlit, with its PDF, using your browser's access.",
     icons: ICONS,
-    action: { default_title: "Add to owlit", default_icon: FEATHER },
+    action: { default_title: "Add to owlit", default_icon: BUTTON },
     content_scripts: [{ matches: publishers, js: ["content.js"], run_at: "document_idle" as const }],
     // contextMenus: the button's right-click menu, where the one setting is
     permissions: ["storage", "activeTab", "scripting", "notifications", "webRequest", "alarms", "contextMenus"],
