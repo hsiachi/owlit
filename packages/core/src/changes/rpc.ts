@@ -1,6 +1,6 @@
 import type { ActorId, PersonId } from "@owlit/protocol"
 import { z } from "zod"
-import { noParams, type Caller, type Notifier, type Router } from "../rpc/index.ts"
+import { docPath, noParams, type Caller, type Notifier, type Router } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { docPassages } from "./passages.ts"
 import { docProposals } from "./proposals.ts"
@@ -18,7 +18,6 @@ interface Deps {
 
 // changes.*, and the seen marks and members the change log names
 export function registerChanges({ router, notifier, undo, requireWorkspace, personAt }: Deps) {
-  const rel = z.string()
   router.register(
     "changes.undo",
     z.object({ id: z.string().min(1) }),
@@ -57,11 +56,11 @@ export function registerChanges({ router, notifier, undo, requireWorkspace, pers
     const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
     return ws.seen.unseen(me, { changes, chats, papers, since })
   })
-  router.register("changes.since", z.object({ path: rel, hash: z.string().min(1), text: z.string() }), "read", async ({ path, hash, text }, caller) => {
+  router.register("changes.since", z.object({ path: docPath, hash: z.string().min(1), text: z.string() }), "read", async ({ path, hash, text }, caller) => {
     const ws = requireWorkspace()
     return docPassages(ws.changes, path, hash, text, await personAt(caller))
   })
-  router.register("changes.proposals", z.object({ path: rel, text: z.string(), hash: z.string().min(1).optional(), since: z.number().optional() }), "read", ({ path, text, hash, since }) =>
+  router.register("changes.proposals", z.object({ path: docPath, text: z.string(), hash: z.string().min(1).optional(), since: z.number().optional() }), "read", ({ path, text, hash, since }) =>
     docProposals(requireWorkspace().changes, path, text, { ...(hash !== undefined ? { hash } : {}), ...(since !== undefined ? { since } : {}) }),
   )
   const seenKind = z.enum(["docs", "threads", "chats", "comments", "digests"])

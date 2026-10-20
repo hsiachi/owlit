@@ -49,6 +49,9 @@ interface Route {
 // Methods that take no params accept a missing or empty params object
 export const noParams = z.union([z.undefined(), z.null(), z.object({}).strict()]).transform(() => undefined)
 
+// A doc or folder as a client names it, relative to the workspace; the workspace resolves and checks it
+export const docPath = z.string()
+
 // method → handler, with params checked against a schema before the handler sees them, and the policy
 // applied between the two
 export class Router {

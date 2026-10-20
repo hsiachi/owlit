@@ -3,7 +3,6 @@ import { isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPe
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-
 import path from "node:path"
 import { ActivityBus, Journal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
@@ -11,7 +10,6 @@ import type { CutOff } from "@owlit/protocol"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
-
 import { Turns } from "./agents/turns.ts"
 import { ReadLog, readFromOf } from "./agents/read-from.ts"
 import { latestRelease } from "./updates/github.ts"
@@ -21,28 +19,21 @@ import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure, WINDOW, type Caller, type Policy } from "./rpc/index.ts"
 import { decide, type Who } from "./agents/policy.ts"
 import { newWriteId } from "./changes/record.ts"
-
 import { replyRecipe } from "./recipes/reply.ts"
 import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
-
 import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
-
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
-
 import { serveWorkspaceFile } from "./files/serve.ts"
-
 import { Http } from "./net/http.ts"
-import { SettingsStore } from "./settings.ts"
+import { SettingsStore } from "./settings/store.ts"
 import { isMissing } from "./fs-util.ts"
 import { messageOf } from "./util.ts"
-import { defaultNoteLanguage, registerSettings } from "./settings-rpc.ts"
+import { defaultNoteLanguage, registerSettings } from "./settings/rpc.ts"
 import { debugTasks, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
-
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
-
 import { registerActivity } from "./activity/rpc.ts"
 import { registerAgents } from "./agents/rpc.ts"
 import { registerChanges } from "./changes/rpc.ts"

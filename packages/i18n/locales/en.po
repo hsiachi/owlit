@@ -7926,63 +7926,63 @@ msgstr "The disk is full, so {name} couldn't be saved."
 msgid "{name} is no longer there."
 msgstr "{name} is no longer there."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "That link doesn't show which proxy it went through."
 msgstr "That link doesn't show which proxy it went through."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "No library proxy is set up."
 msgstr "No library proxy is set up."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Signing in needs the owlit desktop app."
 msgstr "Signing in needs the owlit desktop app."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Nothing answers at {url}. Is MinerU running?"
 msgstr "Nothing answers at {url}. Is MinerU running?"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Today's MinerU quota is used up. Papers keep their built-in text until tomorrow."
 msgstr "Today's MinerU quota is used up. Papers keep their built-in text until tomorrow."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "MinerU says this token isn't valid. Check it was copied whole."
 msgstr "MinerU says this token isn't valid. Check it was copied whole."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Couldn't reach MinerU to check the token. It will be tried on the next paper."
 msgstr "Couldn't reach MinerU to check the token. It will be tried on the next paper."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "{service} says this key isn't valid. Check it was copied whole."
 msgstr "{service} says this key isn't valid. Check it was copied whole."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "{service} is busy; the key will be tried on the next lookup."
 msgstr "{service} is busy; the key will be tried on the next lookup."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Couldn't reach {service} to check the key."
 msgstr "Couldn't reach {service} to check the key."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "The key works, but Elsevier sees no subscription from this network. On the university's network it will."
 msgstr "The key works, but Elsevier sees no subscription from this network. On the university's network it will."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Wiley refused: either the token isn't valid or it sees no subscription from this network."
 msgstr "Wiley refused: either the token isn't valid or it sees no subscription from this network."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "{service} is busy; the key will be tried on the next paper."
 msgstr "{service} is busy; the key will be tried on the next paper."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Elsevier refused this key. Check it was copied whole."
 msgstr "Elsevier refused this key. Check it was copied whole."
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Elsevier sees no subscription from this network, and couldn't be asked whether the key itself works."
 msgstr "Elsevier sees no subscription from this network, and couldn't be asked whether the key itself works."
 

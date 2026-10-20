@@ -8,7 +8,7 @@ import { commentTouches, replyOnly, type Target } from "../agents/policy.ts"
 import { newWriteId } from "../changes/record.ts"
 import { pickFromText } from "../library/library.ts"
 import { extractText, toMarkdown, UnreadablePdf } from "../library/text/extract.ts"
-import { noParams, RpcFailure, type Caller, type Notifier, type Policy, type Router } from "../rpc/index.ts"
+import { docPath, noParams, RpcFailure, type Caller, type Notifier, type Policy, type Router } from "../rpc/index.ts"
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import { commentChanges, correctable, corrected, correctionOf, signed } from "./comments.ts"
@@ -26,14 +26,12 @@ interface Deps {
 
 // docs.* and comments.*: a doc's text and the comments in its margin
 export function registerDocs({ router, notifier, requireWorkspace, answerReply, pdfiumWasm }: Deps) {
-
   const docs = () => requireWorkspace().docs
-  const rel = z.string()
   router.register("docs.list", noParams, "read", () => docs().list())
-  router.register("docs.read", z.object({ path: rel }), "read", ({ path }) => docs().read(path))
+  router.register("docs.read", z.object({ path: docPath }), "read", ({ path }) => docs().read(path))
   // Any agent reads a PDF the user has in the workspace (an attachment, a file that isn't in the Library)
   // through owlit, with the page numbers it would cite; the Owlit engine has no other way to read one
-  router.register("docs.readPdf", z.object({ path: rel, pages: z.string().optional() }), "read", async ({ path: file, pages }) => {
+  router.register("docs.readPdf", z.object({ path: docPath, pages: z.string().optional() }), "read", async ({ path: file, pages }) => {
     const ws = requireWorkspace()
     const relPath = ws.docs.resolve(file)
     // Of owlit's own folder, only the copies of files attached in chats are the user's to read
@@ -52,7 +50,7 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
   })
   router.register(
     "docs.create",
-    z.object({ path: rel, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), "words",
+    z.object({ path: docPath, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), "words",
     async ({ path, content, ...options }, caller) => {
       const made = await docs().create(path, content, options)
       await requireWorkspace().recorder.doc(caller, made.path, null, content, {}, { quiet: true })
@@ -61,22 +59,22 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
   )
   router.register(
     "docs.write",
-    z.object({ path: rel, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }), "words",
+    z.object({ path: docPath, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }), "words",
     ({ path, content, expectedModifiedAt, force }, caller) => docs().write(path, content, expectedModifiedAt, force, caller),
   )
-  router.register("docs.rename", z.object({ path: rel, name: z.string() }), "structure", ({ path, name }, caller) => movingDocs(path, caller, () => docs().rename(path, name)))
-  router.register("docs.move", z.object({ path: rel, folder: z.string() }), "structure", ({ path, folder }, caller) => movingDocs(path, caller, () => docs().move(path, folder)))
-  router.register("docs.delete", z.object({ path: rel }), "structure", async ({ path }, caller) => {
+  router.register("docs.rename", z.object({ path: docPath, name: z.string() }), "structure", ({ path, name }, caller) => movingDocs(path, caller, () => docs().rename(path, name)))
+  router.register("docs.move", z.object({ path: docPath, folder: z.string() }), "structure", ({ path, folder }, caller) => movingDocs(path, caller, () => docs().move(path, folder)))
+  router.register("docs.delete", z.object({ path: docPath }), "structure", async ({ path }, caller) => {
     const texts = await docs().textsUnder(path)
     await docs().delete(path)
     const writeId = newWriteId()
     for (const t of texts) await requireWorkspace().recorder.doc(caller, t.path, t.content, null, { origin: { writeId } }, { quiet: true })
     return null
   })
-  router.register("docs.createFolder", z.object({ path: rel }), "structure", ({ path }) => docs().createFolder(path))
+  router.register("docs.createFolder", z.object({ path: docPath }), "structure", ({ path }) => docs().createFolder(path))
   router.register(
     "docs.restore",
-    z.object({ files: z.array(z.object({ id: z.string(), path: rel, content: z.string() })), folders: z.array(rel) }), "structure",
+    z.object({ files: z.array(z.object({ id: z.string(), path: docPath, content: z.string() })), folders: z.array(docPath) }), "structure",
     async ({ files, folders }, caller) => {
       const restored = await docs().restore(files, folders)
       const writeId = newWriteId()
@@ -84,8 +82,8 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
       return restored
     },
   )
-  router.register("docs.open", z.object({ path: rel }), "admin", ({ path }) => docs().open(path))
-  router.register("docs.reveal", z.object({ path: rel }), "admin", ({ path }) => docs().reveal(path))
+  router.register("docs.open", z.object({ path: docPath }), "admin", ({ path }) => docs().open(path))
+  router.register("docs.reveal", z.object({ path: docPath }), "admin", ({ path }) => docs().reveal(path))
 
   const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
   const commentSchema = anchor.extend({
@@ -115,7 +113,7 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
     return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}) }
   }
   const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id) }
-  router.register("comments.add", z.object({ path: rel, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
+  router.register("comments.add", z.object({ path: docPath, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
     const agent = caller.kind !== "window"
     // Never over an existing comment (add replaces one with the same id)
     if ((await docs().listComments(path)).some((c) => c.id === comment.id)) throw new RpcFailure(RpcErrorCode.Conflict, agent ? "That comment is already there; an agent adds new ones." : t`That comment is already there.`)
@@ -141,7 +139,7 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
       return target
     },
   }
-  router.register("comments.put", z.object({ path: rel, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
+  router.register("comments.put", z.object({ path: docPath, comment: commentSchema }), COMMENT_PUT, async ({ path, comment: input }, caller) => {
     const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
     const comment = correcting(signed(input, was, await requireWorkspace().recorder.actorOf(caller)), was, caller)
     const before = await putComment(path, comment, caller)
@@ -159,7 +157,7 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
   }
   router.register(
     "comments.reply",
-    z.object({ path: rel, id: z.string().min(1), text: z.string(), resolve: z.boolean().optional() }),
+    z.object({ path: docPath, id: z.string().min(1), text: z.string(), resolve: z.boolean().optional() }),
     COMMENT_REPLY,
     async ({ path, id, text, resolve }, caller) => {
       const by = await requireWorkspace().recorder.actorOf(caller)
@@ -178,13 +176,13 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
       return after
     },
   )
-  router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
+  router.register("comments.remove", z.object({ path: docPath, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
     const removed = await docs().removeComment(path, id)
     if (removed && caller.kind !== "window") notifier.notify("comments.removed", { path, id })
     await recordComment(caller, path, removed, null)
     return removed
   })
-  router.register("comments.reanchor", z.object({ path: rel, moved: z.record(z.string(), anchor) }), "words", ({ path, moved }) =>
+  router.register("comments.reanchor", z.object({ path: docPath, moved: z.record(z.string(), anchor) }), "words", ({ path, moved }) =>
     docs().reanchorComments(path, moved),
   )
 

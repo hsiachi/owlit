@@ -4,7 +4,7 @@ import { readPdf } from "./text/extract.ts"
 // What owlit knows about each publisher, in one place: the DOIs that are its, its sites, where a PDF can
 // be had without a browser, where the extension goes, and its own API when it has one. The plain routes
 // (pdf.ts), the extension's routes (extension/route.ts), the API limits (library.ts), the key check in
-// Settings (settings-rpc.ts) and the extension's site permissions (apps/extension) all read it.
+// Settings (settings/rpc.ts) and the extension's site permissions (apps/extension) all read it.
 
 // The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
 // browser or a check: Elsevier's article API and Wiley's text-and-data-mining API

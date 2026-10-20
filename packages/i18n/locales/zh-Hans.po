@@ -7926,63 +7926,63 @@ msgstr "磁盘已满，{name} 未能保存。"
 msgid "{name} is no longer there."
 msgstr "{name} 已不在原处。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "That link doesn't show which proxy it went through."
 msgstr "那个链接看不出经过了哪个代理。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "No library proxy is set up."
 msgstr "尚未设置图书馆代理。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Signing in needs the owlit desktop app."
 msgstr "登录需要 owlit 桌面应用。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Nothing answers at {url}. Is MinerU running?"
 msgstr "{url} 没有响应。MinerU 在运行吗？"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Today's MinerU quota is used up. Papers keep their built-in text until tomorrow."
 msgstr "今天的 MinerU 额度已用完。论文在明天之前继续使用自带的文本。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "MinerU says this token isn't valid. Check it was copied whole."
 msgstr "MinerU 说这个令牌无效。请检查是否完整拷贝。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Couldn't reach MinerU to check the token. It will be tried on the next paper."
 msgstr "无法连接 MinerU 来检查令牌。处理下一篇论文时会再试。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "{service} says this key isn't valid. Check it was copied whole."
 msgstr "{service} 说这个密钥无效。请检查是否完整拷贝。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "{service} is busy; the key will be tried on the next lookup."
 msgstr "{service} 正忙；下次查询时会再试这个密钥。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Couldn't reach {service} to check the key."
 msgstr "无法连接 {service} 来检查密钥。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "The key works, but Elsevier sees no subscription from this network. On the university's network it will."
 msgstr "密钥有效，但 Elsevier 在当前网络下检测不到订阅。在校园网内就可以。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Wiley refused: either the token isn't valid or it sees no subscription from this network."
 msgstr "Wiley 拒绝了：令牌无效，或在当前网络下检测不到订阅。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "{service} is busy; the key will be tried on the next paper."
 msgstr "{service} 正忙，会在下一篇论文时再试这个密钥。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Elsevier refused this key. Check it was copied whole."
 msgstr "Elsevier 拒绝了这个密钥。请检查是否完整复制。"
 
-#: packages/core/src/settings-rpc.ts
+#: packages/core/src/settings/rpc.ts
 msgid "Elsevier sees no subscription from this network, and couldn't be asked whether the key itself works."
 msgstr "Elsevier 在当前网络下检测不到订阅，也没能确认密钥本身是否有效。"
 

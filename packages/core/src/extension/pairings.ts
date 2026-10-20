@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { ExtensionPairing, ExtensionView, StoredPairing } from "@owlit/protocol"
 import type { BrowserApp } from "./browser-app.ts"
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto"
-import type { SettingsStore } from "../settings.ts"
+import type { SettingsStore } from "../settings/store.ts"
 import { clean } from "../util.ts"
 import { HttpFailure } from "./http.ts"
 

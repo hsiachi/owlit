@@ -18,15 +18,15 @@ import {
   type SettingsView,
 } from "@owlit/protocol"
 import { z } from "zod"
-import { proxySignIn } from "./extension/route.ts"
-import { PUBLISHERS, type PublisherApi } from "./library/publisher-table.ts"
-import { OPENALEX_HOST } from "./library/sources/openalex.ts"
-import { S2_HOST } from "./library/sources/semanticscholar.ts"
-import { tryServer, tryToken } from "./library/parse/mineru.ts"
-import { HttpError, type Http } from "./net/http.ts"
-import { noParams, RpcFailure, type Router } from "./rpc/index.ts"
-import type { SettingsStore } from "./settings.ts"
-import { clean } from "./util.ts"
+import { proxySignIn } from "../extension/route.ts"
+import { PUBLISHERS, type PublisherApi } from "../library/publisher-table.ts"
+import { OPENALEX_HOST } from "../library/sources/openalex.ts"
+import { S2_HOST } from "../library/sources/semanticscholar.ts"
+import { tryServer, tryToken } from "../library/parse/mineru.ts"
+import { HttpError, type Http } from "../net/http.ts"
+import { noParams, RpcFailure, type Router } from "../rpc/index.ts"
+import type { SettingsStore } from "./store.ts"
+import { clean } from "../util.ts"
 
 // Where each key the window may set lives in AppSettings
 const SECRET_FIELDS = {
