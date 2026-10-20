@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { BookOpenIcon, BotIcon, FileTextIcon, LayersIcon, MessageSquareIcon, StickyNoteIcon, type LucideIcon } from "lucide-react"
+import { BookOpenIcon, BotIcon, FileTextIcon, MessageSquareIcon, RouteIcon, StickyNoteIcon, type LucideIcon } from "lucide-react"
 
 // The kinds of thing a workspace holds, each drawn with one icon wherever it appears: the rail, the
 // palette, Home, the mention popup, a result card
@@ -9,7 +9,7 @@ export const KIND_ICON: Record<Kind, LucideIcon> = {
   doc: FileTextIcon,
   chat: MessageSquareIcon,
   paper: BookOpenIcon,
-  thread: LayersIcon,
+  thread: RouteIcon,
   note: StickyNoteIcon,
   agent: BotIcon,
 }
