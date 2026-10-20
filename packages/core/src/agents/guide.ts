@@ -59,7 +59,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "undo",
     title: "Undoing Owlit's changes",
-    text: `Every change Owlit makes outside a chat (a paper added, a note on a doc, a topic line, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit proposes to a doc or a note is shown in place first, with Apply or Discard; once applied, ⌘Z undoes it in one step.`,
+    text: `Every change Owlit makes outside a chat (a paper added, a note on a doc, a topic line, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit makes to a doc lands at once and is marked in the doc until the user has seen it: Undo on a passage (or ⌘⌫ at its end) takes back that passage, Undo all the whole edit, the same Undo as the answer's line. A doc Owlit wrote whole shows one line above it, "Owlit wrote this doc", with Undo. A doc's menu has Versions… for every change and what it did.`,
   },
   {
     id: "memory",

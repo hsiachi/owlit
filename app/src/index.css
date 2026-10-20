@@ -652,6 +652,9 @@
    from the first frame, never drawn in. */
 .changed-line { position: relative; }
 .changed-line::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 1.5px; background: color-mix(in oklch, var(--owlit-mark) 55%, transparent); }
+/* Where someone else removed a paragraph: the same rule, short and hollow, in the gap it left */
+.changed-removed { position: relative; height: 0; }
+.changed-removed::before { content: ""; position: absolute; left: -18px; top: -2px; width: 5px; height: 12px; border: 1.5px solid color-mix(in oklch, var(--owlit-mark) 55%, transparent); border-radius: 2px; }
 /* A note's block rule reaches down over the 0.5rem gap after it; the bar's bridges its own top margin */
 .suggest-block::before { bottom: -0.5rem; }
 .suggest-bar::before { top: -2px; }
@@ -659,12 +662,15 @@
 .suggest-bar span { flex: 1; }
 .suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
 .suggest-discard:hover { background: var(--accent); color: var(--foreground); }
-.suggest-apply { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
 /* Owlit's landed passages (editor/proposals.ts): the same marks, with Keep · Undo after each passage
    seen on hover of its lines (or by keyboard), and the counting line above the first, which the rule
    joins to the passage under it */
 .proposal-head { margin: 0 0 4px; }
 .proposal-head::before { top: 0; bottom: -4px; }
+/* A doc Owlit wrote whole: the line alone, with no rule, since nothing under it is marked */
+.proposal-whole::before { content: none; }
+.suggest-bar .proposal-chat { height: auto; padding: 0; border-radius: 0; color: inherit; }
+.suggest-bar .proposal-chat:hover { color: var(--foreground); text-decoration: underline; }
 .proposal-acts { display: inline-flex; gap: 2px; margin-left: 0.4em; vertical-align: baseline; font-size: 12px; line-height: 1.2; color: var(--muted-foreground); opacity: 0; transition: opacity var(--t-mark) var(--ease); }
 .suggest-line:hover .proposal-acts, .proposal-acts:focus-within { opacity: 1; }
 .proposal-acts button { padding: 1px 6px; border-radius: 6px; cursor: default; }

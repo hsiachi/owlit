@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronRightIcon, EllipsisIcon, LinkIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -129,8 +129,6 @@ export function ClosedCard({ view, lost, onOpen, onHover }: { view: CommentView;
 interface OpenActions {
   onAsk: () => void
   onResolve: () => void
-  // Owlit's comments in the user's own docs only
-  onDismiss?: () => void
   onReply: (text: string) => Promise<void> | void
   onEdit: (entryId: string, text: string) => void
   onDelete: (entryId: string) => void
@@ -182,11 +180,6 @@ export function OpenCard({ view, lost, actions, focusReply, owlitsComment }: { v
         <IconButton label={t({ message: "Resolve", comment: "put a comment away" })} size="icon-xs" onClick={actions.onResolve}>
           <CheckIcon />
         </IconButton>
-        {first.who === "owlit" && actions.onDismiss && (
-          <IconButton label={t({ message: "Dismiss", comment: "tell Owlit its comment isn't wanted; it won't say it again" })} size="icon-xs" onClick={actions.onDismiss}>
-            <XIcon />
-          </IconButton>
-        )}
         {first.editable && <EntryMenu entry={first} first hasReplies={replies.length > 0} onEdit={() => setEditing(first.id)} onDelete={() => actions.onDelete(first.id)} />}
       </div>
       <div className="pr-1.5">

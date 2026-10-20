@@ -156,14 +156,22 @@ export function isHiddenFromDocs(relativePath: string) {
   return segments.some((segment) => segment.startsWith("."))
 }
 
+// text[from, to) becomes insert
+export interface TextHunk {
+  from: number
+  to: number
+  insert: string
+}
+
 // What core asks a window to do, and what the window answers with ui.respond. fs.* go to the window
 // that has the doc open (agents/fs.ts); the rest go to the window the user is in.
 export interface UiActions {
   // The doc's text in its editor; null: not open after all
   "fs.read": { params: { path: string }; result: { content: string | null } }
-  // The agent's write, applied in the doc's editor; false: not open after all. undo: an undo of a change
-  // in the log, applied without the toast an agent's edit gets
-  "fs.write": { params: { path: string; content: string; changeId: string; undo?: boolean }; result: { applied: boolean } }
+  // A write core records (an agent's, an undo's), applied in the doc's editor; false: not open after all.
+  // hunks: what turns the text core last read from that editor into content (core's diff, changes/hunks.ts),
+  // so the editor changes only those places and what is anchored elsewhere (a comment, the cursor) stays
+  "fs.write": { params: { path: string; content: string; changeId: string; hunks?: TextHunk[] }; result: { applied: boolean } }
   // Shows a paper, doc, chat or thread (an owlit:// link). chatId (on open, jump and mark) is
   // the chat whose agent asked: if the user is reading it, it carries on in the agent window.
   open: { params: { uri: string; chatId?: string }; result: { title: string } }

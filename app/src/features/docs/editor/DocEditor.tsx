@@ -6,7 +6,9 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { Compartment, EditorSelection, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { useAgentWindow } from "@/features/agent/store"
-import { drawnEdits } from "@/features/chat/in-place"
+import { useChatStore } from "@/features/chat/store"
+import { undoAll, undoSteps } from "@/lib/changes"
+import { isDesktop } from "@/lib/rpc"
 import { reportDocEdited } from "@/app/activity"
 import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
@@ -16,7 +18,7 @@ import { allDocMentions, docMentionable, mentionTooltip, openMention, paperUnrea
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { BESIDE_MIN_WINDOW, useBeside } from "@/features/agent/beside"
 import { freshDocIds, useDocsStore } from "../store"
-import { type CommentAnchor, type WorkspaceFile } from "../types"
+import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
 import { mentionPopup } from "./mention-popup"
@@ -26,8 +28,6 @@ import { commentViews } from "../comments/model"
 import { setCommentSlot, setCommentTops } from "../comments/layout"
 import { selectionMenu } from "./selection-menu"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
-import { agentSuggestions, setPendingEdits } from "./suggestions"
-import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { blockPreview } from "./block-preview"
 import { changedSince } from "./changed-since"
 import { proposalMarks } from "./proposals"
@@ -35,7 +35,6 @@ import { followChangedSince } from "../changed"
 import { Highlight, MathSyntax, Wikilinks } from "./syntax"
 import { docHighlight, docTheme } from "./theme"
 import "katex/dist/katex.min.css"
-import { respondToEdit as answerEdit } from "@/features/chat/lib/respond-edit"
 import { routeSubject } from "@/app/route-subject"
 import { anchorAt, parseOwlitUri } from "@owlit/protocol"
 import { useShareStore } from "../share/store"
@@ -51,11 +50,6 @@ const isUserEdit = (tr: Transaction) =>
 function wikilinkRoute(name: string) {
   const file = wikilinkFile(useDocsStore.getState().files, name)
   return file ? `/docs/${file.id}` : null
-}
-
-// Apply and Discard answer the agent's permission request with its allow-once or reject-once option
-function respondToEdit(edit: PendingEdit, apply: boolean) {
-  answerEdit(edit.chatId, edit.requestId, apply)
 }
 
 // A selected passage goes to the agent window, which waits for the question; `from` says which occurrence
@@ -133,8 +127,6 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     }
     // Passages edited while the doc was open are saved as they read now, so their comments find them next time
     let saveCommentPlaces = () => {}
-    // Owlit's proposed edits drawn in the doc are answered here, so the chat's card points at the doc
-    const setDrawn = drawnEdits()
     let seen: ReturnType<typeof followChangedSince> | undefined
 
     const saved = lastSelection.get(id)
@@ -152,6 +144,18 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           editable.of(lock(missing)),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          // Tab indents in the text; after Esc it moves to what can be acted on in it (a passage's Undo,
+          // a citation) for a moment, so the keyboard isn't trapped in the editor. Esc goes on to whatever
+          // else listens for it (a comment's card, the paper beside the doc).
+          keymap.of([
+            {
+              key: "Escape",
+              run: (v) => {
+                v.setTabFocusMode(2000)
+                return false
+              },
+            },
+          ]),
           markdown({ base: markdownLanguage, extensions: [Highlight, Wikilinks, MathSyntax] }),
           blockPreview,
           EditorView.lineWrapping,
@@ -182,9 +186,23 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             (view) => startComment(id, view),
           ),
           keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
-          agentSuggestions(respondToEdit, setDrawn),
           changedSince,
-          proposalMarks(() => seen?.seen()),
+          proposalMarks({
+            undo: (steps, spots) => {
+              const name = displayName(useDocsStore.getState().files[id]?.path ?? "")
+              if (isDesktop) void undoSteps(steps, name)
+              // Without core (pnpm dev:web) the passages go back in the editor
+              else view.dispatch({ changes: spots.map((s) => ({ from: s.from, to: s.to, insert: s.removed })), userEvent: "input.proposal" })
+            },
+            chatTitle: (chatId) => useChatStore.getState().chats[chatId]?.title,
+            openChat: (chatId) => useAgentWindow.getState().showChat(chatId),
+            undoWhole: (p) => {
+              const name = displayName(useDocsStore.getState().files[id]?.path ?? "")
+              if (isDesktop) void undoAll([...(p.whole?.also ?? []).toReversed(), p.id], name)
+              // Without core (pnpm dev:web) the doc goes, as core's Undo of a doc it made takes it away
+              else useDocsStore.getState().deleteFile(id)
+            },
+          }),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),
@@ -223,12 +241,8 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
     const keepScroll = () => lastScroll.set(id, scroller!.scrollTop)
     scroller?.addEventListener("scroll", keepScroll, { passive: true })
 
-    // Agent writes to this doc go through the editor; edits the agent proposes for it are drawn in place
+    // Agent writes to this doc go through the editor
     const unregister = registerEditor(id, view)
-    const unsubscribe = subscribePendingEdits(
-      () => useDocsStore.getState().files[id]?.path,
-      (edits) => view.dispatch({ effects: setPendingEdits.of(edits) }),
-    )
 
     const unsubscribeMissing = useDocsStore.subscribe((s) => {
       if (!!s.missing[id] === missing) return
@@ -298,8 +312,6 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       scroller?.removeEventListener("scroll", keepScroll)
       unregisterAsk()
       flush()
-      unsubscribe()
-      setDrawn([])
       unsubscribeOwn()
       unsubscribeReaders()
       unsubscribeOpen()

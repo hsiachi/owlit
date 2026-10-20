@@ -3,7 +3,7 @@ import { type CommentAnchor, type DocComment, findAnchor, isOpenComment, isOwlit
 import { me, nameOf } from "@/lib/actors"
 import { capital } from "@/lib/words"
 import { newId } from "@/lib/id"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { isDesktop } from "@/lib/rpc"
 import { mockStarted } from "@/features/chat/started"
 import { toastError, toastUndo } from "@/lib/toast"
 import { useAgentWindow } from "@/features/agent/store"
@@ -22,8 +22,8 @@ export interface CommentView {
   quote: string
   entries: EntryView[]
   createdAt: number
-  // Where its passage is in the doc's Markdown now
-  find: (text: string) => { from: number; to: number } | null
+  // Where its passage is in the doc's Markdown now; near: where it was last known to be
+  find: (text: string, near?: number) => { from: number; to: number } | null
   doc?: DocComment
   thread?: CommentThread
   // Put away (the doc's own) or marked resolved (a reader's): only in the Resolved comments list
@@ -54,8 +54,8 @@ function fromDoc(c: DocComment, viewer: PersonId | undefined): CommentView {
     resolved: !!(c.resolvedAt || c.foldedAt),
     createdAt: c.createdAt,
     doc: c,
-    find: (text) => {
-      const at = findAnchor(text, c)
+    find: (text, near) => {
+      const at = findAnchor(text, c, near)
       return at === null ? null : { from: at, to: at + c.quote.length }
     },
     entries: c.entries.map((e) => {
@@ -104,9 +104,8 @@ export function commentViews(docComments: DocComment[] | undefined, readerCommen
 
 // The ones put away, newest first, for the Resolved comments list
 export function resolvedViews(docComments: DocComment[] | undefined, readerComments: Parameters<typeof commentThreadsOf>[0], viewer = me()): CommentView[] {
-  // Dismissed ones are Owlit's memory of what not to say, not something to open again. Ones Owlit folded
-  // away (their words changed, nobody answered) are history like resolved ones.
-  const own = (docComments ?? []).filter((c) => (c.resolvedAt || c.foldedAt) && !c.dismissedAt && c.entries.length).map((c) => fromDoc(c, viewer))
+  // Ones Owlit folded away (their words changed, nobody answered) are history like resolved ones
+  const own = (docComments ?? []).filter((c) => (c.resolvedAt || c.foldedAt) && c.entries.length).map((c) => fromDoc(c, viewer))
   const at = (v: CommentView) => v.doc?.resolvedAt ?? v.doc?.foldedAt ?? v.createdAt
   return [...own, ...commentThreadsOf(readerComments, { resolved: true }).map(fromThread)].sort((a, b) => at(b) - at(a))
 }
@@ -181,16 +180,6 @@ export function resolve(fileId: string, view: CommentView) {
     .resolve(path, id, true)
     .then(() => toastUndo(t`Comment resolved`, () => shares.resolve(path, id, false)))
     .catch(toastError)
-}
-
-// One of Owlit's comments the user doesn't want: gone for good, and Owlit is told not to say it again.
-// Unlike Resolve there is no Undo: it is a judgement on what Owlit said, not a place to come back to.
-export function dismiss(fileId: string, view: CommentView) {
-  const path = pathOf(fileId)
-  if (!view.doc || !path) return
-  const ui = useDocsUiStore.getState()
-  if (ui.openComment?.key === view.key) ui.setOpenComment(fileId, null)
-  void rpc.comments.dismiss({ path, id: view.doc.id }).catch(toastError)
 }
 
 // Opens a resolved comment again, or one Owlit folded away

@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { syntaxTree } from "@codemirror/language"
-import { StateEffect, type EditorState, type Extension, type Range } from "@codemirror/state"
+import { Prec, StateEffect, type EditorState, type Extension, type Range } from "@codemirror/state"
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from "@codemirror/view"
 import type { SyntaxNode } from "@lezer/common"
 import katex from "katex"
@@ -33,6 +33,9 @@ class MentionWidget extends WidgetType {
     const span = document.createElement("span")
     span.className = "cm-mention"
     span.textContent = this.label || this.title || this.uri
+    // Reached with Tab (Esc first, in the text) and opened with Enter, as with the pointer
+    span.tabIndex = 0
+    span.setAttribute("role", "link")
     span.dataset.uri = this.uri
     if (this.quote) span.dataset.quote = this.quote
     if (this.unread) span.dataset.unread = ""
@@ -452,6 +455,30 @@ export function livePreview({
     },
   )
 
+  // A mention with the keyboard's focus: Enter opens it and Tab moves to the next thing in the text that
+  // can be acted on (a mention, a passage's Undo), or back to the text after the last; before the editor's
+  // own keys (a new line, an indent) see them
+  const keys = Prec.highest(
+    EditorView.domEventHandlers({
+      keydown(e, view) {
+        const mention = (e.target as HTMLElement).closest<HTMLElement>(".cm-mention")
+        if (!mention?.dataset.uri) return false
+        if (e.key === "Tab") {
+          e.preventDefault()
+          const stops = [...view.contentDOM.querySelectorAll<HTMLElement>(".cm-mention, button")]
+          const next = stops[stops.indexOf(mention) + (e.shiftKey ? -1 : 1)]
+          if (next) next.focus()
+          else view.focus()
+          return true
+        }
+        if (e.key !== "Enter") return false
+        e.preventDefault()
+        onOpenMention(mention.dataset.uri, mention.dataset.quote, { meta: e.metaKey || e.ctrlKey, pos: view.posAtDOM(mention) })
+        return true
+      },
+    }),
+  )
+
   const clicks = EditorView.domEventHandlers({
     mousedown(e, view) {
       const target = e.target as HTMLElement
@@ -479,5 +506,5 @@ export function livePreview({
     },
   })
 
-  return [plugin, clicks]
+  return [plugin, clicks, keys]
 }

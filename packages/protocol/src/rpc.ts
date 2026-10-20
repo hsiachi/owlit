@@ -2,8 +2,8 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
-import type { CommentAnchor, CommentInput, DocComment, DocOwlit, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Change, ChangedPassage, ChangeFilter, Proposal, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
+import type { CommentAnchor, CommentInput, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -160,13 +160,10 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit and a doc: kept out or let in
-  "docs.owlit": { params: { path: string }; result: DocOwlit }
   // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
   // the user's docs, in a chat owlit starts about it (or a new turn in the one that broke): a record
   // beside it, and the points as comments where they belong
   "docs.goThrough": { params: { path: string }; result: { chatId: string } }
-  "docs.setOwlitOut": { params: { path: string; out: boolean }; result: DocOwlit }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }
@@ -185,7 +182,6 @@ export interface Methods {
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
   // One of Owlit's comments the user doesn't want, put away for good
-  "comments.dismiss": { params: { path: string; id: string }; result: DocComment }
   // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
   "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
 
@@ -351,9 +347,15 @@ export interface Methods {
   // A doc goes back passage by passage: left names those that were edited since and stay as they are.
   // Anything else that changed since is refused with Conflict.
   "changes.undo": { params: { id: string }; result: { change: Change; left?: string[] } }
+  // One passage of a change to a doc, by its index among the change's passages as changes.proposals
+  // gives them; refused with Conflict when that passage was edited since
+  "changes.undoPart": { params: { id: string; index: number }; result: { change: Change } }
   // How much a run of changes to one doc changed it, from before the first to after the last, and in how
   // many passages as the doc marks them; null when they aren't one doc's or are no longer kept
   "changes.stats": { params: { ids: string[] }; result: (EditStats & { passages: number }) | null }
+  // What one change to a doc did, passage by passage as the doc marks them; null when it isn't a doc's
+  // or its texts are no longer kept
+  "changes.passages": { params: { id: string }; result: ProposalHunk[] | null }
   // The log, newest first
   "changes.list": { params: ChangeFilter; result: Change[] }
   // The workspace's members: who the ids in the log are
@@ -361,8 +363,9 @@ export interface Methods {
   // What changed since the window's person last looked, by anyone else; since: only entries from then on
   "changes.unseen": { params: { since?: number }; result: Unseen }
   // The paragraphs of a doc someone else wrote since the text whose sha1 is hash (the person's mark when
-  // a visit began); none when the log no longer knows that text
-  "changes.since": { params: { path: string; hash: string }; result: ChangedPassage[] }
+  // a visit began); none when the log no longer knows that text. text: the doc as the window has it, as
+  // for changes.proposals
+  "changes.since": { params: { path: string; hash: string; text: string }; result: ChangedPassage[] }
   // text: the doc as the window has it (its editor may be ahead of the disk); hash: the text the person
   // last had on screen, else since: when their marks began
   "changes.proposals": { params: { path: string; text: string; hash?: string; since?: number }; result: Proposal[] }
@@ -545,8 +548,6 @@ export interface Notifications {
   "updates.changed": UpdatesView
   // Files in the workspace changed outside core; core's own changes are never echoed here
   "docs.changed": DocsChange
-  // Owlit was kept out of a doc or let in, or looked at it
-  "docs.owlit": { path: string; state: DocOwlit }
   // An agent's state changed (it started, ended, crashed, was checked)
   "agents.changed": Connector
   // One streamed update of a chat's running turn, for that turn's reply (messageId)

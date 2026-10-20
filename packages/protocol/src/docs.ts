@@ -60,8 +60,6 @@ export interface DocComment {
   createdAt: number
   // Put away; kept, so Owlit can read what was said and dismissed
   resolvedAt?: number
-  // One of Owlit's comments the user dismissed: not shown, and kept so Owlit doesn't say it again
-  dismissedAt?: number
   // One of Owlit's comments it folded away itself: the words it was on changed and nobody answered it in
   // a week. Not shown; kept with the doc's comments as history
   foldedAt?: number
@@ -91,11 +89,5 @@ export type CommentAnchor = Pick<DocComment, "quote" | "prefix" | "suffix">
 export type CommentInput = Omit<DocComment, "entries"> & { entries: (Omit<CommentEntry, "by"> & { by?: ActorId })[] }
 
 // Still open: not resolved, and with something said
-export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.dismissedAt && !c.foldedAt && c.entries.length > 0
+export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.foldedAt && c.entries.length > 0
 
-// What owlit keeps about Owlit and one of your docs (.owlit/docs/owlit.json, moving with the doc):
-// whether you keep Owlit out of it
-export interface DocOwlit {
-  // When you chose Keep Owlit out; absent while Owlit is let in (the default)
-  out?: number
-}

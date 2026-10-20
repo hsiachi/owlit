@@ -3,7 +3,7 @@ import { chatOfFile, isOpenComment, sameAbout, type ResultOf, type StopReason, i
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
-import { readFile, stat } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
 import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
@@ -31,8 +31,6 @@ import { guide } from "./agents/guide.ts"
 import { isRecipe, RECIPES } from "./recipes/index.ts"
 import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
-import { MATERIAL } from "./recipes/go-through.ts"
-import { goThroughWork } from "./docs/go-through.ts"
 import { wearOf } from "./library/wear.ts"
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
@@ -144,8 +142,6 @@ export class Core {
   private digestAsks = new Map<string, Promise<DigestAsked>>()
   // Replies under Owlit's comments being answered, by workspace and comment: the last one's answer
   private replies = new Map<string, Promise<void>>()
-  // Go throughs asked for whose chat hasn't started yet, by workspace and material
-  private goThroughAsks = new Map<string, Promise<{ chatId: string }>>()
   private taskChanges = new TaskThrottle(200, (task) => this.notifier.notify("tasks.changed", { task }))
   private debugTasks = debugTasks()
   // One way out to the network for every workspace, so each service's rate holds across them
@@ -222,7 +218,7 @@ export class Core {
     })
     this.undo = new Undo({
       workspace: () => this.workspace,
-      docs: { text: (rel) => this.fs.text(rel), write: (rel, content, changeId) => this.fs.place(rel, content, changeId, true) },
+      docs: { text: (rel) => this.fs.text(rel), write: (rel, content, changeId, base) => this.fs.place(rel, content, changeId, base) },
       commentsChanged: ({ path, changed, removed }) => {
         if (changed) this.notifier.notify("comments.changed", { path, comment: changed })
         if (removed) this.notifier.notify("comments.removed", { path, id: removed })
@@ -459,25 +455,6 @@ export class Core {
       },
     )
     this.router.register("docs.open", z.object({ path: rel }), "admin", ({ path }) => docs().open(path))
-    this.router.register("docs.owlit", z.object({ path: rel }), "read", ({ path }) => docs().owlitOf(path))
-    // The user asks Owlit to go through some material (a meeting's transcript, reviews) against their docs
-    this.router.register("docs.goThrough", z.object({ path: rel }), "own", async ({ path: file }) => {
-      if (!MATERIAL.test(file)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Owlit goes through text: a Markdown or plain-text file.`)
-      const ws = this.requireWorkspace()
-      // A file attached in a chat is kept in owlit's own folder, out of Docs' reach; it is read there
-      const resolved = ws.docs.resolve(file)
-      const attached = chatOfFile(resolved) ? resolved : null
-      if (attached) {
-        const there = await stat(path.join(ws.root, attached)).then((info) => info.isFile()).catch(() => false)
-        if (!there) throw new RpcFailure(RpcErrorCode.NotFound, t`That file isn't there any more.`, { path: attached })
-      } else await docs().read(file)
-      return this.goThrough(attached ?? file)
-    })
-    this.router.register("docs.setOwlitOut", z.object({ path: rel, out: z.boolean() }), "admin", async ({ path, out }) => {
-      const state = await docs().setOwlitOut(path, out)
-      this.notifier.notify("docs.owlit", { path, state })
-      return state
-    })
     this.router.register("docs.reveal", z.object({ path: rel }), "admin", ({ path }) => docs().reveal(path))
 
     const anchor = z.object({ quote: z.string(), prefix: z.string(), suffix: z.string() })
@@ -495,7 +472,6 @@ export class Core {
       ),
       createdAt: z.number(),
       resolvedAt: z.number().optional(),
-      dismissedAt: z.number().optional(),
       foldedAt: z.number().optional(),
       source: z.object({ path: z.string(), label: z.string() }).optional(),
     })
@@ -585,7 +561,7 @@ export class Core {
       },
     )
     this.router.register("agents.deleteDocs", z.object({ paths: z.array(z.string().min(1)).min(1) }), { touches: "structure", target: ({ paths }) => this.fs.target(paths) }, async ({ paths }, caller) => ({ deleted: await this.fs.remove(paths, caller) }))
-    // A doc of Owlit's own (a Go through's record): own, decided on whose the doc is (docTarget), so every
+    // A doc of Owlit's own (a reading of material it went through): own, decided on whose the doc is (docTarget), so every
     // role may write one and none may write the person's this way
     this.router.register("agents.writeDoc", z.object({ path: z.string().min(1), content: z.string() }), { touches: "own", target: ({ path: file }) => this.docTarget(file) }, ({ path: file, content }, caller) => this.fs.writeOwn(file, content, caller))
     this.router.register("agents.moveDoc", z.object({ path: z.string().min(1), to: z.string().min(1) }), { touches: "structure", target: ({ path: from, to }) => this.fs.target([from, to]) }, async ({ path: from, to }, caller) => ({ path: await this.fs.move(from, to, caller) }))
@@ -661,6 +637,13 @@ export class Core {
       { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
       ({ id }, caller) => this.undo.undo(id, caller),
     )
+    this.router.register(
+      "changes.undoPart",
+      z.object({ id: z.string().min(1), index: z.number().int().min(0) }),
+      { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
+      ({ id, index }, caller) => this.undo.undoPart(id, index, caller),
+    )
+    this.router.register("changes.passages", z.object({ id: z.string().min(1) }), "read", ({ id }) => this.undo.passagesOf(id))
     this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), "read", ({ ids }) => this.undo.stats(ids))
     const actor = z.custom<ActorId>((v) => typeof v === "string" && /^([po]_[0-9a-f]+|other)$/.test(v))
     this.router.register(
@@ -686,11 +669,9 @@ export class Core {
       const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
       return ws.seen.unseen(me, { changes, chats, papers, since })
     })
-    this.router.register("changes.since", z.object({ path: z.string().min(1), hash: z.string().min(1) }), "read", async ({ path: rel, hash }, caller) => {
+    this.router.register("changes.since", z.object({ path: rel, hash: z.string().min(1), text: z.string() }), "read", async ({ path, hash, text }, caller) => {
       const ws = this.requireWorkspace()
-      const me = await this.personAt(caller)
-      const { content } = await ws.docs.read(rel)
-      return docPassages(ws.changes, rel, hash, content, me)
+      return docPassages(ws.changes, path, hash, text, await this.personAt(caller))
     })
     this.router.register("changes.proposals", z.object({ path: rel, text: z.string(), hash: z.string().min(1).optional(), since: z.number().optional() }), "read", ({ path, text, hash, since }) =>
       docProposals(this.requireWorkspace().changes, path, text, { ...(hash !== undefined ? { hash } : {}), ...(since !== undefined ? { since } : {}) }),
@@ -708,8 +689,11 @@ export class Core {
         z.object({ kind: z.literal("digest"), paper: z.string().min(1), ...at }),
       ]), "admin",
       async (mark, caller) => {
-        const marks = await this.requireWorkspace().seen.mark(await this.personAt(caller), mark)
+        const ws = this.requireWorkspace()
+        const marks = await ws.seen.mark(await this.personAt(caller), mark)
         this.notifier.notify("seen.changed", marks)
+        // A shared doc held for Owlit's unseen edits goes out now
+        if (mark.kind === "doc") ws.shares.touched({ docs: [mark.path] })
         return marks
       },
     )
@@ -1101,16 +1085,13 @@ export class Core {
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
     this.router.register("comments.all", noParams, "read", () => docs().commentsAll())
     // A comment is whoever started it (its first entry); others: who replied under it
-    // adding: a comment or reply made on the doc, which the user may have kept Owlit out of
-    const commentTarget = async (path: string, id: string, { replies = false, adding = false } = {}): Promise<Target> => {
-      const out = adding && (await docs().owlitOf(path)).out ? { out: true } : {}
+    const commentTarget = async (path: string, id: string, { replies = false } = {}): Promise<Target> => {
       const was = (await docs().listComments(path)).find((c) => c.id === id)
-      if (!was) return { what: "comment", ...out }
+      if (!was) return { what: "comment" }
       const by = was.entries[0]?.by
-      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}), ...out }
+      return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}) }
     }
-    const ownComment: Policy<"comments.dismiss"> = { touches: "own", target: ({ path, id }) => commentTarget(path, id) }
-    const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id, { adding: true }) }
+    const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id) }
     this.router.register("comments.add", z.object({ path: rel, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
       const agent = caller.kind !== "window"
       // Never over an existing comment (add replaces one with the same id)
@@ -1122,18 +1103,18 @@ export class Core {
         await this.recordComment(caller, path, null, made)
         return null
       }
-      // Where a comment carries words from is core's to say (a Go through's record), never the agent's
-      const { source: _claimed, ...own } = signed(comment, null, await this.requireWorkspace().recorder.actorOf(caller))
-      const source = await this.goThroughSource(caller)
+      // The record a carried-over point names is checked and named by core (recordSource)
+      const { source: claimed, ...own } = signed(comment, null, await this.requireWorkspace().recorder.actorOf(caller))
+      const source = claimed ? await this.recordSource(caller, claimed.path) : undefined
       await this.agentComment(path, source ? { ...own, source } : own, caller)
       return null
     })
     const COMMENT_PUT: Policy<"comments.put"> = {
       touches: ({ comment }, target, who) => commentTouches(comment, target, who),
       target: async ({ path, comment }) => {
-        const target = await commentTarget(path, comment.id, { adding: true })
+        const target = await commentTarget(path, comment.id)
         // A reply alone is a new entry of the caller's, whoever started the comment
-        if (target.was && replyOnly(comment, target.was as DocComment)) return { what: "reply", was: target.was, ...(target.out ? { out: true } : {}) }
+        if (target.was && replyOnly(comment, target.was as DocComment)) return { what: "reply", was: target.was }
         return target
       },
     }
@@ -1148,15 +1129,6 @@ export class Core {
         this.answerReply(this.requireWorkspace(), path, comment.id)
       }
       return before
-    })
-    // One of Owlit's comments the user doesn't want: put away for good
-    this.router.register("comments.dismiss", z.object({ path: rel, id: z.string() }), ownComment, async ({ path, id }, caller) => {
-      const comment = (await docs().listComments(path)).find((c) => c.id === id)
-      if (!comment) throw new RpcFailure(RpcErrorCode.NotFound, t`That comment isn't there any more.`)
-      if (!comment.entries[0] || !isOwlit(comment.entries[0].by)) throw new RpcFailure(RpcErrorCode.InvalidParams, "Only Owlit's comments are dismissed; yours are resolved or deleted.")
-      const dismissed = { ...comment, dismissedAt: Date.now() }
-      await this.putComment(path, dismissed, caller, {}, true)
-      return dismissed
     })
     this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
       const removed = await docs().removeComment(path, id)
@@ -1616,68 +1588,16 @@ export class Core {
     await this.announceStarted(ws, started.chatId)
   }
 
-  // Owlit going through material (a meeting's transcript, reviews) against the person's docs: a chat about
-  // the material, whose agent writes the reading as a record of its own with docs_write and then lands
-  // the points as comments. One already going is that one; after one that broke or was stopped, Retry is
-  // a new turn in its chat. Once one finished, asking again goes through it afresh, with a new record.
-  private async goThrough(rel: string): Promise<{ chatId: string }> {
+  // A point an agent carries over from a record of what people said (going through material): the
+  // comment points back to the record, a doc its chat wrote with docs_write, as the change log says.
+  // Core names the record; one not written yet is refused, so a comment never points at nothing.
+  private async recordSource(caller: Caller, file: string) {
     const ws = this.requireWorkspace()
-    const about = { kind: "doc", id: rel } as const
-    const running = this.turns.inFlight().find((turn) => sameAbout(turn.about, about))
-    if (running) return { chatId: running.chatId }
-    const key = `${ws.root}\0${rel}`
-    const asking = this.goThroughAsks.get(key)
-    if (asking) return asking
-    const asked = (async () => {
-      const last = await ws.chats.latestAbout(about)
-      const reply = last && (await ws.chats.get(last.id)).messages.at(-1)
-      let started: Started
-      if (reply?.role === "assistant" && reply.status !== "done" && reply.status !== "streaming") {
-        started = await tryAgain(this.turns, ws.chats, last!.id, await this.workAgent())
-        await this.announceStarted(ws, started.chatId)
-      } else {
-        const user = (await this.settings.get()).profile.name?.trim() || undefined
-        const work = await goThroughWork(ws, rel, { today: new Date().toISOString().slice(0, 10), ...(user ? { user } : {}) })
-        if (!work) throw new RpcFailure(RpcErrorCode.InvalidParams, t`There is nothing in it to go through.`, { path: rel })
-        const { name } = work
-        started = await this.startFor({ about, title: t`Going through “${name}”`, recipe: work.recipe, texts: [{ text: work.text, from: `The material, ${rel},` }] })
-      }
-      void started.done.then((stop) => this.goThroughEnded(ws, started, stop))
-      return { chatId: started.chatId }
-    })().finally(() => this.goThroughAsks.delete(key))
-    this.goThroughAsks.set(key, asked)
-    return asked
-  }
-
-  // The record a Go through's chat wrote: the doc it made, as the change log says. Undefined for any
-  // other caller, and for a Go through that hasn't written its record yet.
-  private async goThroughRecord(ws: Workspace, chatId: string) {
-    const made = (await ws.changes.list({ chatId, target: { kind: "doc" } })).find((c) => c.action === "create")
-    return made?.target.path
-  }
-
-  // A comment a Go through's agent lands carries over what people said, from the record: the comment
-  // says where it came from (and so Owlit can't rewrite its first entry, recipes/reply.ts). The recipe
-  // has the record written first; a comment before it would point at nothing, and is refused.
-  private async goThroughSource(caller: Caller) {
     const chatId = caller.kind === "socket" || caller.kind === "owlit" ? caller.chatId : undefined
-    const ws = this.requireWorkspace()
-    const chat = chatId ? await ws.chats.get(chatId).catch(() => null) : null
-    if (!chat?.startedBy || chat.about?.kind !== "doc") return undefined
-    const record = await this.goThroughRecord(ws, chat.id)
-    if (!record) throw new RpcFailure(RpcErrorCode.InvalidParams, "Write the reading with docs_write first: each comment points back to it.")
-    return { path: record, label: record.split("/").pop()!.replace(/\.md$/i, "") }
-  }
-
-  // A Go through's turn that finished without writing its record says so on its reply, as a failure,
-  // with Retry
-  private async goThroughEnded(ws: Workspace, started: Started, stop: StopReason | "error") {
-    if (stop !== "end_turn" || this.workspace !== ws) return
-    if (await this.goThroughRecord(ws, started.chatId)) return
-    const reply = (await ws.chats.get(started.chatId).catch(() => null))?.messages.find((m) => m.id === started.messageId)
-    if (!reply) return
-    await ws.chats.patchMessage(started.chatId, { ...reply, status: "error", error: t`Owlit finished without writing its reading.` }, true)
-    await this.announceStarted(ws, started.chatId)
+    const rel = ws.docs.resolve(file)
+    const made = chatId && (await ws.changes.list({ chatId, target: { kind: "doc", path: rel } })).some((c) => c.action === "create")
+    if (!made) throw new RpcFailure(RpcErrorCode.InvalidParams, "Write the reading with docs_write first: each comment points back to it, a doc this chat wrote.")
+    return { path: rel, label: rel.split("/").pop()!.replace(/\.md$/i, "") }
   }
 
   // A chat owlit starts for the person, on the agent and model Settings chooses for its work. Every window

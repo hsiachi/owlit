@@ -7,7 +7,7 @@ import { DAY, HOUR } from "@/lib/time"
 // What the browser preview has instead of core's log and seen marks: the Library's tool-reading thread
 // with two rows, a sentence and an answer read again in full that Owlit changed since the person looked,
 // an answer of the venue thread read again in full, a paragraph Owlit wrote in Related work and its last
-// comment there
+// comment there, and a note Owlit wrote whole
 
 const now = Date.now()
 const threads = seedThreads()
@@ -15,6 +15,7 @@ const reading = threads["reading-support-tools"]!
 const venue = threads["uist-2026-papers"]!
 const relatedWork = seedFiles.find((f) => f.path === "writing/Related work.md")!
 const retrieval = relatedWork.content!.split("\n\n").find((p) => p.startsWith("Retrieval is the oldest"))!.trim()
+const hunch = seedFiles.find((f) => f.path === "notes/Maybe retrieval and tool use are the same problem.md")!
 
 let n = 0
 const change = (at: number, target: Change["target"], extra: Partial<Change> = {}): Change => ({ id: `mock-${n++}`, at, actor: WEB_OWLIT, action: "update", target, origin: { via: "tool" }, ...extra })
@@ -33,6 +34,7 @@ export const MOCK_CHANGES: Change[] = [
   reread(reading, "p15", QUESTION_COLUMN, now - 25 * 60_000, "Highlights a paper's objective, method and result sentences in different colours to guide skimming.", "abstract"),
   reread(venue, "u1", QUESTION_COLUMN, now - 3 * HOUR, "Seems to show citation context inline while reading.", "title"),
   change(now - 2 * HOUR, { kind: "doc", path: relatedWork.path }),
+  change(hunch.createdAt, { kind: "doc", path: hunch.path }, { action: "create" }),
   ...(seedComments.d1 ?? [])
     .filter((c) => c.id === "n1")
     .map((c) => change(c.createdAt, { kind: "comment", path: relatedWork.path, part: c.id }, { action: "create" })),
@@ -49,11 +51,20 @@ export const MOCK_MARKS: SeenMarks = {
   digests: {},
 }
 
-export const MOCK_PASSAGES: Record<string, ChangedPassage[]> = { [relatedWork.path]: [{ text: retrieval, actor: WEB_OWLIT, at: now - 2 * HOUR }] }
+// The paragraph before Owlit's, and one a co-author removed after it
+const acting = relatedWork.content!.split("\n\n").find((p) => p.startsWith("[Yao et al."))!.trim()
+export const MOCK_PASSAGES: Record<string, ChangedPassage[]> = {
+  [relatedWork.path]: [
+    { text: retrieval, actor: WEB_OWLIT, at: now - 2 * HOUR },
+    { text: "Memory networks kept facts in a table the model could read from.", actor: "other", at: now - 2 * HOUR, removed: { after: acting } },
+  ],
+}
 
 // The same paragraph as the passage Owlit's edit landed, with the words either side as core gives them;
 // the mock agent adds to this as it edits (chat/agent/mock-client.ts)
 const at = relatedWork.content!.indexOf(retrieval)
 export const MOCK_PROPOSALS: Record<string, Proposal[]> = {
+  // A doc Owlit wrote whole: one line above it, no marks
+  [hunch.path]: [{ id: "mock-made", at: hunch.createdAt, actor: WEB_OWLIT, hunks: [], whole: { also: [] } }],
   [relatedWork.path]: [{ id: "mock-proposal", at: now - 2 * HOUR, actor: WEB_OWLIT, hunks: [{ insert: retrieval, removed: "", before: relatedWork.content!.slice(at - 24, at), after: relatedWork.content!.slice(at + retrieval.length, at + retrieval.length + 24) }] }],
 }

@@ -85,7 +85,7 @@ export class Recorder {
   }
 
   // A doc's change from its text on each side: no text before is a create, none after a delete
-  doc(caller: Caller, rel: string, before: string | null, after: string | null, extra: Pick<RecordInput, "origin" | "undoes"> = {}, say: Say = {}) {
+  doc(caller: Caller, rel: string, before: string | null, after: string | null, extra: DocExtra = {}, say: Say = {}) {
     return this.record(caller, docInput(rel, before, after, extra), say)
   }
 
@@ -138,10 +138,13 @@ export class Recorder {
   }
 }
 
-function docInput(rel: string, before: string | null, after: string | null, extra: Pick<RecordInput, "origin" | "undoes"> = {}): RecordInput {
+// part: one passage of the change an undo takes back (Undo.undoPart)
+type DocExtra = Pick<RecordInput, "origin" | "undoes"> & { part?: string }
+
+function docInput(rel: string, before: string | null, after: string | null, { part, ...extra }: DocExtra = {}): RecordInput {
   return {
     action: before === null ? "create" : after === null ? "delete" : "update",
-    target: { kind: "doc", path: rel },
+    target: { kind: "doc", path: rel, ...(part !== undefined ? { part } : {}) },
     ...extra,
     ...(after !== null ? { afterHash: sha1(after) } : {}),
     ...(before !== null ? { content: before } : {}),

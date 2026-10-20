@@ -43,10 +43,10 @@ export const threadMentionable = (c: Thread): Mentionable => {
 // @ asks for it on every key typed. Shared between callers, so not to be changed.
 let everything: { from: unknown[]; items: DocMention[] } | undefined
 function everyMention(): DocMention[] {
-  const { papers } = useLibraryStore.getState()
+  const { papers, aliases } = useLibraryStore.getState()
   const { files } = useDocsStore.getState()
   const { threads } = useThreadsStore.getState()
-  const from = [papers, files, threads, i18n.locale]
+  const from = [papers, aliases, files, threads, i18n.locale]
   if (everything?.from.every((x, i) => x === from[i])) return everything.items
   const paperItems: DocMention[] = Object.values(papers)
     .sort((x, y) => (y.lastOpenedAt ?? y.addedAt) - (x.lastOpenedAt ?? x.addedAt))
@@ -62,7 +62,26 @@ function everyMention(): DocMention[] {
       const m = threadMentionable(c)
       return { ...m, label: m.title }
     })
-  everything = { from, items: [...paperItems, ...docItems, ...threadItems] }
+  // Papers a thread found that aren't in the Library, each once, from the threads changed last: linked by
+  // the id the thread knows them by, as its rows link them (mentionRoute opens one on its thread)
+  const found = new Map<string, DocMention>()
+  for (const c of Object.values(threads).sort((a, b) => b.updatedAt - a.updatedAt)) {
+    const thread = shown(c)
+    const where = thread.title
+    for (const row of thread.rows) {
+      if (found.has(row.id) || paperOf(row.id, papers, aliases)) continue
+      const who = authorsYear(row.paper)
+      found.set(row.id, {
+        id: row.id,
+        kind: "paper",
+        title: row.paper.title,
+        subtitle: t({ message: `${who} · in “${where}”`, comment: "a paper @ offers from a thread: its authors and year, and the thread that found it" }),
+        uri: paperUri(row.id),
+        label: citationLabel(row.paper),
+      })
+    }
+  }
+  everything = { from, items: [...paperItems, ...docItems, ...threadItems, ...found.values()] }
   return everything.items
 }
 

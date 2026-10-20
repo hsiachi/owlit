@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react"
 import type { Proposal, Unseen } from "@owlit/protocol"
 import { markSeen, proposalsOf, useSeen } from "@/app/seen"
 import { citationLabel } from "../lib/format"
+import { PassageChange } from "@/components/passage-change"
 import { Button } from "@/components/ui/button"
-import { undoChange } from "@/lib/changes"
-import { markdownPlain } from "@/lib/markdown-plain"
+import { undoAll, undoChange } from "@/lib/changes"
 import { isDesktop } from "@/lib/rpc"
 import { sha1 } from "@/lib/sha1"
 import { useLibraryStore } from "../store"
@@ -13,27 +13,12 @@ import { notePathOf } from "./note-actions"
 
 // On screen this long, the note as it reads is seen: the rule a doc keeps (docs/changed.ts)
 const SEEN_AFTER_MS = 3000
-// Words either side of a passage, enough to tell where in the note it is
-const CONTEXT = 32
-
 // The ids of others' unseen changes to the note, as one key, so a new one asks again
 const unseenKey = (unseen: Unseen, path: string) =>
   unseen.changes
     .filter((c) => c.target.kind === "doc" && c.target.path === path)
     .map((c) => c.id)
     .join()
-
-// Markdown as the words the note shows, its spaces at either end kept so the pieces join as they read
-const plain = (md: string) => markdownPlain(md, { lines: true }).replace(/\s+/g, " ")
-// The context beside a passage, its far end cut at a word where there are words: core cuts it at a
-// number of characters, so its first or last word may be a piece of one
-function clip(text: string, side: "before" | "after") {
-  const cut = side === "before" ? text.slice(-CONTEXT) : text.slice(0, CONTEXT)
-  const space = side === "before" ? cut.indexOf(" ") : cut.lastIndexOf(" ")
-  // No space but the one against the passage: one word, or text written without spaces
-  if (side === "before" ? space < 0 || space === cut.length - 1 : space <= 0) return side === "before" ? `…${cut}` : `${cut}…`
-  return side === "before" ? `…${cut.slice(space + 1)}` : `${cut.slice(0, space)}…`
-}
 
 // Owlit's edits to a paper's note since the person last had it on screen, listed above the note: each
 // passage as the words it took out (struck) and put in (underlined, Owlit's colour), with Undo through
@@ -93,7 +78,10 @@ export function NoteChanges({ paperId }: { paperId: string }) {
     if (isDesktop) {
       const found = useLibraryStore.getState().papers[paperId]
       const paper = found && citationLabel(found)
-      undoChange(p.id, paper ? t`Your note on ${paper}` : t`Your note`)
+      const what = paper ? t`Your note on ${paper}` : t`Your note`
+      // A note Owlit wrote whole goes back with Owlit's later changes to it, newest first
+      if (p.whole) void undoAll([...p.whole.also.toReversed(), p.id], what)
+      else undoChange(p.id, what)
       return
     }
     // The browser preview has no change log: the passages go back in the note as it reads
@@ -109,13 +97,12 @@ export function NoteChanges({ paperId }: { paperId: string }) {
       {shown.map((p) => (
         <div key={p.id} className="group/edit relative flex items-start gap-2 pl-3 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-owlit">
           <p className="min-w-0 flex-1 leading-relaxed text-foreground">
-            {p.hunks.map((h, i) => (
+            {p.whole && <span className="text-muted-foreground">{t`Owlit wrote this note`}</span>}
+            {/* A passage undone on its own comes empty, keeping the others' places */}
+            {p.hunks.filter((h) => h.insert || h.removed).map((h, i) => (
               <span key={i}>
                 {i > 0 && " … "}
-                {h.before.trim() && <span className="text-muted-foreground">{clip(plain(h.before), "before")}</span>}
-                {h.removed.trim() && <span className="suggest-del">{plain(h.removed)}</span>}
-                {h.insert.trim() && <span className={h.removed.trim() ? "suggest-ins suggest-ins-after" : "suggest-ins"}>{plain(h.insert)}</span>}
-                {h.after.trim() && <span className="text-muted-foreground">{clip(plain(h.after), "after")}</span>}
+                <PassageChange hunk={h} />
               </span>
             ))}
           </p>

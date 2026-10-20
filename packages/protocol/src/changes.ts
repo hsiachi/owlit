@@ -17,8 +17,9 @@ export interface ChangeTarget {
   // The doc's path, the comment's doc path, the paper's id, the thread's id, "memory"
   path: string
   // The piece inside it: a comment's id (<comment>/<entry> for one entry), a paper's field (status,
-  // overrides.title…), a thread item (row:…, cell:…, memo:…, title), a memory line's id; absent when the
-  // whole thing was created, deleted or changed
+  // overrides.title…), a thread item (row:…, cell:…, memo:…, title), a memory line's id, or on an undo of
+  // one passage of a doc's change, passage:<its index among the change's> (changes.undoPart); absent
+  // when the whole thing was created, deleted or changed
   part?: string
 }
 
@@ -117,12 +118,18 @@ export interface Unseen {
 }
 
 // changes.proposals: one of Owlit's changes to a doc since the text the person last had on screen, as
-// the passages it replaced, so the doc can mark each and offer Keep and Undo on it
+// the passages it replaced, so the doc can mark each and offer Undo on it
 export interface Proposal {
   id: string
   at: number
   actor: ActorId
+  // The chat it came from
+  chatId?: string
   hunks: ProposalHunk[]
+  // The change made the doc: Owlit wrote it whole, so the doc shows one line about it and no passages.
+  // also: Owlit's later changes to it before the person saw it, which are part of what it wrote (their
+  // Undo goes with the doc's, newest first).
+  whole?: { also: string[] }
 }
 
 // One passage of a proposal, as the text it put in and the text it took out, with the words either side
@@ -136,11 +143,13 @@ export interface ProposalHunk {
 }
 
 // changes.since: a paragraph of a doc as it reads now that someone other than the person wrote since
-// the text they last had on screen
+// the text they last had on screen, or one they removed (removed: text is what it said, after the
+// paragraph it followed in the doc as it reads now, null at the top)
 export interface ChangedPassage {
   text: string
   actor: ActorId
   at: number
+  removed?: { after: string | null }
 }
 
 // A thread item's entry by someone else carries a dot when it is something the person reads: the title,

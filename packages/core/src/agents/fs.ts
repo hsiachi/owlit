@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { isMarkdown, RpcErrorCode, type ActorId, type ChangeOrigin, type Role } from "@owlit/protocol"
+import { hunks } from "../changes/hunks.ts"
 import { newWriteId } from "../changes/record.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { UiBridge } from "../ui/bridge.ts"
@@ -70,19 +71,17 @@ export class AgentFs {
     const before = await this.text(rel)
     // Said once it is written, so the window that shows it has it
     const change = await ws.recorder.doc(caller, rel, before, content, { origin }, { quiet: true })
-    await this.place(rel, content, change.id)
+    await this.place(rel, content, change.id, before)
     ws.recorder.say(change)
   }
 
   // The files a write or an engine's request names, as the policy's target (policy.ts): each resolved
   // against the workspace, and whether all are the user's: inside the workspace and docs (not library/,
-  // .owlit/ or another dot-folder, as written or where a link leads), or a paper's note; and whether the
-  // user keeps Owlit out of one of the docs
+  // .owlit/ or another dot-folder, as written or where a link leads), or a paper's note
   async target(paths: string[]): Promise<Target> {
     const { docs, library } = this.workspace()
     const files: string[] = []
     let notDoc = false
-    let out = false
     for (const file of paths) {
       let rel: string
       try {
@@ -94,9 +93,8 @@ export class AgentFs {
       files.push(rel)
       if (library.noteOf(rel)) continue
       if (!docs.isDoc(rel)) notDoc = true
-      else if ((await docs.owlitOf(rel)).out) out = true
     }
-    return { what: "file", files, ...(notDoc ? { notDoc } : {}), ...(out ? { out } : {}) }
+    return { what: "file", files, ...(notDoc ? { notDoc } : {}) }
   }
 
   // The caller as the change log names it
@@ -109,13 +107,14 @@ export class AgentFs {
     return (await this.fromEditor(rel)) ?? (await this.workspace().docs.readDisk(rel))
   }
 
-  // Writes a doc through the editor that has it open, as one step of its undo, else to disk. undo: an
-  // undo of a change in the log, which the editor applies without saying it as an agent's edit.
-  async place(rel: string, content: string, changeId: string, undo = false) {
+  // Writes a doc through the editor that has it open, as one step of its undo, else to disk. base: the
+  // doc's text the change was made from, as this read it (text), from which the editor gets the change
+  // as hunks
+  async place(rel: string, content: string, changeId: string, base: string | null) {
     const holder = this.options.ui.holder(rel)
     if (holder) {
       const applied = await this.options.ui
-        .request(holder, "fs.write", { path: rel, content, changeId, ...(undo ? { undo } : {}) })
+        .request(holder, "fs.write", { path: rel, content, changeId, ...(base !== null ? { hunks: hunks(base, content) } : {}) })
         .then((r) => r.applied)
         .catch(() => false)
       log(applied ? `  through the editor in window ${holder.slice(0, 8)}` : "  the window didn't take it; writing to disk")
@@ -133,7 +132,7 @@ export class AgentFs {
     if (!isMarkdown(rel)) throw new RpcFailure(RpcErrorCode.InvalidParams, "docs_write writes Markdown docs: give the path a .md name.", { path: rel })
     const before = await this.text(rel)
     const change = await ws.recorder.doc(caller, rel, before, content, {}, { quiet: true })
-    await this.place(rel, content, change.id)
+    await this.place(rel, content, change.id, before)
     ws.recorder.say(change)
     return { path: rel, created: before === null }
   }

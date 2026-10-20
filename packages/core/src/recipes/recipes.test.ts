@@ -6,35 +6,17 @@ import { goThroughRecipe } from "./go-through.ts"
 import { replyRecipe } from "./reply.ts"
 import { RECIPES } from "./index.ts"
 
-const input = {
-  path: "Meetings/P5 周会.md",
-  record: "Meetings/P5 周会 · 解读.md",
-  recordLabel: "P5 周会 · 解读",
-  materialLink: "owlit://docs/Meetings/P5%20%E5%91%A8%E4%BC%9A.md",
-  chinese: true,
-  docs: ["story.md"],
-  today: "2026-10-16",
-}
-
 describe("the Go through recipe", () => {
-  it("has the record written first with docs_write, the material below a link, then the points as comments pointing back to it", () => {
-    const recipe = goThroughRecipe(input)
-    expect(recipe).toContain("as a new doc of your own with docs_write at Meetings/P5 周会 · 解读.md")
-    expect(recipe).toContain("## 原文\n\n- [P5 周会](owlit://docs/Meetings/P5%20%E5%91%A8%E4%BC%9A.md)")
-    expect(recipe).toContain("## Owlit 的解读")
-    expect(recipe).toContain("the workspace's docs are story.md")
-    expect(recipe).toContain("[P5 周会 · 解读](owlit://docs/Meetings/P5%20%E5%91%A8%E4%BC%9A%20%C2%B7%20%E8%A7%A3%E8%AF%BB.md)")
-    expect(recipe.indexOf("docs_write")).toBeLessThan(recipe.indexOf("docs_add_comment"))
-    // Kept apart, never guessed
-    expect(recipe).toContain("Most things that sound like a decision are this")
-    expect(recipe).toContain("never guess a name from context")
-  })
-
-  it("says how to find the material, the docs and the record's place when served to a chat", () => {
+  it("has the reading written first with docs_write, then the points as comments pointing back to it", () => {
     const recipe = goThroughRecipe()
     expect(recipe).toContain("read it whole with docs_read")
     expect(recipe).toContain("docs_list lists the workspace's docs")
     expect(recipe).toContain('" · reading"')
+    expect(recipe).toContain("with docs_add_comment and record set to the record's path")
+    expect(recipe.indexOf("docs_write")).toBeLessThan(recipe.indexOf("docs_add_comment"))
+    // Kept apart, never guessed
+    expect(recipe).toContain("Most things that sound like a decision are this")
+    expect(recipe).toContain("never guess a name from context")
     expect(RECIPES["go-through"].text(undefined)).toBe(recipe)
     expect(guide()).toMatch(/- go-through: go through material from people/)
   })

@@ -11,7 +11,6 @@ import { pdfFact } from "./server.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 const fixtures = path.join(import.meta.dirname, "../../core/src/library/fixtures")
-const FAKE_AGENT = path.join(import.meta.dirname, "../../core/src/agents/fake-acp.ts")
 
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => {
@@ -480,29 +479,9 @@ describe("docs_read on a PDF", () => {
     expect((await tool("docs_read", { path: "broken.pdf" })).text).toMatch(/isn't a PDF owlit can read/)
   }, 30_000)
 
-  it("starts a Go through of the material the agent names", async () => {
-    const { root, core, call, tool } = await setup()
-    // The work owlit starts runs on the fake agent, never on an agent this Mac happens to have
-    const agent = await call("agents.add", { name: "Fake", command: `"${process.execPath}" "${FAKE_AGENT}"` })
-    await core.settings.update((s) => ({ ...s, connectors: { ...s.connectors, background: agent.id } }))
-    mkdirSync(path.join(root, "Meetings"))
-    writeFileSync(path.join(root, "Meetings/Weekly.md"), "# Weekly\n\nAna: start the story from the task.\n")
-    expect((await tool("docs_go_through", { path: "Meetings/Weekly.md" })).text).toMatch(/^Owlit is going through Meetings\/Weekly\.md in a chat of its own\./)
-    expect(await call("chats.startedFor", { kind: "doc" })).toMatchObject([{ about: { kind: "doc", id: "Meetings/Weekly.md" } }])
-    expect((await tool("docs_go_through", { path: "Meetings/slides.pdf" })).isError).toBe(true)
-  })
-
   it("names the tool and the parameter core couldn't use", async () => {
     const { tool } = await setup()
     expect(await tool("library_search", { query: "replay", limit: 100 })).toEqual({ isError: true, text: expect.stringMatching(/^library_search got parameters it can't use: limit: .*50\.$/) })
-  })
-
-  it("says after a doc's text that the user keeps Owlit out of it", async () => {
-    const { root, call, tool } = await setup()
-    writeFileSync(path.join(root, "Intro.md"), "# Intro\n\nMine alone.\n")
-    expect((await tool("docs_read", { path: "Intro.md" })).text).toBe("# Intro\n\nMine alone.\n")
-    await call("docs.setOwlitOut", { path: "Intro.md", out: true })
-    expect((await tool("docs_read", { path: "Intro.md" })).text).toMatch(/Mine alone\.\n\n\(The user keeps Owlit out of this doc: read it, don't change or comment on it\.\)$/)
   })
 
   it("ends each tool's description with what the roles get", async () => {

@@ -75,6 +75,8 @@ export interface DocShare {
   pushedAt?: number
   // Why the latest changes haven't reached the server, in a sentence; absent when they have
   problem?: string
+  // The latest changes wait for the author: Owlit's edits they haven't seen yet
+  held?: boolean
   // How many papers the doc cites
   papers: number
   // Shared from another computer: only that one holds the key to change it
@@ -216,21 +218,35 @@ const sharedStart = (a: string, b: string) => {
   return n
 }
 
+// A quote shorter than this ("**2. ", "the model") occurs in many places, so where it is takes the text
+// around it as well
+const SHORT_QUOTE = 12
+// How much of that text a short quote's place must share, at most
+const SHORT_CONTEXT = 8
+
 // Where an anchored passage starts in this text: of every place its words appear, the one whose
-// surroundings match best. Null when the words are no longer there.
-export function findAnchor(text: string, anchor: ShareAnchor): number | null {
+// surroundings match best, and of those the nearest to `near` (where it was last known to be). A short
+// quote counts only where some of its surroundings match too, or where it is the only one. Null when
+// the words are no longer there.
+export function findAnchor(text: string, anchor: ShareAnchor, near?: number): number | null {
   if (!anchor.quote) return null
+  const context = anchor.prefix.length + anchor.suffix.length
+  const needed = anchor.quote.trim().length < SHORT_QUOTE ? Math.min(SHORT_CONTEXT, context) : 0
   let best: number | null = null
   let bestScore = -1
+  let count = 0
   for (let i = text.indexOf(anchor.quote); i >= 0; i = text.indexOf(anchor.quote, i + 1)) {
+    count++
     const score =
       sharedEnd(text.slice(Math.max(0, i - anchor.prefix.length), i), anchor.prefix) +
       sharedStart(text.slice(i + anchor.quote.length, i + anchor.quote.length + anchor.suffix.length), anchor.suffix)
-    if (score > bestScore) {
+    const nearer = near !== undefined && best !== null && Math.abs(i - near) < Math.abs(best - near)
+    if (score > bestScore || (score === bestScore && nearer)) {
       best = i
       bestScore = score
     }
   }
+  if (best !== null && bestScore < needed && count > 1) return null
   return best
 }
 

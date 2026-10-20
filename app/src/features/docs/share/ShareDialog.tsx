@@ -122,6 +122,8 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
               <p className="text-detail text-muted-foreground">{t`This doc was shared from another computer; only that one can change its link.`}</p>
             ) : share.problem ? (
               <p className="text-detail text-destructive">{share.problem}</p>
+            ) : share.held ? (
+              <p className="text-detail text-muted-foreground">{t`Owlit's latest edits reach readers once you've seen them in the doc.`}</p>
             ) : (
               <p className="text-detail text-muted-foreground">{share.pushedAt ? t`Readers have the doc as it was ${ago(share.pushedAt, { inSentence: true })}.` : t`Readers have the latest version.`}</p>
             )}

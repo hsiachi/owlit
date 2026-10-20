@@ -1,4 +1,6 @@
+import type { ChangeSpec } from "@codemirror/state"
 import type { EditorView } from "@codemirror/view"
+import type { TextHunk } from "@owlit/protocol"
 import { spanChange } from "@/lib/text-diff"
 
 // Docs open in an editor, by file id. Changes that don't come from the keyboard (an agent's write, the
@@ -29,6 +31,21 @@ export function onEditorsChanged(listener: () => void) {
 }
 
 export const openEditor = (id: string) => openEditors.get(id)
+
+// Core's hunks for a write (fs.write) as the editor's changes: each place its own change, so what sits
+// between them (a comment's words, the cursor) maps through untouched, where one span from the first
+// change to the last would swallow it. Null when they don't turn the editor's text into content: it
+// changed after core read it.
+export function hunkChanges(text: string, hunks: TextHunk[], content: string): ChangeSpec[] | null {
+  let out = ""
+  let at = 0
+  for (const h of hunks) {
+    if (h.from < at || h.to < h.from || h.to > text.length) return null
+    out += text.slice(at, h.from) + h.insert
+    at = h.to
+  }
+  return out + text.slice(at) === content ? hunks.map((h) => ({ from: h.from, to: h.to, insert: h.insert })) : null
+}
 
 // Puts new text into an open editor as one change; false when the doc isn't open
 export function replaceInEditor(id: string, content: string, userEvent?: string) {

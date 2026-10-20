@@ -566,7 +566,7 @@ The shared shapes. A place uses each as it is; measures are in the front matter 
 - **Broken block.** A reply that broke is a bordered block in the result card's frame, never a wrapping line, with the agent's own words behind Details.
 - **Waiting card** (`WaitingDock`). What waits on you sits above the composer, never among the messages. One decision never shows two sets of buttons.
 - **Owlit's edit** (`.suggest-*`, `index.css`). The same in a doc, a note, a step and a preview: new words in `owlit` underlined, removed words muted under an `owlit` strike, an `owlit` rule beside every touched line. Removal is never red.
-- **Work you asked for.** A digest, a thread's run, a Go through or an answer to a reply shows only where it lands, as rule 3's *working* rung: one muted sentence that shimmers, with Stop as a text button. No mark elsewhere, no list of its own.
+- **Work you asked for.** A digest, a thread's run or an answer to a reply shows only where it lands, as rule 3's *working* rung: one muted sentence that shimmers, with Stop as a text button. No mark elsewhere, no list of its own.
 - **Comment** (`docs/comments/`). Everyone's comments are one shape: a `comment-mark` underline under exactly the words, below and thicker than a link's, and a card beside the reading column. The share page draws the same card.
 
 **Pages**

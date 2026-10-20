@@ -113,9 +113,9 @@ export function listChanges(filter: ChangeFilter): Promise<Change[]> {
 }
 
 // The paragraphs of a doc someone else wrote since the text whose sha1 is hash
-export function changedPassages(path: string, hash: string): Promise<ChangedPassage[]> {
+export function changedPassages(path: string, hash: string, text: string): Promise<ChangedPassage[]> {
   if (!isDesktop) return Promise.resolve(MOCK_PASSAGES[path] ?? [])
-  return rpc.changes.since({ path, hash })
+  return rpc.changes.since({ path, hash, text })
 }
 
 // Owlit's standing changes to a doc since the text whose sha1 is hash (else since the person's marks

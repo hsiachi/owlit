@@ -6,14 +6,15 @@ import { RpcFailure, type Caller } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
 import type { DigestRecord } from "../library/digest/prompt.ts"
 import { hunks, merge } from "./hunks.ts"
-import { proposalHunks } from "./proposals.ts"
+import { passagePart, passageSpans, proposalHunks } from "./proposals.ts"
 
 // A doc where the person sees it (agents/fs.ts): its open editor's text, else the disk's
 export interface DocAccess {
   // null when there is no such doc
   text(rel: string): Promise<string | null>
-  // Through the editor that has it open, as one step of its undo, else to disk
-  write(rel: string, content: string, changeId: string): Promise<void>
+  // Through the editor that has it open, as one step of its undo, else to disk; base: the text it was
+  // worked out from
+  write(rel: string, content: string, changeId: string, base: string | null): Promise<void>
 }
 
 interface UndoOptions {
@@ -62,6 +63,38 @@ export class Undo {
     }
   }
 
+  // One passage of a doc's change goes back, as the doc marks it (proposals.ts passageSpans, by index):
+  // its words as they were before the change, put onto the doc as it is now. Recorded as an undo of the
+  // change naming the passage (target.part), so the change's other passages still stand, and the chat's
+  // card reads it as partly undone. A passage edited since is left as it is, and refused.
+  async undoPart(id: string, index: number, caller: Caller): Promise<Undone> {
+    const ws = this.workspace()
+    const change = await ws.changes.get(id)
+    if (!change) throw gone(id)
+    const rel = change.target.path
+    const name = rel.split("/").pop() ?? rel
+    if (change.target.kind !== "doc" || change.action !== "update" || change.target.part !== undefined) {
+      throw new RpcFailure(RpcErrorCode.InvalidParams, "Only a change to a doc's text is undone one passage at a time.", { id })
+    }
+    const before = await ws.changes.content(change.id)
+    if (before === null) throw gone(id)
+    const from = await this.leftBy(ws, change)
+    const span = from === null ? undefined : passageSpans(before, from)[index]
+    if (from === null || !span) throw new RpcFailure(RpcErrorCode.NotFound, t`That passage is no longer part of the change.`, { id })
+    const note = ws.library.noteOf(rel)
+    const now = note ? (await ws.library.read(note, "note")).text : await this.options.docs.text(rel)
+    if (now === null) throw new RpcFailure(RpcErrorCode.NotFound, t`${name} is gone, so owlit couldn't put the change back.`, { path: rel })
+    const { text, left } = merge(from, [{ from: span.af, to: span.at, insert: before.slice(span.bf, span.bt) }], hunks(from, now))
+    if (left.length) throw new RpcFailure(RpcErrorCode.Conflict, t`That passage of ${name} was edited since, so owlit left it as it is.`, { path: rel })
+    const extra = { undoes: change.id, part: passagePart(index), origin: change.origin.chatId ? { chatId: change.origin.chatId } : {} }
+    // Recorded before the write, so the editor's save of it is known as this entry coming back
+    const undo = await ws.recorder.doc(caller, rel, now, text, extra, { quiet: true })
+    if (note) await ws.library.writeNoteFor(note, text)
+    else await this.options.docs.write(rel, text, undo.id, now)
+    ws.recorder.say(undo)
+    return { change: undo }
+  }
+
   // How much a run of entries on one doc changed it: from the text before the first to the text the last
   // left. Agents report their edits in pieces, if at all; these texts are what happened.
   async stats(ids: string[]) {
@@ -74,6 +107,18 @@ export class Undo {
     if (before === null || after === undefined) return null
     // Passages as the doc marks them, so a card can say how many of them the person undid there
     return { ...editStats(first.target.path, before, after ?? ""), passages: proposalHunks(before, after ?? "").length }
+  }
+
+  // What one entry on a doc did, passage by passage as the doc marks them (a doc made: its whole text, one
+  // deleted: all it said); null when it isn't a doc's or its texts are no longer kept
+  async passagesOf(id: string) {
+    const ws = this.workspace()
+    const change = await ws.changes.get(id)
+    if (change?.target.kind !== "doc") return null
+    const before = change.action === "create" ? "" : await ws.changes.content(change.id)
+    const after = await this.leftBy(ws, change).catch(() => undefined)
+    if (before === null || after === undefined) return null
+    return proposalHunks(before, after ?? "")
   }
 
   // A doc's passages go back: the hunks from the text the entry left to the text before it, applied to the
@@ -107,11 +152,13 @@ export class Undo {
       left = merged.left
     }
 
-    // Recorded before the write, so the editor's save of it is known as this entry coming back
-    const undo = await ws.recorder.doc(caller, rel, note ? now || null : now, note ? to || null : to, extra, { quiet: true })
+    // Recorded before the write, so the editor's save of it is known as this entry coming back. The undo
+    // of a passage's undo names the passage too, so it reads as that undo taken back.
+    const part = change.target.part !== undefined ? { part: change.target.part } : {}
+    const undo = await ws.recorder.doc(caller, rel, note ? now || null : now, note ? to || null : to, { ...extra, ...part }, { quiet: true })
     if (note) await ws.library.writeNoteFor(note, to ?? "")
     else if (to === null) await ws.docs.removeTold(rel)
-    else await this.options.docs.write(rel, to, undo.id)
+    else await this.options.docs.write(rel, to, undo.id, now)
     ws.recorder.say(undo)
     return left.length ? { change: undo, left } : { change: undo }
   }

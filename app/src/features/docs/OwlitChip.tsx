@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { isDesktop } from "@/lib/rpc"
 import { useAgentWindow } from "@/features/agent/store"
 import { docKey } from "./comments/model"
-import { useDocOwlit, useNewOwlitComments } from "./owlit"
+import { useNewOwlitComments } from "./owlit"
 import { useDocsUiStore } from "./ui-store"
 
 // New comments count as seen once they have been on screen this long
@@ -17,9 +17,8 @@ const SEEN_AFTER_MS = 3000
 
 // Owlit in a doc's header, beside its comments and Shared: it is a member of the doc. Its tooltip says it
 // works here only when asked, and a click opens the Owlit panel to ask; Owlit's dot once it left comments
-// the user hasn't seen (click: the first of them). Kept out (the doc's ⋯ menu), there is no chip at all.
+// the user hasn't seen (click: the first of them). Without core (pnpm dev:web) there is no chip.
 export function OwlitChip({ file }: { file: WorkspaceFile }) {
-  const state = useDocOwlit(file.path)
   const fresh = useNewOwlitComments(file)
   const shown = useDocsUiStore((s) => s.commentsShown)
 
@@ -31,7 +30,7 @@ export function OwlitChip({ file }: { file: WorkspaceFile }) {
     return () => clearTimeout(timer)
   }, [count, shown, file.path])
 
-  if (!isDesktop || !state || state.out) return null
+  if (!isDesktop) return null
 
   const first = fresh[0]
   return (

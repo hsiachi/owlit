@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { isPerson, RpcErrorCode, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { mkdir, readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
@@ -9,6 +9,7 @@ import { Http } from "../net/http.ts"
 import { ChangeLog } from "../changes/log.ts"
 import { newWriteId, Recorder, type ReplyOrigin } from "../changes/record.ts"
 import { Members } from "../changes/members.ts"
+import { docProposals } from "../changes/proposals.ts"
 import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings.ts"
 import { Memory } from "../memory/memory.ts"
@@ -150,6 +151,14 @@ export class Workspace {
       secrets: options.shares?.secrets ?? host.secrets,
       fetch: options.shares?.fetch ?? host.fetch,
       readDoc: (rel) => this.docs.read(rel).then((r) => r.content, () => null),
+      // As the doc marks them: Owlit's standing changes since the text the person last had on screen
+      held: async (rel, markdown) => {
+        const me = await this.recorder.actorOf(WINDOW)
+        if (!isPerson(me)) return false
+        const marks = await this.seen.get(me, ["docs"])
+        const mark = marks.docs[rel]
+        return (await docProposals(this.changes, rel, markdown, mark ? { hash: mark.hash } : { since: marks.since })).length > 0
+      },
       paper: async (id) => {
         const paper = await this.library.get(id)
         if (!paper) return undefined

@@ -25,4 +25,18 @@ describe("passagesSince", () => {
     expect(passagesSince(base, current, steps, ME)).toEqual([])
     expect(passagesSince(base, `${base}\nFrom nowhere.\n`, [], ME)).toEqual([])
   })
+
+  it("shows a paragraph someone else removed, after the one it followed, and not one rewritten", () => {
+    const current = "回放评分更低。\n\nKelly 2015 is close.\n"
+    const steps = [{ actor: "other" as const, at: 20, before: base, after: current }]
+    expect(passagesSince(base, current, steps, ME)).toEqual([{ text: "The method works well.", actor: "other", at: 20, removed: { after: "回放评分更低。" } }])
+    // Taken out by the person: theirs to know
+    expect(passagesSince(base, current, [{ ...steps[0]!, actor: ME }], ME)).toEqual([])
+    // Rewritten, not removed: only its new text shows
+    const rewritten = "回放评分更低。\n\nThe method works, mostly.\n\nKelly 2015 is close.\n"
+    expect(passagesSince(base, rewritten, [{ ...steps[0]!, after: rewritten }], ME).map((p) => p.removed)).toEqual([undefined])
+    // The first paragraph, removed: at the top
+    const top = "The method works well.\n\nKelly 2015 is close.\n"
+    expect(passagesSince(base, top, [{ ...steps[0]!, after: top }], ME)).toMatchObject([{ text: "回放评分更低。", removed: { after: null } }])
+  })
 })

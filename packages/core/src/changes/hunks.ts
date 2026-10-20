@@ -1,13 +1,10 @@
+import type { TextHunk } from "@owlit/protocol"
 import { diffArrays } from "diff"
 
-// The one place owlit diffs text (jsdiff), so the library can be swapped here alone
+// The one place owlit diffs text (jsdiff), so the library can be swapped here alone. An open editor
+// takes a write as these hunks too (fs.write), so the app has no diff of its own for core's writes.
 
-// text[from, to) becomes insert
-export interface Hunk {
-  from: number
-  to: number
-  insert: string
-}
+export type Hunk = TextHunk
 
 // Latin words and each space or mark are tokens; Chinese and Japanese, written without spaces, are
 // diffed character by character, so a change inside a sentence stays the size it was
@@ -34,6 +31,11 @@ export function hunks(a: string, b: string): Hunk[] {
   }
   if (open) out.push(open)
   return out
+}
+
+// Two lists (a doc's paragraphs) compared item by item, as runs kept, added or removed, in order
+export function diffLists(a: string[], b: string[]): { value: string[]; added?: boolean; removed?: boolean }[] {
+  return diffArrays(a, b)
 }
 
 // Both sets of hunks of the same text, applied together: `wanted` where it fits, and all of `since`. A

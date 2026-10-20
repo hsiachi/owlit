@@ -8,7 +8,8 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { Core } from "../core.ts"
-import { until } from "../test-util.ts"
+import { createHash } from "node:crypto"
+import { knownProfile, until } from "../test-util.ts"
 
 // owlit and a real share server, talking over HTTP on this machine
 
@@ -55,7 +56,7 @@ beforeEach(async () => {
   writeFileSync(path.join(root, "Survey.md"), "# Survey\n\nJudges agree over 80% ([Zheng 2023](owlit://library/zheng23)). <!-- ask Wang -->\nSee [[Plan]] and [my chat](owlit://chat/c1).\n")
   writeFileSync(path.join(root, "Plan.md"), "private plan\n")
 
-  core = new Core({ userDataDir: path.join(dir, "user"), shareServer: base, shareTimings: { settleMs: 30, pollMs: 100 } })
+  core = new Core({ userDataDir: knownProfile(path.join(dir, "user")), shareServer: base, shareTimings: { settleMs: 30, pollMs: 100 } })
   heard = []
   core.onNotify((n) => heard.push(n))
   await call("workspace.open", { path: root })
@@ -109,6 +110,21 @@ describe("sharing a doc", () => {
     expect((await view(shared.id)).bundle.papers.zheng23.note).toBeUndefined()
     await call("share.update", { path: "Survey.md", permission: "view" })
     expect((await view(shared.id)).permission).toBe("view")
+  })
+
+  it("holds Owlit's edits back from readers until the author has seen them", async () => {
+    const shared = await call<DocShare>("share.create", { path: "Survey.md", notes: false })
+    const sha1 = (text: string) => createHash("sha1").update(text).digest("hex")
+    const before = readFileSync(path.join(root, "Survey.md"), "utf8")
+    await call("seen.mark", { kind: "doc", path: "Survey.md", hash: sha1(before) })
+    const owlit = before.replace("Judges agree over 80%", "Strong judges agree with people over 80%")
+    await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+    await core.fs.write("Survey.md", owlit, { chatId: "c1" })
+    await until(() => heard.some((n) => n.method === "share.changed" && (n.params as { share: DocShare }).share?.held))
+    expect((await view(shared.id)).bundle.markdown).toContain("Judges agree over 80%")
+    // Seen: the next push takes it
+    await call("seen.mark", { kind: "doc", path: "Survey.md", hash: sha1(owlit) })
+    await until(async () => (await view(shared.id)).bundle.markdown.includes("Strong judges agree"))
   })
 
   it("brings readers' comments back, and the author replies and resolves", async () => {

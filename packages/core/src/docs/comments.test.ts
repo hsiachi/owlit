@@ -50,6 +50,15 @@ describe("comments", () => {
     expect(await call("comments.all")).toEqual({ "w/a.md": [comment("n1", 1), comment("n2", 2)] })
   })
 
+  it("reads a comment an older owlit dismissed as resolved", async () => {
+    const { call, sidecar } = await setup({ "a.md": "a the words b" })
+    mkdirSync(path.dirname(sidecar("a.md")), { recursive: true })
+    writeFileSync(sidecar("a.md"), JSON.stringify({ ...comment("d1"), dismissedAt: 5 }) + "\n")
+    const [read] = (await call("comments.all"))["a.md"]
+    expect(read).toMatchObject({ id: "d1", resolvedAt: 5 })
+    expect(read).not.toHaveProperty("dismissedAt")
+  })
+
   it("removes, puts back and re-anchors", async () => {
     const { call, sidecar } = await setup({ "a.md": "x" })
     await call("comments.add", { path: "a.md", comment: comment("n1") })
