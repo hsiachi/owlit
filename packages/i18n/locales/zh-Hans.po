@@ -2551,11 +2551,6 @@ msgstr "你对 {paper} 的笔记"
 msgid "a paper's note"
 msgstr "一篇论文的笔记"
 
-#: app/src/features/chat/started.ts
-#: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it finished."
-msgstr "Owlit 在完成之前被关闭了。"
-
 #: app/src/features/chat/status.ts
 msgid "Finished since you last looked"
 msgstr "在你上次查看后完成"
@@ -7396,6 +7391,10 @@ msgstr "{name} 遇到了问题。"
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished, when you opened another workspace."
 msgstr "你打开了另一个工作区，Owlit 在完成之前被关闭了。"
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr "Owlit 在完成之前被关闭了。"
 
 #: packages/core/src/agents/failure.ts
 msgid "{name}'s usage limit is reached."

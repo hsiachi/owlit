@@ -1,7 +1,6 @@
 import { useEffect } from "react"
 import type { Change } from "@owlit/protocol"
 import { create } from "zustand"
-import { me, myOwlit } from "@/lib/actors"
 import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
@@ -52,40 +51,9 @@ if (hasCore) {
   })
 }
 
-// Without the desktop app there is no core keeping a change log: the mock agent adds its entries here,
-// each with how to take it back, which answers with how to take that back in turn
-type MockUndo = () => MockUndo | void
-const mockUndo = new Map<string, MockUndo>()
-
-export function addMockChange(change: Change, undo: MockUndo) {
-  mockUndo.set(change.id, undo)
-  const chatId = change.origin.chatId!
-  useChatLog.setState((s) => ({ byChat: { ...s.byChat, [chatId]: [change, ...(s.byChat[chatId] ?? [])] } }))
-}
-
 // Takes one entry back (an undo is an entry too, so this is also the redo); the passages of a doc that
 // were edited since and stay as they are
-export async function undoEntry(change: Change): Promise<string[] | undefined> {
-  if (hasCore) return (await rpc.changes.undo({ id: change.id })).left
-  const back = mockUndo.get(change.id)?.()
-  if (!back) return undefined
-  const undo: Change = { id: `mock-${crypto.randomUUID()}`, at: Date.now(), actor: me() ?? "other", action: "update", target: change.target, origin: { via: "editor", chatId: change.origin.chatId }, undoes: change.id }
-  addMockChange(undo, () => {
-    back()
-    return mockUndo.get(change.id)
-  })
-  return undefined
-}
-
-// The mock agent's entry for a chat
-export const mockEntry = (chatId: string, target: Change["target"], action: Change["action"] = "create"): Change => ({
-  id: `mock-${crypto.randomUUID()}`,
-  at: Date.now(),
-  actor: myOwlit(),
-  action,
-  target,
-  origin: { via: "tool", chatId },
-})
+export const undoEntry = async (change: Change): Promise<string[] | undefined> => (await rpc.changes.undo({ id: change.id })).left
 
 // A doc by its name; a paper's note by its paper ("Chen 2025")
 export function labelOf(path: string) {

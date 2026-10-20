@@ -2551,11 +2551,6 @@ msgstr ""
 msgid "a paper's note"
 msgstr ""
 
-#: app/src/features/chat/started.ts
-#: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it finished."
-msgstr ""
-
 #: app/src/features/chat/status.ts
 msgid "Finished since you last looked"
 msgstr ""
@@ -7395,6 +7390,10 @@ msgstr ""
 
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished, when you opened another workspace."
+msgstr ""
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
 msgstr ""
 
 #: packages/core/src/agents/failure.ts

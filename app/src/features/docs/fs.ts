@@ -1,8 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { anchorAt, isOwlit, type TextHunk } from "@owlit/protocol"
-import { myOwlit } from "@/lib/actors"
-import { newId } from "@/lib/id"
-import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
+import { isOwlit, type TextHunk } from "@owlit/protocol"
 import { isDiskChange } from "./disk"
 import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { clientId, registerUiHandler } from "@/lib/ui-actions"
@@ -68,24 +65,6 @@ useDocsStore.subscribe((state, prev) => {
     }
     if (next !== text) rewrite(doc.id, next)
   }
-})
-
-// What agents read and write, the way ACP's fs/read_text_file and fs/write_text_file are served by the app
-setWorkspaceFs({
-  async readTextFile(path) {
-    const file = fileAt(path)
-    return file ? currentText(file.id) : null
-  },
-
-  async writeTextFile(path, content) {
-    const file = fileAt(path)
-    if (!file) {
-      const created = useDocsStore.getState().createDocAt(path, content)
-      if (!created) throw new Error(`Can't write ${path}`)
-      return
-    }
-    if (!applyAgentEdit(file, content)) useDocsStore.getState().writeDoc(file.id, content)
-  },
 })
 
 // Core's changes an editor here took in: the doc shows them with its own marks and Undo, so no toast
@@ -173,22 +152,3 @@ if (hasCore) {
     })
   })
 }
-
-// Agents' comments land beside the doc, anchored by the quoted passage and a little text either side of it
-setWorkspaceNotes({
-  async addNote({ path, quote, text, by, chatId }) {
-    const file = fileAt(path)
-    if (!file) return false
-    const doc = currentText(file.id)
-    const at = doc.indexOf(quote)
-    if (at < 0 || !quote.trim()) return false
-    const now = Date.now()
-    useDocsStore.getState().addComment(file.id, {
-      id: newId(),
-      ...anchorAt(doc, at, at + quote.length),
-      entries: [{ id: newId(), by: myOwlit(), agent: by, text, at: now, ...(chatId ? { chatId } : {}) }],
-      createdAt: now,
-    })
-    return true
-  },
-})

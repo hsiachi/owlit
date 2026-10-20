@@ -2,7 +2,6 @@
 // each is about shows it: running, or how its last turn ended. Core is the record (chats.startedFor, then
 // chats.turn as each turn begins and ends); nothing here opens such a chat, which no chat list shows.
 
-import { t } from "@lingui/core/macro"
 import type { ChatAbout, ChatMessage, StartedChat } from "@owlit/protocol"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
@@ -93,30 +92,13 @@ export function stopStarted(about: ChatAbout) {
 
 export function stopChat(chat: StartedChat) {
   if (chat.reply?.status !== "streaming") return
-  // Without core (pnpm dev:web) the mock's chat stops here
-  if (!hasCore) heardStarted({ ...chat, reply: { ...chat.reply, status: "cancelled", finishedAt: Date.now() } })
-  else void rpc.agents.cancel({ chatId: chat.chatId }).catch(toastError)
+  void rpc.agents.cancel({ chatId: chat.chatId }).catch(toastError)
 }
 
 // Retry: another turn in the chat that broke, so its agent sees what it did before
 export async function tryAgain(chatId: string) {
-  const chat = Object.values(useStarted.getState().byAbout).find((c) => c.chatId === chatId)
-  if (!hasCore) return void (chat && mockStarted(chat.about, chatId))
   await rpc.chats.tryAgain({ chatId }).catch(toastError)
 }
-
-// Without core (pnpm dev:web) work asked for runs a few seconds and is then cut off, so both the line
-// that says it is under way and the one that says why it stopped can be seen
-export function mockStarted(about: ChatAbout, chatId = `mock-${aboutKey(about)}-${Date.now()}`) {
-  const reply = { id: `${chatId}-${Date.now()}`, role: "assistant" as const, parts: [], createdAt: Date.now() }
-  heardStarted({ chatId, about, reply: { ...reply, status: "streaming" } })
-  setTimeout(() => {
-    if (useStarted.getState().running[chatId]?.reply?.id !== reply.id) return
-    heardStarted({ chatId, about, reply: { ...reply, status: "error", error: t`Owlit was closed before it finished.`, cutOff: "closed", finishedAt: Date.now() } })
-  }, MOCK_RUN_MS)
-}
-
-const MOCK_RUN_MS = 4000
 
 export function startStartedChats() {
   if (!hasCore) return
