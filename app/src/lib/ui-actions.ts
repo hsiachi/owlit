@@ -4,7 +4,7 @@
 // one agents' actions go to, so it says so whenever it comes to the front.
 
 import type { UiActions, UiMethod } from "@owlit/protocol"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
 
 // This window, for as long as it is loaded
@@ -19,7 +19,6 @@ export function registerUiHandler<M extends UiMethod>(method: M, handler: Handle
 }
 
 export function startUiActions() {
-  if (!hasCore) return
   onNotify("ui.request", async (request) => {
     if (request.clientId !== clientId) return
     const handler = handlers[request.method] as Handler<UiMethod> | undefined

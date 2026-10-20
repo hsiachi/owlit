@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useCallback, useRef, useState } from "react"
 import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Connector, type FileKind } from "@owlit/protocol"
-import { bridge, hasCore, rpc, RpcError } from "@/lib/rpc"
+import { bridge, rpc, RpcError } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { useWorkspace } from "@/lib/workspace"
 import { docMentionable, paperMentionable, type DocMention } from "@/features/docs/lib/mentions"
@@ -46,7 +46,7 @@ export const readerOf = (connector?: Connector): Reader | undefined =>
 
 // An attached file's copy, opened in the system's app for it
 export function openAttached(file: { path?: string }) {
-  if (!hasCore || !file.path) return
+  if (!file.path) return
   rpc.chats.openFile({ path: file.path }).catch(toastError)
 }
 
@@ -74,7 +74,6 @@ export function useAttachments(key: string, chatId: string, onMention: (mention:
 
   // Into the chat and draft it was attached for, whichever is on screen when it is done
   const copy = useCallback(async (file: File, draft: DraftFile, key: string, chatId: string) => {
-    if (!hasCore) return patch(key, draft.id, { state: "ready" })
     try {
       const path = bridge?.pathForFile(file)
       const result = path
@@ -131,7 +130,7 @@ export function useAttachments(key: string, chatId: string, onMention: (mention:
   // A chip taken off before sending: its copy goes too
   const remove = useCallback((id: string) => {
     const gone = filesRef.current.find((f) => f.id === id)
-    if (gone?.path && hasCore) void rpc.chats.detach({ chatId: chatRef.current, path: gone.path }).catch(() => undefined)
+    if (gone?.path) void rpc.chats.detach({ chatId: chatRef.current, path: gone.path }).catch(() => undefined)
     patch(keyRef.current, id, null)
   }, [])
 

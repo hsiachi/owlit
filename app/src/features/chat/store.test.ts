@@ -26,7 +26,7 @@ const client = vi.hoisted(() => {
     },
   }
 })
-vi.mock("@/lib/rpc", () => ({ hasCore: false, rpc: {}, onNotify: () => () => {}, bridge: undefined }))
+vi.mock("@/lib/rpc", () => ({ rpc: { chats: { get: async () => null } }, onNotify: () => () => {}, bridge: undefined }))
 vi.mock("./agent", () => ({ agentClient: client.agentClient }))
 vi.mock("@/app/seen", () => ({ markSeen: () => {} }))
 const asked = vi.hoisted(() => ({ typed: [] as string[] }))

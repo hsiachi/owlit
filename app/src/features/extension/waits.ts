@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import type { WaitingItem } from "@/app/waiting-on-you"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
 import { KIND_ICON } from "@/lib/kinds"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { create } from "zustand"
 import { useLibraryStore } from "@/features/library/store"
@@ -50,10 +50,6 @@ export function waitWords(wait: ExtensionWait): WaitWords {
 // opens a sign-in or a check in that browser itself; being allowed can only be asked from inside it, so
 // the line then says where the extension's button is.
 export async function actOnWait(wait: ExtensionWait) {
-  if (!hasCore) {
-    window.open(wait.url, "_blank", "noreferrer")
-    return follow(wait, undefined)
-  }
   const opened = await rpc.extension.open({ kind: wait.kind, host: wait.host }).catch(toastError)
   if (opened && opened.by !== "none") return follow(wait, opened.browser)
   if (opened?.by !== "none") return

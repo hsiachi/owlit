@@ -14,7 +14,7 @@ import {
   AttachmentTrigger,
 } from "@/components/ui/attachment"
 import { Tip } from "@/components/tip"
-import { fileUrl, hasCore } from "@/lib/rpc"
+import { fileUrl } from "@/lib/rpc"
 import { formatBytes, type ChipFile, type Reader } from "../../lib/attachments"
 import { Spinner } from "@/components/ui/spinner"
 import { useAfterWait } from "@/hooks/use-after-wait"
@@ -44,7 +44,7 @@ function cantRead(agent: string, kind: FileKind) {
 // An attached image's picture: the one the window made while attaching, else owlit's copy
 function pictureOf(f: AttachmentFile) {
   if (f.previewUrl) return f.previewUrl
-  if (!hasCore || !f.path || !f.mimeType.startsWith("image/")) return undefined
+  if (!f.path || !f.mimeType.startsWith("image/")) return undefined
   return fileUrl(`owlit-file://workspace/${f.path.split("/").map(encodeURIComponent).join("/")}`)
 }
 

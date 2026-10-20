@@ -1,10 +1,10 @@
 // The workspace core has open. Features that hold workspace data (Docs, Chat, Library) subscribe with
-// onWorkspaceOpened and reload. Without a core there is no workspace and current stays null.
+// onWorkspaceOpened and reload.
 
 import { t } from "@lingui/core/macro"
 import type { WorkspaceInfo, WorkspaceState } from "@owlit/protocol"
 import { create } from "zustand"
-import { bridge, hasCore, onNotify, rpc } from "@/lib/rpc"
+import { bridge, onNotify, rpc } from "@/lib/rpc"
 
 interface WorkspaceStore {
   current: WorkspaceInfo | null
@@ -15,10 +15,10 @@ interface WorkspaceStore {
   known: boolean
 }
 
-export const useWorkspace = create<WorkspaceStore>(() => ({ current: null, opening: false, known: !hasCore }))
+export const useWorkspace = create<WorkspaceStore>(() => ({ current: null, opening: false, known: false }))
 
-// The welcome page shows only in the desktop app, once core has said nothing is open or opening
-export const useNeedsWelcome = () => useWorkspace((s) => hasCore && s.known && !s.current && !s.opening)
+// The welcome page shows once core has said nothing is open or opening
+export const useNeedsWelcome = () => useWorkspace((s) => s.known && !s.current && !s.opening)
 
 type Listener = (workspace: WorkspaceInfo) => void
 const listeners = new Set<Listener>()
@@ -67,7 +67,6 @@ function state({ current, opening }: WorkspaceState) {
 }
 
 export function startWorkspace() {
-  if (!hasCore) return
   onNotify("workspace.opened", opened)
   onNotify("workspace.state", state)
   // Core may have opened it before this window was listening

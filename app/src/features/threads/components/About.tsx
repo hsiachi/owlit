@@ -8,7 +8,7 @@ import { MentionLink } from "@/components/mention/mention-token"
 import { Unfold } from "@/components/unfold"
 import { useChatStore } from "@/features/chat/store"
 import { mentionRoute } from "@/features/docs/lib/mentions"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { shortDate } from "@/lib/time"
 import { shown } from "../lib"
 
@@ -27,7 +27,7 @@ export function About({ thread: c }: { thread: ThreadRead }) {
       <GroupLabel className="px-0">{t`About this thread`}</GroupLabel>
       <Question thread={c} />
       {batches === null &&
-        // Without core (the browser preview) there is no history: the later questions as they are kept
+        // Until core's history comes: the later questions as they are kept
         (c.alsoAsked ?? []).map((a, i) => {
           const later = a.text
           const on = shortDate(a.at)
@@ -58,11 +58,10 @@ export function About({ thread: c }: { thread: ThreadRead }) {
   )
 }
 
-// Owlit's batches, again whenever the thread changes; null without core
+// Owlit's batches, again whenever the thread changes; null until they come
 function useBatches(c: ThreadRead) {
   const [batches, setBatches] = useState<ThreadBatch[] | null>(null)
   useEffect(() => {
-    if (!hasCore) return
     let live = true
     void rpc.threads
       .about({ id: c.id })
@@ -81,7 +80,7 @@ function Question({ thread: c }: { thread: ThreadRead }) {
   const chat = useChatStore((s) => (question.chatId ? s.chats[question.chatId] : undefined))
   const asked = question.text
   const when = shortDate(question.at)
-  const from = question.chatId && (chat || !hasCore) ? chatUri(question.chatId) : undefined
+  const from = question.chatId && chat ? chatUri(question.chatId) : undefined
   const chatTitle = chat?.title || t`a chat`
   return (
     <p className="text-detail text-muted-foreground">

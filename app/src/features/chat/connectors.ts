@@ -1,6 +1,5 @@
-import { t } from "@lingui/core/macro"
 import type { StateCreator, StoreApi } from "zustand"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { agentClient } from "./agent"
 import { resolveSelection } from "./lib/selection"
 import type { ChatState } from "./store"
@@ -64,27 +63,13 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
   },
 
   async addCustomConnector(name, command) {
-    if (hasCore) {
-      const c = await rpc.agents.add({ name, command })
-      set((s) => ({ connectors: [...s.connectors, c] }))
-      return c
-    }
-    const c: Connector = {
-      id: `custom-${crypto.randomUUID().slice(0, 8)}`,
-      name: name.trim() || t`Custom agent`,
-      description: t`Custom ACP agent`,
-      command: command.trim(),
-      builtIn: false,
-      status: "unknown",
-      models: [{ id: "default", name: t({ message: "Default", comment: "the model an agent uses when none is picked" }) }],
-      defaultModelId: "default",
-    }
+    const c = await rpc.agents.add({ name, command })
     set((s) => ({ connectors: [...s.connectors, c] }))
     return c
   },
 
   removeConnector(id) {
-    if (hasCore) void rpc.agents.remove({ id }).catch(() => undefined)
+    void rpc.agents.remove({ id }).catch(() => undefined)
     set((s) => {
       const connectors = s.connectors.filter((c) => c.id !== id)
       const selection =
@@ -111,7 +96,6 @@ function checkUnchecked(store: StoreApi<ChatState>) {
 }
 
 export function watchConnectors(store: StoreApi<ChatState>) {
-  if (!hasCore) return checkUnchecked(store)
   // Agents are this machine's, not the workspace's: listed once, then kept current by core
   void rpc.agents.list().then((connectors) => {
     store.setState({ connectors })

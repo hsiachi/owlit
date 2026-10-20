@@ -160,7 +160,7 @@ function droppedImport(data: DataTransfer): { source: "bibtex" | "folder"; path:
     if (entry?.isDirectory) return { source: "folder", path: filePath(files[0]) }
     if (/\.bib$/i.test(files[0].name)) return { source: "bibtex", path: filePath(files[0]) }
   } catch {
-    // Not a file on disk (a browser without the desktop app)
+    // The browser gives no path for the file (a tab on the dev core)
   }
   return null
 }

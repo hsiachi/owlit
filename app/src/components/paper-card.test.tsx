@@ -1,3 +1,5 @@
+// The stores the cards read set up for a window (a listener on it, a bridge to core)
+import "@/test/fake-bridge"
 import type { Paper, ThreadRead } from "@owlit/protocol"
 import { renderToStaticMarkup } from "react-dom/server"
 import { MemoryRouter } from "react-router-dom"

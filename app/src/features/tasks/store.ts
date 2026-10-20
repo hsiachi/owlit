@@ -1,11 +1,11 @@
 // The open workspace's background tasks as core reports them (tasks.list, then tasks.changed). Only
 // listens: features show a task beside its subject (a paper's row, the import line) by reading this
-// store; there is no task list of its own. Empty without the desktop app.
+// store; there is no task list of its own.
 
 import type { Task } from "@owlit/protocol"
 import { create } from "zustand"
 import { followCore } from "@/lib/follow-core"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 
 interface TasksState {
@@ -38,7 +38,6 @@ export const tasksFor = (byId: Record<string, Task>, subject: string): readonly 
 export const cancelTask = (id: string) => rpc.tasks.cancel({ id })
 
 export function startTasks() {
-  if (!hasCore) return
   // Changes heard while the list is loading are newer than the list, so they are laid over it
   const follow = followCore({
     read: () => rpc.tasks.list(),

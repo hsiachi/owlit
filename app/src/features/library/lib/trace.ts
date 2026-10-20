@@ -55,8 +55,8 @@ function pageRanges(pages: readonly number[]) {
 const cache = new Map<string, { key: string; title: string }>()
 const keyOf = (p: Paper) => `${p.status}|${p.lastOpenedAt ?? 0}`
 
-// The status's hover text for a paper, asked of core the first time the pointer or focus reaches it.
-// Without core (the browser preview) only an unread paper has something to say.
+// The status's hover text for a paper, asked of core the first time the pointer or focus reaches it;
+// when core can't say, the status alone speaks.
 export function useTraceTitle(paper: Paper) {
   const key = keyOf(paper)
   const cached = cache.get(paper.id)

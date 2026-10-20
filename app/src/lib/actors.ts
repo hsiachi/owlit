@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { isOwlit, owlitOf, type ActorId, type PersonId, type Roster } from "@owlit/protocol"
 import { create } from "zustand"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 
 // Who made a change, as the viewer reads it: "you" for their own id (me), a person's name from the
 // workspace's roster, "Owlit" for any person's Owlit, "outside owlit" when owlit couldn't tell
@@ -32,15 +32,13 @@ export const myOwlit = (): ActorId => {
 // The open workspace's roster, read when first needed and again after the workspace or a name changed
 const useRoster = create<{ roster: Roster }>(() => ({ roster: {} }))
 let asked = false
-if (hasCore) {
-  const forget = () => {
-    asked = false
-  }
-  onNotify("workspace.opened", forget)
-  onNotify("settings.changed", forget)
+const forget = () => {
+  asked = false
 }
+onNotify("workspace.opened", forget)
+onNotify("settings.changed", forget)
 function rosterNow() {
-  if (hasCore && !asked) {
+  if (!asked) {
     asked = true
     rpc.members
       .get()

@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import type { Change } from "@owlit/protocol"
 import { create } from "zustand"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
@@ -33,23 +33,21 @@ async function load(chatId: string) {
 export function useChatChanges(chatId: string): Change[] {
   const list = useChatLog((s) => s.byChat[chatId])
   useEffect(() => {
-    if (hasCore && !list) void load(chatId)
+    if (!list) void load(chatId)
   }, [chatId, list])
   return list ?? EMPTY
 }
 
-if (hasCore) {
-  onNotify("changes.added", ({ change }) => {
-    const chatId = change.origin.chatId
-    if (!chatId || !reads.has(chatId)) return
-    // One write can be many entries said once; a burst of them is read once
-    clearTimeout(reloads.get(chatId))
-    reloads.set(
-      chatId,
-      setTimeout(() => void load(chatId), 100),
-    )
-  })
-}
+onNotify("changes.added", ({ change }) => {
+  const chatId = change.origin.chatId
+  if (!chatId || !reads.has(chatId)) return
+  // One write can be many entries said once; a burst of them is read once
+  clearTimeout(reloads.get(chatId))
+  reloads.set(
+    chatId,
+    setTimeout(() => void load(chatId), 100),
+  )
+})
 
 // Takes one entry back (an undo is an entry too, so this is also the redo); the passages of a doc that
 // were edited since and stay as they are

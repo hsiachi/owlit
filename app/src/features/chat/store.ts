@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { applyUpdate, DEFAULT_ROLE, type Role, withoutAgentError } from "@owlit/protocol"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { agentClient } from "./agent"
 import * as disk from "./disk"
 import { optionFor, pendingAsk } from "./status"
@@ -14,9 +14,6 @@ import { titleFrom } from "./lib/title"
 import type { Chat, ChatMessage, PromptInput, QuestionAnswer, SessionUpdate } from "@owlit/protocol"
 import type { RunningTurn } from "./agent/client"
 
-// Chats deleted in this window, for Undo without a disk (core's are in .owlit/trash/)
-const deleted = new Map<string, Chat>()
-
 // Chats live in the workspace (.owlit/chats/, through ./disk)
 export interface ChatState extends ConnectorSlice {
   chats: Record<string, Chat>
@@ -26,8 +23,8 @@ export interface ChatState extends ConnectorSlice {
   // The role the composer holds for the chat it is about to start (a new chat starts as Assistant;
   // picking another before the first message gives the new chat that one); not kept across restarts
   newChatRole: Role
-  // The chats with a running turn, each with its reply's id. A mirror of the agent client's turns (core's,
-  // in the desktop app), which are the only record of what runs: set when a turn is sent or found running,
+  // The chats with a running turn, each with its reply's id. A mirror of core's turns, which are the only
+  // record of what runs: set when a turn is sent or found running,
   // cleared when the client says it ended.
   streaming: Record<string, string>
   // What the person sent while a chat's turn ran, one message per chat: sent when the turn ends
@@ -94,10 +91,8 @@ export const useChatStore = create<ChatState>()(
         }
         // The role picked for this chat went with it; the next one starts as Assistant again
         set((s) => ({ chats: { ...s.chats, [chat.id]: chat }, newChatRole: DEFAULT_ROLE }))
-        if (disk.onDisk) {
-          const { messages: _none, ...summary } = chat
-          disk.createChatOnDisk(summary)
-        }
+        const { messages: _none, ...summary } = chat
+        disk.createChatOnDisk(summary)
         return chat
       },
 
@@ -105,20 +100,17 @@ export const useChatStore = create<ChatState>()(
         get().unqueue(id)
         get().cancel(id)
         useComposerDrafts.getState().drop(id)
-        const removed = get().chats[id]
-        if (removed) deleted.set(id, removed)
         set((s) => {
           const { [id]: _removed, ...rest } = s.chats
           return { chats: rest }
         })
-        if (disk.onDisk) disk.deleteChatOnDisk(id)
+        disk.deleteChatOnDisk(id)
       },
 
       async restoreChat(id) {
-        // In the desktop app the chat comes back from .owlit/trash/, its files with it
-        const chat = disk.onDisk ? await disk.restoreChatOnDisk(id) : deleted.get(id)
-        deleted.delete(id)
-        if (chat) set((s) => ({ chats: { ...s.chats, [id]: chat } }))
+        // The chat comes back from .owlit/trash/, its files with it
+        const chat = await disk.restoreChatOnDisk(id)
+        set((s) => ({ chats: { ...s.chats, [id]: chat } }))
       },
 
       setAttachmentPaper(chatId, messageId, attachmentId, paperId) {
@@ -126,7 +118,7 @@ export const useChatStore = create<ChatState>()(
         if (!message?.attachments) return
         const next = { ...message, attachments: message.attachments.map((a) => (a.id === attachmentId ? { ...a, paperId } : a)) }
         patchMessage(chatId, messageId, () => next)
-        if (disk.onDisk) disk.patchMessageOnDisk(chatId, next)
+        disk.patchMessageOnDisk(chatId, next)
       },
 
       renameChat(id, title) {
@@ -134,14 +126,14 @@ export const useChatStore = create<ChatState>()(
         if (!chat) return
         const next = title.trim() || chat.title
         set((s) => patchChat(s, id, (c) => ({ ...c, title: next })))
-        if (disk.onDisk) disk.updateChatOnDisk(id, { title: next })
+        disk.updateChatOnDisk(id, { title: next })
       },
 
       togglePin(id) {
         const chat = get().chats[id]
         if (!chat) return
         set((s) => patchChat(s, id, (c) => ({ ...c, pinned: !chat.pinned })))
-        if (disk.onDisk) disk.updateChatOnDisk(id, { pinned: !chat.pinned })
+        disk.updateChatOnDisk(id, { pinned: !chat.pinned })
       },
 
       setSelection(patch) {
@@ -162,13 +154,13 @@ export const useChatStore = create<ChatState>()(
         if (!get().chats[chatId]) return
         const { connectorId, modelId, effortId } = get().selection
         set((s) => patchChat(s, chatId, (c) => ({ ...c, connectorId, modelId, effortId })))
-        if (disk.onDisk) disk.updateChatOnDisk(chatId, { connectorId, modelId, effortId })
+        disk.updateChatOnDisk(chatId, { connectorId, modelId, effortId })
       },
 
       setChatRole(chatId, role) {
         if (!chatId || !get().chats[chatId]) return set({ newChatRole: role })
         set((s) => patchChat(s, chatId, (c) => ({ ...c, role })))
-        if (disk.onDisk) disk.updateChatOnDisk(chatId, { role })
+        disk.updateChatOnDisk(chatId, { role })
       },
 
       async send(chatId, input) {
@@ -234,14 +226,14 @@ export const useChatStore = create<ChatState>()(
           streaming: { ...s.streaming, [chatId]: assistantMsg.id },
           connectors: connector?.status === "available" ? withConnector(s.connectors, { ...connector, status: "connected" }) : s.connectors,
         }))
-        if (disk.onDisk && isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
+        if (isFirst) disk.updateChatOnDisk(chatId, { title: titleFrom(input.text) })
 
         // The reply grows and ends through the client's onUpdate and onEnded (followUpdate, turnEnded); the
         // call's own result only matters when nothing said the turn ended
         let ending: Partial<ChatMessage>
         try {
           // A chat made just now must reach core before core can run a turn in it
-          if (disk.onDisk) await disk.settled()
+          await disk.settled()
           const stop = await agentClient.prompt({ chatId, connectorId, modelId, role: role.id, effortId, input, userMessage: userMsg, assistantMessageId: assistantMsg.id })
           ending = { status: stop === "cancelled" ? "cancelled" : "done" }
         } catch (e) {
@@ -268,7 +260,7 @@ export const useChatStore = create<ChatState>()(
       removeMessages(chatId, messageIds) {
         const gone = new Set(messageIds)
         set((s) => patchChat(s, chatId, (c) => ({ ...c, messages: c.messages.filter((m) => !gone.has(m.id)) })))
-        if (disk.onDisk) disk.removeMessagesOnDisk(chatId, messageIds)
+        disk.removeMessagesOnDisk(chatId, messageIds)
       },
 
       respondPermission(chatId, requestId, optionId) {
@@ -395,7 +387,7 @@ function joined(queued: PromptInput | undefined, input: PromptInput): PromptInpu
 // The turn's call returned and nothing said it ended (core refused it before it began, or the notice was
 // lost on its way): what core saved is the reply, else what the call said
 async function settle(chatId: string, messageId: string, ending: Partial<ChatMessage>) {
-  const saved = hasCore ? (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === messageId) : undefined
+  const saved = (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === messageId)
   const mine = useChatStore.getState().chats[chatId]?.messages.find((m) => m.id === messageId)
   if (!runs(chatId, messageId) || !mine) return
   turnEnded(chatId, messageId, saved && saved.status !== "streaming" ? saved : withoutAgentError({ ...mine, ...ending, finishedAt: Date.now() }))
@@ -403,4 +395,6 @@ async function settle(chatId: string, messageId: string, ending: Partial<ChatMes
 
 agentClient.onUpdate(followUpdate)
 agentClient.onEnded(turnEnded)
-watchConnectors(useChatStore)
+
+// Asks core which agents there are, and follows them from then on
+export const startConnectors = () => watchConnectors(useChatStore)

@@ -2,7 +2,7 @@ import { onNotify, rpc } from "@/lib/rpc"
 import type { ChatMessage, Connector, QuestionAnswer, SessionUpdate, StopReason } from "@owlit/protocol"
 import type { AgentClient, PromptRequest, RunningTurn } from "./client"
 
-// The real agent client in the desktop app: turns run in core on the user's local agents (ACP). Core
+// The agent client: turns run in core on the user's local agents (ACP). Core
 // saves both messages of a turn itself and tells every window of each turn's updates and end.
 export class RpcAgentClient implements AgentClient {
   check(connector: Connector): Promise<Connector> {

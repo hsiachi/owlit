@@ -1,11 +1,11 @@
 // Libraries brought in at once (Zotero, BibTeX, a folder of PDFs): the recent imports as core reports
 // them, read again whenever an import's task changes, and the dialog that starts one. The progress itself
-// is the import's task (features/tasks/store). Empty without the desktop app.
+// is the import's task (features/tasks/store).
 
 import type { ImportPreview, ImportSource, ImportSummary, Task } from "@owlit/protocol"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
-import { bridge, hasCore, onNotify, rpc } from "@/lib/rpc"
+import { bridge, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { useTasksStore } from "@/features/tasks/store"
 import { undoAll } from "@/lib/changes"
@@ -37,7 +37,6 @@ async function load() {
 }
 
 export function startImports() {
-  if (!hasCore) return
   // Each paper an import adds is one tasks.changed for the import's progress: the summary is read again
   // at most twice a second
   let timer: ReturnType<typeof setTimeout> | undefined

@@ -6,7 +6,7 @@ import type { ChatAbout, ChatMessage, StartedChat } from "@owlit/protocol"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { followCore } from "@/lib/follow-core"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { toastError } from "@/lib/toast"
 
@@ -101,7 +101,6 @@ export async function tryAgain(chatId: string) {
 }
 
 export function startStartedChats() {
-  if (!hasCore) return
   // Changes heard while the list is read are newer than it, so they are laid over it
   const follow = followCore({
     read: async () => {

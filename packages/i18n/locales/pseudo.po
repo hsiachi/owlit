@@ -1762,22 +1762,6 @@ msgstr ""
 msgid "No answer"
 msgstr ""
 
-#: app/src/features/chat/connectors.ts
-#: packages/core/src/agents/agents.ts
-msgid "Custom agent"
-msgstr ""
-
-#: app/src/features/chat/connectors.ts
-msgid "Custom ACP agent"
-msgstr ""
-
-#. the model an agent uses when none is picked
-#. the model an agent uses when none is picked
-#: app/src/features/chat/connectors.ts
-#: packages/core/src/agents/agents.ts
-msgid "Default"
-msgstr ""
-
 #: app/src/features/chat/disk.ts
 msgid "Couldn't save the chat."
 msgstr ""
@@ -2830,10 +2814,6 @@ msgstr ""
 
 #: app/src/features/docs/comments/model.ts
 msgid "Comment resolved"
-msgstr ""
-
-#: app/src/features/docs/components/DocsListPanel.tsx
-msgid "{name} opens in the system app"
 msgstr ""
 
 #: app/src/features/docs/components/DocsListPanel.tsx
@@ -7331,6 +7311,10 @@ msgid "The command is empty."
 msgstr ""
 
 #: packages/core/src/agents/agents.ts
+msgid "Custom agent"
+msgstr ""
+
+#: packages/core/src/agents/agents.ts
 msgid "{agent} is built in and can't be removed."
 msgstr ""
 
@@ -7377,6 +7361,11 @@ msgstr ""
 
 #: packages/core/src/agents/agents.ts
 msgid "owlit doesn't know that agent."
+msgstr ""
+
+#. the model an agent uses when none is picked
+#: packages/core/src/agents/agents.ts
+msgid "Default"
 msgstr ""
 
 #: packages/core/src/agents/failure.ts

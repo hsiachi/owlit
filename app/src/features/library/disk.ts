@@ -1,7 +1,7 @@
 import type { Highlight, Paper, PaperNote, PaperPatch, TrashedPaper } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { followCore } from "@/lib/follow-core"
 import { undoAll } from "@/lib/changes"
@@ -15,8 +15,6 @@ import { markedFor, useLibraryStore } from "./store"
 // (Undo) is restored from the trash, not added again. Notes and reading positions, which change
 // with every keystroke or scroll, are sent once they rest. Papers core changes on its own come in
 // through library.changed and are taken as they are, without being sent back.
-
-const onDisk = hasCore
 
 const NOTE_REST_MS = 500
 const POSITION_REST_MS = 1000
@@ -98,7 +96,6 @@ function takePaper(paper: Paper) {
 // The person read in a paper (lib/reading.ts says when): core moves its last-read time, and an unread
 // paper to Reading on its own
 export function markReading(id: string) {
-  if (!onDisk) return useLibraryStore.getState().markReading(id)
   enqueue(async () => takePaper(await rpc.library.opened({ id })))
 }
 
@@ -128,10 +125,10 @@ export async function undoAdds(ids: string[]) {
 export const useTrashChanges = create<{ count: number }>(() => ({ count: 0 }))
 const trashChanged = () => useTrashChanges.setState((s) => ({ count: s.count + 1 }))
 
-// Papers removed in the last 30 days, for the Library's removed list; none outside the desktop app. Asked
+// Papers removed in the last 30 days, for the Library's removed list; none without a workspace. Asked
 // once the changes already queued have reached core, so a removal just made is in it.
 export async function listTrash(): Promise<TrashedPaper[]> {
-  if (!onDisk || !useWorkspace.getState().current) return []
+  if (!useWorkspace.getState().current) return []
   await queue.settled()
   return rpc.library.trash()
 }
@@ -248,73 +245,71 @@ function same(a: unknown, b: unknown): boolean {
 
 const byId = <T extends { id: string }>(items: T[]) => Object.fromEntries(items.map((item) => [item.id, item]))
 
-if (onDisk) {
-  useLibraryStore.subscribe((state, prev) => {
-    if (coreFlag.isOn() || !useWorkspace.getState().current) return
-    if (state.papers !== prev.papers) papersChanged(state.papers, prev.papers)
-    if (state.highlights !== prev.highlights) highlightsChanged(state.highlights, prev.highlights, state.papers)
-    if (state.notes !== prev.notes) notesChanged(state.notes, prev.notes, state.papers)
+useLibraryStore.subscribe((state, prev) => {
+  if (coreFlag.isOn() || !useWorkspace.getState().current) return
+  if (state.papers !== prev.papers) papersChanged(state.papers, prev.papers)
+  if (state.highlights !== prev.highlights) highlightsChanged(state.highlights, prev.highlights, state.papers)
+  if (state.notes !== prev.notes) notesChanged(state.notes, prev.notes, state.papers)
+})
+
+onNotify("library.changed", ({ papers, removed, renamed }) =>
+  follow.hear(() => {
+    // A paper moved to another id: its highlights and notes move with it, so read the library again
+    if (renamed && Object.keys(renamed).length) {
+      enqueue(load)
+      return
+    }
+    takeFromCore(() =>
+      useLibraryStore.setState((s) => {
+        const next = { ...s.papers }
+        for (const paper of papers) next[paper.id] = paper
+        for (const id of removed) delete next[id]
+        return { papers: next }
+      }),
+    )
+    if (removed.length) trashChanged()
+  }),
+)
+
+// Core set a paper Read because the person reached its end: said once, with Undo, since nobody chose it
+onNotify("library.readToEnd", ({ paperId, from }) => {
+  const title = useLibraryStore.getState().papers[paperId]?.title
+  toastUndo(t({ message: "Marked as read", comment: "toast: owlit set a paper's status to Read because it was read to the end" }), () => useLibraryStore.getState().setStatus([paperId], from), {
+    description: title,
   })
+})
 
-  onNotify("library.changed", ({ papers, removed, renamed }) =>
-    follow.hear(() => {
-      // A paper moved to another id: its highlights and notes move with it, so read the library again
-      if (renamed && Object.keys(renamed).length) {
-        enqueue(load)
-        return
-      }
-      takeFromCore(() =>
-        useLibraryStore.setState((s) => {
-          const next = { ...s.papers }
-          for (const paper of papers) next[paper.id] = paper
-          for (const id of removed) delete next[id]
-          return { papers: next }
-        }),
-      )
-      if (removed.length) trashChanged()
-    }),
-  )
-
-  // Core set a paper Read because the person reached its end: said once, with Undo, since nobody chose it
-  onNotify("library.readToEnd", ({ paperId, from }) => {
-    const title = useLibraryStore.getState().papers[paperId]?.title
-    toastUndo(t({ message: "Marked as read", comment: "toast: owlit set a paper's status to Read because it was read to the end" }), () => useLibraryStore.getState().setStatus([paperId], from), {
-      description: title,
-    })
-  })
-
-  // A note an agent edited (or another program changed): taken as it is, and the open note editor takes
-  // it in as one undoable change
-  onNotify("library.noteChanged", ({ paperId, note }) =>
-    follow.hear(() =>
-      takeFromCore(() =>
-        useLibraryStore.setState((s) => {
-          if (note) return { notes: { ...s.notes, [paperId]: note } }
-          const { [paperId]: _gone, ...rest } = s.notes
-          return { notes: rest }
-        }),
-      ),
+// A note an agent edited (or another program changed): taken as it is, and the open note editor takes
+// it in as one undoable change
+onNotify("library.noteChanged", ({ paperId, note }) =>
+  follow.hear(() =>
+    takeFromCore(() =>
+      useLibraryStore.setState((s) => {
+        if (note) return { notes: { ...s.notes, [paperId]: note } }
+        const { [paperId]: _gone, ...rest } = s.notes
+        return { notes: rest }
+      }),
     ),
-  )
+  ),
+)
 
-  // Closing or reloading the window: what rests goes now, since its timer won't fire
-  window.addEventListener("pagehide", sendAllResting)
-  // Opening another workspace drops the queue, so what rests or is queued goes to core first
-  beforeWorkspaceSwitch(() => {
-    sendAllResting()
-    return queue.settled()
-  })
+// Closing or reloading the window: what rests goes now, since its timer won't fire
+window.addEventListener("pagehide", sendAllResting)
+// Opening another workspace drops the queue, so what rests or is queued goes to core first
+beforeWorkspaceSwitch(() => {
+  sendAllResting()
+  return queue.settled()
+})
 
-  onWorkspaceOpened(() => {
-    queue.reset()
-    for (const { timer } of resting.values()) clearTimeout(timer)
-    resting.clear()
-    removedHere.clear()
-    takeFromCore(() => useLibraryStore.setState({ papers: {}, highlights: {}, notes: {} }))
-    enqueue(load)
-  })
-  // Opened before this module was loaded (a reload of the window)
-  queueMicrotask(() => {
-    if (useWorkspace.getState().current) enqueue(load)
-  })
-}
+onWorkspaceOpened(() => {
+  queue.reset()
+  for (const { timer } of resting.values()) clearTimeout(timer)
+  resting.clear()
+  removedHere.clear()
+  takeFromCore(() => useLibraryStore.setState({ papers: {}, highlights: {}, notes: {} }))
+  enqueue(load)
+})
+// Opened before this module was loaded (a reload of the window)
+queueMicrotask(() => {
+  if (useWorkspace.getState().current) enqueue(load)
+})

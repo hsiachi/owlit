@@ -8,7 +8,7 @@ import { create } from "zustand"
 import { setProfileId } from "@/lib/actors"
 import { takeDimPdfOff } from "@/features/library/prefs-store"
 import { applyLocale, i18n } from "@/lib/i18n"
-import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { onNotify, rpc } from "@/lib/rpc"
 import { applyAppearance, SYSTEM_APPEARANCE } from "./appearance"
 
 // The dialog's sections in order, by the names its list and owlit:// links show. They follow what the
@@ -70,7 +70,7 @@ export const closeSettings = () => useSettings.setState({ open: false })
 export const showSection = (section: SettingsSection) => useSettings.setState({ section, group: null })
 
 function receive(view: SettingsView) {
-  if (hasCore && view.appearance.dimPdf === undefined && takeDimPdfOff()) void updateSettings({ appearance: { dimPdf: false } })
+  if (view.appearance.dimPdf === undefined && takeDimPdfOff()) void updateSettings({ appearance: { dimPdf: false } })
   useSettings.setState({ view })
   setProfileId(view.profile.id)
   applyAppearance(view.appearance)

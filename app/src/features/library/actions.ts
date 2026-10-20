@@ -10,7 +10,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import type { PageRect, Paper, QuotedSelection } from "@owlit/protocol"
 import { paperMentionable } from "@/features/docs/lib/mentions"
 import { useThreadsStore } from "@/features/threads/store"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import type { LearnedId, Resolved } from "./client"
 import { importPdf, undoAdds } from "./disk"
 import { libraryClient } from "./store"
@@ -83,7 +83,7 @@ export function askAboutPassage(paperId: string, quote: Omit<QuotedSelection, "s
 // ---- Adding a paper
 
 // What a paper can be added from: a reference typed or pasted (a DOI, an arXiv id, a link), a paper
-// already looked up, or a PDF on disk (the desktop app's path)
+// already looked up, or a PDF on disk (its path)
 export type AddSource = { ref: string } | { resolved: Resolved } | { file: string }
 
 export interface Added {
@@ -144,12 +144,9 @@ export function sayAdded(added: Added, open: (id: string) => void, options: { un
   toastUndo(t`Added to library`, () => undoAdded([paper.id]), { description: paper.title })
 }
 
-// Takes back papers just added: in the desktop app by their entries in the change log (each add is
-// one), so the Undo is the log's and Redo works; in the browser preview, out of the store
-export function undoAdded(ids: string[]) {
-  if (hasCore) return undoAdds(ids)
-  useLibraryStore.getState().removePapers(ids)
-}
+// Takes back papers just added, by their entries in the change log (each add is one), so the Undo is the
+// log's and Redo works
+export const undoAdded = (ids: string[]) => undoAdds(ids)
 
 // The find field's, the chat step's and the attachment's add, with what it did said; null when it failed
 // (said too)
