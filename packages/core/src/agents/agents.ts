@@ -379,7 +379,7 @@ export class Agents {
     return this.connectorOf(await this.def(id))
   }
 
-  // The running process for an agent, started if needed (T10 opens sessions on it). owlit's own copy of
+  // The running process for an agent, started if needed (sessions open on it). owlit's own copy of
   // an adapter comes before one on PATH: it is the one owlit set up and keeps up to date.
   async process(id: string): Promise<AcpProcess> {
     const running = this.processes.get(id)

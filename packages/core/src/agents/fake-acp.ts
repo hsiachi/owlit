@@ -1,5 +1,22 @@
 // A stand-in local agent for tests: speaks ACP over stdio like claude-agent-acp, without a model.
-// Run with node (types are stripped). What it does depends on the prompt's text:
+// Run with node (types are stripped). What it does depends on the prompt's text, checked in this order:
+//   "writing a literature note…" writes the digest with library_write_digest, saying the language and the
+//                      pictures it was given; FAKE_ACP_SLOW_MS first shows a read step for that long
+//   "…and the user has replied…" answers with comments_reply as the reply recipe says: "FAKE: correct"
+//                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
+//   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
+//                      session owlit gave its owlit server, and says back the result
+//   "memory?"          says back the memory owlit gave it, or "no memory"
+//   "rules?"           says whether owlit's rules (or their change) came with the prompt
+//   "sleep through it" ends a finished turn on Claude Code's error line for a Mac that slept
+//   "refuse me"        fails as Claude Code does when the API refuses: its error as answer text, then
+//                      auth_required
+//   "crash"            exits mid-turn
+//   "question"         asks a question with options, as claude-agent-acp sends AskUserQuestion
+//   "agents"           hands work to two agents of its own in sessions of their own, as ACP's subagent draft
+//                      has it: one reads and reports what it found, the other asks to edit (on its own
+//                      session) and reports what the user chose
+//   "with a helper"    a helper agent reads a file and finishes, then the answer
 //   "permission"       asks to run something, then says what the user chose
 //   "rewrite <path> <t>" asks to Write t (\n for a line break) over the whole file, as Claude Code does: the
 //                      diff has no old text; allowed, it writes the file itself
@@ -9,21 +26,13 @@
 //   "write <path> <t>" writes t into a file through owlit
 //   "direct <path> <t>" writes t into the file itself, as Claude Code does, announcing an edit tool call
 //   "silent <path> <t>" writes t into the file itself without any tool call naming it, as a shell command does
-//   "agents"           hands work to two agents of its own in sessions of their own, as ACP's subagent draft
-//                      has it: one reads and reports what it found, the other asks to edit (on its own
-//                      session) and reports what the user chose
-//   "slow"             streams for a few seconds (to be cancelled)
-//   "quiet"            says one word, then nothing until cancelled
-//   "sleep through it" ends a finished turn on Claude Code's error line for a Mac that slept
 //   "mute"             says nothing until cancelled; with FAKE_ACP_SESSION_GATE it first leaves
 //                      <gate>.prompted, so a test knows the prompt arrived
+//   "quiet"            says one word, then nothing until cancelled
+//   "slow"             streams for a few seconds (to be cancelled)
+//   "mode?"            says the session's mode
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
-//   "crash"            exits mid-turn
-//   "replied under your comment…" answers with comments_reply as the reply recipe says: "FAKE: correct"
-//                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
-//   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
-//                      session owlit gave its owlit server, and says back the result
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
 // FAKE_ACP_LIMIT="You've hit your session limit · resets 2:20am" fails every prompt as Claude Code does at

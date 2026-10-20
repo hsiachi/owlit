@@ -21,7 +21,7 @@ export const isChatsFromDisk = diskFlag.isOn
 const fromDisk = diskFlag.apply
 
 // The list first, then the turns running now (a window opened or reloaded while one runs takes it up),
-// then every chat's messages: the list shows at once, and ⌘K and docs' pending edits see whole chats
+// then every chat's messages: the list shows at once, and ⌘K sees whole chats
 async function load() {
   const sameWorkspace = queue.tracker()
   const list = await rpc.chats.list()

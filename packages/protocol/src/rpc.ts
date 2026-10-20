@@ -17,7 +17,8 @@ import type { UpdateCheck, UpdatesView } from "./updates.ts"
 import type { ExtensionOpened, ExtensionView, ExtensionWait } from "./extension.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
-// its clients. The transport (Electron IPC now, a Unix socket later) only moves these envelopes.
+// its clients. The transport (Electron IPC for the window, a Unix socket for agents and the owlit
+// command) only moves these envelopes.
 
 export interface RpcRequest {
   jsonrpc: "2.0"
@@ -70,8 +71,6 @@ export interface Methods {
   // A short plain-text report for someone helping with a problem: versions, the agents and what keeps
   // them from running, where owlit keeps its data. No keys, no paper titles, no file contents.
   "core.diagnostics": { params: void; result: string }
-  // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
-  // itself, and the window having shown "Updated to"
   // The browser extension: whether the port is open, which browsers are allowed, which are asking
   "extension.get": { params: void; result: ExtensionView }
   // The user's answer to an extension asking to connect (ExtensionView.asking)
@@ -82,6 +81,8 @@ export interface Methods {
   // own browser; with no extension connected, owlit opens a sign-in or a check in the browser it was
   // paired in
   "extension.open": { params: { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
+  // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
+  // itself, and the window having shown "Updated to"
   "updates.get": { params: void; result: UpdatesView }
   "updates.check": { params: void; result: UpdateCheck }
   "updates.setAuto": { params: { auto: boolean }; result: UpdatesView }
@@ -159,10 +160,6 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
-  // the user's docs, in a chat owlit starts about it (or a new turn in the one that broke): a record
-  // beside it, and the points as comments where they belong
-  "docs.goThrough": { params: { path: string }; result: { chatId: string } }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }
@@ -418,7 +415,7 @@ export interface Methods {
   "library.removeHighlight": { params: { paperId: string; id: string }; result: Highlight | null }
   // Part of a paper as text: the full text (pages "3-5" or the section under a heading), the digest or
   // the user's note. pages: how many the paper has.
-  // asker: who reads, as library.searchOnline's by ("chat:<id>", "run:<id>"), so a chat's answer can say
+  // asker: who reads, as library.searchOnline's by ("chat:<id>", or "agent"), so a chat's answer can say
   // what it was built from
   "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number; pending?: "pdf" | "text" } }
   // Starts getting the PDF of a paper nobody has sought yet (a thread's), as opening or reading it does;
@@ -510,7 +507,7 @@ export interface Methods {
   "tasks.list": { params: void; result: Task[] }
   // Stops a task. A batch's tasks that haven't started are cancelled with it; running ones finish.
   "tasks.cancel": { params: { id: string }; result: Task | null }
-  // The user did what a waiting_for_you task asked (signed in, dropped the PDF, said yes)
+  // The user said yes to what a waiting_for_you task asked (a paid read of many PDFs)
   "tasks.resume": { params: { id: string }; result: Task | null }
   // Development only, absent from a packaged owlit: queues a task (debug.<lane>) that sleeps for ms in
   // steps, optionally stopping for tasks.resume after the first one or failing at the end

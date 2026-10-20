@@ -3,7 +3,7 @@ import type { ActivityEvent, ActivityKind, ActivityOf } from "@owlit/protocol"
 type Listener<E extends ActivityEvent = ActivityEvent> = (event: E) => void
 
 // In-memory fan-out of activity events. Nothing is kept: a listener hears what happens after it
-// subscribes. The journal is one listener; a live agent will be another.
+// subscribes. The journal is one listener; core's turning a paper Read once read in full is another.
 export class ActivityBus {
   private byKind = new Map<ActivityKind, Set<Listener>>()
   private all = new Set<Listener>()

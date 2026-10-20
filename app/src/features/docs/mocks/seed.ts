@@ -122,7 +122,7 @@ export const seedFiles: WorkspaceFile[] = [
 
 export const seedFolders = ["writing", "notes", "meetings", "experiments"]
 
-// Notes an agent left on the draft, as if from an earlier review: one on a sentence inside a paragraph
+// Comments Owlit left on the draft, as if from an earlier review: one on a sentence inside a paragraph
 // (which Owlit has since corrected), one on the closing overclaim
 export const seedComments: Record<string, DocComment[]> = {
   d1: [

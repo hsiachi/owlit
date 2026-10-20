@@ -24,17 +24,17 @@ import { toast } from "sonner"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
-// notes left, papers gathered into a thread, digests asked for (followed until written), lines Owlit now
+// comments left, papers gathered into a thread, digests asked for (followed until written), lines Owlit now
 // keeps in mind. A row goes to what it names, in the main view rather than opening
 // anything in place, so its mark is a go-to arrow, and only on hover: at rest every row looks the same,
 // whether or not it has somewhere to go. Undo shows on hover too, since it's rarely wanted and a column
-// of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several notes or edits on one doc are one
+// of Undo buttons reads as a form to fill in. Rows sit tight: nothing in the card stays selected. Several comments or edits on one doc are one
 // row, so a long turn's card stays a few lines; past FOLD_AFTER rows the rest wait behind "Show N more".
 export interface ResultRow {
   key: string
   icon: LucideIcon
   name: string
-  // At the right: "+31 −1" for an edit, "Added" for a paper, "3 notes"
+  // At the right: "+31 −1" for an edit, "Added" for a paper, "3 comments"
   detail?: React.ReactNode
   undone: boolean
   view?: () => void
@@ -44,7 +44,7 @@ export interface ResultRow {
   // One more thing the row offers on hover, before Undo ("Keep it separate")
   extra?: { label: string; run: () => Promise<void> | void }
   // For the summary line: what kind of change, and how much an edit changed
-  kind: "doc" | "paper" | "note" | "digest" | "thread" | "memory"
+  kind: "doc" | "paper" | "comment" | "digest" | "thread" | "memory"
   // A thread: whether the reply started it, and how many papers it gathered
   created?: boolean
   papers?: number
@@ -208,7 +208,7 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   for (const [path, list] of byKind("comment")) {
     const name = labelOf(path)
     const count = list.filter((c) => c.action === "create" && !c.target.part?.includes("/")).length
-    rows.push({ key: `note:${path}`, kind: "note", icon: KIND_ICON.note, name, detail: plural(count, { one: "# comment", other: "# comments" }), ...of(list, name), view: openDoc(path) })
+    rows.push({ key: `comment:${path}`, kind: "comment", icon: KIND_ICON.comment, name, detail: plural(count, { one: "# comment", other: "# comments" }), ...of(list, name), view: openDoc(path) })
   }
   // Threads the reply gathered papers into, one row each however many writes it took
   for (const [id, list] of byKind("thread")) {
@@ -294,7 +294,7 @@ function summary(rows: ResultRow[]) {
     docs && (markdown ? plural(docs, { one: "edited a doc", other: "edited # docs" }) : plural(docs, { one: "edited a file", other: "edited # files" })),
     added(rows) && plural(added(rows), { one: "added a paper", other: "added # papers" }),
     removed(rows) && plural(removed(rows), { one: "removed a paper", other: "removed # papers" }),
-    n("note") && plural(n("note"), { one: "left comments on a doc", other: "left comments on # docs" }),
+    n("comment") && plural(n("comment"), { one: "left comments on a doc", other: "left comments on # docs" }),
     started(rows) && plural(started(rows), { one: "started a thread", other: "started # threads" }),
     gathered(rows) && plural(gathered(rows), { one: "added a paper to a thread", other: "added # papers to threads" }),
     wrote(rows) && plural(wrote(rows), { one: "wrote a digest", other: "wrote # digests" }),

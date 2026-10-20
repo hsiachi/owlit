@@ -22,5 +22,5 @@ Run from the worktree of the branch to ship. Stop and say so at the first step t
 9. Remove the worktree and delete the branch: `git worktree remove .claude/worktrees/<name>` and
    `git branch -d <branch>`. Move a finished work folder to `local/archive/`.
 
-Merging into dev no longer touches the Owlit hsiachi uses (`pnpm app:install` keeps it apart), but it
+Merging into dev doesn't touch the Owlit hsiachi uses (`pnpm app:install` keeps it apart), but it
 restarts any `pnpm dev` Owlit Dev running on the main checkout: say so in the report.

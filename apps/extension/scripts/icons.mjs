@@ -4,10 +4,9 @@
 // slots on a 2x display, which the extensions page asks for: without them the browser scales 128 and shows
 // it soft).
 //
-// One tile everywhere, not the app icon in the store and on the extensions page beside a tile on the
-// button: the same extension then looks the same wherever the browser shows it, and the app icon wears
-// badly there. At a toolbar's size its gradient, highlight and bars only blur, and on a dark extensions
-// page its finish and deep forest green sat dim beside other extensions' saturated icons. The feather's
+// One tile everywhere, so the extension looks the same wherever the browser shows it. The app icon wears
+// badly there: at a toolbar's size its gradient, highlight and bars only blur, and on a dark extensions
+// page its finish and deep forest green sit dim beside other extensions' saturated icons. The feather's
 // box is centred and three quarters of the tile's side, the corners a quarter of it. As in the app icon,
 // the line is heavier at the small sizes, about a pixel and a half at 16 px, and thins as the tile grows.
 // sharp comes from apps/desktop/scripts/icon-draw.mjs, which says where.
