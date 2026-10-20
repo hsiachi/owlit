@@ -9,7 +9,7 @@ import { type Answers, type CardAction, type CardView, type Connection, type Goi
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
-import { pdfTabKey, pdfTabWrite, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "../lib/pdf-tab.ts"
+import { pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, placesFor, TAKEN, WAITING, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isThrough } from "../lib/verdict.ts"
@@ -151,12 +151,24 @@ async function lookUp(page: { url: string; paper?: PagePaper }, token: string) {
   return (await ask<{ paper: ExtensionPaper | null }>(`/papers?${query}`, { token })).paper
 }
 
-// The toolbar button's mark for a tab: a Library paper there lacks its PDF
+// The toolbar button's mark for a tab: a Library paper there lacks its PDF. With "Take PDFs I open" on,
+// the PDF the page names is fetched for it then and there (pdf-tab.ts savesOnArrival).
 async function mark(tabId: number, page: { url: string; paper?: PagePaper }) {
   const { token } = await local()
   if (!token || !page.paper) return setBadge(tabId, "")
   const paper = await lookUp(page, token).catch(() => null)
   await setBadge(tabId, paper && !paper.hasPdf ? "•" : "", WAITING)
+  const address = page.paper.pdfUrl
+  if (!paper || !address) return
+  const saves = savesOnArrival({ inLibrary: paper, pdfUrl: address, takePdfs: await takePdfsOn(), permitted: await permitted(address), answered: await answered.has(address) })
+  if (!saves) return
+  const result = await putPdf(paper.id, address, token).catch(() => undefined)
+  // A PDF that didn't come (a paywall's page, owlit away) is tried again at the next visit; owlit's
+  // answer is kept
+  if (result === "saved" || result === "not-this-paper") await answered.add(address)
+  if (result !== "saved") return
+  await setBadge(tabId, "✓", TAKEN)
+  await drawCard(tabId, cardOf({ kind: "saved", paperId: paper.id }))
 }
 
 async function setBadge(tabId: number, text: string, color = WAITING) {

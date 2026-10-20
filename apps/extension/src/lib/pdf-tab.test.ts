@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { OwlitError, Unreachable } from "./owlit.ts"
-import { contentTypeOf, pdfTabWrite, refusedByOwlit, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "./pdf-tab.ts"
+import { contentTypeOf, pdfTabWrite, refusedByOwlit, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "./pdf-tab.ts"
 
 const on = { connected: true, takePdfs: true, permitted: true }
 const pdf = { url: "https://dl.acm.org/doi/pdf/10.1145/3626772.3657891", contentType: "application/pdf" }
@@ -118,5 +118,23 @@ describe("takePdf", () => {
     const run = deps({ lookUp: async () => ({ ...paper, hasPdf: true }) })
     expect(await takePdf(pdf.url, { arxiv: "1706.03762" }, run.deps)).toEqual({ had: { ...paper, hasPdf: true } })
     expect(run.put).not.toHaveBeenCalled()
+  })
+})
+
+describe("savesOnArrival", () => {
+  const without = { id: "p1", title: "A paper", hasPdf: false }
+  const all = { inLibrary: without, pdfUrl: pdf.url, takePdfs: true, permitted: true, answered: false }
+
+  it("fetches the PDF a Library paper's page names when the paper lacks one", () => {
+    expect(savesOnArrival(all)).toBe(true)
+  })
+
+  it("leaves it when any of that is missing", () => {
+    expect(savesOnArrival({ ...all, inLibrary: null })).toBe(false)
+    expect(savesOnArrival({ ...all, inLibrary: { ...without, hasPdf: true } })).toBe(false)
+    expect(savesOnArrival({ ...all, pdfUrl: undefined })).toBe(false)
+    expect(savesOnArrival({ ...all, takePdfs: false })).toBe(false)
+    expect(savesOnArrival({ ...all, permitted: false })).toBe(false)
+    expect(savesOnArrival({ ...all, answered: true })).toBe(false)
   })
 })

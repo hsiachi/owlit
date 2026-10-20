@@ -73,3 +73,11 @@ export async function takePdf(url: string, ids: { doi?: string; arxiv?: string }
     return { refused: error }
   }
 }
+
+// Whether a paper page's PDF is fetched as the page arrives, without a click: its paper is in the
+// Library without one, the page names the PDF (citation_pdf_url), the person left "Take PDFs I open" on,
+// the extension may read the PDF's site, and owlit hasn't answered for that PDF in this session already.
+// The same consent as a PDF tab: opening the paper's page is opening its PDF one step early.
+export function savesOnArrival(state: { inLibrary: ExtensionPaper | null; pdfUrl?: string; takePdfs: boolean; permitted: boolean; answered: boolean }): boolean {
+  return !!state.inLibrary && !state.inLibrary.hasPdf && !!state.pdfUrl && state.takePdfs && state.permitted && !state.answered
+}
