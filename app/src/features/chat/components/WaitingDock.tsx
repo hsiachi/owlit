@@ -14,8 +14,6 @@ import { Kbd } from "@/components/ui/kbd"
 import { Unfold } from "@/components/unfold"
 import type { Part, ToolCall } from "../types"
 import { allAnswered, answered, nextOpen, useAskDraft } from "../ask-draft"
-import { useInPlace } from "../in-place"
-import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { amount } from "../lib/edit-counts"
 import { askSentence, runsCommand, shortUrl } from "../lib/step-words"
 import { callOf, pendingAsk } from "../status"
@@ -61,26 +59,9 @@ const optionWords = (kind: PermissionKind): string | undefined =>
 const ORDER: PermissionKind[] = ["allow_once", "allow_always", "reject_once", "reject_always"]
 
 function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string; ask: Part<"permission">; call?: ToolCall; agent?: string; compact: boolean }) {
-  const editPath = call?.diff?.path
-  const inPlace = useInPlace((s) => !!s.drawn[ask.requestId])
-  const [answerHere, setAnswerHere] = useState(false)
   const [all, setAll] = useState(false)
   const [long, setLong] = useState(false)
   const respond = (optionId: string) => useChatStore.getState().respondPermission(chatId, ask.requestId, optionId)
-
-  // An edit drawn where it would land, in an editor on screen, is answered there, with Apply and Discard
-  if (inPlace && !answerHere) {
-    const inNote = !!editPath && !!paperOfNotePath(editPath)
-    return (
-      <div className={cn(CARD, "flex items-center gap-2 py-2 text-muted-foreground")}>
-        <span className="min-w-0 truncate">{inNote ? t`Waiting in your note: Apply or Discard it there` : t`Waiting in the doc: Apply or Discard it there`}</span>
-        <span aria-hidden>·</span>
-        <Button variant="text" size="inline" onClick={() => setAnswerHere(true)}>
-          {t`Answer here`}
-        </Button>
-      </div>
-    )
-  }
 
   const diff = call?.diff
   const command = call?.tool?.command ?? (call && runsCommand(call) ? call.title : undefined)

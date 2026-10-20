@@ -660,7 +660,6 @@
 .suggest-bar span { flex: 1; }
 .suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
 .suggest-discard:hover { background: var(--accent); color: var(--foreground); }
-.suggest-apply { background: var(--primary); color: var(--primary-foreground); font-weight: 500; }
 /* Owlit's landed passages (editor/proposals.ts): the same marks, with Keep · Undo after each passage
    seen on hover of its lines (or by keyboard), and the counting line above the first, which the rule
    joins to the passage under it */
