@@ -38,6 +38,15 @@ describe("proposalSpots", () => {
     expect(spots).toEqual([{ key: "c1:0", id: "c1", index: 0, from: 25, to: 25, removed: " well" }])
   })
 
+  it("keeps out a passage inside a long one, though a short one between them was kept out too", () => {
+    const spots = proposalSpots(EditorState.create({ doc }), [
+      proposal([{ insert: "\n\nMy own line, which Owlit touched.\n\nA closing line", removed: "", before: "mostly.", after: ".\n" }], "long"),
+      proposal([{ insert: "", removed: "x", before: "mostly.", after: "\n\nMy own line" }], "short"),
+      proposal([{ insert: " closing", removed: "", before: "A", after: " line." }], "inside"),
+    ])
+    expect(spots.map((s) => s.key)).toEqual(["long:0"])
+  })
+
   it("draws no passage in a doc Owlit wrote whole", () => {
     const made: Proposal = { id: "c0", at: 1, actor: "o_1234abcd", hunks: [], whole: { also: [] } }
     expect(proposalSpots(EditorState.create({ doc }), [made, proposal([{ insert: ", mostly", removed: " well", before: "The method works", after: ".\n" }])])).toEqual([])
@@ -53,6 +62,14 @@ describe("spotAt", () => {
 
   it("is the passage whose end the cursor is at, with nothing selected", () => {
     expect(at(EditorSelection.single(end))).toBe("c1:0")
+  })
+
+  it("is a landed paragraph at the end of its words, where its Undo sits, not after its blank lines", () => {
+    const state = (head: number) => EditorState.create({ doc, selection: EditorSelection.single(head) })
+    const landed = [proposal([{ insert: "My own line, which Owlit touched.\n\n", removed: "", before: "mostly.\n\n", after: "A closing" }])]
+    const words = doc.indexOf("touched.") + "touched.".length
+    expect(spotAt(state(words), proposalSpots(state(words), landed))?.key).toBe("c1:0")
+    expect(spotAt(state(words + 2), proposalSpots(state(words + 2), landed))).toBeUndefined()
   })
 
   it("is none inside a passage, on its line, or with a selection, so ⌘⌫ deletes as it always does", () => {
