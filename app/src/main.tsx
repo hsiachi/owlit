@@ -11,7 +11,7 @@ import { startMenu } from "@/app/menu"
 import { startModality } from "@/app/modality"
 import { startTextMenu } from "@/app/text-menu"
 import { startUiHandlers } from "@/app/ui-handlers"
-import { startAppearance, storedAppearance } from "@/features/settings/appearance"
+import { startAppearance } from "@/features/settings/appearance"
 import { startSettings } from "@/features/settings/store"
 import { startTasks } from "@/features/tasks/store"
 import { startStartedChats } from "@/features/chat/started"
@@ -34,7 +34,7 @@ document.documentElement.dataset.platform =
   bridge?.platform ?? (/Mac/.test(navigator.userAgent) ? "darwin" : "other")
 // The chosen theme, paper tone and language (Settings › Appearance), before anything is drawn
 startAppearance()
-applyLocale(bridge?.locale ?? interfaceLocale(storedAppearance().language, navigator.languages))
+applyLocale(bridge?.locale ?? interfaceLocale("system", navigator.languages))
 startSettings()
 startUpdates()
 startExtension()

@@ -10,7 +10,7 @@ import { useAgentWindow } from "@/features/agent/store"
 import type { PageRect, Paper, QuotedSelection } from "@owlit/protocol"
 import { paperMentionable } from "@/features/docs/lib/mentions"
 import { useThreadsStore } from "@/features/threads/store"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import type { LearnedId, Resolved } from "./client"
 import { importPdf, undoAdds } from "./disk"
 import { libraryClient } from "./store"
@@ -147,7 +147,7 @@ export function sayAdded(added: Added, open: (id: string) => void, options: { un
 // Takes back papers just added: in the desktop app by their entries in the change log (each add is
 // one), so the Undo is the log's and Redo works; in the browser preview, out of the store
 export function undoAdded(ids: string[]) {
-  if (isDesktop) return undoAdds(ids)
+  if (hasCore) return undoAdds(ids)
   useLibraryStore.getState().removePapers(ids)
 }
 

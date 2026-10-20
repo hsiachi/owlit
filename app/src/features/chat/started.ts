@@ -7,7 +7,7 @@ import type { ChatAbout, ChatMessage, StartedChat } from "@owlit/protocol"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { followCore } from "@/lib/follow-core"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { toastError } from "@/lib/toast"
 
@@ -94,14 +94,14 @@ export function stopStarted(about: ChatAbout) {
 export function stopChat(chat: StartedChat) {
   if (chat.reply?.status !== "streaming") return
   // Without core (pnpm dev:web) the mock's chat stops here
-  if (!isDesktop) heardStarted({ ...chat, reply: { ...chat.reply, status: "cancelled", finishedAt: Date.now() } })
+  if (!hasCore) heardStarted({ ...chat, reply: { ...chat.reply, status: "cancelled", finishedAt: Date.now() } })
   else void rpc.agents.cancel({ chatId: chat.chatId }).catch(toastError)
 }
 
 // Retry: another turn in the chat that broke, so its agent sees what it did before
 export async function tryAgain(chatId: string) {
   const chat = Object.values(useStarted.getState().byAbout).find((c) => c.chatId === chatId)
-  if (!isDesktop) return void (chat && mockStarted(chat.about, chatId))
+  if (!hasCore) return void (chat && mockStarted(chat.about, chatId))
   await rpc.chats.tryAgain({ chatId }).catch(toastError)
 }
 
@@ -119,7 +119,7 @@ export function mockStarted(about: ChatAbout, chatId = `mock-${aboutKey(about)}-
 const MOCK_RUN_MS = 4000
 
 export function startStartedChats() {
-  if (!isDesktop) return
+  if (!hasCore) return
   // Changes heard while the list is read are newer than it, so they are laid over it
   const follow = followCore({
     read: async () => {

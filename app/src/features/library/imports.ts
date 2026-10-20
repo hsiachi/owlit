@@ -5,7 +5,7 @@
 import type { ImportPreview, ImportSource, ImportSummary, Task } from "@owlit/protocol"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
-import { bridge, isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { bridge, hasCore, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { useTasksStore } from "@/features/tasks/store"
 import { undoAll } from "@/lib/changes"
@@ -37,7 +37,7 @@ async function load() {
 }
 
 export function startImports() {
-  if (!isDesktop) return
+  if (!hasCore) return
   // Each paper an import adds is one tasks.changed for the import's progress: the summary is read again
   // at most twice a second
   let timer: ReturnType<typeof setTimeout> | undefined

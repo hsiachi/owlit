@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import type { Chat, ChatMessage, ChatSummary } from "@owlit/protocol"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { beforeWorkspaceSwitch, onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { createDiskFlag, createWorkspaceQueue } from "@/lib/write-queue"
@@ -10,7 +10,7 @@ import { adoptRunning, forgetTurns, useChatStore, withHeld } from "./store"
 // The chat store's link to .owlit/chats/. The store changes at once; each change then goes to core in
 // order. A turn's messages are core's to save, as it runs the turn.
 
-export const onDisk = isDesktop
+export const onDisk = hasCore
 
 const queue = createWorkspaceQueue({ onError: (error) => toastError(error, t`Couldn't save the chat.`) })
 const enqueue = (op: () => Promise<unknown>) => queue.enqueue(op)

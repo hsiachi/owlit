@@ -1,15 +1,12 @@
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
-import { isDesktop } from "@/lib/rpc"
 import { newId } from "@/lib/id"
 import * as disk from "./disk"
 import { cleanName, extOf, followFirstLine, timeName, uniquePath } from "./lib/naming"
-import { seedComments, seedFiles, seedFolders } from "./mocks/seed"
 import { baseName, isMarkdown, isWithin as within, joinPath, parentPath, type CommentAnchor, type DocComment, type WorkspaceFile } from "./types"
 
-// In the desktop app the store mirrors the workspace's files: core lists them when a workspace opens,
-// and every action below changes the store at once and then the disk (./disk). In a plain browser
-// (pnpm dev:web) there is no disk: a seeded workspace lives in memory until the page reloads.
+// The store mirrors the workspace's files: core lists them when a workspace opens, and every action below
+// changes the store at once and then the disk (./disk).
 
 // Docs started in this session. One left without a single character is discarded when the user moves
 // on, so a stray ⌘N leaves nothing behind; files that were already on disk are never touched this way.
@@ -78,11 +75,11 @@ function relocate(state: Pick<DocsState, "files" | "folders">, from: string, to:
 
 export const useDocsStore = create<DocsState>()(
     (set, get) => ({
-      loaded: !isDesktop,
-      files: isDesktop ? {} : Object.fromEntries(seedFiles.map((f) => [f.id, f])),
+      loaded: false,
+      files: {},
       missing: {},
-      folders: isDesktop ? [] : seedFolders,
-      comments: isDesktop ? {} : seedComments,
+      folders: [],
+      comments: {},
 
       createDoc: (folder) => {
         const now = Date.now()

@@ -5,7 +5,7 @@ import { useChatStore } from "@/features/chat/store"
 import { useSeen } from "@/app/seen"
 import { chatStatus, useSeenStore } from "@/features/chat/status"
 import { chatIsAbout } from "./chats-about"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PageRect, PromptInput, QuotedSelection } from "@owlit/protocol"
 
@@ -152,11 +152,11 @@ export const useAgentWindow = create<AgentWindowState>()(
     // Only the current chat and the panel's width are kept, so ⇧⌘J after a reload picks the chat up again;
     // the window starts closed. In the desktop app the chat is kept with the workspace instead
     // (workspace.json's layout), while the width is the user's, whichever workspace is open.
-    { name: "owlit-agent-window", partialize: (s) => (isDesktop ? { panelWidth: s.panelWidth } : { chatId: s.chatId, panelWidth: s.panelWidth }) },
+    { name: "owlit-agent-window", partialize: (s) => (hasCore ? { panelWidth: s.panelWidth } : { chatId: s.chatId, panelWidth: s.panelWidth }) },
   ),
 )
 
-if (isDesktop) {
+if (hasCore) {
   // Set while the window takes the workspace's saved chat, which needs no saving back
   let restoring = false
   const restore = (chatId: string | null) => {

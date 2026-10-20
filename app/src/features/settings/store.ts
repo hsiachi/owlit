@@ -1,16 +1,15 @@
 // This machine's settings as core reports them (settings.get, then settings.changed), and the Settings
 // dialog's open state. Changes go straight to core: there is no Save, and every window hears the result.
-// Without the desktop app there is no core; appearance is then kept in localStorage so dev:web can try it.
 
-import { interfaceLocale, noteLanguageFor, noteLanguageOfLocale, type AppearanceSettings, type ProxyPreset, type SecretName, type SettingsCheckTarget, type SettingsPatch, type SettingsView } from "@owlit/protocol"
+import { type AppearanceSettings, type ProxyPreset, type SecretName, type SettingsCheckTarget, type SettingsPatch, type SettingsView } from "@owlit/protocol"
 import type { MessageDescriptor } from "@lingui/core"
 import { msg } from "@lingui/core/macro"
 import { create } from "zustand"
-import { setProfileId, WEB_PROFILE_ID } from "@/lib/actors"
+import { setProfileId } from "@/lib/actors"
 import { takeDimPdfOff } from "@/features/library/prefs-store"
 import { applyLocale, i18n } from "@/lib/i18n"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
-import { applyAppearance, storedAppearance } from "./appearance"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
+import { applyAppearance, SYSTEM_APPEARANCE } from "./appearance"
 
 // The dialog's sections in order, by the names its list and owlit:// links show. They follow what the
 // user came to do (what Owlit does, which agents run it, getting papers, how it looks), not core's modules.
@@ -71,7 +70,7 @@ export const closeSettings = () => useSettings.setState({ open: false })
 export const showSection = (section: SettingsSection) => useSettings.setState({ section, group: null })
 
 function receive(view: SettingsView) {
-  if (isDesktop && view.appearance.dimPdf === undefined && takeDimPdfOff()) void updateSettings({ appearance: { dimPdf: false } })
+  if (hasCore && view.appearance.dimPdf === undefined && takeDimPdfOff()) void updateSettings({ appearance: { dimPdf: false } })
   useSettings.setState({ view })
   setProfileId(view.profile.id)
   applyAppearance(view.appearance)
@@ -79,14 +78,6 @@ function receive(view: SettingsView) {
 }
 
 export async function updateSettings(patch: SettingsPatch) {
-  if (!isDesktop) {
-    // Only appearance and the name mean anything without core; the name lasts until reload
-    const view = useSettings.getState().view
-    const appearance = { ...(view?.appearance ?? storedAppearance()), ...patch.appearance }
-    const name = patch.profile?.name === undefined ? view?.profile.name : patch.profile.name || undefined
-    receive({ ...webView(appearance), profile: { id: WEB_PROFILE_ID, ...(name ? { name } : {}) } })
-    return
-  }
   receive(await rpc.settings.update({ patch }))
 }
 
@@ -98,18 +89,7 @@ export async function setActivity(enabled: boolean) {
   await rpc.activity.setEnabled({ enabled })
 }
 
-// What core would say, for dev:web: the interface and digest languages as core works them out
-function webView(appearance = storedAppearance()): SettingsView {
-  const locale = interfaceLocale(appearance.language, navigator.languages)
-  const digestLanguageSystem = appearance.language === "system" ? noteLanguageFor(navigator.languages) : noteLanguageOfLocale(locale)
-  return { appearance, locale, profile: { id: WEB_PROFILE_ID }, library: { digestLanguageSystem }, parsing: { auto: true }, secrets: {}, activity: { enabled: true }, onboarded: true }
-}
-
 export function startSettings() {
-  if (!isDesktop) {
-    receive(webView())
-    return
-  }
   onNotify("settings.changed", receive)
   rpc.settings
     .get()
@@ -117,4 +97,4 @@ export function startSettings() {
     .catch((error) => console.warn("[owlit] couldn't read settings", error))
 }
 
-export const appearanceOf = (view: SettingsView | null): AppearanceSettings => view?.appearance ?? storedAppearance()
+export const appearanceOf = (view: SettingsView | null): AppearanceSettings => view?.appearance ?? SYSTEM_APPEARANCE

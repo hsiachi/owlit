@@ -26,9 +26,8 @@ const client = vi.hoisted(() => {
     },
   }
 })
-vi.mock("@/lib/rpc", () => ({ isDesktop: false, rpc: {}, onNotify: () => () => {}, bridge: undefined }))
+vi.mock("@/lib/rpc", () => ({ hasCore: false, rpc: {}, onNotify: () => () => {}, bridge: undefined }))
 vi.mock("./agent", () => ({ agentClient: client.agentClient }))
-vi.mock("./mocks/chats", () => ({ seedChats: [] }))
 vi.mock("@/app/seen", () => ({ markSeen: () => {} }))
 const asked = vi.hoisted(() => ({ typed: [] as string[] }))
 vi.mock("./ask-draft", () => ({ useAskDraft: { getState: () => ({ type: (_chatId: string, _ask: unknown, text: string) => asked.typed.push(text) }) } }))

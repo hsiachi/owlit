@@ -25,9 +25,8 @@ const core = vi.hoisted(() => {
     },
   }
 })
-vi.mock("@/lib/rpc", () => ({ isDesktop: true, rpc: core.rpc, onNotify: () => () => {} }))
-vi.mock("./seen-mock", () => ({}))
-vi.mock("@/lib/actors", () => ({ me: () => "p_1", WEB_ME: "p_1" }))
+vi.mock("@/lib/rpc", () => ({ hasCore: true, rpc: core.rpc, onNotify: () => () => {} }))
+vi.mock("@/lib/actors", () => ({ me: () => "p_1", myOwlit: () => "o_1" }))
 vi.mock("@/lib/workspace", () => ({ onWorkspaceOpened: () => {} }))
 vi.mock("@/features/chat/store", () => ({ useChatStore: { getState: () => ({ chats: {} }), subscribe: () => {} } }))
 vi.mock("@/features/library/store", () => ({ useLibraryStore: { getState: () => ({ papers: {} }), subscribe: () => {} } }))

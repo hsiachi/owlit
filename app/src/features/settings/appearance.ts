@@ -4,22 +4,12 @@
 // scrollbars; the first values come from the preload, so the first frame is already right.
 
 import type { AppearanceSettings } from "@owlit/protocol"
-import { bridge, isDesktop } from "@/lib/rpc"
+import { bridge } from "@/lib/rpc"
 
-const KEY = "owlit.appearance"
+// What the page follows until core's settings have arrived
+export const SYSTEM_APPEARANCE: AppearanceSettings = { theme: "system", tone: "warm", language: "system" }
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)")
-let current: AppearanceSettings = bridge?.appearance ?? storedAppearance()
-
-export function storedAppearance(): AppearanceSettings {
-  try {
-    const stored = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<AppearanceSettings> | null
-    // Any tone but Slate and Sepia (Neutral among them) reads as Warm
-    const tone = stored?.tone === "slate" || stored?.tone === "sepia" ? stored.tone : "warm"
-    return { theme: stored?.theme ?? "system", tone, language: stored?.language ?? "system", ...(stored?.dimPdf === false && { dimPdf: false }) }
-  } catch {
-    return { theme: "system", tone: "warm", language: "system" }
-  }
-}
+let current: AppearanceSettings = bridge?.appearance ?? SYSTEM_APPEARANCE
 
 function paint() {
   const root = document.documentElement
@@ -38,13 +28,6 @@ function paint() {
 
 export function applyAppearance(next: AppearanceSettings) {
   current = next
-  if (!isDesktop) {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next))
-    } catch {
-      // A browser that keeps nothing still shows the change for this visit
-    }
-  }
   paint()
 }
 

@@ -2,11 +2,9 @@ import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { applyUpdate, DEFAULT_ROLE, type Role, withoutAgentError } from "@owlit/protocol"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { agentClient } from "./agent"
 import * as disk from "./disk"
-import { builtInConnectors } from "./mocks/connectors"
-import { seedChats } from "./mocks/chats"
 import { optionFor, pendingAsk } from "./status"
 import { useAskDraft } from "./ask-draft"
 import { useComposerDrafts } from "./composer-drafts"
@@ -16,11 +14,10 @@ import { titleFrom } from "./lib/title"
 import type { Chat, ChatMessage, PromptInput, QuestionAnswer, SessionUpdate } from "@owlit/protocol"
 import type { RunningTurn } from "./agent/client"
 
-// Chats deleted in this window, for Undo in the browser build (the desktop app's are in .owlit/trash/)
+// Chats deleted in this window, for Undo without a disk (core's are in .owlit/trash/)
 const deleted = new Map<string, Chat>()
 
-// In the desktop app chats live in the workspace (.owlit/chats/, through ./disk); in a plain browser
-// (pnpm dev:web) seeded chats are kept in localStorage.
+// Chats live in the workspace (.owlit/chats/, through ./disk)
 export interface ChatState extends ConnectorSlice {
   chats: Record<string, Chat>
   // Whether the workspace's chat list has been read
@@ -70,13 +67,10 @@ export const useChatStore = create<ChatState>()(
   persist(
     (set, get, store) => ({
       ...connectorSlice(set, get, store),
-      chats: isDesktop ? {} : Object.fromEntries(seedChats.map((c) => [c.id, c])),
-      chatsLoaded: !isDesktop,
-      selection: {
-        connectorId: builtInConnectors[0].id,
-        modelId: builtInConnectors[0].defaultModelId,
-        effortId: builtInConnectors[0].defaultEffortId,
-      },
+      chats: {},
+      chatsLoaded: false,
+      // Until core lists the agents there is nothing to pick; the first one listed is taken then
+      selection: { connectorId: "" },
       newChatRole: DEFAULT_ROLE,
       streaming: {},
       queued: {},
@@ -288,32 +282,14 @@ export const useChatStore = create<ChatState>()(
     {
       name: "owlit.chat",
       version: 1,
-      // In the desktop app chats are the workspace's, not this browser profile's
-      partialize: (s) => (isDesktop ? { selection: s.selection } : { chats: s.chats, connectors: s.connectors, selection: s.selection }),
+      // Chats and agents are the workspace's and the machine's, not this browser profile's: only what the
+      // composer last had picked is kept
+      partialize: (s) => ({ selection: s.selection }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ChatState>
-        // Built-in connectors take their definition (models, efforts) from code and only
-        // their probe result from storage, so shipping a new field doesn't need a reset. Custom
-        // connectors are stored whole. Stale "checking"/"connected" flags are reset.
-        const stored = p.connectors ?? []
-        const custom = stored.filter((c) => !c.builtIn)
-        const connectors = isDesktop ? current.connectors : [
-          ...builtInConnectors.map((def) => {
-            const saved = stored.find((c) => c.id === def.id)
-            return saved ? { ...def, status: saved.status, version: saved.version, authenticated: saved.authenticated, error: saved.error } : def
-          }),
-          ...custom,
-        ].map((c) => (c.status === "checking" || c.status === "connected" ? { ...c, status: "available" as const } : c))
-        const chats = Object.fromEntries(
-          Object.entries(isDesktop ? current.chats : (p.chats ?? current.chats)).map(([id, c]) => [
-            id,
-            { ...c, messages: c.messages.map((m) => (m.status === "streaming" ? cutOff(m) : m)) },
-          ]),
-        )
         // A selection saved by an earlier owlit may carry a mode or a role; neither is kept
         const { modeId: _mode, role: _role, ...saved } = (p.selection ?? {}) as Partial<Selection> & { modeId?: string; role?: string }
-        const selection = { ...current.selection, ...saved }
-        return { ...current, ...p, selection, connectors, chats, newChatRole: current.newChatRole }
+        return { ...current, selection: { ...current.selection, ...saved } }
       },
     },
   ),
@@ -324,10 +300,6 @@ function patchMessage(chatId: string, messageId: string, fn: (m: ChatMessage) =>
     s.chats[chatId]?.messages.some((m) => m.id === messageId) ? patchChat(s, chatId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId ? fn(m) : m)) })) : s,
   )
 }
-
-// A reply the browser build was streaming when its page went away: said as core says it of a turn owlit
-// closed on
-const cutOff = (m: ChatMessage): ChatMessage => ({ ...m, status: "error", error: t`Owlit was closed before it finished.`, cutOff: "closed" })
 
 // Whether this reply's turn is the chat's running one
 const runs = (chatId: string, messageId: string) => useChatStore.getState().streaming[chatId] === messageId
@@ -423,7 +395,7 @@ function joined(queued: PromptInput | undefined, input: PromptInput): PromptInpu
 // The turn's call returned and nothing said it ended (core refused it before it began, or the notice was
 // lost on its way): what core saved is the reply, else what the call said
 async function settle(chatId: string, messageId: string, ending: Partial<ChatMessage>) {
-  const saved = isDesktop ? (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === messageId) : undefined
+  const saved = hasCore ? (await rpc.chats.get({ id: chatId }).catch(() => null))?.messages.find((m) => m.id === messageId) : undefined
   const mine = useChatStore.getState().chats[chatId]?.messages.find((m) => m.id === messageId)
   if (!runs(chatId, messageId) || !mine) return
   turnEnded(chatId, messageId, saved && saved.status !== "streaming" ? saved : withoutAgentError({ ...mine, ...ending, finishedAt: Date.now() }))

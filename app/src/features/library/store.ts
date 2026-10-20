@@ -2,18 +2,17 @@ import { me, myOwlit } from "@/lib/actors"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import type { LibraryClient } from "./client"
 import { MockLibraryClient } from "./mock-client"
 import { RpcLibraryClient } from "./rpc-client"
-import { seedPapers } from "./mocks/papers"
 import type { Highlight, HighlightColor, Paper, PaperNote, DigestPosition, PaperView, ReadingPosition, ReadStatus, ResolvedPaper } from "@owlit/protocol"
 import { normalizeTag } from "./lib/tags"
 
-export const libraryClient: LibraryClient = isDesktop ? new RpcLibraryClient() : new MockLibraryClient()
+export const libraryClient: LibraryClient = hasCore ? new RpcLibraryClient() : new MockLibraryClient()
 
-// In the desktop app papers live in the workspace (library/papers/ and .owlit/papers/, through
-// ./disk); in a plain browser (pnpm dev:web) seeded papers are kept in localStorage as before.
+// Papers live in the workspace (library/papers/ and .owlit/papers/, through ./disk): core lists them when a
+// workspace opens, and every change below goes to it.
 
 interface LibraryState {
   papers: Record<string, Paper>
@@ -80,7 +79,7 @@ export const markedFor = new Map<string, string>()
 export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
-      papers: isDesktop ? {} : Object.fromEntries(seedPapers.map((p) => [p.id, p])),
+      papers: {},
       aliases: {},
       highlights: {},
       notes: {},
@@ -204,23 +203,9 @@ export const useLibraryStore = create<LibraryState>()(
     {
       name: "owlit-library",
       version: 2,
-      // In the desktop app the library is the workspace's: only the last highlight colour is this profile's
-      partialize: (s) => (isDesktop ? { lastColor: s.lastColor } : s) as LibraryState,
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<LibraryState>
-        return isDesktop ? { ...current, lastColor: p.lastColor ?? current.lastColor } : { ...current, ...p }
-      },
-      // v1 kept only a page number; it becomes the top of that page
-      migrate: (persisted, version) => {
-        const state = persisted as { papers?: Record<string, Paper & { lastPage?: number }> }
-        if (version < 2 && state.papers) {
-          for (const p of Object.values(state.papers)) {
-            if (p.lastPage) p.position = { page: p.lastPage, y: 0 }
-            delete p.lastPage
-          }
-        }
-        return state as LibraryState
-      },
+      // The library is the workspace's: only the last highlight colour is this profile's
+      partialize: (s) => ({ lastColor: s.lastColor }) as LibraryState,
+      merge: (persisted, current) => ({ ...current, lastColor: (persisted as Partial<LibraryState> | undefined)?.lastColor ?? current.lastColor }),
     },
   ),
 )

@@ -1,8 +1,8 @@
 import { useEffect } from "react"
-import { owlitOf, type Change } from "@owlit/protocol"
+import type { Change } from "@owlit/protocol"
 import { create } from "zustand"
-import { me, WEB_ME } from "@/lib/actors"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { me, myOwlit } from "@/lib/actors"
+import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { citationLabel } from "@/features/library/lib/format"
 import { useLibraryStore } from "@/features/library/store"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
@@ -34,12 +34,12 @@ async function load(chatId: string) {
 export function useChatChanges(chatId: string): Change[] {
   const list = useChatLog((s) => s.byChat[chatId])
   useEffect(() => {
-    if (isDesktop && !list) void load(chatId)
+    if (hasCore && !list) void load(chatId)
   }, [chatId, list])
   return list ?? EMPTY
 }
 
-if (isDesktop) {
+if (hasCore) {
   onNotify("changes.added", ({ change }) => {
     const chatId = change.origin.chatId
     if (!chatId || !reads.has(chatId)) return
@@ -66,10 +66,10 @@ export function addMockChange(change: Change, undo: MockUndo) {
 // Takes one entry back (an undo is an entry too, so this is also the redo); the passages of a doc that
 // were edited since and stay as they are
 export async function undoEntry(change: Change): Promise<string[] | undefined> {
-  if (isDesktop) return (await rpc.changes.undo({ id: change.id })).left
+  if (hasCore) return (await rpc.changes.undo({ id: change.id })).left
   const back = mockUndo.get(change.id)?.()
   if (!back) return undefined
-  const undo: Change = { id: `mock-${crypto.randomUUID()}`, at: Date.now(), actor: me() ?? WEB_ME, action: "update", target: change.target, origin: { via: "editor", chatId: change.origin.chatId }, undoes: change.id }
+  const undo: Change = { id: `mock-${crypto.randomUUID()}`, at: Date.now(), actor: me() ?? "other", action: "update", target: change.target, origin: { via: "editor", chatId: change.origin.chatId }, undoes: change.id }
   addMockChange(undo, () => {
     back()
     return mockUndo.get(change.id)
@@ -81,7 +81,7 @@ export async function undoEntry(change: Change): Promise<string[] | undefined> {
 export const mockEntry = (chatId: string, target: Change["target"], action: Change["action"] = "create"): Change => ({
   id: `mock-${crypto.randomUUID()}`,
   at: Date.now(),
-  actor: owlitOf(me() ?? WEB_ME),
+  actor: myOwlit(),
   action,
   target,
   origin: { via: "tool", chatId },

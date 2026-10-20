@@ -1,17 +1,13 @@
 import { t } from "@lingui/core/macro"
 import { applyThreadEdit, type ThreadRead, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { shown, summaryOf } from "./lib"
-import { seedThreads } from "./mocks/seed"
 
-// The threads of the open workspace, whole, by id. Core owns them (.owlit/threads/): in the
-// desktop app the store loads them when a workspace opens and takes every change core announces (disk.ts);
-// the user's own changes go to core, which answers with the thread as it now is. Without core (the
-// browser preview) the store applies them itself, the same way core does (applyThreadEdit), and keeps
-// them in localStorage.
+// The threads of the open workspace, whole, by id. Core owns them (.owlit/threads/): the store loads them
+// when a workspace opens and takes every change core announces (disk.ts); the user's own changes go to
+// core, which answers with the thread as it now is.
 
 interface ThreadsState {
   threads: Record<string, ThreadRead>
@@ -19,17 +15,7 @@ interface ThreadsState {
   loaded: boolean
 }
 
-export const useThreadsStore = create<ThreadsState>()(
-  persist(() => ({ threads: isDesktop ? {} : seedThreads(), loaded: !isDesktop }), {
-    name: "owlit-threads",
-    // The preview's threads kept by an older version start again from the seed. 3: a thread is a report
-    // plus Library papers, whose facts only core can give; 4: the seed's reports, groups and rows' `is`.
-    version: 4,
-    migrate: () => ({ threads: seedThreads() }),
-    skipHydration: isDesktop,
-    partialize: (s) => (isDesktop ? {} : { threads: s.threads }),
-  }),
-)
+export const useThreadsStore = create<ThreadsState>()(() => ({ threads: {}, loaded: false }))
 
 export const put = (c: ThreadRead) => useThreadsStore.setState((s) => ({ threads: { ...s.threads, [c.id]: c } }))
 export const drop = (id: string) =>
@@ -41,7 +27,7 @@ export const drop = (id: string) =>
 // One of the user's changes (a thread's project, what its table is grouped by). Resolves to whether it
 // was made.
 export async function editThread(id: string, edit: ThreadEdit): Promise<boolean> {
-  if (isDesktop) {
+  if (hasCore) {
     try {
       put(await rpc.threads.edit({ id, edit }))
       return true
@@ -74,7 +60,7 @@ export async function deleteThread(id: string) {
   const c = useThreadsStore.getState().threads[id]
   if (!c) return
   const title = shown(c).title
-  if (isDesktop) {
+  if (hasCore) {
     try {
       await rpc.threads.delete({ id })
     } catch (error) {
@@ -84,7 +70,7 @@ export async function deleteThread(id: string) {
   }
   drop(id)
   toastUndo(t`Thread deleted`, async () => {
-    if (isDesktop) put(await rpc.threads.undelete({ id }))
+    if (hasCore) put(await rpc.threads.undelete({ id }))
     else put(c)
   }, { description: title })
 }

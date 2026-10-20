@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { DocShare, ShareAnchor, ShareComment, SharePermission } from "@owlit/protocol"
 import { toast } from "sonner"
 import { create } from "zustand"
-import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
+import { hasCore, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { shorten } from "@/lib/words"
 import { fileAt } from "../store"
@@ -81,7 +81,7 @@ function sayNew(path: string, before: ShareComment[] | undefined, after: ShareCo
 }
 
 export function startShares() {
-  if (!isDesktop) return
+  if (!hasCore) return
   onWorkspaceOpened(() => void load().catch(() => undefined))
   onNotify("share.changed", ({ path, share }) => {
     const had = useShareStore.getState().byPath[path]

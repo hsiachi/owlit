@@ -8,7 +8,7 @@ import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
 import { undoAll, undoSteps } from "@/lib/changes"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import { reportDocEdited } from "@/app/activity"
 import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
@@ -199,7 +199,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           proposalMarks({
             undo: (steps, spots) => {
               const name = displayName(useDocsStore.getState().files[id]?.path ?? "")
-              if (isDesktop) void undoSteps(steps, name)
+              if (hasCore) void undoSteps(steps, name)
               // Without core (pnpm dev:web) the passages go back in the editor
               else view.dispatch({ changes: spots.map((s) => ({ from: s.from, to: s.to, insert: s.removed })), userEvent: "input.proposal" })
             },
@@ -207,7 +207,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             openChat: (chatId) => useAgentWindow.getState().showChat(chatId),
             undoWhole: (p) => {
               const name = displayName(useDocsStore.getState().files[id]?.path ?? "")
-              if (isDesktop) void undoAll([...(p.whole?.also ?? []).toReversed(), p.id], name)
+              if (hasCore) void undoAll([...(p.whole?.also ?? []).toReversed(), p.id], name)
               // Without core (pnpm dev:web) the doc goes, as core's Undo of a doc it made takes it away
               else useDocsStore.getState().deleteFile(id)
             },

@@ -8,7 +8,7 @@ import { MentionLink } from "@/components/mention/mention-token"
 import { Unfold } from "@/components/unfold"
 import { useChatStore } from "@/features/chat/store"
 import { mentionRoute } from "@/features/docs/lib/mentions"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { hasCore, rpc } from "@/lib/rpc"
 import { shortDate } from "@/lib/time"
 import { shown } from "../lib"
 
@@ -62,7 +62,7 @@ export function About({ thread: c }: { thread: ThreadRead }) {
 function useBatches(c: ThreadRead) {
   const [batches, setBatches] = useState<ThreadBatch[] | null>(null)
   useEffect(() => {
-    if (!isDesktop) return
+    if (!hasCore) return
     let live = true
     void rpc.threads
       .about({ id: c.id })
@@ -81,7 +81,7 @@ function Question({ thread: c }: { thread: ThreadRead }) {
   const chat = useChatStore((s) => (question.chatId ? s.chats[question.chatId] : undefined))
   const asked = question.text
   const when = shortDate(question.at)
-  const from = question.chatId && (chat || !isDesktop) ? chatUri(question.chatId) : undefined
+  const from = question.chatId && (chat || !hasCore) ? chatUri(question.chatId) : undefined
   const chatTitle = chat?.title || t`a chat`
   return (
     <p className="text-detail text-muted-foreground">

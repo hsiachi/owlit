@@ -31,7 +31,7 @@ import { WorkspaceMenu } from "./WorkspaceMenu"
 import { useIntro } from "@/features/onboarding/store"
 import { useSettings } from "@/features/settings/store"
 import { TourOverlay } from "@/features/tour/TourOverlay"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import { useNeedsWelcome, useWorkspace } from "@/lib/workspace"
 import { useChatNotifications } from "@/features/chat/use-notify"
 import { useDigestNotices } from "@/features/library/digests"
@@ -43,7 +43,7 @@ import "@/features/docs/fs"
 // empty frame, so neither flashes past. The flow stays up while the workspace it chose is opening.
 export function Shell() {
   const welcome = useNeedsWelcome()
-  const waiting = useWorkspace((s) => isDesktop && !s.current && (!s.known || s.opening))
+  const waiting = useWorkspace((s) => hasCore && !s.current && (!s.known || s.opening))
   const onboarded = useSettings((s) => s.view?.onboarded)
   // Once shown, the flow stays through the opening of the workspace it chose (onboarded turns true then)
   const [onboarding, setOnboarding] = useState(false)

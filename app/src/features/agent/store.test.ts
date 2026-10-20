@@ -1,9 +1,8 @@
 import type { Chat, QuotedSelection } from "@owlit/protocol"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-vi.mock("@/lib/rpc", () => ({ isDesktop: false, rpc: {}, onNotify: () => () => {}, bridge: undefined }))
+vi.mock("@/lib/rpc", () => ({ hasCore: false, rpc: {}, onNotify: () => () => {}, bridge: undefined }))
 vi.mock("@/features/chat/agent", () => ({ agentClient: { check: async (c: unknown) => c, onUpdate: () => () => {}, onEnded: () => () => {} } }))
-vi.mock("@/features/chat/mocks/chats", () => ({ seedChats: [] }))
 vi.mock("@/app/seen", () => ({ markSeen: () => {}, useSeen: { getState: () => ({ unseen: { chats: [] } }) } }))
 
 const { useChatStore } = await import("@/features/chat/store")

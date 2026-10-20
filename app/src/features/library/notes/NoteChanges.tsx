@@ -6,7 +6,7 @@ import { citationLabel } from "../lib/format"
 import { PassageChange } from "@/components/passage-change"
 import { Button } from "@/components/ui/button"
 import { undoAll, undoChange } from "@/lib/changes"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import { sha1 } from "@/lib/sha1"
 import { useLibraryStore } from "../store"
 import { notePathOf } from "./note-actions"
@@ -75,7 +75,7 @@ export function NoteChanges({ paperId }: { paperId: string }) {
 
   const undo = (p: Proposal) => {
     setUndone((s) => new Set([...s, p.id]))
-    if (isDesktop) {
+    if (hasCore) {
       const found = useLibraryStore.getState().papers[paperId]
       const paper = found && citationLabel(found)
       const what = paper ? t`Your note on ${paper}` : t`Your note`

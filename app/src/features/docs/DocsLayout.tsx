@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom"
 import { useShortcut } from "@/app/shortcuts"
-import { isDesktop } from "@/lib/rpc"
+import { hasCore } from "@/lib/rpc"
 import { VersionsDialog } from "./components/VersionsDialog"
 import { ResolvedComments } from "./comments/ResolvedComments"
 import { useDocsStore } from "./store"
@@ -21,7 +21,7 @@ export function DocsLayout() {
   return (
     <>
       <Outlet />
-      {isDesktop && versionsFile && (
+      {hasCore && versionsFile && (
         <VersionsDialog file={versionsFile} open onOpenChange={(open) => !open && useDocsUiStore.getState().showVersions(null)} />
       )}
       {resolvedFile && <ResolvedComments file={resolvedFile} open onOpenChange={(open) => !open && useDocsUiStore.getState().showResolved(null)} />}

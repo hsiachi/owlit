@@ -1,7 +1,6 @@
 // Typed client for core. In the desktop app every call goes over window.owlit (the Electron preload);
-// in a browser (pnpm dev:web) over the web bridge to the dev core, when one is served; without either
-// there is no core, calls fail with a readable error and the feature stores keep running on their mock
-// data.
+// in a browser (pnpm dev:web) over the web bridge to the dev core. Without either there is no core: calls
+// fail with a readable error and the stores stay empty.
 
 import { t } from "@lingui/core/macro"
 import type {
@@ -28,7 +27,7 @@ const devCore: string | undefined = import.meta.env.VITE_OWLIT_CORE
 export const bridge = typeof window === "undefined" ? undefined : (window.owlit ?? (devCore ? webBridge(devCore) : undefined))
 
 // There is a core to talk to (the app, or the dev core)
-export const isDesktop = bridge !== undefined
+export const hasCore = bridge !== undefined
 
 // Where the window reads a file of the workspace (a paper's PDF, a figure): owlit-file://workspace/<path>
 // as core names it in the app, the dev core's http route in a browser

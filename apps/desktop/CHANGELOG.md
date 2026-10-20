@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The example workspace has a third thread, Test data behind the papers, whose grouping shows as a column with groups inside groups; the chat that made it, where Owlit asked which papers to take and asked before writing; and a comment of Owlit's on Related work, with a reply.
 - The card under an answer says in one line what it was built from: "From 6 papers · 3 abstract only", or "all read". Click it for the papers, each with how Owlit read it. In a narrow Owlit panel the rest of the card is shorter too: the line saying what the reply changed is a count ("4 changes"), and a thread, paper or doc no longer shrinks to one character beside its detail. A table's columns of sentences keep a readable width and the table scrolls sideways.
 - A citation's card names the abstract it shows as the abstract, instead of saying Owlit took the claim from it.
 - The toast for a comment Owlit leaves while you're away from its chat says "Comment added", and Owlit's answers about how to use owlit name the roles, signing in to Claude Code and Codex from Settings, and every part of Settings.
