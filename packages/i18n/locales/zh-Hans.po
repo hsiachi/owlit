@@ -217,8 +217,8 @@ msgid "Paper added"
 msgstr "已添加论文"
 
 #: app/src/app/agent-changes.ts
-msgid "Note added"
-msgstr "已添加笔记"
+msgid "Comment added"
+msgstr "已添加评论"
 
 #: app/src/app/agent-changes.ts
 msgid "Papers collected"
@@ -1486,7 +1486,7 @@ msgstr "{0, plural, other {添加了 # 篇论文}}"
 msgid "{0, plural, one {removed a paper} other {removed # papers}}"
 msgstr "{0, plural, other {移除了 # 篇论文}}"
 
-#. placeholder {0}: n("note")
+#. placeholder {0}: n("comment")
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {left comments on a doc} other {left comments on # docs}}"
 msgstr "{0, plural, one {在一篇文档上留了评论} other {在 # 篇文档上留了评论}}"
@@ -1738,9 +1738,8 @@ msgstr "自定义智能体"
 msgid "Custom ACP agent"
 msgstr "自定义 ACP 智能体"
 
-#. the model or mode an agent uses when none is picked
-#. the model or mode an agent uses when none is picked
-#. the model or mode an agent uses when none is picked
+#. the model an agent uses when none is picked
+#. the model an agent uses when none is picked
 #: app/src/features/chat/connectors.ts
 #: packages/core/src/agents/agents.ts
 msgid "Default"

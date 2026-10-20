@@ -5,13 +5,10 @@
 
 import type * as acp from "@agentclientprotocol/sdk"
 import type { FileKind, Role } from "@owlit/protocol"
-import { FIRST_CHOICE_AGENT, RUNS_COMMANDS } from "@owlit/protocol"
+import { RUNS_COMMANDS } from "@owlit/protocol"
 import { realpathSync } from "node:fs"
 import { OWLIT_DIR, OWLIT_FOLDERS } from "../workspace/paths.ts"
 import type { ProcessOptions } from "./process.ts"
-
-// The agent owlit picks when nothing else says which (a chat owlit starts, a first chat)
-export const FIRST_CHOICE = FIRST_CHOICE_AGENT
 
 // ---- Claude Code: what a session takes from the user's own setup ----
 
@@ -229,10 +226,6 @@ export function isOwlitCall(call: { title?: string | null; rawInput?: unknown })
 }
 
 const OWLIT_PREFIX = /^mcp(\.|__)owlit(\.|__)/
-
-// A tool call's title without the prefix either agent puts on owlit's tools: library_get for
-// mcp__owlit__library_get and mcp.owlit.library_get alike
-export const bareToolTitle = (title: string) => title.replace(OWLIT_PREFIX, "")
 
 // ---- Files the user attaches ----
 

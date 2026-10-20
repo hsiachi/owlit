@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The toast for a comment Owlit leaves while you're away from its chat says "Comment added", and Owlit's answers about how to use owlit name the roles, signing in to Claude Code and Codex from Settings, and every part of Settings.
 - Threads has a new icon in the rail, on Home and in mentions: a route, a line through two points, in place of the stack of layers.
 - The Owlit button in a doc's header is gone. The dot it carried, for comments Owlit left since you last looked, sits on the comments button instead, and a click there opens the first of them.
 - The browser extension's button acts at once: on a paper's page it adds the paper (or saves the PDF the page names for a paper you have without one), and a small card in the page's corner says how it went, with Open to see it in owlit. The button opens its panel only to connect, when owlit has no workspace open, or on pages where no card can be drawn. Its one setting is on the button's right-click menu.

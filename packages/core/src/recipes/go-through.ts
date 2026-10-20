@@ -64,7 +64,6 @@ Don't pre-write changes to the doc, and don't comment on the material itself. To
 }
 
 export const goThrough: Recipe<undefined> = {
-  about: "doc",
   description: "go through material from people (a meeting's transcript or minutes, reviews, someone's comments, an email of points) against the user's docs: a reading of what it changes as a record beside it, its points as comments on the docs (no thread)",
   text: () => goThroughRecipe(),
 }

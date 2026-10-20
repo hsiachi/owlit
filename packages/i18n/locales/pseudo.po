@@ -217,7 +217,7 @@ msgid "Paper added"
 msgstr ""
 
 #: app/src/app/agent-changes.ts
-msgid "Note added"
+msgid "Comment added"
 msgstr ""
 
 #: app/src/app/agent-changes.ts
@@ -1486,7 +1486,7 @@ msgstr ""
 msgid "{0, plural, one {removed a paper} other {removed # papers}}"
 msgstr ""
 
-#. placeholder {0}: n("note")
+#. placeholder {0}: n("comment")
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0, plural, one {left comments on a doc} other {left comments on # docs}}"
 msgstr ""
@@ -1738,9 +1738,8 @@ msgstr ""
 msgid "Custom ACP agent"
 msgstr ""
 
-#. the model or mode an agent uses when none is picked
-#. the model or mode an agent uses when none is picked
-#. the model or mode an agent uses when none is picked
+#. the model an agent uses when none is picked
+#. the model an agent uses when none is picked
 #: app/src/features/chat/connectors.ts
 #: packages/core/src/agents/agents.ts
 msgid "Default"

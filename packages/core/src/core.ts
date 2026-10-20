@@ -65,7 +65,7 @@ export const CORE_VERSION = "0.0.0"
 const SHARED_CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|library\.(add|update|remove|restore|setNote|refresh|requestDigest|importPdf|attachPdf))$/
 
 // Methods that change what the search index covers
-const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|notes\.|library\.(add|update|remove|restore|setNote|importPdf|attachPdf))$/
+const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|library\.(add|update|remove|restore|setNote|importPdf|attachPdf))$/
 
 // The docs or papers a change names, so only the shares that show them are built again; a change that
 // names neither (or one this doesn't know) builds them all

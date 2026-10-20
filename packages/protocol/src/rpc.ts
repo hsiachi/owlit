@@ -254,7 +254,7 @@ export interface Methods {
   "agents.rules": { params: void; result: string }
   // How to use owlit, for an agent asked about owlit itself: the list of topics, or one topic
   "agents.guide": { params: { topic?: string }; result: string }
-  // Whether the agent is installed and signed in, and what it offers (models, modes, efforts)
+  // Whether the agent is installed and signed in, and what it offers (models, efforts)
   "agents.check": { params: { id: string }; result: Connector }
   // Fetches owlit's own copy of the agent's adapter (or a newer one) into owlit's data folder; returns at
   // once, and agents.changed carries the progress and the end
@@ -388,8 +388,9 @@ export interface Methods {
   "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean; placed?: boolean } }
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
-  // An agent's addition is recorded in the change log (Undo moves the paper to .owlit/trash/); chatId says whose
-  "library.add": { params: { paper: ResolvedPaper; chatId?: string; toolCallId?: string }; result: Paper }
+  // An agent's addition is recorded in the change log (Undo moves the paper to .owlit/trash/), as its
+  // chat's (the socket's session says which)
+  "library.add": { params: { paper: ResolvedPaper; toolCallId?: string }; result: Paper }
   // The user's judgement, reading position, or a field they corrected (kept over refreshes)
   "library.update": { params: { id: string; patch: PaperPatch }; result: Paper }
   // The person opened a paper: lastOpenedAt, and an unread paper becomes reading

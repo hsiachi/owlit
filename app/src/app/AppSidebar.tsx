@@ -29,9 +29,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setOpen } = useSidebar()
   const activeItem = matchNav(pathname)
   // A place's one mark: the first thing waiting there (app/waiting-on-you.ts), amber, or Owlit's dot for a
-  // reply finished while the user wasn't looking at its chat. Work at its own pace marks nothing.
+  // reply finished while the user wasn't looking at its chat. Work at its own pace isn't on that list.
   const waiting = useWaitingOnYou()
-  const markOf = (to: string) => waiting.find((w) => w.place === to && w.tone !== "working")
+  const markOf = (to: string) => waiting.find((w) => w.place === to)
 
   return (
     <Sidebar

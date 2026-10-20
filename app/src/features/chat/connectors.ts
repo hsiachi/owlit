@@ -77,10 +77,8 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
       command: command.trim(),
       builtIn: false,
       status: "unknown",
-      models: [{ id: "default", name: t({ message: "Default", comment: "the model or mode an agent uses when none is picked" }) }],
-      modes: [{ id: "default", name: t({ message: "Default", comment: "the model or mode an agent uses when none is picked" }) }],
+      models: [{ id: "default", name: t({ message: "Default", comment: "the model an agent uses when none is picked" }) }],
       defaultModelId: "default",
-      defaultModeId: "default",
     }
     set((s) => ({ connectors: [...s.connectors, c] }))
     return c

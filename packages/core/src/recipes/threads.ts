@@ -153,7 +153,6 @@ change the question in their words; when the question moved, say so in the repor
 give the new question as \`asked\` on that write (owlit records each batch's question in About).`
 
 export const threadSkill: Recipe<undefined> = {
-  about: "thread",
   description: "how to work on threads: read it whole before any thread work (papers for a question, adding to a thread, regrouping, a column, rewriting a report)",
   text: () => THREAD_SKILL,
 }

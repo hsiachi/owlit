@@ -292,7 +292,7 @@ export const useChatStore = create<ChatState>()(
       partialize: (s) => (isDesktop ? { selection: s.selection } : { chats: s.chats, connectors: s.connectors, selection: s.selection }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ChatState>
-        // Built-in connectors take their definition (models, modes, efforts) from code and only
+        // Built-in connectors take their definition (models, efforts) from code and only
         // their probe result from storage, so shipping a new field doesn't need a reset. Custom
         // connectors are stored whole. Stale "checking"/"connected" flags are reset.
         const stored = p.connectors ?? []

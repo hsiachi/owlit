@@ -295,12 +295,6 @@ export interface AgentModel {
   group?: string
 }
 
-export interface AgentMode {
-  id: string
-  name: string
-  description?: string
-}
-
 // Reasoning effort, when the agent exposes it (Claude Code, Codex)
 export interface AgentEffort {
   id: string
@@ -368,10 +362,8 @@ export interface Connector {
   authenticated?: boolean
   error?: string
   models: AgentModel[]
-  modes: AgentMode[]
   efforts?: AgentEffort[]
   defaultModelId?: string
-  defaultModeId?: string
   defaultEffortId?: string
   // Kinds of attached file this agent can't read (profiles.ts knows), said on a file's chip before sending
   cannotRead?: FileKind[]

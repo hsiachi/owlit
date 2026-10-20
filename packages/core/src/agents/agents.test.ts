@@ -95,7 +95,6 @@ describe("tidy", () => {
         { id: "opus", name: "Opus 5.5" },
         { id: "sonnet", name: "Sonnet 5.5 (recommended)" },
       ],
-      modes: [],
       efforts: [{ id: "default", name: "Default" }, { id: "medium", name: "Medium" }, { id: "xhigh", name: "Xhigh" }],
       defaultModelId: "default",
       defaultEffortId: "medium",
@@ -113,12 +112,11 @@ describe("agents", () => {
     expect((await agents.list()).map((c) => c.id)).toEqual(["claude-code", "codex", "gemini-cli", id])
   })
 
-  it("checks an agent: version, models, modes and efforts from the agent itself", async () => {
+  it("checks an agent: version, models and efforts from the agent itself", async () => {
     const { agents, id } = await setup()
     const checked = await agents.check(id)
-    expect(checked).toMatchObject({ status: "connected", version: "1.2.3", authenticated: true, defaultModelId: "small", defaultModeId: "ask", defaultEffortId: "low" })
+    expect(checked).toMatchObject({ status: "connected", version: "1.2.3", authenticated: true, defaultModelId: "small", defaultEffortId: "low" })
     expect(checked.models.map((m) => m.id)).toEqual(["small", "large"])
-    expect(checked.modes).toEqual([{ id: "ask", name: "Ask" }, { id: "auto", name: "Auto", description: "No questions" }])
     expect(checked.efforts?.map((e) => e.id)).toEqual(["low", "high"])
     // Remembered: the list shows it without starting anything
     agents.dispose()

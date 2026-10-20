@@ -41,8 +41,6 @@ export interface ResultRow {
   undo?: () => Promise<void> | void
   // On an undone row, when the change can be put back
   redo?: () => Promise<void> | void
-  // One more thing the row offers on hover, before Undo ("Keep it separate")
-  extra?: { label: string; run: () => Promise<void> | void }
   // For the summary line: what kind of change, and how much an edit changed
   kind: "doc" | "paper" | "comment" | "digest" | "thread" | "memory"
   // A thread: whether the reply started it, and how many papers it gathered
@@ -325,11 +323,6 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
         {row.name}
       </span>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-detail text-muted-foreground">
-        {live && row.extra && (
-          <Button variant="text" size="inline" onClick={() => void row.extra!.run()} className={`relative ${SHOW_ON_HOVER}`}>
-            {row.extra.label}
-          </Button>
-        )}
         {live && row.undo && (
           <Button variant="text" size="inline" onClick={() => void row.undo!()} className={`relative ${SHOW_ON_HOVER}`}>
             {t({ message: "Undo", comment: "verb: take back a change the agent made" })}

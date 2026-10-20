@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionPaper, ExtensionStatus, OpenAnswer, OpenPage, OwlitIdentity, PairAnswer, PairStarted, PaperAnswer, WorkAnswer } from "@owlit/protocol"
+import type { ExtensionPaper, ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, WorkAnswer, WorkResume } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
@@ -79,7 +79,7 @@ function pair(): Promise<Connection> {
   pairing ??= (async () => {
     problem = undefined
     try {
-      const started = await ask<PairStarted>("/pair", { json: { browser: browserName(), extensionVersion: ext.runtime.getManifest().version } })
+      const started = await ask<PairStarted>("/pair", { json: { browser: browserName(), extensionVersion: ext.runtime.getManifest().version } satisfies PairBody })
       for (;;) {
         const answer = await ask<PairAnswer>(`/pair/${encodeURIComponent(started.pairing)}`)
         if (answer.state === "allowed") {
@@ -339,7 +339,7 @@ async function drawCard(tabId: number, card: CardView | null): Promise<boolean> 
 async function openInOwlit(paperId?: string): Promise<boolean> {
   const { token } = await local()
   if (!token) return false
-  return (await ask<OpenAnswer>("/open", { token, json: { paper: paperId } }).catch(() => ({ shown: false }))).shown
+  return (await ask<OpenAnswer>("/open", { token, json: { paper: paperId } satisfies OpenBody }).catch(() => ({ shown: false }))).shown
 }
 
 // The extension's own page that asks the browser for a site (a permission is asked only from a click on
@@ -549,7 +549,7 @@ async function resume(host: string, tabId?: number) {
   const { token } = await local()
   if (!token) return
   const wait = (await waits()).find((w) => w.host === host)
-  await ask("/work/resume", { token, json: { host } })
+  await ask("/work/resume", { token, json: { host } satisfies WorkResume })
   await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => w.host !== host) })
   if (!wait) return
   await session(async () => ext.storage.session.set({ [goingKey]: [...(await going()).filter((g) => g.host !== host), { host, done: 0, total: wait.papers }] }))
