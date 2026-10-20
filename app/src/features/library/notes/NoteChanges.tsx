@@ -4,7 +4,7 @@ import type { Proposal, Unseen } from "@owlit/protocol"
 import { markSeen, proposalsOf, useSeen } from "@/app/seen"
 import { citationLabel } from "../lib/format"
 import { Button } from "@/components/ui/button"
-import { undoChange } from "@/lib/changes"
+import { undoAll, undoChange } from "@/lib/changes"
 import { markdownPlain } from "@/lib/markdown-plain"
 import { isDesktop } from "@/lib/rpc"
 import { sha1 } from "@/lib/sha1"
@@ -93,7 +93,10 @@ export function NoteChanges({ paperId }: { paperId: string }) {
     if (isDesktop) {
       const found = useLibraryStore.getState().papers[paperId]
       const paper = found && citationLabel(found)
-      undoChange(p.id, paper ? t`Your note on ${paper}` : t`Your note`)
+      const what = paper ? t`Your note on ${paper}` : t`Your note`
+      // A note Owlit wrote whole goes back with Owlit's later changes to it, newest first
+      if (p.whole) void undoAll([...p.whole.also.toReversed(), p.id], what)
+      else undoChange(p.id, what)
       return
     }
     // The browser preview has no change log: the passages go back in the note as it reads
@@ -109,7 +112,9 @@ export function NoteChanges({ paperId }: { paperId: string }) {
       {shown.map((p) => (
         <div key={p.id} className="group/edit relative flex items-start gap-2 pl-3 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-owlit">
           <p className="min-w-0 flex-1 leading-relaxed text-foreground">
-            {p.hunks.map((h, i) => (
+            {p.whole && <span className="text-muted-foreground">{t`Owlit wrote this note`}</span>}
+            {/* A passage undone on its own comes empty, keeping the others' places */}
+            {p.hunks.filter((h) => h.insert || h.removed).map((h, i) => (
               <span key={i}>
                 {i > 0 && " … "}
                 {h.before.trim() && <span className="text-muted-foreground">{clip(plain(h.before), "before")}</span>}
