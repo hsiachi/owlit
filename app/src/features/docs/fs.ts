@@ -147,7 +147,8 @@ if (isDesktop) {
     useDocsStore.setState((s) => ({ comments: { ...s.comments, [file.id]: (s.comments[file.id] ?? []).filter((c) => c.id !== id) } }))
   })
 
-  // A comment an agent left over owlit-mcp, or one an undo put back; the window's own changes are here already
+  // A comment an agent left, replied under or resolved over owlit-mcp, or one an undo put back; the
+  // window's own changes are here already
   onNotify("comments.changed", ({ path, comment }) => {
     const file = fileAt(path)
     if (!file) return
