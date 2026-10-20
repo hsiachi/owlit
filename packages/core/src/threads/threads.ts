@@ -33,6 +33,7 @@ import { randomBytes } from "node:crypto"
 import { mkdir, readdir, rename } from "node:fs/promises"
 import path from "node:path"
 import type { Started } from "../chats/chats.ts"
+import type { ChangeLog } from "../changes/log.ts"
 import { newWriteId, type RecordInput, type Recorder } from "../changes/record.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
@@ -80,33 +81,52 @@ export interface ThreadsServices {
   startChat?: (start: { about: ChatAbout; title: string; recipe: string }) => Promise<Started>
   // Throws the sentence that says why a chat can't start now (no agent is set up)
   canStartChat?: () => Promise<unknown>
-  // What a chat owlit started works on, by the chat's id; undefined for a chat the person typed into
-  chatAbout?: (chatId: string) => Promise<ChatAbout | undefined>
 }
 
+// A line of history.jsonl: what a write rests on that neither the thread nor the change log keeps (the
+// searches its chat made since its last write, Owlit's note on what it couldn't reach, the later question
+// it was for), named by the write's id in the change log. Only a write with one of those has a line.
 interface HistoryLine {
   at: number
+  // chat:<id>, or agent for a write that names no chat
   by: string
-  // On a line a scheduler task's agent wrote, that task as "<kind>:<task id>": its lines are one batch
-  run?: string
-  // The recipe of the chat owlit started that wrote it (recipes/threads.ts)
-  recipe?: string
-  why?: string
-  items: string[]
-  // Rows the write added, the question it was for when that was a later one, Owlit's note on what it
-  // couldn't reach, and the searches it rests on (made since the same chat's last write)
-  added?: string[]
+  writeId?: string
   asked?: string
   note?: string
   searches?: { at: number; query: string; source: string; results: string[] }[]
+  // Lines from before the change log also name the items they changed and the rows they added, and what
+  // set them going: a scheduler task as "<kind>:<task id>", or the recipe of a chat owlit started
+  items?: string[]
+  added?: string[]
+  run?: string
+  recipe?: string
+}
+
+// One write of Owlit's to the thread as About reads it
+interface Write {
+  at: number
+  by: string
+  // Its entries are in the change log; itemized: one at least names an item (an older write that started
+  // a thread logged only that it did)
+  logged: boolean
+  itemized: boolean
+  line?: HistoryLine
+  added: Set<string>
+  // Row and column of each answer it wrote
+  answered: [string, string][]
+  asked?: string
+  notes: string[]
+  searches: NonNullable<HistoryLine["searches"]>
 }
 
 // How far back a write looks for the searches it rests on, when nothing of the same chat came before
 const SEARCHES_SINCE_MS = 6 * 3_600_000
 // Writes of one chat this close together are one batch
 const BATCH_GAP_MS = 30 * 60_000
+// An older history line was appended just before its write's entries in the change log
+const LINE_MATCH_MS = 60_000
 
-// What About says set a batch going, by the recipe of the chat owlit started that wrote it
+// What About says set a batch going, by the recipe of the chat owlit started that wrote it (older lines)
 const RECIPE_TRIGGER: Record<string, ThreadBatch["trigger"]> = { gather: "gather", "find-more": "more", "ask-each": "fill", group: "fill", "read-in-full": "read" }
 
 // Work started on a thread that changed it first (a new thread, a new column): the thread, and the chat
@@ -124,15 +144,17 @@ export class Threads {
   private readonly dir: string
   private readonly trashDir: string
   private readonly recorder: Recorder
+  private readonly changes: ChangeLog
   private readonly services: ThreadsServices
   private readonly serial = new Serial()
   // When each chat's searches were last given to a write
   private attributed = new Map<string, number>()
 
-  constructor(owlitDir: string, parts: { recorder: Recorder }, services: ThreadsServices = {}) {
+  constructor(owlitDir: string, parts: { recorder: Recorder; changes: ChangeLog }, services: ThreadsServices = {}) {
     this.dir = path.join(owlitDir, "threads")
     this.trashDir = path.join(owlitDir, "trash")
     this.recorder = parts.recorder
+    this.changes = parts.changes
     this.services = services
   }
 
@@ -603,25 +625,19 @@ export class Threads {
 
       c.updatedAt = now
       await this.save(c)
-      const searches = await this.searchesFor(c.id, input, now)
-      const recipe = input.chatId ? (await this.services.chatAbout?.(input.chatId))?.recipe : undefined
-      await this.record(c.id, {
-        at: now,
-        by: input.chatId ? `chat:${input.chatId}` : "agent",
-        ...(recipe ? { recipe } : {}),
-        ...(input.why ? { why: input.why } : {}),
-        items: [...changed],
-        ...(added.length ? { added } : {}),
-        ...(asked && changed.has("alsoAsked") ? { asked } : {}),
-        ...(input.note?.trim() ? { note: input.note.trim() } : {}),
-        ...(searches.length ? { searches } : {}),
-      })
-      await this.announce(c)
-      // One write is one undo on the chat's card: its entries share the tool call's id, or one of their own
+      // One write is one undo on the chat's card: its entries share the tool call's id, or one of their own.
+      // A thread it starts is one entry, and each item it put in one more, so About reads what it added.
       const origin = { writeId: (caller.kind !== "window" && caller.toolCallId) || newWriteId(), ...(input.chatId ? { chatId: input.chatId } : {}) }
-      const entries = fresh
-        ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })]
-        : await this.recordItems(caller, before, c, [...changed], origin)
+      const searches = await this.searchesFor(c.id, input, now)
+      const note = input.note?.trim()
+      const question = asked && changed.has("alsoAsked") ? asked : undefined
+      if (searches.length || note || question)
+        await this.record(c.id, { at: now, by: input.chatId ? `chat:${input.chatId}` : "agent", writeId: origin.writeId, ...(question ? { asked: question } : {}), ...(note ? { note } : {}), ...(searches.length ? { searches } : {}) })
+      await this.announce(c)
+      const entries = [
+        ...(fresh ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })] : []),
+        ...(await this.recordItems(caller, before, c, [...changed], origin)),
+      ]
       // Said once per write and only for a chat, which shows it under the answer
       if (input.chatId && entries[0]) this.recorder.say(entries[0], { label: c.title, thread: { rows: added, updated, ...(asked ? { asked } : {}) } })
       return { id: c.id, title: c.title, added: added.length, updated, ...(left.length ? { left } : {}) }
@@ -739,47 +755,95 @@ export class Threads {
     return (await this.services.searches(by, since)).map(({ at, query, source, results }) => ({ at, query, source, results }))
   }
 
-  // Owlit's writes in batches: a chat owlit started with a recipe is one however long it takes (Retry is
-  // a turn in the same chat), as a scheduler task's lines are; a chat's writes close together are one, and
-  // so are lines that name neither.
+  // Owlit's work on the thread in batches, for About. Each write is read from the change log, its entries
+  // sharing a writeId, leaving out what was undone since; its line in history.jsonl adds the searches, the
+  // note and the question it was for. A write whose entries the log no longer keeps (log.ts KEEP_MS) is
+  // read from its line: the rows still here that came in at its moment. Lines from before the change log
+  // list the items they changed and are read as written. A chat's writes close together are one batch, and
+  // so are writes that name no chat.
   async about(id: string): Promise<ThreadBatch[]> {
     const c = await this.get(id)
+    const present = new Set(c.rows.map((r) => r.id))
+    const entries = (await this.changes.list({ target: { kind: "thread", path: id } })).reverse()
+    const undone = undoneOf(entries)
+    const writes: Write[] = []
+    const logged = new Map<string, Write>()
+    for (const e of entries) {
+      // The person's own changes (the thread's project) and undos are no work of Owlit's
+      if (e.undoes || e.actor.startsWith("p_") || !e.origin.writeId) continue
+      let w = logged.get(e.origin.writeId)
+      if (!w) {
+        w = { at: e.at, by: e.origin.chatId ? `chat:${e.origin.chatId}` : "agent", logged: true, itemized: false, added: new Set(), answered: [], notes: [], searches: [] }
+        logged.set(e.origin.writeId, w)
+        writes.push(w)
+      }
+      if (!e.target.part) continue
+      w.itemized = true
+      if (undone.has(e.id)) continue
+      const [kind, row, col] = e.target.part.split(":")
+      if (kind === "row" && e.action === "create") w.added.add(row!)
+      else if (kind === "cell" && e.action !== "delete") w.answered.push([row!, col!])
+    }
+    for (const line of await this.history(id)) {
+      // An older line has no writeId: its write is the first of its chat's logged just after it
+      let w = line.writeId ? logged.get(line.writeId) : writes.find((x) => x.logged && !x.line && x.by === line.by && x.at >= line.at && x.at - line.at < LINE_MATCH_MS)
+      if (!w) {
+        w = { at: line.at, by: line.by, logged: false, itemized: false, added: new Set(), answered: [], notes: [], searches: [] }
+        writes.push(w)
+      }
+      w.line = line
+      if (!w.itemized) {
+        for (const r of line.added ?? c.rows.filter((r) => r.addedAt === line.at).map((r) => r.id)) if (present.has(r)) w.added.add(r)
+        for (const item of line.items ?? []) {
+          const [kind, row, col] = item.split(":")
+          if (kind === "cell" && present.has(row!)) w.answered.push([row!, col!])
+        }
+      }
+      if (line.asked) w.asked = line.asked
+      if (line.note) w.notes.push(line.note)
+      w.searches.push(...(line.searches ?? []))
+    }
+
     const columns = new Map(c.columns.map((col) => [col.id, col]))
     const titles = new Map(c.rows.map((r) => [r.id, r.paper.title]))
-    const batches: (ThreadBatch & { key: string; last: number; rows: Set<string>; lines: HistoryLine[] })[] = []
-    for (const line of await this.history(id)) {
-      const key = line.run ?? line.by
-      let batch = batches.at(-1)
-      if (!batch || batch.key !== key || (!line.run && !line.recipe && line.at - batch.last > BATCH_GAP_MS)) {
-        const kind = line.run?.split(":")[0]?.replace(/^threads\./, "") ?? (line.recipe ? RECIPE_TRIGGER[line.recipe] : undefined)
-        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
-        batch = { key, last: line.at, rows: new Set(), lines: [], at: line.at, trigger, added: 0, answered: 0, columns: [], searches: [], notes: [] }
-        if (trigger === "chat") batch.chatId = line.by.slice("chat:".length)
-        batches.push(batch)
+    const batches: { key: string; last: number; batch: ThreadBatch; writes: Write[] }[] = []
+    for (const w of writes.sort((a, b) => a.at - b.at)) {
+      const { run, recipe } = w.line ?? {}
+      const key = run ?? w.by
+      let open = batches.at(-1)
+      // A scheduler task's lines, and a chat owlit started with a recipe, were one batch however far apart
+      if (!open || open.key !== key || (!run && !recipe && w.at - open.last > BATCH_GAP_MS)) {
+        const kind = run?.split(":")[0]?.replace(/^threads\./, "") ?? (recipe ? RECIPE_TRIGGER[recipe] : undefined)
+        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : w.by.startsWith("chat:") ? "chat" : "agent"
+        open = { key, last: w.at, writes: [], batch: { at: w.at, trigger, ...(trigger === "chat" ? { chatId: w.by.slice("chat:".length) } : {}), added: 0, answered: 0, columns: [], searches: [], notes: [] } }
+        batches.push(open)
       }
-      batch.last = line.at
-      batch.lines.push(line)
-      // Rows a line added; an older line doesn't record them, so for it the rows that came in at that moment
-      for (const r of line.added ?? c.rows.filter((r) => r.addedAt === line.at).map((r) => r.id)) batch.rows.add(r)
-      if (line.asked) batch.asked = line.asked
-      if (line.note) batch.notes.push(line.note)
+      open.last = w.at
+      open.writes.push(w)
     }
     return batches
-      .map(({ key: _key, last: _last, rows, lines, ...batch }) => {
+      .map(({ batch, writes }) => {
+        const rows = new Set(writes.flatMap((w) => [...w.added]))
         const answered = new Set<string>()
         const asked = new Set<string>()
-        for (const line of lines)
-          for (const item of line.items) {
-            const m = /^cell:(.+):([^:]+)$/.exec(item)
-            if (!m || rows.has(m[1]!)) continue
-            answered.add(m[1]!)
-            const col = columns.get(m[2]!)
-            if (col && col.id !== QUESTION_COLUMN) asked.add(col.kind === "compare" ? (col.doc ?? col.question) : col.question)
-          }
-        const searches: ThreadSearch[] = lines.flatMap((l) => l.searches ?? []).map((s) => searchOf(s, rows, titles))
-        return { ...batch, added: rows.size, answered: answered.size, columns: [...asked], searches }
+        for (const [row, colId] of writes.flatMap((w) => w.answered)) {
+          if (rows.has(row)) continue
+          answered.add(row)
+          const col = columns.get(colId)
+          if (col && col.id !== QUESTION_COLUMN) asked.add(col.kind === "compare" ? (col.doc ?? col.question) : col.question)
+        }
+        const question = writes.findLast((w) => w.asked)?.asked
+        return {
+          ...batch,
+          ...(question ? { asked: question } : {}),
+          added: rows.size,
+          answered: answered.size,
+          columns: [...asked],
+          searches: writes.flatMap((w) => w.searches).map((s) => searchOf(s, rows, titles)),
+          notes: writes.flatMap((w) => w.notes),
+        }
       })
-      .filter((b) => b.added || b.answered || b.searches.length || b.notes.length)
+      .filter((b) => b.added || b.answered || b.searches.length || b.notes.length || b.asked)
   }
 
   // ---- Inside ----
@@ -988,6 +1052,21 @@ function rekeyRow(c: Thread, from: string, to: string, write?: { added: string[]
 const LIBRARY_LINK = /\(owlit:\/\/library\/([^)\s#?]+)[^)\s]*\)/g
 
 const refusal = (problems: string[]) => new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+
+// The entries an undo still in force took back: an undo undone (a redo) puts its entry back
+function undoneOf(entries: Change[]): Set<string> {
+  const undos = new Map<string, Change[]>()
+  for (const e of entries) if (e.undoes) undos.set(e.undoes, [...(undos.get(e.undoes) ?? []), e])
+  const memo = new Map<string, boolean>()
+  const isUndone = (id: string): boolean => {
+    if (!memo.has(id)) {
+      memo.set(id, false)
+      memo.set(id, (undos.get(id) ?? []).some((u) => !isUndone(u.id)))
+    }
+    return memo.get(id)!
+  }
+  return new Set(entries.filter((e) => isUndone(e.id)).map((e) => e.id))
+}
 
 // A logged search as a row's foundBy says it
 function foundByOf(query: string | undefined) {

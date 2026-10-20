@@ -2,7 +2,7 @@ import { itemId, readInFull, RpcErrorCode, shownThread, type Change, type ChatAb
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
 import { Seen } from "../changes/seen.ts"
@@ -27,7 +27,7 @@ function setup(services: ThreadsServices = {}) {
   const seen = new Seen(owlit, now)
   const threads = new Threads(
     owlit,
-    { recorder },
+    { recorder, changes },
     {
       paper: async (id) => papers[id],
       // Every paper a thread names is in the Library
@@ -355,7 +355,7 @@ describe("Threads, several groupings", () => {
     const c = await threads.get(id)
     expect(c.view).toEqual({ groupBy: "grouping:topic" })
     expect(c.updatedAt).toBe(before.updatedAt)
-    expect((await threads.history(id)).some((l) => l.items.includes("view"))).toBe(false)
+    expect((await threads.history(id)).some((l) => l.items?.includes("view"))).toBe(false)
   })
 })
 
@@ -610,12 +610,71 @@ describe("Threads, undo", () => {
     const { id } = await start(threads)
     const [first, ...rest] = (await changes.list({ path: id })).reverse()
     expect(first).toMatchObject({ action: "create", target: { kind: "thread", path: id } })
-    expect(rest).toEqual([])
+    // Then each item it put in, in the same write, so About and the chat's card read what it added
+    expect(rest.map((e) => [e.target.part, e.origin.writeId])).toEqual(
+      ["row:doi-10.1145-1", "cell:doi-10.1145-1:q", "row:doi-10.1145-2", "cell:doi-10.1145-2:q", "report", "one"].map((part) => [part, first!.origin.writeId]),
+    )
     const undone = await undo(threads, first!)
     expect(undone).toMatchObject({ actor: "p_1234abcd", action: "delete", undoes: first!.id })
     expect(await threads.list()).toEqual([])
     await undo(threads, undone)
     expect((await threads.list()).map((c) => c.id)).toEqual([id])
+  })
+})
+
+describe("Threads, About", () => {
+  // What chats searched, as the Library logs it
+  function withSearches() {
+    const searched: { by: string; at: number; query: string; source: string; results: string[] }[] = []
+    const ctx = setup({ searches: async (by, since) => searched.filter((s) => s.by === by && s.at >= since) })
+    return { ...ctx, searched }
+  }
+
+  it("tells a chat's batches apart, each with its searches, and a later chat's with the question it was for", async () => {
+    const { threads, searched } = withSearches()
+    searched.push(
+      { by: "chat:chat-1", at: Date.now(), query: "replay ratings validity", source: "openalex", results: ["doi-10.1145-1", "doi-10.1145-9"] },
+      { by: "chat:chat-1", at: Date.now(), query: "cited_by of doi-10.1145-1", source: "openalex", results: ["doi-10.1145-8"] },
+    )
+    const { id } = await start(threads, { note: "Semantic Scholar wasn't reachable." })
+    searched.push({ by: "chat:c9", at: Date.now(), query: "lifelog video recall", source: "arxiv", results: ["doi-10.1145-3"] })
+    await threads.write({ id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" }, agent)
+
+    const [gathered, typed, ...rest] = await threads.about(id)
+    expect(rest).toEqual([])
+    expect(gathered).toMatchObject({ trigger: "chat", chatId: "chat-1", added: 2, answered: 0, notes: ["Semantic Scholar wasn't reachable."] })
+    expect(gathered!.searches).toEqual([
+      { kind: "search", query: "replay ratings validity", source: "openalex", found: 2, kept: 1 },
+      { kind: "cited_by", query: "doi-10.1145-1", of: "Replay or Live? Validity of Retrospective Ratings", source: "openalex", found: 1, kept: 0 },
+    ])
+    expect(typed).toMatchObject({ trigger: "chat", chatId: "c9", asked: "Does lifelog video help recall?", added: 1, searches: [{ query: "lifelog video recall", kept: 1 }] })
+  })
+
+  it("shows a write that was undone without its rows, and with them again after Redo", async () => {
+    const { threads, changes, searched } = withSearches()
+    const { id } = await start(threads)
+    searched.push({ by: "chat:chat-2", at: Date.now(), query: "experience sampling recall", source: "s2", results: ["doi-10.1145-3"] })
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Recall ran lower.", depth: "abstract" } } }, { id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
+    expect((await threads.about(id)).at(-1)).toMatchObject({ chatId: "chat-2", added: 1, answered: 1, searches: [{ kept: 1 }] })
+    const undos = []
+    for (const e of await writeOf(changes, id, "chat-2")) undos.push(await undo(threads, e))
+    expect((await threads.about(id)).at(-1)).toMatchObject({ chatId: "chat-2", added: 0, answered: 0, searches: [{ query: "experience sampling recall", kept: 0 }] })
+    for (const u of undos.reverse()) await undo(threads, u)
+    expect((await threads.about(id)).at(-1)).toMatchObject({ chatId: "chat-2", added: 1, answered: 1 })
+  })
+
+  it("reads lines from before the change log as they were written", async () => {
+    const { threads, owlit } = setup()
+    const { id } = await start(threads)
+    const c = await threads.get(id)
+    // A write the log never had: a gathering chat's, its rows named on the line
+    writeFileSync(
+      path.join(owlit, "threads", id, "history.jsonl"),
+      JSON.stringify({ at: 10, by: "chat:owlit-1", recipe: "gather", items: ["row:doi-10.1145-2", "cell:doi-10.1145-1:q"], added: ["doi-10.1145-2"], searches: [{ at: 9, query: "replay", source: "openalex", results: ["doi-10.1145-2"] }] }) + "\n",
+    )
+    const [old] = await threads.about(id)
+    expect(old).toMatchObject({ at: 10, trigger: "gather", added: 1, answered: 1, searches: [{ query: "replay", kept: 1 }] })
+    expect(c.rows).toHaveLength(2)
   })
 })
 
@@ -650,7 +709,6 @@ describe("Threads, Owlit's work in chats it starts", () => {
     const searched: { by: string; at: number; query: string; source: string; results: string[] }[] = []
     const ctx = setup({
       searches: async (by, since) => searched.filter((s) => s.by === by && s.at > since),
-      chatAbout: async (chatId) => started.find((c) => c.chatId === chatId)?.about,
       startChat: async ({ about, title, recipe }) => {
         const chatId = `owlit-${started.length + 1}`
         const by = { kind: "socket" as const, chatId }
@@ -691,44 +749,6 @@ describe("Threads, Owlit's work in chats it starts", () => {
     await expect(late.threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)).rejects.toBe(noAgent)
     expect(await late.threads.list()).toEqual([])
     expect(late.events.at(-1)).toMatchObject({ gone: true })
-  })
-
-  it("tells its batches apart for About: a started chat's writes are one batch named by its recipe, then a chat's later question", async () => {
-    const { threads, chat, searched } = withChats()
-    const { thread: c, chatId } = await threads.gather({ question: "回放评价可靠吗？", size: "few" }, window)
-    await chat(chatId).done
-    searched.push({ by: "chat:c9", at: Date.now(), query: "lifelog video recall", source: "arxiv", results: ["doi-10.1145-2"] })
-    await threads.write({ id: c.id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-2", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" }, agent)
-
-    const [gathered, typed, ...rest] = await threads.about(c.id)
-    expect(rest).toEqual([])
-    expect(gathered).toMatchObject({ trigger: "gather", added: 1, answered: 0, notes: ["Semantic Scholar wasn't reachable."] })
-    expect(gathered!.chatId).toBeUndefined()
-    expect(gathered!.searches).toEqual([
-      { kind: "search", query: "replay ratings validity", source: "openalex", found: 2, kept: 1 },
-      { kind: "cited_by", query: "doi-10.1145-1", of: "Replay or Live? Validity of Retrospective Ratings", source: "openalex", found: 1, kept: 0 },
-    ])
-    expect(typed).toMatchObject({ trigger: "chat", chatId: "c9", asked: "Does lifelog video help recall?", added: 1, searches: [{ query: "lifelog video recall", kept: 1 }] })
-  })
-
-  it("keeps a started chat's writes one batch however far apart, as Retry's turn in the same chat adds to it", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] })
-    try {
-      const { threads, chat } = withChats()
-      const { id } = await start(threads)
-      const { chatId } = await threads.start(id, "read", window)
-      await chat(chatId).done
-      const by = { kind: "socket" as const, chatId }
-      // The clock stands still under fake Date: a minute on, so these writes aren't the rows' arrival
-      vi.setSystemTime(Date.now() + 60_000)
-      await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }], chatId }, by)
-      vi.setSystemTime(Date.now() + 2 * 3_600_000)
-      await threads.write({ id, rows: [{ id: "doi-10.1145-2", cells: { q: { text: "A third more.", depth: "full", passage: { quote: "a third more", page: 4 } } } }], chatId }, by)
-      const batches = await threads.about(id)
-      expect(batches.at(-1)).toMatchObject({ trigger: "read", answered: 2 })
-    } finally {
-      vi.useRealTimers()
-    }
   })
 
   it("starts a thread at once and a chat about it that fills it, as Reviewer would, named by the thread", async () => {

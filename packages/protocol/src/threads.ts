@@ -239,7 +239,6 @@ export interface ThreadWrite {
   newGrouping?: string
   // Rows Owlit takes out
   removeRows?: string[]
-  why?: string
   // One sentence on what this batch couldn't reach (a source that failed, an index that is incomplete,
   // papers without an abstract), kept with the batch in About
   note?: string
@@ -250,7 +249,8 @@ export interface ThreadWrite {
 }
 
 // One batch of Owlit's work on a thread, for About: what set it going, what it added or answered,
-// the searches it made and what it said it couldn't reach. Worked out from the thread's history.
+// the searches it made and what it said it couldn't reach. Worked out from the change log, less what was
+// undone, and the searches and notes kept beside the thread.
 export interface ThreadBatch {
   at: number
   // Its first gathering, Find more papers, reading in full, a column, a chat, or Owlit without saying

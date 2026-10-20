@@ -427,7 +427,7 @@ export function threadWriteOf(args: Record<string, unknown>): ThreadWrite | stri
   const problem = rows?.find((r) => typeof r === "string")
   if (problem) return problem
   return {
-    ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", report: "report", one: "one", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
+    ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", report: "report", one: "one", note: "note", grouping: "grouping", newGrouping: "new_grouping" }),
     ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
     ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
     ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),

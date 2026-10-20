@@ -1026,7 +1026,6 @@ export class Core {
         grouping: z.string().optional(),
         newGrouping: z.string().optional(),
         removeRows: z.array(z.string()).optional(),
-        why: z.string().optional(),
         note: z.string().optional(),
         chatId: z.string().optional(),
         docPath: z.string().optional(),

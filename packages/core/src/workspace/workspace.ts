@@ -120,7 +120,7 @@ export class Workspace {
           .catch((error) => console.error("[core] couldn't record an imported paper", error)),
     })
     this.search = new SearchIndex(root, dataDir, this.library)
-    this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder }, {
+    this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder, changes: this.changes }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
       // Added as the writer's own, recorded so it can be taken back, and with no PDF sought. Filed by its
@@ -141,10 +141,6 @@ export class Workspace {
       findPassage: (id, quote) => this.findPassage(id, quote),
       hasText: (id) => this.hasText(id),
       searches: (by, since) => this.library.searchesBy(by, since),
-      chatAbout: async (chatId) => {
-        const chat = await this.chats.get(chatId).catch(() => null)
-        return chat?.startedBy ? chat.about : undefined
-      },
       ...options.threads,
     })
     this.tasks = new Scheduler({
