@@ -1,4 +1,3 @@
-import type { ChatAbout } from "@owlit/protocol"
 import { goThrough } from "./go-through.ts"
 import { reply } from "./reply.ts"
 import { threadSkill } from "./threads.ts"
@@ -9,8 +8,6 @@ import { threadSkill } from "./threads.ts"
 // English, never translated.
 
 export interface Recipe<I> {
-  // What the work is on
-  about: ChatAbout["kind"]
   // One line on what it does and what it needs, for owlit_help's list
   description: string
   text: (input: I) => string

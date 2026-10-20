@@ -36,8 +36,6 @@ interface Deps {
 
 export function registerChats({ router, turns, requireWorkspace, host, workAgent, announceStarted }: Deps) {
   const chats = () => requireWorkspace().chats
-  const chatId = z.string().regex(/^[\w-]+$/)
-  const roleSchema = z.enum(ROLES.map((r) => r.id) as [Role, ...Role[]])
   const summary = z.object({
     id: chatId,
     title: z.string(),
@@ -50,13 +48,6 @@ export function registerChats({ router, turns, requireWorkspace, host, workAgent
     effortId: z.string().optional(),
     help: z.literal(true).optional(),
   })
-  // Messages are the app's own shape (protocol/chat.ts); core checks only what it relies on
-  const message = z.looseObject({
-    id: z.string().min(1),
-    role: z.enum(["user", "assistant"]),
-    parts: z.array(z.unknown()),
-    createdAt: z.number(),
-  }) as unknown as z.ZodType<ChatMessage>
   router.register("chats.list", noParams, "read", () => chats().list())
   router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))
   router.register("chats.tryAgain", z.object({ chatId }), "admin", async ({ chatId }) => {
@@ -74,13 +65,13 @@ export function registerChats({ router, turns, requireWorkspace, host, workAgent
     await turns.forget(id)
     return chats().delete(id)
   })
-  router.register("chats.appendMessage", z.object({ id: chatId, message }), "admin", ({ id, message }) =>
+  router.register("chats.appendMessage", z.object({ id: chatId, message: messageSchema }), "admin", ({ id, message }) =>
     chats().appendMessage(id, message),
   )
   router.register("chats.removeMessages", z.object({ id: chatId, messageIds: z.array(z.string()) }), "admin", ({ id, messageIds }) =>
     chats().removeMessages(id, messageIds),
   )
-  router.register("chats.patchMessage", z.object({ id: chatId, message, final: z.boolean().optional() }), "admin", ({ id, message, final }) =>
+  router.register("chats.patchMessage", z.object({ id: chatId, message: messageSchema, final: z.boolean().optional() }), "admin", ({ id, message, final }) =>
     chats().patchMessage(id, message, final),
   )
   router.register("chats.restore", z.object({ id: chatId }), "admin", ({ id }) => chats().restore(id))

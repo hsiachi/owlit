@@ -128,7 +128,7 @@ export interface ExtensionFetcher {
   // An extension is asking for work: papers the plain routes miss go to it; without one they have no
   // PDF until it connects (Library.handToExtension)
   connected(): boolean
-  // asked: the user waits on this paper (Find PDF, Look again)
+  // askedFor: the user waits on this paper (Look again)
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
   // Where the paper stands with the extension, while it has it
   holding(library: Library, id: string): PdfState["extension"] | undefined
@@ -138,12 +138,8 @@ export interface ExtensionFetcher {
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
 
-// The workspace's papers: library/papers/<id>/ (what each paper is, and the user's note.md beside it) and
-// .owlit/papers/<id>/ (the rest of what the user thinks of it: state, highlights). Changes from the app
-// are answered, not echoed; changes core makes on its own (a task) or another program makes go out
-// through onChange.
-// One search in .owlit/searches.jsonl: what was asked where, by whom (chat:<id>, run:<kind>:<task>, agent,
-// you), and the ids of what it found
+// One search in .owlit/searches.jsonl: what was asked where, by whom ("chat:<id>", or "agent" for an
+// agent outside a chat), and the ids of what it found
 export interface SearchLine {
   at: number
   query: string
@@ -167,6 +163,10 @@ interface MachineNotes {
 const LEARNABLE = ["arxiv", "s2", "openalex"] as const
 export type LearnedId = (typeof LEARNABLE)[number]
 
+// The workspace's papers: library/papers/<id>/ (what each paper is, and the user's note.md beside it) and
+// .owlit/papers/<id>/ (the rest of what the user thinks of it: state, highlights). Changes from the app
+// are answered, not echoed; changes core makes on its own (a task) or another program makes go out
+// through onChange.
 export class Library {
   readonly root: string
   // This workspace's folder in owlit's data directory (machine-specific state)
@@ -1823,7 +1823,7 @@ export class Library {
     return this.announce(ids)
   }
 
-  // Queues a step for a paper when this build knows it (paper.pdf comes with T15, and so on)
+  // Queues a step for a paper when there is a scheduler that can run its kind; otherwise the step is skipped
   private queue(kind: string, id: string, priority: TaskPriority) {
     if (this.scheduler?.knows(kind)) this.scheduler.enqueue(kind, id, priority)
   }

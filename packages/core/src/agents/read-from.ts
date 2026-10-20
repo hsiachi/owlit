@@ -1,7 +1,7 @@
 import type { ReadFrom } from "@owlit/protocol"
 import { citationsIn } from "../library/wear.ts"
 
-// What agents read of the library through library_read, by who asked ("chat:<id>", "run:<id>"), so a
+// What agents read of the library through library_read, by who asked ("chat:<id>", or "agent"), so a
 // chat's answer can say what it was built from when its turn ends. Kept in memory only: what a turn read
 // is written into its answer (readFrom), and a restart in the middle of a turn loses only that line.
 export interface LibraryRead {

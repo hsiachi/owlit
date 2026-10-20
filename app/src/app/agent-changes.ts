@@ -19,7 +19,7 @@ function titleOf({ target, action }: Change) {
     case "paper":
       return action === "delete" ? t`Paper removed` : t`Paper added`
     case "comment":
-      return t`Note added`
+      return t`Comment added`
     case "thread":
       return t`Papers collected`
     default:

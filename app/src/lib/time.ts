@@ -23,8 +23,6 @@ export function shortDate(t: number) {
 // "3:40 PM"
 export const clock = (t: number) => new Date(t).toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" })
 
-export const isToday = (t: number, now = Date.now()) => t >= startOfDay(now)
-
 // "Oct 15, 3:40 PM"
 export function dateTime(t: number) {
   return new Date(t).toLocaleString(intlLocale(), { month: "short", day: "numeric", ...(sameYear(t) ? {} : { year: "numeric" }), hour: "numeric", minute: "2-digit" })

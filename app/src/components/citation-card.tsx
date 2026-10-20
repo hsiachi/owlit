@@ -100,8 +100,7 @@ function useTrace(library: Paper | undefined): string | null {
 
 // The card itself, for any surface to float: the paper, the sentence the claim rests on (or the abstract's
 // first lines for a citation without one), and a line of what it rests on and the person's own trace.
-// `footer` is a cell's editing row.
-export function CitationCard({ citation, footer }: { citation: Citation; footer?: ReactNode }) {
+export function CitationCard({ citation }: { citation: Citation }) {
   const navigate = useNavigate()
   const { library, facts } = useCitedPaper(citation.paperId)
   const check = useCheck(citation, library)
@@ -155,7 +154,6 @@ export function CitationCard({ citation, footer }: { citation: Citation; footer?
         {check === "no-text" && <span>{t`The paper's text isn't in owlit`}</span>}
         {trace && <span>{t({ message: `You: ${trace}`, comment: "the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6" })}</span>}
       </p>
-      {footer}
     </div>
   )
 }

@@ -20,7 +20,7 @@ const chat = (id: string, last: Partial<ChatMessage>): Chat => ({
   ],
 })
 const permission: MessagePart = { type: "permission", requestId: "r1", toolCallId: "t1", title: "Run pdftotext", kind: "execute", options: [] }
-const agent = (id: string, status: Connector["status"]) => ({ id, name: id, status, models: [], modes: [], builtIn: false }) as unknown as Connector
+const agent = (id: string, status: Connector["status"]) => ({ id, name: id, status, models: [], builtIn: false }) as unknown as Connector
 const none = { chats: [], streaming: {}, connectors: [], imports: [], siteWaits: [], finished: false, now: NOW }
 const keys = (src: Partial<Parameters<typeof waitingItems>[0]>) => waitingItems({ ...none, ...src }, () => undefined).map((w) => w.key)
 

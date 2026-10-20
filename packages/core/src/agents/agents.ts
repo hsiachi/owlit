@@ -77,7 +77,7 @@ export function agentEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   )
 }
 
-// The agents most people have, each through its ACP adapter. Their models, modes and efforts come from
+// The agents most people have, each through its ACP adapter. Their models and efforts come from
 // the agent itself when it is checked; nothing about them is hard-coded here.
 export const BUILT_IN: ConnectorDef[] = [
   {
@@ -379,7 +379,7 @@ export class Agents {
     return this.connectorOf(await this.def(id))
   }
 
-  // The running process for an agent, started if needed (T10 opens sessions on it). owlit's own copy of
+  // The running process for an agent, started if needed (sessions open on it). owlit's own copy of
   // an adapter comes before one on PATH: it is the one owlit set up and keeps up to date.
   async process(id: string): Promise<AcpProcess> {
     const running = this.processes.get(id)
@@ -457,7 +457,7 @@ export class Agents {
     // Probes saved before the tidying are tidied as they are read
     const probed = stored ? tidy(stored) : undefined
     const live = this.live.get(def.id) ?? {}
-    const fallback = [{ id: "default", name: t({ message: "Default", comment: "the model or mode an agent uses when none is picked" }) }]
+    const fallback = [{ id: "default", name: t({ message: "Default", comment: "the model an agent uses when none is picked" }) }]
     return {
       id: def.id,
       name: def.name,
@@ -477,10 +477,8 @@ export class Agents {
       authenticated: live.authenticated ?? (probed ? true : undefined),
       error: live.error,
       models: probed?.models.length ? probed.models : fallback,
-      modes: probed?.modes.length ? probed.modes : fallback,
       efforts: probed?.efforts.length ? probed.efforts : undefined,
       defaultModelId: probed?.defaultModelId ?? "default",
-      defaultModeId: probed?.defaultModeId ?? "default",
       defaultEffortId: probed?.defaultEffortId,
       ...(cannotRead(def.id).length ? { cannotRead: cannotRead(def.id) } : {}),
       ...(this.setups && def.builtIn && !def.launch ? await this.setups.view(def.id).then((setup) => (setup ? { setup } : {})) : {}),
@@ -525,8 +523,8 @@ const ignoreSession = {
 
 type SelectOption = { value: string; name: string; description?: string | null }
 
-// Models, modes and efforts from what the agent sent: its config options by category (the current
-// value is the default), or, for an agent without them, its session modes
+// Models and efforts from what the agent sent: its config options by category (the current value is the
+// default)
 export function probe(init: acp.InitializeResponse, session: acp.NewSessionResponse): ProbedConnector {
   const options = session.configOptions ?? []
   const select = (category: string) => {
@@ -541,15 +539,12 @@ export function probe(init: acp.InitializeResponse, session: acp.NewSessionRespo
   }
   const model = select("model")
   const effort = select("thought_level")
-  const mode = select("mode") ?? (session.modes ? { items: session.modes.availableModes.map((m) => ({ id: m.id, name: m.name, ...(m.description ? { description: m.description } : {}) })), current: session.modes.currentModeId } : null)
   return tidy({
     checkedAt: Date.now(),
     version: init.agentInfo?.version,
     models: model?.items ?? [],
-    modes: mode?.items ?? [],
     efforts: effort?.items ?? [],
     defaultModelId: model?.current,
-    defaultModeId: mode?.current,
     defaultEffortId: effort?.current,
   })
 }

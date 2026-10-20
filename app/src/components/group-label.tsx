@@ -7,7 +7,6 @@ export function GroupLabel({
   as: Tag = "h2",
   flush,
   info,
-  infoLabel,
   id,
   className,
   children,
@@ -16,7 +15,6 @@ export function GroupLabel({
   flush?: boolean
   // An explanation behind an info icon after the words
   info?: React.ReactNode
-  infoLabel?: string
   id?: string
   className?: string
   children: React.ReactNode
@@ -24,7 +22,7 @@ export function GroupLabel({
   return (
     <Tag id={id} className={cn("mb-1 flex items-center gap-1.5 text-xs font-normal text-muted-foreground", !flush && "px-2.5", className)}>
       {children}
-      {info && <Info label={infoLabel}>{info}</Info>}
+      {info && <Info>{info}</Info>}
     </Tag>
   )
 }

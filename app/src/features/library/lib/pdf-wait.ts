@@ -6,7 +6,7 @@ export { pdfWait, waitedFor, type PdfWait } from "@owlit/protocol"
 
 // Whether a site the extension waits at is something only the user can do now, in what they started:
 // Home's Waiting on you, the rail's dot, the amber line atop the Library. It is grey until the user asked
-// for one of its papers (Find PDF, Look again). No paper waits on the user by itself: its row says
+// for one of its papers (Look again). No paper waits on the user by itself: its row says
 // Finding, and the site's line covers it.
 export const waitsOnYou = (wait: ExtensionWait) => wait.askedFor
 

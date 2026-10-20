@@ -727,13 +727,12 @@ const loading = new Set<string>()
 
 // ---- From owlit to ACP ----
 
-// What the user sent, as content blocks: the text (mentions as their names), each mentioned or on-screen
-// doc as a link to its file, papers and threads by their owlit:// address, and a selected passage
-// quoted. A session started over gets the conversation so far first.
-// What the agent is told for one turn, in this order: owlit's rules (a new session, or one told an older
-// version), the role (when it is new to the session), owlit's memory (when it is new to the session or
-// changed), the conversation so far (a session started over), then the user's own words after a line
-// marking where they begin, and last the attached files (attachmentBlocks)
+// What the agent is told for one turn, as content blocks, in this order: owlit's rules (a new session, or
+// one told an older version), the role (when it is new to the session), owlit's memory (when it is new to
+// the session or changed), the conversation so far (a session started over), then the user's own words
+// after a line marking where they begin (mentions as their names, each mentioned or on-screen doc as a
+// link to its file, papers and threads by their owlit:// address, a selected passage quoted), and last the
+// attached files (attachmentBlocks)
 export function promptBlocks(
   input: PromptInput,
   root: string,

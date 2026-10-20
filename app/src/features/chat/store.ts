@@ -20,7 +20,7 @@ import type { RunningTurn } from "./agent/client"
 const deleted = new Map<string, Chat>()
 
 // In the desktop app chats live in the workspace (.owlit/chats/, through ./disk); in a plain browser
-// (pnpm dev:web) seeded chats are kept in localStorage as before.
+// (pnpm dev:web) seeded chats are kept in localStorage.
 export interface ChatState extends ConnectorSlice {
   chats: Record<string, Chat>
   // Whether the workspace's chat list has been read
@@ -185,7 +185,7 @@ export const useChatStore = create<ChatState>()(
           // While Owlit works, what the person sends is their next message, sent when the turn ends; the
           // turn goes on. Waiting on a question, their words are their own answer to it, and any files
           // and mentions go as the next message. Waiting on a command, it means "no, do this instead":
-          // the request is refused and the words go next (decision 12: Don't allow never stops a turn).
+          // the request is refused and the words go next (refusing a command never stops the turn).
           const ask = pendingAsk(chat)
           if (ask?.type === "question" && input.text.trim()) {
             useAskDraft.getState().type(chatId, ask, input.text.replace(MENTION, "$1"))
@@ -292,7 +292,7 @@ export const useChatStore = create<ChatState>()(
       partialize: (s) => (isDesktop ? { selection: s.selection } : { chats: s.chats, connectors: s.connectors, selection: s.selection }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ChatState>
-        // Built-in connectors take their definition (models, modes, efforts) from code and only
+        // Built-in connectors take their definition (models, efforts) from code and only
         // their probe result from storage, so shipping a new field doesn't need a reset. Custom
         // connectors are stored whole. Stale "checking"/"connected" flags are reset.
         const stored = p.connectors ?? []

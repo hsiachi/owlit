@@ -3,14 +3,14 @@ import { BookOpenIcon, BotIcon, FileTextIcon, MessageSquareIcon, RouteIcon, Stic
 
 // The kinds of thing a workspace holds, each drawn with one icon wherever it appears: the rail, the
 // palette, Home, the mention popup, a result card
-export type Kind = "doc" | "chat" | "paper" | "thread" | "note" | "agent"
+export type Kind = "doc" | "chat" | "paper" | "thread" | "comment" | "agent"
 
 export const KIND_ICON: Record<Kind, LucideIcon> = {
   doc: FileTextIcon,
   chat: MessageSquareIcon,
   paper: BookOpenIcon,
   thread: RouteIcon,
-  note: StickyNoteIcon,
+  comment: StickyNoteIcon,
   agent: BotIcon,
 }
 

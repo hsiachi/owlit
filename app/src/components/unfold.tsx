@@ -1,18 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { transitionMs } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 // Something that opens in place (a peek, a steps list, a waiting card): it grows from its line over
 // --t-layout and pushes what is below it, so the eye can follow, and folds away the same way (index.css,
-// Motion). The content is mounted only while open or still folding away, unless `keepMounted`; a fold whose
-// children empty as it closes (a card once answered) keeps the last ones for the exit. `rise` also lifts the
-// content 6px into place, for a card that arrives rather than unfolds. `appear` opens from nothing on mount,
-// for content that replaces something else where it stands.
+// Motion). The content is mounted only while open or still folding away; a fold whose children empty as it
+// closes (a card once answered) keeps the last ones for the exit. `rise` also lifts the content 6px into
+// place, for a card that arrives rather than unfolds.
 export function Unfold({
   open,
   rise,
-  appear,
-  keepMounted,
   className,
   innerClassName,
   children,
@@ -20,13 +17,10 @@ export function Unfold({
 }: {
   open: boolean
   rise?: boolean
-  appear?: boolean
-  keepMounted?: boolean
   innerClassName?: string
 } & React.ComponentProps<"div">) {
   const outer = useRef<HTMLDivElement>(null)
-  const [mounted, setMounted] = useState(!appear)
-  const shown = open && mounted
+  const shown = open
   // Settled once the last change has finished moving; false from the render that starts a change, so the
   // leaving content is never unmounted before its fold runs
   const [was, setWas] = useState(shown)
@@ -38,13 +32,6 @@ export function Unfold({
   const last = useRef(children)
   if (open) last.current = children
 
-  // The closed state is laid out once before it opens, or the browser sees no change to move through
-  useLayoutEffect(() => {
-    if (!appear) return
-    void outer.current?.offsetHeight
-    setMounted(true)
-  }, [appear])
-
   // Reduced motion ends no transition, so a timer settles the change when the transition does not
   useEffect(() => {
     if (settled) return
@@ -52,7 +39,7 @@ export function Unfold({
     return () => clearTimeout(t)
   }, [settled, shown])
 
-  const rendered = keepMounted || shown || !settled
+  const rendered = shown || !settled
   return (
     <div
       ref={outer}

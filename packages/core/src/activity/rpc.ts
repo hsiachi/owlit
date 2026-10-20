@@ -24,7 +24,7 @@ interface Deps {
 }
 
 export function registerActivity({ router, notifier, settings, activity, workspace, requireWorkspace, systemLanguages }: Deps) {
-  // Turned off, the journal keeps nothing (see Journal), but Owlit's rules still hear what the user opens
+  // Turned off, the journal keeps nothing (see Journal); the bus's other listeners still hear the event
   router.register("activity.emit", z.object({ event: activityEvent }), "admin", async ({ event }) => {
     await settings.get()
     if (workspace()) activity.publish(event)

@@ -143,10 +143,8 @@ export interface ProbedConnector {
   checkedAt: number
   version?: string
   models: { id: string; name: string; description?: string }[]
-  modes: { id: string; name: string; description?: string }[]
   efforts: { id: string; name: string; description?: string }[]
   defaultModelId?: string
-  defaultModeId?: string
   defaultEffortId?: string
 }
 

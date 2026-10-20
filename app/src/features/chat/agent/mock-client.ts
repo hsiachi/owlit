@@ -143,7 +143,7 @@ export class MockAgentClient implements AgentClient {
         }
         return "end_turn"
       }
-      // A command, as an engine asks before running one: the card decision 12 keeps
+      // A command, as an engine asks before running one, with its permission card
       if (/\b(run|command)\b/i.test(text)) return await this.runCommand(emit, signal)
       if (/\b(ask me|questions?)\b/i.test(text)) return await this.askQuestions(emit, signal)
       // Lets the browser build show a reply that broke

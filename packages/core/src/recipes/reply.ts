@@ -45,7 +45,6 @@ export function replyRecipe(input?: ReplyInput) {
 }
 
 export const reply: Recipe<ReplyInput | undefined> = {
-  about: "comment",
   description: "answer the user's reply under one of your comments on their doc, in the comment, and correct your own comment when the reply shows it wrong (no thread)",
   text: replyRecipe,
 }

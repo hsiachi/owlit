@@ -376,8 +376,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return done.left?.length ? `${wrote}\nLeft out, the rest went in; fix these and write them again:\n- ${done.left.join("\n- ")}` : wrote
     }
     case "thread_edit": {
-      // The title is Owlit's own, so it goes through a write of its own (a threads.edit rename is the
-      // user's)
+      // The title is Owlit's own, so it changes through threads.write, recorded as Owlit's
       await owlit.rpc.threads.write({ id: str("id"), title: str("title").trim(), ...writer })
       const thread = await owlit.rpc.threads.get({ id: str("id") })
       return `“${thread.title}” (${threadUri(thread.id)}).`
@@ -565,9 +564,6 @@ function paperLine(p: Paper, extension: boolean) {
   return `- ${p.id} · ${p.title} · ${[shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", ")} · ${facts.join(", ")}`
 }
 
-// Why a paper has no PDF, in words an agent can pass on, read off where core says it stands (its state
-// and the ending of the try that says why), as the window shows it: with only "no PDF", an agent
-// suggests a library proxy the user already has, and can't say which sign-in a paper waits for.
 const DROP = "the user can drop the PDF on the paper"
 // A paper with no PDF, by its state's reason; a not-found that an older record's check or sign-in gave
 // says so, since an agent may be asked why

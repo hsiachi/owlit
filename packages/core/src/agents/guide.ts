@@ -44,17 +44,17 @@ const TOPICS: GuideTopic[] = [
   {
     id: "owlit",
     title: "Talking to Owlit",
-    text: `⌘J (or the feather at the top right) opens Owlit from anywhere outside Chat: a small ask bar that becomes a side panel once a conversation starts. It sees the paper or doc on screen and any selection sent to it. Work that takes minutes (find and add papers, compare papers, review a draft) is better asked on the Chat page; the chat list shows which chats are working, waiting on the user, or finished since they last looked. Home lists everything waiting on the user. The composer picks the agent, the model and how often Owlit asks permission.`,
+    text: `⌘J (or the feather at the top right) opens Owlit from anywhere outside Chat: a small ask bar that becomes a side panel once a conversation starts. It sees the paper or doc on screen and any selection sent to it. Work that takes minutes (find and add papers, compare papers, review a draft) is better asked on the Chat page; the chat list shows which chats are working, waiting on the user, or finished since they last looked. Home lists everything waiting on the user. The composer picks the agent, the model and Owlit's role in the chat: Reviewer changes nothing of the user's, Assistant (the default) edits their docs as marked proposals they may undo in part, Co-author edits them outright and also runs commands. Settings › Owlit › What Owlit may do lists what each role may do.`,
   },
   {
     id: "agents",
     title: "Agents (Claude Code, Codex, Gemini CLI)",
-    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for the tasks the user hands Owlit with a button, such as digests.`,
+    text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: for Claude Code and Codex, Sign in… beside the agent opens the sign-in page in the browser; for the others, run the agent's command (for example gemini) once in Terminal. The Owlit engine's sign-ins are listed under it. Settings › Owlit picks the agent, model and language for the tasks the user hands Owlit with a button, such as digests.`,
   },
   {
     id: "undo",
     title: "Undoing Owlit's changes",
-    text: `Every change Owlit makes outside a chat (a paper added, a note on a doc, a topic line, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit makes to a doc lands at once and is marked in the doc until the user has seen it: Undo on a passage (or ⌘⌫ at its end) takes back that passage, Undo all the whole edit, the same Undo as the answer's line. A doc Owlit wrote whole shows one line above it, "Owlit wrote this doc", with Undo. A doc's menu has Versions… for every change and what it did.`,
+    text: `Every change Owlit makes outside a chat (a paper added, a comment on a doc, a thread written, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit makes to a doc lands at once and is marked in the doc until the user has seen it: Undo on a passage (or ⌘⌫ at its end) takes back that passage, Undo all the whole edit, the same Undo as the answer's line. A doc Owlit wrote whole shows one line above it, "Owlit wrote this doc", with Undo. A doc's menu has Versions… for every change and what it did.`,
   },
   {
     id: "memory",
@@ -64,7 +64,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "settings",
     title: "Settings",
-    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, what Owlit keeps in mind about them, the agent and language for the tasks the user hands Owlit, such as digests, and whether owlit records what the user does), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
+    text: `Settings (⌘, or the gear at the bottom of the left rail) has four sections: Owlit (the name Owlit calls the user, what Owlit keeps in mind about them, what each role may do, the agent and language for the tasks the user hands Owlit, such as digests, whether owlit records what the user does, and updates), Agents (installed agents and the Owlit engine's sign-ins), Papers (contact email and Semantic Scholar and OpenAlex keys, the library proxy, the browser extension, publishers' API keys, and how PDFs are read: built-in, or MinerU for better text) and Appearance (theme and paper tone). Changes are kept as they are made; there is no Save.`,
   },
   {
     id: "shortcuts",
@@ -73,7 +73,7 @@ const TOPICS: GuideTopic[] = [
   },
 ]
 
-const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (owlit, agents, papers, appearance), or a part of one (background, privacy, sources, proxy, reading), for example [Settings › Papers › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
+const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (owlit, agents, papers, appearance), or a part of one (memory, roles, background, privacy, updates, sources, proxy, extension, publisher-apis, reading), for example [Settings › Papers › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
 
 const RECIPES = `Recipes: how to do a piece of work, to read whole before doing it in this chat. Ask for one by its name as topic:\n${recipeList()}`
 
