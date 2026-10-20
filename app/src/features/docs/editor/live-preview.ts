@@ -201,9 +201,12 @@ interface Resolvers {
   unread: (uri: string) => boolean
   // The route of the doc a [[wikilink]] names, if there is one
   wikilink: (name: string) => string | null
+  // The owlit:// address of the doc a link's path names (an agent writes docs as files: "notes/x.md",
+  // "/Users/me/Owlit/notes/x.md"), null for a web link or a path that names no doc
+  docLink: (href: string) => string | null
 }
 
-function build(view: EditorView, { describe, unread, wikilink }: Resolvers): Built {
+function build(view: EditorView, { describe, unread, wikilink, docLink }: Resolvers): Built {
   const state: EditorState = view.state
   const doc = state.doc
   const decos: Range<Decoration>[] = []
@@ -284,11 +287,13 @@ function build(view: EditorView, { describe, unread, wikilink }: Resolvers): Bui
             const labelFrom = marks[0].to
             const labelTo = marks[1].from
             // A mention is one token, drawn like every other mention and deleted as a unit. Its label's
-            // brackets are written escaped (protocol's mentionLink) and drawn plain.
-            if (href.startsWith("owlit://")) {
+            // brackets are written escaped (protocol's mentionLink) and drawn plain. A link to a doc by its
+            // file's path is the same reference, written the way an agent writes it.
+            const uri = href.startsWith("owlit://") ? href : docLink(href)
+            if (uri) {
               const title = node.getChild("LinkTitle")
               const quote = title ? linkTitleText(doc.sliceString(title.from, title.to)) : undefined
-              const widget = new MentionWidget(unescapeLabel(doc.sliceString(labelFrom, labelTo)), href, describe(href), unread(href), quote || undefined)
+              const widget = new MentionWidget(unescapeLabel(doc.sliceString(labelFrom, labelTo)), uri, describe(uri), unread(uri), quote || undefined)
               mentions.push(Decoration.replace({ widget }).range(ref.from, ref.to))
               return false
             }
@@ -411,6 +416,7 @@ export function livePreview({
   describe,
   unread,
   wikilink,
+  docLink,
   onOpenMention,
   onOpenRoute,
   resolversChange,
@@ -421,7 +427,7 @@ export function livePreview({
   // Calls back when the resolvers may answer differently; returns an unsubscribe
   resolversChange?: (changed: () => void) => () => void
 }): Extension {
-  const resolvers = { describe, unread, wikilink }
+  const resolvers = { describe, unread, wikilink, docLink }
   const plugin = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet

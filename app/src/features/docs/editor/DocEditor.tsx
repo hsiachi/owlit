@@ -14,7 +14,7 @@ import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
 import { registerEditor } from "../editors"
 import { wikilinkFile } from "../fs"
-import { allDocMentions, docMentionable, mentionTooltip, openMention, paperUnread } from "../lib/mentions"
+import { allDocMentions, docMentionable, docUriOfLink, mentionTooltip, openMention, paperUnread } from "../lib/mentions"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { BESIDE_MIN_WINDOW, useBeside } from "@/features/agent/beside"
 import { freshDocIds, useDocsStore } from "../store"
@@ -166,12 +166,21 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           livePreview({
             describe: mentionTooltip,
             unread: (uri) => paperUnread(uri),
-            // A paper read meanwhile (or renamed) shows at once in the doc's mentions
-            resolversChange: (changed) =>
-              useLibraryStore.subscribe((s, prev) => {
-                if (s.papers !== prev.papers) changed()
-              }),
+            // A paper read meanwhile (or renamed) shows at once in the doc's mentions; a doc made or renamed
+            // meanwhile makes the wikilinks and path links that name it live
+            resolversChange: (changed) => {
+              const stops = [
+                useLibraryStore.subscribe((s, prev) => {
+                  if (s.papers !== prev.papers) changed()
+                }),
+                useDocsStore.subscribe((s, prev) => {
+                  if (s.files !== prev.files) changed()
+                }),
+              ]
+              return () => stops.forEach((stop) => stop())
+            },
             wikilink: wikilinkRoute,
+            docLink: docUriOfLink,
             // A citation's sentence goes with it, so the paper opens with it ringed: beside the doc when the
             // window has room for both, else (or with ⌘) on its own page
             onOpenMention: (uri, quote, { meta, pos }) => {

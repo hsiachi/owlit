@@ -16,6 +16,7 @@ describe("a doc linked by its file", () => {
     expect(docUriOfLink("file:///Users/x/Owlit/ADHD%20Support/Literature%20Review.md")).toBe(uri)
     expect(docUriOfLink("ADHD%20Support/Literature%20Review.md")).toBe(uri)
     expect(docUriOfLink("./ADHD Support/Literature Review.md:12")).toBe(uri)
+    expect(docUriOfLink("<ADHD Support/Literature Review.md>")).toBe(uri)
   })
 
   it("takes /tmp for the /private/tmp it links to", () => {
