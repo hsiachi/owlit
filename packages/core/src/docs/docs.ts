@@ -23,7 +23,7 @@ import { existsSync, lstatSync, realpathSync, watch, type FSWatcher, type Stats 
 import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
-import { invalidParams, RpcFailure } from "../rpc/index.ts"
+import { invalidParams, RpcFailure, WINDOW, type Caller } from "../rpc/index.ts"
 import { Comments } from "./comments.ts"
 import type { Host } from "../host.ts"
 import { Serial } from "../util.ts"
@@ -86,10 +86,11 @@ export class Docs {
   // A file's text changed outside core (null: there was none / there is none now): another program, an
   // agent writing the disk itself. Awaited, so what it records lands before what core does next.
   textChanged: ((rel: string, before: string | null, after: string | null) => unknown) | undefined
-  // The window saved a doc: its text before and after, once it is on disk, and where it is now (a doc
-  // named by its first line may have moved). Awaited, after any change made outside since the window
-  // last read the doc has been through textChanged.
-  saved: ((rel: string, before: string | null, after: string, at: string) => unknown) | undefined
+  // A doc was saved through write (the window's save, or a program's on the socket, as caller): its text
+  // before and after, once it is on disk, and where it is now (a doc named by its first line may have
+  // moved). Awaited, after any change made outside since the caller last read the doc has been through
+  // textChanged.
+  saved: ((rel: string, before: string | null, after: string, at: string, caller: Caller) => unknown) | undefined
 
   constructor(root: string, owlitDir: string, host: Host = {}) {
     this.root = root
@@ -200,7 +201,7 @@ export class Docs {
     })
   }
 
-  write(rel: string, content: string, expectedModifiedAt: number, force = false) {
+  write(rel: string, content: string, expectedModifiedAt: number, force = false, caller: Caller = WINDOW) {
     return this.serial.run(async () => {
       this.check(rel)
       const file = this.abs(rel)
@@ -223,7 +224,7 @@ export class Docs {
         if (to) at = await this.moveEntry(rel, to)
       }
       await this.settle([rel, at])
-      await this.saved?.(rel, before, content, at)
+      await this.saved?.(rel, before, content, at, caller)
       return this.statAt(at)
     })
   }
@@ -405,6 +406,18 @@ export class Docs {
 
   putComment(rel: string, comment: DocComment) {
     return this.serial.run(() => this.comments.put(this.check(rel), comment))
+  }
+
+  // Changes one comment in its turn, from how it reads then (null: it isn't there); the comment as it was
+  // and as it is now
+  updateComment(rel: string, id: string, change: (was: DocComment | null) => DocComment) {
+    return this.serial.run(async () => {
+      const at = this.check(rel)
+      const before = (await this.comments.list(at)).find((c) => c.id === id) ?? null
+      const after = change(before)
+      await this.comments.put(at, after)
+      return { before, after }
+    })
   }
 
   removeComment(rel: string, id: string) {

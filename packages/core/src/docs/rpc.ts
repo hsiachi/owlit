@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { chatOfFile, isOpenComment, isOwlit, isPerson, RpcErrorCode, type ChangeOrigin, type DocComment } from "@owlit/protocol"
+import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
@@ -61,7 +62,7 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
   router.register(
     "docs.write",
     z.object({ path: rel, content: z.string(), expectedModifiedAt: z.number(), force: z.boolean().optional() }), "words",
-    ({ path, content, expectedModifiedAt, force }) => docs().write(path, content, expectedModifiedAt, force),
+    ({ path, content, expectedModifiedAt, force }, caller) => docs().write(path, content, expectedModifiedAt, force, caller),
   )
   router.register("docs.rename", z.object({ path: rel, name: z.string() }), "structure", ({ path, name }, caller) => movingDocs(path, caller, () => docs().rename(path, name)))
   router.register("docs.move", z.object({ path: rel, folder: z.string() }), "structure", ({ path, folder }, caller) => movingDocs(path, caller, () => docs().move(path, folder)))
@@ -144,14 +145,39 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
     const was = (await docs().listComments(path)).find((c) => c.id === input.id) ?? null
     const comment = correcting(signed(input, was, await requireWorkspace().recorder.actorOf(caller)), was, caller)
     const before = await putComment(path, comment, caller)
-    // A reply of the user's under one of Owlit's comments: Owlit answers it there
-    const first = comment.entries[0]
-    const last = comment.entries.at(-1)
-    if (first && isOwlit(first.by) && last && isPerson(last.by) && !before?.entries.some((e) => e.id === last.id) && isOpenComment(comment)) {
-      answerReply(requireWorkspace(), path, comment.id)
-    }
+    answerPersonsReply(path, before, comment)
     return before
   })
+  const COMMENT_REPLY: Policy<"comments.reply"> = {
+    // Resolving someone else's comment is its marks; a reply, or resolving one's own, is the caller's own
+    touches: ({ resolve }, target, who) => (resolve && target.by !== who.actor ? "meta" : "own"),
+    // A reply alone is a new entry of the caller's, whoever started the comment
+    target: async ({ path, id, resolve }) => {
+      const target = await commentTarget(path, id)
+      return resolve ? target : { what: "reply", ...(target.was ? { was: target.was } : {}) }
+    },
+  }
+  router.register(
+    "comments.reply",
+    z.object({ path: rel, id: z.string().min(1), text: z.string(), resolve: z.boolean().optional() }),
+    COMMENT_REPLY,
+    async ({ path, id, text, resolve }, caller) => {
+      const by = await requireWorkspace().recorder.actorOf(caller)
+      const chatId = caller.kind === "window" ? undefined : caller.chatId
+      const at = Date.now()
+      const entry = { id: randomUUID(), by, text, at, ...(chatId ? { chatId } : {}) }
+      // Said to the agent when it isn't the window, so plain English
+      const { before, after } = await docs().updateComment(path, id, (was) => {
+        if (!was) throw new RpcFailure(RpcErrorCode.NotFound, `There is no comment ${id} on ${path}; docs_comments lists them.`, { path, id })
+        if (resolve && was.resolvedAt) throw new RpcFailure(RpcErrorCode.Conflict, "That comment is already resolved.", { path, id })
+        return correcting({ ...was, entries: [...was.entries, entry], ...(resolve ? { resolvedAt: at } : {}) }, was, caller)
+      })
+      if (caller.kind !== "window") notifier.notify("comments.changed", { path, comment: after })
+      await recordComment(caller, path, before, after)
+      answerPersonsReply(path, before, after)
+      return after
+    },
+  )
   router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
     const removed = await docs().removeComment(path, id)
     if (removed && caller.kind !== "window") notifier.notify("comments.removed", { path, id })
@@ -184,6 +210,15 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
     await ws.docs.addComment(path, comment)
     notifier.notify("comments.changed", { path, comment })
     await ws.recorder.record(caller, { action: "create", target: { kind: "comment", path, part: comment.id }, after: comment }, { label: path.split("/").pop()!.replace(/\.md$/i, "") })
+  }
+
+  // A reply of the user's under one of Owlit's comments: Owlit answers it there
+  function answerPersonsReply(path: string, before: DocComment | null, comment: DocComment) {
+    const first = comment.entries[0]
+    const last = comment.entries.at(-1)
+    if (first && isOwlit(first.by) && last && isPerson(last.by) && !before?.entries.some((e) => e.id === last.id) && isOpenComment(comment)) {
+      answerReply(requireWorkspace(), path, comment.id)
+    }
   }
 
   // A comment as it reads now, replacing the one with its id, and recorded. A window drew its own change

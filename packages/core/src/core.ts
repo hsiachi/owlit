@@ -261,6 +261,7 @@ export class Core {
         if (about && ws) void this.announceStarted(ws, chatId)
       },
       mcpServers: (root, chatId) => this.mcpServers(root, chatId),
+      mcpEnded: (servers) => this.mcpEnded(servers),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],
       readFrom: async (chatId, since, answer) => {
@@ -754,6 +755,15 @@ export class Core {
         env: [...Object.entries(mcp.env ?? {}).map(([name, value]) => ({ name, value })), { name: "OWLIT_SESSION", value: session }],
       },
     ]
+  }
+
+  // owlit-mcp of a session that ended: its secret no longer names the chat
+  private mcpEnded(servers: object[]) {
+    for (const server of servers) {
+      const env = "env" in server ? (server.env as { name: string; value: string }[]) : []
+      const secret = env.find((e) => e.name === "OWLIT_SESSION")?.value
+      if (secret) this.socket?.revoke(secret)
+    }
   }
 
   private async closeSocket() {

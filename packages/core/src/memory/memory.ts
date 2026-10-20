@@ -168,10 +168,16 @@ export class Memory {
       if (!text) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something to keep first.`)
       const i = input.id ? lines.findIndex((l) => l.id === input.id) : -1
       const before = i >= 0 ? lines[i]! : null
-      // A line removed a moment ago comes back as it was, under its own id
+      // A line the person rewrites is theirs: it no longer names the chat it came from, which would make it
+      // Owlit's again once the log has dropped this change (memory/rpc.ts memoryTarget)
+      const { chatId: _from, ...kept } = before ?? {}
+      const rewritten = !!before && (before.text !== text || before.kind !== input.kind)
+      // A line removed a moment ago comes back as it was, under its own id, naming its chat again; only the
+      // window says what that was
+      const chatId = caller.kind === "window" ? input.chatId : undefined
       const line: MemoryLine = before
-        ? { ...before, kind: input.kind, text, at: before.text === text ? before.at : Date.now() }
-        : { id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(input.chatId ? { chatId: input.chatId } : {}) }
+        ? rewritten ? { ...(kept as MemoryLine), kind: input.kind, text, at: before.text === text ? before.at : Date.now() } : before
+        : { id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(chatId ? { chatId } : {}) }
       if (before) lines[i] = line
       else lines.push(line)
       if (JSON.stringify(before) !== JSON.stringify(line)) await this.record(caller, before, line)

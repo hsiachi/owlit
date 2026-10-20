@@ -41,6 +41,8 @@ interface Connection {
   socket: net.Socket
   // Who calls on this connection, from its auth; null until then
   caller: Extract<Caller, { kind: "socket" }> | null
+  // The session secret it authenticated with, if any
+  secret?: string
   // Topics this client asked to hear; null: none yet; empty set: all
   topics: Set<string> | null
 }
@@ -73,7 +75,7 @@ export class SocketServer {
   private server: net.Server
   private connections = new Set<Connection>()
   private unsubscribe: () => void
-  // Session secrets by value; they live as long as the socket, as the sessions they were made for can
+  // Session secrets by value, until the session they were made for ends (revoke) or the socket closes
   private readonly sessions: Map<string, Grant>
 
   private constructor(root: string, paths: { socket: string; pointer: string }, server: net.Server, unsubscribe: () => void, sessions: Map<string, Grant>) {
@@ -89,6 +91,13 @@ export class SocketServer {
     const secret = randomBytes(24).toString("hex")
     this.sessions.set(secret, granted)
     return secret
+  }
+
+  // The session a secret was made for has ended: the secret no longer names its chat, and a program still
+  // connected with it is cut off (owlit-mcp connects again as a program working for no chat)
+  revoke(secret: string) {
+    if (!this.sessions.delete(secret)) return
+    for (const connection of this.connections) if (connection.secret === secret) connection.socket.destroy()
   }
 
   // The workspace's lock is held, so a socket file already there was left by an owlit that died
@@ -135,7 +144,9 @@ export class SocketServer {
           return
         }
         const session = text(auth.session)
-        connection.caller = callerOf(session ? sessions.get(session) : undefined)
+        const granted = session ? sessions.get(session) : undefined
+        connection.caller = callerOf(granted)
+        if (granted) connection.secret = session
         reply({ ok: true, workspace })
         return
       }

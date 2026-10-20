@@ -37,3 +37,24 @@ export class Members {
     return member?.kind === "person" ? member.name : undefined
   }
 }
+
+// Authors as owlit wrote them before actor ids: "user" was the person, "agent" and "owlit" their Owlit
+const OLD_WORDS: Record<string, Member["kind"]> = { user: "person", agent: "assistant", owlit: "assistant" }
+
+// Reads an author that may be in an older shape as an actor id. A data file from before ids names the
+// one person who used the workspace then, taken to be the roster's first person (and their Owlit the
+// first assistant); "other" while members.json names none. missing: whose a thing with no author at all
+// is, where an older owlit wrote none for that one. The roster is read only when an old word is met, and
+// once per reader.
+export function oldActors(owlitDir: string) {
+  let roster: Promise<Roster> | undefined
+  return async (value: unknown, missing?: Member["kind"]): Promise<ActorId> => {
+    if (typeof value === "string" && /^[po]_/.test(value)) return value as ActorId
+    if (value === "other") return "other"
+    const kind = typeof value === "string" ? OLD_WORDS[value] : value === undefined ? missing : undefined
+    if (!kind) return "other"
+    roster ??= new Members(owlitDir).get()
+    const id = Object.entries(await roster).find(([, member]) => member?.kind === kind)?.[0]
+    return id && /^[po]_/.test(id) ? (id as ActorId) : "other"
+  }
+}

@@ -83,6 +83,24 @@ describe("readJournal", () => {
     writeFileSync(file, [opened, ...old].map((e) => JSON.stringify(e)).join("\n") + "\n")
     expect(await readJournal(file)).toEqual([opened])
   })
+
+  it("reads a journal from before actor ids as ids, by the members.json beside it", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "owlit-reading-"))
+    writeFileSync(path.join(dir, "members.json"), JSON.stringify({ [ME]: { kind: "person" }, [MY_OWLIT]: { kind: "assistant", of: ME } }))
+    const file = path.join(dir, "journal.jsonl")
+    const old = [
+      { kind: "paper.opened", at, paperId: "p", actor: "user" },
+      { kind: "paper.dwell", at: at + 10_000, paperId: "p", page: 1, seconds: 10, actor: "user" },
+      { kind: "paper.opened", at: at + 20_000, paperId: "q", actor: "agent" },
+      { kind: "paper.opened", at: at + 30_000, paperId: "r", actor: "owlit" },
+    ]
+    writeFileSync(file, old.map((e) => JSON.stringify(e)).join("\n") + "\n")
+    const entries = await readJournal(file)
+    expect(entries.map((e) => e.actor)).toEqual([ME, ME, MY_OWLIT, MY_OWLIT])
+    // The person's old reading still counts; Owlit's never did
+    expect([...readingOf(entries).keys()]).toEqual(["p"])
+    expect(readingOf(entries).get("p")?.pages).toEqual({ 1: 10 })
+  })
 })
 
 describe("readInFull", () => {

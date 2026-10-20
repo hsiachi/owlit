@@ -5,7 +5,7 @@ import path from "node:path"
 import { promisify } from "node:util"
 import { socketHash } from "../rpc/socket.ts"
 
-interface LockInfo {
+export interface LockInfo {
   pid: number
   workspace: string
   since: number
@@ -62,17 +62,23 @@ async function readLock(file: string): Promise<LockInfo | undefined> {
   }
 }
 
-// The process holding `pid` now is the one that took the lock only if it was already running then.
-// ps prints the start to the second, so the holder's start is never after its own `since`.
-async function heldSince(holder: LockInfo) {
+// Whether the lock's holder still holds it: its pid names a live process that was already running when
+// the lock was taken. Only a pid no process has frees the lock; when ps can't say when a live process
+// started (it failed, or printed something else), the lock is held, since taking over a held lock puts
+// two owlits on one workspace. ps prints the start to the second, so the holder's start is never after
+// its own `since`.
+export async function heldSince(holder: LockInfo, startOf: (pid: number) => Promise<number> = psStart) {
   try {
-    const { stdout } = await promisify(execFile)("ps", ["-o", "lstart=", "-p", String(holder.pid)], {
-      env: { ...process.env, LC_ALL: "C" },
-    })
-    const started = Date.parse(stdout.trim())
-    return Number.isFinite(started) && started <= holder.since
-  } catch {
-    // ps exits 1 when no process has that pid
-    return false
+    process.kill(holder.pid, 0)
+  } catch (error) {
+    // EPERM: a live process of another user
+    if ((error as NodeJS.ErrnoException).code === "ESRCH") return false
   }
+  const started = await startOf(holder.pid).catch(() => Number.NaN)
+  return !Number.isFinite(started) || started <= holder.since
+}
+
+async function psStart(pid: number) {
+  const { stdout } = await promisify(execFile)("ps", ["-o", "lstart=", "-p", String(pid)], { env: { ...process.env, LC_ALL: "C" } })
+  return Date.parse(stdout.trim())
 }

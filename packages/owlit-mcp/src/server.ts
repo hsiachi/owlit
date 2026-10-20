@@ -44,11 +44,11 @@ export interface OwlitMcpOptions {
 const FALLBACK_INSTRUCTIONS =
   "owlit is the user's research workspace: their papers (library_*), their Markdown docs (docs_*) and the comments on them (comments_*), their chats (chats_*) and threads (thread_*). Cite papers as [Author Year](owlit://library/<id>)."
 
-// Started for no chat, owlit-mcp serves an agent outside owlit (the `owlit mcp` command), which
-// core lets read and refuses every change (agents/policy.ts); the rules that follow are written for Owlit
-// inside the app, so this goes first
+// Started for no chat, owlit-mcp serves an agent outside owlit (the `owlit mcp` command), which core
+// lets read and change only what it made itself (agents/policy.ts); the rules that follow are written
+// for Owlit inside the app, so this goes first
 export const OUTSIDE_INSTRUCTIONS =
-  "You are reading the user's owlit workspace from outside owlit. Through these tools you can read their papers, docs, comments, chats and threads, but you can't change anything in it from here: when a change would help, say what it is, and the user makes it in the owlit app or asks Owlit there. The rules below are written for Owlit inside the app; what they say about reading and citing applies to you, what they say about changing things doesn't."
+  "You are working in the user's owlit workspace from outside owlit. Through these tools you can read their papers, docs, comments, chats and threads, and add things of your own (papers, new docs, comments and replies, threads, memory lines); you can change or remove only what you added yourself. Everything else is the user's and you can't change it from here: when such a change would help, say what it is, and the user makes it in the owlit app or asks Owlit there. The rules below are written for Owlit inside the app; what they say about reading and citing applies to you, and what they say about changing things applies only to what you added."
 
 export function createServer(options: OwlitMcpOptions) {
   const outside = !options.chatId
@@ -308,14 +308,11 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "comments_reply":
     case "comments_resolve": {
-      const comment = ((await owlit.rpc.comments.all())[str("path")] ?? []).find((c) => c.id === str("id"))
-      if (!comment) return `There is no comment ${str("id")} on ${str("path")}; docs_comments lists them.`
-      if (tool === "comments_resolve" && comment.resolvedAt) return `That comment is already resolved.`
-      const at = Date.now()
-      const entry = { id: randomUUID(), text: tool === "comments_reply" ? str("text") : str("reply"), at, ...(options.chatId ? { chatId: options.chatId } : {}) }
-      // Core signs the new entry as this agent's Owlit and decides, by the chat's role, whether it may
-      await owlit.rpc.comments.put({ path: str("path"), comment: { ...comment, entries: [...comment.entries, entry], ...(tool === "comments_resolve" ? { resolvedAt: at } : {}) }, ...writer })
-      return tool === "comments_reply" ? `Replied under the comment on "${comment.quote.slice(0, 60)}". The user sees it beside the doc.` : `Resolved the comment on "${comment.quote.slice(0, 60)}" with your reply. The user can reopen it with Undo.`
+      const resolve = tool === "comments_resolve"
+      // Core adds the entry under the comment as it is then, signed as this agent's Owlit, and decides by
+      // the chat's role whether it may
+      const comment = await owlit.rpc.comments.reply({ path: str("path"), id: str("id"), text: resolve ? str("reply") : str("text"), ...(resolve ? { resolve } : {}), ...writer })
+      return resolve ? `Resolved the comment on "${comment.quote.slice(0, 60)}" with your reply. The user can reopen it with Undo.` : `Replied under the comment on "${comment.quote.slice(0, 60)}". The user sees it beside the doc.`
     }
     case "comments_remove": {
       const removed = await owlit.rpc.comments.remove({ path: str("path"), id: str("id"), ...writer })

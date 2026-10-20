@@ -70,7 +70,10 @@ export function registerChats({ router, turns, requireWorkspace, host, workAgent
   router.register("chats.update", z.object({ id: chatId, patch: summary.omit({ id: true, createdAt: true }).partial() }), "admin", ({ id, patch }) =>
     chats().update(id, patch),
   )
-  router.register("chats.delete", z.object({ id: chatId }), "admin", ({ id }) => chats().delete(id))
+  router.register("chats.delete", z.object({ id: chatId }), "admin", async ({ id }) => {
+    await turns.forget(id)
+    return chats().delete(id)
+  })
   router.register("chats.appendMessage", z.object({ id: chatId, message }), "admin", ({ id, message }) =>
     chats().appendMessage(id, message),
   )
