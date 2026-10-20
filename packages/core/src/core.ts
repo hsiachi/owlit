@@ -643,6 +643,7 @@ export class Core {
       { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
       ({ id, index }, caller) => this.undo.undoPart(id, index, caller),
     )
+    this.router.register("changes.passages", z.object({ id: z.string().min(1) }), "read", ({ id }) => this.undo.passagesOf(id))
     this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), "read", ({ ids }) => this.undo.stats(ids))
     const actor = z.custom<ActorId>((v) => typeof v === "string" && /^([po]_[0-9a-f]+|other)$/.test(v))
     this.router.register(

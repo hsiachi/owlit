@@ -96,6 +96,8 @@ describe("changes.undo", () => {
     await core.fs.write(path.join(root, "a.md"), "First claim, sharpened.\n\nSecond claim.\n\nThird claim, sharpened.\n", { chatId: "chat-1" })
     const [write] = await log("a.md")
     expect(await call("changes.stats", { ids: [write!.id] })).toMatchObject({ unit: "words", added: 2, removed: 0, passages: 2 })
+    // And what it did, passage by passage, for Versions
+    expect((await call("changes.passages", { id: write!.id })).map((h: { insert: string }) => h.insert)).toEqual([", sharpened", ", sharpened"])
   })
 
   it("names the passages edited since, which stay as they are, and refuses when none is left", async () => {

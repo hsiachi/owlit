@@ -3,7 +3,7 @@ import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
-import type { Change, ChangedPassage, ChangeFilter, Proposal, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
+import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { Thread, ThreadBatch, ThreadEdit, ThreadPaper, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
@@ -353,6 +353,9 @@ export interface Methods {
   // How much a run of changes to one doc changed it, from before the first to after the last, and in how
   // many passages as the doc marks them; null when they aren't one doc's or are no longer kept
   "changes.stats": { params: { ids: string[] }; result: (EditStats & { passages: number }) | null }
+  // What one change to a doc did, passage by passage as the doc marks them; null when it isn't a doc's
+  // or its texts are no longer kept
+  "changes.passages": { params: { id: string }; result: ProposalHunk[] | null }
   // The log, newest first
   "changes.list": { params: ChangeFilter; result: Change[] }
   // The workspace's members: who the ids in the log are

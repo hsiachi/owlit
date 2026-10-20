@@ -109,6 +109,18 @@ export class Undo {
     return { ...editStats(first.target.path, before, after ?? ""), passages: proposalHunks(before, after ?? "").length }
   }
 
+  // What one entry on a doc did, passage by passage as the doc marks them (a doc made: its whole text, one
+  // deleted: all it said); null when it isn't a doc's or its texts are no longer kept
+  async passagesOf(id: string) {
+    const ws = this.workspace()
+    const change = await ws.changes.get(id)
+    if (change?.target.kind !== "doc") return null
+    const before = change.action === "create" ? "" : await ws.changes.content(change.id)
+    const after = await this.leftBy(ws, change).catch(() => undefined)
+    if (before === null || after === undefined) return null
+    return proposalHunks(before, after ?? "")
+  }
+
   // A doc's passages go back: the hunks from the text the entry left to the text before it, applied to the
   // doc as it is now. Those that meet a later edit stay as they are and are named in `left`.
   private async doc(ws: Workspace, change: Change, caller: Caller, extra: Extra): Promise<Undone> {
