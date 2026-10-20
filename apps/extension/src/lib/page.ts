@@ -155,16 +155,25 @@ export function paperOfPage(html: string, url: string): PagePaper | undefined {
     paper.venue ??= more.venue
     paper.pdfUrl ??= more.pdfUrl
   }
-  // A page that only has an og:title is a paper's when it links a DOI (doi.org) as well: an article on a
-  // site that puts no citation tags in its head
-  if (!paper.title && !paper.arxiv) {
-    paper.doi ??= doiIn(/https?:\/\/(?:dx\.)?doi\.org\/(10\.\d{4,9}\/[^\s"'<>]+)/i.exec(html)?.[1])
+  // A page that only has an og:title is a paper's when it links one DOI (doi.org) as well: an article on a
+  // site that puts no citation tags in its head. A news or blog piece about a study links that study's
+  // DOI under its own headline, and one linking several DOIs cites them: neither is the paper.
+  if (!paper.title && !paper.arxiv && !isNewsPiece(html, metas)) {
+    const linked = new Set([...html.matchAll(/https?:\/\/(?:dx\.)?doi\.org\/(10\.\d{4,9}\/[^\s"'<>]+)/gi)].map((m) => doiIn(m[1])).filter(Boolean))
+    if (!paper.doi && linked.size === 1) paper.doi = [...linked][0]
     if (paper.doi) paper.title = first("og:title", "twitter:title")
   }
 
   if (!paper.doi && !paper.arxiv && !paper.title) return undefined
   for (const key of Object.keys(paper) as (keyof PagePaper)[]) if (paper[key] === undefined) delete paper[key]
   return paper
+}
+
+// A news or blog piece, as it says of itself: a JSON-LD NewsArticle or BlogPosting, or an Open Graph
+// article in a section (news sites name theirs)
+function isNewsPiece(html: string, metas: Map<string, string[]>) {
+  if (/"@type"\s*:\s*(?:\[[^\]]*)?"(?:NewsArticle|ReportageNewsArticle|AnalysisNewsArticle|BlogPosting|LiveBlogPosting)"/.test(html)) return true
+  return metas.get("og:type")?.[0]?.toLowerCase() === "article" && metas.has("article:section")
 }
 
 // citation_pdf_url, else a <link rel="alternate" type="application/pdf">, as an absolute http(s) address
