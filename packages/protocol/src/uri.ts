@@ -11,9 +11,10 @@ export const threadUri = (id: string, group?: string) => `owlit://threads/${id}$
 // as link text; unescapeLabel takes a label back
 export const mentionLink = (label: string, uri: string) => `[${label.replace(/([[\]\\])/g, "\\$1")}](${uri})`
 // A claim about a paper as Owlit writes it everywhere (agents/rules.ts): the page in the fragment, the
-// sentence it rests on as the link's title
+// sentence it rests on as the link's title, on one line (a quote from a PDF keeps its line breaks, and a
+// blank line inside a title ends the link)
 export const citationLink = (label: string, id: string, passage: { quote: string; page: number }) =>
-  `${mentionLink(label, `owlit://library/${id}#p${passage.page}`).slice(0, -1)} "${passage.quote.replace(/["\\]/g, "\\$&")}")`
+  `${mentionLink(label, `owlit://library/${id}#p${passage.page}`).slice(0, -1)} "${passage.quote.replace(/\s+/g, " ").trim().replace(/["\\]/g, "\\$&")}")`
 // A Markdown link title as written ("…", '…' or (…)) as its words, its backslash escapes undone
 export const linkTitleText = (raw: string) => raw.trim().slice(1, -1).replace(/\\(.)/g, "$1")
 export const unescapeLabel = (label: string) => label.replace(/\\([[\]\\])/g, "$1")
