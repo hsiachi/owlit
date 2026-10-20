@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { summarize, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
-import { byProject, groupSections, isTable, noteSections, paperCounts, shown } from "./lib"
+import { byProject, groupSections, isTable, noteSections, paperCounts, sectionsOf, shown } from "./lib"
 import { seedThreads } from "./mocks/seed"
 
 describe("a grouping's groups in the table", () => {
@@ -36,6 +36,19 @@ describe("a grouping's groups in the table", () => {
     expect(count("b")).toEqual(["p2"])
     expect(groups.map((g) => [g.group.id, g.depth])).toEqual([["a", 0], ["a1", 1], ["a2", 1], ["b", 0]])
     expect(loose.map((r) => r.id)).toEqual(["p4"])
+  })
+})
+
+describe("a table grouped by a comparison", () => {
+  const paper = (id: string, cell?: ThreadRowRead["cells"][string]): ThreadRowRead => ({ id, paper: { title: id, authors: [], ids: {} }, cells: cell ? { cmp: cell } : {}, addedAt: 0 })
+  const column: ThreadColumn = { id: "cmp", question: "Against my draft", kind: "compare", sentences: [{ id: "s1", text: "Readers skim." }] }
+  const thread = { columns: [column], rows: [paper("p1", { rel: "supports", sentence: "s1" }), paper("p2", { rel: "challenges", sentence: "gone" }), paper("p3")] } as unknown as ThreadRead
+
+  it("puts a paper whose sentence the column no longer has with those that bear on none", () => {
+    expect(sectionsOf(thread, "column:cmp").map((s) => [s.key, s.rows.map((r) => r.id)])).toEqual([
+      ["s1", ["p1"]],
+      ["", ["p2", "p3"]],
+    ])
   })
 })
 
