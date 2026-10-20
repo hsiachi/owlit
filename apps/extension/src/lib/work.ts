@@ -1,7 +1,7 @@
 import type { PaperAnswer, WorkEnded, WorkItem } from "@owlit/protocol"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
-import { isCheck, titleOf, verdict, type Page } from "./verdict.ts"
+import { isCheck, isSignInAddress, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
 // Fetching a paper owlit asked for (GET /work), with the user's cookies: its PDF, or one word for what
 // came instead (verdict.ts). Nothing else is fetched, and what goes back to owlit is the PDF, or the word,
@@ -15,6 +15,8 @@ import { isCheck, titleOf, verdict, type Page } from "./verdict.ts"
 export const FETCH_MS = 60_000
 // A page larger than this isn't read further: what the words are judged by is near its top
 const PAGE_MAX_CHARS = 2_000_000
+// Redirects followed by hand (get, below) before giving up on an address that keeps sending on
+const MAX_HOPS = 5
 
 export interface FetchDeps {
   fetch: typeof fetch
@@ -25,12 +27,16 @@ export interface FetchDeps {
   // the page that passed it: Cloudflare turns away the extension's own fetch to ACM with a 403 while the
   // ACM article open in a tab fetches the same PDF. undefined when no such tab is open.
   inTab?: (host: string) => Promise<typeof fetch | undefined>
+  // Where the browser last sent a fetch of this address on to (the background's webRequest listener):
+  // fetch itself hides an opaque redirect's target. undefined when no redirect of it was seen, or in a
+  // browser whose webRequest doesn't report the extension's own requests.
+  redirectedTo?: (url: string) => string | undefined
 }
 
 export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnded
 
-// redirected: a redirect led to a site the extension may not read
-type Got = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "page"; page: Page } | { kind: "redirected" } | { kind: "offline" } | { kind: "timeout" }
+// redirected: a redirect led to a site the extension may not read; to: where, when the browser told
+type Got = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "page"; page: Page } | { kind: "redirected"; to?: string } | { kind: "offline" } | { kind: "timeout" }
 
 const hostOf = (url: string) => {
   try {
@@ -53,7 +59,10 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
       // from another host) fails as a network failure does. Asked again without following, it comes
       // back as an opaque redirect, whose target the browser doesn't show; a network failure fails again.
       response = await deps.fetch(url, { credentials: "include", redirect: "manual", signal: controller.signal })
-      if (response.type === "opaqueredirect") return { kind: "redirected" }
+      if (response.type === "opaqueredirect") {
+        const to = deps.redirectedTo?.(url)
+        return to ? { kind: "redirected", to } : { kind: "redirected" }
+      }
     }
     const bytes = await response.arrayBuffer()
     // By its first bytes, or its type with the mark a little further in (some servers send a line first).
@@ -70,6 +79,16 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
   } finally {
     clearTimeout(timer)
   }
+}
+
+// A fetch that goes on by hand where a redirect left for a site the extension may read after all: a
+// followed fetch fails as soon as any hop in the chain is a site it may not read (doi.org on to a
+// publisher's page on to its sign-in), so each readable hop is fetched anew, until one answers or one
+// may not be read
+async function follow(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<Got> {
+  let got = await get(url, deps, proxy)
+  for (let hop = 0; hop < MAX_HOPS && got.kind === "redirected" && got.to && (await deps.permitted(got.to)); hop++) got = await get(got.to, deps, proxy)
+  return got
 }
 
 // What a page that came instead says, as owlit hears it
@@ -90,33 +109,44 @@ export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched
 async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   if (!(await deps.permitted(item.url))) return { ended: "no-permission", host: item.host }
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
-  // Where a redirect left for a site the extension may not read: through the proxy, its sign-in (a
-  // signed-out proxy sends every fetch to the school's). Otherwise no copy: the browser doesn't show the
-  // redirect's target, and the site asked is one the extension reads already, so a site to allow would
-  // name one already allowed, which resumes at once and pauses again on the same redirect.
-  // no-permission is said only above, for an address the extension may not read before it is fetched.
+  // Where a redirect left for a site the extension may not read, and the browser said which: that site,
+  // for the user to let the extension read (the publisher's, reached through the proxy or doi.org).
+  // Unless it is the school's sign-in, which a signed-out proxy sends every fetch to: a site under the
+  // proxy's own domain (id.tsinghua.edu.cn beside tlink), or an address that says sign in.
+  const unreadable = (got: { to?: string }): WorkEnded | undefined => {
+    if (!got.to) return undefined
+    const host = hostOf(got.to)
+    if (!host || (proxy && siteOf(host) === siteOf(proxy.host)) || isSignInAddress(got.to)) return undefined
+    return { ended: "no-permission", host }
+  }
+  // The same when the browser didn't say where: through the proxy, its sign-in. Otherwise no copy: the
+  // site asked is one the extension reads already, so a site to allow would name one already allowed,
+  // which resumes at once and pauses again on the same redirect.
   const away: WorkEnded = item.proxied ? { ended: "sign-in", host: hostOf(item.url) } : { ended: "no-copy", host: item.host }
   const tried = new Set<string>()
   if (item.pdfUrl && (await deps.permitted(item.pdfUrl))) {
     tried.add(item.pdfUrl)
-    const got = await get(item.pdfUrl, deps, proxy)
+    const got = await follow(item.pdfUrl, deps, proxy)
     if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
     // A check or a sign-in in front of the PDF is in front of the page too
     if (got.kind === "page" && stops(got.page)) return said(got.page)
-    if (got.kind === "redirected" && item.proxied) return away
+    if (got.kind === "redirected") {
+      const site = unreadable(got)
+      if (site || item.proxied) return site ?? away
+    }
     if (got.kind === "timeout") return { ended: "offline", host: hostOf(item.pdfUrl) }
   }
-  const got = await get(item.url, deps, proxy)
+  const got = await follow(item.url, deps, proxy)
   if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
-  if (got.kind === "redirected") return away
+  if (got.kind === "redirected") return unreadable(got) ?? away
   if (got.kind === "offline" || got.kind === "timeout") return { ended: "offline", host: hostOf(item.url) }
   const { page } = got
   const named = paperOfPage(page.html, page.url)?.pdfUrl ?? pdfLinkIn(page.html, page.url)
   if (named && !tried.has(named) && !isCheck(page) && (await deps.permitted(named))) {
-    const pdf = await get(named, deps, proxy)
+    const pdf = await follow(named, deps, proxy)
     if (pdf.kind === "pdf") return { pdf: pdf.bytes, host: hostOf(pdf.url), url: pdf.url }
     if (pdf.kind === "page" && stops(pdf.page)) return said(pdf.page)
-    if (pdf.kind === "redirected") return away
+    if (pdf.kind === "redirected") return unreadable(pdf) ?? away
     if (pdf.kind === "timeout") return { ended: "offline", host: hostOf(named) }
   }
   return said(page)

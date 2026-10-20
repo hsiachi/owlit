@@ -101,6 +101,22 @@ export function isCheck(page: Pick<Page, "status" | "html">) {
   )
 }
 
+// The path as written, decoded: a path that isn't valid percent-encoding is read as it is
+function pathOf(at: URL) {
+  try {
+    return decodeURIComponent(at.pathname)
+  } catch {
+    return at.pathname
+  }
+}
+
+// Whether an address alone says sign in, by its host and path only: sign-in pages carry the target in
+// their query (RelayState, service=, url=)
+export function isSignInAddress(url: string) {
+  const at = safeUrl(url)
+  return !!at && signIn(`${at.hostname}${pathOf(at)}`)
+}
+
 export function verdict(page: Page): WorkEnding {
   let at: URL
   try {
@@ -114,13 +130,7 @@ export function verdict(page: Page): WorkEnding {
   // The proxy asks for fewer requests: nothing was decided about the paper, so it is a try that reached
   // nothing, and owlit looks again later
   if ((page.proxy && LIMIT.test(at.pathname)) || LIMIT_TITLE.test(title) || page.status === 429) return "offline"
-  // Host and path only: sign-in pages carry the target in their query (RelayState, service=, url=)
-  let path = at.pathname
-  try {
-    path = decodeURIComponent(at.pathname)
-  } catch {
-    // A path that isn't valid percent-encoding is read as it is
-  }
+  const path = pathOf(at)
   // A proxy's rewrite of some publisher's page (/https/443/com/sciencedirect/…, or
   // www-sciencedirect-com.proxy.example.edu): an article page through the library, whatever its path says
   const rewritten = /^\/https?\/\d+\//.test(at.pathname) || /-(com|org|net|edu|gov)\./.test(at.hostname)

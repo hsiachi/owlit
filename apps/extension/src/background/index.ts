@@ -435,6 +435,25 @@ const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?
 // Restarts the asking if the worker was stopped meanwhile
 const WORK = "work"
 
+// Where the extension's own fetches were sent on (work.ts, FetchDeps.redirectedTo): fetch hides an opaque
+// redirect's target, webRequest shows it, for the worker's own requests too (no tab, started by the
+// extension: Chrome names the initiator, Firefox originUrl). The newest per address, a few hundred in
+// all; a stopped worker loses them with the fetch that would have asked.
+const redirects = new Map<string, string>()
+const REDIRECTS_KEPT = 500
+const ownOrigin = new URL(ext.runtime.getURL("/")).origin
+ext.webRequest.onBeforeRedirect.addListener(
+  (details) => {
+    const from = details.initiator ?? (details as { originUrl?: string }).originUrl
+    if (details.tabId !== -1 || (from && new URL(from).origin !== ownOrigin)) return
+    redirects.delete(details.url)
+    redirects.set(details.url, details.redirectUrl)
+    if (redirects.size > REDIRECTS_KEPT) redirects.delete(redirects.keys().next().value!)
+  },
+  { urls: ["https://*/*", "http://*/*"], types: ["xmlhttprequest"] },
+)
+const redirectedTo = (url: string) => redirects.get(url)
+
 let asking: Promise<void> | null = null
 
 // One GET /work at a time, held open by owlit until something is due; each paper it hands over is
@@ -452,7 +471,7 @@ function keepAsking() {
         await ext.storage.session.set({ [waitsKey]: answer.waits })
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
         for (const item of answer.work) {
-          void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, ask, token })
+          void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo, ask, token })
             .then((result) => ("pdf" in result ? cameAt(item.host) : undefined))
             .catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }

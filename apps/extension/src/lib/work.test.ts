@@ -7,16 +7,19 @@ const PDF = new TextEncoder().encode("%PDF-1.7\n...")
 const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "w1", paperId: "doi-10.1177-1", url: "https://journals.sagepub.com/doi/10.1177/1", host: "sagepub.com", proxied: false, ...extra })
 
 // A web of addresses: each answers with a body, a status and where its redirects ended
-// "away": a redirect to a site the extension may not read, which a followed fetch rejects
-type Answer = { body: string | Uint8Array; status?: number; type?: string; endsAt?: string } | "down" | "away"
+// "away": a redirect to a site the extension may not read, which a followed fetch rejects; awayTo: the
+// same, with the browser's webRequest having seen where it went
+type Answer = { body: string | Uint8Array; status?: number; type?: string; endsAt?: string } | "down" | "away" | { awayTo: string }
 function web(answers: Record<string, Answer>, permitted: (url: string) => boolean = () => true) {
   const asked: string[] = []
+  const redirects = new Map<string, string>()
   const fetch = (async (url: string, init?: RequestInit) => {
     asked.push(url)
     expect(init?.credentials).toBe("include")
     const answer = answers[url] ?? { body: "<title>Not Found</title>", status: 404 }
     if (answer === "down") throw new TypeError("Failed to fetch")
-    if (answer === "away") {
+    if (answer === "away" || "awayTo" in answer) {
+      if (answer !== "away") redirects.set(url, answer.awayTo)
       if (init?.redirect !== "manual") throw new TypeError("Failed to fetch")
       return { type: "opaqueredirect", status: 0, url, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(0) } as unknown as Response
     }
@@ -24,7 +27,7 @@ function web(answers: Record<string, Answer>, permitted: (url: string) => boolea
     Object.defineProperty(response, "url", { value: answer.endsAt ?? url })
     return response
   }) as unknown as typeof globalThis.fetch
-  const deps: FetchDeps = { fetch, permitted: async (url) => permitted(url) }
+  const deps: FetchDeps = { fetch, permitted: async (url) => permitted(url), redirectedTo: (url) => redirects.get(url) }
   return { deps, asked }
 }
 
@@ -124,6 +127,50 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), pdfAway.deps)).toMatchObject({ ended: "no-access" })
     // Nothing answers either way: offline, as before
     expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
+  })
+
+  it("names the site a redirect reached when the extension may not read it", async () => {
+    // Through the proxy, the publisher's own site: a site to let the extension read, not the proxy's sign-in
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/10.1037/0022-3514.54.4.569"
+    const apa = "https://doi.apa.org/doi/10.1037/0022-3514.54.4.569"
+    const reads = (url: string) => !url.startsWith("https://doi.apa.org/")
+    const proxied = web({ [entry]: { awayTo: apa } }, reads)
+    expect(await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), proxied.deps)).toEqual({ ended: "no-permission", host: "doi.apa.org" })
+    // Without a proxy too, from the PDF's address or the page's
+    const direct = web({ "https://doi.org/10.1037/0022-3514.54.4.569": { awayTo: apa } }, reads)
+    expect(await fetchFor(item({ url: "https://doi.org/10.1037/0022-3514.54.4.569", host: "doi.org" }), direct.deps)).toEqual({ ended: "no-permission", host: "doi.apa.org" })
+    const fromPdf = web({ "https://journals.sagepub.com/doi/pdf/10.1177/1": { awayTo: apa } }, reads)
+    expect(await fetchFor(item({ pdfUrl: "https://journals.sagepub.com/doi/pdf/10.1177/1" }), fromPdf.deps)).toEqual({ ended: "no-permission", host: "doi.apa.org" })
+    expect(fromPdf.asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1", "https://journals.sagepub.com/doi/pdf/10.1177/1"])
+  })
+
+  it("goes on by hand where a redirect reached a site it may read", async () => {
+    // The proxy sends it to doi.org, which the extension reads; doi.org's own answer is the PDF
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/10.1037/x"
+    const { deps, asked } = web({ [entry]: { awayTo: "https://doi.org/10.1037/x" }, "https://doi.org/10.1037/x": { body: PDF } })
+    const got = await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), deps)
+    expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
+    expect(asked).toEqual([entry, entry, "https://doi.org/10.1037/x"])
+    // Two hops: the readable one is fetched, the unreadable one after it is named
+    const chain = web({ [entry]: { awayTo: "https://doi.org/10.1037/x" }, "https://doi.org/10.1037/x": { awayTo: "https://psycnet.apa.org/doiLanding?doi=10.1037/x" } }, (url) => !url.includes("apa.org"))
+    expect(await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), chain.deps)).toEqual({ ended: "no-permission", host: "psycnet.apa.org" })
+    // An address that keeps sending on is given up on
+    const loop = web({ [entry]: { awayTo: entry } })
+    expect(await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), loop.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
+  })
+
+  it("still says sign-in where the proxy's redirect reaches the school's sign-in", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
+    const tlink = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true })
+    // Under the school's own domain
+    const school = web({ [entry]: { awayTo: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/x" } }, (url) => !url.includes("tsinghua.edu.cn") || url.startsWith(entry))
+    expect(await fetchFor(tlink, school.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
+    // Elsewhere, at an address that says sign in
+    const sso = web({ [entry]: { awayTo: "https://login.microsoftonline.com/common/saml2?RelayState=x" } }, (url) => !url.includes("microsoftonline"))
+    expect(await fetchFor(tlink, sso.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
+    // Without a proxy, such a redirect is no copy, as one the browser didn't place
+    const direct = web({ "https://journals.sagepub.com/doi/10.1177/1": { awayTo: "https://sso.sagepub.com/login?next=x" } }, (url) => !url.includes("sso."))
+    expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
   })
 
   it("hands the PDF or the word to owlit, and lets go of an answer owlit no longer waits for", async () => {

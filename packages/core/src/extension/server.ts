@@ -451,7 +451,7 @@ export class ExtensionServer {
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           const { ended: word, host: at, title, url } = body.data
           await library.noteExtensionTry(paper.paperId, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined }))
-          this.work.settle(id, word, { url })
+          this.work.settle(id, word, { url, host: at })
           return { body: { noted: true } }
         },
       },

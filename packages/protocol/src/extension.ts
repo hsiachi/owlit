@@ -64,7 +64,8 @@ export interface ExtensionView {
 // once the user is through and owlit goes on.
 export interface ExtensionWait {
   kind: "sign-in" | "check" | "permission"
-  // The site, as the queue paces it: the publisher's registrable domain, or the library proxy's host
+  // The site, as the queue paces it: the publisher's registrable domain, or the library proxy's host.
+  // For a permission, the site to allow, which through the proxy is the publisher's, not the proxy's
   host: string
   // Papers waiting there
   papers: number

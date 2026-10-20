@@ -49,6 +49,9 @@ interface Queued {
 
 interface Paused {
   kind: ExtensionWait["kind"]
+  // For a permission: the site to allow, when it isn't the site's own key. Through the proxy the fetch
+  // is sent on to the publisher's site, which the extension may not read: that one, not the proxy's
+  host?: string
   // What the user's browser opens for it
   url: string
   // When the newest try met it, for the next try (PAUSED_RETRY_MS)
@@ -120,7 +123,7 @@ export class ExtensionWork implements ExtensionFetcher {
   // when that one isn't asking now, to the one that asked last. The pairing it went to; undefined when
   // the site doesn't wait for that or no extension is connected.
   open(kind: ExtensionWait["kind"], host: string): string | undefined {
-    const site = this.sites.get(host)
+    const site = this.waitingAt(host)
     if (!site?.paused || site.paused.kind !== kind || !paused(site).length) return undefined
     const connected = this.connectedPairings()
     const by = site.paused.by && connected.includes(site.paused.by) ? site.paused.by : connected[0]
@@ -135,7 +138,12 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // The pairing whose fetch met what this site waits for
   pausedBy(host: string): string | undefined {
-    return this.sites.get(host)?.paused?.by
+    return this.waitingAt(host)?.paused?.by
+  }
+
+  // The paused site a wait names (ExtensionWait.host)
+  private waitingAt(host: string): Site | undefined {
+    return [...this.sites.values()].find((site) => site.paused && waitHost(site) === host)
   }
 
   // The pages waiting for this pairing, handed over once
@@ -234,7 +242,7 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // The extension's answer, once core has noted it: a PDF (ended undefined) or a word. A word that only
   // the user can get past pauses the site, its paper first in line for when they have.
-  settle(id: string, ended: WorkEnding | undefined, page: { url?: string } = {}) {
+  settle(id: string, ended: WorkEnding | undefined, page: { url?: string; host?: string } = {}) {
     const key = this.items.get(id)
     const site = key ? this.sites.get(key) : undefined
     if (!site?.inFlight || site.inFlight.id !== id || !this.library) return
@@ -259,7 +267,10 @@ export class ExtensionWork implements ExtensionFetcher {
       site.queue.unshift(item)
       sortQueue(site)
       const url = (pause === "sign-in" && item.paper.signIn) || page.url || item.paper.url
-      site.paused = { kind: pause, url, at: site.endedAt, by }
+      // The site named is the whole publisher's (siteOf), so one Allow covers its other hosts too
+      // (doi.apa.org, then psycnet.apa.org)
+      const host = pause === "permission" && page.host && siteOf(page.host) !== site.key ? siteOf(page.host) : undefined
+      site.paused = { kind: pause, url, at: site.endedAt, by, ...(host ? { host } : {}) }
       this.host.papers(this.library, ids(site))
       this.host.waits()
     } else if (site.paused) {
@@ -279,13 +290,13 @@ export class ExtensionWork implements ExtensionFetcher {
     this.kick()
   }
 
-  // POST /work/resume: the user got through at this host. Every site paused there (by its own host, or
-  // under the same registrable domain) goes on at once, the papers the user asked for first.
+  // POST /work/resume: the user got through at this host. Every site paused there (by the host its wait
+  // names, or under the same registrable domain) goes on at once, the papers the user asked for first.
   resume(host: string): boolean {
     const wanted = siteOf(host)
     let any = false
     for (const site of this.sites.values()) {
-      if (!site.paused || (site.key !== host && siteOf(site.key) !== wanted)) continue
+      if (!site.paused || (waitHost(site) !== host && siteOf(waitHost(site)) !== wanted)) continue
       site.paused = undefined
       site.endedAt = undefined
       sortQueue(site)
@@ -322,13 +333,13 @@ export class ExtensionWork implements ExtensionFetcher {
   waits(): ExtensionWait[] {
     return [...this.sites.values()].flatMap((site) => {
       const waiting = paused(site)
-      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: site.key, papers: waiting.length, url: site.paused.url, askedFor: waiting.some((q) => q.askedFor), proxied: site.proxied }] : []
+      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: waitHost(site), papers: waiting.length, url: site.paused.url, askedFor: waiting.some((q) => q.askedFor), proxied: site.proxied }] : []
     })
   }
 
   // The same for the extension, which watches those sites for the user getting through
   waitsForExtension(): WorkAnswer["waits"] {
-    return [...this.sites.values()].flatMap((site) => (site.paused && paused(site).length ? [{ kind: site.paused.kind, host: site.key, papers: paused(site).length, proxied: site.proxied }] : []))
+    return [...this.sites.values()].flatMap((site) => (site.paused && paused(site).length ? [{ kind: site.paused.kind, host: waitHost(site), papers: paused(site).length, proxied: site.proxied }] : []))
   }
 
   dispose() {
@@ -394,6 +405,9 @@ export class ExtensionWork implements ExtensionFetcher {
 }
 
 const ids = (site: Site) => site.queue.map((q) => q.paper.paperId)
+
+// The host a paused site's wait names: the site to allow, or the site itself
+const waitHost = (site: Site) => site.paused?.host ?? site.key
 
 // What waits at a site, the paper out for a try included
 const paused = (site: Site) => (site.inFlight ? [site.inFlight.item, ...site.queue] : site.queue)

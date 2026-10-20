@@ -155,6 +155,32 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["s1"])
   })
 
+  it("waits to be allowed on the site a proxied fetch was sent on to, and goes on once it is", async () => {
+    const { work, never } = setup()
+    const tlink = (id: string) => paper(id, "tlink.lib.tsinghua.edu.cn", { url: `https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/${id}`, proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/" })
+    const take = () => work.take(library, 0, never, "chrome")
+    work.fetch(library, tlink("10.1037/a"), false)
+    work.fetch(library, tlink("10.1037/b"), false)
+    const [a] = await take()
+    // The extension may not read where the proxy sent it: the whole publisher's site is the one to allow
+    work.settle(a.id, "no-permission", { host: "doi.apa.org" })
+    expect(work.waits()).toEqual([{ kind: "permission", host: "apa.org", papers: 2, url: a.url, askedFor: false, proxied: true }])
+    expect(work.waitsForExtension()).toEqual([{ kind: "permission", host: "apa.org", papers: 2, proxied: true }])
+    // Opened and resumed by the site the wait names, not the proxy's
+    expect(work.open("permission", "tlink.lib.tsinghua.edu.cn")).toBeUndefined()
+    expect(work.open("permission", "apa.org")).toBe("chrome")
+    expect(work.pausedBy("apa.org")).toBe("chrome")
+    expect(work.resume("tlink.lib.tsinghua.edu.cn")).toBe(false)
+    expect(work.resume("psycnet.apa.org")).toBe(true)
+    expect(work.waits()).toEqual([])
+    expect((await take()).map((w) => w.paperId)).toEqual(["10.1037/a"])
+    // Not allowed before the fetch, at the site's own host: the wait names the site as before
+    work.fetch(library, paper("s1", "sagepub.com"), false)
+    const [s1] = (await take()).filter((w) => w.paperId === "s1")
+    work.settle(s1.id, "no-permission", { host: "journals.sagepub.com" })
+    expect(work.waits().find((w) => w.kind === "permission" && w.host === "sagepub.com")).toBeDefined()
+  })
+
   it("tries one paper of a paused site now and then, and goes on there once one gets through", async () => {
     const { work, take, never } = setup()
     work.fetch(library, paper("t1", "tandfonline.com"), false)

@@ -7,6 +7,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - The browser extension's button acts at once: on a paper's page it adds the paper (or saves the PDF the page names for a paper you have without one), and a small card in the page's corner says how it went, with Open to see it in owlit. The button opens its panel only to connect, when owlit has no workspace open, or on pages where no card can be drawn. Its one setting is on the button's right-click menu.
 - The extension's button is the feather alone, light on a dark toolbar.
 - The extension's icon on the browser's extensions page is sharp on a 2x display.
+- When a paper's page sends the owlit extension on to a site it may not read (your library's link to an APA paper lands on doi.apa.org), Owlit now asks you to let the extension read that site, instead of asking you to sign in to your library again and again. APA's PsycNet is one of the sites the extension knows.
 - On a site where papers wait for your sign-in or a check, the extension's card says how many wait there, and that owlit goes on once you're through; its panel counts them as they come ("Going on · 1 of 3").
 - With "Take PDFs I open" on, opening the page of a paper you have without its PDF brings the PDF in, as opening the PDF itself did. The extension also reads papers from IEEE Xplore and from pages that describe them only in JSON-LD, and says plainly that Google Scholar's results list papers.
 
