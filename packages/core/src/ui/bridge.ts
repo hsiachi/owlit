@@ -14,6 +14,8 @@ export class UiBridge {
   private openDocs = new Map<string, Set<string>>()
   // Windows in the order the user was last in them, latest last
   private focused: string[] = []
+  // Waiting for some window to say it is there (whenWindow)
+  private arrivals = new Set<() => void>()
   private pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>()
   private readonly send: (request: UiRequest) => void
 
@@ -29,12 +31,28 @@ export class UiBridge {
 
   focus(clientId: string) {
     this.focused = [...this.focused.filter((id) => id !== clientId), clientId]
+    for (const arrived of this.arrivals) arrived()
     return null
   }
 
   // Some owlit window is there to show the user something
   hasWindow() {
     return this.focused.length > 0
+  }
+
+  // Resolves whether a window is there within `ms`: one just opened says so once its page has loaded
+  whenWindow(ms: number): Promise<boolean> {
+    if (this.hasWindow()) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      const done = (there: boolean) => {
+        clearTimeout(timer)
+        this.arrivals.delete(arrived)
+        resolve(there)
+      }
+      const arrived = () => done(true)
+      const timer = setTimeout(() => done(false), ms)
+      this.arrivals.add(arrived)
+    })
   }
 
   // The window that has this doc open, if any

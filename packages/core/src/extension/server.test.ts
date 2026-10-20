@@ -263,6 +263,22 @@ describe("the extension's port", () => {
     expect(await request("/open", { body: {} })).toMatchObject({ status: 401 })
   })
 
+  it("opens the paper in a window opened for it, once that window has loaded", async () => {
+    const { request, pair, call, core } = await setup({ routes: published })
+    const token = await pair()
+    core.onNotify((n: RpcNotification) => {
+      if (n.method !== "ui.request") return
+      const asked = n.params as { requestId: string }
+      void call("ui.respond", { requestId: asked.requestId, result: { title: "ChroniclingAmericaQA" } })
+    })
+    const { body } = await request("/papers", { token, body: { doi: DOI } })
+    // Every window closed: Open has the host open one, which says it is there only once it has loaded
+    await call("ui.leave", { clientId: "window-1" })
+    const open = request("/open", { token, body: { paper: body.paper.id } })
+    await call("ui.focus", { clientId: "window-2" })
+    expect(await open).toMatchObject({ status: 200, body: { shown: true } })
+  })
+
   it("adds a paper from the page's own words when nothing resolves", async () => {
     const { request, pair, call } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
     const token = await pair()
