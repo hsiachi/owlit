@@ -2551,11 +2551,6 @@ msgstr "your note on {paper}"
 msgid "a paper's note"
 msgstr "a paper's note"
 
-#: app/src/features/chat/started.ts
-#: packages/core/src/agents/failure.ts
-msgid "Owlit was closed before it finished."
-msgstr "Owlit was closed before it finished."
-
 #: app/src/features/chat/status.ts
 msgid "Finished since you last looked"
 msgstr "Finished since you last looked"
@@ -7396,6 +7391,10 @@ msgstr "{name} ran into a problem."
 #: packages/core/src/agents/failure.ts
 msgid "Owlit was closed before it finished, when you opened another workspace."
 msgstr "Owlit was closed before it finished, when you opened another workspace."
+
+#: packages/core/src/agents/failure.ts
+msgid "Owlit was closed before it finished."
+msgstr "Owlit was closed before it finished."
 
 #: packages/core/src/agents/failure.ts
 msgid "{name}'s usage limit is reached."

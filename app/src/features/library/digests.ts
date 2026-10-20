@@ -4,10 +4,10 @@ import { useNavigate } from "react-router-dom"
 import { isTaskFinished, type ChatAbout, type Paper } from "@owlit/protocol"
 import { toast } from "sonner"
 import { notifyWhenAway } from "@/lib/notify"
-import { hasCore, rpc } from "@/lib/rpc"
+import { rpc } from "@/lib/rpc"
 import { routeSubject } from "@/app/route-subject"
 import { useDigestUnseen } from "@/app/seen"
-import { aboutKey, asking, mockStarted, standOf, stopStarted, useStand, useStarted } from "@/features/chat/started"
+import { aboutKey, asking, standOf, stopStarted, useStand, useStarted } from "@/features/chat/started"
 import { useLibraryStore } from "./store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 
@@ -61,7 +61,6 @@ const READS_TEXT = new Set(["paper.text", "paper.parse", "paper.figures"])
 // for (its chat may start only once the paper's text is read)
 export async function askDigest(paper: Paper, rewrite: boolean): Promise<boolean> {
   const about = digestAbout(paper.id)
-  if (!hasCore) return (mockDigest(paper), true)
   asking(about, true)
   try {
     const asked = await rpc.library.requestDigest({ id: paper.id, rewrite })
@@ -75,17 +74,6 @@ export async function askDigest(paper: Paper, rewrite: boolean): Promise<boolean
     return false
   }
 }
-
-// Without core (pnpm dev:web) a paper with no text has it read for a moment first, so the line that says
-// so can be seen
-function mockDigest(paper: Paper) {
-  const about = digestAbout(paper.id)
-  if (paper.text) return mockStarted(about)
-  asking(about, true)
-  setTimeout(() => mockStarted(about), MOCK_TEXT_MS)
-}
-
-const MOCK_TEXT_MS = 3000
 
 // Asks for the digest again (Retry: a new turn in the chat that broke, or a new chat when the recipe
 // changed since), and waits for it

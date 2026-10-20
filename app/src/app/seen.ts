@@ -4,10 +4,8 @@
 
 import { applySeen, unseenOf, type Change, type ChangedPassage, type ChangeFilter, type Proposal, type SeenMark, type SeenMarks, type Unseen } from "@owlit/protocol"
 import { create } from "zustand"
-import { getWorkspaceFs } from "@/features/chat/agent/client"
-import { addMockChange } from "@/features/chat/results"
 import { useChatStore } from "@/features/chat/store"
-import { me, myOwlit } from "@/lib/actors"
+import { me } from "@/lib/actors"
 import { hasCore, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
 
@@ -108,17 +106,6 @@ export const changedPassages = (path: string, hash: string, text: string): Promi
 // began), as passages to mark in the doc; text: the doc as the editor has it
 export const proposalsOf = (path: string, text: string, hash: string | undefined): Promise<Proposal[]> =>
   rpc.changes.proposals({ path, text, ...(hash ? { hash } : { since: useSeen.getState().marks.since }) })
-
-// The mock agent landed an edit in a doc: the change for the chat's card
-export function landMockProposal(chatId: string, path: string, before: string, after: string) {
-  const change: Change = { id: `mock-${crypto.randomUUID()}`, at: Date.now(), actor: myOwlit(), action: "update", target: { kind: "doc", path }, origin: { via: "apply", chatId } }
-  logGrew()
-  addMockChange(change, () => {
-    void getWorkspaceFs()?.writeTextFile(path, before)
-    return () => void getWorkspaceFs()?.writeTextFile(path, after)
-  })
-  refresh()
-}
 
 export function startSeen() {
   refresh()
