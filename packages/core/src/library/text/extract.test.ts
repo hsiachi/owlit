@@ -62,6 +62,13 @@ describe("extractText", () => {
     expect(toMarkdown(text)).toMatch(/state-of-the-?art method for inter-?esting results/)
   })
 
+  it("joins Chinese lines in the Markdown without a space", () => {
+    const rect = { x: 0, y: 0, w: 100, h: 10 }
+    const lines = ["检索增强生成方法通过", "在回答前检索相关段落，", "使模型更贴近 RAG 的", "原始文献。"].map((text) => ({ rect, text }))
+    const md = toMarkdown({ version: 1, source: "pdfium", pages: [{ index: 0, width: 612, height: 792, blocks: [{ kind: "paragraph", rect, lines }] }] })
+    expect(md).toContain("检索增强生成方法通过在回答前检索相关段落，使模型更贴近 RAG 的原始文献。")
+  })
+
   it("marks a page without a text layer as needing OCR", async () => {
     const text = await extractText(makePdf([[], []]))
     expect(text.needsOcr).toBe(true)

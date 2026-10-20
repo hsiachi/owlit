@@ -3,7 +3,7 @@ import { nameOf, useMe } from "@/lib/actors"
 import { MentionToken } from "@/components/mention/mention-token"
 import { useThreadsStore } from "@/features/threads/store"
 import { threadsByPaper } from "@/features/threads/lib"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -14,13 +14,19 @@ import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsLi
 import { PaperByline, PaperQuickActions } from "../../components/PaperByline"
 import { TagsEditor } from "../../components/TagsEditor"
 import { externalLinks, type ExternalLink } from "../../lib/format"
+import { linkedPaperIds } from "../../lib/cite"
 import { stripLatex } from "../../lib/latex"
 import { useHighlightCount } from "../../lib/use-highlights"
+import { NoteChanges } from "../../notes/NoteChanges"
 import { NoteEditor } from "../../notes/NoteEditor"
 import { addHighlightToNote } from "../../notes/note-actions"
 import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../../prefs-store"
 import { useLibraryStore } from "../../store"
-import type { Highlight, Paper } from "@owlit/protocol"
+import { docUri, paperUri, type Highlight, type Paper } from "@owlit/protocol"
+import { useDocsStore } from "@/features/docs/store"
+import { displayName } from "@/features/docs/types"
+import { mentionRoute } from "@/features/docs/lib/mentions"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { useLibraryUi } from "../../ui-store"
 
 // Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back
@@ -75,6 +81,7 @@ export function DetailsPanel({ paper }: { paper: Paper }) {
             {tab === "highlights" && <CopyAllHighlights paperId={paper.id} />}
           </div>
           <TabsContent value="notes" className="flex flex-col">
+            <NoteChanges key={paper.id} paperId={paper.id} />
             <NoteEditor paperId={paper.id} />
           </TabsContent>
           <TabsContent value="highlights">
@@ -151,6 +158,7 @@ function About({ paper }: { paper: Paper }) {
             </dd>
           </>
         )}
+        <CitedIn paper={paper} />
         <dt className="text-muted-foreground">{t({ message: "File", comment: "the paper's PDF file" })}</dt>
         <dd className={cn(!paper.pdf && "text-muted-foreground")}>{paper.pdf ? (pages ? plural(pages, { one: "PDF, # page", other: "PDF, # pages" }) : "PDF") : t`No PDF`}</dd>
         {paper.text && (
@@ -161,6 +169,48 @@ function About({ paper }: { paper: Paper }) {
         )}
       </dl>
     </div>
+  )
+}
+
+// The docs that link to this paper, from the search index's links (an old id of the paper included), so
+// reading a paper shows where the person's writing leans on it. Asked again when the paper changes;
+// the browser preview has no index and reads its mock docs.
+function CitedIn({ paper }: { paper: Paper }) {
+  const navigate = useNavigate()
+  const [paths, setPaths] = useState<string[]>([])
+  const docs = useDocsStore((s) => s.files)
+  useEffect(() => {
+    let live = true
+    const found = isDesktop
+      ? rpc.links.to({ uri: paperUri(paper.id) }).then((links) => links.filter((l) => l.source === "doc").map((l) => l.key))
+      : Promise.resolve(Object.values(useDocsStore.getState().files).filter((f) => linkedPaperIds(f.content ?? "").includes(paper.id)).map((f) => f.path))
+    found.then(
+      (next) => live && setPaths(next.sort((a, b) => a.localeCompare(b))),
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+  }, [paper])
+  // Only docs still there, as the docs list names them
+  const shown = paths.filter((path) => Object.values(docs).some((f) => f.path === path))
+  if (!shown.length) return null
+  return (
+    <>
+      <dt className="text-muted-foreground">{t({ message: "Cited in", comment: "label before the docs that cite this paper" })}</dt>
+      <dd className="flex min-w-0 flex-wrap gap-x-2 gap-y-1">
+        {shown.map((path) => (
+          <MentionToken
+            key={path}
+            label={displayName(path)}
+            onClick={() => {
+              const route = mentionRoute(docUri(path))
+              if (route) navigate(route)
+            }}
+          />
+        ))}
+      </dd>
+    </>
   )
 }
 

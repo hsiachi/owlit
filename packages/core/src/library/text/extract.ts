@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { init, type WrappedPdfiumModule } from "@embedpdf/pdfium"
-import type { PaperText, Rect, TextBlock, TextLine, TextPage } from "@owlit/protocol"
+import { lineJoint, type PaperText, type Rect, type TextBlock, type TextLine, type TextPage } from "@owlit/protocol"
 import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 
@@ -316,7 +316,7 @@ const r2 = (v: number) => Math.round(v * 100) / 100
 
 // The same text as Markdown for agents and search: <!-- page N --> before each page, headings as ##,
 // paragraphs joined into one line each, words broken across lines mended (a soft hyphen goes, a real
-// one stays without a space: "state-of-the-" + "art")
+// one stays without a space: "state-of-the-" + "art"), and no space between two CJK characters (lineJoint)
 export function toMarkdown(text: PaperText): string {
   const parts: string[] = []
   for (const page of text.pages) {
@@ -327,7 +327,7 @@ export function toMarkdown(text: PaperText): string {
         if (!joined) joined = line.text
         else if (joined.endsWith("\u00ad")) joined = joined.slice(0, -1) + line.text
         else if (joined.endsWith("-")) joined += line.text
-        else joined += " " + line.text
+        else joined += lineJoint(joined, line.text) + line.text
       }
       joined = joined.replace(/\u00ad/g, "")
       // Running heads, page numbers and labels in figures are left out of the reading text

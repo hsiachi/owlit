@@ -6,16 +6,12 @@ import { Placeholder } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
 import { toast } from "sonner"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
-import { respondToEdit } from "@/features/chat/lib/respond-edit"
-import { drawnEdits } from "@/features/chat/in-place"
-import { subscribePendingEdits, type PendingEdit } from "@/features/chat/pending-edits"
 import { useSelectionMenu } from "@/components/selection-menu"
 import { askAboutPassage } from "../actions"
 import { showInPaper } from "../paper-view"
 import { useLibraryStore } from "../store"
 import { NoteMention } from "./note-mention"
 import { consumeFocusEnd, notePathOf } from "./note-actions"
-import { NoteSuggestions, noteSuggestionsKey } from "./note-suggestions"
 
 const HIGHLIGHT_LINK = "owlit://highlight/"
 
@@ -27,7 +23,7 @@ const live = (editor: Editor | null): editor is Editor => !!editor && !editor.is
 // One note per paper, kept as Markdown. Markdown shortcuts as you type (#, -, >, **), @ to
 // mention a paper, doc or thread. Saved on every change; nothing says "saved".
 // The note is the user's, so Owlit works on it as on a doc: a selection offers "Ask Owlit",
-// and an edit Owlit proposes is shown in the note before anything changes.
+// and Owlit's edits land at once and are listed above the note until seen (NoteChanges).
 export function NoteEditor({ paperId }: { paperId: string }) {
   const setNote = useLibraryStore((s) => s.setNote)
   const box = useRef<HTMLDivElement>(null)
@@ -45,7 +41,6 @@ export function NoteEditor({ paperId }: { paperId: string }) {
         Markdown,
         Placeholder.configure({ placeholder: t`What do you take from this paper?` }),
         NoteMention,
-        NoteSuggestions.configure({ respond: (edit: PendingEdit, apply: boolean) => respondToEdit(edit.chatId, edit.requestId, apply) }),
       ],
       content: useLibraryStore.getState().notes[paperId]?.content ?? "",
       contentType: "markdown",
@@ -75,7 +70,7 @@ export function NoteEditor({ paperId }: { paperId: string }) {
     editor.commands.focus("end", { scrollIntoView: true })
   }, [editor, paperId])
 
-  // The note changed outside this editor (an applied Owlit edit, another window, another program): it is
+  // The note changed outside this editor (an Owlit edit, another window, another program): it is
   // taken in as one change, so ⌘Z takes it back
   useEffect(() => {
     if (!live(editor)) return
@@ -89,26 +84,6 @@ export function NoteEditor({ paperId }: { paperId: string }) {
       if (next.trim() === shown.trim()) return
       editor.commands.setContent(next, { contentType: "markdown", emitUpdate: false })
     })
-  }, [editor, paperId])
-
-  // Edits Owlit is waiting on for this note, from any chat
-  useEffect(() => {
-    if (!live(editor)) return
-    const path = notePathOf(paperId)
-    // Owlit's proposed edits to this note are answered here, so the chat's card points at the note. The
-    // note draws every one: what it can't place goes at its end.
-    const setDrawn = drawnEdits()
-    const unsubscribe = subscribePendingEdits(
-      () => path,
-      (edits) => {
-        editor.view.dispatch(editor.state.tr.setMeta(noteSuggestionsKey, edits))
-        setDrawn(edits.map((e) => e.requestId))
-      },
-    )
-    return () => {
-      unsubscribe()
-      setDrawn([])
-    }
   }, [editor, paperId])
 
   // A selected passage offers one action above it, "Ask Owlit"; not while the mouse is still choosing

@@ -51,7 +51,7 @@ export interface ExternalLink {
   href: string
 }
 
-export function externalLinks(p: Paper): ExternalLink[] {
+export function externalLinks(p: Pick<Paper, "ids">): ExternalLink[] {
   const links: ExternalLink[] = []
   if (p.ids.doi) links.push({ kind: "doi", value: p.ids.doi, href: `https://doi.org/${p.ids.doi}` })
   if (p.ids.arxiv) links.push({ kind: "arxiv", value: p.ids.arxiv, href: `https://arxiv.org/abs/${p.ids.arxiv}` })

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { Highlight, HighlightColor } from "@owlit/protocol"
+import { lineJoint, type Highlight, type HighlightColor } from "@owlit/protocol"
 
 export const HIGHLIGHT_COLORS: HighlightColor[] = ["yellow", "green", "blue", "pink"]
 
@@ -33,13 +33,14 @@ export const HIGHLIGHT_MARK: Record<HighlightColor, string> = {
 }
 
 // Text pulled off a PDF arrives one line per entry. Join lines back into prose: a word broken
-// with a hyphen at a line end is mended, other line ends become spaces.
+// with a hyphen at a line end is mended, other line ends become spaces, except between two CJK
+// characters (lineJoint).
 export function cleanPdfText(lines: string[]): string {
   return lines
     .join("\n")
     .replace(/\r/g, "")
     .replace(/(\p{L})-\n(\p{Ll})/gu, "$1$2")
-    .replace(/\s*\n\s*/g, " ")
+    .replace(/\s*\n\s*/g, (gap: string, at: number, all: string) => lineJoint(all.charAt(at - 1), all.charAt(at + gap.length)))
     .replace(/\s{2,}/g, " ")
     .trim()
 }
