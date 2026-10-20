@@ -15,7 +15,7 @@ const query = new URLSearchParams(location.search)
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <I18nProvider i18n={i18n}>
-      <Allow host={query.get("host") ?? ""} papers={Number(query.get("papers")) || 0} />
+      <Allow host={query.get("host") ?? ""} papers={Number(query.get("papers")) || 0} tabId={query.has("tab") ? Number(query.get("tab")) : undefined} />
     </I18nProvider>
   </StrictMode>,
 )
