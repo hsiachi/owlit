@@ -143,7 +143,9 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_read": {
       const part = (args.part as "text" | "digest" | "note" | undefined) ?? "text"
       // Signed like a search, so the chat's answer can say what it read
-      const { text, pages } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
+      const { text, pages, pending } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
+      if (pending === "pdf") return "owlit is fetching the paper's PDF now; read it again in a minute."
+      if (pending === "text") return "owlit is reading the paper's text now; read it again in a minute."
       if (!text.trim()) return part === "digest" ? "This paper has no digest yet." : part === "note" ? "The user hasn't written a note on this paper." : "The paper has no text."
       return pages && part === "text" && (args.pages || args.section) ? `${text}\n\n(The paper has ${pages} pages.)` : text
     }
@@ -610,6 +612,8 @@ export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) 
   switch (wait) {
     case undefined:
       return ""
+    case "unsought":
+      return "no PDF yet: owlit fetches it the first time the paper is read (library_read starts it)"
     case "finding":
       return s?.extension ? "no PDF yet (owlit is getting it through the user's browser)" : "no PDF yet (owlit is looking)"
     case "offline":

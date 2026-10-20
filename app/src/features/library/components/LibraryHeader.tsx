@@ -16,6 +16,8 @@ import {
 import { IconButton } from "@/components/icon-button"
 import { countByFilter } from "../lib/filter"
 import { collectTags, useLibraryStore } from "../store"
+import { useThreadsStore } from "@/features/threads/store"
+import { threadsByPaper } from "@/features/threads/lib"
 import { type Layout, usePrefsStore } from "../prefs-store"
 import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
 import { TagDot } from "./TagsEditor"
@@ -140,8 +142,51 @@ export function FilterBar() {
           <XIcon className="size-3.5 text-muted-foreground" />
         </button>
       ))}
+      <ThreadMenu />
       <TagMenu />
     </div>
+  )
+}
+
+// "In thread …": the Library's papers a thread holds, shown as the chip a list of papers is (showOnly),
+// beside the Thread grouping. Offered while some thread holds a paper of the Library.
+function ThreadMenu() {
+  const threads = useThreadsStore((s) => s.threads)
+  const papers = useLibraryStore((s) => s.papers)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const showOnly = useLibraryUi((s) => s.showOnly)
+  const held = useMemo(() => {
+    const byThread = new Map<string, { id: string; title: string; ids: string[] }>()
+    for (const [paperId, list] of threadsByPaper(threads, papers, aliases)) {
+      for (const c of list) {
+        const entry = byThread.get(c.id) ?? { id: c.id, title: c.title, ids: [] }
+        entry.ids.push(paperId)
+        byThread.set(c.id, entry)
+      }
+    }
+    return [...byThread.values()]
+  }, [threads, papers, aliases])
+  if (!held.length) return null
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={cn(chip, "pr-2 data-[state=open]:bg-muted data-[state=open]:text-foreground")}>
+          {t({ message: "In thread", comment: "filter menu: show only the papers one thread holds" })}
+          <ChevronDownIcon className="size-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-80 w-64">
+        {held.map((c) => {
+          const title = c.title
+          return (
+            <DropdownMenuItem key={c.id} onSelect={() => showOnly(c.ids, t({ message: `In thread “${title}”`, comment: "chip: the Library shows only the papers of this thread" }))}>
+              <span className="flex-1 truncate">{title}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{c.ids.length}</span>
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

@@ -279,6 +279,7 @@ export class Library {
     if (text) paper.text = text
     if (!pdf) {
       paper.pdfState = await this.acquisitions.shown(id)
+      if (await this.unsought(id)) paper.pdfState.unsought = true
       // In the extension's queue, or being fetched: owlit is still finding it, whatever its own look said
       const held = this.services.extension?.holding(this, id)
       if (held) {
@@ -659,6 +660,22 @@ export class Library {
     this.onNote(paperId, note ?? null, before, own)
   }
 
+  // Nobody has looked for the paper's PDF (no acquisition.json) and no look is queued: a paper added
+  // without one (a thread's), waiting to be opened or read
+  private async unsought(id: string) {
+    return !!this.scheduler?.knows("paper.pdf") && !(await this.acquisitions.read(id)) && !this.scheduler.isOpen("paper.pdf", id) && !(await hasPdfFile(this.root, id))
+  }
+
+  // Starts looking for the PDF of a paper nobody has sought yet, now that someone opened or reads it;
+  // whether it started. A paper sought before is left to its own looks (Look again asks for another).
+  async seek(name: string): Promise<boolean> {
+    const id = await this.here(name)
+    if (!(await this.unsought(id))) return false
+    for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, "asked")
+    await this.announce([id])
+    return true
+  }
+
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
   async fetchPdf(id: string): Promise<Paper> {
     if (!(await readRecord(this.root, id))) throw notFound(id)
@@ -922,13 +939,20 @@ export class Library {
 
   // Part of a paper as text for an agent: its full text (all of it, some pages, or one section), its
   // digest or the user's note. id: any id the paper goes by.
-  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number }> {
+  // pending: no text yet, and owlit is getting it (the PDF, or the text of the PDF it has).
+  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number; pending?: "pdf" | "text" }> {
     const id = await this.here(name)
     if (part === "digest") return { text: (await this.digest(id)) ?? "" }
     if (part === "note") return { text: (await readNote(this.root, id))?.content ?? "" }
     const markdown = await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => null)
-    if (markdown === null) throw new RpcFailure(RpcErrorCode.NotFound, "The paper's text hasn't been read yet (no PDF, or still reading it).", { id })
-    return pickFromText(markdown, where)
+    if (markdown !== null) return pickFromText(markdown, where)
+    // No text yet: reading the paper is what fetches a thread's paper's PDF, and its text follows
+    if (await hasPdfFile(this.root, id)) {
+      this.queueText(id, "asked")
+      return { text: "", pending: "text" }
+    }
+    if ((await this.seek(id)) || this.scheduler?.isOpen("paper.pdf", id)) return { text: "", pending: "pdf" }
+    throw new RpcFailure(RpcErrorCode.NotFound, "The paper's text hasn't been read: owlit has no PDF of it.", { id })
   }
 
   // Papers out in the world for a query, from one source, each marked with the library's id when it is

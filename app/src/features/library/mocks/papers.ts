@@ -330,6 +330,7 @@ export const seedPapers: Paper[] = [
 // One paper for each place getting a PDF can stand, for the No PDF view and the card. ?extension=none
 // shows the cards as they are without the extension (features/extension/store.ts)
 const pdfStates: [string, string, PdfState][] = [
+  ["A thread's paper nobody has opened", "10.1145/3613904.3642005", { state: "finding", tried: [], unsought: true }],
   ["Finding", "10.1145/3613904.3642001", { state: "finding", tried: [] }],
   ["Waiting for the network", "10.1145/3613904.3642002", { state: "finding", tried: [{ by: "search", ended: "offline", at: daysAgo(0.1) }], reason: { by: "search", ended: "offline", at: daysAgo(0.1) } }],
   ["Not found by owlit's routes", "10.1145/3613904.3642004", noPdf()],

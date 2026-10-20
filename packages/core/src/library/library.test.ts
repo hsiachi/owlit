@@ -379,6 +379,22 @@ describe("what an agent reads of one paper", () => {
   })
 })
 
+describe("a thread's papers", () => {
+  it("come in without a PDF fetch, which reading one starts", async () => {
+    const { root, core, call } = await setup({ "arxiv.org/pdf/1706.03762": "%PDF-1.4\n%%EOF\n" })
+    const workspace = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+    await workspace.library.addNew({ id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } }, undefined, "background", { fetchPdf: false })
+    expect(workspace.tasks.list().some((t) => t.kind === "paper.pdf")).toBe(false)
+    const [listed] = (await call("library.list")).papers
+    expect(listed.pdfState).toMatchObject({ unsought: true })
+    expect(await call("library.read", { id: "arxiv-1706.03762", part: "text" })).toEqual({ text: "", pending: "pdf" })
+    const acquisition = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+    await eventually(() => expect(JSON.parse(readFileSync(acquisition, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
+    // Sought now: opening it again starts nothing
+    expect(await call("library.seek", { id: "arxiv-1706.03762" })).toBe(false)
+  })
+})
+
 describe("the monthly recount", () => {
   it("leaves paper.json alone when a count is the same, keeps when it counted on this machine, and looks preprints up again", async () => {
     const { root, core } = await setup({})

@@ -13,7 +13,9 @@ export const waitsOnYou = (wait: ExtensionWait) => wait.askedFor
 // The one name of each state, said the same in the row, the No PDF group and the card's title
 export function pdfWord(w: PdfWait | undefined): string | undefined {
   switch (w) {
+    // A thread's paper nobody has opened: having no PDF yet is no state worth a word
     case undefined:
+    case "unsought":
       return undefined
     case "finding":
     case "offline":
@@ -42,6 +44,8 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">): string {
   const s = p.pdfState
   const site = s?.extension?.host ?? s?.reason?.host?.replace(/^www\./, "")
   switch (wait) {
+    case "unsought":
+      return t`No PDF yet`
     case "finding":
       return !s?.extension && pdfGone(p) ? t`The PDF is gone` : t`Finding a PDF…`
     case "offline":

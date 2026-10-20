@@ -67,6 +67,9 @@ export interface PdfState {
   // held while the site waits for the user (waits: a sign-in, a check, the extension being allowed
   // there). Kept in memory only, with the extension's queue.
   extension?: { host: string; fetching?: boolean; waits?: "sign-in" | "check" | "permission"; proxied?: boolean }
+  // Nobody has looked for it yet, and nothing is about to: a paper a thread brought in, whose PDF is
+  // fetched the first time someone opens or reads it (library.seek)
+  unsought?: true
 }
 
 export interface Paper {

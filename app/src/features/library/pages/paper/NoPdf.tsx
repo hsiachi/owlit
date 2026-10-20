@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { isTaskFinished, type Paper, type PdfTry } from "@owlit/protocol"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { shortDate } from "@/lib/time"
 import { toastError } from "@/lib/toast"
+import { isDesktop, rpc } from "@/lib/rpc"
 import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
@@ -36,6 +37,8 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
   const date = reason ? shortDate(reason.at) : ""
   const tried = triedSentence(s?.tried ?? [])
   switch (state) {
+    case "unsought":
+      return t`owlit gets it now that the paper is open.`
     case "looking":
     case "finding": {
       // The extension has it: owlit's routes are done, and the publisher is tried through the user's
@@ -135,6 +138,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const { dragging, dropProps } = useFileDrop((data) => void attach(data.files))
 
   const wait = pdfWait(paper) ?? "finding"
+  // A thread's paper nobody had opened: opening it is what fetches its PDF
+  useEffect(() => {
+    if (wait === "unsought" && isDesktop) void rpc.library.seek({ id: paper.id }).catch(() => undefined)
+  }, [wait, paper.id])
   const state: CardState = looking ? "looking" : wait
   const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper)
   const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note))
@@ -197,7 +204,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
               {lookAgainButton(true)}
               {chooseFile}
             </>
-          ) : state === "looking" || state === "finding" ? (
+          ) : state === "looking" || state === "finding" || state === "unsought" ? (
             chooseFile
           ) : noExtension ? (
             // No extension to try with the person's access: the page and the file come first

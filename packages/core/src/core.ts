@@ -967,6 +967,7 @@ export class Core {
       for (const id of ids) out[id] = traceOf(readings.get(aliases[id] ?? id), (await ws.library.get(id))?.status)
       return out
     })
+    this.router.register("library.seek", z.object({ id: paperId }), "meta", ({ id }) => library().seek(id))
     this.router.register("library.fetchPdf", z.object({ id: paperId }), "meta", ({ id }) => library().fetchPdf(id))
     this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), "meta", ({ id, path }) =>
       library().attachPdf(id, path),

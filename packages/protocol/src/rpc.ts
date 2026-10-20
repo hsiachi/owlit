@@ -421,7 +421,10 @@ export interface Methods {
   // the user's note. pages: how many the paper has.
   // asker: who reads, as library.searchOnline's by ("chat:<id>", "run:<id>"), so a chat's answer can say
   // what it was built from
-  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number } }
+  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number; pending?: "pdf" | "text" } }
+  // Starts getting the PDF of a paper nobody has sought yet (a thread's), as opening or reading it does;
+  // whether it started
+  "library.seek": { params: { id: string }; result: boolean }
   // Papers out in the world for a query, from one source (OpenAlex unless asked); inLibrary when the
   // library has one already. A filter the source can't apply is refused. Each search, and each of the
   // two below, is kept in .owlit/searches.jsonl.

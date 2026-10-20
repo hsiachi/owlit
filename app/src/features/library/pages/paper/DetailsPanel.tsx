@@ -156,7 +156,7 @@ function About({ paper }: { paper: Paper }) {
         <dd>{paper.addedBy === viewer ? when : t({ message: `${when} by ${who}`, comment: "when a paper was added, and who added it: Owlit, a name or outside owlit" })}</dd>
         {inThreads.length > 0 && (
           <>
-            <dt className="text-muted-foreground">{t({ message: "In", context: "label before the threads that hold this paper" })}</dt>
+            <dt className="text-muted-foreground">{t({ message: "In threads", comment: "label before the threads that hold this paper" })}</dt>
             {/* Each thread with what it says about this paper, so reading the paper shows Owlit's take on
                 it without going there */}
             <dd className="flex min-w-0 flex-col gap-2.5">

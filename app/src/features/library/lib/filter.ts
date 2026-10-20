@@ -23,6 +23,12 @@ const NO_PDF_GROUPS: PdfWait[][] = [
   ["finding", "offline", "for-sign-in", "for-check", "for-permission"],
 ]
 
+// No PDF, after a look: a thread's paper nobody has opened isn't missing one yet
+const lacksPdf = (p: Paper) => {
+  const wait = pdfWait(p)
+  return !!wait && wait !== "unsought"
+}
+
 function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {
     case "all":
@@ -30,7 +36,7 @@ function matchesFilter(p: Paper, f: StatusFilter): boolean {
     case "starred":
       return p.starred
     case "no-pdf":
-      return !!pdfWait(p)
+      return lacksPdf(p)
     default:
       return p.status === f
   }
@@ -92,7 +98,7 @@ export function countByFilter(papers: Record<string, Paper>): Record<StatusFilte
   for (const p of Object.values(papers)) {
     c.all++
     if (p.starred) c.starred++
-    if (pdfWait(p)) c["no-pdf"]++
+    if (lacksPdf(p)) c["no-pdf"]++
     c[p.status]++
   }
   return c
