@@ -572,6 +572,39 @@ describe("Threads, undo", () => {
     expect((await threads.get(id)).rows.map((r) => r.id)).toContain("doi-10.1145-3")
   })
 
+  it("undoes one write whole, going on past an item a later write changed and naming it", async () => {
+    const { threads, changes } = setup()
+    const { id } = await start(threads)
+    await threads.write(
+      {
+        id,
+        report: "Replay runs lower: [Fernández](owlit://library/doi-10.1145-1).",
+        rows: [
+          { id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6.", depth: "abstract" } } },
+          { id: "doi-10.1145-3", is: "Diary study", cells: { q: { text: "Recall ran lower.", depth: "abstract" } } },
+        ],
+        chatId: "chat-2",
+      },
+      agent,
+    )
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6, in two studies.", depth: "abstract" } } }], chatId: "chat-3" }, agent)
+    // As the chat's card does it: each entry of the write, newest first, on past one that is refused
+    const left: string[] = []
+    for (const e of await writeOf(changes, id, "chat-2")) {
+      await undo(threads, e).catch((error: RpcFailure) => {
+        expect(error.code).toBe(RpcErrorCode.Conflict)
+        left.push(e.target.part!)
+      })
+    }
+    expect(left).toEqual([itemId.cell("doi-10.1145-1", "q")])
+    const c = await threads.get(id)
+    expect(c.rows.map((r) => [r.id, r.cells.q?.text])).toEqual([
+      ["doi-10.1145-1", "Lower by 0.6, in two studies."],
+      ["doi-10.1145-2", "Own explanations recover more."],
+    ])
+    expect(c.report).toBe("Two precedents had wearers replay their own footage. Replay ratings run lower than live ones.")
+  })
+
   it("puts a thread an agent started into the trash, and back", async () => {
     const { threads, changes } = setup()
     const { id } = await start(threads)

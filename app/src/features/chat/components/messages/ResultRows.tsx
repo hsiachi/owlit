@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { create } from "zustand"
-import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom } from "@owlit/protocol"
+import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, RpcErrorCode } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
@@ -18,8 +18,9 @@ import { countParts } from "../../lib/edit-counts"
 import { partsUndone, replyEntries, undoneBy } from "../../lib/reply-changes"
 import { useChatStore } from "../../store"
 import { toastLeft } from "@/lib/changes"
-import { isDesktop, rpc } from "@/lib/rpc"
+import { isDesktop, rpc, RpcError } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
+import { toast } from "sonner"
 import { capital, joinActions } from "@/lib/words"
 
 // Under an answer, one card listing what the reply changed outside the chat: docs edited, papers added,
@@ -96,15 +97,33 @@ function EditCounts({ stats }: { stats: EditStats }) {
 }
 
 // Takes entries back one at a time, in the order given (newest first, so each finds things as the next
-// one left them). A doc's passages edited since stay as they are, and a toast names them.
+// one left them), as one Undo. An entry that changed since is passed over and the others still go back: a
+// doc's passages edited since stay as they are, and so do a thread's items a later write changed; a toast
+// names them.
 async function undoAll(list: Change[], name: string) {
   const left: string[] = []
-  try {
-    for (const c of list) left.push(...((await undoEntry(c)) ?? []))
-  } catch (error) {
-    toastError(error)
+  const kept: string[] = []
+  for (const c of list) {
+    try {
+      left.push(...((await undoEntry(c)) ?? []))
+    } catch (error) {
+      if (!(error instanceof RpcError) || (error.code !== RpcErrorCode.Conflict && error.code !== RpcErrorCode.NotFound)) return toastError(error)
+      if (c.target.kind === "thread") kept.push(threadItemLabel(c))
+      else toastError(error)
+    }
   }
   if (left.length) toastLeft(name, left)
+  if (kept.length) toast(t({ message: "Some of it changed since and stays as it is", comment: "after undoing Owlit's write to a thread" }), { description: `${name}: ${[...new Set(kept)].join(", ")}` })
+}
+
+// A thread's item as the person knows it: a paper by its title, the report, a group by its name
+function threadItemLabel(c: Change): string {
+  const [kind, a, b] = (c.target.part ?? "").split(":")
+  const thread = useThreadsStore.getState().threads[c.target.path]
+  if (kind === "row" || kind === "cell") return thread?.rows.find((r) => r.id === a)?.paper.title ?? a
+  if (kind === "group") return thread?.columns.find((col) => col.id === a)?.groups?.find((g) => g.id === b)?.name ?? b
+  if (kind === "report" || kind === "one") return t({ message: "the report", comment: "Owlit's report at the top of a thread" })
+  return t({ message: "the thread's details", comment: "a part of a thread other than a paper, a group or the report" })
 }
 
 const EMPTY_MESSAGES: ChatMessage[] = []

@@ -1334,6 +1334,21 @@ msgstr "Words added and removed"
 msgid "Lines added and removed"
 msgstr "Lines added and removed"
 
+#. after undoing Owlit's write to a thread
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Some of it changed since and stays as it is"
+msgstr "Some of it changed since and stays as it is"
+
+#. Owlit's report at the top of a thread
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "the report"
+msgstr "the report"
+
+#. a part of a thread other than a paper, a group or the report
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "the thread's details"
+msgstr "the thread's details"
+
 #. placeholder {0}: parts.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0} of {passages} passages undone"

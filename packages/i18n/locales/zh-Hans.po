@@ -1334,6 +1334,21 @@ msgstr "增删的字数"
 msgid "Lines added and removed"
 msgstr "增删的行数"
 
+#. after undoing Owlit's write to a thread
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Some of it changed since and stays as it is"
+msgstr "其中有些之后又改过，保持原样"
+
+#. Owlit's report at the top of a thread
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "the report"
+msgstr "报告"
+
+#. a part of a thread other than a paper, a group or the report
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "the thread's details"
+msgstr "脉络的其他内容"
+
 #. placeholder {0}: parts.length
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{0} of {passages} passages undone"
