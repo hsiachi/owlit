@@ -75,7 +75,7 @@ describe("workspace.open", () => {
   it("keeps the folder's data when it is renamed, adopts what its path had, and gives a copy its own", async () => {
     const { call, folder, userDataDir } = setup()
     const ws = folder("before")
-    // What this machine kept for the folder before workspaces had ids, under its path
+    // What this machine keeps for a folder with no id, under its path
     const byPath = workspaceDataDir(userDataDir, ws)
     mkdirSync(byPath, { recursive: true })
     writeFileSync(path.join(byPath, "share-keys.json"), "{}")

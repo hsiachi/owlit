@@ -17,7 +17,7 @@ export type ChatStatus = "idle" | "working" | "waiting" | "finished" | "failed"
 // one, since they did that themselves. A broken reply is not a notice but a state of the chat, read from
 // the chat itself: the chat stays red until the reply is run again, and for its first days the reply also
 // waits on the user (Home, the rail), so opening the chat to read the error doesn't take the problem off
-// those. Nothing is dismissed: Home lists only what blocks work, and an old failure no longer does.
+// those. Nothing is dismissed: Home lists only what blocks work, and an old failure doesn't.
 
 interface SeenState {
   // Chats on screen now (the Chat page or the docked agent window), counted since both can show one

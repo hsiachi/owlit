@@ -33,8 +33,8 @@ export { OWLIT_DIR }
 // <userData>/workspaces/<the workspace's id>/: what is derived from this workspace or tied to this
 // machine (index, task log, share keys). A workspace whose workspace.json can't be read, and so has no
 // id, is filed under the first 12 hex of sha1(its path), in NFC so the same folder gets the same
-// directory however its name reached us; that was every workspace's place before ids, and is adopted
-// once by the id (dataDirFor).
+// directory however its name reached us; a folder that gets an id takes that directory over once
+// (dataDirFor).
 export function workspaceDataDir(userDataDir: string, workspacePath: string, id?: string) {
   return path.join(userDataDir, "workspaces", id ?? socketHash(workspacePath))
 }

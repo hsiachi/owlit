@@ -22,8 +22,8 @@ interface PrefsState {
   setPanelTab: (tab: PanelTab) => void
 }
 
-// Dim PDF pages was kept here before it became one of core's appearance settings; one turned off here is
-// handed to core once (settings/store.ts)
+// Version 2 of this store kept Dim PDF pages, which core keeps with the rest of Appearance: one turned off
+// there is handed to core once (settings/store.ts)
 let dimPdfOff = false
 export function takeDimPdfOff() {
   const off = dimPdfOff
