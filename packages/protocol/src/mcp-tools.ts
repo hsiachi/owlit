@@ -369,7 +369,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_list",
     touches: "read",
     description:
-      "The threads Owlit keeps for the user: papers gathered for a question, with what each says about it. Each line: id, title, the project it belongs to, how many papers and columns, and the question as the user asked it. Look here before you start one: when the user asks something close to a thread's question, add to that thread rather than starting another.",
+      "The threads Owlit keeps for the user: your reports on questions the user asked, with the papers they rest on. Each line: id, title, the project it belongs to, how many papers and columns, the question as the user asked it, and your one line on the thread. Look here before any thread work: add to the thread whose question the new one falls inside; for a neighbouring question start a sibling in the same project.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
   },
@@ -377,7 +377,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_read",
     touches: "read",
     description:
-      "One thread as the user sees it: its question, columns, groupings with their groups, your report and every paper with its answers, each marked abstract or full text, and the groups it is in.",
+      "One thread: its question, your report, and each paper as title · what it is · how it bears on the question [abstract or full text, page] · how it was found · its groups; then the groupings with their groups, the asked columns with each paper's answer, a compare column's sentences, hidden columns marked. Read it before you write to a thread.",
     inputSchema: { type: "object", properties: { id: { type: "string", description: "The thread's id" } }, required: ["id"] },
     annotations: { readOnlyHint: true },
   },
@@ -385,7 +385,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_write",
     touches: "own",
     description:
-      "Gather papers you found into a thread, new (no id) or existing, instead of adding them to the library: the user sees it under Threads and decides what to keep. A paper is named by the id library_search, library_related or library_journal gave; owlit fills in what it is. Each row's answer says in one plain sentence what that paper found about the question, from its whole abstract (library_get gives it; a search's line cuts it short) (depth abstract) or from its full text (depth full, with the words it rests on in quote, word for word as library_read gives them; only papers in the library have full text). The memo is at most four sentences on what the papers say together: agreements, disagreements, what none of them covers. It describes the papers, not your search (that goes in note); it doesn't tell the user what to write or conclude. Name papers in it as [Author Year](owlit://library/<id>). The user's rewrites stay and their removals stay out whatever you write. Says the thread's link.",
+      "Write a thread, new (no id) or existing: your report on the user's question and the papers it rests on. Read owlit_help('threads') first. A paper is named by the id library_search, library_related or library_journal gave; owlit brings it into the user's library without its PDF and fills in its details. Each row says what the paper is (is), how it bears on the question (answer), from its whole abstract (library_get gives it; a search's line cuts it short) with depth abstract, or from its full text with depth full and the words it rests on in quote, word for word as library_read gives them; and how it was found (found_by). Only what a write gives changes; the report is given whole. One write is one Undo for the user. Says the thread's link, and what it couldn't write and why.",
     inputSchema: {
       type: "object",
       properties: {
@@ -393,32 +393,34 @@ function TOOLS(): ToolSpec[] {
         asked: { type: "string", description: "The user's question in their own words: needed to start one, and given too when you add to one for a new question" },
         title: { type: "string", description: "A short neutral title for what it gathers, in the user's language, naming the topic rather than repeating the question: 回放式标注作为研究方法, not 我的研究方法该怎么设计？ (needed to start one)" },
         project: { type: "string", description: "The workspace's top-level folder the work belongs to, when it plainly belongs to one (optional)" },
+        report: {
+          type: "string",
+          description:
+            "The whole report as it should be now, in Markdown, as long as the thread needs: what the papers say together, the lines of work (sections matching the groups), what none of them covers, what it means for the user's work, what to read first. Name a paper as a link labelled with its short title, the words before the title's colon or dash (or the whole title when it has none): [CiteSee](owlit://library/<id>), as the rows name it; only papers that are rows. Give it whole again whenever the rows or the groups change. (optional)",
+        },
+        one: { type: "string", description: "One line on what the thread holds and what it found, for the list of threads; without it owlit takes the report's first sentence (optional)" },
         note: {
           type: "string",
           description:
-            "One plain sentence on what this search couldn't reach, shown with it under the thread's About: a source that failed, an index that misses part of a venue, papers with no abstract. Leave out when nothing was missed; owlit records your searches itself. (optional)",
+            "What this batch looked for and couldn't reach, kept with it under the thread's About: for a survey, the scope and inclusion criteria and what you excluded and why; a source that failed, an index that misses part of a venue, papers with no abstract. owlit records your searches itself. (optional)",
         },
         rows: {
           type: "string",
           description:
-            'JSON array of papers to add or update: [{"id": "doi-10.1145-…", "answer": "Replay ratings were 0.6 points lower than live ones.", "depth": "abstract"}, {"id": "arxiv-2408.00447", "answer": "…", "depth": "full", "quote": "words from the text", "group": "eval"}]. Answers for other columns go in "cells": {"<column id>": {"text": "…", "depth": "abstract"}}. A paper usually goes in one group; give it a second, as "groups": ["eval", "data"] instead of group, only when it is really used in both.',
-        },
-        memo: {
-          type: "string",
-          description: 'JSON array of the whole memo as it should be now, at most four sentences: [{"id": "s1", "text": "…"}, {"text": "a new sentence"}]. Keep a sentence\'s id when you keep or reword it. (optional)',
+            'JSON array of papers to add or update, in batches of up to 25: [{"id": "doi-10.1145-…", "is": "Field study, 12 participants, two weeks", "answer": "Replay ratings were 0.6 points lower than live ones.", "depth": "abstract", "found_by": "search: replay annotation", "group": "eval"}, {"id": "arxiv-2408.00447", "is": "…", "answer": "…", "depth": "full", "quote": "words from the text", "found_by": "cited by …"}]. is: what the paper is, one short line; answer: how it bears on the question, one plain sentence. Answers for asked columns go in "cells": {"<column id>": {"text": "…", "depth": "abstract"}}; a compare column\'s cell also takes "rel" (supports, challenges or related) and "sentence" (the sentence\'s id). A paper usually goes in one group; give it a second, as "groups": ["eval", "data"] instead of group, only when it is really used in both ("" or []: none). Only the fields a row gives change.',
         },
         groups: {
           type: "string",
           description:
-            'JSON array of the whole grouping, for many papers: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}]. It replaces the thread\'s own grouping (Topic), or the one named in grouping; to group the papers another way, give new_grouping instead and keep the others. Two levels at most: a group with a parent can\'t be a parent itself. Groups the user merged or ungrouped stay so, and papers the user put in a group stay there; thread_read says which. (optional)',
+            'JSON array of the whole grouping as it should be now: [{"id": "eval", "name": "Evaluating proactive systems", "one": "replay, in-situ and benchmark ground truth", "parent": "…"}]. It replaces the thread\'s own grouping (Topic), or the one named in grouping; to group the papers another way, give new_grouping instead and keep the others. Two levels at most: a group with a parent can\'t be a parent itself. (optional)',
         },
         grouping: { type: "string", description: "Which grouping groups and the rows' group are for, by its column id as thread_read gives it; leave out for the thread's own (Topic) (optional)" },
         new_grouping: {
           type: "string",
           description: "A new way of grouping this thread's papers, in the user's words (\"by method\", \"按研究故事的章节\"): groups and the rows' group in this write are for it. When the user asks to see the papers another way, use this rather than starting a new thread. (optional)",
         },
-        columns: { type: "array", items: { type: "string" }, description: "New questions to ask of every paper, each becoming a column (optional)" },
-        remove_rows: { type: "array", items: { type: "string" }, description: "Ids of papers you take out again (optional)" },
+        columns: { type: "array", items: { type: "string" }, description: "New questions the user asked of every paper, each becoming a column; answer them in each row's cells (optional)" },
+        remove_rows: { type: "array", items: { type: "string" }, description: "Ids of papers you take out of the thread (optional)" },
         why: { type: "string", description: "One plain sentence on what this write did, for the thread's history (optional)" },
       },
     },
@@ -427,7 +429,7 @@ function TOOLS(): ToolSpec[] {
   {
     name: "thread_edit",
     touches: "own",
-    description: "Rename a thread when the user asks. A title the user gave the thread themselves stays. Deleting, splitting and merging threads are the user's, in owlit.",
+    description: "Rename a thread when the user asks. Deleting a thread is the user's, in owlit.",
     inputSchema: {
       type: "object",
       properties: {
@@ -441,14 +443,11 @@ function TOOLS(): ToolSpec[] {
     name: "owlit_help",
     touches: "read",
     description:
-      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, threads, undoing Owlit's changes, settings, shortcuts), and the recipes: how owlit's own buttons do a piece of work (gather, find-more, ask-each, group, read-in-full on a thread, written out for the thread you name; go-through for material against the docs, and reply under your comment), to read before doing that work in this chat. Without a topic, lists the topics and recipes; with one, gives it, with how to link the user to a Settings section.",
+      "How to use owlit, for when the user asks about owlit itself (adding papers, getting PDFs, highlighting, citing, docs, undoing Owlit's changes, settings, shortcuts), and the recipes: how to do a piece of work, to read whole before doing it in this chat (threads before any work on a thread; go-through for material against the docs; reply under your comment). Without a topic, lists the topics and recipes; with one, gives it, with how to link the user to a Settings section.",
     inputSchema: {
       type: "object",
       properties: {
-        topic: { type: "string", description: "A topic or recipe from the list, or a word to look for (optional)" },
-        thread: { type: "string", description: "For a recipe: the thread's id" },
-        column: { type: "string", description: "For ask-each and group: the column's or grouping's id, or its question" },
-        look_for: { type: "string", description: "For find-more: what to look for this time, when it isn't the thread's question" },
+        topic: { type: "string", description: "A topic or recipe from the list (threads, go-through, reply), or a word to look for (optional)" },
       },
     },
     annotations: { readOnlyHint: true },

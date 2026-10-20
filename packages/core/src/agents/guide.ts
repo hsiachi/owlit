@@ -2,7 +2,7 @@
 // how to do things and where they are, never why. It describes the app as it is: a change to a feature
 // that one of these paragraphs mentions changes the paragraph in the same commit.
 
-import { recipeList } from "../recipes/index.ts"
+import { isRecipe, recipeList, RECIPES as RECIPE_TEXTS } from "../recipes/index.ts"
 
 interface GuideTopic {
   id: string
@@ -52,11 +52,6 @@ const TOPICS: GuideTopic[] = [
     text: `Owlit runs a coding agent installed on this Mac: Claude Code, Codex, Gemini CLI or a custom command. Settings › Agents lists them with their state, the install command for one that is missing, and Check again; it can add a custom agent. An agent must be signed in: run its command (for example claude) once in Terminal. Settings › Owlit picks the agent, model and language for the tasks the user hands Owlit with a button, such as digests.`,
   },
   {
-    id: "threads",
-    title: "Threads",
-    text: `A thread is papers Owlit gathered for a question, with one line from each paper about it and a short memo of Owlit's reading. Ask in a chat ("find papers on…") or type a question on the Threads page (pick about 10 papers, or as many as it takes, e.g. a venue's proceedings). Papers Owlit only found stay on the thread; opening one or Add to Library brings it into the Library. On a thread: Find more papers, Ask each paper… (a question becomes a column; Compare with a doc… sets every paper against sentences of the user's), Read all in full, Draft a review…. A page number points to the words an answer rests on; an answer without one comes from the abstract. Rewrite any sentence or answer (it stays the user's) or remove a paper (it doesn't come back). The ⋯ menu has Move to project, Export as CSV and Delete.`,
-  },
-  {
     id: "undo",
     title: "Undoing Owlit's changes",
     text: `Every change Owlit makes outside a chat (a paper added, a note on a doc, a topic line, a file written) gets a line under its answer with View, and Undo where it can be undone. An edit Owlit makes to a doc lands at once and is marked in the doc until the user has seen it: Undo on a passage (or ⌘⌫ at its end) takes back that passage, Undo all the whole edit, the same Undo as the answer's line. A doc Owlit wrote whole shows one line above it, "Owlit wrote this doc", with Undo. A doc's menu has Versions… for every change and what it did.`,
@@ -80,13 +75,13 @@ const TOPICS: GuideTopic[] = [
 
 const LINKS = `To take the user to a place, write a link they can click: a Settings section as owlit://settings/<section> (owlit, agents, papers, appearance), or a part of one (background, privacy, sources, proxy, reading), for example [Settings › Papers › Library proxy](owlit://settings/proxy), and the shortcut list as [Keyboard shortcuts](owlit://shortcuts). Say only what this guide says; if it doesn't cover something, say you don't know rather than guessing.`
 
-// The recipes are answered in core.ts, which works each out for the thing it is on
-const RECIPES = `Recipes: how owlit's own buttons do a piece of work, written out for the thing it is on. Ask for one by its name as topic, with thread (its id), before doing that work:\n${recipeList()}`
+const RECIPES = `Recipes: how to do a piece of work, to read whole before doing it in this chat. Ask for one by its name as topic:\n${recipeList()}`
 
 export function guide(topic?: string) {
   const list = TOPICS.map((t) => `- ${t.id}: ${t.title}`).join("\n")
   if (!topic) return `How to use owlit. Ask for one topic:\n${list}\n\n${RECIPES}\n\n${LINKS}`
   const want = topic.trim().toLowerCase()
+  if (isRecipe(want)) return RECIPE_TEXTS[want].text(undefined)
   // Its id, then a word of its title, then a word anywhere in it
   const found =
     TOPICS.find((t) => t.id === want) ?? TOPICS.find((t) => t.title.toLowerCase().includes(want)) ?? TOPICS.find((t) => t.text.toLowerCase().includes(want))

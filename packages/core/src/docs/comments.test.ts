@@ -59,6 +59,18 @@ describe("comments", () => {
     expect(read).not.toHaveProperty("dismissedAt")
   })
 
+  it("reads a note an agent left before comments held entries as a comment of Owlit's", async () => {
+    const { call, sidecar } = await setup({ "a.md": "a the words b" })
+    mkdirSync(path.dirname(sidecar("a.md")), { recursive: true })
+    const { entries: _entries, ...rest } = comment("n1")
+    const note = { ...rest, by: "Claude Code", chatId: "c1", text: "The claim needs a source." }
+    writeFileSync(sidecar("a.md"), JSON.stringify(note) + "\n" + JSON.stringify({ ...comment("n2"), by: "Owlit", text: "old spelling", entries: undefined }) + "\n")
+    const read = (await call("comments.all"))["a.md"]
+    expect(read[0]).toMatchObject({ id: "n1", entries: [{ id: "n1", by: MY_OWLIT, agent: "Claude Code", chatId: "c1", text: "The claim needs a source.", at: note.createdAt }] })
+    expect(read[0]).not.toHaveProperty("text")
+    expect(read[1].entries).toEqual([{ id: "n2", by: MY_OWLIT, text: "old spelling", at: read[1].createdAt }])
+  })
+
   it("removes, puts back and re-anchors", async () => {
     const { call, sidecar } = await setup({ "a.md": "x" })
     await call("comments.add", { path: "a.md", comment: comment("n1") })
