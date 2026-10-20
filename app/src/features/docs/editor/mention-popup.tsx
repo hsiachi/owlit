@@ -48,12 +48,15 @@ export function mentionPopup(reachable: () => DocMention[]): Extension {
         const { state } = this.view
         const sel = state.selection.main
         const line = state.doc.lineAt(sel.head)
-        const m = sel.empty && this.view.hasFocus ? mentionAtEnd(state.sliceDoc(line.from, sel.head)) : null
+        const m = sel.empty && this.view.hasFocus ? mentionAtEnd(state.sliceDoc(line.from, sel.head), { words: true }) : null
         const from = m ? sel.head - m.length : -1
         if (from !== this.dismissedAt) this.dismissedAt = -1
         if (!m || from === this.dismissedAt) return this.close()
         const all = this.open?.from === from ? this.open.all : reachable()
-        this.open = { from, to: sel.head, query: m.query, all, items: filterMentions(all, m.query) }
+        const items = filterMentions(all, m.query)
+        // Words typed on after a mention that matches nothing are prose: the list goes
+        if (!items.length && /\s/.test(m.query)) return this.close()
+        this.open = { from, to: sel.head, query: m.query, all, items }
         this.render()
         this.view.requestMeasure({
           read: (v) => v.coordsAtPos(from),
