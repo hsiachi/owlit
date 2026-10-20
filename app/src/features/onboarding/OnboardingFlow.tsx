@@ -233,10 +233,10 @@ function lesson(step: StepId): Lesson | null {
       return {
         icon: KIND_ICON.thread,
         kicker: t`Threads`,
-        title: t`Owlit gathers papers.`,
+        title: t`Owlit reports back.`,
         body: (
           <Trans>
-            Give Owlit a question and it gathers papers on it, with <b>what each one says</b> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer.
+            Ask Owlit a question in a chat and it finds papers on it, says <b>what each one is and how it bears</b> on your question, and writes its report on them. To change a thread, ask in the chat.
           </Trans>
         ),
         place: "threads",

@@ -102,15 +102,23 @@ export const ASK = {
   ],
 }
 
-// Collect: a question becomes papers with what each says; one of Owlit's answers gets corrected
+// Collect: a question asked becomes a thread (Owlit's report and the papers it rests on, each saying what
+// it is and how it bears on the question); a second question in the chat adds a paper and the report
+// follows
 export const COLLECT = {
   question: "When should a model retrieve?",
   title: "Deciding when to retrieve",
   rows: [
-    { text: "A learned Retrieve token decides per segment, and passages are graded after.", cite: "Self-RAG · 2023", page: 4 },
-    { text: "Retrieving before every answer helps knowledge-heavy tasks most.", cite: "RAG · 2020", page: 0 },
-    { text: "Retrieving when confidence drops beats retrieving every time on long answers.", cite: "FLARE · 2023", page: 6 },
+    { is: "Method", text: "A learned Retrieve token decides per segment whether to fetch.", cite: "Self-RAG · 2023", page: 4 },
+    { is: "Baseline", text: "Retrieves before every answer; helps knowledge-heavy tasks most.", cite: "RAG · 2020", page: 0 },
+    { is: "Method", text: "Retrieves when confidence drops; beats retrieving every time on long answers.", cite: "FLARE · 2023", page: 6 },
   ],
-  memo: ["Self-RAG and FLARE decide per step whether to retrieve; RAG retrieves every time.", "None compares a learned decision with a fixed rule on the same tasks."],
-  corrected: "Retrieving every time helps most on open-domain QA.",
+  report: [
+    "Three answers: always (RAG), by a learned token (Self-RAG), or when confidence drops (FLARE).",
+    "None compares a learned decision with a fixed rule on the same tasks.",
+  ],
+  followUp: "Add one that compares them on the same tasks",
+  added: { is: "Comparison", text: "Routes each question to no, one or many retrievals and compares them on the same QA sets.", cite: "Adaptive-RAG · 2024", page: 0 },
+  // The report's second sentence once the paper is added
+  reportAfter: "Adaptive-RAG compares them on the same tasks; read it with Self-RAG.",
 }

@@ -1035,15 +1035,10 @@
   height: 12px;
   color: var(--muted-foreground);
 }
-.memo {
+.report {
   margin-top: 10px;
-  padding-left: 14px;
-  list-style: disc;
   font-size: 12px;
   line-height: 1.55;
-}
-.memo li::marker {
-  color: var(--muted-foreground);
 }
 .crows {
   margin-top: 12px;
@@ -1065,12 +1060,6 @@
   top: 6px;
   font-size: 10.5px;
   color: var(--mention);
-}
-.editBox {
-  box-shadow: 0 0 0 1.5px var(--foreground);
-  border-radius: 4px;
-  padding: 0 3px;
-  margin: 0 -3px;
 }
 
 /* ---- Setup previews ---- */
