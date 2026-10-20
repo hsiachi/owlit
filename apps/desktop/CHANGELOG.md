@@ -4,6 +4,16 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A doc Owlit wrote opens clean, with one line above it: "Owlit wrote this doc · from <chat> · Undo". Underlines are for Owlit's edits to words that were already there, and ⌘⌫ undoes a passage only with the cursor at its end.
+- One Undo per Owlit edit: Undo on a passage, Undo all, the chat's card and Versions all take back the same change, and the card says when you undid part of it in the doc. Keep and Keep all are gone; the marks leave once you've seen the doc. An edit to the doc you have open no longer raises an "Edit applied" toast.
+- A doc counts as seen once each of Owlit's passages and each changed paragraph has been on screen a moment, not after three seconds anywhere in it. A paragraph someone else removed leaves a small mark in the margin where it was.
+- Comments stay on their words when Owlit edits around them, and a comment on a few words ("2. ") no longer jumps to another copy of them.
+- Versions shows what each change did: words added and removed, and its passages when you open it.
+- Esc then Tab in a doc reaches its citations (the card shows; Enter opens the paper) and the Undo of Owlit's passages.
+- @ in a doc takes several words ("@vaswani attention") and offers papers a thread found that aren't in your Library yet.
+- A shared doc waits until you've seen Owlit's edits before readers get them; the doc's header says "Waiting for you".
+- Keep Owlit out and Dismiss on Owlit's comments are gone: tell Owlit in the chat, undo its edit or resolve its comment. A comment dismissed before now shows among Resolved comments.
+- Go through is asked for in a chat ("go through this meeting against my docs"); the doc's menu no longer has it.
 - Copy references in a doc's menu copies the papers the doc cites, in the order you first cite them, as APA text or as BibTeX. Papers a thread found that aren't in your Library come along too.
 - Owlit's edits to a paper's note show above the note until you have seen them: the old words struck, the new ones underlined, each with Undo.
 - On a window 1400px wide or more, clicking a citation in a doc while the chat is docked opens the paper between the doc and the chat, instead of closing the chat.
@@ -15,12 +25,11 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Asking for a digest of a paper whose text owlit hasn't read yet answers at once: the paper's page says "Owlit is getting the text…", then "Owlit is reading this paper…" once Owlit starts. If the text can't be read, the page says so with Retry.
 - Retry runs on the agent and model Settings › Owlit picks now. A digest's Retry after you changed its language writes it afresh in the new one.
 - Gather with no agent set up says so and leaves no empty thread behind.
-- Settings › Owlit's Background work is now Tasks you hand Owlit: the agent and model for digests, thread work, Go through and Owlit's answers under its comments.
+- Settings › Owlit's Background work is now Tasks you hand Owlit: the agent and model for digests, thread work and Owlit's answers under its comments.
 - A digest that couldn't be written says why on the paper's page ("Claude Code's usage limit is reached; it resets at 2:20", "Owlit was closed before it finished"), with Retry, and still says so after you restart owlit. Retry carries on where it stopped.
 - A thread's work (Gather, Find more papers, Ask each paper, Group another way, Read N in full) starts at once, and several can run together on one thread or on several. The thread says what each is doing ("Reading papers in full… and 1 more") with Stop.
 - Thread work that couldn't finish says why on the thread ("Claude Code's usage limit is reached; it resets at 2:20"), with a Retry that works and carries on where it stopped, still there after you restart owlit.
 - Owlit answers your reply under one of its comments at once, instead of waiting behind a thread's work, and remembers what you said in earlier replies under the same comment. While it answers the card says so with Stop; if it couldn't, the card says why with Retry, still there after you restart owlit.
-- Go through runs beside whatever else Owlit is doing. The doc's menu says "Owlit is going through…" with Stop going through, and if it couldn't finish, says why with Retry going through, after a restart too.
 - Ask Owlit in a chat to "read the rest in full", find more papers for a thread, ask each paper something or group them another way, and it does the same work the thread's button does, there in the chat.
 - Asking Owlit in a chat for a digest of a paper with no PDF or text now gets "no digest" rather than a promise. Ask Owlit in a chat to fix a digest and it rewrites it; the chat's card says so and Undo puts the old one back.
 - When your agent's usage limit is reached, owlit says so in one sentence with when it resets ("Claude Code's usage limit is reached; it resets at 2:20"), and a digest, thread run or reply under a comment that hits the limit stops there instead of trying again.
@@ -34,7 +43,6 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - The ⌘J ask bar is the same composer as everywhere else: @-mentions, the agent and role pickers, and what you typed is still there after Esc.
 - Ask Owlit on a passage from a paper or doc the docked chat isn't about starts a new chat in the panel, and New chat keeps the passage.
 - Retrying a broken reply no longer puts its edits on the card of the answer before it, and a Write step in a chat counts what it changed, as the card does.
-- Keep Owlit out of a doc now holds: Owlit can't edit, delete, move or comment on that doc, in any role and on every agent.
 - An edit Owlit asks to make outside your docs (outside the workspace, in owlit's own folders, in a hidden folder) is refused before it lands, in every role.
 - A reply cut off because you quit owlit or opened another workspace says so ("Stopped when owlit closed", "Stopped when you switched workspace") with Retry, instead of looking as if you pressed Stop.
 - In a Reviewer chat, Owlit can reply under your comments; resolving them still needs Assistant or Co-author.

@@ -67,13 +67,15 @@ function everyMention(): DocMention[] {
   const found = new Map<string, DocMention>()
   for (const c of Object.values(threads).sort((a, b) => b.updatedAt - a.updatedAt)) {
     const thread = shown(c)
+    const where = thread.title
     for (const row of thread.rows) {
       if (found.has(row.id) || paperOf(row.id, papers, aliases)) continue
+      const who = authorsYear(row.paper)
       found.set(row.id, {
         id: row.id,
         kind: "paper",
         title: row.paper.title,
-        subtitle: t({ message: `${authorsYear(row.paper)} · in “${thread.title}”`, comment: "a paper @ offers from a thread: its authors and year, and the thread that found it" }),
+        subtitle: t({ message: `${who} · in “${where}”`, comment: "a paper @ offers from a thread: its authors and year, and the thread that found it" }),
         uri: paperUri(row.id),
         label: citationLabel(row.paper),
       })

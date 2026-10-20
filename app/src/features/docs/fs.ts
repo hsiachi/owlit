@@ -164,9 +164,10 @@ if (isDesktop) {
     if (shownHere.delete(change.id)) return
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(change.origin.chatId)) return
-    toastUndo(t`Edit applied`, () => undoChange(change.id, labelOf(path)), {
+    const paper = labelOf(path)
+    toastUndo(t`Edit applied`, () => undoChange(change.id, paper), {
       // A paper's note is named by its paper
-      description: paperOfNotePath(path) ? t`Your note on ${labelOf(path)}` : displayName(path),
+      description: paperOfNotePath(path) ? t`Your note on ${paper}` : displayName(path),
     })
   })
 }

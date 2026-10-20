@@ -394,7 +394,9 @@ msgstr ""
 #. verb, in the keyboard shortcut list
 #. verb: put back a line just removed from what Owlit keeps in mind
 #. verb: take back a change the agent made
+#. verb: take back the doc Owlit wrote
 #. verb: take back this change to the doc
+#. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: undo a passage Owlit changed
@@ -964,18 +966,6 @@ msgid "Never allow"
 msgstr ""
 
 #: app/src/features/chat/components/WaitingDock.tsx
-msgid "Waiting in your note: Apply or Discard it there"
-msgstr ""
-
-#: app/src/features/chat/components/WaitingDock.tsx
-msgid "Waiting in the doc: Apply or Discard it there"
-msgstr ""
-
-#: app/src/features/chat/components/WaitingDock.tsx
-msgid "Answer here"
-msgstr ""
-
-#: app/src/features/chat/components/WaitingDock.tsx
 msgid "A new file"
 msgstr ""
 
@@ -1278,11 +1268,9 @@ msgstr ""
 msgid "Details"
 msgstr ""
 
-#. tell Owlit its comment isn't wanted; it won't say it again
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
@@ -1469,6 +1457,8 @@ msgstr ""
 msgid "{0, plural, one {changed what it keeps in mind} other {changed # lines it keeps in mind}}"
 msgstr ""
 
+#. verb
+#. verb
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -2482,25 +2472,6 @@ msgstr ""
 msgid "a paper's note"
 msgstr ""
 
-#: app/src/features/chat/pending-edits.ts
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Suggested by Owlit"
-msgstr ""
-
-#. verb: discard an edit Owlit suggested
-#. verb: discard an edit Owlit suggested
-#: app/src/features/chat/pending-edits.ts
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Discard"
-msgstr ""
-
-#. verb: apply an edit Owlit suggested
-#. verb: apply an edit Owlit suggested
-#: app/src/features/chat/pending-edits.ts
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Apply"
-msgstr ""
-
 #: app/src/features/chat/started.ts
 #: app/src/features/chat/store.ts
 #: packages/core/src/agents/failure.ts
@@ -2574,34 +2545,6 @@ msgid "Resolved comments…"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
-msgid "Stop going through"
-msgstr ""
-
-#: app/src/features/docs/actions.ts
-msgid "Owlit is going through…"
-msgstr ""
-
-#: app/src/features/docs/actions.ts
-msgid "Retry going through"
-msgstr ""
-
-#: app/src/features/docs/actions.ts
-msgid "Owlit couldn't go through it."
-msgstr ""
-
-#: app/src/features/docs/actions.ts
-msgid "Go through against your docs"
-msgstr ""
-
-#: app/src/features/docs/actions.ts
-msgid "Let Owlit in"
-msgstr ""
-
-#: app/src/features/docs/actions.ts
-msgid "Keep Owlit out"
-msgstr ""
-
-#: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr ""
@@ -2618,6 +2561,11 @@ msgstr ""
 
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
+msgstr ""
+
+#. hover on the mark where a paragraph was removed from a doc
+#: app/src/features/docs/changed.ts
+msgid "{who} removed “{words}” · {when}"
 msgstr ""
 
 #. before the words Owlit's comment said before it corrected them
@@ -2835,7 +2783,7 @@ msgid "Versions of {name}"
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The changes made to this doc and who made them, kept for 30 days. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is."
+msgid "The changes made to this doc, who made them and what each did, kept for 30 days. Open one to read its passages. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is."
 msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -2848,6 +2796,14 @@ msgstr ""
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from a chat"
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "What this change said is no longer kept."
+msgstr ""
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "{more, plural, one {and # more passage} other {and # more passages}}"
 msgstr ""
 
 #. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
@@ -2938,18 +2894,7 @@ msgid "No doc with this name"
 msgstr ""
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "Keep this passage (⌘⏎)"
-msgstr ""
-
-#: app/src/features/docs/editor/proposals.ts
-msgid "Undo this passage (⌘⌫)"
-msgstr ""
-
-#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#. verb: keep a passage Owlit changed
-#: app/src/features/docs/editor/proposals.ts
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep"
+msgid "Undo this passage (⌘⌫ at its end)"
 msgstr ""
 
 #. placeholder {0}: this.count
@@ -2958,12 +2903,19 @@ msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages
 msgstr ""
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
+msgid "Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change"
 msgstr ""
 
-#. verb: keep every passage Owlit changed
 #: app/src/features/docs/editor/proposals.ts
-msgid "Keep all"
+msgid "Owlit wrote this doc"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "from “{title}”"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "from a chat"
 msgstr ""
 
 #: app/src/features/docs/fs.ts
@@ -2981,29 +2933,14 @@ msgstr ""
 msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr ""
 
+#. a paper @ offers from a thread: its authors and year, and the thread that found it
+#: app/src/features/docs/lib/mentions.ts
+msgid "{who} · in “{where}”"
+msgstr ""
+
 #. a paper cited at a page: Chan et al. 2026, p. 13
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
-msgstr ""
-
-#: app/src/features/docs/owlit.ts
-msgid "Owlit is going through “{name}”"
-msgstr ""
-
-#: app/src/features/docs/owlit.ts
-msgid "What it finds will come as comments. The doc's menu can stop it."
-msgstr ""
-
-#: app/src/features/docs/owlit.ts
-msgid "Couldn't start going through it."
-msgstr ""
-
-#: app/src/features/docs/owlit.ts
-msgid "Couldn't keep Owlit out of this doc."
-msgstr ""
-
-#: app/src/features/docs/owlit.ts
-msgid "Couldn't let Owlit back into this doc."
 msgstr ""
 
 #: app/src/features/docs/pages/DocPage.tsx
@@ -3049,6 +2986,11 @@ msgstr ""
 #. your latest changes didn't reach the shared doc's readers
 #: app/src/features/docs/share/DocShareControls.tsx
 msgid "Not sent"
+msgstr ""
+
+#. a shared doc's latest changes wait until you've seen Owlit's edits in it
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Waiting for you"
 msgstr ""
 
 #: app/src/features/docs/share/ShareDialog.tsx
@@ -3137,6 +3079,10 @@ msgstr ""
 #: app/src/features/docs/share/ShareDialog.tsx
 #: packages/core/src/share/shares.ts
 msgid "This doc was shared from another computer; only that one can change its link."
+msgstr ""
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Owlit's latest edits reach readers once you've seen them in the doc."
 msgstr ""
 
 #. placeholder {0}: ago(share.pushedAt, { inSentence: true })
@@ -4151,6 +4097,10 @@ msgstr ""
 msgid "Owlit edited your note since you last looked"
 msgstr ""
 
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Owlit wrote this note"
+msgstr ""
+
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "What do you take from this paper?"
 msgstr ""
@@ -4952,6 +4902,20 @@ msgstr ""
 msgid "Answered through {agentName}"
 msgstr ""
 
+#: app/src/features/onboarding/demos/WriteDemo.tsx
+msgid "Suggested by Owlit"
+msgstr ""
+
+#. verb: discard an edit Owlit suggested
+#: app/src/features/onboarding/demos/WriteDemo.tsx
+msgid "Discard"
+msgstr ""
+
+#. verb: apply an edit Owlit suggested
+#: app/src/features/onboarding/demos/WriteDemo.tsx
+msgid "Apply"
+msgstr ""
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with."
 msgstr ""
@@ -5295,6 +5259,11 @@ msgstr ""
 #. verb: don't keep a note Claude Code had kept
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
+msgstr ""
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep"
 msgstr ""
 
 #: app/src/features/settings/sections/OwlitSection.tsx
@@ -7378,15 +7347,23 @@ msgid "The agent asks to go ahead"
 msgstr ""
 
 #: packages/core/src/changes/undo.ts
+msgid "That passage is no longer part of the change."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "{name} is gone, so owlit couldn't put the change back."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
+msgid "That passage of {name} was edited since, so owlit left it as it is."
+msgstr ""
+
+#: packages/core/src/changes/undo.ts
 msgid "There is a doc at {name} again, so owlit left it as it is."
 msgstr ""
 
 #: packages/core/src/changes/undo.ts
 msgid "{name} changed after it was made, so owlit left it where it is."
-msgstr ""
-
-#: packages/core/src/changes/undo.ts
-msgid "{name} is gone, so owlit couldn't put the change back."
 msgstr ""
 
 #: packages/core/src/changes/undo.ts
@@ -7527,14 +7504,6 @@ msgid "This copy of owlit has no example workspace."
 msgstr ""
 
 #: packages/core/src/core.ts
-msgid "Owlit goes through text: a Markdown or plain-text file."
-msgstr ""
-
-#: packages/core/src/core.ts
-msgid "That file isn't there any more."
-msgstr ""
-
-#: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't open files in other apps here."
 msgstr ""
@@ -7549,10 +7518,6 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "That comment is already there."
-msgstr ""
-
-#: packages/core/src/core.ts
-msgid "That comment isn't there any more."
 msgstr ""
 
 #: packages/core/src/core.ts
@@ -7573,18 +7538,6 @@ msgstr ""
 
 #: packages/core/src/core.ts
 msgid "Owlit finished without answering in the comment."
-msgstr ""
-
-#: packages/core/src/core.ts
-msgid "There is nothing in it to go through."
-msgstr ""
-
-#: packages/core/src/core.ts
-msgid "Going through “{name}”"
-msgstr ""
-
-#: packages/core/src/core.ts
-msgid "Owlit finished without writing its reading."
 msgstr ""
 
 #: packages/core/src/docs/docs.ts

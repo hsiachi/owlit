@@ -394,7 +394,9 @@ msgstr "关闭弹出框"
 #. verb, in the keyboard shortcut list
 #. verb: put back a line just removed from what Owlit keeps in mind
 #. verb: take back a change the agent made
+#. verb: take back the doc Owlit wrote
 #. verb: take back this change to the doc
+#. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: undo a passage Owlit changed
@@ -964,18 +966,6 @@ msgid "Never allow"
 msgstr "永不允许"
 
 #: app/src/features/chat/components/WaitingDock.tsx
-msgid "Waiting in your note: Apply or Discard it there"
-msgstr "在你的笔记中等待：请在那里应用或放弃"
-
-#: app/src/features/chat/components/WaitingDock.tsx
-msgid "Waiting in the doc: Apply or Discard it there"
-msgstr "在文档中等待：请在那里应用或放弃"
-
-#: app/src/features/chat/components/WaitingDock.tsx
-msgid "Answer here"
-msgstr "在这里回答"
-
-#: app/src/features/chat/components/WaitingDock.tsx
 msgid "A new file"
 msgstr "新文件"
 
@@ -1278,11 +1268,9 @@ msgstr "跳过大文件"
 msgid "Details"
 msgstr "详细信息"
 
-#. tell Owlit its comment isn't wanted; it won't say it again
 #. verb: leave a broken reply as it is
 #. verb: put a stopped import away
 #: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/home/WaitingOnYou.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Dismiss"
@@ -1469,6 +1457,8 @@ msgstr "{0, plural, other {请求了 # 份导读}}"
 msgid "{0, plural, one {changed what it keeps in mind} other {changed # lines it keeps in mind}}"
 msgstr "{0, plural, other {改了 # 条记着的事}}"
 
+#. verb
+#. verb
 #. verb
 #. verb: put back a change that was undone
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -2482,25 +2472,6 @@ msgstr "你对 {paper} 的笔记"
 msgid "a paper's note"
 msgstr "一篇论文的笔记"
 
-#: app/src/features/chat/pending-edits.ts
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Suggested by Owlit"
-msgstr "Owlit 的建议"
-
-#. verb: discard an edit Owlit suggested
-#. verb: discard an edit Owlit suggested
-#: app/src/features/chat/pending-edits.ts
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Discard"
-msgstr "放弃"
-
-#. verb: apply an edit Owlit suggested
-#. verb: apply an edit Owlit suggested
-#: app/src/features/chat/pending-edits.ts
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Apply"
-msgstr "应用"
-
 #: app/src/features/chat/started.ts
 #: app/src/features/chat/store.ts
 #: packages/core/src/agents/failure.ts
@@ -2574,34 +2545,6 @@ msgid "Resolved comments…"
 msgstr "已解决的评论…"
 
 #: app/src/features/docs/actions.ts
-msgid "Stop going through"
-msgstr "停止过这一遍"
-
-#: app/src/features/docs/actions.ts
-msgid "Owlit is going through…"
-msgstr "Owlit 正在过这一遍…"
-
-#: app/src/features/docs/actions.ts
-msgid "Retry going through"
-msgstr "重试过这一遍"
-
-#: app/src/features/docs/actions.ts
-msgid "Owlit couldn't go through it."
-msgstr "Owlit 没能把它过完。"
-
-#: app/src/features/docs/actions.ts
-msgid "Go through against your docs"
-msgstr "对照你的文稿过一遍"
-
-#: app/src/features/docs/actions.ts
-msgid "Let Owlit in"
-msgstr "让 Owlit 进来"
-
-#: app/src/features/docs/actions.ts
-msgid "Keep Owlit out"
-msgstr "不让 Owlit 进来"
-
-#: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Copy link"
 msgstr "复制链接"
@@ -2619,6 +2562,11 @@ msgstr "新建文件夹"
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
 msgstr "{count, plural, other {删除 # 项}}"
+
+#. hover on the mark where a paragraph was removed from a doc
+#: app/src/features/docs/changed.ts
+msgid "{who} removed “{words}” · {when}"
+msgstr "{who} 删去了“{words}” · {when}"
 
 #. before the words Owlit's comment said before it corrected them
 #. before the words Owlit's comment said before it corrected them
@@ -2835,8 +2783,8 @@ msgid "Versions of {name}"
 msgstr "{name} 的版本"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
-msgid "The changes made to this doc and who made them, kept for 30 days. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is."
-msgstr "这篇文档的改动和改动人，保留 30 天。撤销会收回其中一处改动，之后写下的内容都会保留；之后又被改过的段落保持原样。"
+msgid "The changes made to this doc, who made them and what each did, kept for 30 days. Open one to read its passages. Undo takes back one change and keeps what was written after it; a passage edited since stays as it is."
+msgstr "这篇文档的改动、改动人和每处改了什么，保留 30 天。展开一条可以读它改动的段落。撤销会收回其中一处改动，之后写下的内容都会保留；之后又被改过的段落保持原样。"
 
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "No changes to this doc are kept."
@@ -2849,6 +2797,14 @@ msgstr "{when} · 来自“{title}”"
 #: app/src/features/docs/components/VersionsDialog.tsx
 msgid "{when} · from a chat"
 msgstr "{when} · 来自一个对话"
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "What this change said is no longer kept."
+msgstr "这处改动的内容已不再保留。"
+
+#: app/src/features/docs/components/VersionsDialog.tsx
+msgid "{more, plural, one {and # more passage} other {and # more passages}}"
+msgstr "{more, plural, other {还有 # 处}}"
 
 #. a change in a doc's Versions; who is you, a name, Owlit or outside owlit
 #: app/src/features/docs/components/VersionsDialog.tsx
@@ -2938,19 +2894,8 @@ msgid "No doc with this name"
 msgstr "没有这个名字的文档"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "Keep this passage (⌘⏎)"
-msgstr "保留这一处（⌘⏎）"
-
-#: app/src/features/docs/editor/proposals.ts
-msgid "Undo this passage (⌘⌫)"
-msgstr "撤销这一处（⌘⌫）"
-
-#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
-#. verb: keep a passage Owlit changed
-#: app/src/features/docs/editor/proposals.ts
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep"
-msgstr "保留"
+msgid "Undo this passage (⌘⌫ at its end)"
+msgstr "撤销这一处（在末尾按 ⌘⌫）"
 
 #. placeholder {0}: this.count
 #: app/src/features/docs/editor/proposals.ts
@@ -2958,13 +2903,20 @@ msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages
 msgstr "{0, plural, other {Owlit 改了 # 处}}"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "Owlit's edits land like this; undo any part, or keep Owlit out of this doc from its menu"
-msgstr "Owlit 的改动就这样落下；任一处都可撤销，也可以在文档菜单里让 Owlit 别碰这篇"
+msgid "Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change"
+msgstr "Owlit 的改动就这样落下；任一处都可撤销，也可以在对话里告诉 Owlit 怎么改"
 
-#. verb: keep every passage Owlit changed
 #: app/src/features/docs/editor/proposals.ts
-msgid "Keep all"
-msgstr "全部保留"
+msgid "Owlit wrote this doc"
+msgstr "这篇文档由 Owlit 写成"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "from “{title}”"
+msgstr "来自“{title}”"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "from a chat"
+msgstr "来自一次对话"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -2981,30 +2933,15 @@ msgstr "已应用修改"
 msgid "{0, plural, one {# paper} other {# papers}}"
 msgstr "{0, plural, other {# 篇论文}}"
 
+#. a paper @ offers from a thread: its authors and year, and the thread that found it
+#: app/src/features/docs/lib/mentions.ts
+msgid "{who} · in “{where}”"
+msgstr "{who} · 在“{where}”中"
+
 #. a paper cited at a page: Chan et al. 2026, p. 13
 #: app/src/features/docs/lib/mentions.ts
 msgid "{cite}, p. {page}"
 msgstr "{cite}，第 {page} 页"
-
-#: app/src/features/docs/owlit.ts
-msgid "Owlit is going through “{name}”"
-msgstr "Owlit 正在把“{name}”过一遍"
-
-#: app/src/features/docs/owlit.ts
-msgid "What it finds will come as comments. The doc's menu can stop it."
-msgstr "它发现的会以评论出现。可以在文稿的菜单里停止。"
-
-#: app/src/features/docs/owlit.ts
-msgid "Couldn't start going through it."
-msgstr "没能开始过这一遍。"
-
-#: app/src/features/docs/owlit.ts
-msgid "Couldn't keep Owlit out of this doc."
-msgstr "没能把 Owlit 挡在这篇文稿外。"
-
-#: app/src/features/docs/owlit.ts
-msgid "Couldn't let Owlit back into this doc."
-msgstr "没能让 Owlit 回到这篇文稿。"
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "This doc is not in the workspace"
@@ -3050,6 +2987,11 @@ msgstr "分享"
 #: app/src/features/docs/share/DocShareControls.tsx
 msgid "Not sent"
 msgstr "未送达"
+
+#. a shared doc's latest changes wait until you've seen Owlit's edits in it
+#: app/src/features/docs/share/DocShareControls.tsx
+msgid "Waiting for you"
+msgstr "等你查看"
 
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "{cited, plural, one {The paper it cites} other {The # papers it cites}}"
@@ -3138,6 +3080,10 @@ msgstr "读者还会看到"
 #: packages/core/src/share/shares.ts
 msgid "This doc was shared from another computer; only that one can change its link."
 msgstr "这篇文档是从另一台电脑分享的，只有那台电脑能修改这个链接。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Owlit's latest edits reach readers once you've seen them in the doc."
+msgstr "你在文档里看过 Owlit 最新的改动后，读者才会看到。"
 
 #. placeholder {0}: ago(share.pushedAt, { inSentence: true })
 #: app/src/features/docs/share/ShareDialog.tsx
@@ -4151,6 +4097,10 @@ msgstr "Owlit 对这篇笔记的修改"
 msgid "Owlit edited your note since you last looked"
 msgstr "你上次查看后，Owlit 修改了你的笔记"
 
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Owlit wrote this note"
+msgstr "这篇笔记由 Owlit 写成"
+
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "What do you take from this paper?"
 msgstr "你从这篇论文中得到了什么？"
@@ -4952,6 +4902,20 @@ msgstr "你好！"
 msgid "Answered through {agentName}"
 msgstr "通过 {agentName} 回答"
 
+#: app/src/features/onboarding/demos/WriteDemo.tsx
+msgid "Suggested by Owlit"
+msgstr "Owlit 的建议"
+
+#. verb: discard an edit Owlit suggested
+#: app/src/features/onboarding/demos/WriteDemo.tsx
+msgid "Discard"
+msgstr "放弃"
+
+#. verb: apply an edit Owlit suggested
+#: app/src/features/onboarding/demos/WriteDemo.tsx
+msgid "Apply"
+msgstr "应用"
+
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with."
 msgstr "Owlit 怎么称呼你、你交给它的任务用哪个智能体，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
@@ -5296,6 +5260,11 @@ msgstr "Claude Code 在这个文件夹里记过这些关于你的事。保留 Ow
 #: app/src/features/settings/sections/Memory.tsx
 msgid "Drop"
 msgstr "不要"
+
+#. verb: keep a note Claude Code had kept as a line Owlit keeps in mind
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep"
+msgstr "保留"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
@@ -7378,16 +7347,24 @@ msgid "The agent asks to go ahead"
 msgstr "智能体请求继续"
 
 #: packages/core/src/changes/undo.ts
+msgid "That passage is no longer part of the change."
+msgstr "那一处已不在这次改动里。"
+
+#: packages/core/src/changes/undo.ts
+msgid "{name} is gone, so owlit couldn't put the change back."
+msgstr "{name} 已经不在了，owlit 无法撤销这处改动。"
+
+#: packages/core/src/changes/undo.ts
+msgid "That passage of {name} was edited since, so owlit left it as it is."
+msgstr "{name} 的那一处之后又被改过，owlit 保留了原样。"
+
+#: packages/core/src/changes/undo.ts
 msgid "There is a doc at {name} again, so owlit left it as it is."
 msgstr "{name} 处又有了一篇文档，owlit 没有动它。"
 
 #: packages/core/src/changes/undo.ts
 msgid "{name} changed after it was made, so owlit left it where it is."
 msgstr "{name} 创建后又被改过，owlit 没有移走它。"
-
-#: packages/core/src/changes/undo.ts
-msgid "{name} is gone, so owlit couldn't put the change back."
-msgstr "{name} 已经不在了，owlit 无法撤销这处改动。"
 
 #: packages/core/src/changes/undo.ts
 msgid "Every passage of that change in {name} was edited since, so owlit left it as it is."
@@ -7527,14 +7504,6 @@ msgid "This copy of owlit has no example workspace."
 msgstr "这个 owlit 没有附带示例工作区。"
 
 #: packages/core/src/core.ts
-msgid "Owlit goes through text: a Markdown or plain-text file."
-msgstr "Owlit 只过文字：Markdown 或纯文本文件。"
-
-#: packages/core/src/core.ts
-msgid "That file isn't there any more."
-msgstr "那个文件已经不在了。"
-
-#: packages/core/src/core.ts
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't open files in other apps here."
 msgstr "owlit 在这里无法用其他应用打开文件。"
@@ -7550,10 +7519,6 @@ msgstr "那篇论文不在文献库里。"
 #: packages/core/src/core.ts
 msgid "That comment is already there."
 msgstr "那条评论已经在了。"
-
-#: packages/core/src/core.ts
-msgid "That comment isn't there any more."
-msgstr "那条评论已经不在了。"
 
 #: packages/core/src/core.ts
 msgid "Owlit couldn't get this paper's text to read."
@@ -7574,18 +7539,6 @@ msgstr "回复你在“{name}”里的回复"
 #: packages/core/src/core.ts
 msgid "Owlit finished without answering in the comment."
 msgstr "Owlit 结束了，但没有在评论里回复。"
-
-#: packages/core/src/core.ts
-msgid "There is nothing in it to go through."
-msgstr "里面没有可以过的内容。"
-
-#: packages/core/src/core.ts
-msgid "Going through “{name}”"
-msgstr "把“{name}”过一遍"
-
-#: packages/core/src/core.ts
-msgid "Owlit finished without writing its reading."
-msgstr "Owlit 结束了，但没有写出解读。"
 
 #: packages/core/src/docs/docs.ts
 msgid "There is no {rel} in the workspace."
