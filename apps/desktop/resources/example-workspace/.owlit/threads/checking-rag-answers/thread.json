@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "id": "checking-rag-answers",
   "title": "Checking whether RAG answers are supported",
   "asked": {
@@ -11,20 +11,8 @@
   "sources": [
     "Your library"
   ],
-  "memo": [
-    {
-      "id": "s1",
-      "text": "The papers decide support in three ways: the model judges itself ([Asai et al. 2023](owlit://library/arxiv-2310.11511), [Manakul et al. 2023](owlit://library/arxiv-2303.08896)), a separate judge or classifier reads the answer against the context ([Es et al. 2023](owlit://library/arxiv-2309.15217), [Saad-Falcon et al. 2023](owlit://library/arxiv-2311.09476), [Kovács et al. 2025](owlit://library/arxiv-2502.17125)), or a probe reads the generator's internals ([Sun et al. 2024](owlit://library/arxiv-2410.11414))."
-    },
-    {
-      "id": "s2",
-      "text": "Only SelfCheckGPT needs neither labels nor access to the model; ReDeEP needs both."
-    },
-    {
-      "id": "s3",
-      "text": "None of them is tested against the others on the same RAG outputs; looked through the eight papers in your library."
-    }
-  ],
+  "report": "These six papers in your library decide whether a RAG answer is supported in three ways: the model judges its own output, a separate judge reads the answer against the retrieved context, or a probe reads the generator's internals. They differ more in what they need to run than in how they decide, and none is tested against the others on the same outputs.\n\n## The model judges itself\n\n[Asai et al. 2023](owlit://library/arxiv-2310.11511) train the generator to emit critique tokens as it writes, learned from a critic that GPT-4 labelled offline. [Manakul et al. 2023](owlit://library/arxiv-2303.08896) need no training at all: they sample several answers and treat the facts the samples disagree on as likely made up. SelfCheckGPT is the only paper here that needs neither labels nor access to the model, but it was tested on text written without retrieval.\n\n## A separate judge reads the answer against the context\n\n[Es et al. 2023](owlit://library/arxiv-2309.15217) prompt an LLM to judge whether each statement of an answer can be inferred from the context, with no reference answers. [Saad-Falcon et al. 2023](owlit://library/arxiv-2311.09476) fine-tune small judges on synthetic data and correct their scores with a few hundred human labels. [Kovács & Recski 2025](owlit://library/arxiv-2502.17125) drop the LLM judge for a token classifier trained on RAGTruth that marks the unsupported spans. Ragas and ARES score a whole system; LettuceDetect marks the words of one answer.\n\n## Reading the generator's internals\n\n[Sun et al. 2024](owlit://library/arxiv-2410.11414) weigh how much the copying heads draw on the retrieved text against how much the FFN layers add from the model's own memory. It needs labels and white-box access to the generator, the most of any paper here.\n\n## What it means for your related work\n\nThe three families are the three lines of your related-work paragraph, and the gap it names holds: nothing here runs a critique token, a sampling check and an internal probe on the same RAG answers. RAGTruth is the one dataset two of them share (LettuceDetect and ReDeEP), which makes it the natural ground for that comparison. For Ragas, ARES and LettuceDetect this rests on their abstracts.\n\n## Read first\n\n[Manakul et al. 2023](owlit://library/arxiv-2303.08896), the simplest check and the one the others have to beat; [Sun et al. 2024](owlit://library/arxiv-2410.11414), the only one that says why an answer that looks supported goes wrong; [Kovács & Recski 2025](owlit://library/arxiv-2502.17125), for RAGTruth.",
+  "one": "Three ways to decide support: the model itself, a separate judge, the generator's internals",
   "columns": [
     {
       "id": "q",
@@ -35,27 +23,35 @@
       "id": "c2",
       "question": "What does it need to run?",
       "kind": "ask"
+    },
+    {
+      "id": "topic",
+      "question": "Topic",
+      "kind": "grouping",
+      "hidden": true,
+      "groups": [
+        {
+          "id": "self",
+          "name": "The model judges itself",
+          "one": "critique tokens, sampled answers"
+        },
+        {
+          "id": "judge",
+          "name": "A separate judge",
+          "one": "an LLM, a small fine-tuned judge, a token classifier"
+        },
+        {
+          "id": "internals",
+          "name": "The generator's internals",
+          "one": "attention heads and FFN layers"
+        }
+      ]
     }
   ],
   "rows": [
     {
       "id": "arxiv-2310.11511",
-      "paper": {
-        "title": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection",
-        "authors": [
-          "Akari Asai",
-          "Zeqiu Wu",
-          "Yizhong Wang",
-          "Avirup Sil",
-          "Hannaneh Hajishirzi"
-        ],
-        "ids": {
-          "arxiv": "2310.11511"
-        },
-        "year": 2023,
-        "abstract": "Despite their remarkable capabilities, large language models (LLMs) often produce responses containing factual inaccuracies due to their sole reliance on the parametric knowledge they encapsulate. Retrieval-Augmented Generation (RAG), an ad hoc approach that augments LMs with retrieval of relevant knowledge, decreases such issues. However, indiscriminately retrieving and incorporating a fixed number of retrieved passages, regardless of whether retrieval is necessary, or passages are relevant, diminishes LM versatility or can lead to unhelpful response generation. We introduce a new framework called Self-Reflective Retrieval-Augmented Generation (Self-RAG) that enhances an LM's quality and factuality through retrieval and self-reflection. Our framework trains a single arbitrary LM that adaptively retrieves passages on-demand, and generates and reflects on retrieved passages and its own generations using special tokens, called reflection tokens. Generating reflection tokens makes the LM controllable during the inference phase, enabling it to tailor its behavior to diverse task requirements. Experiments show that Self-RAG (7B and 13B parameters) significantly outperforms state-of-the-art LLMs and retrieval-augmented models on a diverse set of tasks. Specifically, Self-RAG outperforms ChatGPT and retrieval-augmented Llama2-chat on Open-domain QA, reasoning and fact verification tasks, and it shows significant gains in improving factuality and citation accuracy for long-form generations relative to these models.",
-        "kind": "preprint"
-      },
+      "is": "Method; Llama 2 7B and 13B, six QA and long-form tasks",
       "cells": {
         "q": {
           "text": "The model emits its own critique tokens while generating, learned from a critic trained offline on GPT-4 labels.",
@@ -72,25 +68,17 @@
           "at": 1791900177417
         }
       },
-      "addedAt": 1791900177417,
-      "foundBy": "your library"
+      "in": {
+        "topic": [
+          "self"
+        ]
+      },
+      "foundBy": "your library",
+      "addedAt": 1791900177417
     },
     {
       "id": "arxiv-2303.08896",
-      "paper": {
-        "title": "SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models",
-        "authors": [
-          "Potsawee Manakul",
-          "Adian Liusie",
-          "Mark J. F. Gales"
-        ],
-        "ids": {
-          "arxiv": "2303.08896"
-        },
-        "year": 2023,
-        "abstract": "Generative Large Language Models (LLMs) such as GPT-3 are capable of generating highly fluent responses to a wide variety of user prompts. However, LLMs are known to hallucinate facts and make non-factual statements which can undermine trust in their output. Existing fact-checking approaches either require access to the output probability distribution (which may not be available for systems such as ChatGPT) or external databases that are interfaced via separate, often complex, modules. In this work, we propose \"SelfCheckGPT\", a simple sampling-based approach that can be used to fact-check the responses of black-box models in a zero-resource fashion, i.e. without an external database. SelfCheckGPT leverages the simple idea that if an LLM has knowledge of a given concept, sampled responses are likely to be similar and contain consistent facts. However, for hallucinated facts, stochastically sampled responses are likely to diverge and contradict one another. We investigate this approach by using GPT-3 to generate passages about individuals from the WikiBio dataset, and manually annotate the factuality of the generated passages. We demonstrate that SelfCheckGPT can: i) detect non-factual and factual sentences; and ii) rank passages in terms of factuality. We compare our approach to several baselines and show that our approach has considerably higher AUC-PR scores in sentence-level hallucination detection and higher correlation scores in passage-level factuality assessment compared to grey-box methods.",
-        "kind": "preprint"
-      },
+      "is": "Method, black-box; GPT-3 passages about WikiBio people",
       "cells": {
         "q": {
           "text": "Samples several answers and treats facts the samples disagree on as likely hallucinated.",
@@ -107,24 +95,17 @@
           "at": 1791900177417
         }
       },
-      "addedAt": 1791900177417,
-      "foundBy": "your library"
+      "in": {
+        "topic": [
+          "self"
+        ]
+      },
+      "foundBy": "your library",
+      "addedAt": 1791900177417
     },
     {
       "id": "arxiv-2502.17125",
-      "paper": {
-        "title": "LettuceDetect: A Hallucination Detection Framework for RAG Applications",
-        "authors": [
-          "Ádám Kovács",
-          "Gábor Recski"
-        ],
-        "ids": {
-          "arxiv": "2502.17125"
-        },
-        "year": 2025,
-        "abstract": "Retrieval Augmented Generation (RAG) systems remain vulnerable to hallucinated answers despite incorporating external knowledge sources. We present LettuceDetect a framework that addresses two critical limitations in existing hallucination detection methods: (1) the context window constraints of traditional encoder-based methods, and (2) the computational inefficiency of LLM based approaches. Building on ModernBERT's extended context capabilities (up to 8k tokens) and trained on the RAGTruth benchmark dataset, our approach outperforms all previous encoder-based models and most prompt-based models, while being approximately 30 times smaller than the best models. LettuceDetect is a token-classification model that processes context-question-answer triples, allowing for the identification of unsupported claims at the token level. Evaluations on the RAGTruth corpus demonstrate an F1 score of 79.22% for example-level detection, which is a 14.8% improvement over Luna, the previous state-of-the-art encoder-based architecture. Additionally, the system can process 30 to 60 examples per second on a single GPU, making it more practical for real-world RAG applications.",
-        "kind": "preprint"
-      },
+      "is": "Method and model, a ModernBERT token classifier; RAGTruth",
       "cells": {
         "q": {
           "text": "A token classifier marks the spans of an answer that the retrieved context doesn't support.",
@@ -137,34 +118,17 @@
           "at": 1791900177417
         }
       },
-      "addedAt": 1791900177417,
-      "foundBy": "your library"
+      "in": {
+        "topic": [
+          "judge"
+        ]
+      },
+      "foundBy": "your library",
+      "addedAt": 1791900177417
     },
     {
       "id": "arxiv-2410.11414",
-      "paper": {
-        "title": "ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation via Mechanistic Interpretability",
-        "authors": [
-          "Zhongxiang Sun",
-          "Xiaoxue Zang",
-          "Kai Zheng",
-          "Yang Song",
-          "Jun Xu",
-          "Xiao Zhang",
-          "Weijie Yu",
-          "Yang Song",
-          "Han Li"
-        ],
-        "ids": {
-          "s2": "f3658afcd181e4078e1e96ff86eac224fd92faab",
-          "arxiv": "2410.11414"
-        },
-        "year": 2024,
-        "abstract": "Retrieval-Augmented Generation (RAG) models are designed to incorporate external knowledge, reducing hallucinations caused by insufficient parametric (internal) knowledge. However, even with accurate and relevant retrieved content, RAG models can still produce hallucinations by generating outputs that conflict with the retrieved information. Detecting such hallucinations requires disentangling how Large Language Models (LLMs) utilize external and parametric knowledge. Current detection methods often focus on one of these mechanisms or without decoupling their intertwined effects, making accurate detection difficult. In this paper, we investigate the internal mechanisms behind hallucinations in RAG scenarios. We discover hallucinations occur when the Knowledge FFNs in LLMs overemphasize parametric knowledge in the residual stream, while Copying Heads fail to effectively retain or integrate external knowledge from retrieved content. Based on these findings, we propose ReDeEP, a novel method that detects hallucinations by decoupling LLM's utilization of external context and parametric knowledge. Our experiments show that ReDeEP significantly improves RAG hallucination detection accuracy. Additionally, we introduce AARF, which mitigates hallucinations by modulating the contributions of Knowledge FFNs and Copying Heads.",
-        "tldr": "This paper proposes ReDeEP, a novel method that detects hallucinations by decoupling LLM's utilization of external context and parametric knowledge, and introduces AARF, which mitigates hallucinations by modulating the contributions of Knowledge FFNs and Copying Heads.",
-        "kind": "preprint",
-        "citationCount": 135
-      },
+      "is": "Method, white-box; RAGTruth and Dolly",
       "cells": {
         "q": {
           "text": "Reads the generator's internals: how much FFN layers and copying heads draw on parametric versus retrieved knowledge.",
@@ -181,26 +145,17 @@
           "at": 1791900177417
         }
       },
-      "addedAt": 1791900177417,
-      "foundBy": "your library"
+      "in": {
+        "topic": [
+          "internals"
+        ]
+      },
+      "foundBy": "your library",
+      "addedAt": 1791900177417
     },
     {
       "id": "arxiv-2309.15217",
-      "paper": {
-        "title": "Ragas: Automated Evaluation of Retrieval Augmented Generation",
-        "authors": [
-          "Shahul Es",
-          "Jithin James",
-          "Luis Espinosa-Anke",
-          "Steven Schockaert"
-        ],
-        "ids": {
-          "arxiv": "2309.15217"
-        },
-        "year": 2023,
-        "abstract": "We introduce Ragas (Retrieval Augmented Generation Assessment), a framework for reference-free evaluation of Retrieval Augmented Generation (RAG) pipelines. RAG systems are composed of a retrieval and an LLM based generation module, and provide LLMs with knowledge from a reference textual database, which enables them to act as a natural language layer between a user and textual databases, reducing the risk of hallucinations. Evaluating RAG architectures is, however, challenging because there are several dimensions to consider: the ability of the retrieval system to identify relevant and focused context passages, the ability of the LLM to exploit such passages in a faithful way, or the quality of the generation itself. With Ragas, we put forward a suite of metrics which can be used to evaluate these different dimensions \\textit{without having to rely on ground truth human annotations}. We posit that such a framework can crucially contribute to faster evaluation cycles of RAG architectures, which is especially important given the fast adoption of LLMs.",
-        "kind": "preprint"
-      },
+      "is": "Evaluation framework, an LLM as judge; WikiEval",
       "cells": {
         "q": {
           "text": "Scores faithfulness by having an LLM judge whether each statement of an answer can be inferred from the context.",
@@ -213,26 +168,17 @@
           "at": 1791900177417
         }
       },
-      "addedAt": 1791900177417,
-      "foundBy": "your library"
+      "in": {
+        "topic": [
+          "judge"
+        ]
+      },
+      "foundBy": "your library",
+      "addedAt": 1791900177417
     },
     {
       "id": "arxiv-2311.09476",
-      "paper": {
-        "title": "ARES: An Automated Evaluation Framework for Retrieval-Augmented Generation Systems",
-        "authors": [
-          "Jon Saad-Falcon",
-          "Omar Khattab",
-          "Christopher Potts",
-          "Matei Zaharia"
-        ],
-        "ids": {
-          "arxiv": "2311.09476"
-        },
-        "year": 2023,
-        "abstract": "Evaluating retrieval-augmented generation (RAG) systems traditionally relies on hand annotations for input queries, passages to retrieve, and responses to generate. We introduce ARES, an Automated RAG Evaluation System, for evaluating RAG systems along the dimensions of context relevance, answer faithfulness, and answer relevance. By creating its own synthetic training data, ARES finetunes lightweight LM judges to assess the quality of individual RAG components. To mitigate potential prediction errors, ARES utilizes a small set of human-annotated datapoints for prediction-powered inference (PPI). Across eight different knowledge-intensive tasks in KILT, SuperGLUE, and AIS, ARES accurately evaluates RAG systems while using only a few hundred human annotations during evaluation. Furthermore, ARES judges remain effective across domain shifts, proving accurate even after changing the type of queries and/or documents used in the evaluated RAG systems. We make our code and datasets publicly available on Github.",
-        "kind": "preprint"
-      },
+      "is": "Evaluation framework, fine-tuned judges and human labels; KILT and SuperGLUE",
       "cells": {
         "q": {
           "text": "Fine-tunes small judges on synthetic data and calibrates them with a few hundred human labels.",
@@ -245,16 +191,15 @@
           "at": 1791900177417
         }
       },
-      "addedAt": 1791900177417,
-      "foundBy": "your library"
+      "in": {
+        "topic": [
+          "judge"
+        ]
+      },
+      "foundBy": "your library",
+      "addedAt": 1791900177417
     }
   ],
-  "groups": [],
-  "watch": false,
   "createdAt": 1791900177417,
-  "updatedAt": 1791900177417,
-  "overrides": {
-    "edits": {},
-    "removed": {}
-  }
+  "updatedAt": 1791900177417
 }
