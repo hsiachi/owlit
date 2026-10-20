@@ -3498,7 +3498,6 @@ msgid "PDF attached"
 msgstr "PDF attached"
 
 #: app/src/features/library/actions.ts
-#: app/src/features/library/lib/add-pdfs.ts
 msgid "Added to library"
 msgstr "Added to library"
 
@@ -4258,11 +4257,6 @@ msgstr "{existing} already in your library"
 msgid "{unreadCount} couldn't be read"
 msgstr "{unreadCount} couldn't be read"
 
-#. placeholder {0}: pdfs.length
-#: app/src/features/library/lib/add-pdfs.ts
-msgid "{0, plural, one {Added # paper} other {Added # papers}}"
-msgstr "{0, plural, one {Added # paper} other {Added # papers}}"
-
 #: app/src/features/library/lib/digest-source.ts
 msgid "Read from the text only; figures not seen."
 msgstr "Read from the text only; figures not seen."
@@ -4443,10 +4437,6 @@ msgstr "pp. {list}"
 #: app/src/features/library/lib/use-ref-lookup.ts
 msgid "Could not look that up."
 msgstr "Could not look that up."
-
-#: app/src/features/library/mock-client.ts
-msgid "That does not look like a DOI, an arXiv id or a URL."
-msgstr "That does not look like a DOI, an arXiv id or a URL."
 
 #: app/src/features/library/notes/NoteChanges.tsx
 msgid "Your note"

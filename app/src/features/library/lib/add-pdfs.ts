@@ -1,21 +1,20 @@
 import { plural, t } from "@lingui/core/macro"
 import { toast } from "sonner"
-import { filePath, hasCore } from "@/lib/rpc"
+import { filePath } from "@/lib/rpc"
 import { toastError, toastUndo } from "@/lib/toast"
 import { addPaperFrom, sayAdded, undoAdded, type Added } from "../actions"
-import { libraryClient, useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
 
-// Adds the papers in `files` and peeks the last one. Shared with the page-wide drop target. In the
-// desktop app core recognises each file (arXiv's stamp, a DOI) and keeps it in the workspace; one that
-// can't be read doesn't stop the rest. open: the toast's Open.
+// Adds the papers in `files` and peeks the last one. Shared with the page-wide drop target. Core
+// recognises each file (arXiv's stamp, a DOI) and keeps it in the workspace; one that can't be read
+// doesn't stop the rest. open: the toast's Open.
 export async function addPdfFiles(files: File[], open: (id: string) => void) {
   const pdfs = files.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name))
   if (pdfs.length === 0) {
     toast.error(t`Only PDF files can be added this way.`)
     return
   }
-  const last = hasCore ? await importInCore(pdfs, open) : await addInBrowser(pdfs)
+  const last = await importInCore(pdfs, open)
   if (last) useLibraryUi.getState().revealPaper(last)
 }
 
@@ -60,17 +59,4 @@ async function importInCore(pdfs: File[], open: (id: string) => void) {
   if (count) toastUndo(parts.join(" · "), () => undoAdded(added), { description })
   else toast(parts.join(" · "), { description })
   return last?.paper.id ?? null
-}
-
-async function addInBrowser(pdfs: File[]) {
-  const { addPaper } = useLibraryStore.getState()
-  const added: string[] = []
-  for (const file of pdfs) {
-    const resolved = await libraryClient.importPdf?.(file)
-    if (resolved) added.push(addPaper(resolved).id)
-  }
-  toastUndo(pdfs.length === 1 ? t`Added to library` : plural(pdfs.length, { one: "Added # paper", other: "Added # papers" }), () => undoAdded(added), {
-    description: pdfs.length === 1 ? pdfs[0].name : undefined,
-  })
-  return added.at(-1) ?? null
 }
