@@ -1,9 +1,9 @@
 import { t } from "@lingui/core/macro"
 import { useEffect } from "react"
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
 import { markSeen } from "@/app/seen"
 import { countDown, countUp } from "@/lib/counts"
+import { DAY } from "@/lib/time"
 import type { Chat, ChatMessage, PermissionOption } from "@owlit/protocol"
 import { useChatStore } from "./store"
 import type { Part, ToolCall } from "./types"
@@ -15,39 +15,29 @@ export type ChatStatus = "idle" | "working" | "waiting" | "finished" | "failed"
 // A reply that finished while the user wasn't looking at its chat keeps a mark until they open it (core
 // compares the chat with the last message they saw ended, app/seen.ts); one the user stopped never gets
 // one, since they did that themselves. A broken reply is not a notice but a state of the chat, read from
-// the chat itself: it stays until the reply is run again or the user dismisses it, so opening the chat to
-// read the error doesn't take the problem off the list, the rail and Home.
+// the chat itself: the chat stays red until the reply is run again, and for its first days the reply also
+// waits on the user (Home, the rail), so opening the chat to read the error doesn't take the problem off
+// those. Nothing is dismissed: Home lists only what blocks work, and an old failure doesn't.
 
 interface SeenState {
-  // The broken reply the user chose to leave as it is, per chat (its message id)
-  dismissed: Record<string, string>
   // Chats on screen now (the Chat page or the docked agent window), counted since both can show one
   viewing: Record<string, number>
   // When each chat was last on screen, for this run of the app: the agent panel goes by it to tell a
   // chat the person has just left from one they left a while ago
   seenAt: Record<string, number>
   look: (chatId: string) => () => void
-  dismiss: (chatId: string, messageId: string) => void
 }
 
 const pageShown = () => typeof document === "undefined" || document.visibilityState === "visible"
 
-export const useSeenStore = create<SeenState>()(
-  persist(
-    (set) => ({
-      dismissed: {},
-      viewing: {},
-      seenAt: {},
-      look: (chatId) => {
-        set((s) => ({ viewing: countUp(s.viewing, chatId) }))
-        return () => set((s) => ({ viewing: countDown(s.viewing, chatId), seenAt: { ...s.seenAt, [chatId]: Date.now() } }))
-      },
-      dismiss: (chatId, messageId) => set((s) => ({ dismissed: { ...s.dismissed, [chatId]: messageId } })),
-    }),
-    // What is dismissed outlives a reload; what is on screen is worked out again
-    { name: "owlit.chat-seen", partialize: (s) => ({ dismissed: s.dismissed }) },
-  ),
-)
+export const useSeenStore = create<SeenState>()((set) => ({
+  viewing: {},
+  seenAt: {},
+  look: (chatId) => {
+    set((s) => ({ viewing: countUp(s.viewing, chatId) }))
+    return () => set((s) => ({ viewing: countDown(s.viewing, chatId), seenAt: { ...s.seenAt, [chatId]: Date.now() } }))
+  },
+}))
 
 // Whether the chat is on screen now (the Chat page or the docked agent window, in a window not hidden away)
 export const chatOnScreen = (chatId: string | undefined) => !!chatId && !!useSeenStore.getState().viewing[chatId] && pageShown()
@@ -94,38 +84,34 @@ export const callOf = (chat: Chat, toolCallId: string | undefined) =>
 export const optionFor = (options: PermissionOption[], allow: boolean) =>
   options.find((o) => o.kind === (allow ? "allow_once" : "reject_once")) ?? options.find((o) => o.kind.startsWith(allow ? "allow" : "reject"))
 
-// The chat's last reply, if it broke and the user hasn't dismissed it. One owlit cut off by closing or by
-// opening another workspace didn't break: the person did that, and it says so on the reply alone.
-export function brokenReply(chat: Chat, dismissed: string | undefined): ChatMessage | undefined {
+// The chat's last reply, if it broke. One owlit cut off by closing or by opening another workspace didn't
+// break: the person did that, and it says so on the reply alone.
+export function brokenReply(chat: Chat): ChatMessage | undefined {
   const last = chat.messages[chat.messages.length - 1]
-  return last?.role === "assistant" && last.status === "error" && !last.cutOff && last.id !== dismissed ? last : undefined
+  return last?.role === "assistant" && last.status === "error" && !last.cutOff ? last : undefined
 }
 
-// The chat's broken reply, with a way to leave it as it is, while it still asks for the user
-export function useBrokenReply(chat: Chat | undefined) {
-  const dismissed = useSeenStore((s) => (chat ? s.dismissed[chat.id] : undefined))
-  const broken = chat ? brokenReply(chat, dismissed) : undefined
-  if (!chat || !broken) return undefined
-  return { messageId: broken.id, dismiss: () => useSeenStore.getState().dismiss(chat.id, broken.id) }
-}
-
-export function chatStatus(chat: Chat, streaming: boolean, unseen: boolean, dismissed: string | undefined): ChatStatus {
+export function chatStatus(chat: Chat, streaming: boolean, unseen: boolean): ChatStatus {
   if (streaming) return pendingAsk(chat) ? "waiting" : "working"
-  if (brokenReply(chat, dismissed)) return "failed"
+  if (brokenReply(chat)) return "failed"
   return unseen ? "finished" : "idle"
 }
 
-// What a chat waits on the user for: a permission or a question while it runs, or a broken reply left as
-// it is. Home's rows, the rail's Chat mark and the system notifications all go by it.
+// How long a broken reply waits on the user. Past it the work is taken to have moved on (the person
+// asked again elsewhere, or let it go), and the chat's own red state is enough.
+export const BROKEN_WAITS_DAYS = 3
+
+// What a chat waits on the user for: a permission or a question while it runs, or a reply that broke in
+// the last few days. Home's rows, the rail's Chat mark and the system notifications all go by it.
 export type ChatWait = { ask: PendingAsk; broken?: undefined } | { ask?: undefined; broken: ChatMessage }
 
-export function chatWait(chat: Chat, streaming: boolean, dismissed: string | undefined): ChatWait | undefined {
+export function chatWait(chat: Chat, streaming: boolean, now = Date.now()): ChatWait | undefined {
   if (streaming) {
     const ask = pendingAsk(chat)
     return ask && { ask }
   }
-  const broken = brokenReply(chat, dismissed)
-  return broken && { broken }
+  const broken = brokenReply(chat)
+  return broken && now - broken.createdAt < BROKEN_WAITS_DAYS * DAY ? { broken } : undefined
 }
 
 // Getters, so each word is said in the interface's language when read rather than once on import

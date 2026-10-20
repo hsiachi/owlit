@@ -2,7 +2,7 @@ import { t } from "@lingui/core/macro"
 import type { DocShare, ShareAnchor, ShareComment, SharePermission } from "@owlit/protocol"
 import { toast } from "sonner"
 import { create } from "zustand"
-import { isDesktop, onNotify, rpc } from "@/lib/rpc"
+import { isDesktop, onNotify, rpc, RpcError } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import { shorten } from "@/lib/words"
 import { fileAt } from "../store"
@@ -111,6 +111,12 @@ export const shares = {
     setShare(path, null)
     toast(t`Stopped sharing`, { description: t`The link no longer opens.` })
   },
+  // The server can't be reached to stop the link: owlit lets go of it here, and says it may still open
+  async forget(path: string) {
+    await rpc.share.stop({ path, forget: true })
+    setShare(path, null)
+    toast(t`Forgot the link here`, { description: t`If the share server comes back, the link may still open.` })
+  },
   async reply(path: string, parent: string, text: string) {
     const reply = await rpc.share.reply({ path, parent, text })
     // Core's share.comments may have brought it already
@@ -125,3 +131,6 @@ export const shares = {
     )
   },
 }
+
+// A stop that failed because the share server couldn't be reached (core's share.stop says so in data)
+export const unreachable = (error: unknown) => error instanceof RpcError && (error.data as { unreachable?: boolean } | undefined)?.unreachable === true

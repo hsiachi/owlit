@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
-import { checkForUpdates, restartToUpdate, setAutoUpdate, useUpdates } from "@/features/updates/store"
+import { checkForUpdates, openReleaseNotes, restartToUpdate, setAutoUpdate, useUpdates } from "@/features/updates/store"
 import { ago } from "@/lib/time"
 import { useWorkspace } from "@/lib/workspace"
 import { toastError } from "@/lib/toast"
@@ -177,13 +177,33 @@ function UpdatesRows() {
   )
   let help: string
   let control: React.ReactNode = null
-  if (status.kind === "off") {
+  if (status.kind === "off" && status.available) {
+    // An unsigned build: the newer release is downloaded from its page
+    const { available } = status
+    const next = available.version
+    help = t`Owlit ${next} is out. This build can't install updates itself yet.`
+    control = (
+      <>
+        {available.notes && (
+          <Button variant="text" size="inline" onClick={openReleaseNotes}>
+            {t`What's new`}
+          </Button>
+        )}
+        <Button variant="outline" size="sm" className="last:-mr-0.5" asChild>
+          <a href={available.url} target="_blank" rel="noreferrer">
+            {t({ message: "Download", comment: "a button: open the new version's release page to download it" })}
+          </a>
+        </Button>
+      </>
+    )
+  } else if (status.kind === "off") {
     help =
       status.reason === "location"
         ? t`Move Owlit to the Applications folder to get updates.`
         : status.reason === "unsigned"
-          ? t`This copy isn't signed by Owlit's developer, so it can't update itself.`
+          ? t`This build can't install updates itself yet.`
           : t`Built from source (${label}), so it doesn't update itself.`
+    if (status.reason === "unsigned") control = checkNow
   } else if (status.kind === "checking") {
     help = t`Checking…`
   } else if (status.kind === "downloading") {
@@ -226,7 +246,7 @@ function MemoryRow() {
         name={t`Remember what I do in owlit`}
         // A machine setting (settings.json), for every workspace opened here. Off also stops a finished
         // paper turning Read: the read-in-full check (core's read-in-full.ts) reads only the journal.
-        help={t`What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. Off: nothing is noted, and papers you finish stay as you left them.`}
+        help={t`What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. This file goes wherever the folder goes. Off: nothing is noted, and papers you finish stay as you left them.`}
         control={<Switch checked={enabled} onCheckedChange={(on) => void setActivity(on)} aria-label={t`Remember what I do in owlit`} />}
       />
     </List>

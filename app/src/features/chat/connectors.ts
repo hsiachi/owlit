@@ -14,6 +14,8 @@ export interface ConnectorSlice {
   checkConnector: (id: string) => Promise<void>
   // The agent's own sign-in (the Owlit engine); throws what went wrong, for the form to show
   signInConnector: (id: string, methodId: string, apiKey?: string) => Promise<void>
+  // Stops a sign-in waiting in the browser
+  cancelSignIn: (id: string) => Promise<void>
   signOutConnector: (id: string, methodId?: string) => Promise<void>
   addCustomConnector: (name: string, command: string) => Promise<Connector>
   removeConnector: (id: string) => void
@@ -39,6 +41,11 @@ export const connectorSlice: StateCreator<ChatState, [["zustand/persist", unknow
 
   async signInConnector(id, methodId, apiKey) {
     const result = await rpc.agents.signIn({ id, methodId, ...(apiKey ? { apiKey } : {}) })
+    set((s) => ({ connectors: withConnector(s.connectors, result) }))
+  },
+
+  async cancelSignIn(id) {
+    const result = await rpc.agents.cancelSignIn({ id })
     set((s) => ({ connectors: withConnector(s.connectors, result) }))
   },
 

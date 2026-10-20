@@ -165,6 +165,25 @@ msgstr "前进"
 msgid "Every keyboard shortcut in owlit"
 msgstr "owlit 的全部键盘快捷键"
 
+#: app/src/app/WorkspaceMenu.tsx
+#: apps/desktop/src/main.ts
+msgid "Open Recent"
+msgstr "打开最近使用"
+
+#: app/src/app/WorkspaceMenu.tsx
+msgid "No other workspaces"
+msgstr "没有其他工作区"
+
+#: app/src/app/WorkspaceMenu.tsx
+#: apps/desktop/src/main.ts
+msgid "New Workspace…"
+msgstr "新建工作区…"
+
+#: app/src/app/WorkspaceMenu.tsx
+#: apps/desktop/src/main.ts
+msgid "Open Workspace…"
+msgstr "打开工作区…"
+
 #. a toast: Owlit removed a line from what it keeps in mind
 #: app/src/app/agent-changes.ts
 msgid "No longer kept in mind"
@@ -223,6 +242,7 @@ msgstr "主页"
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/settings/sections/Memory.tsx
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Chat"
 msgstr "对话"
 
@@ -231,6 +251,7 @@ msgstr "对话"
 #: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/threads/pages/ThreadPage.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
+#: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Threads"
 msgstr "脉络"
@@ -240,7 +261,6 @@ msgstr "脉络"
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/features/onboarding/OnboardingFlow.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
-#: app/src/features/onboarding/demos/SetupDemos.tsx
 #: app/src/features/tour/TourOverlay.tsx
 #: app/src/lib/kinds.ts
 msgid "Library"
@@ -401,12 +421,14 @@ msgstr "关闭弹出框"
 #. verb: take back what was just done
 #. verb: undo a passage Owlit changed
 #. verb: undo a passage Owlit changed
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/docs/editor/proposals.ts
 #: app/src/features/library/notes/NoteChanges.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
 #: app/src/lib/toast.ts
@@ -544,7 +566,6 @@ msgstr "你：{trace}"
 
 #. verb
 #. verb: copy the large files into the workspace
-#. verb: copy the sign-in command
 #. verb: copy the text
 #. verb: copy the text
 #. verb: copy the text
@@ -553,7 +574,6 @@ msgstr "你：{trace}"
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 #: app/src/features/library/components/HighlightsList.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
-#: app/src/features/welcome/AgentCheck.tsx
 #: apps/desktop/src/main.ts
 #: apps/desktop/src/text-menu.ts
 msgid "Copy"
@@ -563,7 +583,6 @@ msgstr "拷贝"
 #: app/src/components/selection-menu-items.tsx
 #: app/src/features/docs/share/ShareDialog.tsx
 #: app/src/features/library/reader/HighlightToolbar.tsx
-#: app/src/features/welcome/AgentCheck.tsx
 msgid "Copied"
 msgstr "已拷贝"
 
@@ -640,10 +659,11 @@ msgstr "评论"
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/settings/sections/BrowserSignIn.tsx
 #: app/src/features/threads/components/CompareDialog.tsx
 #: app/src/features/threads/components/Work.tsx
-#: app/src/features/welcome/AgentCheck.tsx
-#: app/src/features/welcome/WelcomePage.tsx
+#: app/src/features/tour/TourOverlay.tsx
+#: app/src/features/welcome/CreateForm.tsx
 #: apps/desktop/src/cli-tool.ts
 #: apps/share-web/src/App.tsx
 msgid "Cancel"
@@ -1241,12 +1261,10 @@ msgstr "发送消息"
 
 #. verb: fetch owlit's copy of the agent's adapter
 #. verb: fetch owlit's copy of the agent's adapter
-#. verb: fetch owlit's copy of the agent's adapter
 #. verb: set up the agent in Settings
 #: app/src/features/chat/components/composer/Composer.tsx
-#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/onboarding/AgentSetup.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
 msgid "Set up"
 msgstr "设置"
 
@@ -1267,14 +1285,6 @@ msgstr "跳过大文件"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
 msgstr "详细信息"
-
-#. verb: leave a broken reply as it is
-#. verb: put a stopped import away
-#: app/src/features/chat/components/messages/MessageItem.tsx
-#: app/src/features/home/WaitingOnYou.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Dismiss"
-msgstr "忽略"
 
 #: app/src/features/chat/components/messages/MessageItem.tsx
 msgid "No word from {name} for {minutes} min"
@@ -2887,8 +2897,10 @@ msgstr "没有这个名字的文档"
 msgid "Undo this passage (⌘⌫ at its end)"
 msgstr "撤销这一处（在末尾按 ⌘⌫）"
 
+#. placeholder {0}: 1
 #. placeholder {0}: this.count
 #: app/src/features/docs/editor/proposals.ts
+#: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
 msgstr "{0, plural, other {Owlit 改了 # 处}}"
 
@@ -3032,6 +3044,10 @@ msgid "Your changes reach readers as you make them. Your chats, highlights and o
 msgstr "你的改动会直接出现在读者那边。你的对话、高亮和其他文档留在这里。"
 
 #: app/src/features/docs/share/ShareDialog.tsx
+msgid "The link works until you stop sharing. It's signed with your name."
+msgstr "链接在你停止分享之前一直有效，并署上你的名字。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
 #: packages/core/src/share/shares.ts
 msgid "No share server is set up, so owlit can't make links yet."
 msgstr "还没有设置分享服务器，owlit 暂时无法生成链接。"
@@ -3067,6 +3083,18 @@ msgid "Readers also see"
 msgstr "读者还会看到"
 
 #: app/src/features/docs/share/ShareDialog.tsx
+msgid "The share server can't be reached, so the link can't be stopped there now. Forget it here, and it may still open for readers until the server is back."
+msgstr "连不上分享服务器，现在无法在那里停止这个链接。可以只在这里忘掉它；服务器恢复之前，读者也许仍能打开。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "This link is on a share server owlit no longer uses."
+msgstr "这个链接在 owlit 已不再使用的分享服务器上。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Make a new link"
+msgstr "生成新链接"
+
+#: app/src/features/docs/share/ShareDialog.tsx
 #: packages/core/src/share/shares.ts
 msgid "This doc was shared from another computer; only that one can change its link."
 msgstr "这篇文档是从另一台电脑分享的，只有那台电脑能修改这个链接。"
@@ -3083,6 +3111,10 @@ msgstr "读者看到的是{0}的版本。"
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Readers have the latest version."
 msgstr "读者看到的是最新版本。"
+
+#: app/src/features/docs/share/ShareDialog.tsx
+msgid "Forget this link here"
+msgstr "在这里忘掉这个链接"
 
 #: app/src/features/docs/share/ShareDialog.tsx
 msgid "Stop sharing"
@@ -3112,6 +3144,14 @@ msgstr "已停止分享"
 #: app/src/features/docs/share/store.ts
 msgid "The link no longer opens."
 msgstr "这个链接已经打不开了。"
+
+#: app/src/features/docs/share/store.ts
+msgid "Forgot the link here"
+msgstr "已在这里忘掉链接"
+
+#: app/src/features/docs/share/store.ts
+msgid "If the share server comes back, the link may still open."
+msgstr "如果分享服务器恢复，链接可能仍能打开。"
 
 #. file name of a duplicated doc: the original name, then copy
 #: app/src/features/docs/store.ts
@@ -3196,17 +3236,6 @@ msgid "Drop PDFs to add them to your Library"
 msgstr "拖入 PDF，添加到文献库"
 
 #: app/src/features/home/HomePage.tsx
-#: app/src/features/library/digest-rows.tsx
-#: app/src/features/library/digests.ts
-msgid "Digest ready"
-msgstr "导读已就绪"
-
-#. Home: the last item of a paper's line, after when it was read
-#: app/src/features/home/HomePage.tsx
-msgid "digest ready"
-msgstr "导读已就绪"
-
-#: app/src/features/home/HomePage.tsx
 msgctxt "Home: what was worked on last"
 msgid "Continue"
 msgstr "继续"
@@ -3222,6 +3251,16 @@ msgstr "Owlit {when}写过"
 #: app/src/features/home/HomePage.tsx
 msgid "Owlit edited {when}"
 msgstr "Owlit {when}编辑过"
+
+#. Home: when another program last changed a doc
+#: app/src/features/home/HomePage.tsx
+msgid "changed outside owlit {when}"
+msgstr "{when}在 owlit 之外改过"
+
+#. Home: a person's name, then when they last changed a doc
+#: app/src/features/home/HomePage.tsx
+msgid "{who} edited {when}"
+msgstr "{who} {when}编辑过"
 
 #: app/src/features/home/HomePage.tsx
 msgid "read {when}"
@@ -3240,12 +3279,16 @@ msgid "Notes and drafts are Markdown files in this folder"
 msgstr "笔记和草稿是这个文件夹里的 Markdown 文件"
 
 #: app/src/features/home/HomePage.tsx
+msgid "Owlit gathers papers for it, with what each one says"
+msgstr "Owlit 为它收集论文，并写下每篇说了什么"
+
+#: app/src/features/home/HomePage.tsx
 msgid "Chat with Owlit"
 msgstr "和 Owlit 对话"
 
 #: app/src/features/home/HomePage.tsx
-msgid "Ask, or have Owlit find papers"
-msgstr "提问，或让 Owlit 找论文"
+msgid "Ask about anything in this folder"
+msgstr "问这个文件夹里的任何东西"
 
 #: app/src/features/home/HomePage.tsx
 msgid "This folder is your workspace. Papers, notes and chats you add live in it as ordinary files."
@@ -3267,6 +3310,38 @@ msgstr "{what}：{label}"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "PDFs through your browser"
 msgstr "经浏览器获取 PDF"
+
+#. Home: a chat whose reply ended since the user looked
+#: app/src/features/home/places.ts
+msgid "Owlit finished"
+msgstr "Owlit 已完成"
+
+#: app/src/features/home/places.ts
+#: app/src/features/library/digest-rows.tsx
+#: app/src/features/library/digests.ts
+msgid "Digest ready"
+msgstr "导读已就绪"
+
+#: app/src/features/home/places.ts
+msgid "{papers, plural, one {# new paper} other {# new papers}}"
+msgstr "{papers, plural, other {# 篇新论文}}"
+
+#. placeholder {0}: comments.size
+#. placeholder {0}: openThreads.length
+#: app/src/features/home/places.ts
+#: apps/share-web/src/App.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {# 条评论}}"
+
+#. Home: a doc or thread another program changed
+#: app/src/features/home/places.ts
+msgid "Changed outside owlit"
+msgstr "在 owlit 之外改过"
+
+#. Home: who changed a doc or thread since the user looked (Owlit, or a person's name)
+#: app/src/features/home/places.ts
+msgid "{who} edited"
+msgstr "{who} 编辑过"
 
 #. placeholder {0}: papers.length
 #: app/src/features/library/actions.ts
@@ -3472,6 +3547,11 @@ msgstr "来自 {name}"
 msgid "from the {name} folder"
 msgstr "来自文件夹 {name}"
 
+#. verb: put a stopped import away
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Dismiss"
+msgstr "忽略"
+
 #: app/src/features/library/components/ImportBanner.tsx
 msgctxt "carry on with a stopped import"
 msgid "Continue"
@@ -3619,8 +3699,8 @@ msgstr "导入没能开始。"
 
 #. pick another library, file or folder to import
 #: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/onboarding/AgentSetup.tsx
 #: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Change…"
 msgstr "更改…"
@@ -3715,7 +3795,6 @@ msgstr "布局"
 
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
-#: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Search, or paste a DOI, arXiv id or link to add"
 msgstr "搜索，或粘贴 DOI、arXiv 编号或链接来添加"
 
@@ -3822,6 +3901,7 @@ msgstr "无法刷新信息。"
 
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Write a digest"
 msgstr "写导读"
 
@@ -4246,12 +4326,13 @@ msgid "Show more"
 msgstr "显示更多"
 
 #: app/src/features/library/pages/paper/Digest.tsx
-msgid "Owlit is getting the text…"
-msgstr "Owlit 正在获取正文…"
-
-#: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Owlit is reading this paper…"
 msgstr "Owlit 正在阅读这篇论文…"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgid "Owlit is getting the text…"
+msgstr "Owlit 正在获取正文…"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "You can keep reading. Owlit will let you know when it's ready."
@@ -4273,6 +4354,7 @@ msgid "Digest · Owlit, {when}"
 msgstr "导读 · Owlit，{when}"
 
 #: app/src/features/library/pages/paper/Digest.tsx
+#: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "No digest yet. Owlit writes one when you ask."
 msgstr "还没有摘要。你要求时，Owlit 才会写。"
 
@@ -4646,40 +4728,90 @@ msgstr "返回第 {backPage} 页"
 msgid "Where this paper was read"
 msgstr "这篇论文读过的地方"
 
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "As Assistant, its usual role, Owlit"
-msgstr "作为助理（它平常的角色），Owlit 会"
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Owlit works through Claude Code or Codex, signed in with your Claude or ChatGPT account."
+msgstr "Owlit 通过 Claude Code 或 Codex 工作，用你的 Claude 或 ChatGPT 账号登录。"
 
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
-msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命令）在输入框里选，只对当前这个对话生效。"
-
-#: app/src/features/onboarding/AgentChoice.tsx
-msgid "Agent for Owlit"
-msgstr "Owlit 用的智能体"
-
-#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/onboarding/AgentSetup.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
 #: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr "重试"
 
-#: app/src/features/onboarding/AgentChoice.tsx
-#: app/src/features/welcome/AgentCheck.tsx
+#. fetch owlit's copy of an agent, e.g. Set up Claude Code
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Set up {name}"
+msgstr "设置 {name}"
+
+#: app/src/features/onboarding/AgentSetup.tsx
 msgid "Copy the install command"
 msgstr "拷贝安装命令"
 
-#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/onboarding/AgentSetup.tsx
 msgid "Copy the sign-in command"
 msgstr "拷贝登录命令"
 
 #. verb
-#: app/src/features/onboarding/AgentChoice.tsx
+#: app/src/features/onboarding/AgentSetup.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/AgentCheck.tsx
 msgid "Check again"
 msgstr "重新检查"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Agent for Owlit"
+msgstr "Owlit 用的智能体"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "As Assistant, its usual role, Owlit"
+msgstr "作为助理（它平常的角色），Owlit 会"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命令）在输入框里选，只对当前这个对话生效。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Owlit will use <0>{name}</0>"
+msgstr "Owlit 将使用 <0>{name}</0>"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Looking for an agent on this Mac…"
+msgstr "正在这台 Mac 上查找智能体…"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Install one, then check again:"
+msgstr "装好其中一个，然后再检查一次："
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Use another agent…"
+msgstr "使用其他智能体…"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
+msgstr "或者<0>用 ChatGPT 登录</0>，使用 Owlit engine (Beta)。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "Setting up {name}."
+msgstr "正在设置 {name}。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "{name} couldn't be set up."
+msgstr "{name} 没能设置好。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "{name} is on this Mac. Set it up for Owlit (about {size} MB)."
+msgstr "这台 Mac 上有 {name}。为 Owlit 设置它（约 {size} MB）。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "{problem}. Sign in with your account in the browser."
+msgstr "{problem}。在浏览器中用你的账号登录。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "{problem}. Sign in in Terminal, then check again."
+msgstr "{problem}。在终端中登录，然后再检查一次。"
+
+#: app/src/features/onboarding/AgentSetup.tsx
+msgid "{problem}."
+msgstr "{problem}。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Steps"
@@ -4715,12 +4847,6 @@ msgstr "关于你"
 msgid "Agent"
 msgstr "智能体"
 
-#. an onboarding step: theme and paper tone
-#. an onboarding step: theme and paper tone
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Look"
-msgstr "外观"
-
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Where to begin"
 msgstr "从哪里开始"
@@ -4750,8 +4876,8 @@ msgid "Write with your sources."
 msgstr "带着文献写。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit suggests edits <1>only when you ask</1>, and you choose what to keep."
-msgstr "文档就是你文件夹里的 Markdown 文件。输入 <0>@</0> 引用论文。Owlit <1>只在你开口时</1>才提修改建议，留不留由你定。"
+msgid "Docs are Markdown files in your folder. Type <0>@</0> to cite a paper. Owlit edits <1>only when you ask</1>, marks what it changed, and any part can be undone."
+msgstr "文档是你文件夹里的 Markdown 文件。输入 <0>@</0> 引用论文。Owlit <1>只在你要求时</1>才编辑，会标出它改了什么，任何一处都能撤销。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Ask anywhere."
@@ -4774,24 +4900,12 @@ msgid "A little about you."
 msgstr "说说你自己。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "So Owlit knows what to call you and how to reach your papers. All of it can wait."
-msgstr "好让 Owlit 知道怎么称呼你、怎么拿到你的论文。这些都可以以后再填。"
+msgid "So Owlit knows what to call you and which language you read. All of it can wait."
+msgstr "让 Owlit 知道怎么称呼你、你读哪种语言。这些都可以以后再说。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Pick Owlit's engine."
-msgstr "给 Owlit 选个引擎。"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Owlit runs on a coding agent you already have. Here's what's on this Mac."
-msgstr "Owlit 用你已经装好的编程智能体来运行。这台 Mac 上有这些："
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Make it yours."
-msgstr "按你的喜好来。"
-
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Pick a theme and a paper tone. You can change both in Settings."
-msgstr "选一个主题和纸张色调，之后都能在设置里改。"
+msgid "What Owlit works through."
+msgstr "Owlit 靠什么工作。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "Where to begin?"
@@ -4872,12 +4986,12 @@ msgid "just now"
 msgstr "刚刚"
 
 #: app/src/features/onboarding/demos/SetupDemos.tsx
-msgid "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
-msgstr "你好，{who}。我是 Owlit，会通过这台 Mac 上的 {agentName} 工作。可以问我关于论文的问题，也可以把耗时的活交给我，比如找论文、做表格。"
+msgid "Hi {who}. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or give me something longer, like finding papers."
+msgstr "你好，{who}。我是 Owlit，会通过这台 Mac 上的 {agentName} 工作。可以问我你的论文，也可以交给我更长的事，比如找论文。"
 
 #: app/src/features/onboarding/demos/SetupDemos.tsx
-msgid "Hi. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table."
-msgstr "你好，我是 Owlit，会通过这台 Mac 上的 {agentName} 工作。可以问我关于论文的问题，也可以把耗时的活交给我，比如找论文、做表格。"
+msgid "Hi. I’m Owlit. I’ll work through {agentName} on this Mac. Ask me about your papers, or give me something longer, like finding papers."
+msgstr "你好，我是 Owlit，会通过这台 Mac 上的 {agentName} 工作。可以问我你的论文，也可以交给我更长的事，比如找论文。"
 
 #: app/src/features/onboarding/demos/SetupDemos.tsx
 msgid "Hi!"
@@ -4887,27 +5001,13 @@ msgstr "你好！"
 msgid "Answered through {agentName}"
 msgstr "通过 {agentName} 回答"
 
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Suggested by Owlit"
-msgstr "Owlit 的建议"
-
-#. verb: discard an edit Owlit suggested
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Discard"
-msgstr "放弃"
-
-#. verb: apply an edit Owlit suggested
-#: app/src/features/onboarding/demos/WriteDemo.tsx
-msgid "Apply"
-msgstr "应用"
+#: app/src/features/settings/SettingsDialog.tsx
+msgid "What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name signs what you share and is kept in the workspace's members list, so the agent and your co-authors see it."
+msgstr "Owlit 怎么称呼你、交给它的任务由哪个智能体来做，以及它记住了什么。你的名字会署在你分享的内容上，并保存在工作区的成员名单里，所以智能体和合作者都看得到。"
 
 #: app/src/features/settings/SettingsDialog.tsx
-msgid "What Owlit calls you, the agent for the tasks you hand it, and what it remembers. Your name is told only to the agent you chat with."
-msgstr "Owlit 怎么称呼你、你交给它的任务用哪个智能体，以及它记住的内容。你的名字只会告诉与你对话的智能体。"
-
-#: app/src/features/settings/SettingsDialog.tsx
-msgid "Coding agents installed on this computer, driven over the Agent Client Protocol. Each agent uses its own sign-in; owlit stores no keys for them."
-msgstr "安装在这台电脑上的编程智能体，通过 Agent Client Protocol 驱动。每个智能体使用自己的登录方式；owlit 不为它们保存任何密钥。"
+msgid "Coding agents on this Mac that Owlit works through. Each agent signs in its own way; an API key for the Owlit engine is kept on this Mac."
+msgstr "这台 Mac 上供 Owlit 使用的编程智能体。每个智能体用自己的方式登录；Owlit 引擎的 API 密钥保存在这台 Mac 上。"
 
 #: app/src/features/settings/SettingsDialog.tsx
 msgid "How owlit finds papers, gets their PDFs and reads their text. Everything here is optional; it makes those work better."
@@ -4942,12 +5042,29 @@ msgid "Checking with {service}…"
 msgstr "正在向 {service} 验证…"
 
 #: app/src/features/settings/parts.tsx
+msgid "Remove key"
+msgstr "移除密钥"
+
+#. a key kept that macOS didn't let owlit read
+#: app/src/features/settings/parts.tsx
+msgid "Saved"
+msgstr "已保存"
+
+#: app/src/features/settings/parts.tsx
+msgid "Change key"
+msgstr "更换密钥"
+
+#: app/src/features/settings/parts.tsx
 msgid "Not set"
 msgstr "未设置"
 
 #: app/src/features/settings/parts.tsx
 msgid "Add key"
 msgstr "添加密钥"
+
+#: app/src/features/settings/parts.tsx
+msgid "Saved, but macOS didn't let Owlit read it. Allow it in the keychain prompt at the next launch."
+msgstr "已保存，但 macOS 没让 Owlit 读取它。下次启动时在钥匙串提示中允许即可。"
 
 #: app/src/features/settings/parts.tsx
 msgid "Get one at <0>{site}</0>. Press Enter to keep it."
@@ -4959,20 +5076,12 @@ msgid "Paste the key"
 msgstr "粘贴密钥"
 
 #: app/src/features/settings/parts.tsx
-msgid "Remove key"
-msgstr "移除密钥"
-
-#: app/src/features/settings/parts.tsx
 msgid "Key ending in {last4}"
 msgstr "尾号为 {last4} 的密钥"
 
 #: app/src/features/settings/parts.tsx
 msgid "Key set"
 msgstr "已设置密钥"
-
-#: app/src/features/settings/parts.tsx
-msgid "Change key"
-msgstr "更换密钥"
 
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Sign-ins"
@@ -5013,7 +5122,7 @@ msgstr "添加智能体"
 
 #. label: the new workspace folder's name
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/welcome/WelcomePage.tsx
+#: app/src/features/welcome/CreateForm.tsx
 msgid "Name"
 msgstr "名称"
 
@@ -5044,10 +5153,6 @@ msgstr "深色"
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Warm"
 msgstr "暖色"
-
-#: app/src/features/settings/sections/AppearanceSection.tsx
-msgid "Neutral"
-msgstr "中性"
 
 #: app/src/features/settings/sections/AppearanceSection.tsx
 msgid "Slate"
@@ -5086,6 +5191,11 @@ msgstr "登录没有完成。"
 #: app/src/features/settings/sections/BrowserSignIn.tsx
 msgid "Finish signing in in your browser…"
 msgstr "请在浏览器中完成登录…"
+
+#. the agent's sign-in page in the browser
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+msgid "Open the page again"
+msgstr "再次打开页面"
 
 #. an agent's sign-in, which opens the browser
 #: app/src/features/settings/sections/BrowserSignIn.tsx
@@ -5338,12 +5448,27 @@ msgid "Check now"
 msgstr "立即检查"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
+msgid "Owlit {next} is out. This build can't install updates itself yet."
+msgstr "Owlit {next} 已发布。这个版本暂时还不能自己安装更新。"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: app/src/features/updates/UpdateNotices.tsx
+msgid "What's new"
+msgstr "新内容"
+
+#. a button: open the new version's release page to download it
+#: app/src/features/settings/sections/OwlitSection.tsx
+#: apps/desktop/src/main.ts
+msgid "Download"
+msgstr "下载"
+
+#: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Move Owlit to the Applications folder to get updates."
 msgstr "把 Owlit 移到「应用程序」文件夹，才能收到更新。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "This copy isn't signed by Owlit's developer, so it can't update itself."
-msgstr "这份 Owlit 没有 Owlit 开发者的签名，不能自动更新。"
+msgid "This build can't install updates itself yet."
+msgstr "这个版本暂时还不能自己安装更新。"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "Built from source ({label}), so it doesn't update itself."
@@ -5397,8 +5522,8 @@ msgid "Remember what I do in owlit"
 msgstr "记住我在 owlit 中的操作"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. Off: nothing is noted, and papers you finish stay as you left them."
-msgstr "你在这台 Mac 上读、写和问的内容会记在工作区的 .owlit/journal.jsonl 中，让 Owlit 跟上你的工作。关闭后：什么都不记，读完的论文也保持你离开时的状态。"
+msgid "What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. This file goes wherever the folder goes. Off: nothing is noted, and papers you finish stay as you left them."
+msgstr "你在这台 Mac 上读、写和问的内容会记在工作区的 .owlit/journal.jsonl 里，让 Owlit 能跟上你的工作。这个文件随文件夹走。关闭后：什么都不记录，读完的论文也会保持你离开时的状态。"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Tsinghua University"
@@ -6257,12 +6382,28 @@ msgid "Select any sentence: pick a colour to highlight it, comment on it, or ask
 msgstr "选中任意一句：挑个颜色高亮、写条批注，或者问 Owlit。"
 
 #: app/src/features/tour/TourOverlay.tsx
+msgid "Papers gathered for a question"
+msgstr "为一个问题收集的论文"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Give Owlit a question and it gathers papers on it, with what each one says, groups them, and writes a short memo. The example has threads to look through."
+msgstr "给 Owlit 一个问题，它就收集相关论文，写下每篇说了什么，分好组，再写一段简短的备忘。示例里有几条脉络可以看看。"
+
+#: app/src/features/tour/TourOverlay.tsx
 msgid "Cite as you write"
 msgstr "边写边引用"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "The draft cites papers from the Library. Type <0>@</0> in any doc to add one."
 msgstr "这篇草稿引用了文献库里的论文。在任何文档里输入 <0>@</0> 就能加引用。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Longer work"
+msgstr "更长的工作"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Chat is for work that takes a few minutes: finding papers, comparing them, reviewing a draft. What Owlit changes comes back under its answer, each with Undo."
+msgstr "对话适合要花几分钟的工作：找论文、比较论文、审阅草稿。Owlit 改动了什么，会列在它的回答下面，每项都能撤销。"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Ask from anywhere"
@@ -6281,8 +6422,21 @@ msgid "Help is here"
 msgstr "帮助在这里"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own."
-msgstr "可以再看一遍导览、查所有快捷键，或者问 Owlit 怎么做。准备好了，用 文件 › 打开工作区 打开你自己的文件夹。"
+msgid "Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › New Workspace starts a folder of your own."
+msgstr "再看一圈、查看所有快捷键，或者问 Owlit 某件事怎么做。准备好了，就用 文件 › 新建工作区 开始你自己的文件夹。"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Open the example workspace?"
+msgstr "打开示例工作区？"
+
+#: app/src/features/tour/TourOverlay.tsx
+msgid "The tour runs in the example. You can come back from File › Open Recent."
+msgstr "导览在示例里进行。之后可以从 文件 › 打开最近使用 回来。"
+
+#. opens the example workspace for the tour
+#: app/src/features/tour/TourOverlay.tsx
+msgid "Open the example"
+msgstr "打开示例"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: STOPS.length
@@ -6307,10 +6461,6 @@ msgid "Updated to {version}"
 msgstr "已更新到 {version}"
 
 #: app/src/features/updates/UpdateNotices.tsx
-msgid "What's new"
-msgstr "新内容"
-
-#: app/src/features/updates/UpdateNotices.tsx
 msgid "What's new in Owlit {version}"
 msgstr "Owlit {version} 的新内容"
 
@@ -6329,70 +6479,29 @@ msgstr "已是最新版本"
 msgid "Owlit {0} is the newest version."
 msgstr "Owlit {0} 是最新版本。"
 
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Owlit will use <0>{name}</0>"
-msgstr "Owlit 将使用 <0>{name}</0>"
+#: app/src/features/welcome/CreateForm.tsx
+#: app/src/features/welcome/NewWorkspaceDialog.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Create a workspace"
+msgstr "创建工作区"
 
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Looking for an agent on this Mac…"
-msgstr "正在这台 Mac 上查找智能体…"
+#. label: the folder the new workspace goes in
+#: app/src/features/welcome/CreateForm.tsx
+msgid "In"
+msgstr "位置"
 
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Setting up {name}… {percent}%"
-msgstr "正在设置 {name}… {percent}%"
+#: app/src/features/welcome/CreateForm.tsx
+msgid "Choose…"
+msgstr "选取…"
 
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "{problem}."
-msgstr "{problem}。"
+#. verb: create the workspace
+#: app/src/features/welcome/CreateForm.tsx
+msgid "Create"
+msgstr "创建"
 
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Sign in with your account in the browser."
-msgstr "在浏览器中用你的账号登录。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "<0>{problem}.</0> Run <1>{command}</1> in Terminal to sign in."
-msgstr "<0>{problem}。</0>在终端中运行 <1>{command}</1> 以登录。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "{name} couldn't be set up."
-msgstr "{name} 没能设置好。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "{name} is on this Mac."
-msgstr "这台 Mac 上有 {name}。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Set it up for Owlit (about {size} MB)."
-msgstr "为 Owlit 设置它（约 {size} MB）。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Owlit works through Claude Code or Codex."
-msgstr "Owlit 通过 Claude Code 或 Codex 工作。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Set one up (about {size} MB), then sign in with your Claude or ChatGPT account."
-msgstr "设置其中一个（约 {size} MB），然后用你的 Claude 或 ChatGPT 账号登录。"
-
-#. fetch owlit's copy of an agent, e.g. Set up Claude Code
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Set up {name}"
-msgstr "设置 {name}"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Or <0>sign in with ChatGPT</0> to use the Owlit engine (Beta)."
-msgstr "或者<0>用 ChatGPT 登录</0>，使用 Owlit engine (Beta)。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Use another agent…"
-msgstr "使用其他智能体…"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "Owlit needs a coding agent on this Mac."
-msgstr "Owlit 需要这台 Mac 上有一个编程智能体。"
-
-#: app/src/features/welcome/AgentCheck.tsx
-msgid "To use {name}, run this in Terminal:"
-msgstr "要使用 {name}，请在终端中运行："
+#: app/src/features/welcome/NewWorkspaceDialog.tsx
+msgid "A new folder for your own papers and notes"
+msgstr "放你自己论文和笔记的新文件夹"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Locate {name}"
@@ -6401,10 +6510,6 @@ msgstr "查找 {name}"
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Read, write and think through papers with Owlit. Everything lives in a folder on your Mac."
 msgstr "和 Owlit 一起阅读、写作、思考论文。一切都保存在你 Mac 上的一个文件夹里。"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Create a workspace"
-msgstr "创建工作区"
 
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "Open a folder you have"
@@ -6429,20 +6534,6 @@ msgstr "从最近使用中移除"
 #: app/src/features/welcome/WelcomePage.tsx
 msgid "What should Owlit call you?"
 msgstr "Owlit 该怎么称呼你？"
-
-#. label: the folder the new workspace goes in
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "In"
-msgstr "位置"
-
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Choose…"
-msgstr "选取…"
-
-#. verb: create the workspace
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Create"
-msgstr "创建"
 
 #. who made a change: the person reading
 #: app/src/lib/actors.ts
@@ -6604,14 +6695,6 @@ msgid "Quit {name}"
 msgstr "退出 {name}"
 
 #: apps/desktop/src/main.ts
-msgid "Open Workspace…"
-msgstr "打开工作区…"
-
-#: apps/desktop/src/main.ts
-msgid "Open Recent"
-msgstr "打开最近使用"
-
-#: apps/desktop/src/main.ts
 msgid "No Recent Workspaces"
 msgstr "没有最近使用的工作区"
 
@@ -6722,6 +6805,22 @@ msgstr "问 Owlit 怎么做…"
 msgid "Copy Diagnostics"
 msgstr "复制诊断信息"
 
+#: apps/desktop/src/main.ts
+msgid "What's New"
+msgstr "新内容"
+
+#: apps/desktop/src/main.ts
+msgid "Later"
+msgstr "稍后"
+
+#: apps/desktop/src/main.ts
+msgid "Owlit {next} is out"
+msgstr "Owlit {next} 已发布"
+
+#: apps/desktop/src/main.ts
+msgid "This build can't install updates itself yet. Download the new version from its release page."
+msgstr "这个版本暂时还不能自己安装更新。请从发布页面下载新版本。"
+
 #. placeholder {0}: found.version
 #: apps/desktop/src/main.ts
 msgid "Owlit {0} is ready"
@@ -6734,10 +6833,6 @@ msgstr "退出 Owlit 时安装；现在重新启动也可以。"
 #: apps/desktop/src/main.ts
 msgid "Restart Now"
 msgstr "现在重新启动"
-
-#: apps/desktop/src/main.ts
-msgid "Later"
-msgstr "稍后"
 
 #. placeholder {0}: found.version
 #: apps/desktop/src/main.ts
@@ -6757,8 +6852,8 @@ msgid "Try Again"
 msgstr "重试"
 
 #: apps/desktop/src/main.ts
-msgid "This copy isn't signed by Owlit's developer, so it can't install updates. Download the latest Owlit from GitHub."
-msgstr "这份 Owlit 没有 Owlit 开发者的签名，不能安装更新。请从 GitHub 下载最新的 Owlit。"
+msgid "This build can't install updates itself yet. Download the latest Owlit from its release page."
+msgstr "这个版本暂时还不能自己安装更新。请从发布页面下载最新的 Owlit。"
 
 #: apps/desktop/src/main.ts
 msgid "This Owlit was built from source ({label}), so it doesn't update itself."
@@ -7029,11 +7124,6 @@ msgstr "引用的论文"
 #: apps/share-web/src/App.tsx
 msgid "Read only"
 msgstr "只能查看"
-
-#. placeholder {0}: openThreads.length
-#: apps/share-web/src/App.tsx
-msgid "{0, plural, one {# comment} other {# comments}}"
-msgstr "{0, plural, other {# 条评论}}"
 
 #: apps/share-web/src/App.tsx
 msgid "Comments"

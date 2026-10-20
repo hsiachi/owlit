@@ -25,8 +25,10 @@ interface ReadState {
   toolbar: { x: number; y: number } | null
   toolbarOn: boolean
   bump: boolean
-  digestDot: boolean
+  // The Digest side: no digest yet, its Write a digest pressed, Owlit reading, the digest
   digest: boolean
+  asked: boolean
+  reading: boolean
   // How many of the digest's parts have come in
   parts: number
 }
@@ -44,19 +46,21 @@ const FIRST: ReadState = {
   toolbar: null,
   toolbarOn: false,
   bump: false,
-  digestDot: false,
   digest: false,
+  asked: false,
+  reading: false,
   parts: 0,
 }
 const DIGEST_PARTS = 9
 
-// Read: a PDF drops into the Library and opens; a sentence is selected and turns yellow; Owlit's dot comes
-// up on the header's Digest / PDF switch, and the digest opens in place of the PDF, as the app does it
+// Read: a PDF drops into the Library and opens; a sentence is selected and turns yellow; the person turns
+// to the Digest side, asks for one with its Write a digest, and the digest comes in place of the PDF, as
+// the app does it: a digest comes only when asked
 export function ReadDemo() {
   useDemoPlace("library")
   const { layers, cursor, root, reg } = useScript<ReadState>({
     initial: () => FIRST,
-    final: () => ({ ...FIRST, view: "paper", highlighted: true, digest: true, parts: DIGEST_PARTS }),
+    final: () => ({ ...FIRST, view: "paper", highlighted: true, digest: true, asked: true, parts: DIGEST_PARTS }),
     script: async (c) => {
       await c.sleep(700)
       c.set({ dropped: true, ring: true })
@@ -90,14 +94,18 @@ export function ReadDemo() {
       c.set({ highlighted: true, toolbarOn: false, bump: true })
       c.later(220, () => c.set({ bump: false }))
       c.hideCursor()
-      await c.sleep(1000)
-      // Owlit finished the digest while you read: its dot on the switch
-      c.set({ digestDot: true })
       await c.sleep(900)
+      // The Digest side has none yet: Owlit writes one only when asked, and the ask is there
       await c.moveToEl("digestSwitch", 0.4, 0.6, 800)
       await c.click()
+      c.set({ digest: true })
+      await c.sleep(700)
+      await c.moveToEl("writeDigest", 0.5, 0.5, 700)
+      await c.click()
       c.hideCursor()
-      c.set({ digestDot: false, digest: true })
+      c.set({ asked: true, reading: true })
+      await c.sleep(1600)
+      c.set({ reading: false })
       for (let i = 1; i <= DIGEST_PARTS; i++) {
         await c.sleep(230)
         c.set({ parts: i })
@@ -171,7 +179,6 @@ function PaperView({ st, reg }: { st: ReadState; reg: Reg }) {
           <span ref={segThumb} className={cn(s.th, "shadow-xs")} />
           <span ref={reg("digestSwitch")} data-item data-on={view === 0 || undefined}>
             {t({ message: "Digest", comment: "a view of the paper page: Owlit's digest of the paper" })}
-            <i className={s.sdot} data-on={st.digestDot || undefined} />
           </span>
           {/* i18n-ignore: the file's type */}
           <span data-item data-on={view === 1 || undefined}>
@@ -195,6 +202,16 @@ function PaperView({ st, reg }: { st: ReadState; reg: Reg }) {
             </p>
           </div>
           <div className={s.digestView} data-on={st.digest || undefined}>
+            {!st.asked ? (
+              <div className={s.offer}>
+                <span>{t`No digest yet. Owlit writes one when you ask.`}</span>
+                <span ref={reg("writeDigest")} className={s.obtn}>
+                  {t`Write a digest`}
+                </span>
+              </div>
+            ) : (
+              st.reading && <div className={cn(s.dmeta, "shimmer")}>{t`Owlit is reading this paper…`}</div>
+            )}
             <div className={s.dmeta} {...part(0)}>
               {t`Digest · Owlit, ${when}`}
             </div>

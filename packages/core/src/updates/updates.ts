@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { RpcErrorCode, type BuildInfo, type UpdateCheck, type UpdateStatus, type UpdatesView } from "@owlit/protocol"
+import { RpcErrorCode, type AvailableRelease, type BuildInfo, type UpdateCheck, type UpdateStatus, type UpdatesView } from "@owlit/protocol"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -25,6 +25,8 @@ interface UpdatesState {
   ranVersion?: string
   // A version whose "Updated to" the window hasn't shown yet
   updated?: string
+  // The newer release the last look at GitHub found, for a build that can't install it
+  available?: AvailableRelease
 }
 
 export interface UpdatesOptions {
@@ -38,6 +40,9 @@ export interface UpdatesOptions {
   onboarded(): Promise<boolean>
   // Chats answering right now: Restart asks first while any is
   answering(): number
+  // The latest release (updates/github.ts): an unsigned release, which can't install one, still looks
+  // once a day so the person hears a newer Owlit exists
+  latest?: () => Promise<AvailableRelease | null>
   notify(view: UpdatesView): void
   now?: () => number
 }
@@ -83,11 +88,14 @@ export class Updates {
     const blocked = build.channel !== "release" || !updater ? "build" : await updater.blocked?.()
     if (blocked) {
       this.status = { kind: "off", reason: blocked }
+      if (this.looksForReleases()) {
+        this.status = this.unsignedStatus()
+        this.startClock()
+      }
     } else if (updater) {
       this.status = { kind: "idle" }
       this.listen(updater)
-      this.timers.push(setTimeout(() => this.tick(), FIRST_CHECK_MS), setInterval(() => this.tick(), TICK_MS))
-      for (const timer of this.timers) timer.unref?.()
+      this.startClock()
     }
     await this.changed()
   }
@@ -115,8 +123,25 @@ export class Updates {
     })
   }
 
+  private startClock() {
+    this.timers.push(setTimeout(() => this.tick(), FIRST_CHECK_MS), setInterval(() => this.tick(), TICK_MS))
+    for (const timer of this.timers) timer.unref?.()
+  }
+
+  // An unsigned release: it can't install an update, but can look for one
+  private looksForReleases() {
+    return this.status.kind === "off" && this.status.reason === "unsigned" && !!this.options.latest
+  }
+
+  // The unsigned state, with the newer release last seen while it is still newer than this build
+  private unsignedStatus(): UpdateStatus {
+    const available = this.state.available
+    return { kind: "off", reason: "unsigned", ...(available && newerVersion(available.version, this.options.build.version) ? { available } : {}) }
+  }
+
   private tick() {
-    if (!this.auto || this.status.kind === "off" || this.status.kind === "ready" || this.status.kind === "downloading") return
+    if (!this.auto || this.status.kind === "ready" || this.status.kind === "downloading") return
+    if (this.status.kind === "off" && !this.looksForReleases()) return
     const now = this.now()
     if (now - (this.state.checkedAt ?? 0) < CHECK_EVERY_MS || now - (this.state.failedAt ?? 0) < RETRY_MS) return
     void this.check(false)
@@ -139,6 +164,7 @@ export class Updates {
     await this.start()
     const { updater, build } = this.options
     const status = this.status
+    if (this.looksForReleases()) return this.checkReleases()
     if (status.kind === "off" || !updater) return { kind: "off", reason: status.kind === "off" ? status.reason : "build" }
     // Already on its way: nothing newer to ask for
     if (status.kind === "ready" || status.kind === "downloading") return { kind: "found", version: status.version }
@@ -159,6 +185,26 @@ export class Updates {
       this.save()
       await this.changed()
       return { kind: "failed", message }
+    }
+  }
+
+  // For an unsigned release: whether GitHub has a newer one. Its failures, by hand or not, leave the
+  // state as it was; one by hand is said.
+  private async checkReleases(): Promise<UpdateCheck> {
+    const { build } = this.options
+    try {
+      const latest = await this.options.latest!()
+      const available = latest && newerVersion(latest.version, build.version) ? latest : undefined
+      this.state = { ...this.state, checkedAt: this.now(), failedAt: undefined, available }
+      this.status = this.unsignedStatus()
+      this.save()
+      await this.changed()
+      return available ? { kind: "available", release: available } : { kind: "current", version: build.version }
+    } catch (error) {
+      console.error("[updates] looking for a release failed:", error)
+      this.state = { ...this.state, failedAt: this.now() }
+      this.save()
+      return { kind: "failed", message: failure(error) }
     }
   }
 
@@ -207,7 +253,7 @@ export class Updates {
   describe() {
     const { build } = this.options
     const s = this.status
-    const where = s.kind === "off" ? `off (${s.reason})` : s.kind === "downloading" || s.kind === "ready" ? `${s.kind} ${s.version}` : s.kind === "failed" ? `failed: ${s.message}` : s.kind
+    const where = s.kind === "off" ? `off (${s.reason})${s.available ? `, ${s.available.version} out` : ""}` : s.kind === "downloading" || s.kind === "ready" ? `${s.kind} ${s.version}` : s.kind === "failed" ? `failed: ${s.message}` : s.kind
     const checked = this.state.checkedAt ? `, checked ${new Date(this.state.checkedAt).toISOString()}` : ""
     return `Build: ${build.channel}${build.commit ? ` ${build.commit}` : ""} · Updates: ${where}${this.auto ? "" : ", automatic checks off"}${checked}`
   }

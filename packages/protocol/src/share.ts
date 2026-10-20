@@ -81,6 +81,8 @@ export interface DocShare {
   papers: number
   // Shared from another computer: only that one holds the key to change it
   foreign?: boolean
+  // The link is on a share server owlit no longer makes links on: share.create makes a new one
+  oldServer?: boolean
 }
 
 // ---- Rules every side agrees on

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { UpdaterHost } from "../host.ts"
 import { CHECK_EVERY_MS, changelogSection, FIRST_CHECK_MS, RETRY_MS, Updates, type UpdatesOptions } from "./updates.ts"
 import { compareVersions } from "./version.ts"
+import { latestRelease } from "./github.ts"
 
 // A feed that answers what the test says, and a download the test moves along by hand
 function fakeUpdater(answer: () => Promise<string | undefined>) {
@@ -240,5 +241,65 @@ describe("versions", () => {
     expect(changelogSection(text, "0.3.1")).toBe("A\n\n- b")
     expect(changelogSection(text, "0.3.0")).toBe("C")
     expect(changelogSection(text, "0.2.0")).toBeUndefined()
+  })
+})
+
+describe("an unsigned release", () => {
+  const unsigned = () => {
+    const updater = fakeUpdater(async () => "9.9.9")
+    updater.blocked = async () => "unsigned"
+    return updater
+  }
+  // GitHub's answer for the latest release, as the test sets it
+  const github = (answer: () => unknown) => {
+    const asked: string[] = []
+    const getJson = async (url: string) => {
+      asked.push(url)
+      return answer()
+    }
+    return { asked, latest: () => latestRelease(getJson) }
+  }
+
+  it("looks for a newer release on GitHub, says it is out, and never downloads", async () => {
+    const updater = unsigned()
+    const gh = github(() => ({ tag_name: "v0.3.2", html_url: "https://github.com/hsiachi/owlit/releases/tag/v0.3.2", body: "Faster threads.\n" }))
+    const { updates } = make({ version: "0.3.0" }, { updater, latest: gh.latest })
+    const release = { version: "0.3.2", url: "https://github.com/hsiachi/owlit/releases/tag/v0.3.2", notes: "Faster threads." }
+    expect(await updates.check()).toEqual({ kind: "available", release })
+    expect((await updates.view()).status).toEqual({ kind: "off", reason: "unsigned", available: release })
+    expect(gh.asked).toEqual(["https://api.github.com/repos/hsiachi/owlit/releases/latest"])
+    expect(updater.checks).toBe(0)
+    // Remembered across a restart
+    await updates.dispose()
+    const again = make({ version: "0.3.0" }, { updater, latest: github(() => null).latest }).updates
+    expect((await again.view()).status).toEqual({ kind: "off", reason: "unsigned", available: release })
+  })
+
+  it("says up to date when the latest isn't newer, and drops what it found once this build has caught up", async () => {
+    const gh = github(() => ({ tag_name: "v0.3.0", html_url: "https://github.com/hsiachi/owlit/releases/tag/v0.3.0" }))
+    const { updates } = make({ version: "0.3.0" }, { updater: unsigned(), latest: gh.latest })
+    expect(await updates.check()).toEqual({ kind: "current", version: "0.3.0" })
+    expect((await updates.view()).status).toEqual({ kind: "off", reason: "unsigned" })
+  })
+
+  it("tells a check by hand that GitHub couldn't be reached, and keeps what it knew", async () => {
+    const { updates } = make({ version: "0.3.0" }, {
+      updater: unsigned(),
+      latest: github(() => {
+        throw new Error("getaddrinfo ENOTFOUND api.github.com")
+      }).latest,
+    })
+    expect(await updates.check()).toEqual({ kind: "failed", message: "GitHub couldn't be reached. Check your connection or proxy, then try again." })
+    expect((await updates.view()).status).toEqual({ kind: "off", reason: "unsigned" })
+  })
+
+  it("looks by itself shortly after the start", async () => {
+    vi.useFakeTimers()
+    const gh = github(() => ({ tag_name: "v0.4.0", html_url: "https://github.com/hsiachi/owlit/releases/tag/v0.4.0" }))
+    const { updates, views } = make({ version: "0.3.0" }, { updater: unsigned(), latest: gh.latest })
+    await updates.start()
+    expect(gh.asked).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(FIRST_CHECK_MS)
+    await vi.waitFor(() => expect(views.at(-1)?.status).toMatchObject({ kind: "off", available: { version: "0.4.0" } }))
   })
 })

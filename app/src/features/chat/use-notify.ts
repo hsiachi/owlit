@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAgentWindow } from "@/features/agent/store"
 import { askSentence } from "./lib/step-words"
-import { callOf, chatWait, useSeenStore } from "./status"
+import { callOf, chatWait } from "./status"
 import { useChatStore } from "./store"
 import { bridge } from "@/lib/rpc"
 
@@ -16,7 +16,6 @@ export function useChatNotifications() {
   const said = useRef(new Set<string>())
   // Chats that ran a turn while owlit was open: only their breaking is news, not a reply that broke before
   const ran = useRef(new Set<string>())
-  const dismissed = useSeenStore((s) => s.dismissed)
   // Where the chats that can say something stand, in one string, so this runs when one starts, stops, asks
   // or breaks rather than on every streamed token. Only a running chat asks, and only one that ran breaks
   // as news, so the others aren't read: this is worked out again with every token.
@@ -25,7 +24,7 @@ export function useChatNotifications() {
       .flatMap((id) => {
         const c = s.chats[id]
         if (!c) return []
-        const wait = chatWait(c, !!s.streaming[id], dismissed[id])
+        const wait = chatWait(c, !!s.streaming[id])
         return [`${id}:${s.streaming[id] ? `run:${wait?.ask?.requestId ?? ""}` : (wait?.broken?.id ?? "")}`]
       })
       .join(" "),
@@ -36,7 +35,7 @@ export function useChatNotifications() {
     const { chats, streaming } = useChatStore.getState()
     for (const id of Object.keys(streaming)) ran.current.add(id)
     for (const chat of Object.values(chats)) {
-      const wait = chatWait(chat, !!streaming[chat.id], dismissed[chat.id])
+      const wait = chatWait(chat, !!streaming[chat.id])
       const ask = wait?.ask
       // A reply that broke before owlit was open isn't news
       const broken = ran.current.has(chat.id) ? wait?.broken : undefined
@@ -54,7 +53,7 @@ export function useChatNotifications() {
         bridge.notify({ title: t`Owlit stopped`, body: error ? t`In “${title}”: ${error}` : where, chatId: chat.id })
       }
     }
-  }, [standing, dismissed])
+  }, [standing])
 
   useEffect(
     () =>

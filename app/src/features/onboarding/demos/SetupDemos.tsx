@@ -1,10 +1,8 @@
 import { t } from "@lingui/core/macro"
-import { SearchIcon } from "lucide-react"
 import { i18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
-import { LIBRARY_PAPERS } from "./content"
 import { useScript, words } from "./engine"
-import { Layers, MiniComposer, PaperRow, Ring } from "./parts"
+import { Layers, MiniComposer, Ring } from "./parts"
 import { useDemoPlace } from "./place"
 import s from "./demos.module.css"
 
@@ -40,8 +38,8 @@ export function HelloDemo({ name, agentName }: { name: string; agentName: string
   useDemoPlace("chat")
   const who = name.trim()
   const hello = who
-    ? t`Hi ${who}. I’m Owlit. I’ll work through ${agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table.`
-    : t`Hi. I’m Owlit. I’ll work through ${agentName} on this Mac. Ask me about your papers, or hand me something longer, like finding papers or drafting a table.`
+    ? t`Hi ${who}. I’m Owlit. I’ll work through ${agentName} on this Mac. Ask me about your papers, or give me something longer, like finding papers.`
+    : t`Hi. I’m Owlit. I’ll work through ${agentName} on this Mac. Ask me about your papers, or give me something longer, like finding papers.`
   const said = words(hello, i18n.locale)
   const { layers } = useScript<{ words: number }>({
     initial: () => ({ words: 0 }),
@@ -76,22 +74,5 @@ export function HelloDemo({ name, agentName }: { name: string; agentName: string
         </div>
       )}
     </Layers>
-  )
-}
-
-// Look: the Library, painted by the page's theme and paper tone as they are picked
-export function LibraryPreview() {
-  useDemoPlace("library")
-  return (
-    <div className={s.lookpage}>
-      <div className={s.h}>{t`Library`}</div>
-      <div className={s.find}>
-        <SearchIcon />
-        <span>{t`Search, or paste a DOI, arXiv id or link to add`}</span>
-      </div>
-      {LIBRARY_PAPERS.map((p) => (
-        <PaperRow key={p.title} {...p} />
-      ))}
-    </div>
   )
 }

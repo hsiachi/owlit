@@ -192,7 +192,9 @@ export interface Methods {
   "share.create": { params: { path: string; notes: boolean }; result: DocShare }
   "share.update": { params: { path: string; permission?: SharePermission; notes?: boolean }; result: DocShare }
   // The link stops working for everyone who has it
-  "share.stop": { params: { path: string }; result: null }
+  // forget: drop the link here only, for a server that can't be reached (its stop failed with
+  // data.unreachable)
+  "share.stop": { params: { path: string; forget?: boolean }; result: null }
   // The doc's comments as last fetched, fetching them again first when the server can be reached
   "share.comments": { params: { path: string }; result: ShareComment[] }
   // The author's reply, under the profile's name
@@ -285,6 +287,7 @@ export interface Methods {
   // Signs in with one of the agent's own sign-ins (Connector.signInMethods), then checks it again. A
   // browser sign-in resolves once the user has finished in the browser.
   "agents.signIn": { params: { id: string; methodId: string; apiKey?: string }; result: Connector }
+  "agents.cancelSignIn": { params: { id: string }; result: Connector }
   // One sign-in (methodId), or all of them
   "agents.signOut": { params: { id: string; methodId?: string }; result: Connector }
   // One turn of a chat on an agent. Core appends both messages to the chat, streams the answer as
@@ -598,7 +601,7 @@ export interface CoreVersion {
   node: string
 }
 
-export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics"
+export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics" | "new-workspace" | "whats-new"
 
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {

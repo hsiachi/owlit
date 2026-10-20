@@ -106,6 +106,9 @@ lives. `main` is the latest release: it only moves when one goes out, and pushin
 server (`.github/workflows/share-worker.yml`).
 
 1. In `apps/desktop/CHANGELOG.md` on dev, rename `## Unreleased` to `## <version>`, tidy it, and commit it.
+   Settings' extension Install… and the extension's store listing point at
+   `https://github.com/hsiachi/owlit/releases/latest` until owlit has a site: keep the release saying
+   where to get the extension.
 2. `pnpm release:ship <version>` from the checkout of dev. It bumps the version, runs `pnpm check`, builds
    and signs the dmg with `Owlit <version> - read me first.txt` (install steps plus the changelog section),
    then moves `main` up to dev, tags `v<version>`, pushes, and makes the GitHub release. Nothing leaves the

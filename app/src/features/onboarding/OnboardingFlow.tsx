@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
 import type { WelcomeInfo } from "@owlit/protocol"
-import { FolderPlusIcon, PaletteIcon, UserIcon, XIcon, type LucideIcon } from "lucide-react"
+import { FolderPlusIcon, UserIcon, XIcon, type LucideIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
@@ -11,15 +11,14 @@ import { canRun } from "@/features/chat/lib/connector-status"
 import { useChatStore } from "@/features/chat/store"
 import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { List } from "@/features/settings/parts"
-import { AppearanceSection } from "@/features/settings/sections/AppearanceSection"
+import { InterfaceLanguageRow } from "@/features/settings/sections/AppearanceSection"
 import { LanguageRow, NameRow } from "@/features/settings/sections/OwlitSection"
-import { ProxyGroup } from "@/features/settings/sections/ProxyGroup"
 import { useSettings } from "@/features/settings/store"
 import { tourWhenExampleOpens } from "@/features/tour/store"
 import { useFlowPlace } from "@/features/onboarding/store"
-import { AgentChoice } from "@/features/onboarding/AgentChoice"
+import { AgentSentence, AgentSetup } from "@/features/onboarding/AgentSetup"
 import { EXAMPLE_PAPERS } from "@/features/onboarding/content"
-import { AskDemo, GreetingDemo, HelloDemo, LibraryPreview, MiniWindow, ReadDemo, CollectDemo, WriteDemo, type DemoPlace } from "@/features/onboarding/demos"
+import { AskDemo, GreetingDemo, HelloDemo, MiniWindow, ReadDemo, CollectDemo, WriteDemo, type DemoPlace } from "@/features/onboarding/demos"
 import { WelcomeLockup } from "@/features/onboarding/WelcomeLockup"
 import { KIND_ICON } from "@/lib/kinds"
 import { isTyping } from "@/lib/keys"
@@ -31,15 +30,17 @@ import { pickParent, pickWorkspaceFolder, switchWorkspace, tilde } from "@/lib/w
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 
 // The first launch: a welcome, four steps that show what owlit does (each a small demo in a small owlit
-// window whose rail lifts the place being shown, so where things are is learned with what they do), three
-// that set things up, and where to begin. Every setup step has a default, so Continue always works; the
+// window whose rail lifts the place being shown, so where things are is learned with what they do), two
+// that set things up (the name and the language, the agent), and where to begin. Only what Owlit needs
+// before the first question is asked here: the library proxy waits for the first paywalled PDF, and the
+// theme and paper tone are in Settings. Every setup step has a default, so Continue always works; the
 // only real choice is the last one. Nothing is a checklist: Skip intro jumps to the setup, and the steps
 // can be revisited from the progress bar. Help › How owlit works shows the four introduction steps again
 // over the app (mode "replay").
 
-type StepId = "welcome" | "read" | "write" | "ask" | "collect" | "you" | "agent" | "look" | "start"
+type StepId = "welcome" | "read" | "write" | "ask" | "collect" | "you" | "agent" | "start"
 const INTRO: StepId[] = ["read", "write", "ask", "collect"]
-const FIRST: StepId[] = ["welcome", ...INTRO, "you", "agent", "look", "start"]
+const FIRST: StepId[] = ["welcome", ...INTRO, "you", "agent", "start"]
 
 export function OnboardingFlow({ mode = "first", onClose }: { mode?: "first" | "replay"; onClose?: () => void }) {
   const steps = mode === "first" ? FIRST : INTRO
@@ -155,8 +156,6 @@ function stepName(step: StepId) {
       return t`About you`
     case "agent":
       return t({ message: "Agent", comment: "an onboarding step: the agent Owlit runs on" })
-    case "look":
-      return t({ message: "Look", comment: "an onboarding step: theme and paper tone" })
     default:
       return t`Where to begin`
   }
@@ -212,7 +211,7 @@ function lesson(step: StepId): Lesson | null {
         title: t`Write with your sources.`,
         body: (
           <Trans>
-            Docs are Markdown files in your folder. Type <Key>@</Key> to cite a paper. Owlit suggests edits <b>only when you ask</b>, and you choose what to keep.
+            Docs are Markdown files in your folder. Type <Key>@</Key> to cite a paper. Owlit edits <b>only when you ask</b>, marks what it changed, and any part can be undone.
           </Trans>
         ),
         place: "docs",
@@ -243,17 +242,15 @@ function lesson(step: StepId): Lesson | null {
         place: "threads",
       }
     case "you":
-      return { icon: UserIcon, kicker: t`About you`, title: t`A little about you.`, body: t`So Owlit knows what to call you and how to reach your papers. All of it can wait.`, place: "chat" }
+      return { icon: UserIcon, kicker: t`About you`, title: t`A little about you.`, body: t`So Owlit knows what to call you and which language you read. All of it can wait.`, place: "chat" }
     case "agent":
       return {
         icon: KIND_ICON.agent,
         kicker: t({ message: "Agent", comment: "an onboarding step: the agent Owlit runs on" }),
-        title: t`Pick Owlit's engine.`,
-        body: t`Owlit runs on a coding agent you already have. Here's what's on this Mac.`,
+        title: t`What Owlit works through.`,
+        body: <AgentSentence />,
         place: "chat",
       }
-    case "look":
-      return { icon: PaletteIcon, kicker: t({ message: "Look", comment: "an onboarding step: theme and paper tone" }), title: t`Make it yours.`, body: t`Pick a theme and a paper tone. You can change both in Settings.`, place: "library" }
     default:
       return null
   }
@@ -263,7 +260,7 @@ function Key({ children }: { children: ReactNode }) {
   return <kbd className="mx-0.5 inline-flex h-5 items-center rounded-md bg-muted px-1.5 align-[1px] font-sans text-xs font-medium text-muted-foreground">{children}</kbd>
 }
 
-// Steps 1–7: what the step says on the left, the small window on the right
+// Steps 1–6: what the step says on the left, the small window on the right
 function Teach({ step }: { step: StepId }) {
   const l = lesson(step)!
   const name = useSettings((s) => s.view?.profile.name) ?? ""
@@ -292,7 +289,6 @@ function Teach({ step }: { step: StepId }) {
           {step === "collect" && <CollectDemo />}
           {step === "you" && <GreetingDemo name={name} agentName={agentName} />}
           {step === "agent" && <HelloDemo name={name} agentName={agentName} />}
-          {step === "look" && <LibraryPreview />}
         </MiniWindow>
       </div>
     </div>
@@ -310,21 +306,15 @@ function useAgentName() {
 function Setup({ step }: { step: StepId }) {
   if (step === "you")
     return (
-      <div className="mt-6 flex flex-col gap-5">
+      <div className="mt-6">
         <List>
           <NameRow className="w-40" />
+          <InterfaceLanguageRow />
           <LanguageRow />
         </List>
-        <ProxyGroup />
       </div>
     )
-  if (step === "agent") return <AgentChoice />
-  if (step === "look")
-    return (
-      <div className="mt-6">
-        <AppearanceSection />
-      </div>
-    )
+  if (step === "agent") return <AgentSetup variant="list" />
   return null
 }
 
@@ -460,7 +450,13 @@ function StartCard({
       tabIndex={0}
       aria-disabled={disabled}
       onClick={() => !disabled && onClick()}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && !disabled && onClick()}
+      onKeyDown={(e) => {
+        // Only the card's own keys: Enter on Change… inside it bubbles up here too, and must not create
+        // the workspace while it opens the folder picker. Space would also scroll the page.
+        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return
+        e.preventDefault()
+        if (!disabled) onClick()
+      }}
       style={{ animationDelay: `${delay}ms` }}
       className="animate-in cursor-pointer rounded-xl border bg-card p-3.5 shadow-xs transition-[box-shadow,translate] duration-200 fade-in slide-in-from-bottom-2 fill-mode-both outline-none hover:-translate-y-0.5 hover:shadow-md focus-key:ring-2 focus-key:ring-ring/50 aria-disabled:cursor-default aria-disabled:opacity-60"
     >

@@ -20,7 +20,7 @@ export const useIntro = create<IntroState>((set) => ({
 export const showIntro = () => useIntro.getState().show()
 
 // Where the flow is, outside its component: a new interface language remounts every page (main.tsx), and
-// choosing one in the Look step must leave the person on Look, not back at the welcome
+// choosing one in About you must leave the person there, not back at the welcome
 export interface FlowPlace {
   index: number
   seen: number

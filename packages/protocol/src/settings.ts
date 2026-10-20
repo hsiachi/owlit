@@ -21,7 +21,8 @@ export interface SettingsView {
     digestLanguageSystem: string
   }
   parsing: { service?: "cloud" | "self-hosted"; url?: string; auto: boolean }
-  // The last four characters of each key that is set
+  // The last four characters of each key that is set, or SECRET_LOCKED for one kept sealed that the
+  // keychain didn't let owlit open this run (never four characters, so never a key's end)
   secrets: Partial<Record<SecretName, string>>
   // The agent for the tasks the person hands Owlit (a chat owlit starts for a button); unset means the
   // first one that is ready
@@ -87,3 +88,6 @@ export function proxyFromLink(link: string): ProxySettings | null {
 
 // The agent owlit picks when nothing says which (a chat owlit starts, the automatic choice in Settings)
 export const FIRST_CHOICE_AGENT = "claude-code"
+
+// What SettingsView.secrets says of a key the keychain didn't open
+export const SECRET_LOCKED = "locked"

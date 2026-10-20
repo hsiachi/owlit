@@ -78,7 +78,7 @@ export function ChatEmpty() {
       <h1 className="font-display max-w-3xl -skew-x-12 text-center [&:lang(zh)]:skew-x-0 text-[2.75rem] leading-none font-medium text-balance text-foreground/90">
         {greeting(name)}
       </h1>
-      <div className="w-full max-w-3xl">
+      <div data-tour="composer" className="w-full max-w-3xl">
         <Composer ref={composer} onSubmit={start} autoFocus />
       </div>
       <div className="flex max-w-3xl flex-wrap justify-center gap-2">

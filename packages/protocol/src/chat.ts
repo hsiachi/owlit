@@ -243,6 +243,9 @@ export interface Chat {
   // list and nothing opens it; its work shows where it lands, and its file is the work's record. Its first
   // message is the recipe it was given.
   startedBy?: "owlit"
+  // A chat about using owlit itself (Help › Ask Owlit how to…): an ordinary chat, but not work, so Home
+  // leaves it out of where the person was
+  help?: true
   // What a chat owlit started works on: the status line there reads its running turn by this
   about?: ChatAbout
   messages: ChatMessage[]
@@ -354,6 +357,8 @@ export interface Connector {
   // The agent's own sign-in in the browser that owlit runs (Claude Code's Claude subscription, Codex's
   // ChatGPT): the methodId for agents.signIn
   browserSignIn?: string
+  // That sign-in waits in the browser now (agents.cancelSignIn stops it)
+  signingIn?: true
   builtIn: boolean
   status: ConnectorStatus
   version?: string

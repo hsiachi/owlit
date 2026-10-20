@@ -1,4 +1,4 @@
-import { t } from "@lingui/core/macro"
+import { plural, t } from "@lingui/core/macro"
 import { cn } from "@/lib/utils"
 import { KIND_ICON } from "@/lib/kinds"
 import { OwlitMark } from "@/components/owlit-mark"
@@ -21,11 +21,13 @@ interface WriteState {
   menu: { x: number; y: number } | null
   menuOn: boolean
   editPressed: boolean
-  // Owlit's proposed rewrite: the old words struck, the new ones typed in, then applied
+  // Owlit's rewrite, landed in the doc: the old words struck, the new ones typed in, with Owlit's marks
+  // and the line that offers Undo
   struck: boolean
   rewrite: string | null
   bar: boolean
-  applied: boolean
+  // The pointer over the Undo the person could press
+  undoHover: boolean
 }
 
 const FIRST: WriteState = {
@@ -42,15 +44,16 @@ const FIRST: WriteState = {
   struck: false,
   rewrite: null,
   bar: false,
-  applied: false,
+  undoHover: false,
 }
 
-// Write: a sentence typed, a paper cited with @, the sentence handed to Owlit to edit, its rewrite applied
+// Write: a sentence typed, a paper cited with @, the sentence handed to Owlit to edit, its rewrite landing
+// in the doc with Owlit's marks and an Undo, as an edit lands in the app: nothing to apply, any part undone
 export function WriteDemo() {
   useDemoPlace("docs")
   const { layers, cursor, root, reg } = useScript<WriteState>({
     initial: () => FIRST,
-    final: () => ({ ...FIRST, typed: WRITE.typed, cited: true, caret: false, struck: true, rewrite: WRITE.rewritten, applied: true }),
+    final: () => ({ ...FIRST, typed: WRITE.typed, cited: true, caret: false, struck: true, rewrite: WRITE.rewritten, bar: true }),
     script: async (c) => {
       await c.sleep(600)
       await c.type("typed", WRITE.typed, 34)
@@ -81,9 +84,12 @@ export function WriteDemo() {
       await c.type("rewrite", WRITE.rewritten, 22)
       c.set({ bar: true })
       await c.sleep(900)
-      await c.moveToEl("apply", 0.5, 0.55, 800)
-      await c.click()
-      c.set({ bar: false, applied: true })
+      // The way back is there, and left alone: the words stay
+      await c.moveToEl("undo", 0.5, 0.55, 800)
+      c.set({ undoHover: true })
+      await c.sleep(900)
+      c.set({ undoHover: false })
+      await c.moveTo(470, 380, 600)
       c.hideCursor()
       await c.sleep(3000)
     },
@@ -101,25 +107,19 @@ type Reg = (name: string) => (el: HTMLElement | null) => () => void
 
 function DocView({ st, reg }: { st: WriteState; reg: Reg }) {
   const PaperIcon = KIND_ICON.paper
-  const proposing = st.rewrite != null && !st.applied
+  const landed = st.rewrite != null
   return (
     <>
       <div className={s.doc}>
         <div className={s.crumb}>{WRITE.crumb}</div>
         <div className={s.dt}>{WRITE.title}</div>
-        <div className={cn(s.para, s.ruled)} data-rule={proposing || undefined}>
+        <div className={cn(s.para, s.ruled)} data-rule={landed || undefined}>
           {WRITE.lead}
           <span className={s.cite}>{WRITE.leadCite}</span>.{" "}
-          {!st.applied && (
-            <span ref={reg("old")} className={cn(s.old, st.selected && s.txtsel)} data-struck={st.struck || undefined}>
-              {st.typed}
-            </span>
-          )}
-          {st.rewrite != null && (
-            <span className={s.ins} data-applied={st.applied || undefined}>
-              {st.rewrite}
-            </span>
-          )}
+          <span ref={reg("old")} className={cn(s.old, st.selected && s.txtsel)} data-struck={st.struck || undefined}>
+            {st.typed}
+          </span>
+          {st.rewrite != null && <span className={s.ins}>{st.rewrite}</span>}
           {st.mention && <span className={s.cite}>{WRITE.mention}</span>}
           {st.cited && (
             <>
@@ -127,12 +127,11 @@ function DocView({ st, reg }: { st: WriteState; reg: Reg }) {
             </>
           )}
           {st.caret && <span ref={reg("caret")} className={s.caret} />}
-          {/* The line under a proposed edit that answers it, as a doc draws it */}
+          {/* The line a doc draws over Owlit's landed edits: how many, and the way to take them back */}
           <div className={cn(s.suggestBar, s.pop)} data-on={st.bar || undefined}>
-            <span>{t`Suggested by Owlit`}</span>
-            <span className={s.b}>{t({ message: "Discard", comment: "verb: discard an edit Owlit suggested" })}</span>
-            <span ref={reg("apply")} className={cn(s.b, s.pri)}>
-              {t({ message: "Apply", comment: "verb: apply an edit Owlit suggested" })}
+            <span>{plural(1, { one: "Owlit changed # passage", other: "Owlit changed # passages" })}</span>
+            <span ref={reg("undo")} className={s.b} data-hover={st.undoHover || undefined}>
+              {t({ message: "Undo", comment: "verb: undo a passage Owlit changed" })}
             </span>
           </div>
         </div>

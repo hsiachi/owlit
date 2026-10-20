@@ -28,7 +28,7 @@ extension connects your browser to owlit on your computer.
 The extension talks only to owlit on your own computer (127.0.0.1). It sends owlit the page's paper
 details and the PDFs above, nothing else, and it connects only after you allow it in owlit's window.
 
-You need the owlit desktop app: https://owlit.ink
+You need the owlit desktop app: https://github.com/hsiachi/owlit/releases/latest
 
 ## Permissions, and what each is for
 
@@ -73,7 +73,7 @@ add-on connects Firefox to owlit on your computer.
 The add-on talks only to owlit on your own computer (127.0.0.1). It sends owlit the page's paper details
 and the PDFs above, nothing else, and it connects only after you allow it in owlit's window.
 
-You need the owlit desktop app: https://owlit.ink
+You need the owlit desktop app: https://github.com/hsiachi/owlit/releases/latest
 
 ## Permissions, and what each is for
 
@@ -108,5 +108,5 @@ The add-on is built from the public repository (AGPL-3.0): https://github.com/hs
 `apps/extension`. With Node 24 and pnpm 10, at the repository's root: `pnpm install`, then
 `pnpm --filter @owlit/extension build`; the add-on is `apps/extension/dist/firefox/`. The popup is React,
 bundled by Vite; the two innerHTML warnings from the linter are in React DOM itself. To try it, the owlit
-desktop app must be running (https://owlit.ink); its first Connect asks you to allow the add-on in owlit's
+desktop app must be running (https://github.com/hsiachi/owlit/releases/latest); its first Connect asks you to allow the add-on in owlit's
 window.
