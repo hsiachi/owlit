@@ -241,6 +241,7 @@ msgstr "主页"
 #. open the chat a line Owlit keeps in mind came from
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Chat"
@@ -248,7 +249,6 @@ msgstr "对话"
 
 #: app/src/app/nav.ts
 #: app/src/features/onboarding/OnboardingFlow.tsx
-#: app/src/features/onboarding/demos/CollectDemo.tsx
 #: app/src/features/threads/pages/ThreadPage.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
 #: app/src/features/tour/TourOverlay.tsx
@@ -807,6 +807,7 @@ msgstr "正在载入"
 
 #: app/src/features/agent/AgentAskBar.tsx
 #: app/src/features/agent/AgentWindow.tsx
+#: app/src/features/onboarding/demos/CollectDemo.tsx
 msgid "Ask Owlit…"
 msgstr "问 Owlit…"
 
@@ -4933,12 +4934,12 @@ msgid "Press <0>⌘J</0> anywhere to ask about what's on screen. Chat is for <1>
 msgstr "在任何地方按 <0>⌘J</0>，就屏幕上的内容提问。<1>耗时的活</1>，比如找论文，就到对话里做。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Owlit gathers papers."
-msgstr "Owlit 收集论文。"
+msgid "Owlit reports back."
+msgstr "Owlit 写成报告。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Give Owlit a question and it gathers papers on it, with <0>what each one says</0> and how far it read. Papers stay out of your Library until you use them, and you can correct any answer."
-msgstr "给 Owlit 一个问题，它会收集相关论文，写明<0>每篇说了什么</0>，以及它读到了哪一层。论文在你用到之前不进你的文献库，任何答案你都可以改。"
+msgid "Ask Owlit a question in a chat and it finds papers on it, says <0>what each one is and how it bears</0> on your question, and writes its report on them. To change a thread, ask in the chat."
+msgstr "在对话里问 Owlit 一个问题，它会找来相关论文，写明<0>每篇是什么、和你的问题有什么关系</0>，再就这些论文写一份报告。想改一条脉络，在对话里说就行。"
 
 #: app/src/features/onboarding/OnboardingFlow.tsx
 msgid "A little about you."
@@ -5004,15 +5005,6 @@ msgstr "正在搜索 arXiv 和 Semantic Scholar"
 msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
 msgstr "{kept, plural, other {已把 # 篇论文加入文献库}}"
 
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-msgid "Collect papers on…"
-msgstr "收集关于…的论文"
-
-#. after a sentence of Owlit's that the user rewrote
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-msgid "you edited"
-msgstr "你改过"
-
 #. a page of a paper
 #. a page of a paper
 #. placeholder {0}: cell.passage.page
@@ -5021,6 +5013,10 @@ msgstr "你改过"
 #: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "第 {0} 页"
+
+#: app/src/features/onboarding/demos/CollectDemo.tsx
+msgid "Ask Owlit to change this thread…"
+msgstr "让 Owlit 改这条脉络…"
 
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 #: app/src/lib/time.ts
@@ -6165,12 +6161,12 @@ msgid "Select any sentence: pick a colour to highlight it, comment on it, or ask
 msgstr "选中任意一句：挑个颜色高亮、写条批注，或者问 Owlit。"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Papers gathered for a question"
-msgstr "为一个问题收集的论文"
+msgid "Owlit's report on a question"
+msgstr "Owlit 就一个问题写的报告"
 
 #: app/src/features/tour/TourOverlay.tsx
-msgid "Give Owlit a question and it gathers papers on it, with what each one says, groups them, and writes a short memo. The example has threads to look through."
-msgstr "给 Owlit 一个问题，它就收集相关论文，写下每篇说了什么，分好组，再写一段简短的备忘。示例里有几条脉络可以看看。"
+msgid "Ask Owlit a question in a chat and it finds papers on it, says what each one is and how it bears on your question, and writes a report on them. To change a thread, ask in the chat. The example has threads to look through."
+msgstr "在对话里问 Owlit 一个问题，它会找来相关论文，写明每篇是什么、和你的问题有什么关系，再就这些论文写一份报告。想改一条脉络，在对话里说就行。示例里有几条脉络可以看看。"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "Cite as you write"
