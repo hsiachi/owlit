@@ -5,8 +5,8 @@ import { filePath, rpc } from "@/lib/rpc"
 // The desktop app's library client: lookups and PDFs go to core
 export class RpcLibraryClient implements LibraryClient {
   async resolve(input: string): Promise<Resolved> {
-    const { paper, existingId } = await rpc.library.resolve({ input })
-    return { ...paper, existingId }
+    const { paper, existingId, learned } = await rpc.library.resolve({ input })
+    return { ...paper, existingId, ...(learned ? { learned } : {}) }
   }
 
   // Waits while core looks; the paper comes back with its PDF or with where getting it stands

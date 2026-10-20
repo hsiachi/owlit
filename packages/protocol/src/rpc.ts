@@ -382,8 +382,9 @@ export interface Methods {
   // Every paper, with every highlight and note, and the old ids of papers that moved (old → new)
   "library.list": { params: void; result: { papers: Paper[]; highlights: Highlight[]; notes: PaperNote[]; aliases: Record<string, string> } }
   // A PDF file dropped on the library: recognised (arXiv stamp, DOI) and added with its metadata, or
-  // kept as local-<hash>. The same file dropped again comes back with existed.
-  "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean } }
+  // kept as local-<hash>. The same file dropped again comes back with existed; placed when the paper
+  // was there without a PDF and the file became it.
+  "library.importPdf": { params: { path: string }; result: { paper: Paper; existed: boolean; placed?: boolean } }
   // Adds a looked-up paper (its metadata, PDF and text follow as tasks). A paper the library already
   // has under any of its ids comes back as it is.
   // An agent's addition is recorded in the change log (Undo moves the paper to .owlit/trash/); chatId says whose

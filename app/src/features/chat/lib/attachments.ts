@@ -1,6 +1,5 @@
 import { t } from "@lingui/core/macro"
 import { useCallback, useRef, useState } from "react"
-import { toast } from "sonner"
 import { LARGE_FILE_BYTES, paperUri, type AttachmentFile, type Connector, type FileKind } from "@owlit/protocol"
 import { bridge, isDesktop, rpc, RpcError } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
@@ -9,7 +8,7 @@ import { docMentionable, paperMentionable, type DocMention } from "@/features/do
 import { fileAt } from "@/features/docs/store"
 import { citationLabel } from "@/features/library/lib/format"
 import { displayName, docUri, parentPath } from "@/features/docs/types"
-import { importPdf } from "@/features/library/disk"
+import { addPaperFrom, sayAdded, usePaperActions } from "@/features/library/actions"
 import { useLibraryStore } from "@/features/library/store"
 import { NO_FILES, useComposerDrafts } from "../composer-drafts"
 
@@ -58,6 +57,7 @@ export function openAttached(file: { path?: string }) {
 // may finish after the person has moved to another chat. Files over LARGE_FILE_BYTES wait in `large` for a
 // yes (LargeFilesDialog) before anything is copied.
 export function useAttachments(key: string, chatId: string, onMention: (mention: DocMention, key: string) => void) {
+  const { open } = usePaperActions()
   const files = useComposerDrafts((s) => s.drafts[key]?.files ?? NO_FILES)
   const [large, setLarge] = useState<File[] | null>(null)
   const mentionRef = useRef(onMention)
@@ -141,12 +141,12 @@ export function useAttachments(key: string, chatId: string, onMention: (mention:
       const draft = filesRef.current.find((f) => f.id === id)
       if (!draft?.path) return
       const key = keyRef.current
-      const paper = await importCopy(draft)
+      const paper = await importCopy(draft, open)
       if (!paper) return
       remove(id)
       mentionRef.current(await paperMention(paper.id, draft.name), key)
     },
-    [remove],
+    [remove, open],
   )
 
   // What goes with the message: the files that are ready. The list empties for the next one.
@@ -208,13 +208,13 @@ async function paperMention(id: string, fallback: string): Promise<DocMention> {
 }
 
 // Adds an attached PDF's copy to the Library; the paper, or null when it couldn't be read (said in a toast)
-export async function importCopy(file: AttachmentFile) {
+export async function importCopy(file: AttachmentFile, open: (id: string) => void) {
   const root = useWorkspace.getState().current?.path
   if (!file.path || !root) return null
   try {
-    const { paper, existed } = await importPdf(`${root}/${file.path}`)
-    toast(existed ? t`Already in your library` : t`Added to library`, { description: paper.title })
-    return paper
+    const added = await addPaperFrom({ file: `${root}/${file.path}` })
+    sayAdded(added, open)
+    return added.paper
   } catch (error) {
     toastError(error, t`Couldn't add that file.`)
     return null

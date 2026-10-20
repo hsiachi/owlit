@@ -1083,7 +1083,8 @@ export class Library {
   // file. The same file dropped again is the paper it already is.
   // Reading and looking up happen outside the write queue, so a slow service never holds up a star or a
   // note; only placing the paper is queued.
-  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean } } = {}): Promise<{ paper: Paper; existed: boolean }> {
+  // placed: the paper was there without a PDF, and this file became it.
+  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean } } = {}): Promise<{ paper: Paper; existed: boolean; placed?: boolean }> {
     const priority = options.priority ?? "asked"
     await assertPdf(file)
     const sha = await sha256Of(file)
@@ -1115,8 +1116,9 @@ export class Library {
       // A folder already there is that paper even if the index missed it: never written over
       const existing = (await this.index.find(ids)) ?? ((await readRecord(this.root, id)) ? id : undefined)
       if (existing) {
-        if (!(await hasPdfFile(this.root, existing))) await this.placePdf(existing, file, sha)
-        return { paper: (await this.get(existing))!, existed: true }
+        if (await hasPdfFile(this.root, existing)) return { paper: (await this.get(existing))!, existed: true }
+        await this.placePdf(existing, file, sha)
+        return { paper: (await this.get(existing))!, existed: true, placed: true }
       }
       const record: PaperRecord = resolution
         ? recordFrom(id, resolution)

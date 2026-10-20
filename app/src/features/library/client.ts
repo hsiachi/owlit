@@ -1,7 +1,10 @@
 import type { Paper, ResolvedPaper } from "@owlit/protocol"
 
-// A looked-up paper, with the id of the one the library already has for it, if any
-export type Resolved = ResolvedPaper & { existingId?: string }
+// A looked-up paper, with the id of the one the library already has for it, if any, and the kinds of
+// id core added to that one from the lookup (Library.learnIds)
+export type Resolved = ResolvedPaper & { existingId?: string; learned?: LearnedId[] }
+
+export type LearnedId = "arxiv" | "s2" | "openalex"
 
 // The part of the library that core does for the UI in the desktop app (and a mock does on its own): turning
 // a reference or a file into metadata, and finding a PDF. Records themselves live in the store.

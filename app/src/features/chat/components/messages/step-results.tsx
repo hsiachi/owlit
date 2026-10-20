@@ -1,11 +1,9 @@
 import { t } from "@lingui/core/macro"
 import { useState } from "react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { hostOf } from "@/lib/names"
-import { toastError } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
-import { libraryClient, useLibraryStore } from "@/features/library/store"
+import { addAndSay, usePaperActions } from "@/features/library/actions"
 import type { QuestionPart, ToolCall } from "../../types"
 import { diffLines } from "../../lib/diff-lines"
 import { hitsOf, isPaperUrl, outputOf } from "../../lib/step-output"
@@ -16,23 +14,11 @@ import { fetchUrlOf, runsCommand, stepGroup } from "../../lib/step-words"
 // the answers to a question. Kept short; the agent's own words are the answer.
 
 function AddToLibrary({ url }: { url: string }) {
+  const { open } = usePaperActions()
   const [state, setState] = useState<"idle" | "adding" | "added">("idle")
   const add = async () => {
     setState("adding")
-    try {
-      const resolved = await libraryClient.resolve(url)
-      if (resolved.existingId) {
-        toast(t`Already in your Library`)
-      } else {
-        useLibraryStore.getState().addPaper(resolved)
-        const title = resolved.title
-        toast(t`Added “${title}”`)
-      }
-      setState("added")
-    } catch (error) {
-      toastError(error, t`Couldn't add that paper.`)
-      setState("idle")
-    }
+    setState((await addAndSay({ ref: url }, open)) ? "added" : "idle")
   }
   if (state === "added") return <span className="shrink-0 text-xs text-muted-foreground">{t`In Library`}</span>
   return (
