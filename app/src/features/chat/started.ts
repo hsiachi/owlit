@@ -1,4 +1,4 @@
-// The chats owlit started for the person (a digest, a thread's work, and later a doc's), as the thing
+// The chats owlit started for the person (a digest, a thread's work, a doc's), as the thing
 // each is about shows it: running, or how its last turn ended. Core is the record (chats.startedFor, then
 // chats.turn as each turn begins and ends); nothing here opens such a chat, which no chat list shows.
 

@@ -219,7 +219,7 @@ describe("Scheduler", () => {
       lane: "index",
       async run(ctx) {
         log.push(`${ctx.task.subject} start`)
-        if (ctx.task.subject === "a") await ctx.waitForUser("login", "Sign in to the library proxy.")
+        if (ctx.task.subject === "a") await ctx.waitForUser("confirm_spend", "Sign in to the library proxy.")
         log.push(`${ctx.task.subject} end`)
       },
     })
@@ -227,7 +227,7 @@ describe("Scheduler", () => {
     const a = scheduler.enqueue("fake.login", "a")
     const b = scheduler.enqueue("fake.login", "b")
     await scheduler.wait(b.id)
-    expect(scheduler.get(a.id)).toMatchObject({ state: "waiting_for_you", waiting: { reason: "login" } })
+    expect(scheduler.get(a.id)).toMatchObject({ state: "waiting_for_you", waiting: { reason: "confirm_spend" } })
     expect(scheduler.resume(a.id)?.state).not.toBe("waiting_for_you")
     expect(await scheduler.wait(a.id)).toMatchObject({ state: "done", attempts: 1 })
     expect(log).toEqual(["a start", "b start", "b end", "a end"])

@@ -125,9 +125,7 @@ describe("activity.emit and the journal", () => {
     const notes: RpcNotification[] = []
     core.onNotify((n) => notes.push(n))
     const status = async (id: string) => ((await call("library.list")) as { papers: { id: string; status: string }[] }).papers.find((p) => p.id === id)?.status
-    expect(await call("activity.status")).toEqual({ enabled: true })
     expect(await call("activity.setEnabled", { enabled: false })).toEqual({ enabled: false })
-    expect(notes.find((n) => n.method === "activity.status")).toMatchObject({ params: { enabled: false } })
     expect(notes.at(-1)).toMatchObject({ method: "settings.changed", params: { activity: { enabled: false } } })
 
     // Read to the end with the switch off: the read-in-full check reads only the journal

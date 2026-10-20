@@ -2,8 +2,8 @@ import type { ActorId, PersonId } from "./changes.ts"
 import type { ReadStatus } from "./library.ts"
 
 // What the user does in the interface, as the renderer reports it to core. It feeds the workspace
-// journal (core's reading.ts reads what was read from there) and, later, a live agent that follows
-// along. Every event carries the time it happened, in ms since the epoch.
+// journal (core's reading.ts reads what was read from there). Every event carries the time it happened, in ms
+// since the epoch.
 
 // Which side of a paper's page was in view: Owlit's digest or the paper itself
 export type PaperView = "digest" | "pdf"

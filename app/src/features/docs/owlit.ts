@@ -6,7 +6,7 @@ import { unseenComments, useSeen } from "@/app/seen"
 import { useDocsStore } from "./store"
 
 // Owlit's open comments on a doc that came after the user last saw its comments, oldest first: they carry
-// Owlit's dot on the chip and the doc's row until they have been on screen a moment
+// Owlit's dot on the doc's comments button and its row until they have been on screen a moment
 export function useNewOwlitComments(file: { id: string; path: string } | undefined) {
   const unseen = useSeen(useShallow((s) => (file ? unseenComments(s.unseen, file.path) : [])))
   return useDocsStore(

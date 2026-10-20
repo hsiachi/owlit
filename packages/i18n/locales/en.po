@@ -701,30 +701,6 @@ msgctxt "verb: say something about the selected words"
 msgid "Comment"
 msgstr "Comment"
 
-#: app/src/components/sentence-editor.tsx
-#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/docs/share/ShareDialog.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-#: app/src/features/library/components/ImportDialog.tsx
-#: app/src/features/settings/parts.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/settings/sections/BrowserSignIn.tsx
-#: app/src/features/tour/TourOverlay.tsx
-#: app/src/features/welcome/CreateForm.tsx
-#: apps/desktop/src/cli-tool.ts
-#: apps/share-web/src/App.tsx
-msgid "Cancel"
-msgstr "Cancel"
-
-#. save an edited comment
-#: app/src/components/sentence-editor.tsx
-#: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-msgid "Save"
-msgstr "Save"
-
 #: app/src/components/ui/command.tsx
 msgid "Command Palette"
 msgstr "Command Palette"
@@ -1328,6 +1304,22 @@ msgstr "owlit keeps a copy of each file you attach with the chat, inside the wor
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
 msgstr "{0, plural, one {Copy this large file?} other {Copy # large files?}}"
+
+#: app/src/features/chat/components/composer/LargeFilesDialog.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/share/ShareDialog.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/ImportDialog.tsx
+#: app/src/features/settings/parts.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: app/src/features/tour/TourOverlay.tsx
+#: app/src/features/welcome/CreateForm.tsx
+#: apps/desktop/src/cli-tool.ts
+#: apps/share-web/src/App.tsx
+msgid "Cancel"
+msgstr "Cancel"
 
 #: app/src/features/chat/components/composer/LargeFilesDialog.tsx
 msgid "Skip large files"
@@ -2549,10 +2541,6 @@ msgstr "In “{title}”"
 msgid "In “{title}”: {error}"
 msgstr "In “{title}”: {error}"
 
-#: app/src/features/docs/OwlitChip.tsx
-msgid "Owlit works here only when you ask"
-msgstr "Owlit works here only when you ask"
-
 #: app/src/features/docs/actions.ts
 msgid "Link copied"
 msgstr "Link copied"
@@ -2691,6 +2679,12 @@ msgstr "The passage this comment was on has changed: “{0}”"
 msgid "{cut, plural, one {# more reply} other {# more replies}}"
 msgstr "{cut, plural, one {# more reply} other {# more replies}}"
 
+#. save an edited comment
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Save"
+msgstr "Save"
+
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "More"
 msgstr "More"
@@ -2769,6 +2763,11 @@ msgid "Comment by {0}"
 msgstr "Comment by {0}"
 
 #: app/src/features/docs/comments/CommentsToggle.tsx
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Owlit commented since you last looked"
+msgstr "Owlit commented since you last looked"
+
+#: app/src/features/docs/comments/CommentsToggle.tsx
 msgid "Hide comments"
 msgstr "Hide comments"
 
@@ -2815,10 +2814,6 @@ msgstr "{name} opens in the system app"
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Doc actions"
 msgstr "Doc actions"
-
-#: app/src/features/docs/components/DocsListPanel.tsx
-msgid "Owlit commented since you last looked"
-msgstr "Owlit commented since you last looked"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Shared by link"

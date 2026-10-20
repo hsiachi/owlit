@@ -10,7 +10,7 @@ import { changedPlaces, setChanged, type ChangedLine } from "./editor/changed-si
 import { proposalSpots, setProposals } from "./editor/proposals"
 
 // A doc with nothing marked in it is seen once it has been on screen this long, the rule the comments
-// chip keeps for new comments (OwlitChip)
+// button keeps for new comments (CommentsToggle)
 const SEEN_AFTER_MS = 3000
 // A marked passage counts as looked at once it has stayed this long in the part of the doc on screen:
 // long enough to read that something changed there, not long enough to have to stop scrolling

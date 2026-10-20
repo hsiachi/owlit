@@ -31,9 +31,6 @@ export function useDigestState(paper: Paper): DigestState {
   return stand?.state === "failed" ? "failed" : stand?.state === "running" ? "writing" : fresh ? "new" : null
 }
 
-// Whether a paper has a digest new since the user looked, by id (Home's rows, which hold no paper)
-export const useNewDigest = useDigestUnseen
-
 // Owlit is writing the paper's digest, whoever asked
 export function useWritingDigest(paperId: string) {
   return useStand(digestAbout(paperId))?.state === "running"
