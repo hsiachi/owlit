@@ -14,6 +14,7 @@
 //                      session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "quiet"            says one word, then nothing until cancelled
+//   "sleep through it" ends a finished turn on Claude Code's error line for a Mac that slept
 //   "mute"             says nothing until cancelled; with FAKE_ACP_SESSION_GATE it first leaves
 //                      <gate>.prompted, so a test knows the prompt arrived
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
@@ -278,6 +279,12 @@ class FakeAgent implements acp.Agent {
       if (text.includes("rules?")) {
         const again = params.prompt.some((b) => b.type === "text" && b.text.startsWith("[owlit] owlit's rules changed"))
         await say(rules ? "got the rules" : again ? "got the new rules" : "no rules this time")
+        return { stopReason: "end_turn" }
+      }
+      // As Claude Code ends a turn the Mac slept through: what it had, then its error line, as a finished turn
+      if (text.includes("sleep through it")) {
+        await say("The first half.")
+        await say("API Error: Your computer went to sleep mid-response. The response above may be incomplete.")
         return { stopReason: "end_turn" }
       }
       // As Claude Code fails a turn the API refused: its error as answer text, then auth_required

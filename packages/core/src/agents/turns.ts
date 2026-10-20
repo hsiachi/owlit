@@ -224,6 +224,11 @@ export class Turns {
         ...(cutOff ? { cutOff } : {}),
         ...(readFrom.length ? { readFrom } : {}),
       })
+      // A finished answer that ended on the agent's own error line broke after all: said as a failure
+      if (status === "done" && turn.message.status === "error" && !turn.message.error) {
+        const name = await this.options.agents.nameOf(req.connectorId)
+        turn.message = { ...turn.message, error: t`${name} ran into a problem.` }
+      }
       await ws.chats.patchMessage(req.chatId, turn.message, true).catch(() => undefined)
     }
 

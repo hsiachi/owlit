@@ -447,6 +447,17 @@ describe("turns", () => {
     }
   })
 
+  it("takes the agent's error line off a finished answer and says the reply broke", async () => {
+    const { send, call } = await setup()
+    expect(await send("sleep through it")).toEqual({ stopReason: "end_turn" })
+    expect((await call("chats.get", { id: "c1" })).messages[1]).toMatchObject({
+      status: "error",
+      error: "Fake ran into a problem.",
+      errorDetail: "API Error: Your computer went to sleep mid-response. The response above may be incomplete.",
+      parts: [{ type: "text", text: "The first half." }],
+    })
+  })
+
   it("counts the silence from the agent's session being ready, not from the send", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
     const gate = path.join(realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-gate-"))), "open")
