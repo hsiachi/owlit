@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { OwlitError, Unreachable } from "./owlit.ts"
-import { contentTypeOf, pdfTabWrite, refusedByOwlit, showsPdf, takesPdfTab } from "./pdf-tab.ts"
+import { contentTypeOf, pdfTabWrite, refusedByOwlit, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "./pdf-tab.ts"
 
 const on = { connected: true, takePdfs: true, permitted: true }
 const pdf = { url: "https://dl.acm.org/doi/pdf/10.1145/3626772.3657891", contentType: "application/pdf" }
@@ -63,5 +63,60 @@ describe("showsPdf", () => {
   it("isn't a tab that went elsewhere, or one with nothing kept", () => {
     expect(showsPdf("https://www.example.org/", pdf.url)).toBe(false)
     expect(showsPdf(pdf.url, undefined)).toBe(false)
+  })
+})
+
+describe("takePdf", () => {
+  const bytes = new ArrayBuffer(8)
+  const paper = { id: "p1", title: "Attention Is All You Need", hasPdf: false }
+  const deps = (over: Partial<TakeDeps> = {}) => {
+    const answered = new Set<string>()
+    const put = vi.fn(async () => ({ paper: { ...paper, hasPdf: true } }))
+    return {
+      answered,
+      put,
+      deps: {
+        fetchPdf: async () => bytes,
+        lookUp: async () => paper,
+        put,
+        answered: { has: async (url: string) => answered.has(url), add: async (url: string) => void answered.add(url) },
+        ...over,
+      } satisfies TakeDeps,
+    }
+  }
+
+  it("hands the PDF to the paper its address names, and keeps it as answered", async () => {
+    const run = deps()
+    expect(await takePdf(pdf.url, { doi: "10.1145/3626772.3657891" }, run.deps)).toEqual({ taken: { ...paper, hasPdf: true } })
+    expect(run.put).toHaveBeenCalledWith("p1", bytes)
+    expect(run.answered.has(pdf.url)).toBe(true)
+    expect(await takePdf(pdf.url, { doi: "10.1145/3626772.3657891" }, run.deps)).toEqual({ seen: true })
+  })
+
+  it("lets owlit place a PDF whose address names no paper", async () => {
+    const run = deps()
+    await takePdf(pdf.url, {}, run.deps)
+    expect(run.put).toHaveBeenCalledWith(undefined, bytes)
+  })
+
+  it("doesn't keep a PDF that didn't come, so the next load tries again", async () => {
+    const run = deps({ fetchPdf: async () => undefined })
+    expect(await takePdf(pdf.url, {}, run.deps)).toEqual({ missed: undefined })
+    expect(run.answered.size).toBe(0)
+  })
+
+  it("doesn't keep one owlit couldn't answer for, and keeps one it refused", async () => {
+    const away = deps({ put: async () => Promise.reject(new Unreachable()) })
+    expect(await takePdf(pdf.url, {}, away.deps)).toHaveProperty("missed")
+    expect(away.answered.size).toBe(0)
+    const refused = deps({ put: async () => Promise.reject(new OwlitError(404, { reason: "not-a-library-paper" })) })
+    expect(await takePdf(pdf.url, {}, refused.deps)).toHaveProperty("refused")
+    expect(refused.answered.has(pdf.url)).toBe(true)
+  })
+
+  it("leaves a paper that has its PDF already", async () => {
+    const run = deps({ lookUp: async () => ({ ...paper, hasPdf: true }) })
+    expect(await takePdf(pdf.url, { arxiv: "1706.03762" }, run.deps)).toEqual({ had: { ...paper, hasPdf: true } })
+    expect(run.put).not.toHaveBeenCalled()
   })
 })

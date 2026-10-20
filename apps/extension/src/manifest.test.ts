@@ -10,7 +10,8 @@ describe("manifest", () => {
     expect(m.manifest_version).toBe(3)
     expect(m.name).toBe("owlit")
     expect(m.version).toBe("1.2.3")
-    expect(m.action.default_popup).toBe("popup.html")
+    // The click acts; a popup is set per tab when one is needed
+    expect(m.action).not.toHaveProperty("default_popup")
     expect(m.content_scripts[0]).toMatchObject({ matches: publishers, js: ["content.js"] })
     // Sites are host permissions, never API permissions, in manifest v3
     expect(m.permissions.every((p) => !p.includes("://"))).toBe(true)

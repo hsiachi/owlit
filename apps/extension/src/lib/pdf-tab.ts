@@ -1,3 +1,4 @@
+import type { ExtensionPaper, PaperAnswer } from "@owlit/protocol"
 import { OwlitError } from "./owlit.ts"
 
 // Whether a tab that finished loading a PDF is taken for owlit without a click: the user's PDF of a
@@ -34,3 +35,41 @@ export function pdfTabWrite(tabId: number, url: string, headers: { name: string;
 // another paper's): such a PDF isn't sent again in this browser session. A lost pairing or a failing
 // owlit (no workspace open) gave none, and the next load tries again.
 export const refusedByOwlit = (error: unknown) => error instanceof OwlitError && error.status !== 401 && error.status < 500
+
+export interface TakeDeps {
+  // The PDF at the address, with the user's cookies; undefined when what came isn't a PDF or nothing came
+  fetchPdf: (url: string) => Promise<ArrayBuffer | undefined>
+  // The Library paper the address names by its DOI or arXiv id, if any
+  lookUp: (ids: { doi?: string; arxiv?: string }) => Promise<ExtensionPaper | null>
+  // Hands the PDF to owlit: to that paper (PUT /papers/:id/pdf), or for owlit to place (PUT /pdfs)
+  put: (paperId: string | undefined, pdf: ArrayBuffer) => Promise<PaperAnswer>
+  // The PDFs owlit has answered for in this browser session, so a reload doesn't send one again
+  answered: { has: (url: string) => Promise<boolean>; add: (url: string) => Promise<void> }
+}
+
+// taken: owlit has it now; had: the paper had its PDF; refused: owlit's no (not a Library paper's,
+// another paper's); seen: answered for before in this session; missed: no PDF came, or owlit couldn't
+// answer, and the next load tries again
+export type Taken = { taken: ExtensionPaper } | { had: ExtensionPaper } | { refused: unknown } | { seen: true } | { missed: unknown }
+
+// A PDF tab handed to owlit. Marked answered only once owlit answered for it: a fetch that failed (a
+// signed address that expired, a page that wasn't the PDF) or an owlit that went away is tried again.
+export async function takePdf(url: string, ids: { doi?: string; arxiv?: string }, deps: TakeDeps): Promise<Taken> {
+  if (await deps.answered.has(url)) return { seen: true }
+  const pdf = await deps.fetchPdf(url)
+  if (!pdf) return { missed: undefined }
+  try {
+    const named = ids.doi || ids.arxiv ? await deps.lookUp(ids) : null
+    if (named?.hasPdf) {
+      await deps.answered.add(url)
+      return { had: named }
+    }
+    const { paper } = await deps.put(named?.id, pdf)
+    await deps.answered.add(url)
+    return { taken: paper }
+  } catch (error) {
+    if (!refusedByOwlit(error)) return { missed: error }
+    await deps.answered.add(url)
+    return { refused: error }
+  }
+}

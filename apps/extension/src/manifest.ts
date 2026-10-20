@@ -24,7 +24,9 @@ export interface Manifest {
   version: string
   description: string
   icons: Record<number, string>
-  action: { default_title: string; default_popup: string; default_icon: Record<number, string> }
+  // No default_popup: the click acts (background/index.ts), and the popup is set for a tab only when the
+  // page can't say what came of it
+  action: { default_title: string; default_icon: Record<number, string> }
   background: { service_worker: string; type: "module" } | { scripts: string[]; type: "module" }
   content_scripts: { matches: string[]; js: string[]; run_at: "document_idle" }[]
   permissions: string[]
@@ -45,9 +47,10 @@ export function manifest(target: Target, { version, publishers, dev = false }: {
     version,
     description: "Add the paper of the page you're on to owlit, with its PDF, using your browser's access.",
     icons: ICONS,
-    action: { default_title: "owlit", default_popup: "popup.html", default_icon: ICONS },
+    action: { default_title: "Add to owlit", default_icon: ICONS },
     content_scripts: [{ matches: publishers, js: ["content.js"], run_at: "document_idle" as const }],
-    permissions: ["storage", "activeTab", "scripting", "notifications", "webRequest", "alarms"],
+    // contextMenus: the button's right-click menu, where the one setting is
+    permissions: ["storage", "activeTab", "scripting", "notifications", "webRequest", "alarms", "contextMenus"],
     // owlit on this machine (any port: a match pattern takes none), and the publishers owlit knows
     host_permissions: ["http://127.0.0.1/*", ...publishers],
     // Any other site, asked for one at a time from a click in the popup or on the Allow page

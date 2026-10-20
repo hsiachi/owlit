@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { ext } from "../lib/browser.ts"
 import { originsOf, send, type Connection, type Outcome, type PageState, type PopupState } from "../lib/messages.ts"
 import { askForKnownSites, askForOrigins } from "../lib/permissions.ts"
+import { cardOf } from "../lib/say.ts"
 
 // The toolbar button's popup: whether this browser is connected to owlit, the page's paper with the one
 // thing to do with it, and the one setting. The work itself happens in the background, which outlives
@@ -26,6 +27,7 @@ export function Popup() {
     const answer = await send({ kind: "state", tabId: id }).catch(() => null)
     setBroken(!answer)
     if (answer) setState(answer)
+    if (answer?.said) setOutcome(answer.said)
   }, [])
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export function Popup() {
     if (tabId !== null) void refresh(tabId)
   }
 
-  const act = async (kind: "add" | "save", page: PageState) => {
+  const act = async (page: PageState) => {
     if (tabId === null) return
     // The PDF's site, asked for here and first (a permission can only be asked from the click itself): the
     // background fetches it with the user's cookies, which needs it. A site already allowed isn't asked again.
@@ -66,7 +68,7 @@ export function Popup() {
     setBusy(true)
     setOutcome(null)
     try {
-      setOutcome((await send({ kind, tabId }).catch(() => null)) ?? { kind: "failed", message: brokenText() })
+      setOutcome((await send({ kind: "act", tabId }).catch(() => null)) ?? { kind: "failed", message: brokenText() })
       await refresh(tabId)
     } finally {
       setBusy(false)
@@ -111,7 +113,7 @@ export function Popup() {
         </section>
       ))}
       {state ? (
-        <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(kind, page) => void act(kind, page)} />
+        <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(page) => void act(page)} />
       ) : broken ? (
         <Muted>{brokenText()}</Muted>
       ) : (
@@ -133,7 +135,7 @@ export function Popup() {
   )
 }
 
-function Body({ state, busy, outcome, onConnect, onAct }: { state: PopupState; busy: boolean; outcome: Outcome | null; onConnect: () => void; onAct: (kind: "add" | "save", page: PageState) => void }) {
+function Body({ state, busy, outcome, onConnect, onAct }: { state: PopupState; busy: boolean; outcome: Outcome | null; onConnect: () => void; onAct: (page: PageState) => void }) {
   const { connection, page } = state
   if (connection.state !== "connected") return <NotConnected connection={connection} onConnect={onConnect} />
   if (connection.workspace === null)
@@ -181,14 +183,14 @@ function NotConnected({ connection, onConnect }: { connection: Exclude<Connectio
   )
 }
 
-function PagePaper({ page, busy, outcome, onAct }: { page: PageState | null; busy: boolean; outcome: Outcome | null; onAct: (kind: "add" | "save", page: PageState) => void }) {
+function PagePaper({ page, busy, outcome, onAct }: { page: PageState | null; busy: boolean; outcome: Outcome | null; onAct: (page: PageState) => void }) {
   if (!page || (!page.paper && !page.inLibrary)) return <Muted>{page?.pdfTab ? t`owlit can't tell which paper this PDF is.` : t`This page doesn't show a paper.`}</Muted>
   const title = page.inLibrary?.title ?? page.paper?.title
   const pdfNamed = !!page.paper?.pdfUrl || page.pdfTab
   let action: React.ReactNode
   if (!page.inLibrary) {
     action = (
-      <Button disabled={busy} onClick={() => onAct("add", page)}>
+      <Button disabled={busy} onClick={() => onAct(page)}>
         {busy && <Spinner wait={false} />}
         {t`Add to owlit`}
       </Button>
@@ -197,7 +199,7 @@ function PagePaper({ page, busy, outcome, onAct }: { page: PageState | null; bus
     action = <Muted>{t`In your Library`}</Muted>
   } else if (pdfNamed) {
     action = (
-      <Button disabled={busy} onClick={() => onAct("save", page)}>
+      <Button disabled={busy} onClick={() => onAct(page)}>
         {busy && <Spinner wait={false} />}
         {t`Save PDF to owlit`}
       </Button>
@@ -216,45 +218,10 @@ function PagePaper({ page, busy, outcome, onAct }: { page: PageState | null; bus
 }
 
 function Said({ outcome }: { outcome: Outcome }) {
-  const host = "host" in outcome ? (outcome.host ?? "") : ""
-  let text: string
-  switch (outcome.kind) {
-    case "added":
-      text = {
-        saved: t`Added to owlit with its PDF`,
-        "none-named": t`Added to owlit. owlit looks for its PDF.`,
-        "not-a-pdf": t`Added; ${host} gave no PDF`,
-        "not-this-paper": t`Added; the PDF there isn't this paper's`,
-      }[outcome.pdf]
-      break
-    case "saved":
-      text = t`PDF saved to owlit`
-      break
-    case "no-pdf":
-      text = t`${host} gave no PDF`
-      break
-    case "not-this-paper":
-      text = t`This isn't the paper's PDF`
-      break
-    case "has-pdf":
-      text = t`In your Library`
-      break
-    case "no-workspace":
-      text = t`Open a workspace in owlit`
-      break
-    case "offline":
-      text = t`Open owlit to connect`
-      break
-    case "unpaired":
-      text = t`This browser isn't connected to owlit.`
-      break
-    case "failed":
-      text = outcome.message
-      break
-  }
+  const { text, detail } = cardOf(outcome)
   return (
     <p role="status" className="text-detail text-muted-foreground">
-      {text}
+      {detail ? `${text}. ${detail}` : text}
     </p>
   )
 }
