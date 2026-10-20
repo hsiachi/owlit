@@ -367,6 +367,39 @@ describe("keeping the library clean", () => {
   })
 })
 
+describe("the monthly recount", () => {
+  it("leaves paper.json alone when a count is the same, keeps when it counted on this machine, and looks preprints up again", async () => {
+    const { root, core } = await setup({})
+    const id = "doi-10.1145-3626772.3657891"
+    const old = Date.now() - 40 * 86_400_000
+    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 31, citationsAt: old, fields: { citationCount: "openalex" }, checked: 1 })
+    putPaper(root, { id: "arxiv-2101.00001", title: "A preprint", ids: { arxiv: "2101.00001" }, fetchedAt: 1, checked: 1 })
+    const file = path.join(root, "library/papers", id, "paper.json")
+    const before = readFileSync(file, "utf8")
+    await core.dispose()
+    const workspaces = path.join(path.dirname(root), "userData/workspaces")
+    for (const dir of readdirSync(workspaces)) rmSync(path.join(workspaces, dir, "library.json"), { force: true })
+    const fetch = (async (url: string) => {
+      if (url.includes("api.openalex.org/works?") && url.includes("W4393248081")) return new Response(JSON.stringify({ results: [{ id: "https://openalex.org/W4393248081", doi: "https://doi.org/10.1145/3626772.3657891", cited_by_count: 31 }] }))
+      // Semantic Scholar counts the preprint: it knows nothing of it
+      if (url.includes("api.semanticscholar.org/graph/v1/paper/batch")) return new Response(JSON.stringify([null]))
+      return new Response("not found", { status: 404 })
+    }) as unknown as typeof globalThis.fetch
+    const again = new Core({ userDataDir: path.join(path.dirname(root), "userData"), host: { fetch }, retryBaseMs: 1 })
+    cores.push(again)
+    await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const workspace = (again as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+    await workspace.library.citationsRecounted
+    expect(readFileSync(file, "utf8")).toBe(before)
+    const [dir] = readdirSync(workspaces)
+    const notes = JSON.parse(readFileSync(path.join(workspaces, dir!, "library.json"), "utf8"))
+    expect(notes.citationsAt[id]).toBeGreaterThan(old)
+    const listed = await again.handle({ jsonrpc: "2.0", id: 2, method: "library.list" }).then((r) => (r as { result: { papers: { id: string; citations?: { at: number } }[] } }).result)
+    expect(listed.papers.find((p) => p.id === id)?.citations?.at).toBe(notes.citationsAt[id])
+    expect(workspace.tasks.list().some((t) => t.kind === "paper.metadata" && t.subject === "arxiv-2101.00001")).toBe(true)
+  })
+})
+
 describe("library on disk", () => {
   const resolvedArxiv = { id: "arxiv-1706.03762", title: "Attention Is All You Need", authors: ["Ashish Vaswani"], ids: { arxiv: "1706.03762" }, year: 2017 }
 

@@ -14,6 +14,8 @@ import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
 import { copyReferences } from "@/features/library/actions"
+import { reviewImport } from "@/features/library/imports"
+import { useWorkspace } from "@/lib/workspace"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -149,8 +151,18 @@ export function useDocActions() {
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.folder(path)) },
       ],
       isDesktop ? [{ label: t`Show in Finder`, onSelect: () => reveal(path) }] : [],
+      // A folder of nothing but PDFs is papers kept as files: the Library takes them in (moving them
+      // there, since the folder is inside the workspace)
+      onlyPdfs(path) ? [{ label: t`Import as papers…`, onSelect: () => importAsPapers(path) }] : [],
       [{ label: t`Delete`, destructive: true, onSelect: () => deleteFolder(path) }],
     ]
+  }
+
+  const importAsPapers = (path: string) => {
+    const root = useWorkspace.getState().current?.path
+    if (!root) return
+    navigate("/library")
+    reviewImport("folder", `${root}/${path}`)
   }
 
   const pickedGroups = (keys: string[]): MenuGroups => {
@@ -159,4 +171,11 @@ export function useDocActions() {
   }
 
   return { fileGroups, folderGroups, pickedGroups, deleteKeys, startRenaming }
+}
+
+// Whether a folder holds files, and every one a PDF (the desktop app's import reads it from disk)
+function onlyPdfs(folder: string) {
+  if (!isDesktop) return false
+  const inside = Object.values(useDocsStore.getState().files).filter((f) => isWithin(f.path, folder))
+  return inside.length > 0 && inside.every((f) => /\.pdf$/i.test(f.path))
 }

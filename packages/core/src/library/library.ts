@@ -159,6 +159,8 @@ const RECENT_SEARCHES = 2000
 interface MachineNotes {
   missingRetriedOn?: string
   citationsCountedOn?: string
+  // When each paper's citations were last counted, by id
+  citationsAt?: Record<string, number>
 }
 
 // The ids a lookup may teach a paper the library has (Library.learnIds)
@@ -210,7 +212,8 @@ export class Library {
     this.imports = new Imports(dataDir, {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),
       add: async (paper, { importId, ...extra }) => this.importedBy(importId, await this.addNew(paper, undefined, "background", extra)),
-      addPdf: async (file, { importId, ...extra }) => this.importedBy(importId, await this.importPdf(file, { priority: "background", ...extra })),
+      // A folder of PDFs inside the workspace (shown in Docs) gives its files up to the library
+      addPdf: async (file, { importId, ...extra }) => this.importedBy(importId, await this.importPdf(file, { priority: "background", ...extra, move: this.isOwnFile(file) })),
       attachPdf: (id, file) =>
         this.attachPdf(id, file, "dropped", { ifMissing: true }).then(
           () => true,
@@ -266,6 +269,8 @@ export class Library {
     const state = (await readState(this.root, id)) ?? freshState("other", record.fetchedAt ?? Date.now())
     const pdf = await hasPdfFile(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
+    const counted = this.countedAt.get(id)
+    if (paper.citations && counted && counted > paper.citations.at) paper.citations.at = counted
     if (await exists(path.join(paperDir(this.root, id), "digest.md"))) {
       paper.hasDigest = true
       Object.assign(paper, await this.digestState(id))
@@ -1095,6 +1100,15 @@ export class Library {
     return lookAtPdf(file, this.services.pdfiumWasm)
   }
 
+  // A file of the workspace's own, outside what owlit keeps (library/, .owlit/): the person's documents
+  private isOwnFile(file: string) {
+    const rel = path.relative(this.root, file)
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return false
+    // As Docs tells owlit's folders, whatever their case (a case-insensitive disk)
+    const top = rel.split(path.sep)[0]!.toLowerCase()
+    return top !== "library" && top !== OWLIT_DIR
+  }
+
   // The paper whose PDF is this very file (the same bytes), if the library has one; reads nothing else
   async paperOfFile(file: string): Promise<string | undefined> {
     const sha = await sha256Of(file)
@@ -1107,7 +1121,7 @@ export class Library {
   // Reading and looking up happen outside the write queue, so a slow service never holds up a star or a
   // note; only placing the paper is queued.
   // placed: the paper was there without a PDF, and this file became it.
-  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean } } = {}): Promise<{ paper: Paper; existed: boolean; placed?: boolean }> {
+  async importPdf(file: string, options: { priority?: TaskPriority; tags?: string[]; imported?: { parse: boolean }; move?: boolean } = {}): Promise<{ paper: Paper; existed: boolean; placed?: boolean }> {
     const priority = options.priority ?? "asked"
     await assertPdf(file)
     const sha = await sha256Of(file)
@@ -1140,7 +1154,7 @@ export class Library {
       const existing = (await this.index.find(ids)) ?? ((await readRecord(this.root, id)) ? id : undefined)
       if (existing) {
         if (await hasPdfFile(this.root, existing)) return { paper: (await this.get(existing))!, existed: true }
-        await this.placePdf(existing, file, sha)
+        await this.placePdf(existing, file, sha, priority, "dropped", options.move)
         return { paper: (await this.get(existing))!, existed: true, placed: true }
       }
       const record: PaperRecord = resolution
@@ -1161,13 +1175,15 @@ export class Library {
       this.index.set(id, record.ids, record.title)
       // An id the services couldn't be asked about (offline) gets its metadata later
       if ((!resolution && found.ref) || (resolution && !fullyChecked(resolution))) this.queue("paper.metadata", id, priority)
-      await this.placePdf(id, file, sha, priority)
+      await this.placePdf(id, file, sha, priority, "dropped", options.move)
       return { paper: (await this.get(id))!, existed: false }
     })
   }
 
   // The file becomes the paper's PDF, and the steps that read it follow. Under the library's lock.
-  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked", route: PlacedBy = "dropped") {
+  // move: the file is the person's own copy inside the workspace (a folder of PDFs imported from there),
+  // taken rather than copied, so the workspace doesn't hold every PDF twice, once as a doc
+  private async placePdf(id: string, file: string, sha: string, priority: TaskPriority = "asked", route: PlacedBy = "dropped", move = false) {
     // A download or a publisher's page still looking must not replace the user's file when it lands, nor
     // a reading of the old file (its text, its parse, its figures, a digest of it) come back over the new
     // one's: every open step of the paper stops but the lookup of its details, which reads no PDF
@@ -1175,7 +1191,8 @@ export class Library {
     const dest = pdfFile(this.root, id)
     // Its own temporary name: a cancelled download may still be cleaning up its .part
     const part = `${dest}.${process.pid}-${Date.now()}.part`
-    await copyFile(file, part)
+    if (move) await rename(file, part)
+    else await copyFile(file, part)
     await rename(part, dest)
     // What was read from the file it replaces goes, so the new one is read (and MinerU reads it again)
     const dir = paperDir(this.root, id)
@@ -1280,17 +1297,29 @@ export class Library {
   missingRetried: Promise<void> = Promise.resolve()
   citationsRecounted: Promise<void> = Promise.resolve()
 
+  // When each paper's citations were last counted, from library.json (recountCitationsDaily keeps it),
+  // laid over paper.json's own time, which moves only when a count changes
+  private countedAt = new Map<string, number>()
+
   // Citation counts over a month old counted again (citations.ts), once a day at most, quietly: a count is
-  // the service's fact, not something Owlit wrote, so nothing marks it. A day the services can't be
-  // reached is tried again on the next open.
+  // the service's fact, not something Owlit wrote, so nothing marks it. paper.json is written only when
+  // a count changed: rewriting every record a month would re-index every paper and show the whole
+  // library as changed in a synced or versioned workspace. When each was counted is this machine's note
+  // (library.json). The same monthly pass looks up preprints again, so a published version's DOI is
+  // learnt. A day the services can't be reached is tried again on the next open.
   private async recountCitationsDaily() {
     const today = new Date().toISOString().slice(0, 10)
-    if ((await readJson<MachineNotes>(path.join(this.dataDir, "library.json")).catch(() => undefined))?.citationsCountedOn === today) return
+    const notes = (await readJson<MachineNotes>(path.join(this.dataDir, "library.json")).catch(() => undefined)) ?? {}
+    for (const [id, at] of Object.entries(notes.citationsAt ?? {})) this.countedAt.set(id, at)
+    if (notes.citationsCountedOn === today) return
     const now = Date.now()
     const due: { id: string; ids: PaperIds }[] = []
-    for (const id of await this.ids()) {
+    const ids = await this.ids()
+    for (const id of ids) {
       const record = await readRecord(this.root, id)
-      if (record && citationsDue(record, now)) due.push({ id, ids: record.ids })
+      if (!record || !citationsDue({ ...record, citationsAt: Math.max(record.citationsAt ?? 0, this.countedAt.get(id) ?? 0) || undefined }, now)) continue
+      due.push({ id, ids: record.ids })
+      if (record.ids.arxiv && !record.ids.doi) this.queue("paper.metadata", id, "background")
     }
     const counted = due.length ? await countCitations(this.services.http, due, await this.services.settings(), { retries: 1 }) : new Map()
     const changed = await this.serial.run(async () => {
@@ -1299,14 +1328,18 @@ export class Library {
         const found = counted.get(id)
         const current = await readRecord(this.root, id)
         if (!found || !current) continue
-        const same = current.citationCount === found.count && current.fields.citationCount === found.source
+        this.countedAt.set(id, now)
+        if (current.citationCount === found.count && current.fields.citationCount === found.source) continue
         await writeRecord(this.root, { ...current, citationCount: found.count, citationsAt: now, fields: { ...current.fields, citationCount: found.source } })
-        if (!same) changed.push(id)
+        changed.push(id)
       }
       return changed
     })
-    // Written after the counts, so a day they couldn't be had is tried again on the next open
-    await this.machine((kept) => ({ ...kept, citationsCountedOn: today }))
+    // Written after the counts, so a day they couldn't be had is tried again on the next open. Papers no
+    // longer in the library are dropped from the notes.
+    const here = new Set(ids)
+    const citationsAt = Object.fromEntries([...this.countedAt].filter(([id]) => here.has(id)))
+    await this.machine((kept) => ({ ...kept, citationsCountedOn: today, citationsAt }))
     if (changed.length) await this.announce(changed)
   }
 
