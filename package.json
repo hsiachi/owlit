@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "pnpm --filter @owlit/desktop dev",
-    "dev:web": "pnpm --filter owlit-app dev",
+    "dev:web": "NODE_USE_ENV_PROXY=1 node scripts/dev-web.mjs",
     "try": "node scripts/try.mjs",
     "drive": "node scripts/drive.mjs",
     "build": "pnpm --filter @owlit/desktop build",
@@ -24,6 +24,7 @@
     "@lingui/conf": "6.9.1",
     "@lingui/format-po": "6.9.1",
     "@lingui/native-tools": "0.1.6",
-    "vitest": "5.0.2"
+    "vitest": "5.0.2",
+    "ws": "8.22.0"
   }
 }

@@ -22,6 +22,7 @@ import { useLibraryStore } from "../store"
 import type { Highlight, Paper } from "@owlit/protocol"
 import { useHighlightsByPage } from "../lib/use-highlights"
 import { appearanceOf, useSettings } from "@/features/settings/store"
+import { fileUrl } from "@/lib/rpc"
 import { HighlightLayer } from "./HighlightLayer"
 import { useHighlightHitTest } from "./highlight-hits"
 import { LinkLayer, TRAIL_DEPTH, type ReturnMark } from "./LinkLayer"
@@ -75,7 +76,7 @@ export function PdfReader({ paper }: { paper: Paper }) {
 
 function Document({ paper, engine }: { paper: Paper; engine: Engine }) {
   const documentId = paper.id
-  const url = paper.pdf?.url ?? ""
+  const url = fileUrl(paper.pdf?.url ?? "")
   // EmbedPDF keys its init effect on this array's identity; a fresh array tears the viewer down
   const plugins = useMemo(
     () => [
@@ -206,7 +207,7 @@ function Surface({ paper, documentId }: { paper: Paper; documentId: string }) {
         detail={t`The server may not allow owlit to fetch it. It can still be opened in the browser.`}
         action={
           <Button variant="outline" size="sm" asChild>
-            <a href={paper.pdf?.url} target="_blank" rel="noreferrer">
+            <a href={paper.pdf && fileUrl(paper.pdf.url)} target="_blank" rel="noreferrer">
               <ExternalLinkIcon />
               {t`Open in browser`}
             </a>

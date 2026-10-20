@@ -14,7 +14,7 @@ import {
   AttachmentTrigger,
 } from "@/components/ui/attachment"
 import { Tip } from "@/components/tip"
-import { isDesktop } from "@/lib/rpc"
+import { fileUrl, isDesktop } from "@/lib/rpc"
 import { formatBytes, type ChipFile, type Reader } from "../../lib/attachments"
 import { Spinner } from "@/components/ui/spinner"
 import { useAfterWait } from "@/hooks/use-after-wait"
@@ -45,7 +45,7 @@ function cantRead(agent: string, kind: FileKind) {
 function pictureOf(f: AttachmentFile) {
   if (f.previewUrl) return f.previewUrl
   if (!isDesktop || !f.path || !f.mimeType.startsWith("image/")) return undefined
-  return `owlit-file://workspace/${f.path.split("/").map(encodeURIComponent).join("/")}`
+  return fileUrl(`owlit-file://workspace/${f.path.split("/").map(encodeURIComponent).join("/")}`)
 }
 
 export function AttachmentList({

@@ -27,7 +27,8 @@ export interface PaperIds {
 }
 
 export interface PaperPdf {
-  // Where the window reads it: owlit-file://workspace/… in the desktop app, an object URL on mock data
+  // Where the window reads it: owlit-file://workspace/… as core names it (the renderer maps it for a dev
+  // core), an object URL on mock data
   url: string
   pages?: number
 }

@@ -1,6 +1,7 @@
 // Typed client for core. In the desktop app every call goes over window.owlit (the Electron preload);
-// in a plain browser (pnpm dev:web) there is no core, calls fail with a readable error and the
-// feature stores keep running on their mock data.
+// in a browser (pnpm dev:web) over the web bridge to the dev core, when one is served; without either
+// there is no core, calls fail with a readable error and the feature stores keep running on their mock
+// data.
 
 import { t } from "@lingui/core/macro"
 import type {
@@ -12,6 +13,7 @@ import type {
   ResultOf,
   RpcNotification,
 } from "@owlit/protocol"
+import { NO_CORE, webBridge, webFileUrl } from "./web-bridge"
 
 declare global {
   interface Window {
@@ -19,10 +21,18 @@ declare global {
   }
 }
 
-// The Electron preload's API; undefined in a plain browser
-export const bridge = typeof window === "undefined" ? undefined : window.owlit
+// The dev core pnpm dev:web serves, if any (scripts/dev-web.mjs sets it for Vite)
+const devCore: string | undefined = import.meta.env.VITE_OWLIT_CORE
 
+// The Electron preload's API, or its stand-in for the dev core; undefined in a plain browser
+export const bridge = typeof window === "undefined" ? undefined : (window.owlit ?? (devCore ? webBridge(devCore) : undefined))
+
+// There is a core to talk to (the app, or the dev core)
 export const isDesktop = bridge !== undefined
+
+// Where the window reads a file of the workspace (a paper's PDF, a figure): owlit-file://workspace/<path>
+// as core names it in the app, the dev core's http route in a browser
+export const fileUrl = (url: string) => (devCore && !window.owlit ? webFileUrl(devCore, url) : url)
 
 // Where a dropped or picked file is on disk, for core to read it
 export function filePath(file: File) {
@@ -43,9 +53,6 @@ export class RpcError extends Error {
     this.data = data
   }
 }
-
-// Not one of JSON-RPC's codes: the request never left the renderer
-const NO_CORE = -32099
 
 type Args<M extends MethodName> = ParamsOf<M> extends void ? [] : [params: ParamsOf<M>]
 
