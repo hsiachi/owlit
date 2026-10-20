@@ -67,4 +67,6 @@ CONTRIBUTING.md has the full layout, the environment variables and how releases 
 Branch from `dev`, merge back into `dev`; `main` only moves at a release. The rest (subject lines, commit
 size, changelog lines) is in [CONTRIBUTING.md › Commits and branches](CONTRIBUTING.md#commits-and-branches).
 Before you call a change done: `pnpm check` passes, and if people would notice it, there is a line under
-`## Unreleased` in `apps/desktop/CHANGELOG.md`.
+`## Unreleased` in `apps/desktop/CHANGELOG.md`. What only Electron can show (a restart, a real engine, the
+app's own windows) is tried in Owlit Dev by you or by a session you start (`/try-it`), never left for a
+person to try later. `/ship` runs the whole list.
