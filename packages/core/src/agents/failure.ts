@@ -43,6 +43,9 @@ export function cutOffSentence(why: CutOff) {
 function limitSentence(name: string, message: string) {
   const resets = RESETS.exec(message)?.[1]
   if (!resets) return t`${name}'s usage limit is reached.`
+  // "resets in 3 hours": a while, not a time
+  const after = /^in\s+(.+)$/i.exec(resets)?.[1]
+  if (after) return t`${name}'s usage limit is reached; it resets in ${after}.`
   const clock = CLOCK.exec(resets)
   const at = clock
     ? `${resets.slice(0, clock.index).replace(/[\s,]+$/, "")} ${(Number(clock[1]) % 12) + (clock[3].toLowerCase() === "p" ? 12 : 0)}:${clock[2] ?? "00"}`.trim()

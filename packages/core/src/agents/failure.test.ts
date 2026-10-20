@@ -19,6 +19,8 @@ describe("an agent's usage limit", () => {
     expect((await failureOf(agents, "codex", new Error("Internal error"), "You've hit your usage limit. Upgrade to Plus to continue using Codex, or try again at 8:15 PM.")).text).toBe(
       "Codex's usage limit is reached; it resets at 20:15.",
     )
+    // A while rather than a time
+    expect((await failureOf(agents, "claude-code", internal("You've hit your session limit · resets in 3 hours"), "")).text).toBe("Claude Code's usage limit is reached; it resets in 3 hours.")
   })
 
   it("without a reset time, says only that it is reached", async () => {
