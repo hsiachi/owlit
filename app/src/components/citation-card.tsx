@@ -138,7 +138,10 @@ export function CitationCard({ citation, footer }: { citation: Citation; footer?
       {quote ? (
         <p className="mt-1.5 text-sm leading-snug text-foreground italic">“{quote}”</p>
       ) : facts?.abstract ? (
-        <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-muted-foreground">{facts.abstract}</p>
+        // Named as the abstract, so it reads as what the paper says of itself, not as where Owlit took the claim from
+        <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-muted-foreground">
+          <span className="font-medium">{t({ message: "Abstract", comment: "label before the first lines of a cited paper's abstract, in its card" })}</span> · {facts.abstract}
+        </p>
       ) : (
         <p className="mt-1.5 text-muted-foreground">{t`No abstract in owlit.`}</p>
       )}
@@ -150,7 +153,6 @@ export function CitationCard({ citation, footer }: { citation: Citation; footer?
           source && <span className={cn("text-owlit", depth === "title" && "opacity-75")}>{source}</span>
         )}
         {check === "no-text" && <span>{t`The paper's text isn't in owlit`}</span>}
-        {!quote && !depth && facts?.abstract && <span>{t`From the abstract`}</span>}
         {trace && <span>{t({ message: `You: ${trace}`, comment: "the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6" })}</span>}
       </p>
       {footer}
