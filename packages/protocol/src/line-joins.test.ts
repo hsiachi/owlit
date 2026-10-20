@@ -7,6 +7,10 @@ describe("lineJoint", () => {
     expect(lineJoint("我们提出了一种", "新的方法。")).toBe("")
   })
 
+  it("puts nothing between Han characters outside the BMP", () => {
+    expect(lineJoint("姓\u{20BB7}", "\u{20BB7}家")).toBe("")
+  })
+
   it("puts nothing after CJK punctuation before a character", () => {
     expect(lineJoint("在本文中，", "我们")).toBe("")
     expect(lineJoint("「検索", "」と")).toBe("")
