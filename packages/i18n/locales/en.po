@@ -5950,20 +5950,6 @@ msgstr "Export as a doc"
 msgid "Export as CSV"
 msgstr "Export as CSV"
 
-#. papers of a thread in none of its groups
-#. papers of a thread in none of its groups
-#: app/src/features/threads/components/ThreadTable.tsx
-#: app/src/features/threads/lib.ts
-msgid "Not in a group"
-msgstr "Not in a group"
-
-#. papers that speak to none of the user's sentences
-#. papers that speak to none of the user's sentences
-#: app/src/features/threads/components/ThreadTable.tsx
-#: app/src/features/threads/lib.ts
-msgid "Bear on none of them"
-msgstr "Bear on none of them"
-
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Sentences of {0}"
@@ -5985,6 +5971,11 @@ msgstr "Newest first"
 msgid "Paper"
 msgstr "Paper"
 
+#. table column: what kind of paper each is and its material
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "What it is"
+msgstr "What it is"
+
 #. placeholder {0}: rows.length - SHOWN
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{0, plural, one {# more} other {# more}}"
@@ -5993,15 +5984,6 @@ msgstr "{0, plural, one {# more} other {# more}}"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group by"
 msgstr "Group by"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "{done} of {of}"
-msgstr "{done} of {of}"
-
-#. placeholder {0}: cell.passage.page
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Open at p. {0}"
-msgstr "Open at p. {0}"
 
 #: app/src/features/threads/components/Work.tsx
 msgid "{papers} so far"
@@ -6062,6 +6044,16 @@ msgstr "Challenges"
 #: app/src/features/threads/lib.ts
 msgid "Related"
 msgstr "Related"
+
+#. papers of a thread in none of its groups
+#: app/src/features/threads/lib.ts
+msgid "Not in a group"
+msgstr "Not in a group"
+
+#. papers that speak to none of the user's sentences
+#: app/src/features/threads/lib.ts
+msgid "Bear on none of them"
+msgstr "Bear on none of them"
 
 #: app/src/features/threads/pages/ThreadPage.tsx
 msgid "This thread is gone"

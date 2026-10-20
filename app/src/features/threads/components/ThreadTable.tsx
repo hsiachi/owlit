@@ -1,52 +1,28 @@
 import { plural, t } from "@lingui/core/macro"
-import { itemId, readInFull, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRowRead, type Relation } from "@owlit/protocol"
+import { itemId, readInFull, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadRowRead, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
-import { useNavigate } from "react-router-dom"
 import { ChoiceMenu } from "@/components/choice-menu"
-import { citationCardSurface } from "@/components/citation"
-import { CitationCard } from "@/components/citation-card"
 import { NoteDot } from "@/components/marks"
-import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
-import { MentionToken } from "@/components/mention/mention-token"
-import { Quote } from "@/components/quote"
+import { useSeenOnScreen, type VisitDots } from "../seen"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { displayName } from "@/features/docs/types"
 import { cn, scrollMotion } from "@/lib/utils"
-import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
+import { citeOf, columnLabel, type GroupBy, groupByOf, groupingsWithGroups, paperFacts, relWord, type Section, sectionsOf, useLibraryPaper } from "../lib"
 import { editThread } from "../store"
-import { ReadingMark, RowPeek, WasLine } from "./AnswerRows"
-import { useThreadWork } from "../work"
+import { ReadingMark, RowPeek } from "./AnswerRows"
 import { useThreadsUi } from "../ui-store"
 
-// A thread with columns, as a ruled table like the Library's: a row per paper, a column per question
-// asked of every paper, a comparison with a doc as a column of plain words. Groups are Owlit's and fold; a
-// row opens its card under it; a cell opens to show the words it rests on. Everything in it is Owlit's: the
-// user changes it by asking in a chat, and here only chooses what it is grouped by.
+// A thread with columns, as a ruled table like the Library's: a row per paper with what it is, a column
+// per question asked of every paper, a comparison with a doc as a column of plain words. Owlit's groups are
+// sections that fold. A row opens the paper's card under it, from any cell, where the words each answer
+// rests on are. Everything in it is Owlit's: the user changes it by asking in a chat, and here only chooses
+// what it is grouped by.
 
 // Rows a group shows before "Show N more"
 const SHOWN = 8
-
-// A grouping (its column), a comparison's sentences, or none
-type GroupBy = "none" | `grouping:${string}` | `column:${string}`
-
-interface Section {
-  key: string
-  group?: ThreadGroup
-  // The grouping it is a group of
-  grouping?: ThreadColumn
-  // A sentence of the user's, when grouped by a comparison
-  sentence?: { id: string; text: string }
-  label: string
-  one?: string
-  rows: ThreadRowRead[]
-  // Its rows and its subgroups' rows, which its counts cover
-  total: ThreadRowRead[]
-  depth: number
-}
 
 function relCounts(rows: ThreadRowRead[], column: ThreadColumn | undefined) {
   if (!column) return ""
@@ -63,29 +39,17 @@ function relCounts(rows: ThreadRowRead[], column: ThreadColumn | undefined) {
 }
 
 export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; shown: ThreadRead; visit: VisitDots }) {
-  // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
-  // nothing to group by until it is done
-  const filling = useThreadWork(thread.id).running.flatMap((chat) => (chat.about.column ? [chat.about.column] : []))
-  const columns = shown.columns.filter((c) => !c.hidden || (c.kind === "grouping" && filling.includes(c.id)))
+  // A grouping is the table's sections, never a column of its own
+  const columns = shown.columns.filter((c) => !c.hidden && c.kind !== "grouping")
   const compare = columns.find((c) => c.kind === "compare")
-  const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length && !filling.includes(c.id))
-  // What the table is grouped by is remembered for the thread (its view); one that isn't there (a
-  // grouping still being worked out, a comparison hidden) gives way to the first grouping
+  const groupings = groupingsWithGroups(shown)
+  // What the table is grouped by is remembered for the thread (its view); chosen here, it shows at once
   const [chosen, setChosen] = useState<GroupBy>()
-  const want = chosen ?? (thread.view?.groupBy as GroupBy | undefined)
-  const groupBy: GroupBy =
-    want === "none" ||
-    (want?.startsWith("grouping:") && groupings.some((c) => c.id === want.slice(9))) ||
-    (want?.startsWith("column:") && columns.some((c) => c.kind === "compare" && c.id === want.slice(7)))
-      ? want!
-      : groupings[0]
-        ? `grouping:${groupings[0].id}`
-        : "none"
+  const groupBy = groupByOf(shown, chosen ?? thread.view?.groupBy)
   const setGroupBy = (value: GroupBy) => {
     setChosen(value)
     void editThread(thread.id, { op: "view", groupBy: value })
   }
-  const grouping = groupBy.startsWith("grouping:") ? groupings.find((c) => c.id === groupBy.slice(9)) : undefined
   const [sort, setSort] = useState<string>("order")
   const [folded, setFolded] = useState<Set<string>>(new Set())
   const [all, setAll] = useState<Set<string>>(new Set())
@@ -109,22 +73,7 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
     return rows
   }
 
-  const sections: Section[] = []
-  if (grouping) {
-    const { groups, loose } = groupSections(shown, grouping)
-    for (const g of groups) sections.push({ key: g.group.id, group: g.group, grouping, label: g.group.name, one: g.group.one, rows: g.rows, total: g.total, depth: g.depth })
-    if (loose.length) sections.push({ key: "", label: t({ message: "Not in a group", comment: "papers of a thread in none of its groups" }), rows: loose, total: loose, depth: 0 })
-  } else if (groupBy.startsWith("column:")) {
-    const col = columns.find((c) => c.id === groupBy.slice(7))
-    for (const s of col?.sentences ?? []) {
-      const rows = shown.rows.filter((r) => r.cells[col!.id]?.sentence === s.id && r.cells[col!.id]?.rel)
-      sections.push({ key: s.id, sentence: s, label: s.text, rows, total: rows, depth: 0 })
-    }
-    const none = shown.rows.filter((r) => !r.cells[col?.id ?? ""]?.rel)
-    if (none.length) sections.push({ key: "", label: t({ message: "Bear on none of them", comment: "papers that speak to none of the user's sentences" }), rows: none, total: none, depth: 0 })
-  } else {
-    sections.push({ key: "", label: "", rows: shown.rows, total: shown.rows, depth: 0 })
-  }
+  const sections = sectionsOf(shown, groupBy)
 
   // Where each paper shows: a paper in several groups is a whole row in each, the first of them the one a
   // link to it opens
@@ -166,14 +115,14 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
     if (Math.abs(to.scrollLeft - from.scrollLeft) > 0.5) to.scrollLeft = from.scrollLeft
     root.current?.toggleAttribute("data-scrolled", from.scrollLeft > 0)
   }
-  const width = `max(100%, calc(${PAPER} + ${PLUS} + ${columns.length} * ${ANSWER}))`
+  const width = `max(100%, calc(${PAPER} + ${IS} + ${columns.length} * ${ANSWER}))`
   const cols = (
     <colgroup>
       <col style={{ width: PAPER }} />
+      <col style={{ width: IS }} />
       {columns.map((c) => (
         <col key={c.id} />
       ))}
-      <col style={{ width: PLUS }} />
     </colgroup>
   )
   const groupOptions = [
@@ -210,12 +159,14 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
               <HeadCell first className={cn("left-0 z-20", pinnedEdge)}>
                 {t`Paper`}
               </HeadCell>
-              {columns.map((c) => (
-                <HeadCell key={c.id}>
-                  <ColumnHeader thread={thread} column={c} />
+              <HeadCell>{t({ message: "What it is", comment: "table column: what kind of paper each is and its material" })}</HeadCell>
+              {columns.map((c, i) => (
+                <HeadCell key={c.id} last={i === columns.length - 1}>
+                  <span className="block truncate" title={c.kind === "compare" ? c.sentences?.map((s) => s.text).join("\n") : c.question}>
+                    {columnLabel(c)}
+                  </span>
                 </HeadCell>
               ))}
-              <HeadCell last />
             </tr>
           </thead>
         </table>
@@ -288,11 +239,12 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
   )
 }
 
-// The Paper column's width, and the least an answer column takes: answers share what is left, and once
-// they would get less, the table scrolls sideways under the Paper column, which stays
+// The Paper column's width, What it is's (a short line: "Field study, 12 participants"), and the least an
+// answer column takes: answers share what is left, and once they would get less, the table scrolls
+// sideways under the Paper column, which stays
 const PAPER = "18rem"
+const IS = "11rem"
 const ANSWER = "15rem"
-const PLUS = "40px"
 
 // What spans a row (a group's line, "N more") is as wide as the visible part of the table and stays there
 // while the table scrolls sideways
@@ -336,20 +288,6 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
   )
 }
 
-// A column's name; while Owlit fills it, how far it got
-function ColumnHeader({ thread, column }: { thread: ThreadRead; column: ThreadColumn }) {
-  const filling = useThreadWork(thread.id).running.some((chat) => chat.about.column === column.id)
-  // A grouping counts the papers Owlit has put in a group so far
-  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id])).length
-  const of = thread.rows.length
-  return (
-    <span className="flex items-center" title={column.kind === "compare" ? column.sentences?.map((s) => s.text).join("\n") : column.question}>
-      <span className="truncate">{columnLabel(column)}</span>
-      {filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>}
-    </span>
-  )
-}
-
 function GroupRow({ section, open, span, count, rels, onToggle }: { section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
   return (
     <tr className="group/row">
@@ -368,7 +306,8 @@ function GroupRow({ section, open, span, count, rels, onToggle }: { section: Sec
 }
 
 // A paper in several groups is a whole row in each, the same everywhere, with one muted line under its name
-// saying where else it is; each name there goes to that row
+// saying where else it is; each name there goes to that row. A click anywhere in the row opens its card
+// (not one that ends a selection of words); from the keyboard, the Paper cell is the row's button.
 function TableRow({
   thread,
   row,
@@ -402,8 +341,28 @@ function TableRow({
   const seenRef = useSeenOnScreen<HTMLTableRowElement>(thread.id, [itemId.row(row.id), ...columns.map((c) => itemId.cell(row.id, c.id))])
   const td = cn("border-b px-2.5 py-2 align-top text-detail leading-5", open && "border-b-transparent")
   return (
-    <tr ref={seenRef} id={first ? `row-${row.id}` : undefined} data-place={place} className="group/row">
-      <td className={cn(td, pinnedCell, pinnedEdge, "cursor-default text-sm")} style={{ paddingLeft: 10 + indent * 20 }} onClick={onOpen}>
+    <tr
+      ref={seenRef}
+      id={first ? `row-${row.id}` : undefined}
+      data-place={place}
+      className="group/row cursor-default"
+      onClick={() => {
+        if (!window.getSelection()?.isCollapsed) return
+        onOpen()
+      }}
+    >
+      <td
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        className={cn(td, pinnedCell, pinnedEdge, "text-sm outline-none focus-key:[background-image:linear-gradient(var(--color-muted),var(--color-muted))]")}
+        style={{ paddingLeft: 10 + indent * 20 }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return
+          e.preventDefault()
+          onOpen()
+        }}
+      >
         <span className="flex items-start gap-2">
           <span className={cn(open ? "font-medium text-balance" : "line-clamp-2")}>{facts.title}</span>
           {/* Owlit's dot for a new row and the user's reading are two facts, so both can show */}
@@ -441,16 +400,12 @@ function TableRow({
           </span>
         )}
       </td>
+      <td className={cn(td, "text-foreground group-hover/row:bg-muted")}>{row.is}</td>
       {columns.map((c) => (
         <td key={c.id} className={cn(td, "group-hover/row:bg-muted")}>
-          {c.kind === "grouping" ? (
-            <GroupsCell column={c} row={row} />
-          ) : (
-            <Cell thread={thread} row={row} column={c} cell={row.cells[c.id]} fresh={visit.fresh(itemId.cell(row.id, c.id))} reread={readInFull(visit.changeOf(itemId.cell(row.id, c.id)))} showSentence={sentenceShown(c)} libraryId={library?.id} />
-          )}
+          <Cell column={c} cell={row.cells[c.id]} fresh={visit.fresh(itemId.cell(row.id, c.id))} reread={readInFull(visit.changeOf(itemId.cell(row.id, c.id)))} showSentence={sentenceShown(c)} />
         </td>
       ))}
-      <td className={cn(td, "py-1.5 pr-1.5 pl-0 group-hover/row:bg-muted")} />
     </tr>
   )
 }
@@ -464,29 +419,19 @@ function PeekRow({ thread, row, open, span }: { thread: ThreadRead; row: ThreadR
   )
 }
 
-// A grouping shown as a column: the groups the paper is in, by name
-function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRowRead }) {
-  const names = (row.in?.[column.id] ?? []).map((id) => column.groups?.find((g) => g.id === id)?.name).filter(Boolean)
-  return <span className="text-foreground">{names.join(" · ")}</span>
-}
-
-// A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the full text.
-// A comparison says how the paper stands and why, Owlit's reason being what the user doesn't know yet; their
-// own sentence is one muted line under it only where nothing else says which one. It opens to the words it
-// rests on.
+// A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the full text;
+// one from the title only is thin, so muted. A comparison says how the paper stands and why, Owlit's reason
+// being what the user doesn't know yet; their own sentence is one muted line under it only where nothing
+// else says which one. The words it rests on are on the row's card.
 // reread: the dot's change is Owlit answering again from the full text: the page's place says so while the
-// dot lasts, and the card keeps the answer it replaced after.
-function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryId }: { thread: ThreadRead; row: ThreadRowRead; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean; libraryId?: string }) {
-  const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
-  const item = itemId.cell(row.id, column.id)
-  const was = useReadInFull(thread.id, item, open)
+// dot lasts.
+function Cell({ column, cell, fresh, reread, showSentence }: { column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean }) {
   if (!cell) return <span className="text-muted-foreground/60">…</span>
+  // No bearing on any of the user's sentences: nothing to say
+  if (column.kind === "compare" && !cell.rel) return <span title={cell.text} />
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
   const text = cell.text
   const page = cell.depth === "full" && cell.passage ? cell.passage.page : undefined
-  // No bearing on any of the user's sentences: nothing to say
-  if (column.kind === "compare" && !cell.rel) return <span title={cell.text} />
   // The words wrap in a narrow column; the page stays on one line, as it does alone
   const pageMark =
     fresh && reread ? (
@@ -497,53 +442,22 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
     ) : (
       page && <span className="ml-1 whitespace-nowrap text-muted-foreground tabular-nums">{t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>
     )
-  const body =
-    column.kind === "compare" && cell.rel ? (
-      <>
-        <span className={cn("font-medium", cell.rel === "related" ? "font-normal text-muted-foreground" : "text-foreground")}>{relWord(cell.rel)}</span>
-        {text && <span className="text-foreground"> · {text}</span>}
-        {pageMark}
-        {showSentence && sentence && <span className="block truncate text-muted-foreground">“{sentence.text}”</span>}
-      </>
-    ) : (
-      <span className="text-foreground">
-        {text}
-        {pageMark}
-      </span>
-    )
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button type="button" className={cn("-mx-1 -my-0.5 block w-full rounded-md px-1 py-0.5 text-left outline-none hover:bg-accent focus-key:bg-accent data-[state=open]:bg-accent", "line-clamp-4")}>
-          {fresh && <NoteDot className="mr-1.5 mb-px align-middle" />}
-          {body}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className={cn(citationCardSurface, "w-96")}>
-        <p className="text-detail text-muted-foreground">{columnLabel(column)}</p>
-        {/* An answer from the title only is thin: muted, as the short list's peek draws it */}
-        <p className={cn("mt-1 text-sm leading-relaxed", cell.depth === "title" && "text-muted-foreground")}>
-          {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
+    <span className="line-clamp-4">
+      {fresh && <NoteDot className="mr-1.5 mb-px align-middle" />}
+      {column.kind === "compare" && cell.rel ? (
+        <>
+          <span className={cn("font-medium", cell.rel === "related" ? "font-normal text-muted-foreground" : "text-foreground")}>{relWord(cell.rel)}</span>
+          {text && <span className="text-foreground"> · {text}</span>}
+          {pageMark}
+          {showSentence && sentence && <span className="block truncate text-muted-foreground">“{sentence.text}”</span>}
+        </>
+      ) : (
+        <span className={cell.depth === "title" ? "text-muted-foreground" : "text-foreground"}>
           {text}
-        </p>
-        <WasLine was={was === undefined ? reread : was} className="mt-1" />
-        {column.kind === "compare" && sentence && <Quote className="mt-2">“{sentence.text}”</Quote>}
-        {/* What the answer rests on, as every citation's card says it, then the row that changes it */}
-        <div className="mt-3 border-t pt-2.5">
-          <CitationCard
-            citation={{ paperId: row.id, depth: cell.depth, ...(cell.passage ? { page: cell.passage.page, quote: cell.passage.quote } : {}) }}
-            footer={
-              <div className="mt-2.5 flex items-center gap-2 border-t pt-2 text-detail text-muted-foreground">
-                <span className="flex-1" />
-                {cell.passage && libraryId && (
-                  <MentionToken label={t`Open at p. ${cell.passage.page}`} onClick={() => navigate(passageRoute(libraryId, cell.passage))} />
-                )}
-              </div>
-            }
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
+          {pageMark}
+        </span>
+      )}
+    </span>
   )
 }
-

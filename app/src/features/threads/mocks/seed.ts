@@ -113,6 +113,7 @@ function venue(): ThreadRead {
   const p = (id: string, title: string, authors: string[], answer: string, method: string, rel?: { rel: "supports" | "challenges" | "related"; sentence: string; text: string }, group?: string, full?: { quote: string; page: number }): ThreadRowRead => ({
     id,
     paper: { title, authors, ids: { doi: `10.1145/${id}` }, year: 2026, venue: "UIST" },
+    is: method.startsWith("Survey") ? "Survey paper" : method.startsWith("Technical") ? "Technical paper" : "System paper with a study",
     cells: {
       [QUESTION_COLUMN]: { text: answer, depth: full ? "full" : "title", at, ...(full ? { passage: full } : {}) },
       c2: { text: method, depth: full ? "full" : "title", at },
