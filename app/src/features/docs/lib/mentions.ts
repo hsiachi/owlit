@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useThreadsStore } from "@/features/threads/store"
 import { threadHolding, shown } from "@/features/threads/lib"
-import { isOwlit, type Mentionable, type Paper, paperUri, parseOwlitUri, type Thread, threadUri } from "@owlit/protocol"
+import { isOwlit, type Mentionable, type Paper, paperUri, parseOwlitUri, type ThreadRead, threadUri } from "@owlit/protocol"
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { authorsYear, citationLabel } from "@/features/library/lib/format"
 import { hasAllWords, queryWords } from "@/lib/words"
@@ -34,7 +34,7 @@ export const paperMentionable = (paper: Paper): Mentionable => ({
   uri: paperUri(paper.id),
 })
 
-export const threadMentionable = (c: Thread): Mentionable => {
+export const threadMentionable = (c: ThreadRead): Mentionable => {
   const { title, rows } = shown(c)
   return { id: c.id, kind: "thread", title, subtitle: plural(rows.length, { one: "# paper", other: "# papers" }), uri: threadUri(c.id) }
 }

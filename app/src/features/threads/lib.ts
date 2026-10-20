@@ -1,14 +1,14 @@
 import { t } from "@lingui/core/macro"
-import { GROUPING_COLUMN, MENTION_LINK, mentionLink, type Paper, QUESTION_COLUMN, type Relation, shownThread, summarize, type Thread, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRow, type ThreadSummary } from "@owlit/protocol"
+import { GROUPING_COLUMN, MENTION_LINK, type Paper, QUESTION_COLUMN, type Relation, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
 
 // Worked out once per thread object, which is safe because the store replaces a thread on every
 // change and never changes one in place. Shared between callers, so not to be changed either.
-function perThread<T>(build: (c: Thread) => T) {
-  const cache = new WeakMap<Thread, T>()
-  return (c: Thread) => {
+function perThread<T>(build: (c: ThreadRead) => T) {
+  const cache = new WeakMap<ThreadRead, T>()
+  return (c: ThreadRead) => {
     let value = cache.get(c)
     if (value === undefined) cache.set(c, (value = build(c)))
     return value
@@ -18,6 +18,16 @@ function perThread<T>(build: (c: Thread) => T) {
 // The thread as the user sees it (shownThread), and what the list of threads shows of it
 export const shown = perThread(shownThread)
 export const summaryOf = perThread(summarize)
+
+// The report's first paragraph as sentences, as the page shows it above the papers
+export const memoOf = perThread((c) => {
+  const para = c.report.split(/\n\s*\n/).find((p) => p.trim() && !/^\s*#/.test(p))?.replace(/\s+/g, " ").trim()
+  if (!para) return []
+  return para
+    .split(/(?<=[.!?])\s+(?=[A-Z[\u3400-\u9fff])|(?<=[。！？])/)
+    .map((text, i) => ({ id: `s${i + 1}`, text: text.trim() }))
+    .filter((s) => s.text)
+})
 
 // The Library's papers by lowercased DOI and by arXiv id, each with its place in the list, built once per
 // papers object (the store replaces it on every change). A row looks its paper up on every change to the
@@ -40,7 +50,7 @@ function byIds(papers: Record<string, Paper>): ByIds {
 // The Library's own record of a row's paper, when the paper is there: by the row's id, an id it had
 // before, or a shared DOI or arXiv id (a paper added by hand gets the same id, but one dropped in as a PDF
 // may not). Of two papers sharing them, the first in the Library.
-export function libraryPaperOf(row: Pick<ThreadRow, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
+export function libraryPaperOf(row: Pick<ThreadRowRead, "id" | "paper">, papers: Record<string, Paper>, aliases: Record<string, string>): Paper | undefined {
   const direct = paperById(papers, aliases, row.id)
   if (direct) return direct
   const { doi, arxiv } = row.paper.ids
@@ -53,17 +63,17 @@ export function libraryPaperOf(row: Pick<ThreadRow, "id" | "paper">, papers: Rec
 }
 
 // Only the row's own paper: a row draws again when that paper changes, not on every change to the Library
-export const useLibraryPaper = (row: Pick<ThreadRow, "id" | "paper">) => useLibraryStore((s) => libraryPaperOf(row, s.papers, s.aliases))
+export const useLibraryPaper = (row: Pick<ThreadRowRead, "id" | "paper">) => useLibraryStore((s) => libraryPaperOf(row, s.papers, s.aliases))
 
 // What a paper is, as the user sees it: the Library's record wins (their corrections are in it)
-export function paperFacts(row: ThreadRow, library: Paper | undefined): ThreadPaper {
+export function paperFacts(row: ThreadRowRead, library: Paper | undefined): ThreadPaper {
   if (!library) return row.paper
   return { ...row.paper, title: library.title, authors: library.authors, year: library.year, venue: library.venue, abstract: library.abstract ?? row.paper.abstract }
 }
 
 // The thread as the user sees it, for what leaves the app (Export as a doc, CSV): each row's paper with
 // the Library's facts, as the table shows it
-export function withLibraryFacts(c: Thread): Thread {
+export function withLibraryFacts(c: ThreadRead): ThreadRead {
   const { papers, aliases } = useLibraryStore.getState()
   return { ...c, rows: c.rows.map((r) => ({ ...r, paper: paperFacts(r, libraryPaperOf(r, papers, aliases)) })) }
 }
@@ -71,7 +81,7 @@ export function withLibraryFacts(c: Thread): Thread {
 // "Chang et al. 2023"
 export const citeOf = (p: Pick<ThreadPaper, "authors" | "year">) => citationLabel({ authors: p.authors, year: p.year })
 
-// "CiteSee": the name a paper goes by, the words before its title's colon or dash. The memo names papers
+// "CiteSee": the name a paper goes by, the words before its title's colon or dash. The report names papers
 // the same way (the agent rules ask for it), so a row can be found from a sentence by eye. A title without
 // such a name stays whole.
 export function shortTitle(title: string): string {
@@ -115,30 +125,10 @@ export function byProject(list: ThreadSummary[]): { key: string; label?: string;
 export const passageRoute = (paperId: string, passage?: { quote: string; page: number }) =>
   `/library/${paperId}${passage ? `?quote=${encodeURIComponent(passage.quote)}&page=${passage.page}` : ""}`
 
-// A sentence to edit as plain words, and back: the names it linked stay linked wherever the rewrite keeps
-// them word for word (the first time each appears)
-export function plainMemo(text: string): { plain: string; links: { label: string; uri: string }[] } {
-  const parts = memoParts(text)
-  return { plain: parts.map((p) => (typeof p === "string" ? p : p.label)).join(""), links: parts.filter((p): p is { label: string; uri: string } => typeof p !== "string") }
-}
-
-export function relinkMemo(plain: string, links: { label: string; uri: string }[]): string {
-  let out = plain
-  let from = 0
-  for (const l of links) {
-    const at = out.indexOf(l.label, from)
-    if (at < 0) continue
-    const md = mentionLink(l.label, l.uri)
-    out = out.slice(0, at) + md + out.slice(at + l.label.length)
-    from = at + md.length
-  }
-  return out
-}
-
 // What a thread says about one of its papers, a line per column with an answer: the answer to its
 // question first and unlabelled, then each question asked of every paper, then how the paper stands on the
-// user's sentences. The user's rewrites are in it.
-function paperLines(shown: Thread, row: ThreadRow): { label?: string; text: string }[] {
+// user's sentences.
+function paperLines(shown: ThreadRead, row: ThreadRowRead): { label?: string; text: string }[] {
   const out: { label?: string; text: string }[] = []
   for (const col of shown.columns) {
     const cell = row.cells[col.id]
@@ -175,7 +165,7 @@ export const relWord = (rel: Relation) =>
 
 // Which threads hold each Library paper, newest change first: by the row's id, or a shared DOI or
 // arXiv id, with what each says about it. Rows the user removed don't count.
-export function threadsByPaper(threads: Record<string, Thread>, papers: Record<string, Paper>, aliases: Record<string, string>): Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]> {
+export function threadsByPaper(threads: Record<string, ThreadRead>, papers: Record<string, Paper>, aliases: Record<string, string>): Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]> {
   const out = new Map<string, { id: string; title: string; lines: { label?: string; text: string }[] }[]>()
   const ordered = Object.values(threads).sort((a, b) => b.updatedAt - a.updatedAt)
   for (const c of ordered) {
@@ -192,20 +182,20 @@ export function threadsByPaper(threads: Record<string, Thread>, papers: Record<s
 }
 
 // The thread that holds a paper the Library hasn't got, so a link to the paper can open it there
-export function threadHolding(threads: Record<string, Thread>, paperId: string): Thread | undefined {
+export function threadHolding(threads: Record<string, ThreadRead>, paperId: string): ThreadRead | undefined {
   return Object.values(threads)
     .sort((a, b) => b.updatedAt - a.updatedAt)
-    .find((c) => c.rows.some((r) => r.id === paperId) && !c.overrides.removed[`row:${paperId}`])
+    .find((c) => c.rows.some((r) => r.id === paperId))
 }
 
 // A grouping's groups as the table shows them, in order with each subgroup after its parent: the papers
 // right in each, and all it holds with its subgroups' papers once each, which its count says. A paper in two
 // groups counts in both; a group whose papers all went elsewhere is left out. Then the papers in none.
-export function groupSections(shown: Thread, grouping: ThreadColumn) {
+export function groupSections(shown: ThreadRead, grouping: ThreadColumn) {
   // The shown grouping keeps two levels and each paper in live groups only (shownThread)
   const groups = grouping.groups ?? []
   const members = (id: string) => shown.rows.filter((r) => r.in?.[grouping.id]?.includes(id))
-  const out: { group: ThreadGroup; rows: ThreadRow[]; total: ThreadRow[]; depth: number }[] = []
+  const out: { group: ThreadGroup; rows: ThreadRowRead[]; total: ThreadRowRead[]; depth: number }[] = []
   const add = (g: ThreadGroup, depth: number) => {
     const rows = members(g.id)
     const children = groups.filter((c) => c.parent === g.id)

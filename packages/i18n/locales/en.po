@@ -1369,11 +1369,6 @@ msgstr "{count, plural, one {# comment} other {# comments}}"
 msgid "{updated, plural, one {# answer updated} other {# answers updated}}"
 msgstr "{updated, plural, one {# answer updated} other {# answers updated}}"
 
-#. papers the agent added to a thread, moved by the user into a thread of their own
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Kept separate"
-msgstr "Kept separate"
-
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {New thread · # paper} other {New thread · # papers}}"
 msgstr "{papers, plural, one {New thread · # paper} other {New thread · # papers}}"
@@ -1387,11 +1382,6 @@ msgstr "{papers, plural, one {paper} other {papers}}"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Updated"
 msgstr "Updated"
-
-#. make the papers the agent just added into a thread of their own
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Keep it separate"
-msgstr "Keep it separate"
 
 #. the agent wrote or rewrote a paper's digest
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -3379,7 +3369,6 @@ msgstr "Copy BibTeX"
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/Memo.tsx
 msgid "Remove"
 msgstr "Remove"
 
@@ -4297,9 +4286,7 @@ msgstr "This digest was written the old way."
 
 #. button: write the digest again
 #. verb: change the words of Owlit's sentence
-#. verb: change the words of Owlit's sentence
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Memo.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Rewrite"
 msgstr "Rewrite"
@@ -4863,9 +4850,7 @@ msgid "Collect papers on…"
 msgstr "Collect papers on…"
 
 #. after a sentence of Owlit's that the user rewrote
-#. after a sentence of Owlit's that the user rewrote
 #: app/src/features/onboarding/demos/CollectDemo.tsx
-#: app/src/features/threads/components/Memo.tsx
 msgid "you edited"
 msgstr "you edited"
 
@@ -5648,26 +5633,12 @@ msgid "a chat"
 msgstr "a chat"
 
 #: app/src/features/threads/components/About.tsx
-msgid "another thread"
-msgstr "another thread"
-
-#. a thread the user made from one of another thread's groups
-#: app/src/features/threads/components/About.tsx
-msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
-msgstr "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
-
-#: app/src/features/threads/components/About.tsx
 msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
 msgstr "You asked <0>“{asked}”</0> in <1/>, {when}."
 
 #: app/src/features/threads/components/About.tsx
 msgid "You asked <0>“{asked}”</0>, {when}."
 msgstr "You asked <0>“{asked}”</0>, {when}."
-
-#. after the question: its papers were first added to another thread, then kept apart
-#: app/src/features/threads/components/About.tsx
-msgid "Kept separate from {originLink}."
-msgstr "Kept separate from {originLink}."
 
 #: app/src/features/threads/components/About.tsx
 msgid "{searched, plural, one {Searched once} other {Searched # times}}"
@@ -5833,31 +5804,6 @@ msgstr "Another doc"
 msgid "Compare"
 msgstr "Compare"
 
-#: app/src/features/threads/components/Memo.tsx
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
-msgstr "Removed from the thread"
-
-#: app/src/features/threads/components/Memo.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Use Owlit's words"
-msgstr "Use Owlit's words"
-
-#: app/src/features/threads/components/Memo.tsx
-msgid "Sentence removed"
-msgstr "Sentence removed"
-
-#. placeholder {0}: edit.was
-#. placeholder {0}: plainMemo(edit.was).plain
-#: app/src/features/threads/components/Memo.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Was: {0}"
-msgstr "Was: {0}"
-
-#: app/src/features/threads/components/Memo.tsx
-msgid "Sentence actions"
-msgstr "Sentence actions"
-
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
 msgstr "Move to project"
@@ -5991,14 +5937,6 @@ msgid "Ungrouped {0}"
 msgstr "Ungrouped {0}"
 
 #: app/src/features/threads/components/ThreadTable.tsx
-msgid "Make it a thread of its own"
-msgstr "Make it a thread of its own"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Made a thread of its own"
-msgstr "Made a thread of its own"
-
-#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group name"
 msgstr "Group name"
 
@@ -6009,10 +5947,6 @@ msgstr "Group actions"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Paper actions"
 msgstr "Paper actions"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "You edited this"
-msgstr "You edited this"
 
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -6241,6 +6175,10 @@ msgstr "{0, plural, one {# column} other {# columns}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "Found nothing"
+
+#: app/src/features/threads/store.ts
+msgid "Removed from the thread"
+msgstr "Removed from the thread"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
@@ -7977,18 +7915,6 @@ msgstr "That group isn't there any more."
 #: packages/core/src/threads/threads.ts
 msgid "That isn't in the thread any more."
 msgstr "That isn't in the thread any more."
-
-#: packages/core/src/threads/threads.ts
-msgid "Those papers aren't in the thread any more."
-msgstr "Those papers aren't in the thread any more."
-
-#: packages/core/src/threads/threads.ts
-msgid "This thread wasn't kept separate from another."
-msgstr "This thread wasn't kept separate from another."
-
-#: packages/core/src/threads/threads.ts
-msgid "The thread these papers came from is gone."
-msgstr "The thread these papers came from is gone."
 
 #: packages/core/src/threads/threads.ts
 msgid "That changed in the thread since, so owlit left it as it is."

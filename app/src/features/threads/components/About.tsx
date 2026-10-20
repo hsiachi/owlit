@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { chatUri, type Thread, type ThreadBatch, type ThreadSearch } from "@owlit/protocol"
+import { chatUri, type ThreadRead, type ThreadBatch, type ThreadSearch } from "@owlit/protocol"
 import { useEffect, useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { GroupLabel } from "@/components/group-label"
@@ -11,13 +11,12 @@ import { mentionRoute } from "@/features/docs/lib/mentions"
 import { isDesktop, rpc } from "@/lib/rpc"
 import { shortDate } from "@/lib/time"
 import { shown } from "../lib"
-import { useThreadsStore } from "../store"
 
 // Where the thread came from and how Owlit worked on it, at the page's end so the page opens on the
-// reading itself. A record, a step under the memo: the question, then Owlit's work in batches as rows of a
+// reading itself. A record, a step under the report: the question, then Owlit's work in batches as rows of a
 // log (when, what set it going, what it added), each with its searches folded under it and what Owlit
 // said the search couldn't reach. Core works the batches out from the thread's history.
-export function About({ thread: c }: { thread: Thread }) {
+export function About({ thread: c }: { thread: ThreadRead }) {
   const batches = useBatches(c)
   const rows = shown(c).rows
   const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
@@ -43,7 +42,7 @@ export function About({ thread: c }: { thread: Thread }) {
       {batches && batches.length > 0 && (
         <ol className="mt-3 flex flex-col gap-3">
           {batches.map((b, i) => (
-            <Batch key={`${b.at}-${i}`} batch={b} first={i === 0} askedIn={(c.splitFrom?.asked ?? c.asked).chatId} />
+            <Batch key={`${b.at}-${i}`} batch={b} first={i === 0} askedIn={c.asked.chatId} />
           ))}
         </ol>
       )}
@@ -60,7 +59,7 @@ export function About({ thread: c }: { thread: Thread }) {
 }
 
 // Owlit's batches, again whenever the thread changes; null without core
-function useBatches(c: Thread) {
+function useBatches(c: ThreadRead) {
   const [batches, setBatches] = useState<ThreadBatch[] | null>(null)
   useEffect(() => {
     if (!isDesktop) return
@@ -76,27 +75,14 @@ function useBatches(c: Thread) {
   return batches
 }
 
-// The question as the user asked it, in ink: where and when, or the thread it was made from
-function Question({ thread: c }: { thread: Thread }) {
-  // A thread made from another keeps the question it was really asked; a group made a thread of its
-  // own was asked nothing, so it says where it came from instead of quoting the group's name back
-  const question = c.splitFrom?.asked ?? c.asked
-  const fromGroup = !!c.splitFrom && !c.splitFrom.asked
-  const origin = useThreadsStore((s) => (c.splitFrom ? s.threads[c.splitFrom.id] : undefined))
+// The question as the user asked it, in ink: where and when
+function Question({ thread: c }: { thread: ThreadRead }) {
+  const question = c.asked
   const chat = useChatStore((s) => (question.chatId ? s.chats[question.chatId] : undefined))
   const asked = question.text
   const when = shortDate(question.at)
   const from = question.chatId && (chat || !isDesktop) ? chatUri(question.chatId) : undefined
   const chatTitle = chat?.title || t`a chat`
-  const originLink = origin ? <MentionLink label={shown(origin).title} to={`/threads/${origin.id}`} /> : t`another thread`
-  if (fromGroup)
-    return (
-      <p className="text-detail text-muted-foreground">
-        <Trans comment="a thread the user made from one of another thread's groups">
-          Made from the group <span className="text-sm text-foreground">“{asked}”</span> in {originLink}, {when}.
-        </Trans>
-      </p>
-    )
   return (
     <p className="text-detail text-muted-foreground">
       {from ? (
@@ -107,12 +93,6 @@ function Question({ thread: c }: { thread: Thread }) {
         <Trans>
           You asked <span className="text-sm text-foreground">“{asked}”</span>, {when}.
         </Trans>
-      )}
-      {c.splitFrom && (
-        <>
-          {" "}
-          <Trans comment="after the question: its papers were first added to another thread, then kept apart">Kept separate from {originLink}.</Trans>
-        </>
       )}
     </p>
   )

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { Thread } from "@owlit/protocol"
+import type { ThreadRead } from "@owlit/protocol"
 import { useMemo } from "react"
 import { useDocsStore } from "@/features/docs/store"
 import type { MenuGroups } from "@/components/action-menu"
@@ -23,7 +23,7 @@ export function useProjects(): string[] {
 }
 
 // One thread's actions, the same from its row's ⋯, a right-click and the page's ⋯
-export function useThreadMenu(c: Thread | undefined, projects: string[], opts: { afterDelete?: () => void } = {}): MenuGroups {
+export function useThreadMenu(c: ThreadRead | undefined, projects: string[], opts: { afterDelete?: () => void } = {}): MenuGroups {
   const navigate = useNavigate()
   if (!c) return []
   const rename = useThreadsUi.getState().set

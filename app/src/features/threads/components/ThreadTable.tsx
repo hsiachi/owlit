@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { itemId, QUESTION_COLUMN, readInFull, sameWords, type Thread, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRow, type Relation } from "@owlit/protocol"
+import { itemId, QUESTION_COLUMN, readInFull, sameWords, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRowRead, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
@@ -18,11 +18,9 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { displayName } from "@/features/docs/types"
-import { isDesktop, rpc } from "@/lib/rpc"
-import { toastError, toastUndo } from "@/lib/toast"
 import { cn, scrollMotion } from "@/lib/utils"
 import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
-import { editThread, put, regroupRow } from "../store"
+import { editThread, editWithUndo, regroupRow } from "../store"
 import { ReadingMark, RowPeek, WasLine } from "./AnswerRows"
 import { askAgain, groupAnotherWay, useThreadWork } from "../work"
 import { useThreadsUi } from "../ui-store"
@@ -47,13 +45,13 @@ interface Section {
   sentence?: { id: string; text: string }
   label: string
   one?: string
-  rows: ThreadRow[]
+  rows: ThreadRowRead[]
   // Its rows and its subgroups' rows, which its counts cover
-  total: ThreadRow[]
+  total: ThreadRowRead[]
   depth: number
 }
 
-function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
+function relCounts(rows: ThreadRowRead[], column: ThreadColumn | undefined) {
   if (!column) return ""
   const n = { supports: 0, challenges: 0, related: 0 }
   for (const r of rows) {
@@ -67,17 +65,17 @@ function relCounts(rows: ThreadRow[], column: ThreadColumn | undefined) {
     .join(" · ")
 }
 
-export function ThreadTable({ thread, shown, visit }: { thread: Thread; shown: Thread; visit: VisitDots }) {
+export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; shown: ThreadRead; visit: VisitDots }) {
   // Groupings Owlit is working out now: a column while it works, so its header says how far it got, and
   // nothing to group by until it is done
   const filling = useThreadWork(thread.id).running.flatMap((chat) => (chat.about.column ? [chat.about.column] : []))
   const columns = shown.columns.filter((c) => !c.hidden || (c.kind === "grouping" && filling.includes(c.id)))
   const compare = columns.find((c) => c.kind === "compare")
   const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length && !filling.includes(c.id))
-  // What the table is grouped by is remembered for the thread (overrides.view); one that isn't there (a
+  // What the table is grouped by is remembered for the thread (its view); one that isn't there (a
   // grouping still being worked out, a comparison hidden) gives way to the first grouping
   const [chosen, setChosen] = useState<GroupBy>()
-  const want = chosen ?? (thread.overrides.view?.groupBy as GroupBy | undefined)
+  const want = chosen ?? (thread.view?.groupBy as GroupBy | undefined)
   const groupBy: GroupBy =
     want === "none" ||
     (want?.startsWith("grouping:") && groupings.some((c) => c.id === want.slice(9))) ||
@@ -98,14 +96,14 @@ export function ThreadTable({ thread, shown, visit }: { thread: Thread; shown: T
   // A row asked for from elsewhere (a link to one of its papers) opens where it first appears
   const asked = useThreadsUi((s) => s.peek)
 
-  const sortRows = (rows: ThreadRow[]) => {
+  const sortRows = (rows: ThreadRowRead[]) => {
     if (sort === "title") return [...rows].sort((a, b) => a.paper.title.localeCompare(b.paper.title))
     if (sort === "year") return [...rows].sort((a, b) => (b.paper.year ?? 0) - (a.paper.year ?? 0))
     if (sort.startsWith("column:")) {
       const col = sort.slice(7)
       // What cuts against the user's sentences first: the papers most worth a look
       const order: Record<Relation, number> = { challenges: 0, supports: 1, related: 2 }
-      const rank = (r: ThreadRow) => {
+      const rank = (r: ThreadRowRead) => {
         const rel = r.cells[col]?.rel
         return rel ? order[rel] : 3
       }
@@ -162,7 +160,7 @@ export function ThreadTable({ thread, shown, visit }: { thread: Thread; shown: T
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asked])
   // A row's ⋯ in a grouping: one more group, another group instead of this one, or out of this one
-  const rowMenu = (s: Section, r: ThreadRow): MenuGroups | undefined => {
+  const rowMenu = (s: Section, r: ThreadRowRead): MenuGroups | undefined => {
     if (!grouping) return undefined
     const column = grouping.id
     const groups = grouping.groups ?? []
@@ -356,7 +354,7 @@ function GroupByMenu({
   onChange,
   onAnotherWay,
 }: {
-  thread: Thread
+  thread: ThreadRead
   value: GroupBy
   options: { value: GroupBy; label: string }[]
   grouping: ThreadColumn | undefined
@@ -443,11 +441,11 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
 }
 
 // A column's name, with what can be done to it; while Owlit fills it, how far it got
-function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn }) {
+function ColumnHeader({ thread, column }: { thread: ThreadRead; column: ThreadColumn }) {
   const filling = useThreadWork(thread.id).running.some((chat) => chat.about.column === column.id)
   // A grouping counts the papers Owlit has put in a group so far
-  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id]) && !thread.overrides.removed[itemId.row(r.id)]).length
-  const of = thread.rows.filter((r) => !thread.overrides.removed[itemId.row(r.id)]).length
+  const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id])).length
+  const of = thread.rows.length
   const label = columnLabel(column)
   const progress = filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>
   if (column.id === QUESTION_COLUMN)
@@ -474,9 +472,8 @@ function ColumnHeader({ thread, column }: { thread: Thread; column: ThreadColumn
   )
 }
 
-function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thread: Thread; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
+function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thread: ThreadRead; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
   const [renaming, setRenaming] = useState(false)
-  const navigate = useNavigate()
   const g = section.group
   const column = section.grouping?.id
   const groups: MenuGroups =
@@ -491,38 +488,12 @@ function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thre
               .filter((o) => o.id !== g.id)
               .map((o) => ({
                 label: o.name,
-                onSelect: async () => {
-                  if (await editThread(thread.id, { op: "merge", column, group: g.id, into: o.id })) toastUndo(t`Merged into ${o.name}`, () => editThread(thread.id, { op: "unmerge", column, group: g.id }))
-                },
+                onSelect: () => void editWithUndo(thread.id, { op: "merge", column, group: g.id, into: o.id }, t`Merged into ${o.name}`),
               })),
           },
           {
             label: t`Ungroup`,
-            onSelect: async () => {
-              if (await editThread(thread.id, { op: "ungroup", column, group: g.id })) toastUndo(t`Ungrouped ${g.name}`, () => editThread(thread.id, { op: "unremove", item: itemId.group(column, g.id) }))
-            },
-          },
-        ],
-        [
-          {
-            label: t`Make it a thread of its own`,
-            onSelect: async () => {
-              if (!isDesktop) return
-              const rows = section.total.map((r) => r.id)
-              try {
-                const c = await rpc.threads.split({ id: thread.id, rows, asked: section.label, group: { column, id: g.id } })
-                put(c)
-                navigate(`/threads/${c.id}`)
-                toastUndo(t`Made a thread of its own`, async () => {
-                  const from = await rpc.threads.unsplit({ id: c.id }).catch(toastError)
-                  if (!from) return
-                  put(from)
-                  navigate(`/threads/${from.id}`)
-                })
-              } catch (error) {
-                toastError(error)
-              }
-            },
+            onSelect: () => void editWithUndo(thread.id, { op: "ungroup", column, group: g.id }, t`Ungrouped ${g.name}`),
           },
         ],
       ]
@@ -575,8 +546,8 @@ function TableRow({
   open,
   onOpen,
 }: {
-  thread: Thread
-  row: ThreadRow
+  thread: ThreadRead
+  row: ThreadRowRead
   place: string
   first: boolean
   others: Section[]
@@ -648,7 +619,7 @@ function TableRow({
   )
 }
 
-function PeekRow({ thread, row, grouping, here, open, span }: { thread: Thread; row: ThreadRow; grouping: ThreadColumn | undefined; here: string | undefined; open: boolean; span: number }) {
+function PeekRow({ thread, row, grouping, here, open, span }: { thread: ThreadRead; row: ThreadRowRead; grouping: ThreadColumn | undefined; here: string | undefined; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
     <TablePeekRow open={open} span={span} pinned>
@@ -658,7 +629,7 @@ function PeekRow({ thread, row, grouping, here, open, span }: { thread: Thread; 
 }
 
 // A grouping shown as a column: the groups the paper is in, by name
-function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRow }) {
+function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRowRead }) {
   const names = (row.in?.[column.id] ?? []).map((id) => column.groups?.find((g) => g.id === id)?.name).filter(Boolean)
   return <span className="text-foreground">{names.join(" · ")}</span>
 }
@@ -669,22 +640,21 @@ function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRow }) {
 // rests on, and to rewriting it; the user's words stay through every later answer.
 // reread: the dot's change is Owlit answering again from the full text: the page's place says so while the
 // dot lasts, and the card keeps the answer it replaced after.
-function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryId }: { thread: Thread; row: ThreadRow; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean; libraryId?: string }) {
+function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryId }: { thread: ThreadRead; row: ThreadRowRead; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean; libraryId?: string }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
   const item = itemId.cell(row.id, column.id)
   const was = useReadInFull(thread.id, item, open)
   if (!cell) return <span className="text-muted-foreground/60">…</span>
-  const edit = thread.overrides.edits[item]
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
-  const text = edit?.text ?? cell.text
-  const page = cell.depth === "full" && cell.passage && !edit ? cell.passage.page : undefined
+  const text = cell.text
+  const page = cell.depth === "full" && cell.passage ? cell.passage.page : undefined
   // No bearing on any of the user's sentences: nothing to say
-  if (column.kind === "compare" && !cell.rel && !edit) return <span title={cell.text} />
+  if (column.kind === "compare" && !cell.rel) return <span title={cell.text} />
   // The words wrap in a narrow column; the page stays on one line, as it does alone
   const pageMark =
-    fresh && reread && !edit ? (
+    fresh && reread ? (
       <span className="ml-1 text-owlit">
         {t({ message: "Changed after reading in full", comment: "chip on a thread cell Owlit answered again from the full text" })}
         {page && <span className="whitespace-nowrap tabular-nums"> · {t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>}
@@ -719,7 +689,7 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
         {editing ? (
           <div className="mt-1.5">
             <SentenceEditor
-              value={edit?.text ?? cell.text}
+              value={cell.text}
               onCancel={() => setEditing(false)}
               onSave={(text) => {
                 setEditing(false)
@@ -729,12 +699,12 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
           </div>
         ) : (
           // An answer from the title only is thin: muted, as the short list's peek draws it
-          <p className={cn("mt-1 text-sm leading-relaxed", cell.depth === "title" && !edit && "text-muted-foreground")}>
+          <p className={cn("mt-1 text-sm leading-relaxed", cell.depth === "title" && "text-muted-foreground")}>
             {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
             {text}
           </p>
         )}
-        {!editing && !edit && <WasLine was={was === undefined ? reread : was} className="mt-1" />}
+        {!editing && <WasLine was={was === undefined ? reread : was} className="mt-1" />}
         {column.kind === "compare" && sentence && <Quote className="mt-2">“{sentence.text}”</Quote>}
         {/* What the answer rests on, as every citation's card says it, then the row that changes it */}
         <div className="mt-3 border-t pt-2.5">
@@ -742,16 +712,10 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
             citation={{ paperId: row.id, depth: cell.depth, ...(cell.passage ? { page: cell.passage.page, quote: cell.passage.quote } : {}) }}
             footer={
               <div className="mt-2.5 flex items-center gap-2 border-t pt-2 text-detail text-muted-foreground">
-                {edit && <span>{t`You edited this`}</span>}
                 <span className="flex-1" />
                 {!editing && (
                   <Button variant="text" size="inline" onClick={() => setEditing(true)}>
                     {t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" })}
-                  </Button>
-                )}
-                {edit && (
-                  <Button variant="text" size="inline" title={t`Was: ${edit.was}`} onClick={() => void editThread(thread.id, { op: "revert", item })}>
-                    {t`Use Owlit's words`}
                   </Button>
                 )}
                 {cell.passage && libraryId && (

@@ -16,6 +16,8 @@ export interface ThreadRecipeInput {
   lookFor?: string
   // ask-each and group: the column to fill
   column?: ThreadColumn
+  // gather: how many papers the user asked for when they started it from the Threads page
+  size?: ThreadSize
 }
 
 const ABOUT = (c: Thread) =>
@@ -120,7 +122,7 @@ export const THREAD_RECIPES = {
   gather: {
     about: "thread",
     description: "gather a thread's papers for its question (a new thread: start it with thread_write first)",
-    text: ({ thread, withText }) => gatherPrompt(thread, thread.size ?? "few", withText),
+    text: ({ thread, withText, size }) => gatherPrompt(thread, size ?? "few", withText),
   },
   "find-more": {
     about: "thread",

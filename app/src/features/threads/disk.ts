@@ -1,4 +1,4 @@
-import type { Thread } from "@owlit/protocol"
+import type { ThreadRead } from "@owlit/protocol"
 import { followCore } from "@/lib/follow-core"
 import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 import { onWorkspaceOpened } from "@/lib/workspace"
@@ -13,7 +13,7 @@ if (isDesktop) {
     read: async () => {
       const list = await rpc.threads.list().catch(() => [])
       const all = await Promise.all(list.map((c) => rpc.threads.get({ id: c.id }).catch(() => null)))
-      return all.filter((c): c is Thread => !!c)
+      return all.filter((c): c is ThreadRead => !!c)
     },
     take: (threads) => useThreadsStore.setState({ threads: Object.fromEntries(threads.map((c) => [c.id, c])), loaded: true }),
   })

@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { create } from "zustand"
-import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, shownThread, type ThreadAsked } from "@owlit/protocol"
+import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
@@ -200,20 +200,7 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
     const papers = rowIds.length
     const updated = new Set(list.map((c) => item(c, "cell")).filter((r) => r !== undefined && !rowIds.includes(r))).size
     const answers = updated ? plural(updated, { one: "# answer updated", other: "# answers updated" }) : undefined
-    const asked = (list.findLast((c) => c.target.part === "alsoAsked")?.after as { value?: ThreadAsked[] } | undefined)?.value?.at(-1)?.text
-    // Kept separate from the card: the person's split took these rows into a thread of their own, which
-    // stands until Undo (unsplit) deletes it
-    const split = all.find(
-      (s) =>
-        s.target.kind === "thread" &&
-        !s.target.part &&
-        s.action === "create" &&
-        s.target.path !== id &&
-        all.some((d) => d.origin.writeId === s.origin.writeId && d.target.path === id && d.action === "delete" && rowIds.includes(item(d, "row") ?? "")),
-    )
-    const separate = split && !all.some((d) => d.target.kind === "thread" && d.target.path === split.target.path && !d.target.part && d.action === "delete" && d.at >= split.at) ? split.target.path : undefined
-    const separateTitle = separate && threads[separate] ? shownThread(threads[separate]).title : undefined
-    const name = separateTitle ?? (thread ? shownThread(thread).title : id)
+    const name = thread ? thread.title : id
     rows.push({
       key: `thread:${id}`,
       kind: "thread",
@@ -221,9 +208,7 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
       name,
       created,
       papers,
-      detail: separate ? (
-        t({ message: "Kept separate", comment: "papers the agent added to a thread, moved by the user into a thread of their own" })
-      ) : created ? (
+      detail: created ? (
         plural(papers, { one: "New thread · # paper", other: "New thread · # papers" })
       ) : papers ? (
         <span className="tabular-nums">
@@ -233,20 +218,8 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
       ) : (
         (answers ?? t({ message: "Updated", comment: "a thread the agent changed without adding papers" }))
       ),
-      // Kept separate, Undo puts the papers back where the reply wrote them
-      ...(separate
-        ? { undone: false, undo: () => rpc.threads.unsplit({ id: separate, chatId }).then(() => undefined, toastError) }
-        : of(list, name)),
-      view: () => navigate(`/threads/${separate ?? id}`),
-      // Owlit added to a thread whose question was close; the user may want these papers on their own
-      ...(!created && !separate && rowIds.length && isDesktop
-        ? {
-            extra: {
-              label: t({ message: "Keep it separate", comment: "make the papers the agent just added into a thread of their own" }),
-              run: () => rpc.threads.split({ id, rows: rowIds, asked: asked ?? "", chatId }).then(() => undefined, toastError),
-            },
-          }
-        : {}),
+      ...of(list, name),
+      view: () => navigate(`/threads/${id}`),
     })
   }
   // Edits to the user's own docs first: they matter most and must not fold away behind papers

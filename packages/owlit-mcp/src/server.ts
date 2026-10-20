@@ -8,12 +8,11 @@ import {
   threadUri,
   OWLIT_TOOLS,
   QUESTION_COLUMN,
-  placedKey,
   shownThread,
   type CommentInput,
-  type Thread,
   type ThreadCell,
   type ThreadGroup,
+  type ThreadRead,
   type ThreadRowWrite,
   type DocComment,
   type FoundPaper,
@@ -353,14 +352,12 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "thread_list": {
       const all = await owlit.rpc.threads.list()
       if (!all.length) return "There are no threads yet."
-      const lines = await Promise.all(
-        all.map(async (c) => {
-          const asked = (await owlit.rpc.threads.get({ id: c.id })).asked.text
+      return all
+        .map((c) => {
           const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
-          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${asked}`
-        }),
-      )
-      return lines.join("\n")
+          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${c.question}`
+        })
+        .join("\n")
     }
     case "thread_read":
       return threadText(await owlit.rpc.threads.get({ id: str("id") }))
@@ -372,22 +369,21 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const done = await owlit.rpc.threads.write({
         ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
         ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
-        ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
+        // The memo's sentences are the report, as one paragraph
+        ...(parsed.memo ? { report: (parsed.memo as { text?: string }[]).map((m) => String(m.text ?? "").trim()).filter(Boolean).join(" ") } : {}),
         ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
         ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
         ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
         ...writer,
       })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
-      const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
-      const kept = done.userKept.length ? `\nKept as the user had it:\n${done.userKept.map((line) => `- ${line}`).join("\n")}` : ""
-      return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${threadUri(done.id)}).${kept}`
+      return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}. Link it in your answer as [${done.title}](${threadUri(done.id)}).`
     }
     case "thread_edit": {
       // The title is Owlit's own, so it goes through a write of its own (a threads.edit rename is the
-      // user's rewrite, kept over Owlit's title)
+      // user's)
       await owlit.rpc.threads.write({ id: str("id"), title: str("title").trim(), ...writer })
-      const thread = shownThread(await owlit.rpc.threads.get({ id: str("id") }))
+      const thread = await owlit.rpc.threads.get({ id: str("id") })
       return `“${thread.title}” (${threadUri(thread.id)}).`
     }
     case "memory_write": {
@@ -466,22 +462,20 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
   return out
 }
 
-// A thread as the agent reads it: what the user sees, then what of it is the user's
-function threadText(stored: Thread) {
+// A thread as the agent reads it
+function threadText(stored: ThreadRead) {
   const c = shownThread(stored)
   const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   const groupings = c.columns.filter((col) => col.kind === "grouping")
   const groupName = new Map(groupings.flatMap((col) => (col.groups ?? []).map((g) => [`${col.id}:${g.id}`, g.name] as const)))
-  // The user's own placements, which a write of yours doesn't change
-  const userPut = (col: string, paper: string, group: string) => stored.overrides.placed[placedKey(col, paper, group)]?.in === true
   const lines = [
     `${c.title} (${threadUri(c.id)})`,
     `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
     `Columns: ${columns.map((col) => `${col.id} = ${col.question}`).join("; ")}`,
     ...groupings.map((col) => `Grouping ${col.id} (${col.question})${(col.groups ?? []).length ? `: ${(col.groups ?? []).map((g) => `${g.id} = ${g.name}${g.parent ? ` (in ${g.parent})` : ""}`).join("; ")}` : ", no groups yet"}`),
     "",
-    "Memo:",
-    ...(c.memo.length ? c.memo.map((s) => `- [${s.id}] ${s.text}`) : ["(none yet)"]),
+    "Report:",
+    c.report || "(none yet)",
     "",
     `Papers (${c.rows.length}):`,
   ]
@@ -489,39 +483,15 @@ function threadText(stored: Thread) {
     const p = r.paper
     const placed = groupings
       .filter((col) => r.in?.[col.id]?.length)
-      .map((col) => `${groupings.length > 1 ? `${col.id}: ` : ""}in ${r.in![col.id]!.map((g) => `${g} (${groupName.get(`${col.id}:${g}`) ?? g})${userPut(col.id, r.id, g) ? " (the user put it here, keep it)" : ""}`).join(", ")}`)
+      .map((col) => `${groupings.length > 1 ? `${col.id}: ` : ""}in ${r.in![col.id]!.map((g) => `${g} (${groupName.get(`${col.id}:${g}`) ?? g})`).join(", ")}`)
     lines.push(`- ${r.id} · ${p.title} · ${[p.authors[0], p.year, p.venue].filter(Boolean).join(", ")}${placed.length ? ` · ${placed.join(" · ")}` : ""}`)
     for (const col of columns) {
       const cell = r.cells[col.id]
       if (cell) lines.push(`  ${col.id}: ${cell.rel ? `${cell.rel} ` : ""}${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`)
     }
   }
-  const edits = Object.keys(stored.overrides.edits)
-  const removed = Object.entries(stored.overrides.removed)
-    .filter(([item]) => !item.startsWith("group:"))
-    .map(([, r]) => r.text)
-  if (edits.length) lines.push("", `The user rewrote (keep their words): ${edits.join(", ")}`)
-  if (removed.length) lines.push("", "The user removed (never bring back):", ...removed.map((t) => `- ${t}`))
-  // What the user did to the groups, which stays whatever you write
-  const regrouped: string[] = []
-  for (const [key, into] of Object.entries(stored.overrides.merged)) {
-    const [col, id] = key.split(":")
-    const owlit = stored.columns.find((x) => x.id === col)?.groups?.find((g) => g.id === id)?.name
-    if (groupings.some((x) => x.id === col)) regrouped.push(`- merged ${id}${owlit ? ` (${owlit})` : ""} into ${into}: papers you put in ${id} go in ${into}`)
-  }
-  for (const [item, r] of Object.entries(stored.overrides.removed)) {
-    const [, col, id] = item.split(":")
-    if (item.startsWith("group:")) regrouped.push(`- ungrouped ${id} (${r.text})${groupings.length > 1 ? ` in ${col}` : ""}: leave it out`)
-  }
-  for (const [key, p] of Object.entries(stored.overrides.placed)) {
-    if (p.in) continue
-    const [col, paper, group] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1, key.lastIndexOf(":")), key.slice(key.lastIndexOf(":") + 1)]
-    if (c.rows.some((r) => r.id === paper)) regrouped.push(`- took ${paper} out of ${group}${groupings.length > 1 ? ` (${col})` : ""}: don't put it back`)
-  }
-  if (regrouped.length) lines.push("", "The user changed the groups (keep it so):", ...regrouped)
   return lines.join("\n")
 }
-
 
 // This agent's Owlit, as its own entries in these comments name it; none when it hasn't written one
 function owlitOf(comments: DocComment[]): string | undefined {

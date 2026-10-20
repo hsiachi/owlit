@@ -86,13 +86,18 @@ describe("the shipped example workspace", () => {
         expect(c.rows.length).toBeGreaterThan(0)
         // Times moved with the copy: nothing in it is from the future
         expect(c.updatedAt).toBeLessThanOrEqual(Date.now())
-        for (const s of c.memo) {
-          for (const m of s.text.matchAll(new RegExp(MENTION_LINK.source, "g"))) {
-            const u = parseOwlitUri(m[2]!)
-            if (u?.kind === "paper") expect(inLibrary(u.id) || c.rows.some((r) => r.id === u.id), `${summary.id}: ${m[0]}`).toBe(true)
-          }
+        // A report and a line, each paper it names a row, every row a Library paper
+        expect(c.version).toBe(3)
+        expect(c.one, summary.id).not.toBe("")
+        expect(c.report, summary.id).not.toBe("")
+        for (const m of c.report.matchAll(new RegExp(MENTION_LINK.source, "g"))) {
+          const u = parseOwlitUri(m[2]!)
+          if (u?.kind === "paper") expect(c.rows.some((r) => r.id === u.id), `${summary.id}: ${m[0]}`).toBe(true)
         }
-        for (const r of c.rows) if (r.cells.q?.depth === "full") expect(r.cells.q.passage?.page, `${summary.id}: ${r.id}`).toBeGreaterThan(0)
+        for (const r of c.rows) {
+          expect(inLibrary(r.id), `${summary.id}: ${r.id}`).toBe(true)
+          if (r.cells.q?.depth === "full") expect(r.cells.q.passage?.page, `${summary.id}: ${r.id}`).toBeGreaterThan(0)
+        }
       }
     } finally {
       await core.dispose()

@@ -392,7 +392,7 @@ describe("library on disk", () => {
   })
 
   it("knows a paper by any id it went by: reads, threads and the user's corrections", async () => {
-    const { root, call, core } = await setup({})
+    const { root, call } = await setup({})
     const id = "doi-10.1145-9"
     putPaper(root, { id, title: "Replay ratings", ids: { doi: "10.1145/9", arxiv: "2310.00001" }, year: 2023 })
     writeFileSync(path.join(root, "library/papers", id, "text.md"), "<!-- page 1 -->\nReplay ratings run lower than live ones.\n")
@@ -409,11 +409,51 @@ describe("library on disk", () => {
     })
     const row = (await call("threads.get", { id: thread })).rows[0]
     expect(row.cells.q).toMatchObject({ depth: "full", passage: { quote, page: 1 } })
-    const ws = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
-    expect(await ws.threads.paperOf(id)).toMatchObject({ ids: expect.anything() })
+    // The row is the Library's paper, by the Library's id
+    expect(row.id).toBe(id)
     // The user's correction is what the thread says the paper is
     await call("library.update", { id, patch: { year: 2024 } })
     expect((await call("threads.get", { id: thread })).rows[0].paper.year).toBe(2024)
+  })
+
+  it("takes in the papers of a thread kept by an older version as Owlit's, without seeking their PDFs", async () => {
+    const { root, call, core } = await setup({})
+    const ws = (core as unknown as { workspace: Workspace }).workspace
+    putPaper(root, { id: "doi-10.1145-9", title: "Replay ratings", ids: { doi: "10.1145/9" }, year: 2023 })
+    const paper = (doi: string, title: string) => ({ title, authors: ["Oh"], ids: { doi }, year: 2024 })
+    const v2 = {
+      version: 2,
+      id: "old",
+      title: "Old",
+      asked: { text: "Old?", at: 1 },
+      project: "",
+      sources: [],
+      memo: [{ id: "s1", text: "See [Oh](owlit://library/doi-10.1145-8)." }],
+      columns: [{ id: "q", question: "Old?", kind: "ask" }],
+      rows: [
+        // In the Library under its DOI, named by the arXiv id the search gave
+        { id: "arxiv-2310.00009", paper: { ...paper("10.1145/9", "Replay ratings"), ids: { doi: "10.1145/9", arxiv: "2310.00009" } }, cells: {}, addedAt: 1 },
+        { id: "doi-10.1145-8", paper: paper("10.1145/8", "Live ratings"), cells: {}, addedAt: 1 },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+      overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
+    }
+    mkdirSync(path.join(root, ".owlit/threads/old"), { recursive: true })
+    writeFileSync(path.join(root, ".owlit/threads/old/thread.json"), JSON.stringify(v2))
+    const c = await call("threads.get", { id: "old" })
+    expect(c.rows.map((r: { id: string; paper: { title: string } }) => [r.id, r.paper.title])).toEqual([
+      ["doi-10.1145-9", "Replay ratings"],
+      ["doi-10.1145-8", "Live ratings"],
+    ])
+    const added = (await call("library.list")).papers.find((p: { id: string }) => p.id === "doi-10.1145-8")
+    expect(added.addedBy).not.toMatch(/^p_/)
+    const tasks = ws.tasks.list().filter((t) => t.subject === "doi-10.1145-8").map((t) => t.kind)
+    expect(tasks).toContain("index.paper")
+    expect(tasks).not.toContain("paper.pdf")
+    // An add the person asks for still seeks the PDF
+    await call("library.add", { paper: { title: "Asked for", authors: [], ids: { doi: "10.1145/7" } } })
+    expect(ws.tasks.list().filter((t) => t.subject === "doi-10.1145-7").map((t) => t.kind)).toContain("paper.pdf")
   })
 
   it("moves a removed paper to the trash and Undo brings it back whole", async () => {

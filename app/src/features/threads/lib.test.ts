@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { Thread, ThreadColumn, ThreadRow } from "@owlit/protocol"
-import { groupSections, memoParts, plainMemo, relinkMemo, sentencesOf, shortTitle } from "./lib"
+import type { ThreadRead, ThreadColumn, ThreadRowRead } from "@owlit/protocol"
+import { groupSections, memoOf, memoParts, sentencesOf, shortTitle } from "./lib"
 
 describe("a paper's short title", () => {
   it("is the name before a colon or dash", () => {
@@ -22,16 +22,15 @@ describe("memo sentences", () => {
     expect(memoParts(text)).toEqual(["Two systems: ", { label: "Synergi", uri: "owlit://library/p10" }, " builds threads, ", { label: "Relatedly", uri: "owlit://library/p11" }, " maps a topic."])
   })
 
-  it("edits as plain words and keeps the links on the names a rewrite keeps", () => {
-    const { plain, links } = plainMemo(text)
-    expect(plain).toBe("Two systems: Synergi builds threads, Relatedly maps a topic.")
-    expect(relinkMemo("Synergi and Relatedly work across papers.", links)).toBe("[Synergi](owlit://library/p10) and [Relatedly](owlit://library/p11) work across papers.")
-    expect(relinkMemo("Only Relatedly is left.", links)).toBe("Only [Relatedly](owlit://library/p11) is left.")
+  it("are the report's first paragraph, after any heading", () => {
+    const c = { report: `## Two lines\n\n${text} [Kelly et al. 2015](owlit://library/p12) differs. 第二句。第三句！\n\n## More\n\nLater.` } as ThreadRead
+    expect(memoOf(c).map((s) => s.text)).toEqual([text, "[Kelly et al. 2015](owlit://library/p12) differs.", "第二句。", "第三句！"])
+    expect(memoOf({ report: "" } as ThreadRead)).toEqual([])
   })
 })
 
 describe("a grouping's groups in the table", () => {
-  const paper = (id: string): ThreadRow => ({ id, paper: { title: id, authors: [], ids: {} }, cells: {}, addedAt: 0 })
+  const paper = (id: string): ThreadRowRead => ({ id, paper: { title: id, authors: [], ids: {} }, cells: {}, addedAt: 0 })
   const grouping: ThreadColumn = {
     id: "topic",
     question: "Topic",
@@ -50,7 +49,7 @@ describe("a grouping's groups in the table", () => {
     { ...paper("p3"), in: { topic: ["a"] } },
     paper("p4"),
   ]
-  const { groups, loose } = groupSections({ rows } as Thread, grouping)
+  const { groups, loose } = groupSections({ rows } as ThreadRead, grouping)
   const count = (id: string) => groups.find((g) => g.group.id === id)?.total.map((r) => r.id)
 
   it("counts a group's papers once each, its subgroups' with them", () => {
