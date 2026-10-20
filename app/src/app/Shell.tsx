@@ -18,6 +18,7 @@ import { AgentAskBar } from "@/features/agent/AgentAskBar"
 import { AgentPanel, AgentToggle } from "@/features/agent/AgentWindow"
 import { useAgentAllowed, useAgentShortcut } from "@/features/agent/hooks"
 import { useAgentWindow } from "@/features/agent/store"
+import { useListPanel } from "@/app/list-panel"
 import { besideShown, useBeside, useWideForBoth } from "@/features/agent/beside"
 import { PaperBesideSlot } from "@/features/library/pages/paper/PaperBeside"
 import { routeSubject } from "@/app/route-subject"
@@ -78,6 +79,7 @@ function AppShell() {
   useChatNotifications()
   useDigestNotices()
   const controlsRoom = useControlsRoom((s) => s.room)
+  const listWidth = useListPanel((s) => s.width)
 
   return (
     <TooltipProvider>
@@ -95,7 +97,7 @@ function AppShell() {
           }}
           style={
             {
-              "--sidebar-width": "300px",
+              "--sidebar-width": `calc(${listWidth}px + var(--rail-width))`,
               "--sidebar-width-icon": "var(--rail-width)",
             } as React.CSSProperties
           }

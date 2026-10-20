@@ -1,9 +1,11 @@
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 
-// The left edge of a right-hand panel (the agent panel, a paper's details): drag it, or use the arrow keys,
-// to resize; double-click goes back to the default. Nothing shows until it is hovered, then a 2px line, like
-// the list panel's edge. It sits at the left of its parent, which must be the panel itself (or a box as wide
-// as it) and positioned. `max` may depend on the room around the panel, so it is asked at each change.
+// The inner edge of a side panel (the agent panel, a paper's details, the list panel): drag it, or use the
+// arrow keys, to resize; double-click goes back to the default. Nothing shows until it is hovered, then a 2px
+// line. It sits at the `edge` side of its parent (left for a right-hand panel), which must be the panel itself
+// (or a box as wide as it) and positioned. `max` may depend on the room around the panel, so it is asked at
+// each change.
 export function PanelResizeHandle({
   width,
   setWidth,
@@ -11,6 +13,7 @@ export function PanelResizeHandle({
   max,
   defaultWidth,
   label,
+  edge = "left",
 }: {
   width: number
   setWidth: (width: number) => void
@@ -19,7 +22,10 @@ export function PanelResizeHandle({
   max?: (panel: HTMLElement) => number
   defaultWidth: number
   label: string
+  edge?: "left" | "right"
 }) {
+  // Moving the pointer toward the panel's outside widens it
+  const grow = edge === "left" ? -1 : 1
   const [dragging, setDragging] = useState(false)
   const clamp = (panel: HTMLElement, w: number) => Math.round(Math.max(min, Math.min(max ? max(panel) : Infinity, w)))
 
@@ -36,7 +42,7 @@ export function PanelResizeHandle({
     // The resize cursor and no text selection over the whole window while dragging, not just the edge
     document.body.style.cursor = "col-resize"
     document.body.style.userSelect = "none"
-    const move = (ev: PointerEvent) => setWidth(clamp(panel, startWidth + startX - ev.clientX))
+    const move = (ev: PointerEvent) => setWidth(clamp(panel, startWidth + grow * (ev.clientX - startX)))
     const end = () => {
       edge.removeEventListener("pointermove", move)
       edge.removeEventListener("pointerup", end)
@@ -63,10 +69,13 @@ export function PanelResizeHandle({
       onKeyDown={(e) => {
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           e.preventDefault()
-          setWidth(clamp(e.currentTarget.parentElement!, width + (e.key === "ArrowLeft" ? 16 : -16)))
+          setWidth(clamp(e.currentTarget.parentElement!, width + grow * (e.key === "ArrowLeft" ? -16 : 16)))
         }
       }}
-      className="absolute inset-y-0 left-0 z-20 w-3 -translate-x-1/2 cursor-col-resize outline-hidden after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 hover:after:bg-sidebar-border focus-visible:after:bg-ring data-dragging:after:bg-sidebar-border"
+      className={cn(
+        "absolute inset-y-0 z-20 w-3 cursor-col-resize outline-hidden after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 hover:after:bg-sidebar-border focus-visible:after:bg-ring data-dragging:after:bg-sidebar-border",
+        edge === "left" ? "left-0 -translate-x-1/2" : "right-0 translate-x-1/2",
+      )}
     />
   )
 }

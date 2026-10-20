@@ -13,6 +13,10 @@ msgid "{place} · {needsYou}"
 msgstr "{place} · {needsYou}"
 
 #: app/src/app/AppSidebar.tsx
+msgid "Resize the list"
+msgstr "调整列表宽度"
+
+#: app/src/app/AppSidebar.tsx
 #: apps/desktop/src/main.ts
 msgid "Help"
 msgstr "帮助"

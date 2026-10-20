@@ -23,6 +23,8 @@ import { i18n } from "@/lib/i18n"
 import { TipLabel } from "@/components/tip"
 import { openSettings } from "@/features/settings/store"
 import { useWaitingOnYou } from "@/app/waiting-on-you"
+import { LIST_WIDTH, useListPanel } from "@/app/list-panel"
+import { PanelResizeHandle } from "@/components/panel-resize-handle"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { pathname } = useLocation()
@@ -32,11 +34,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // reply finished while the user wasn't looking at its chat. Work at its own pace marks nothing.
   const waiting = useWaitingOnYou()
   const markOf = (to: string) => waiting.find((w) => w.place === to && w.tone !== "working")
+  const listWidth = useListPanel((s) => s.width)
+  const setListWidth = useListPanel((s) => s.setWidth)
 
+  // The sidebar clips only while collapsed (the list panel keeps its width behind the rail); open, the list
+  // panel's resize edge reaches past its border into the page
   return (
     <Sidebar
       collapsible="icon"
-      className="top-(--header-height) h-[calc(100svh-var(--header-height))]! overflow-hidden pb-(--frame-gap) group-data-[side=left]:border-r-0 *:data-[sidebar=sidebar]:flex-row"
+      className="top-(--header-height) h-[calc(100svh-var(--header-height))]! pb-(--frame-gap) group-data-[state=collapsed]:overflow-hidden group-data-[side=left]:border-r-0 *:data-[sidebar=sidebar]:flex-row"
       {...props}
     >
       {/* First column: the places, icons only; part of the frame with the top bar */}
@@ -93,9 +99,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {activeItem?.panel && (
         <Sidebar
           collapsible="none"
-          className="hidden w-[calc(var(--sidebar-width)-var(--sidebar-width-icon))]! shrink-0 rounded-l-lg border border-r-[0.5px] bg-sidebar-panel md:flex"
+          className="relative hidden w-[calc(var(--sidebar-width)-var(--sidebar-width-icon))]! shrink-0 rounded-l-lg border border-r-[0.5px] bg-sidebar-panel md:flex"
         >
           <activeItem.panel />
+          <PanelResizeHandle edge="right" label={t`Resize the list`} width={listWidth} setWidth={setListWidth} defaultWidth={LIST_WIDTH} />
         </Sidebar>
       )}
     </Sidebar>
