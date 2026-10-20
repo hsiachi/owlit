@@ -1,4 +1,4 @@
-import { GROUPING_COLUMN, type Thread, type ThreadAsked, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRow } from "./threads.ts"
+import { GROUPING_COLUMN, relabelReport, type Thread, type ThreadAsked, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRow } from "./threads.ts"
 
 // Threads as older versions kept them, and the one way up to the current version. Version 2 kept a
 // snapshot of each paper on its row, a memo of sentences and what the user did to Owlit's text in
@@ -95,13 +95,18 @@ function fromV1(c: ThreadV1): ThreadV2 {
 
 // What the user saw becomes the data: their rewrites are the text, what they removed is gone, each
 // grouping is as they left it. The memo's sentences join into one paragraph, the report; its first
-// sentence, without its links, is the thread's one line. The size asked for and the record of a split
+// sentence, without its links, is the thread's one line. The memo named papers by their whole titles,
+// which a report's link tokens cut short mid-word: its links are named as a report's are (reportLabel). The size asked for and the record of a split
 // have nothing left to serve.
 function fromV2(c: ThreadV2): Thread {
   const { edits, removed } = c.overrides
   const text = (item: string, owlit: string) => edits[item]?.text ?? owlit
   const views = c.columns.filter((col) => col.kind === "grouping").map((col) => ({ col, view: groupingView(c.overrides, col) }))
-  const memo = c.memo.filter((s) => !removed[`memo:${s.id}`]).map((s) => text(`memo:${s.id}`, s.text).trim()).filter(Boolean)
+  const papers = new Map(c.rows.map((r) => [r.id, r.paper]))
+  const memo = c.memo
+    .filter((s) => !removed[`memo:${s.id}`])
+    .map((s) => relabelReport(text(`memo:${s.id}`, s.text).trim(), (id) => papers.get(id)))
+    .filter(Boolean)
   const rows = c.rows
     .filter((r) => !removed[`row:${r.id}`])
     .map((r): ThreadRow => {

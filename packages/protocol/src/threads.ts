@@ -2,6 +2,44 @@ import type { PaperIds, PaperKind } from "./library.ts"
 // Two texts with the same words, whatever the spacing
 export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim()
 
+// "CiteSee": the name a paper goes by, the words before its title's colon or dash. A report names papers
+// the same way (the thread skill asks for it), so a row can be found from a sentence by eye. A title
+// without such a name stays whole.
+export function shortTitle(title: string): string {
+  const m = /^(.{2,48}?)\s*(?::|\s[—–-]\s)\s*\S/.exec(title.trim())
+  return m ? m[1]! : title.trim()
+}
+
+// About as many characters as a link in a report shows before its token cuts the label short (the mention
+// token's max-w-80 in app/src/components/mention holds about 45 of a Latin title); change one with the other
+const LABEL_FITS = 44
+
+// How a report's link names a paper: its short title when that fits the token, else "Author Year"
+// ("Ellis 1996", "Kliegel & Martin 2000", "McDaniel et al. 2000"), as the agent rules cite. A paper with
+// neither authors nor a year keeps its short title.
+export function reportLabel(p: Pick<ThreadPaper, "title" | "authors" | "year">): string {
+  const name = shortTitle(p.title)
+  if (name.length <= LABEL_FITS) return name
+  const surname = (a: string) => a.trim().split(/\s+/).at(-1) ?? a
+  const [first, second] = p.authors
+  const who = !first ? "" : p.authors.length === 1 ? surname(first) : p.authors.length === 2 ? `${surname(first)} & ${surname(second!)}` : `${surname(first)} et al.`
+  return [who, p.year].filter(Boolean).join(" ") || name
+}
+
+// A report's links that name a paper by more of its title than the link's token shows, named by
+// reportLabel instead; a label that fits, or one that isn't the title (its authors already), is left.
+// paper: what a link's id names, if known. Running it again changes nothing.
+export function relabelReport(report: string, paper: (id: string) => Pick<ThreadPaper, "title" | "authors" | "year"> | undefined): string {
+  const words = (s: string) => s.toLowerCase().replace(/\s+/g, " ").replace(/[.…\s]+$/, "").trim()
+  return report.replace(/\[((?:\\.|[^\]\\])+)\]\((owlit:\/\/library\/([^)\s#]+)[^)\s]*)\)/g, (link, label: string, href: string, id: string) => {
+    const p = paper(id)
+    const said = words(label.replace(/\\(.)/g, "$1"))
+    if (!p || label.length <= LABEL_FITS || !words(p.title).startsWith(said)) return link
+    const next = reportLabel(p)
+    return next === label ? link : `[${next.replace(/([[\]\\])/g, "\\$1")}](${href})`
+  })
+}
+
 // A thread: Owlit's report on a question the user asked, with the papers it rests on. Each paper is a row
 // naming a Library paper by its id, with what the paper is and what it says about the question (one cell
 // per column), and the groups Owlit put it in. Owlit's own record, in .owlit/threads/<id>/thread.json; the

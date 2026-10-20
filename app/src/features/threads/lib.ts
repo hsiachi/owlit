@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { GROUPING_COLUMN, type Paper, QUESTION_COLUMN, type Relation, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
+import { GROUPING_COLUMN, type Paper, QUESTION_COLUMN, type Relation, shortTitle, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
@@ -34,14 +34,6 @@ export function paperFacts(row: ThreadRowRead, library: Paper | undefined): Thre
 
 // "Chang et al. 2023"
 export const citeOf = (p: Pick<ThreadPaper, "authors" | "year">) => citationLabel({ authors: p.authors, year: p.year })
-
-// "CiteSee": the name a paper goes by, the words before its title's colon or dash. The report names papers
-// the same way (the agent rules ask for it), so a row can be found from a sentence by eye. A title without
-// such a name stays whole.
-export function shortTitle(title: string): string {
-  const m = /^(.{2,48}?)\s*(?::|\s[—–-]\s)\s*\S/.exec(title.trim())
-  return m ? m[1]! : title.trim()
-}
 
 // "CiteSee · 2023", how a row names its paper
 export const nameOf = (p: Pick<ThreadPaper, "title" | "year">) => [shortTitle(p.title), p.year].filter(Boolean).join(" · ")
