@@ -508,7 +508,6 @@ msgid "Read"
 msgstr "已读"
 
 #: app/src/components/citation-card.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Not in your Library"
 msgstr "不在你的文献库中"
 
@@ -585,6 +584,7 @@ msgid "Copied"
 msgstr "已拷贝"
 
 #: app/src/components/fade-clip.tsx
+#: app/src/components/paper-card.tsx
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show less"
@@ -636,6 +636,107 @@ msgstr "Owlit 添加，尚未打开"
 #: app/src/components/page.tsx
 msgid "Breadcrumb"
 msgstr "路径导航"
+
+#. heading of what a thread says about one of its papers, on the paper's card
+#: app/src/components/paper-card.tsx
+msgid "In this thread"
+msgstr "在这条脉络里"
+
+#. on a paper's card: its PDF is in the Library
+#: app/src/components/paper-card.tsx
+msgid "PDF"
+msgstr "有 PDF"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "You've read some of it"
+msgstr "你读过一部分"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/components/PaperByline.tsx
+#: app/src/features/library/lib/format.ts
+msgid "Unknown authors"
+msgstr "作者未知"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Could not find a PDF."
+msgstr "找不到 PDF。"
+
+#. button: owlit looks for the paper's PDF again, by its own routes
+#. button: owlit looks for the paper's PDF again, by its own routes
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Look again"
+msgstr "再找一次"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Finding a PDF…"
+msgstr "正在查找 PDF…"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waiting for the network"
+msgstr "等待网络"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for your library sign-in"
+msgstr "等你登录图书馆"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a sign-in at {site}"
+msgstr "等你在 {site} 登录"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for a check at {site}"
+msgstr "等你完成 {site} 的验证"
+
+#: app/src/components/paper-card.tsx
+msgid "Waits for a check"
+msgstr "等你完成验证"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Waits for the extension to be allowed on {site}"
+msgstr "等你允许扩展读取 {site}"
+
+#: app/src/components/paper-card.tsx
+msgid "Waits for the extension to be allowed"
+msgstr "等你允许扩展读取"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No PDF found"
+msgstr "未找到 PDF"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "No access through your library"
+msgstr "通过你的图书馆无法访问"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Your library doesn't offer this paper"
+msgstr "你的图书馆没有这篇论文"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{host} has no PDF of this paper"
+msgstr "{host} 上没有这篇论文的 PDF"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "The publisher has no PDF of this paper"
+msgstr "出版方没有这篇论文的 PDF"
+
+#: app/src/components/paper-card.tsx
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Show more"
+msgstr "显示更多"
 
 #: app/src/components/segmented-control.tsx
 msgid "New since you last looked"
@@ -1179,7 +1280,6 @@ msgid "Adding…"
 msgstr "正在添加…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 #: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "已在你的文献库中"
@@ -1191,7 +1291,6 @@ msgstr "打开 {name}"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/chat/components/messages/step-results.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Add to Library"
 msgstr "添加到文献库"
 
@@ -3863,12 +3962,6 @@ msgid "No tags yet."
 msgstr "还没有标签。"
 
 #: app/src/features/library/components/PaperByline.tsx
-#: app/src/features/library/lib/format.ts
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Unknown authors"
-msgstr "作者未知"
-
-#: app/src/features/library/components/PaperByline.tsx
 #: app/src/features/library/components/PaperList.tsx
 msgid "More actions"
 msgstr "更多操作"
@@ -4330,10 +4423,6 @@ msgstr "基础"
 msgid "Cited in"
 msgstr "引用于"
 
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "Show more"
-msgstr "显示更多"
-
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Owlit is reading this paper…"
@@ -4393,10 +4482,6 @@ msgid "Page {number}"
 msgstr "第 {number} 页"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Finding a PDF…"
-msgstr "正在查找 PDF…"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr "{tried}；正在经你的浏览器尝试 {site}。"
 
@@ -4437,10 +4522,6 @@ msgid "If you already have it, drop it here."
 msgstr "如果你已经有了，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for your library sign-in"
-msgstr "等你登录图书馆"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{at} wants a sign-in · {date}"
 msgstr "{at} 要求登录 · {date}"
 
@@ -4449,16 +4530,8 @@ msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "登录一次图书馆，所有在等的论文都会继续获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a sign-in at {site}"
-msgstr "等你在 {site} 登录"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in there covers every paper waiting at {site}."
 msgstr "在那里登录一次，{site} 上所有在等的论文都会继续获取。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a check at {site}"
-msgstr "等你完成 {site} 的验证"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{at} asked for a check · {date}"
@@ -4469,10 +4542,6 @@ msgid "One check passed there covers every paper waiting at {site}."
 msgstr "在那里通过一次验证，{site} 上所有在等的论文都会继续获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for the extension to be allowed on {site}"
-msgstr "等你允许扩展读取 {site}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The owlit extension may not read {site} yet · {date}"
 msgstr "owlit 扩展还不能读取 {site} · {date}"
 
@@ -4481,16 +4550,8 @@ msgid "Once it may, owlit goes on with every paper waiting there."
 msgstr "允许后，owlit 会继续获取那里所有在等的论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waiting for the network"
-msgstr "等待网络"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
 msgstr "owlit 查找时连不上任何 PDF 来源。下次打开时会再找。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
-msgstr "未找到 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -4521,10 +4582,6 @@ msgid "It has no DOI, so owlit could only look by its title."
 msgstr "它没有 DOI，owlit 只能按标题查找。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No access through your library"
-msgstr "通过你的图书馆无法访问"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} offered access instead of the PDF · {date}"
 msgstr "{host} 只给了购买入口，没有 PDF · {date}"
 
@@ -4533,20 +4590,8 @@ msgid "The publisher offered access instead of the PDF · {date}"
 msgstr "出版商只给了购买入口，没有 PDF · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library doesn't offer this paper"
-msgstr "你的图书馆没有这篇论文"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Your library's proxy doesn't have it · {date}"
 msgstr "你的图书馆代理没有这篇 · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr "{host} 上没有这篇论文的 PDF"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
-msgstr "出版方没有这篇论文的 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "It answered “{words}” · {date}"
@@ -4569,17 +4614,8 @@ msgid "PDF found"
 msgstr "已找到 PDF"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Could not find a PDF."
-msgstr "找不到 PDF。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Choose file"
 msgstr "选择文件"
-
-#. button: owlit looks for the paper's PDF again, by its own routes
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Look again"
-msgstr "再找一次"
 
 #. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4977,12 +5013,9 @@ msgstr "你改过"
 
 #. a page of a paper
 #. a page of a paper
-#. a page of a paper
-#. placeholder {0}: answer.passage.page
 #. placeholder {0}: cell.passage.page
 #. placeholder {0}: row.page
 #: app/src/features/onboarding/demos/CollectDemo.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "第 {0} 页"
@@ -5858,10 +5891,6 @@ msgstr "引用 {of} 的论文"
 msgid "Papers like {of}"
 msgstr "与 {of} 相似的论文"
 
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "You've read some of it"
-msgstr "你读过一部分"
-
 #. chip on a thread cell Owlit answered again from the full text
 #. chip on a thread cell Owlit answered again from the full text
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5887,6 +5916,11 @@ msgstr "原为：{text}"
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "From the title only"
 msgstr "仅来自标题"
+
+#. how Owlit came to a thread's paper: a search's words, or the paper that cites it
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "Found: {foundBy}"
+msgstr "找到：{foundBy}"
 
 #. followed by the other groups of this thread that hold the paper
 #. followed by the other threads that hold this paper
@@ -5917,12 +5951,16 @@ msgid "Export as CSV"
 msgstr "导出为 CSV"
 
 #. papers of a thread in none of its groups
+#. papers of a thread in none of its groups
 #: app/src/features/threads/components/ThreadTable.tsx
+#: app/src/features/threads/lib.ts
 msgid "Not in a group"
 msgstr "未分组"
 
 #. papers that speak to none of the user's sentences
+#. papers that speak to none of the user's sentences
 #: app/src/features/threads/components/ThreadTable.tsx
+#: app/src/features/threads/lib.ts
 msgid "Bear on none of them"
 msgstr "都不相干"
 
