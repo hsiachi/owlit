@@ -65,13 +65,26 @@ function textOf(node: ReactNode): string {
 }
 
 // Markdown renderer for assistant text; styles live under `.markdown` in index.css. A place with its own
-// marks (a digest's figures and pages) adds `components` for them and `prepare` to put them in.
-export function Markdown({ text, className, components, prepare }: { text: string; className?: string; components?: Components; prepare?: (text: string) => string }) {
+// marks (a digest's figures and pages) adds `components` for them and `prepare` to put them in. onLink
+// takes a workspace link first and says whether it handled it (a thread's report scrolls to its own rows).
+export function Markdown({
+  text,
+  className,
+  components,
+  prepare,
+  onLink,
+}: {
+  text: string
+  className?: string
+  components?: Components
+  prepare?: (text: string) => string
+  onLink?: (uri: string) => boolean
+}) {
   const openPage = useOpenFromChat()
   const { pathname } = useLocation()
   // A page link into the paper open beside the chat scrolls the reader there rather than reopening it
   const open = (href: string, quote?: string) => {
-    if (openAppLink(href)) return
+    if (onLink?.(href) || openAppLink(href)) return
     openMention(href, openPage, pathname, quote)
   }
   return (
