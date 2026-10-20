@@ -14,6 +14,9 @@
 //                      session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "quiet"            says one word, then nothing until cancelled
+//   "sleep through it" ends a finished turn on Claude Code's error line for a Mac that slept
+//   "mute"             says nothing until cancelled; with FAKE_ACP_SESSION_GATE it first leaves
+//                      <gate>.prompted, so a test knows the prompt arrived
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
@@ -26,6 +29,7 @@
 // FAKE_ACP_LIMIT="You've hit your session limit · resets 2:20am" fails every prompt as Claude Code does at
 // its usage limit: the message as its answer, then an internal error carrying it.
 // FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
+// FAKE_ACP_SESSION_GATE=<file> answers a new session only once that file exists, as a slow start.
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
 // as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
 // FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back; with
@@ -148,6 +152,8 @@ class FakeAgent implements acp.Agent {
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
     if (process.env.FAKE_ACP_AUTH === "required") throw acp.RequestError.authRequired()
     if (process.env.FAKE_ACP_HANG === "session") await new Promise(() => {})
+    const gate = process.env.FAKE_ACP_SESSION_GATE
+    while (gate && !existsSync(gate)) await new Promise((resolve) => setTimeout(resolve, 20))
     const sessionId = randomUUID()
     const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [], owlit: params.mcpServers.find((m) => m.name === "owlit") }
     this.sessions.set(sessionId, session)
@@ -271,7 +277,14 @@ class FakeAgent implements acp.Agent {
         return { stopReason: "end_turn" }
       }
       if (text.includes("rules?")) {
-        await say(rules ? "got the rules" : "no rules this time")
+        const again = params.prompt.some((b) => b.type === "text" && b.text.startsWith("[owlit] owlit's rules changed"))
+        await say(rules ? "got the rules" : again ? "got the new rules" : "no rules this time")
+        return { stopReason: "end_turn" }
+      }
+      // As Claude Code ends a turn the Mac slept through: what it had, then its error line, as a finished turn
+      if (text.includes("sleep through it")) {
+        await say("The first half.")
+        await say("API Error: Your computer went to sleep mid-response. The response above may be incomplete.")
         return { stopReason: "end_turn" }
       }
       // As Claude Code fails a turn the API refused: its error as answer text, then auth_required
@@ -425,6 +438,11 @@ class FakeAgent implements acp.Agent {
         await this.conn.writeTextFile({ sessionId: params.sessionId, path: `${session.cwd}/${write[1]}`, content: write[2] })
         await say("written")
         return { stopReason: "end_turn" }
+      }
+      if (text.includes("mute")) {
+        if (process.env.FAKE_ACP_SESSION_GATE) writeFileSync(`${process.env.FAKE_ACP_SESSION_GATE}.prompted`, "")
+        await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve()))
+        return { stopReason: "cancelled" }
       }
       if (text.includes("quiet")) {
         await say("Hm.")

@@ -10,9 +10,23 @@ export const sameAbout = (a: ChatAbout | undefined, b: ChatAbout | undefined) =>
 // Error: 403 Request not allowed", "You've hit your session limit · resets 2:20am"). That isn't an answer:
 // it is taken out of the parts and kept as the reply's errorDetail, for the line that says the reply broke.
 const AGENT_ERROR = /^(?:[\w ]+\.\s+)?API Error\b|^Failed to authenticate\b|^(?:Error|Request failed):\s|^You['’]ve (?:hit|reached) your\b/
+// Claude Code also ends a turn it counts as finished with its own error line ("API Error: Your computer
+// went to sleep mid-response. The response above may be incomplete."), as one more message, which can run
+// straight on from the answer's last sentence. Only that exact prefix is taken from a finished reply,
+// since an answer may well end on a paragraph of its own that starts "Error:". Codex has no such prefix:
+// codex-acp sends a service error's own message as text.
+const ENDED_ON_ERROR = /(?:^|\n|(?<=[.!?。)]))[ \t]*(API Error: [^\n]{1,600})\s*$/
 export function withoutAgentError(message: ChatMessage): ChatMessage {
   const last = message.parts.at(-1)
-  if (message.status !== "error" || last?.type !== "text") return message
+  if (last?.type !== "text") return message
+  if (message.status === "done") {
+    const ended = ENDED_ON_ERROR.exec(last.text)
+    if (!ended) return message
+    const answer = last.text.slice(0, ended.index).trimEnd()
+    const parts = answer ? [...message.parts.slice(0, -1), { ...last, text: answer }] : message.parts.slice(0, -1)
+    return { ...message, parts, status: "error", errorDetail: message.errorDetail ?? ended[1]!.trim() }
+  }
+  if (message.status !== "error") return message
   const said = last.text.trim()
   if (!said || said.length > 600 || !AGENT_ERROR.test(said)) return message
   return { ...message, parts: message.parts.slice(0, -1), errorDetail: message.errorDetail ?? said }

@@ -13,7 +13,7 @@ import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { stopChat, tryAgain } from "@/features/chat/started"
 import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
-import { useThreadMenu } from "../components/ThreadMenu"
+import { useProjects, useThreadMenu } from "../components/ThreadMenu"
 import { isTable, paperCounts, shown as shownOf } from "../lib"
 import { useThread, useThreadsStore } from "../store"
 import { SEEN_AFTER_MS, useVisitDots } from "../seen"
@@ -38,7 +38,8 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const navigate = useNavigate()
   const thread = useThread(threadId)
   const loaded = useThreadsStore((s) => s.loaded)
-  const groups = useThreadMenu(thread, { afterDelete: () => navigate("/threads") })
+  const projects = useProjects()
+  const groups = useThreadMenu(thread, projects, { afterDelete: () => navigate("/threads") })
   const set = useThreadsUi((s) => s.set)
   // What changed since the user last looked carries the dot until they leave
   const visit = useVisitDots(threadId)

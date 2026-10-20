@@ -1109,6 +1109,7 @@ export class Core {
     })
     this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
       const removed = await docs().removeComment(path, id)
+      if (removed && caller.kind !== "window") this.notifier.notify("comments.removed", { path, id })
       await this.recordComment(caller, path, removed, null)
       return removed
     })
@@ -1319,12 +1320,13 @@ export class Core {
     await ws.recorder.record(caller, { action: "create", target: { kind: "comment", path, part: comment.id }, after: comment }, { label: path.split("/").pop()!.replace(/\.md$/i, "") })
   }
 
-  // A comment as it reads now, replacing the one with its id; recorded, and told to windows when the
-  // change isn't the asking window's own (tell). The comment as it was.
-  private async putComment(path: string, comment: DocComment, caller: Caller, origin: Partial<ChangeOrigin> = {}, tell = false) {
+  // A comment as it reads now, replacing the one with its id, and recorded. A window drew its own change
+  // already; an agent's (a reply from the hidden chat about the comment, through comments_reply) reaches
+  // the windows only through comments.changed. The comment as it was.
+  private async putComment(path: string, comment: DocComment, caller: Caller) {
     const before = await this.requireWorkspace().docs.putComment(path, comment)
-    if (tell) this.notifier.notify("comments.changed", { path, comment })
-    await this.recordComment(caller, path, before, comment, origin)
+    if (caller.kind !== "window") this.notifier.notify("comments.changed", { path, comment })
+    await this.recordComment(caller, path, before, comment)
     return before
   }
 

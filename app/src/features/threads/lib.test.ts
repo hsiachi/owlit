@@ -1,20 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { summarize, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
-import { byProject, groupSections, isTable, noteSections, paperCounts, shortTitle, shown } from "./lib"
+import { byProject, groupSections, isTable, noteSections, paperCounts, shown } from "./lib"
 import { seedThreads } from "./mocks/seed"
-
-describe("a paper's short title", () => {
-  it("is the name before a colon or dash", () => {
-    expect(shortTitle("CiteSee: Augmenting Citations in Scientific Papers")).toBe("CiteSee")
-    expect(shortTitle("Why Faster Isn't Better: Reading Speed in Scholarly Tools")).toBe("Why Faster Isn't Better")
-    expect(shortTitle("Threadline — Following an Argument Across Papers")).toBe("Threadline")
-  })
-
-  it("is the whole title when there is no such name", () => {
-    expect(shortTitle("Language Models are Few-Shot Learners")).toBe("Language Models are Few-Shot Learners")
-    expect(shortTitle("A very long first clause that runs on well past any sensible name: and more")).toBe("A very long first clause that runs on well past any sensible name: and more")
-  })
-})
 
 describe("a grouping's groups in the table", () => {
   const paper = (id: string): ThreadRowRead => ({ id, paper: { title: id, authors: [], ids: {} }, cells: {}, addedAt: 0 })

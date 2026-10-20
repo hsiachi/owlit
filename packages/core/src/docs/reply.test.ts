@@ -84,6 +84,18 @@ describe("A reply under Owlit's comment", () => {
     expect(await call("chats.list")).toEqual([expect.objectContaining({ id: "c1" })])
   })
 
+  it("reaches the windows: Owlit's answer, written by the hidden chat through comments_reply, is told as comments.changed", async () => {
+    const { core, reply, ended } = await setup()
+    const told: { path: string; comment: { entries: { by: string; text: string }[] } }[] = []
+    core.onNotify((n) => {
+      if (n.method === "comments.changed") told.push(n.params as (typeof told)[number])
+    })
+    await reply("Where does it say so?")
+    await ended(2)
+    // The window's own reply isn't told back to it; the answer is
+    expect(told.map((n) => [n.path, said(n.comment).at(-1)])).toEqual([["story.md", [MY_OWLIT, "Answered, 2 entries in."]]])
+  })
+
   it("isn't held behind other work Owlit is doing", async () => {
     const { core, comment, reply, ended } = await setup()
     const busy = await core.startFor({ about: { kind: "paper", id: "doi-10.1-a" }, title: "A digest", recipe: "quiet" })
