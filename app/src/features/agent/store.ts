@@ -34,7 +34,7 @@ function leftAWhileAgo(chatId: string) {
   const chat = chats.chats[chatId]
   const seen = useSeenStore.getState()
   if (!chat || seen.viewing[chatId]) return false
-  if (chatStatus(chat, !!chats.streaming[chatId], useSeen.getState().unseen.chats.includes(chatId), seen.dismissed[chatId]) !== "idle") return false
+  if (chatStatus(chat, !!chats.streaming[chatId], useSeen.getState().unseen.chats.includes(chatId)) !== "idle") return false
   return Date.now() - Math.max(chat.updatedAt, seen.seenAt[chatId] ?? 0) > LEFT_A_WHILE
 }
 
