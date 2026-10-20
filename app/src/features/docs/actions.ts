@@ -13,7 +13,6 @@ import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
 import { useShareStore } from "./share/store"
 import { toastError, toastUndo } from "@/lib/toast"
-import { goingThrough, goThrough, stopGoingThrough } from "./owlit"
 
 const undoToast = (title: string, description: string | undefined, removed: Removed) =>
   toastUndo(title, () => useDocsStore.getState().restore(removed), { description })
@@ -95,7 +94,6 @@ export function useDocActions() {
 
   const fileGroups = (file: WorkspaceFile): MenuGroups => {
     const md = isMarkdown(file.path)
-    const going = goingThrough(file.path)
     return [
       [
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.file(file.id)) },
@@ -106,21 +104,6 @@ export function useDocActions() {
           ? [{ label: t`Resolved comments…`, onSelect: () => useDocsUiStore.getState().showResolved(file.id) }]
           : []),
       ],
-      // Without core (pnpm dev:web) Go through runs on a mock
-      ...(md
-        ? [
-            [
-              // Material from people (a meeting, reviews): read against the docs, the points carried to them.
-              // While Owlit goes through it, this row is where that shows and where it stops; when it
-              // broke, where it says why and tries again.
-              going?.state === "running"
-                ? { label: t`Stop going through`, detail: t`Owlit is going through…`, working: true, onSelect: () => stopGoingThrough(file.path) }
-                : going?.state === "failed"
-                  ? { label: t`Retry going through`, detail: going.reply.error ?? t`Owlit couldn't go through it.`, onSelect: () => goThrough(file, { retry: true }) }
-                  : { label: t`Go through against your docs`, onSelect: () => goThrough(file) },
-            ],
-          ]
-        : []),
       [
         ...(md ? [{ label: t`Copy link`, onSelect: () => void copyLink(file) }] : []),
         ...(isDesktop ? [{ label: t`Show in Finder`, onSelect: () => reveal(file.path) }] : []),

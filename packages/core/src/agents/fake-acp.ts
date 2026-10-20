@@ -17,9 +17,6 @@
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
-//   "going through material…" goes through it as the Go through recipe says: the record with docs_write,
-//                      then a point on the first line of the first doc named; the material can ask it to
-//                      comment first ("FAKE: comment first") or to write nothing ("FAKE: no record")
 //   "replied under your comment…" answers with comments_reply as the reply recipe says: "FAKE: correct"
 //                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
 //   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
@@ -236,28 +233,6 @@ class FakeAgent implements acp.Agent {
         await callOwlit(session.owlit, "library.writeDigest", { id, summary, details })
         await this.conn.sessionUpdate({ sessionId: params.sessionId, update: { sessionUpdate: "tool_call_update", toolCallId: "digest1", status: "completed" } })
         await say("The digest is written.")
-        return { stopReason: "end_turn" }
-      }
-      if (text.includes("going through material that comes from people")) {
-        if (!session.owlit) throw new Error("no owlit tools")
-        const owlit = session.owlit
-        const record = /with docs_write at (.+?)\. It is plain Markdown/.exec(text)?.[1]
-        const doc = /the workspace's docs are (.+?)\. Read the likely/.exec(text)?.[1]?.split(", ")[0]
-        const material = /^## (原文|The material)\n\n- \[.*\]\(.*\)$/m.exec(text)?.[0] ?? ""
-        const point = async () => {
-          if (!doc || doc === "(none)") return
-          const { content } = (await callOwlit(owlit, "docs.read", { path: doc })) as { content: string }
-          const quote = content.split("\n").find((l) => l.trim() && !l.startsWith("#"))!
-          await callOwlit(owlit, "comments.add", { path: doc, comment: { id: randomUUID(), quote, prefix: "", suffix: "", entries: [{ id: randomUUID(), text: `A point, from ${record}.`, at: Date.now() }], createdAt: Date.now() } })
-        }
-        if (text.includes("FAKE: no record")) {
-          await say("I couldn't make sense of it.")
-          return { stopReason: "end_turn" }
-        }
-        if (text.includes("FAKE: comment first")) await point().catch((error: Error) => say(`refused: ${error.message} `))
-        await callOwlit(owlit, "agents.writeDoc", { path: record, content: `# The reading\n\nWhat changes.\n\n---\n\n${material}\n` })
-        await point()
-        await say(`Wrote ${record}.`)
         return { stopReason: "end_turn" }
       }
       if (text.includes("and the user has replied")) {

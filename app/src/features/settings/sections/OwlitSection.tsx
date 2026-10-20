@@ -16,7 +16,7 @@ import { setActivity, updateSettings, useSettings } from "../store"
 import { KeptInMindRow } from "./Memory"
 
 // What Owlit calls you, what it keeps in mind about you, the agent for the tasks you hand it, and what it
-// records of what you do. Owlit works only when you ask (a digest, a thread's papers, a Go through), so
+// records of what you do. Owlit works only when you ask (a digest, a thread's papers), so
 // there is no setting for work of its own.
 // The agent for those tasks sits here rather than under Agents: people come to change their digests,
 // and which agent writes them is part of that.
