@@ -34,6 +34,9 @@ export interface WelcomeInfo {
 // .owlit/workspace.json: settings that belong to the workspace and move with it
 export interface WorkspaceSettings {
   version: 1
+  // The workspace's own id, made when owlit first opens it: what this machine keeps for it (the share
+  // links' keys, the task log, the index) is filed under it, so a renamed or moved folder keeps them
+  id?: string
   layout: Record<string, unknown>
 }
 

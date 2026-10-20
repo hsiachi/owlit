@@ -122,9 +122,12 @@ export class Shares {
     return this.serial.run(async () => {
       const records = await this.load()
       const existing = records.find((r) => r.path === docPath)
-      if (existing) return this.view(existing)
       const server = this.services.server()
+      if (existing && (existing.server === server || !server)) return this.view(existing)
       if (!server) throw new RpcFailure(RpcErrorCode.Unavailable, t`No share server is set up, so owlit can't make links yet.`)
+      // Its link is on a server owlit no longer makes links on: a new one replaces it, and the old one is
+      // stopped there if that server still answers
+      if (existing) await this.retire(existing)
       if (!isMarkdown(docPath)) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Only docs can be shared.`)
       const markdown = await this.services.readDoc(docPath)
       if (markdown === null) throw new RpcFailure(RpcErrorCode.NotFound, t`There is no ${docPath} in the workspace.`, { path: docPath })
@@ -184,15 +187,24 @@ export class Shares {
     })
   }
 
-  stop(docPath: string) {
+  // forget: only here, when the server can't be reached to stop the link (it may go on working there)
+  stop(docPath: string, forget = false) {
     return this.serial.run(async () => {
+      if (forget) {
+        const record = (await this.load()).find((r) => r.path === docPath)
+        if (record) await this.forget(record)
+        return null
+      }
       const record = await this.mine(docPath)
       const token = (await this.loadKeys()).get(record.id)!
       await this.client(record.server)
         .stop(record.id, token)
         .catch((error) => {
           // Already stopped there is stopped all the same
-          if (!(error instanceof ShareError && error.gone)) throw asFailure(error)
+          if (error instanceof ShareError && error.gone) return
+          // Unreachable: the window offers to forget the link here instead
+          if (error instanceof ShareError && error.status === 0) throw new RpcFailure(RpcErrorCode.Unavailable, error.message, { unreachable: true })
+          throw asFailure(error)
         })
       await this.forget(record)
       return null
@@ -393,6 +405,14 @@ export class Shares {
     }
   }
 
+  // A share replaced by a new link: stopped on its server when this computer holds its key and the server
+  // answers, and forgotten here either way
+  private async retire(record: ShareRecord) {
+    const token = (await this.loadKeys()).get(record.id)
+    if (token) await this.client(record.server).stop(record.id, token).catch((error) => console.error("[core] the old link couldn't be stopped on its server", error))
+    await this.forget(record)
+  }
+
   // A share this computer can change
   private async mine(docPath: string) {
     const record = (await this.load()).find((r) => r.path === docPath)
@@ -426,6 +446,7 @@ export class Shares {
       ...(this.held.has(record.id) ? { held: true } : {}),
       papers: record.papers,
       ...(keys.has(record.id) ? {} : { foreign: true }),
+      ...(record.server !== this.services.server() && this.services.server() ? { oldServer: true } : {}),
     }
   }
 

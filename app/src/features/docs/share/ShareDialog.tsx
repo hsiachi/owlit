@@ -15,7 +15,7 @@ import { copyText } from "@/lib/clipboard"
 import { toastError } from "@/lib/toast"
 import { ago } from "@/lib/time"
 import { displayName } from "../types"
-import { shares, useShareStore } from "./store"
+import { shares, unreachable, useShareStore } from "./store"
 
 // Sharing a doc by link: first what the reader will see, then the link itself, who may comment, and the
 // author's notes going along or not. Readers need no owlit, only a browser.
@@ -24,6 +24,8 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
   const server = useShareStore((s) => s.server)
   const [notes, setNotes] = useState(true)
   const [busy, setBusy] = useState(false)
+  // Stop sharing couldn't reach the server: the way out is to forget the link here
+  const [stopFailed, setStopFailed] = useState(false)
   const [copied, flash] = useCopyFlash()
   const name = displayName(file.path)
   const cited = share?.papers ?? citedPaperIds(file.content ?? "").length
@@ -34,6 +36,18 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
       await work()
     } catch (error) {
       toastError(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const stop = async () => {
+    setBusy(true)
+    try {
+      await shares.stop(file.path)
+      onOpenChange(false)
+    } catch (error) {
+      if (unreachable(error)) setStopFailed(true)
+      else toastError(error)
     } finally {
       setBusy(false)
     }
@@ -66,7 +80,13 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) setStopFailed(false)
+        onOpenChange(o)
+      }}
+    >
       <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeading title={t`Share “${name}”`} about={t`Anyone with the link reads the doc in a browser, without owlit, and can comment on it. Comments come back here.`} />
         {!share ? (
@@ -79,6 +99,7 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
               {paperRows}
             </div>
             <p className="text-detail text-muted-foreground">{t`Your changes reach readers as you make them. Your chats, highlights and other docs stay here.`}</p>
+            <p className="text-detail text-muted-foreground">{t`The link works until you stop sharing. It's signed with your name.`}</p>
             {!server && <p className="text-detail text-destructive">{t`No share server is set up, so owlit can't make links yet.`}</p>}
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -118,7 +139,16 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
               </GroupLabel>
               {paperRows}
             </div>
-            {share.foreign ? (
+            {stopFailed ? (
+              <p className="text-detail text-destructive">{t`The share server can't be reached, so the link can't be stopped there now. Forget it here, and it may still open for readers until the server is back.`}</p>
+            ) : share.oldServer ? (
+              <p className="text-detail text-muted-foreground">
+                {t`This link is on a share server owlit no longer uses.`}{" "}
+                <Button variant="text" size="inline" disabled={busy} onClick={() => void run(() => shares.create(file.path, share.notes))}>
+                  {t`Make a new link`}
+                </Button>
+              </p>
+            ) : share.foreign ? (
               <p className="text-detail text-muted-foreground">{t`This doc was shared from another computer; only that one can change its link.`}</p>
             ) : share.problem ? (
               <p className="text-detail text-destructive">{share.problem}</p>
@@ -129,9 +159,15 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
             )}
             <DialogFooter className="sm:justify-between">
               {/* No Undo after stopping: a stopped link can't open again, so there is nothing to take back */}
-              <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={busy || share.foreign} onClick={() => void run(() => shares.stop(file.path).then(() => onOpenChange(false)))}>
-                {t`Stop sharing`}
-              </Button>
+              {stopFailed ? (
+                <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={busy} onClick={() => void run(() => shares.forget(file.path).then(() => onOpenChange(false)))}>
+                  {t`Forget this link here`}
+                </Button>
+              ) : (
+                <Button variant="ghost" className="text-destructive hover:text-destructive" disabled={busy || share.foreign} onClick={() => void stop()}>
+                  {t`Stop sharing`}
+                </Button>
+              )}
               <Button onClick={() => onOpenChange(false)}>{t`Done`}</Button>
             </DialogFooter>
           </>

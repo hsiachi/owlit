@@ -1,6 +1,6 @@
 import { RpcErrorCode, type RpcNotification } from "@owlit/protocol"
 import { spawn } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -49,7 +49,7 @@ describe("workspace.open", () => {
     expect(info).toEqual({ path: empty, name: "empty" })
     const { profile } = (await call("settings.get")) as { profile: { id: string } }
     expect(tree(empty).sort()).toEqual([path.join(".owlit", "members.json"), path.join(".owlit", "seen", `p_${profile.id}.json`), path.join(".owlit", "workspace.json")])
-    expect(JSON.parse(readFileSync(path.join(empty, ".owlit/workspace.json"), "utf8"))).toEqual({ version: 1, layout: {} })
+    expect(JSON.parse(readFileSync(path.join(empty, ".owlit/workspace.json"), "utf8"))).toEqual({ version: 1, id: expect.stringMatching(/^[0-9a-f]{16}$/), layout: {} })
     // The person who opened it and their Owlit, by the profile's id
     expect(JSON.parse(readFileSync(path.join(empty, ".owlit/members.json"), "utf8"))).toEqual({
       [`p_${profile.id}`]: { kind: "person" },
@@ -60,13 +60,47 @@ describe("workspace.open", () => {
     await vi.waitFor(() => expect(JSON.parse(readFileSync(path.join(empty, ".owlit/members.json"), "utf8"))[`p_${profile.id}`]).toEqual({ kind: "person", name: "Xia" }))
   })
 
-  it("keeps an existing workspace.json as it is", async () => {
+  it("keeps an existing workspace.json, giving it an id once", async () => {
     const { call, folder } = setup()
     const ws = folder("kept")
     mkdirSync(path.join(ws, ".owlit"))
     writeFileSync(path.join(ws, ".owlit/workspace.json"), '{"version":1,"layout":{"x":1}}')
     await call("workspace.open", { path: ws })
-    expect(readFileSync(path.join(ws, ".owlit/workspace.json"), "utf8")).toBe('{"version":1,"layout":{"x":1}}')
+    const kept = JSON.parse(readFileSync(path.join(ws, ".owlit/workspace.json"), "utf8"))
+    expect(kept).toEqual({ version: 1, id: expect.any(String), layout: { x: 1 } })
+    await call("workspace.open", { path: ws })
+    expect(JSON.parse(readFileSync(path.join(ws, ".owlit/workspace.json"), "utf8")).id).toBe(kept.id)
+  })
+
+  it("keeps the folder's data when it is renamed, adopts what its path had, and gives a copy its own", async () => {
+    const { call, folder, userDataDir } = setup()
+    const ws = folder("before")
+    // What this machine kept for the folder before workspaces had ids, under its path
+    const byPath = workspaceDataDir(userDataDir, ws)
+    mkdirSync(byPath, { recursive: true })
+    writeFileSync(path.join(byPath, "share-keys.json"), "{}")
+    await call("workspace.open", { path: ws })
+    const id = JSON.parse(readFileSync(path.join(ws, ".owlit/workspace.json"), "utf8")).id as string
+    const dir = workspaceDataDir(userDataDir, ws, id)
+    expect(existsSync(path.join(dir, "share-keys.json"))).toBe(true)
+    expect(existsSync(byPath)).toBe(false)
+
+    // Renamed: the same id, the same data (another workspace open meanwhile, so nothing holds it)
+    await call("workspace.open", { path: folder("elsewhere") })
+    const moved = path.join(path.dirname(ws), "after")
+    renameSync(ws, moved)
+    await call("workspace.open", { path: moved })
+    expect(JSON.parse(readFileSync(path.join(moved, ".owlit/workspace.json"), "utf8")).id).toBe(id)
+    expect(existsSync(path.join(dir, "share-keys.json"))).toBe(true)
+
+    // Copied while the original is still there: an id of its own
+    await call("workspace.open", { path: folder("elsewhere") })
+    const copy = path.join(path.dirname(ws), "copy")
+    cpSync(moved, copy, { recursive: true })
+    await call("workspace.open", { path: copy })
+    const copyId = JSON.parse(readFileSync(path.join(copy, ".owlit/workspace.json"), "utf8")).id as string
+    expect(copyId).not.toBe(id)
+    expect(existsSync(path.join(workspaceDataDir(userDataDir, copy, copyId), "share-keys.json"))).toBe(false)
   })
 
   it("takes the lock beside the workspace's socket and notifies", async () => {

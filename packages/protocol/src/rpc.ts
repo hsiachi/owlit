@@ -192,7 +192,9 @@ export interface Methods {
   "share.create": { params: { path: string; notes: boolean }; result: DocShare }
   "share.update": { params: { path: string; permission?: SharePermission; notes?: boolean }; result: DocShare }
   // The link stops working for everyone who has it
-  "share.stop": { params: { path: string }; result: null }
+  // forget: drop the link here only, for a server that can't be reached (its stop failed with
+  // data.unreachable)
+  "share.stop": { params: { path: string; forget?: boolean }; result: null }
   // The doc's comments as last fetched, fetching them again first when the server can be reached
   "share.comments": { params: { path: string }; result: ShareComment[] }
   // The author's reply, under the profile's name

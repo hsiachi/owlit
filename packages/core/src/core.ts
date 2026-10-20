@@ -1150,7 +1150,7 @@ export class Core {
     this.router.register("share.update", z.object({ path: rel, permission: permission.optional(), notes: z.boolean().optional() }), "admin", ({ path, ...change }) =>
       shares().update(path, change),
     )
-    this.router.register("share.stop", z.object({ path: rel }), "admin", ({ path }) => shares().stop(path))
+    this.router.register("share.stop", z.object({ path: rel, forget: z.boolean().optional() }), "admin", ({ path, forget }) => shares().stop(path, forget))
     this.router.register("share.comments", z.object({ path: rel }), "read", ({ path }) => shares().commentsOf(path))
     this.router.register("share.reply", z.object({ path: rel, parent: z.string().min(1), text: z.string().trim().min(1).max(4000) }), "admin", ({ path, parent, text }) =>
       shares().reply(path, parent, text),

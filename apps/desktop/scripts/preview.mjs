@@ -122,11 +122,13 @@ function cloneReal(dir, data) {
   return cloned
 }
 
-// A workspace's app data lives under the hash of its path (core workspace.ts), so the clone's goes under
-// the clone's. index.db is copied with SQLite's backup, which is whole even while the real Owlit writes to
-// it; it is derived, so it is left for the preview to rebuild when that fails.
+// A workspace's app data lives under its id (core workspace.ts), or the hash of its path when it has none.
+// The clone's goes under the clone's path, which the preview's core adopts for the id the clone carries
+// when it opens it. index.db is copied with SQLite's backup, which is whole even while the real Owlit
+// writes to it; it is derived, so it is left for the preview to rebuild when that fails.
 function cloneWorkspaceData(workspace, clone, data) {
-  const from = path.join(realData, "workspaces", workspaceHash(workspace))
+  const byId = workspaceId(workspace) && path.join(realData, "workspaces", workspaceId(workspace))
+  const from = byId && existsSync(byId) ? byId : path.join(realData, "workspaces", workspaceHash(workspace))
   const to = path.join(data, "workspaces", workspaceHash(clone))
   if (!existsSync(from)) return
   mkdirSync(to, { recursive: true })
@@ -143,6 +145,15 @@ function cloneWorkspaceData(workspace, clone, data) {
     } catch {
       rmSync(path.join(to, "index.db"), { force: true })
     }
+  }
+}
+
+// The id in the workspace's .owlit/workspace.json, if it has one
+function workspaceId(workspace) {
+  try {
+    return JSON.parse(readFileSync(path.join(workspace, ".owlit", "workspace.json"), "utf8")).id
+  } catch {
+    return undefined
   }
 }
 
