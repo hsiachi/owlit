@@ -19,7 +19,7 @@ import path from "node:path"
 const support = path.join(os.homedir(), "Library", "Application Support")
 // The installed Owlit's data (app.name "Owlit"; the folder was made lowercase by earlier dev runs, and macOS
 // paths ignore case)
-const realData = process.env.OWLIT_PREVIEW_SOURCE ?? path.join(support, "owlit")
+export const realData = process.env.OWLIT_PREVIEW_SOURCE ?? path.join(support, "owlit")
 const previewsDir = path.join(support, "Owlit Previews")
 
 // What this checkout is called: nothing for the main checkout on dev, else the branch's last part
@@ -72,9 +72,10 @@ function signingIdentity() {
 
 // The preview's app data folder for this checkout, cloned from the real one when it doesn't exist yet (or
 // when fresh). Previews of checkouts that are gone are removed on the way.
-export function previewData({ checkout, fresh }) {
+export function previewData({ checkout, fresh, suffix }) {
   pruneGone()
-  const slug = `${path.basename(checkout)}-${createHash("sha1").update(checkout).digest("hex").slice(0, 6)}`
+  // suffix: one more preview of the same checkout (scripts/drive.mjs drives one beside the pnpm try you look at)
+  const slug = `${path.basename(checkout)}-${createHash("sha1").update(checkout).digest("hex").slice(0, 6)}${suffix ? `-${suffix}` : ""}`
   const dir = path.join(previewsDir, slug)
   const data = path.join(dir, "data")
   if (existsSync(path.join(dir, "preview.json")) && !fresh) return data

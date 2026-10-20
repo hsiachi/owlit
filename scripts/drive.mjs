@@ -1,13 +1,16 @@
 // pnpm drive: Owlit Dev (Electron) driven from the command line, so an agent can try a feature in the real
 // app and see what it did. Node built-ins only; one command per run, so each is one Bash call.
 //
-//   pnpm drive start [--engine fake|claude|codex] [--workspace <dir>] [--fresh] [--slow <ms>]
+//   pnpm drive start [--engine fake|claude|codex] [--workspace <dir> | --mine] [--fresh] [--slow <ms>]
 //     Starts Owlit Dev on scratch app data (a folder of its own under the system temp dir, never your real
 //     data), serves the renderer on a fixed port, opens the fixture workspace (a copy of the example
-//     workspace, or --workspace's folder as it is: pass a copy, never a real one) and makes the chat's
+//     workspace; --mine: a clone of your own data and workspace, as pnpm try makes one, kept apart from
+//     pnpm try's; --workspace: a folder as it is, which may be a copy but never one of your real
+//     workspaces, which it refuses) and makes the chat's
 //     agent the fake engine (packages/core/src/agents/fake-acp.ts: no sign-in, answers "echo: <text>", and
 //     its header lists the prompts that make it ask, edit, crash and so on) or Claude Code / Codex from
-//     PATH, already signed in. Prints where everything is. --fresh starts the data and the fixture over.
+//     PATH, already signed in. Prints where everything is. --fresh starts the data and the fixture over
+//     (with --mine, clones your data again).
 //     --slow makes the fake engine take that long over each digest, so Stop, a quit in the middle and
 //     the running state can be seen.
 //   pnpm drive status | stop | restart
@@ -68,6 +71,7 @@ import net from "node:net"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { previewData, realData } from "../apps/desktop/scripts/preview.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 // One home per checkout, so two worktrees can be driven at once
@@ -89,6 +93,7 @@ const args = []
 for (let i = 0; i < rest.length; i++) {
   const arg = rest[i]
   if (arg === "--engine" || arg === "--workspace" || arg === "--timeout" || arg === "--slow") flags[arg.slice(2)] = rest[++i]
+  else if (arg === "--mine") flags.mine = true
   else if (arg.startsWith("--")) flags[arg.slice(2)] = true
   else args.push(arg)
 }
@@ -183,13 +188,20 @@ async function start() {
 
   const engine = flags.engine ?? old?.engine ?? "fake"
   if (!(engine in ENGINES)) throw new Error(`--engine is fake, claude or codex, not ${engine}`)
+  // --mine: your data and workspaces cloned the way pnpm try clones them (preview.mjs), into a preview of
+  // this checkout's own; its settings already name the cloned workspace to open
+  const mine = flags.mine || (old?.mine && !flags.workspace)
+  const userData = mine ? previewData({ checkout: root, fresh: Boolean(flags.fresh), suffix: "drive" }) : dataDir
   // The folder's real path, as core names it (the temp dir is a symlink on macOS)
-  const workspace = realPath(flags.workspace ? path.resolve(flags.workspace) : (old?.workspace ?? path.join(home, "Owlit Example")))
+  const workspace = realPath(
+    flags.workspace ? path.resolve(flags.workspace) : mine ? (JSON.parse(readFileSync(path.join(userData, "settings.json"), "utf8")).lastWorkspace ?? path.join(home, "Owlit Example")) : (old?.workspace ?? path.join(home, "Owlit Example")),
+  )
+  refuseReal(workspace)
   const devPort = old?.devPort ?? (await freePort())
   const extensionPort = old?.extensionPort ?? (await freePort())
   const cdpPort = await freePort()
 
-  const env = { ...process.env, OWLIT_USER_DATA: dataDir, OWLIT_DEV_PORT: String(devPort), OWLIT_EXTENSION_PORT: String(extensionPort), OWLIT_PID_FILE: pidFile, OWLIT_NO_EXTERNAL: "1" }
+  const env = { ...process.env, OWLIT_USER_DATA: userData, OWLIT_DEV_PORT: String(devPort), OWLIT_EXTENSION_PORT: String(extensionPort), OWLIT_PID_FILE: pidFile, OWLIT_NO_EXTERNAL: "1" }
   // The app passes its environment on to the agents it starts
   if (flags.slow) env.FAKE_ACP_SLOW_MS = String(Number(flags.slow))
   for (const name of Object.keys(env)) {
@@ -204,7 +216,7 @@ async function start() {
     stdio: ["ignore", out, out],
   })
   child.unref()
-  const state = { devPort, cdpPort, extensionPort, engine, workspace, launcherPid: child.pid, startedAt: new Date().toISOString() }
+  const state = { devPort, cdpPort, extensionPort, engine, workspace, mine, userData, launcherPid: child.pid, startedAt: new Date().toISOString() }
   writeState(state)
 
   // A launcher that dies (pnpm install, Vite or Electron failing) ends the wait at once
@@ -217,7 +229,7 @@ async function start() {
 
     if (!existsSync(path.join(workspace, ".owlit", "workspace.json"))) {
       if (flags.workspace) throw new Error(`${workspace} isn't a workspace (no .owlit/workspace.json)`)
-      makeFixture(workspace, settings.profile?.id ?? JSON.parse(readFileSync(path.join(dataDir, "settings.json"), "utf8")).profile?.id)
+      makeFixture(workspace, settings.profile?.id ?? JSON.parse(readFileSync(path.join(userData, "settings.json"), "utf8")).profile?.id)
     }
     const current = await rpc(page, "workspace.current")
     if (current?.path !== workspace) await rpc(page, "workspace.open", { path: workspace })
@@ -259,6 +271,19 @@ async function chooseEngine(page, engine) {
   const checked = await rpc(page, "agents.check", { id })
   if (checked.status !== "available" && checked.status !== "connected") console.log(`[drive] ${checked.name} is ${checked.status}: ${checked.error ?? ""}`)
   return id
+}
+
+// A real workspace of yours is never driven: what the app does to it (digests, comments, moves) would be
+// done for real. The real app data's settings say which folders those are.
+function refuseReal(workspace) {
+  let settings
+  try {
+    settings = JSON.parse(readFileSync(path.join(realData, "settings.json"), "utf8"))
+  } catch {
+    return
+  }
+  const real = [settings.lastWorkspace, ...(settings.recentWorkspaces ?? [])].filter((w) => typeof w === "string").map((w) => realPath(w))
+  if (real.some((w) => workspace === w || workspace.startsWith(w + path.sep))) throw new Error(`${workspace} is one of your real workspaces; drive a copy (--mine clones it)`)
 }
 
 // The example workspace as the app ships it, signed as this app data's person: its records are the
@@ -303,7 +328,7 @@ function status() {
   const up = state?.launcherPid && running(state.launcherPid)
   console.log(`  ${up ? "running" : "stopped"}`)
   if (!state) return
-  console.log(`  data       ${dataDir}`)
+  console.log(`  data       ${state.userData ?? dataDir}${state.mine ? " (a clone of yours)" : ""}`)
   console.log(`  workspace  ${state.workspace}`)
   console.log(`  engine     ${state.engine}${state.engineId ? ` (${state.engineId})` : ""}`)
   console.log(`  renderer   http://localhost:${state.devPort}/`)
