@@ -9,7 +9,7 @@ import { DialogHeading } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useChatStore } from "@/features/chat/store"
-import { nameOf } from "@/lib/actors"
+import { nameOf, useNames } from "@/lib/actors"
 import { clock, dateTime } from "@/lib/time"
 import { rpc } from "@/lib/rpc"
 import { toastLeft, undoChange } from "@/lib/changes"
@@ -24,6 +24,7 @@ import { capital } from "@/lib/words"
 // passage, keeping what was written since; a passage that was itself edited since stays, and the toast
 // names it.
 export function VersionsDialog({ file, open: shown, onOpenChange }: { file: WorkspaceFile; open: boolean; onOpenChange: (open: boolean) => void }) {
+  useNames()
   const [changes, setChanges] = useState<Change[] | null>(null)
   const [stats, setStats] = useState<Record<string, EditStats | null>>({})
   const [open, setOpen] = useState<string | null>(null)

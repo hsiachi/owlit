@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react"
+import { useNames } from "@/lib/actors"
 import { setHotComment, NEW_KEY } from "../editor/comment-marks"
 import { openEditor } from "../editors"
 import { useDocsUiStore } from "../ui-store"
@@ -17,13 +18,18 @@ function useSources(fileId: string) {
 // The open comments on a doc, Owlit's, yours and share readers', merged
 export function useCommentViews(fileId: string): CommentView[] {
   const [own, readers] = useSources(fileId)
-  return useMemo(() => commentViews(own, readers), [own, readers])
+  // Their names come from the roster
+  const roster = useNames()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => commentViews(own, readers), [own, readers, roster])
 }
 
 // The ones put away, newest first
 export function useResolvedViews(fileId: string): CommentView[] {
   const [own, readers] = useSources(fileId)
-  return useMemo(() => resolvedViews(own, readers), [own, readers])
+  const roster = useNames()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => resolvedViews(own, readers), [own, readers, roster])
 }
 
 // ⌥⌘] and ⌥⌘[ open the next and previous comment in the order their words come, from the open one (or

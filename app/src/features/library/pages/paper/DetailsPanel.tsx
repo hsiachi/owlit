@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { nameOf, useMe } from "@/lib/actors"
+import { nameOf, useMe, useNames } from "@/lib/actors"
 import { MentionToken } from "@/components/mention/mention-token"
 import { useThreadsStore } from "@/features/threads/store"
 import { threadsByPaper } from "@/features/threads/lib"
@@ -116,6 +116,7 @@ function CopyOf({ paper }: { paper: Paper }) {
 const linkName = (kind: ExternalLink["kind"]) => (kind === "doi" ? "DOI" : kind === "arxiv" ? "arXiv" : t({ message: "Link", comment: "noun: a web link to the paper" }))
 
 function About({ paper }: { paper: Paper }) {
+  useNames()
   const navigate = useNavigate()
   const setTags = useLibraryStore((s) => s.setTags)
   const showTag = useLibraryUi((s) => s.showTag)

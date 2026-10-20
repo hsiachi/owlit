@@ -21,7 +21,7 @@ import { usePaperActions } from "@/features/library/actions"
 import { useWorkspace } from "@/lib/workspace"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
 import { ago } from "@/lib/time"
-import { nameOf } from "@/lib/actors"
+import { nameOf, useNames } from "@/lib/actors"
 import { type News, type Place, useNews, usePlaces } from "./where"
 
 // Home: where the user was and what waits for them (WaitingOnYou), in that order. What others changed is
@@ -91,6 +91,7 @@ function RecentRow({ place }: { place: Place }) {
 // The last thing worked on, with the user's own last words in it. First on the page, in the rows' own
 // look (no card): it is where most launches go next.
 function LeadCard({ place }: { place: Place }) {
+  useNames()
   const news = useNews(place)
   // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday · Digest ready"
   const meta = [place.detail, didWords(place), news?.words].filter(Boolean).join(" · ")
