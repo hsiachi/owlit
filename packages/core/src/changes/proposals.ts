@@ -9,11 +9,20 @@ const CONTEXT = 24
 // change, and are kept or undone as one
 const JOIN = 3
 
-// What one change to a doc put in and took out, passage by passage, each with the text either side of
-// it as the change left it (stopping at the neighbouring passages)
-export function proposalHunks(before: string, after: string): ProposalHunk[] {
-  // Each hunk's span in `before` and in `after`, neighbours joined
-  const spans: { bf: number; bt: number; af: number; at: number }[] = []
+// How an undo of one passage of a change names it in its target (Undo.undoPart)
+export const passagePart = (index: number) => `passage:${index}`
+
+// A passage of a change: its span in the text before (bf, bt) and in the text after (af, at)
+export interface PassageSpan {
+  bf: number
+  bt: number
+  af: number
+  at: number
+}
+
+// The passages of one change to a doc, in order: its hunks, neighbours joined
+export function passageSpans(before: string, after: string): PassageSpan[] {
+  const spans: PassageSpan[] = []
   let shift = 0
   for (const h of hunks(before, after)) {
     const af = h.from + shift
@@ -25,6 +34,13 @@ export function proposalHunks(before: string, after: string): ProposalHunk[] {
       last.at = at
     } else spans.push({ bf: h.from, bt: h.to, af, at })
   }
+  return spans
+}
+
+// What one change to a doc put in and took out, passage by passage, each with the text either side of
+// it as the change left it (stopping at the neighbouring passages)
+export function proposalHunks(before: string, after: string): ProposalHunk[] {
+  const spans = passageSpans(before, after)
   return spans.map((s, i) => {
     const prev = spans[i - 1]?.at ?? 0
     const next = spans[i + 1]?.af ?? after.length
@@ -69,11 +85,20 @@ export async function docProposals(log: ChangeLog, rel: string, current: string,
       whole.whole!.also.push(e.id)
       continue
     }
-    const parts = proposalHunks(befores[i]!, after(i))
-    if (parts.length) out.push({ ...said, hunks: parts })
+    // A passage undone on its own (Undo.undoPart) is no longer Owlit's; the others keep their places
+    const back = new Set(all(entries, e).flatMap((c) => (c.target.part !== undefined && c.target.part !== e.target.part ? [c.target.part] : [])))
+    const parts = proposalHunks(befores[i]!, after(i)).map((h, n) => (back.has(passagePart(n)) ? null : h))
+    if (parts.some(Boolean)) out.push({ ...said, hunks: parts.map((h) => h ?? GONE) })
   }
   return out
 }
 
-// Whether an entry is taken back now: the newest undo of it that isn't itself undone
-const undone = (e: Change, all: Change[]): boolean => all.some((c) => c.undoes === e.id && !undone(c, all))
+// A passage undone by itself, kept in its place so the others keep their indexes; it is found nowhere
+const GONE: ProposalHunk = { insert: "", removed: "", before: "", after: "" }
+
+// The undos of an entry that stand now
+const all = (entries: Change[], e: Change) => entries.filter((c) => c.undoes === e.id && !undone(c, entries))
+
+// Whether an entry is taken back now, whole: the newest undo of it, naming the same target, that isn't
+// itself undone. An undo naming one of its passages takes back only that passage.
+const undone = (e: Change, entries: Change[]): boolean => entries.some((c) => c.undoes === e.id && c.target.part === e.target.part && !undone(c, entries))

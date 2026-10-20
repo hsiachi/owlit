@@ -638,6 +638,12 @@ export class Core {
       { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
       ({ id }, caller) => this.undo.undo(id, caller),
     )
+    this.router.register(
+      "changes.undoPart",
+      z.object({ id: z.string().min(1), index: z.number().int().min(0) }),
+      { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
+      ({ id, index }, caller) => this.undo.undoPart(id, index, caller),
+    )
     this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), "read", ({ ids }) => this.undo.stats(ids))
     const actor = z.custom<ActorId>((v) => typeof v === "string" && /^([po]_[0-9a-f]+|other)$/.test(v))
     this.router.register(
@@ -663,11 +669,9 @@ export class Core {
       const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
       return ws.seen.unseen(me, { changes, chats, papers, since })
     })
-    this.router.register("changes.since", z.object({ path: z.string().min(1), hash: z.string().min(1) }), "read", async ({ path: rel, hash }, caller) => {
+    this.router.register("changes.since", z.object({ path: rel, hash: z.string().min(1), text: z.string() }), "read", async ({ path, hash, text }, caller) => {
       const ws = this.requireWorkspace()
-      const me = await this.personAt(caller)
-      const { content } = await ws.docs.read(rel)
-      return docPassages(ws.changes, rel, hash, content, me)
+      return docPassages(ws.changes, path, hash, text, await this.personAt(caller))
     })
     this.router.register("changes.proposals", z.object({ path: rel, text: z.string(), hash: z.string().min(1).optional(), since: z.number().optional() }), "read", ({ path, text, hash, since }) =>
       docProposals(this.requireWorkspace().changes, path, text, { ...(hash !== undefined ? { hash } : {}), ...(since !== undefined ? { since } : {}) }),

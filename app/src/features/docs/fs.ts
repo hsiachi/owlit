@@ -1,7 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { anchorAt, isOwlit } from "@owlit/protocol"
 import { myOwlit } from "@/lib/actors"
-import { undo } from "@codemirror/commands"
 import { newId } from "@/lib/id"
 import { setWorkspaceFs, setWorkspaceNotes } from "@/features/chat/agent/client"
 import { isDiskChange } from "./disk"
@@ -14,6 +13,7 @@ import { onEditorsChanged, openEditor, openEditorIds, replaceInEditor } from "./
 import { fileAt, perFiles, useDocsStore } from "./store"
 import { displayName, docUri, isMarkdown, type WorkspaceFile } from "./types"
 import { chatOnScreen, labelOf } from "@/features/chat/results"
+import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { toastUndo } from "@/lib/toast"
 
 // What [[wikilinks]] can name: each doc by its name and by its path, the first doc keeping a name
@@ -88,32 +88,20 @@ setWorkspaceFs({
   },
 })
 
-// Core's changes an editor here took in and said with its own toast
-const saidHere = new Set<string>()
+// Core's changes an editor here took in: the doc shows them with its own marks and Undo, so no toast
+// says them again
+const shownHere = new Set<string>()
 
-// An agent's edit to an open doc: one change in its editor (the cursor stays, ⌘Z takes it back) and a
-// toast with Undo. Once the doc has been closed its editor's history is gone, so Undo takes back core's
-// change (desktop) or puts back the text from before, if nothing changed since. An undo of a change in
-// core's log (quiet) is the same one step, said by whoever asked for it. False when not open.
-function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string, quiet = false) {
+// An agent's edit to an open doc: one change in its editor, so the cursor stays where the user left it.
+// It says nothing: an edit of Owlit's is marked in the doc (editor/proposals.ts), with its Undo through
+// the change log, never the editor's history, which may hold the user's typing since. False when not open.
+function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string) {
   const view = openEditor(file.id)
   if (!view) return false
-  const before = view.state.doc.toString()
-  const change = spanChange(before, content)
+  const change = spanChange(view.state.doc.toString(), content)
   if (change.from === change.to && !change.insert) return true
   view.dispatch({ changes: change, userEvent: "input.agent" })
-  if (quiet) return true
-  if (changeId) saidHere.add(changeId)
-  const after = view.state.doc.toString()
-  toastUndo(
-    t`Edit applied`,
-    () => {
-      if (openEditor(file.id) === view) undo(view)
-      else if (changeId) undoChange(changeId, displayName(file.path))
-      else if (currentText(file.id) === after) rewrite(file.id, before)
-    },
-    { description: displayName(file.path) },
-  )
+  if (changeId) shownHere.add(changeId)
   return true
 }
 
@@ -145,9 +133,9 @@ if (isDesktop) {
     const view = file ? openEditor(file.id) : undefined
     return { content: view ? view.state.doc.toString() : null }
   })
-  registerUiHandler("fs.write", ({ path, content, changeId, undo }) => {
+  registerUiHandler("fs.write", ({ path, content, changeId }) => {
     const file = fileAt(path)
-    return { applied: !!file && applyAgentEdit(file, content, changeId, undo) }
+    return { applied: !!file && applyAgentEdit(file, content, changeId) }
   })
 
   // An undo took a comment an agent left away
@@ -166,18 +154,17 @@ if (isDesktop) {
     }))
   })
 
-  // Owlit changed a doc: the text itself arrives as docs.changed, or went through an editor here, which
-  // said it already
+  // Owlit changed a doc that isn't open here: the text itself arrives as docs.changed; one open in an
+  // editor here marks it there
   onNotify("changes.added", ({ change }) => {
     if (change.target.kind !== "doc" || !isOwlit(change.actor) || change.undoes) return
     const { path } = change.target
-    if (saidHere.delete(change.id)) return
+    if (shownHere.delete(change.id)) return
     // A chat on screen says it in its own result row, with the same Undo
     if (chatOnScreen(change.origin.chatId)) return
-    const paper = labelOf(path)
-    toastUndo(t`Edit applied`, () => undoChange(change.id, displayName(path)), {
+    toastUndo(t`Edit applied`, () => undoChange(change.id, labelOf(path)), {
       // A paper's note is named by its paper
-      description: path.startsWith(".owlit/") ? t`Your note on ${paper}` : displayName(path),
+      description: paperOfNotePath(path) ? t`Your note on ${labelOf(path)}` : displayName(path),
     })
   })
 }

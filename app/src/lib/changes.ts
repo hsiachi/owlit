@@ -45,3 +45,24 @@ export async function undoAll(ids: string[], what: string, redo = false) {
     action: { label: redo ? t({ message: "Undo", comment: "verb: take back what was just done" }) : t({ message: "Redo", comment: "verb" }), onClick: () => void undoAll(undos, what, !redo) },
   })
 }
+
+// Owlit's passages undone in a doc, as one Undo: whole entries by changes.undo, single passages of a
+// larger entry by changes.undoPart. Its Redo takes the undos back, newest first.
+export async function undoSteps(steps: { id: string; index?: number }[], what: string) {
+  const undos: string[] = []
+  const left: string[] = []
+  try {
+    for (const step of steps) {
+      if (step.index === undefined) {
+        const done = await rpc.changes.undo({ id: step.id })
+        left.push(...(done.left ?? []))
+        undos.unshift(done.change.id)
+      } else undos.unshift((await rpc.changes.undoPart({ id: step.id, index: step.index })).change.id)
+    }
+  } catch (error) {
+    toast.error((error as Error).message)
+    if (!undos.length) return
+  }
+  if (left.length) toastLeft(what, left)
+  toast(t`Undone`, { description: what, action: { label: t({ message: "Redo", comment: "verb" }), onClick: () => void undoAll(undos, what, true) } })
+}

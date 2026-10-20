@@ -105,10 +105,11 @@ describe("seen over RPC", () => {
     const mine = "The method works well.\n\nReplay ratings run lower.\n"
     await call("docs.create", { path: "a.md", content: mine })
     await call("seen.mark", { kind: "doc", path: "a.md", hash: sha1(mine), at: 1 })
-    await core.fs.write(path.join(root, "a.md"), "The method works well.\n\nReplay ratings run 0.6 lower, in the same direction.\n", { chatId: "chat-1" })
+    const owlit = "The method works well.\n\nReplay ratings run 0.6 lower, in the same direction.\n"
+    await core.fs.write(path.join(root, "a.md"), owlit, { chatId: "chat-1" })
     const { changes } = await call("changes.unseen", {})
     expect(changes.map((c: Change) => [c.target.path, c.actor])).toEqual([["a.md", MY_OWLIT]])
-    expect(await call("changes.since", { path: "a.md", hash: sha1(mine) })).toEqual([{ text: "Replay ratings run 0.6 lower, in the same direction.", actor: MY_OWLIT, at: changes[0].at }])
+    expect(await call("changes.since", { path: "a.md", hash: sha1(mine), text: owlit })).toEqual([{ text: "Replay ratings run 0.6 lower, in the same direction.", actor: MY_OWLIT, at: changes[0].at }])
     // Once on screen again, nothing is new
     await call("seen.mark", { kind: "doc", path: "a.md", hash: sha1(readFileSync(path.join(root, "a.md"), "utf8")) })
     expect((await call("changes.unseen", {})).changes).toEqual([])

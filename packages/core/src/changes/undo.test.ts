@@ -69,6 +69,28 @@ describe("changes.undo", () => {
     expect(read()).toBe("回放评分略低。\n\nThe method works, mostly.\n\nOwlit's new paragraph.\n")
   })
 
+  it("takes back one passage of a change, leaving the others, as an undo naming that passage", async () => {
+    const { core, root, read, save, log, call } = await setup("First claim.\n\nSecond claim.\n\nThird claim.\n")
+    const owlit = "First claim, sharpened.\n\nSecond claim.\n\nThird claim, sharpened.\n"
+    await core.fs.write(path.join(root, "a.md"), owlit, { chatId: "chat-1" })
+    await save("a.md", owlit.replace("Second", "The second"))
+    const [write] = await log("a.md")
+    const { change } = await call("changes.undoPart", { id: write!.id, index: 1 })
+    expect(read()).toBe("First claim, sharpened.\n\nThe second claim.\n\nThird claim.\n")
+    expect(change).toMatchObject({ undoes: write!.id, target: { kind: "doc", path: "a.md", part: "passage:1" }, origin: { chatId: "chat-1" } })
+    // The doc's marks keep the first passage, still Owlit's, in its place
+    const [proposal] = await call("changes.proposals", { path: "a.md", text: read(), since: 0 })
+    expect(proposal.hunks.map((h: { insert: string }) => h.insert)).toEqual([", sharpened", ""])
+    // Redo puts the passage back, and the doc marks it again
+    await call("changes.undo", { id: change.id })
+    expect(read()).toBe("First claim, sharpened.\n\nThe second claim.\n\nThird claim, sharpened.\n")
+    const [again] = await call("changes.proposals", { path: "a.md", text: read(), since: 0 })
+    expect(again.hunks.map((h: { insert: string }) => h.insert)).toEqual([", sharpened", ", sharpened"])
+    // Edited since: left as it is
+    await save("a.md", read().replace("First claim, sharpened.", "First claim, honed."))
+    await expect(call("changes.undoPart", { id: write!.id, index: 0 })).rejects.toThrow("was edited since")
+  })
+
   it("says how much a doc change changed, and in how many passages as the doc marks them", async () => {
     const { core, root, log, call } = await setup("First claim.\n\nSecond claim.\n\nThird claim.\n")
     await core.fs.write(path.join(root, "a.md"), "First claim, sharpened.\n\nSecond claim.\n\nThird claim, sharpened.\n", { chatId: "chat-1" })

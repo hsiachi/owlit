@@ -23,10 +23,10 @@ const unseenKey = (unseen: Unseen, path: string) =>
     .join()
 
 // While a doc is open in view: the paragraphs others wrote since the user last had it on screen get a line
-// in the margin, and Owlit's landed passages their marks with Keep and Undo, for this visit (asked again
+// in the margin, and Owlit's landed passages their marks with Undo, for this visit (asked again
 // when another change comes), and the doc as it reads is marked seen once it has stayed on screen
 // SEEN_AFTER_MS, again after each change settles, and on closing a doc that was open that long. text: the
-// doc as written to disk. Returns what the editor calls on a change, on Keep all, and on closing.
+// doc as written to disk. Returns what the editor calls on a change and on closing.
 export function followChangedSince(view: EditorView, path: () => string | undefined, text: () => string) {
   let base: string | undefined
   let closed = false
@@ -40,7 +40,7 @@ export function followChangedSince(view: EditorView, path: () => string | undefi
       () => undefined,
     )
     if (!base) return
-    void changedPassages(p, base).then(
+    void changedPassages(p, base, text()).then(
       (passages) => !closed && view.dispatch({ effects: setChanged.of(passages.map((c) => ({ text: c.text, title: `${nameOf(c.actor)} · ${dateTime(c.at)}` }))) }),
       () => undefined,
     )
@@ -78,8 +78,6 @@ export function followChangedSince(view: EditorView, path: () => string | undefi
 
   return {
     changed: later,
-    // Keep all: the doc as it reads is seen now
-    seen: mark,
     close() {
       clearTimeout(timer)
       if (longEnough) mark()

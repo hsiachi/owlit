@@ -348,6 +348,9 @@ export interface Methods {
   // A doc goes back passage by passage: left names those that were edited since and stay as they are.
   // Anything else that changed since is refused with Conflict.
   "changes.undo": { params: { id: string }; result: { change: Change; left?: string[] } }
+  // One passage of a change to a doc, by its index among the change's passages as changes.proposals
+  // gives them; refused with Conflict when that passage was edited since
+  "changes.undoPart": { params: { id: string; index: number }; result: { change: Change } }
   // How much a run of changes to one doc changed it, from before the first to after the last, and in how
   // many passages as the doc marks them; null when they aren't one doc's or are no longer kept
   "changes.stats": { params: { ids: string[] }; result: (EditStats & { passages: number }) | null }
@@ -358,8 +361,9 @@ export interface Methods {
   // What changed since the window's person last looked, by anyone else; since: only entries from then on
   "changes.unseen": { params: { since?: number }; result: Unseen }
   // The paragraphs of a doc someone else wrote since the text whose sha1 is hash (the person's mark when
-  // a visit began); none when the log no longer knows that text
-  "changes.since": { params: { path: string; hash: string }; result: ChangedPassage[] }
+  // a visit began); none when the log no longer knows that text. text: the doc as the window has it, as
+  // for changes.proposals
+  "changes.since": { params: { path: string; hash: string; text: string }; result: ChangedPassage[] }
   // text: the doc as the window has it (its editor may be ahead of the disk); hash: the text the person
   // last had on screen, else since: when their marks began
   "changes.proposals": { params: { path: string; text: string; hash?: string; since?: number }; result: Proposal[] }
