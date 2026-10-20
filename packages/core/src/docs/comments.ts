@@ -1,8 +1,14 @@
-import { isOwlit, type ActorId, type ChangeAction, type CommentAnchor, type CommentInput, type DocComment } from "@owlit/protocol"
+import { isOwlit, type ActorId, type ChangeAction, type CommentAnchor, type CommentEntry, type CommentInput, type DocComment } from "@owlit/protocol"
 import { existsSync } from "node:fs"
 import { mkdir, readdir, rename, rm } from "node:fs/promises"
 import path from "node:path"
-import { readJsonl, writeFileAtomic } from "../fs-util.ts"
+import { readJson, readJsonl, writeFileAtomic } from "../fs-util.ts"
+
+// How the assistant signed a note before actor ids; "Owlit" is the older spelling
+const OWLIT_NAMES = new Set(["owlit", "Owlit"])
+// A line as older owlits wrote it: dismissed instead of resolved, or a note with its text and author on
+// the line itself and no entries
+type OldLine = Omit<DocComment, "entries"> & { entries?: CommentEntry[]; dismissedAt?: number; by?: string; chatId?: string; text?: string }
 
 // The comments on docs, kept beside the files and never in them: .owlit/docs/comments/ mirrors the
 // workspace, so the comments on "writing/Related work.md" are in
@@ -10,12 +16,14 @@ import { readJsonl, writeFileAtomic } from "../fs-util.ts"
 // names) can be read by hand, and a folder's comments move with one rename. The caller (Docs) runs every
 // call one at a time, alongside the file changes they follow.
 export class Comments {
+  private readonly owlitDir: string
   private readonly dir: string
   private readonly trashDir: string
   // Comments moved to the trash by a delete, by the path deleted: where its mirror went
   private trashed = new Map<string, string>()
 
   constructor(owlitDir: string) {
+    this.owlitDir = owlitDir
     this.dir = path.join(owlitDir, "docs", "comments")
     this.trashDir = path.join(owlitDir, "trash")
   }
@@ -116,11 +124,25 @@ export class Comments {
     return path.join(this.dir, ...rel.split("/"))
   }
 
-  // A comment an older owlit let the person dismiss (dismissedAt) reads as resolved: put away, and one
-  // menu away in Resolved comments
+  // Two older shapes read as today's: a comment the person dismissed (dismissedAt) is resolved, put
+  // away and one menu away in Resolved comments; a note an agent left before comments held entries (its
+  // text, by the agent's name or "Owlit", from a chat) is a comment with that one entry, Owlit's. Both
+  // are rewritten in today's shape the next time the doc's comments are saved.
   private async read(file: string): Promise<DocComment[]> {
-    const comments = await readJsonl<DocComment & { dismissedAt?: number }>(file, () => console.error(`[core] skipping a comment that isn't JSON in ${file}`))
-    return comments.map(({ dismissedAt, ...c }) => (dismissedAt === undefined ? c : { ...c, resolvedAt: c.resolvedAt ?? dismissedAt }))
+    const lines = await readJsonl<OldLine>(file, () => console.error(`[core] skipping a comment that isn't JSON in ${file}`))
+    const owlit = lines.some((line) => !Array.isArray(line.entries)) ? await this.owlitId() : "other"
+    return lines.map(({ dismissedAt, by, chatId, text, ...c }) => {
+      const entries: CommentEntry[] = Array.isArray(c.entries) ? c.entries : [{ id: c.id, by: owlit, text: text ?? "", at: c.createdAt, ...(by && !OWLIT_NAMES.has(by) ? { agent: by } : {}), ...(chatId ? { chatId } : {}) }]
+      const comment: DocComment = { ...c, entries }
+      return dismissedAt === undefined ? comment : { ...comment, resolvedAt: comment.resolvedAt ?? dismissedAt }
+    })
+  }
+
+  // The workspace's Owlit, for a note from before actor ids; "other" when members.json names none
+  private async owlitId(): Promise<ActorId> {
+    const roster = await readJson<Record<string, { kind?: string }>>(path.join(this.owlitDir, "members.json")).catch(() => undefined)
+    const id = Object.entries(roster ?? {}).find(([, member]) => member?.kind === "assistant")?.[0]
+    return id && isOwlit(id as ActorId) ? (id as ActorId) : "other"
   }
 
   private async save(rel: string, comments: DocComment[]) {
