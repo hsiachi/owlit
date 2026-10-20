@@ -53,9 +53,13 @@ export function useLookAt(chatId: string | null | undefined) {
   useEffect(() => {
     if (!chatId) return
     const stop = useSeenStore.getState().look(chatId)
+    // The message last marked: a streamed token changes the chat, not which message ended last
+    let marked: string | undefined
     const see = () => {
       const message = lastEnded(useChatStore.getState().chats[chatId])
-      if (message && pageShown()) markSeen({ kind: "chat", id: chatId, message })
+      if (!message || message === marked || !pageShown()) return
+      marked = message
+      markSeen({ kind: "chat", id: chatId, message })
     }
     see()
     const off = useChatStore.subscribe((s, prev) => s.chats[chatId] !== prev.chats[chatId] && see())
