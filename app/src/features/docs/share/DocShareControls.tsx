@@ -13,6 +13,7 @@ export function DocShareControls({ file }: { file: WorkspaceFile }) {
   const [open, setOpen] = useState(false)
   const shared = useShareStore((s) => !!s.byPath[file.path])
   const problem = useShareStore((s) => !!s.byPath[file.path]?.problem)
+  const held = useShareStore((s) => !!s.byPath[file.path]?.held)
   if (!isDesktop) return null
 
   return (
@@ -23,6 +24,8 @@ export function DocShareControls({ file }: { file: WorkspaceFile }) {
         <UsersIcon />
         {shared ? t`Shared` : t`Share`}
         {problem && <span className="text-destructive">· {t({ message: "Not sent", comment: "your latest changes didn't reach the shared doc's readers" })}</span>}
+        {/* Waiting on the author, not broken: muted */}
+        {!problem && held && <span>· {t({ message: "Waiting for you", comment: "a shared doc's latest changes wait until you've seen Owlit's edits in it" })}</span>}
       </Button>
       <ShareDialog file={file} open={open} onOpenChange={setOpen} />
     </>

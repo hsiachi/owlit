@@ -75,6 +75,8 @@ export interface DocShare {
   pushedAt?: number
   // Why the latest changes haven't reached the server, in a sentence; absent when they have
   problem?: string
+  // The latest changes wait for the author: Owlit's edits they haven't seen yet
+  held?: boolean
   // How many papers the doc cites
   papers: number
   // Shared from another computer: only that one holds the key to change it

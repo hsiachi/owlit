@@ -16,7 +16,10 @@ import { messageOf, Serial } from "../util.ts"
 // if the server goes away.
 //
 // Every change to the workspace calls touched(); once things settle, each shared doc whose doc or cited
-// papers changed is built again and pushed if it reads differently from what the server has. Comments are fetched every little while.
+// papers changed is built again and pushed if it reads differently from what the server has, unless
+// Owlit changed it and the person hasn't seen that yet: readers are people, and Owlit's words reach them
+// only once the author has looked (core calls touched() when they have). Comments are fetched every
+// little while.
 
 interface ShareRecord {
   id: string
@@ -58,6 +61,9 @@ export interface SharesServices {
   paper: (id: string) => Promise<PaperSource | undefined>
   // The profile's name, which signs the bundle and the author's replies
   author: () => Promise<string | undefined>
+  // Whether the doc, reading as markdown, has Owlit's edits the person hasn't seen yet: it isn't pushed
+  // until they have
+  held?: (path: string, markdown: string) => Promise<boolean>
   changed: (path: string, share: DocShare | null) => void
   commentsChanged: (path: string, comments: ShareComment[]) => void
   // How long changes settle before a push, and how often comments are fetched (tests shorten both)
@@ -83,6 +89,8 @@ export class Shares {
   private readonly serial = new Serial()
   // Why a share's latest changes haven't reached the server, by share id
   private problems = new Map<string, string>()
+  // Shares whose latest changes wait for the author to see Owlit's edits, by share id
+  private held = new Set<string>()
   private comments = new Map<string, ShareComment[]>()
   private settleTimer: ReturnType<typeof setTimeout> | undefined
   private pollTimer: ReturnType<typeof setInterval> | undefined
@@ -275,7 +283,7 @@ export class Shares {
       // A share is built again when its doc or a paper it cites changed, or its last push didn't get through
       const stale = (record: ShareRecord) => {
         const cites = this.cites.get(record.id)
-        if ("all" in dirty || !cites || this.problems.has(record.id)) return true
+        if ("all" in dirty || !cites || this.problems.has(record.id) || this.held.has(record.id)) return true
         // A folder renamed, moved or deleted names the folder, not the docs in it
         for (const doc of dirty.docs) if (record.path === doc || isWithin(record.path, doc)) return true
         for (const id of cites) if (dirty.papers.has(id)) return true
@@ -298,9 +306,15 @@ export class Shares {
       return
     }
     this.cites.set(record.id, new Set(citedPaperIds(markdown)))
+    if (await this.services.held?.(record.path, markdown)) {
+      if (this.held.has(record.id)) return
+      this.held.add(record.id)
+      this.services.changed(record.path, await this.view(record))
+      return
+    }
     const bundle = await buildBundle({ path: record.path, markdown, notes: record.notes, author: await this.services.author(), paper: this.services.paper })
     const hash = hashOf(bundle)
-    if (hash === record.pushedHash && !this.problems.has(record.id)) return
+    if (hash === record.pushedHash && !this.problems.has(record.id) && !this.held.has(record.id)) return
     try {
       if (hash !== record.pushedHash) await this.client(record.server).update(record.id, token, { bundle })
     } catch (error) {
@@ -315,6 +329,7 @@ export class Shares {
     record.pushedAt = Date.now()
     record.papers = Object.keys(bundle.papers).length
     this.problems.delete(record.id)
+    this.held.delete(record.id)
     this.services.changed(record.path, await this.view(record))
   }
 
@@ -367,6 +382,7 @@ export class Shares {
     this.unopened.delete(record.id)
     this.cites.delete(record.id)
     this.problems.delete(record.id)
+    this.held.delete(record.id)
     this.comments.delete(record.id)
     await this.save()
     await this.saveKeys()
@@ -407,6 +423,7 @@ export class Shares {
       createdAt: record.createdAt,
       ...(record.pushedAt ? { pushedAt: record.pushedAt } : {}),
       ...(problem ? { problem } : {}),
+      ...(this.held.has(record.id) ? { held: true } : {}),
       papers: record.papers,
       ...(keys.has(record.id) ? {} : { foreign: true }),
     }

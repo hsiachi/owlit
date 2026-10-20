@@ -689,8 +689,11 @@ export class Core {
         z.object({ kind: z.literal("digest"), paper: z.string().min(1), ...at }),
       ]), "admin",
       async (mark, caller) => {
-        const marks = await this.requireWorkspace().seen.mark(await this.personAt(caller), mark)
+        const ws = this.requireWorkspace()
+        const marks = await ws.seen.mark(await this.personAt(caller), mark)
         this.notifier.notify("seen.changed", marks)
+        // A shared doc held for Owlit's unseen edits goes out now
+        if (mark.kind === "doc") ws.shares.touched({ docs: [mark.path] })
         return marks
       },
     )
