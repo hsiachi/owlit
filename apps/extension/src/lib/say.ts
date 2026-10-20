@@ -43,6 +43,13 @@ export function placesFor(outcome: Outcome): ("popup" | "card")[] {
   return decided ? ["popup", "card"] : ["card", "popup"]
 }
 
+// Says an outcome in the first place that can show it; undefined when none could. show draws the card or
+// opens the popup and answers whether it did.
+export async function sayIn(outcome: Outcome, show: (place: "popup" | "card") => Promise<boolean>): Promise<"popup" | "card" | undefined> {
+  for (const place of placesFor(outcome)) if (await show(place)) return place
+  return undefined
+}
+
 export function cardOf(outcome: Outcome): CardView {
   const close = t({ message: "Close", comment: "the owlit card in a web page: its close button, for screen readers" })
   const open = (paperId: string) => ({ label: t({ message: "Open", comment: "the owlit card in a web page: shows the paper in owlit" }), do: { kind: "open-paper" as const, paperId } })

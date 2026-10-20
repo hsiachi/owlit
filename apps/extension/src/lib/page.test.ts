@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { idsInUrl, listingOf, paperOfPage } from "./page.ts"
+import { idsInUrl, listingOf, namesPdf, paperOfPage } from "./page.ts"
 
 // A publisher's article page, as ACM's Digital Library writes its head (abridged)
 const publisher = `<head>
@@ -127,5 +127,14 @@ describe("idsInUrl", () => {
     expect(idsInUrl("https://onlinelibrary.wiley.com/doi/pdfdirect/10.1002/asi.24750")).toEqual({ doi: "10.1002/asi.24750" })
     expect(idsInUrl("https://example.com/about")).toEqual({})
     expect(idsInUrl("not an address")).toEqual({})
+  })
+})
+
+describe("namesPdf", () => {
+  it("reads a PDF's address by its path", () => {
+    expect(namesPdf("https://arxiv.org/pdf/2403.17859v2")).toBe(true)
+    expect(namesPdf("https://example.org/files/paper.pdf?download=1")).toBe(true)
+    expect(namesPdf("https://example.org/articles/pdf-tools")).toBe(false)
+    expect(namesPdf("not an address")).toBe(false)
   })
 })

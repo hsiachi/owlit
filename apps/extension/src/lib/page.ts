@@ -105,6 +105,16 @@ export function listingOf(url: string): string | undefined {
   return undefined
 }
 
+// An address that reads as a PDF's (…/x.pdf, …/pdf/…): all that says a tab shows one where the extension
+// saw no response (a site it may not read) and can run no script (the browser's PDF viewer)
+export function namesPdf(url: string): boolean {
+  try {
+    return /\.pdf$|\/pdf\//i.test(new URL(url).pathname)
+  } catch {
+    return false
+  }
+}
+
 // The page's paper, or undefined when the page names none (no DOI, arXiv id or title from a paper's
 // metadata), or lists papers (listingOf)
 export function paperOfPage(html: string, url: string): PagePaper | undefined {

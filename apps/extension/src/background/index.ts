@@ -7,10 +7,10 @@ import { afterStatus, outcomeOfError } from "../lib/connect.ts"
 import { startI18n } from "../lib/i18n.ts"
 import { type Answers, type CardAction, type CardView, type Connection, type GoingOn, type Outcome, type PageState, type PopupState, type Request, type ToPage } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
-import { idsInUrl, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
+import { idsInUrl, namesPdf, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "../lib/pdf-tab.ts"
-import { badgeOf, cardOf, placesFor, TAKEN, WAITING, WORKING } from "../lib/say.ts"
+import { badgeOf, cardOf, sayIn, TAKEN, WAITING, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
@@ -137,7 +137,7 @@ async function pageOf(tabId: number): Promise<Page | null> {
   } catch {
     // The browser's PDF viewer runs no script. On a site the extension may not read no response was
     // seen, and only the address says it is a PDF.
-    return pdfPage(/\.pdf($|\?)|\/pdf\//i.test(new URL(url).pathname))
+    return pdfPage(namesPdf(url))
   }
 }
 
@@ -297,9 +297,7 @@ const saidKey = (tabId: number) => `said:${tabId}`
 // Said where placesFor puts it. When neither the card nor the popup could be shown, the popup waits on the
 // button for this tab, and the next press opens it.
 async function speak(tabId: number, windowId: number, outcome: Outcome) {
-  for (const place of placesFor(outcome)) {
-    if (place === "card" ? await drawCard(tabId, cardOf(outcome)) : await openPopup(tabId, windowId, outcome)) return
-  }
+  if (await sayIn(outcome, (place) => (place === "card" ? drawCard(tabId, cardOf(outcome)) : openPopup(tabId, windowId, outcome)))) return
   await ext.storage.session.set({ [saidKey(tabId)]: outcome })
   await ext.action.setPopup({ tabId, popup: "popup.html" }).catch(() => undefined)
 }

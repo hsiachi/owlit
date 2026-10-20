@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Outcome } from "./messages.ts"
-import { badgeOf, cardOf, placesFor, TAKEN, WAITING } from "./say.ts"
+import { badgeOf, cardOf, placesFor, sayIn, TAKEN, WAITING } from "./say.ts"
 
 const card = (outcome: Outcome) => cardOf(outcome)
 
@@ -87,6 +87,30 @@ describe("placesFor", () => {
     expect(placesFor({ kind: "added", pdf: "saved", paperId: "p" })).toEqual(["card", "popup"])
     expect(placesFor({ kind: "offline" })).toEqual(["card", "popup"])
     expect(placesFor({ kind: "needs-site", host: "x.org" })).toEqual(["card", "popup"])
+  })
+})
+
+describe("sayIn", () => {
+  const shows = (can: ("popup" | "card")[]) => {
+    const tried: string[] = []
+    return { tried, show: async (place: "popup" | "card") => (tried.push(place), can.includes(place)) }
+  }
+
+  it("draws a result in the page, and opens the popup only when the page takes no card", async () => {
+    const page = shows(["card", "popup"])
+    expect(await sayIn({ kind: "saved", paperId: "p" }, page.show)).toBe("card")
+    expect(page.tried).toEqual(["card"])
+    const browsersOwn = shows(["popup"])
+    expect(await sayIn({ kind: "saved", paperId: "p" }, browsersOwn.show)).toBe("popup")
+    expect(browsersOwn.tried).toEqual(["card", "popup"])
+  })
+
+  it("decides connecting in the popup, and in the card where the browser won't open one", async () => {
+    expect(await sayIn({ kind: "unpaired" }, shows(["card", "popup"]).show)).toBe("popup")
+    const firefox = shows(["card"])
+    expect(await sayIn({ kind: "unpaired" }, firefox.show)).toBe("card")
+    expect(firefox.tried).toEqual(["popup", "card"])
+    expect(await sayIn({ kind: "unpaired" }, shows([]).show)).toBeUndefined()
   })
 })
 
