@@ -5,6 +5,7 @@
 // you use. --fresh clones the data again; OWLIT_USER_DATA picks another folder and clones nothing.
 
 import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import net from "node:net"
 import path from "node:path"
@@ -50,6 +51,9 @@ function startElectron() {
     stdio: "inherit",
     env: { ...process.env, OWLIT_DEV_URL: devUrl, OWLIT_DEV_NAME: name, OWLIT_USER_DATA: userData },
   })
+  // Electron's pid for whoever started this script (scripts/drive.mjs quits the app itself, so core can
+  // release the workspace and cut running chats off as a quit does); written again after each restart
+  if (process.env.OWLIT_PID_FILE) writeFileSync(process.env.OWLIT_PID_FILE, String(electron.pid))
   electron.on("exit", (code) => {
     if (restarting) return
     shutdown(code ?? 0)

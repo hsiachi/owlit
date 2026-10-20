@@ -8,6 +8,7 @@
     "dev": "pnpm --filter @owlit/desktop dev",
     "dev:web": "pnpm --filter owlit-app dev",
     "try": "node scripts/try.mjs",
+    "drive": "node scripts/drive.mjs",
     "build": "pnpm --filter @owlit/desktop build",
     "test": "vitest run",
     "lint": "pnpm -r --no-bail lint",
