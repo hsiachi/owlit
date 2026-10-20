@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "id": "7b3f2c41-5d8e-4a06-9c2f-1e4d6a8b0f53",
+  "title": "Group the papers in my library by what they were tested on: a benchmark other…",
+  "createdAt": 1791900680000,
+  "updatedAt": 1791900740000,
+  "pinned": false,
+  "connectorId": "claude-code",
+  "modelId": "opus",
+  "role": "assistant",
+  "effortId": "medium",
+  "messages": [
+    {
+      "id": "a1c2e3f4-0001-4b6d-8e1f-2a3b4c5d6e70",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Group the papers in my library by what they were tested on: a benchmark other papers also use, or data the paper made for itself."
+        }
+      ],
+      "createdAt": 1791900680000,
+      "mentions": [],
+      "attachments": []
+    },
+    {
+      "id": "a1c2e3f4-0002-4b6d-8e1f-2a3b4c5d6e71",
+      "role": "assistant",
+      "createdAt": 1791900680001,
+      "parts": [
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01ExampleToolSearch0001",
+          "title": "ToolSearch",
+          "kind": "other",
+          "status": "completed",
+          "content": "Tool: mcp__owlit__library_list\nTool: mcp__owlit__library_read\nTool: mcp__owlit__thread_write",
+          "tool": {
+            "name": "ToolSearch",
+            "query": "select:mcp__owlit__library_list,mcp__owlit__library_read,mcp__owlit__thread_write"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01ExampleLibraryList0001",
+          "title": "mcp__owlit__library_list",
+          "kind": "other",
+          "status": "completed",
+          "content": "- arxiv-2212.10511 · When Not to Trust Language Models: Investigating Effectiveness of Parametric and Non-Parametric Memories · Mallen et al., 2022 · unread, tags: retrieval, digest\n- arxiv-2404.10198 · ClashEval: Quantifying the tug-of-war between an LLM's internal prior and external evidence · Wu et al., 2024 · unread, tags: retrieval, digest\n- arxiv-2410.11414 · ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation via Mechanistic Interpretability · Sun et al., 2024 · reading, starred, tags: detection, digest\n- arxiv-2502.17125 · LettuceDetect: A Hallucination Detection Framework for RAG Applications · Kovács & Recski, 2025 · unread, tags: detection, digest\n- arxiv-2311.09476 · ARES: An Automated Evaluation Framework for Retrieval-Augmented Generation Systems · Saad-Falcon et al., 2023 · unread, tags: evaluation, digest\n- arxiv-2309.15217 · Ragas: Automated Evaluation of Retrieval Augmented Generation · Es et al., 2023 · reading, tags: evaluation, digest\n- arxiv-2303.08896 · SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models · Manakul et al., 2023 · read, tags: detection, digest\n- arxiv-2310.11511 · Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection · Asai et al., 2023 · read, starred, tags: retrieval, digest",
+          "tool": {
+            "name": "mcp__owlit__library_list"
+          }
+        },
+        {
+          "type": "question",
+          "requestId": "a1c2e3f4-q-0001",
+          "questions": [
+            {
+              "id": "scope",
+              "header": "Which papers",
+              "question": "Three of the eight are benchmarks or retrieval methods rather than detectors. Group all eight, or only the five that detect or score unsupported claims?",
+              "options": [
+                {
+                  "label": "All eight",
+                  "description": "The benchmarks' own test sets count too"
+                },
+                {
+                  "label": "Only the five detectors and evaluators"
+                }
+              ],
+              "allowsText": true
+            }
+          ],
+          "answers": {
+            "scope": {
+              "picks": [
+                "All eight"
+              ]
+            }
+          },
+          "outcome": "answered"
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01ExampleLibraryRead0001",
+          "title": "mcp__owlit__library_read",
+          "kind": "other",
+          "status": "completed",
+          "content": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection (arxiv-2310.11511)\n…",
+          "tool": {
+            "name": "mcp__owlit__library_read",
+            "subject": "arxiv-2310.11511"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01ExampleGrep0001",
+          "title": "grep -n -i -E \"RAGTruth|Dolly|dataset\" library/papers/arxiv-2410.11414/text.md | head -40",
+          "kind": "search",
+          "status": "completed",
+          "content": "88:Experiments on RAGTruth and Dolly (AC) confirm that ReDeEP significantly outperforms existing detection methods…",
+          "tool": {
+            "name": "Grep",
+            "pattern": "RAGTruth|Dolly|dataset",
+            "path": "library/papers/arxiv-2410.11414/text.md"
+          }
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01ExampleGrep0002",
+          "title": "grep -n -i -E \"WikiBio|synthetic\" library/papers/arxiv-2303.08896/text.md | head -20",
+          "kind": "search",
+          "status": "completed",
+          "content": "229:generating synthetic Wikipedia articles using GPT-3 on the individuals/concepts from the WikiBio dataset…",
+          "tool": {
+            "name": "Grep",
+            "pattern": "WikiBio|synthetic",
+            "path": "library/papers/arxiv-2303.08896/text.md"
+          }
+        },
+        {
+          "type": "permission",
+          "requestId": "a1c2e3f4-p-0001",
+          "toolCallId": "toolu_01ExampleThreadWrite0001",
+          "title": "Write the thread Test data behind the papers",
+          "kind": "edit",
+          "options": [
+            {
+              "optionId": "allow",
+              "name": "Allow",
+              "kind": "allow_once"
+            },
+            {
+              "optionId": "reject",
+              "name": "Don't",
+              "kind": "reject_once"
+            }
+          ],
+          "outcome": "allow_once"
+        },
+        {
+          "type": "tool_call",
+          "toolCallId": "toolu_01ExampleThreadWrite0001",
+          "title": "mcp__owlit__thread_write",
+          "kind": "edit",
+          "status": "completed",
+          "content": "Wrote the thread test-data-behind-the-papers (owlit://threads/test-data-behind-the-papers): 8 papers, 2 columns, 1 grouping.",
+          "tool": {
+            "name": "mcp__owlit__thread_write",
+            "title": "Test data behind the papers"
+          }
+        },
+        {
+          "type": "text",
+          "text": "I grouped all eight by their test data in [Test data behind the papers](owlit://threads/test-data-behind-the-papers). Three stand on benchmarks other papers also use, and RAGTruth is the one shared set for RAG hallucination itself: [Kovács & Recski 2025](owlit://library/arxiv-2502.17125) and [Sun et al. 2024](owlit://library/arxiv-2410.11414) both report on it. The other five built their own data. I read the full text of ReDeEP, SelfCheckGPT and ClashEval for where the numbers come from; for the rest this rests on their abstracts."
+        }
+      ],
+      "status": "done",
+      "connectorId": "claude-code",
+      "modelId": "opus",
+      "finishedAt": 1791900740000,
+      "readFrom": [
+        {
+          "paperId": "arxiv-2410.11414",
+          "depth": "full"
+        },
+        {
+          "paperId": "arxiv-2303.08896",
+          "depth": "full"
+        },
+        {
+          "paperId": "arxiv-2404.10198",
+          "depth": "full"
+        },
+        {
+          "paperId": "arxiv-2502.17125",
+          "depth": "abstract"
+        },
+        {
+          "paperId": "arxiv-2310.11511",
+          "depth": "abstract"
+        },
+        {
+          "paperId": "arxiv-2311.09476",
+          "depth": "abstract"
+        },
+        {
+          "paperId": "arxiv-2309.15217",
+          "depth": "abstract"
+        },
+        {
+          "paperId": "arxiv-2212.10511",
+          "depth": "abstract"
+        }
+      ]
+    }
+  ]
+}

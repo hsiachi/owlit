@@ -1,0 +1,258 @@
+{
+  "version": 3,
+  "id": "test-data-behind-the-papers",
+  "title": "Test data behind the papers",
+  "asked": {
+    "text": "Group the papers in my library by what they were tested on: a benchmark other papers also use, or data the paper made for itself.",
+    "chatId": "7b3f2c41-5d8e-4a06-9c2f-1e4d6a8b0f53",
+    "at": 1791900680000
+  },
+  "project": "Hallucination in RAG",
+  "sources": [
+    "Your library"
+  ],
+  "report": "Three of the eight papers were tested on data other papers also use; the other five built their own. RAGTruth is the one shared set for RAG hallucination itself: [Kovács & Recski 2025](owlit://library/arxiv-2502.17125) and [Sun et al. 2024](owlit://library/arxiv-2410.11414) both report on it. The open QA sets ([Asai et al. 2023](owlit://library/arxiv-2310.11511), [Saad-Falcon et al. 2023](owlit://library/arxiv-2311.09476)) test answering, not detection.\n\n## Shared benchmarks\n\n[Kovács & Recski 2025](owlit://library/arxiv-2502.17125) train and test on RAGTruth alone. [Sun et al. 2024](owlit://library/arxiv-2410.11414) use RAGTruth and Dolly. [Asai et al. 2023](owlit://library/arxiv-2310.11511) report on six QA and long-form tasks (PopQA, TriviaQA, PubHealth, ARC, ASQA, biographies); [Saad-Falcon et al. 2023](owlit://library/arxiv-2311.09476) on KILT and SuperGLUE.\n\n## Data the paper made for itself\n\n[Manakul et al. 2023](owlit://library/arxiv-2303.08896) generate GPT-3 passages about WikiBio people and label them by hand. [Es et al. 2023](owlit://library/arxiv-2309.15217) build WikiEval. [Mallen et al. 2022](owlit://library/arxiv-2212.10511) build PopQA, which Self-RAG later reuses. [Wu et al. 2024](owlit://library/arxiv-2404.10198) write about 1,200 questions in six domains and perturb the documents themselves.\n\n## What it means for your related work\n\nA comparison of the three families on the same answers has one ready ground, RAGTruth, and two of the papers already stand on it. SelfCheckGPT would have to be run on RAGTruth answers; nothing in the paper says it was.",
+  "one": "Three papers share benchmarks (RAGTruth twice); five built their own data",
+  "columns": [
+    {
+      "id": "q",
+      "question": "Group the papers in my library by what they were tested on: a benchmark other papers also use, or data the paper made for itself.",
+      "kind": "ask"
+    },
+    {
+      "id": "c2",
+      "question": "Tested on",
+      "kind": "ask"
+    },
+    {
+      "id": "material",
+      "question": "Test data",
+      "kind": "grouping",
+      "groups": [
+        {
+          "id": "shared",
+          "name": "Shared benchmarks",
+          "one": "data other papers also use"
+        },
+        {
+          "id": "ragtruth",
+          "name": "RAGTruth",
+          "one": "RAG answers with the unsupported spans marked",
+          "parent": "shared"
+        },
+        {
+          "id": "qa",
+          "name": "Open QA sets",
+          "one": "question answering, not detection",
+          "parent": "shared"
+        },
+        {
+          "id": "own",
+          "name": "Data the paper made for itself",
+          "one": "built or generated for the paper"
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "arxiv-2502.17125",
+      "cells": {
+        "q": {
+          "text": "Trained and tested on RAGTruth, the labelled RAG answers; it reports span-level F1 against the LLM judges.",
+          "depth": "abstract",
+          "at": 1791900740000
+        },
+        "c2": {
+          "text": "RAGTruth",
+          "depth": "abstract",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "ragtruth"
+        ]
+      },
+      "is": "Method and model, a ModernBERT token classifier; RAGTruth",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2410.11414",
+      "cells": {
+        "q": {
+          "text": "Tested on RAGTruth and on Dolly answers the authors labelled; both have the retrieved context beside the answer.",
+          "depth": "full",
+          "at": 1791900740000,
+          "passage": {
+            "quote": "Experiments on RAGTruth and Dolly (AC) confirm that ReDeEP significantly outperforms existing detection methods",
+            "page": 3
+          }
+        },
+        "c2": {
+          "text": "RAGTruth, Dolly",
+          "depth": "full",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "ragtruth",
+          "own"
+        ]
+      },
+      "is": "Method, white-box; RAGTruth and Dolly",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2310.11511",
+      "cells": {
+        "q": {
+          "text": "Tested on six open tasks: PopQA, TriviaQA, PubHealth, ARC-Challenge, ASQA and biography generation.",
+          "depth": "abstract",
+          "at": 1791900740000
+        },
+        "c2": {
+          "text": "Six QA and long-form tasks",
+          "depth": "abstract",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "qa"
+        ]
+      },
+      "is": "Method; Llama 2 7B and 13B, six QA and long-form tasks",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2311.09476",
+      "cells": {
+        "q": {
+          "text": "Tested on KILT and SuperGLUE tasks with synthetic queries, corrected with a few hundred human labels.",
+          "depth": "abstract",
+          "at": 1791900740000
+        },
+        "c2": {
+          "text": "KILT, SuperGLUE",
+          "depth": "abstract",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "qa"
+        ]
+      },
+      "is": "Evaluation framework, fine-tuned judges and human labels; KILT and SuperGLUE",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2303.08896",
+      "cells": {
+        "q": {
+          "text": "Generated GPT-3 passages about people in WikiBio and labelled each sentence by hand.",
+          "depth": "full",
+          "at": 1791900740000,
+          "passage": {
+            "quote": "generating synthetic Wikipedia articles using GPT-3 on the individuals/concepts from the WikiBio dataset",
+            "page": 5
+          }
+        },
+        "c2": {
+          "text": "Own: WikiBio passages",
+          "depth": "full",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "own"
+        ]
+      },
+      "is": "Method, black-box; GPT-3 passages about WikiBio people",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2309.15217",
+      "cells": {
+        "q": {
+          "text": "Built WikiEval, questions over Wikipedia pages with answers the authors wrote and scored.",
+          "depth": "abstract",
+          "at": 1791900740000
+        },
+        "c2": {
+          "text": "Own: WikiEval",
+          "depth": "abstract",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "own"
+        ]
+      },
+      "is": "Evaluation framework, an LLM as judge; WikiEval",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2212.10511",
+      "cells": {
+        "q": {
+          "text": "Built PopQA from Wikidata entities across popularity levels, with EntityQuestions beside it.",
+          "depth": "abstract",
+          "at": 1791900740000
+        },
+        "c2": {
+          "text": "Own: PopQA; EntityQuestions",
+          "depth": "abstract",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "own"
+        ]
+      },
+      "is": "Benchmark (PopQA) and analysis across ten models",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    },
+    {
+      "id": "arxiv-2404.10198",
+      "cells": {
+        "q": {
+          "text": "Wrote about 1,200 questions in six domains and perturbed the retrieved documents to clash with the model's prior.",
+          "depth": "full",
+          "at": 1791900740000,
+          "passage": {
+            "quote": "we curate a dataset of over 1200 questions across six domains",
+            "page": 1
+          }
+        },
+        "c2": {
+          "text": "Own: 1,200 questions in six domains",
+          "depth": "full",
+          "at": 1791900740000
+        }
+      },
+      "in": {
+        "material": [
+          "own"
+        ]
+      },
+      "is": "Benchmark, about 1,200 questions in six domains; six models",
+      "foundBy": "your library",
+      "addedAt": 1791900740000
+    }
+  ],
+  "createdAt": 1791900740000,
+  "updatedAt": 1791900740000
+}

@@ -2,6 +2,17 @@
   "version": 1,
   "chats": [
     {
+      "id": "7b3f2c41-5d8e-4a06-9c2f-1e4d6a8b0f53",
+      "title": "Group the papers in my library by what they were tested on: a benchmark other…",
+      "createdAt": 1791900680000,
+      "updatedAt": 1791900740000,
+      "pinned": false,
+      "connectorId": "claude-code",
+      "modelId": "opus",
+      "role": "assistant",
+      "effortId": "medium"
+    },
+    {
       "id": "9192e0e5-7910-439e-8d76-8045ee386811",
       "title": "In ClashEval, how does the calibrated token-probability method decide between…",
       "createdAt": 1791900179273,
