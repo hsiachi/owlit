@@ -21,22 +21,24 @@ import { paperById, useLibraryStore } from "../../store"
 import { Digest } from "./Digest"
 import { NoPdf } from "./NoPdf"
 
-// A paper opened beside the doc a citation of it is in, in the slot the agent panel docks to: the
-// paper's own reader with its header line (the paper, the page, Digest | PDF, its full page, close), at
+// A paper opened beside the doc a citation of it is in, in the slot the agent panel docks to, or between
+// the doc and the docked panel on a window wide enough for both (withPanel): the paper's own reader with its header line (the paper, the page, Digest | PDF, its full page, close), at
 // the cited sentence. The note and the details stay on the paper's page: the doc is where the person is
 // writing. Esc puts it away and the cursor back at the citation.
-export function PaperBesideSlot() {
+export function PaperBesideSlot({ withPanel }: { withPanel: boolean }) {
   const beside = useBeside((s) => s.paper)
   const paper = usePaperAtRest(beside?.paperId)
   if (!beside || !paper) return null
-  return <Beside key={paper.id} paper={paper} />
+  return <Beside key={paper.id} paper={paper} withPanel={withPanel} />
 }
 
-function Beside({ paper }: { paper: Paper }) {
+function Beside({ paper, withPanel }: { paper: Paper; withPanel: boolean }) {
   const navigate = useNavigate()
   const beside = useBeside((s) => s.paper)
   const panelWidth = useAgentWindow((s) => s.panelWidth)
   const setPanelWidth = useAgentWindow((s) => s.setPanelWidth)
+  const ownWidth = useBeside((s) => s.width)
+  const setOwnWidth = useBeside((s) => s.setWidth)
   const aside = useRef<HTMLElement>(null)
   const page = useLibraryStore((s) => s.papers[paper.id]?.position?.page)
   useReadingVisit(paper.id, true)
@@ -74,8 +76,14 @@ function Beside({ paper }: { paper: Paper }) {
       ref={aside}
       tabIndex={-1}
       className="relative flex shrink-0 flex-col border-l-[0.5px] bg-sidebar-panel outline-none"
-      // As wide as the agent panel it takes the place of, and narrowed the same way by a narrow window
-      style={{ width: `clamp(320px, ${panelWidth}px, max(320px, calc(100vw - ${PAGE_MIN}px)))` }}
+      // Alone, as wide as the agent panel it takes the place of, and narrowed the same way by a narrow
+      // window. Beside the panel, its own width, narrowed first when the window leaves the doc less than
+      // PAGE_MIN, so the chat keeps the width it was given.
+      style={{
+        width: withPanel
+          ? `clamp(320px, ${ownWidth}px, max(320px, calc(100vw - ${PAGE_MIN + panelWidth}px)))`
+          : `clamp(320px, ${panelWidth}px, max(320px, calc(100vw - ${PAGE_MIN}px)))`,
+      }}
       aria-label={paper.title}
       onKeyDown={(e) => {
         if (e.key !== "Escape" || e.defaultPrevented) return
@@ -83,7 +91,11 @@ function Beside({ paper }: { paper: Paper }) {
         close()
       }}
     >
-      <PanelResizeHandle label={t`Resize the paper`} width={panelWidth} setWidth={setPanelWidth} defaultWidth={PANEL_WIDTH} />
+      {withPanel ? (
+        <PanelResizeHandle label={t`Resize the paper`} width={ownWidth} setWidth={setOwnWidth} max={() => window.innerWidth - PAGE_MIN - panelWidth} defaultWidth={PANEL_WIDTH} />
+      ) : (
+        <PanelResizeHandle label={t`Resize the paper`} width={panelWidth} setWidth={setPanelWidth} defaultWidth={PANEL_WIDTH} />
+      )}
       <header className="flex h-11 shrink-0 items-center gap-1.5 border-b-[0.5px] pr-2 pl-3 text-sm">
         <span className="min-w-0 flex-1 truncate font-medium" title={paper.title}>
           {title}
