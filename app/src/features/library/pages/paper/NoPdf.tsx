@@ -157,7 +157,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
   // browser may try with their library's access. The publisher's page is a plain link; nothing watches
   // what happens there.
   const doi = paper.ids.doi
-  const offerExtension = state === "not-found" && !!doi && !hasExtension
+  // owlit couldn't get it alone: its own routes found no copy of a paper a publisher has
+  const alone = state === "not-found" && !!doi
+  const noExtension = alone && !hasExtension
+  const askAccess = alone && (!hasExtension || proxyMissing)
   // The page opens in the person's browser, where owlit can't follow: the card says the next step
   const [opened, setOpened] = useState(false)
   const openPage = () => {
@@ -196,12 +199,10 @@ export function NoPdf({ paper }: { paper: Paper }) {
             </>
           ) : state === "looking" || state === "finding" ? (
             chooseFile
-          ) : offerExtension ? (
+          ) : noExtension ? (
+            // No extension to try with the person's access: the page and the file come first
             <>
-              <Button size="sm" onClick={() => openSettings("extension")}>
-                {t({ message: "Install the extension", comment: "button: opens Settings › Papers › Browser extension, where the owlit extension is installed from" })}
-              </Button>
-              <Button variant="outline" size="sm" onClick={openPage}>
+              <Button size="sm" onClick={openPage}>
                 {t({ message: "Open the page", comment: "button: opens the paper's page at its publisher in the user's browser" })}
               </Button>
               {chooseFile}
@@ -216,17 +217,17 @@ export function NoPdf({ paper }: { paper: Paper }) {
         }
       >
         {opened && <p className="max-w-72 text-sm text-foreground">{t`Download it there, then drop it here.`}</p>}
-        {offerExtension && <p className="max-w-72 text-sm text-muted-foreground">{t`owlit couldn't get this alone. With the owlit extension, your browser can use your library's access.`}</p>}
         {NO_PDF.has(state) && (
           <p className="max-w-72 text-sm text-muted-foreground">{nextLook ? t`owlit looks again on ${nextDate}` : t`owlit won't look again`}</p>
         )}
-        {/* A publisher's paper may be one sign-in away, through the extension: say so where the PDF is missing */}
-        {state === "not-found" && doi && hasExtension && proxyMissing && (
+        {/* The first paywalled PDF is where owlit asks for the library's access: the proxy, and the
+            extension that uses it in the person's browser (Settings › Papers, the two rows together) */}
+        {askAccess && (
           <p className="max-w-72 text-sm text-muted-foreground">
             <Trans>
-              Your library may have it.{" "}
+              Use your library's access ·{" "}
               <button type="button" className={linkClass} onClick={() => openSettings("proxy")}>
-                Set up library proxy
+                Set up
               </button>
             </Trans>
           </p>
