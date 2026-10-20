@@ -91,8 +91,9 @@ export function NoteChanges({ paperId }: { paperId: string }) {
   const undo = (p: Proposal) => {
     setUndone((s) => new Set([...s, p.id]))
     if (isDesktop) {
-      const paper = useLibraryStore.getState().papers[paperId]
-      undoChange(p.id, paper ? t`Your note on ${citationLabel(paper)}` : t`Your note`)
+      const found = useLibraryStore.getState().papers[paperId]
+      const paper = found && citationLabel(found)
+      undoChange(p.id, paper ? t`Your note on ${paper}` : t`Your note`)
       return
     }
     // The browser preview has no change log: the passages go back in the note as it reads

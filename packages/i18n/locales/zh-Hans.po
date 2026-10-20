@@ -398,10 +398,12 @@ msgstr "关闭弹出框"
 #. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: undo a passage Owlit changed
+#. verb: undo a passage Owlit changed
 #: app/src/app/shortcuts.ts
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/docs/editor/proposals.ts
+#: app/src/features/library/notes/NoteChanges.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/lib/changes.ts
@@ -1356,6 +1358,7 @@ msgstr "{0, plural, other {已撤销 # 处}}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/fs.ts
+#: app/src/features/library/notes/NoteChanges.tsx
 msgid "Your note on {paper}"
 msgstr "你对 {paper} 的笔记"
 
@@ -2549,6 +2552,20 @@ msgid "Duplicate"
 msgstr "创建副本"
 
 #: app/src/features/docs/actions.ts
+msgid "Copy references"
+msgstr "复制参考文献"
+
+#. copy a doc's references as APA-formatted text
+#: app/src/features/docs/actions.ts
+msgid "As APA text"
+msgstr "APA 格式文本"
+
+#. copy a doc's references as a .bib file's entries
+#: app/src/features/docs/actions.ts
+msgid "As BibTeX"
+msgstr "BibTeX"
+
+#: app/src/features/docs/actions.ts
 msgid "Versions…"
 msgstr "版本…"
 
@@ -3343,6 +3360,15 @@ msgid "{0, plural, one {Removed # paper} other {Removed # papers}}"
 msgstr "{0, plural, other {已移除 # 篇论文}}"
 
 #: app/src/features/library/actions.ts
+msgid "This doc doesn't cite any papers"
+msgstr "这篇文档没有引用论文"
+
+#. placeholder {0}: cited.length
+#: app/src/features/library/actions.ts
+msgid "{0, plural, one {# reference copied} other {# references copied}}"
+msgstr "{0, plural, other {已复制 # 条参考文献}}"
+
+#: app/src/features/library/actions.ts
 msgid "Highlight deleted"
 msgstr "已删除高亮"
 
@@ -4112,6 +4138,19 @@ msgstr "无法查找。"
 msgid "That does not look like a DOI, an arXiv id or a URL."
 msgstr "这看起来不像 DOI、arXiv 编号或 URL。"
 
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Your note"
+msgstr "你的笔记"
+
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Owlit's edits to this note"
+msgstr "Owlit 对这篇笔记的修改"
+
+#. above the passages Owlit changed in a paper's note
+#: app/src/features/library/notes/NoteChanges.tsx
+msgid "Owlit edited your note since you last looked"
+msgstr "你上次查看后，Owlit 修改了你的笔记"
+
 #: app/src/features/library/notes/NoteEditor.tsx
 msgid "What do you take from this paper?"
 msgstr "你从这篇论文中得到了什么？"
@@ -4257,6 +4296,11 @@ msgstr "完整"
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Basic"
 msgstr "基础"
+
+#. label before the docs that cite this paper
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Cited in"
+msgstr "引用于"
 
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show more"
