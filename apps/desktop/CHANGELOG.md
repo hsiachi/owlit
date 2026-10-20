@@ -7,6 +7,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - The card under an answer says in one line what it was built from: "From 6 papers · 3 abstract only", or "all read". Click it for the papers, each with how Owlit read it. In a narrow Owlit panel the rest of the card is shorter too: the line saying what the reply changed is a count ("4 changes"), and a thread, paper or doc no longer shrinks to one character beside its detail. A table's columns of sentences keep a readable width and the table scrolls sideways.
 - A citation's card names the abstract it shows as the abstract, instead of saying Owlit took the claim from it.
 - The toast for a comment Owlit leaves while you're away from its chat says "Comment added", and Owlit's answers about how to use owlit name the roles, signing in to Claude Code and Codex from Settings, and every part of Settings.
+- The list beside the rail (chats, docs) can be opened while the Owlit panel is docked, also when you had hidden it before opening the panel.
 - The list beside the rail (chats, docs) can be made wider or narrower by dragging its right edge, and keeps its width after a restart. Double-click the edge to go back to the usual width.
 - Threads has a new icon in the rail, on Home and in mentions: a route, a line through two points, in place of the stack of layers.
 - The Owlit button in a doc's header is gone. The dot it carried, for comments Owlit left since you last looked, sits on the comments button instead, and a click there opens the first of them.

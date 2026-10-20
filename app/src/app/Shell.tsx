@@ -60,7 +60,8 @@ function AppShell() {
   const hasPanel = !!matchNav(pathname)?.panel
   // The user's open/closed preference for pages with a panel; pages without one always collapse to the icon rail
   const [panelOpen, setPanelOpen] = useState(true)
-  // While the agent window is docked the list panel folds, so the page keeps its column
+  // While the agent window is docked the list panel folds, so the page keeps its column, until opened by hand
+  // (listShown); panelOpen is set aside meanwhile, so a list hidden before docking can still be opened
   const agentAllowed = useAgentAllowed()
   const docked = useAgentWindow((s) => s.stage === "open") && agentAllowed
   const listShown = useAgentWindow((s) => s.listShown)
@@ -89,7 +90,7 @@ function AppShell() {
         {/* The list panel shows and hides at once: no slide, so the page never moves under the reader */}
         <SidebarProvider
           className="h-svh flex-col bg-sidebar [&_[data-slot=sidebar-container]]:transition-none [&_[data-slot=sidebar-gap]]:transition-none"
-          open={hasPanel && panelOpen && (!docked || listShown)}
+          open={hasPanel && (docked ? listShown : panelOpen)}
           onOpenChange={(open) => {
             if (!hasPanel) return
             if (docked) setListShown(open)
