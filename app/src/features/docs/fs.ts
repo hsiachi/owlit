@@ -100,10 +100,11 @@ const shownHere = new Set<string>()
 function applyAgentEdit(file: WorkspaceFile, content: string, changeId?: string, hunks?: TextHunk[]) {
   const view = openEditor(file.id)
   if (!view) return false
+  // Shown here whether or not the editor already reads so: its marks say it either way
+  if (changeId) shownHere.add(changeId)
   const text = view.state.doc.toString()
   if (text === content) return true
   view.dispatch({ changes: (hunks && hunkChanges(text, hunks, content)) ?? spanChange(text, content), userEvent: "input.agent" })
-  if (changeId) shownHere.add(changeId)
   return true
 }
 
