@@ -1,12 +1,12 @@
 import { t } from "@lingui/core/macro"
-import { chatOfFile, isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActivityAnswer, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type DocComment, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { chatOfFile, isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPerson, normalizeNoteLanguage, ROLES, RpcErrorCode, type ActorId, type BuildInfo, type ChangeOrigin, type ChatMessage, type DocComment, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type PromptInput, type ReadTrace, type Role, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { z } from "zod"
-import { ActivityBus, activityEvent, activityQuery, answerActivity, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
+import { ActivityBus, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
 import type { CutOff } from "@owlit/protocol"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
@@ -42,12 +42,15 @@ import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
 import { isMissing, sha1 } from "./fs-util.ts"
 import { messageOf } from "./util.ts"
-import { defaultNoteLanguage, registerSettings, settingsView } from "./settings-rpc.ts"
+import { defaultNoteLanguage, registerSettings } from "./settings-rpc.ts"
 import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
-import { copyExample } from "./workspace/example.ts"
-import { createFolder, suggestFolder } from "./workspace/welcome.ts"
+
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 import { OWLIT_DIR } from "./workspace/paths.ts"
+import { registerActivity } from "./activity/rpc.ts"
+import { registerExtension } from "./extension/rpc.ts"
+import { registerUpdates } from "./updates/rpc.ts"
+import { registerWorkspace } from "./workspace/rpc.ts"
 
 export const CORE_VERSION = "0.0.0"
 
@@ -287,106 +290,26 @@ export class Core {
 
     this.router.decide = (caller, _method, params, policy) => this.police(caller, params, policy)
 
-
-    this.router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
+    // Each area registers its own methods beside its code; core.ts only hands them what they need. The
+    // Router refuses a method registered twice, so the order here carries no meaning.
+    const requireWorkspace = () => this.requireWorkspace()
+    const workspace = () => this.workspace
+    const { router, notifier, settings } = this
+    // core.* is about this object itself (diagnostics reads most of it), so it stays here
+    router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
     this.router.register("agents.rules", noParams, "read", () => AGENT_RULES)
     this.router.register("agents.guide", z.object({ topic: z.string().optional() }), "read", ({ topic }) => guide(topic))
-    this.router.register("core.version", noParams, "read", () => this.version())
-    this.router.register("core.diagnostics", noParams, "read", () => this.diagnostics())
-    this.router.register("extension.get", noParams, "read", async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [] })
-    this.router.register("extension.answer", z.object({ id: z.string().min(1), allow: z.boolean() }), "admin", async ({ id, allow }) => {
-      await this.extension?.pairings.answer(id, allow)
-      return null
-    })
-    this.router.register("extension.open", z.object({ kind: z.enum(["sign-in", "check", "permission"]), host: z.string().min(1).max(253) }), "admin", async ({ kind, host }) => {
-      if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
-      return this.extension.open(kind, host)
-    })
-    this.router.register("extension.forget", z.object({ id: z.string().min(1) }), "admin", async ({ id }) => {
-      if (!this.extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
-      await this.extension.pairings.forget(id)
-      return this.extension.view()
-    })
-    this.router.register("updates.get", noParams, "read", () => this.updates.view())
-    this.router.register("updates.check", noParams, "admin", () => this.updates.check())
-    this.router.register("updates.setAuto", z.object({ auto: z.boolean() }), "admin", ({ auto }) => this.updates.setAuto(auto))
-    this.router.register("updates.seen", noParams, "admin", () => this.updates.seen())
-    this.router.register("updates.restart", z.object({ force: z.boolean().optional() }), "admin", ({ force }) => this.updates.restart(force ?? false))
-
-    this.router.register("workspace.current", noParams, "read", () => this.workspace?.info ?? null)
-    this.router.register("workspace.open", z.object({ path: z.string().min(1) }), "admin", ({ path }) => this.openWorkspace(path))
-    this.router.register("workspace.recent", noParams, "read", async () => {
-      const { recentWorkspaces } = await this.settings.get()
-      return recentWorkspaces.filter((p) => !isMissing(p)).map(toInfo)
-    })
-    this.router.register("workspace.state", noParams, "read", () => this.state())
-    this.router.register("workspace.welcome", noParams, "read", async () => {
-      const { recentWorkspaces } = await this.settings.get()
-      return { recent: recentWorkspaces.map((p) => ({ ...toInfo(p), missing: isMissing(p) })), suggestion: suggestFolder() }
-    })
-    this.router.register("workspace.create", z.object({ parent: z.string().min(1), name: z.string() }), "admin", async ({ parent, name }) =>
-      this.openWorkspace(await createFolder(parent, name)),
-    )
-    this.router.register("workspace.createExample", noParams, "admin", async () => {
-      const source = this.options.exampleDir
-      if (!source || !existsSync(source)) throw new RpcFailure(RpcErrorCode.NotFound, t`This copy of owlit has no example workspace.`)
-      return this.openWorkspace(await copyExample(source, suggestFolder().parent, (await this.settings.get()).profile.id!))
-    })
-    this.router.register("workspace.forget", z.object({ path: z.string().min(1) }), "admin", async ({ path }) => {
-      await this.settings.forgetWorkspace(path)
-      return null
-    })
-    this.router.register("workspace.clearRecent", noParams, "admin", async () => {
-      await this.settings.update((s) => ({ ...s, recentWorkspaces: [] }))
-      return null
-    })
-
-    this.router.register("workspace.layout", noParams, "read", () => this.requireWorkspace().layout())
-    this.router.register("workspace.setLayout", z.object({ patch: z.record(z.string(), z.unknown()) }), "admin", ({ patch }) =>
-      this.requireWorkspace().setLayout(patch),
-    )
-
-    // Turned off, the journal keeps nothing (see Journal), but Owlit's rules still hear what the user opens
-    this.router.register("activity.emit", z.object({ event: activityEvent }), "admin", async ({ event }) => {
-      await this.settings.get()
-      if (this.workspace) this.activity.publish(event)
-      return null
-    })
-    this.router.register("activity.status", noParams, "read", async () => (await this.settings.get()).activity)
-    // What the user did lately, for an agent: nothing at all while recording is turned off
-    this.router.register("activity.query", z.object({ query: activityQuery }), "read", async ({ query }): Promise<ActivityAnswer> => {
-      const ws = this.requireWorkspace()
-      if (!(await this.settings.get()).activity.enabled) return { recording: false }
-      const [{ papers, aliases }, chats, entries, docChanges] = await Promise.all([
-        ws.library.list(),
-        ws.chats.list(),
-        readJournal(ws.owlitPath("journal.jsonl")),
-        ws.changes.list({ target: { kind: "doc" } }),
-      ])
-      const titles = new Map(papers.map((p) => [p.id, p.title]))
-      const chatTitles = new Map(chats.map((c) => [c.id, c.title]))
-      const alias = (id: string) => aliases[id] ?? id
-      const changes = docChanges.filter((c) => isOwlit(c.actor)).reverse()
-      const statuses = new Map(papers.map((p) => [p.id, p.status]))
-      const answer = answerActivity(entries, query, { now: Date.now(), names: { paper: (id) => titles.get(id), chat: (id) => chatTitles.get(id) }, alias, changes, status: (id) => statuses.get(id) })
-      // A paper's history also says which of its sentences Owlit's answers rested on
-      if (query.mode === "of" && query.paper) {
-        const { cited } = await wearOf(query.paper, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases })
-        if (cited.length) return { recording: true, ...answer, cited: cited.map(({ quote, page, chatId, chatTitle, at }) => ({ quote, ...(page ? { page } : {}), chatId, chatTitle, at })) }
-      }
-      return { recording: true, ...answer }
-    })
-    this.router.register("activity.setEnabled", z.object({ enabled: z.boolean() }), "admin", async ({ enabled }) => {
-      const next = await this.settings.update((s) => ({ ...s, activity: { ...s.activity, enabled } }))
-      this.notifier.notify("activity.status", next.activity)
-      this.notifier.notify("settings.changed", settingsView(next, this.systemLanguages, this.settings.unopenedKeys()))
-      return next.activity
-    })
+    router.register("core.version", noParams, "read", () => this.version())
+    router.register("core.diagnostics", noParams, "read", () => this.diagnostics())
+    registerExtension({ router, extension: this.extension })
+    registerUpdates({ router, updates: this.updates })
+    registerWorkspace({ router, settings, workspace, requireWorkspace, open: (folder) => this.openWorkspace(folder), state: () => this.state(), exampleDir: options.exampleDir })
+    registerActivity({ router, notifier, settings, activity: this.activity, workspace, requireWorkspace, systemLanguages: this.systemLanguages })
 
     registerSettings({
-      router: this.router,
-      settings: this.settings,
+      router,
+      settings,
       http: this.http,
       openExternal: options.host?.openExternal,
       systemLanguages: this.systemLanguages,
@@ -1708,10 +1631,7 @@ export class Core {
   }
 }
 
-
 // The card's icon for a change the policy asks about, from what the method does
-
-const toInfo = (folder: string): WorkspaceInfo => ({ path: folder, name: folder.slice(folder.lastIndexOf("/") + 1) })
 
 // An agent's reply under its own comment that starts with CORRECT: (recipes/reply.ts) rewrites the
 // comment's first entry instead of standing under it; the old words are kept as was. Under a comment that
