@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { GROUPING_COLUMN, MENTION_LINK, type Paper, QUESTION_COLUMN, type Relation, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
+import { GROUPING_COLUMN, type Paper, QUESTION_COLUMN, type Relation, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
@@ -18,16 +18,6 @@ function perThread<T>(build: (c: ThreadRead) => T) {
 // The thread as the user sees it (shownThread), and what the list of threads shows of it
 export const shown = perThread(shownThread)
 export const summaryOf = perThread(summarize)
-
-// The report's first paragraph as sentences, as the page shows it above the papers
-export const memoOf = perThread((c) => {
-  const para = c.report.split(/\n\s*\n/).find((p) => p.trim() && !/^\s*#/.test(p))?.replace(/\s+/g, " ").trim()
-  if (!para) return []
-  return para
-    .split(/(?<=[.!?])\s+(?=[A-Z[\u3400-\u9fff])|(?<=[。！？])/)
-    .map((text, i) => ({ id: `s${i + 1}`, text: text.trim() }))
-    .filter((s) => s.text)
-})
 
 // A row is a Library paper by its id (core names every row so); the Library's own record of it, for what
 // only the Library says (the PDF, the reading mark) and for the user's corrections since core gave the
@@ -55,22 +45,6 @@ export function shortTitle(title: string): string {
 
 // "CiteSee · 2023", how a row names its paper
 export const nameOf = (p: Pick<ThreadPaper, "title" | "year">) => [shortTitle(p.title), p.year].filter(Boolean).join(" · ")
-
-// A sentence of Owlit's with the papers and groups it names as mentions
-export type MemoPart = string | { label: string; uri: string }
-
-export function memoParts(text: string): MemoPart[] {
-  const out: MemoPart[] = []
-  const pattern = new RegExp(MENTION_LINK.source, "g")
-  let last = 0
-  for (const m of text.matchAll(pattern)) {
-    if (m.index > last) out.push(text.slice(last, m.index))
-    out.push({ label: m[1]!.replace(/\\(.)/g, "$1"), uri: m[2]! })
-    last = m.index + m[0].length
-  }
-  if (last < text.length) out.push(text.slice(last))
-  return out
-}
 
 // The list's groups: one per project, the most recently changed project first, then the threads that
 // belong to none. A thread whose project is no longer a top-level folder (renamed or deleted; the thread
@@ -178,38 +152,35 @@ export function groupSections(shown: ThreadRead, grouping: ThreadColumn) {
   return { groups: out, loose: shown.rows.filter((r) => !r.in?.[grouping.id]?.length) }
 }
 
-// Words that end in a full stop without ending the sentence, as citations and asides use them
-const NOT_AN_END = /(?:\bet al|\be\.g|\bi\.e|\bcf|\bvs|\bFigs?|\bEqs?|\bSec|\bpp?|\bvol|\bno|\b[A-Z])\.$/i
-// Chinese and Japanese say in one character what English says in about three
-const WIDE = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/g
-const weight = (s: string) => s.length + 2 * (s.match(WIDE)?.length ?? 0)
+// The grouping a thread's page shows its papers by: the one its table was last grouped by, else the first
+// with groups. A grouping is not a column, so a thread with groups and no asked column still reads as a
+// note, its groups as headings.
+export function shownGrouping(shown: ThreadRead): ThreadColumn | undefined {
+  const groupings = shown.columns.filter((c) => c.kind === "grouping" && c.groups?.length)
+  const want = shown.view?.groupBy
+  if (want === "none") return undefined
+  return groupings.find((c) => want === `grouping:${c.id}`) ?? groupings[0]
+}
 
-// A doc's sentences, as the user might want them weighed (Compare with a doc): its lines split at sentence
-// ends, headings and list marks taken off, very short pieces left out. A link's label never splits a
-// sentence, nor does "et al." or an initial; a Chinese full stop ends one with no space after it.
-export function sentencesOf(markdown: string): string[] {
-  const out: string[] = []
-  for (const raw of markdown.split("\n")) {
-    const labels: string[] = []
-    const line = raw
-      .replace(/^\s*(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)/, "")
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, (_, label: string) => `\u0000${labels.push(label) - 1}\u0000`)
-      .replace(/[*_`]/g, "")
-      .trim()
-    if (!line) continue
-    const pieces: string[] = []
-    let start = 0
-    for (const end of line.matchAll(/[.!?]+(?=\s)|[。！？]+/g)) {
-      const at = end.index + end[0].length
-      if (end[0] === "." && NOT_AN_END.test(line.slice(start, at))) continue
-      pieces.push(line.slice(start, at))
-      start = at
-    }
-    pieces.push(line.slice(start))
-    for (const piece of pieces) {
-      const s = piece.replace(/\u0000(\d+)\u0000/g, (_, i: string) => labels[Number(i)]!).trim()
-      if (weight(s) >= 12) out.push(s)
-    }
-  }
-  return out
+// The note's sections: a grouping's groups with their papers (groupSections), then the papers in none;
+// without a grouping, one section of every paper and no heading
+export function noteSections(shown: ThreadRead): { key: string; group?: ThreadGroup; grouping?: ThreadColumn; rows: ThreadRowRead[]; total: number; depth: number }[] {
+  const grouping = shownGrouping(shown)
+  if (!grouping) return shown.rows.length ? [{ key: "", rows: shown.rows, total: shown.rows.length, depth: 0 }] : []
+  const { groups, loose } = groupSections(shown, grouping)
+  return [
+    ...groups.map((g) => ({ key: g.group.id, group: g.group, grouping, rows: g.rows, total: g.total.length, depth: g.depth })),
+    ...(loose.length ? [{ key: "", rows: loose, total: loose.length, depth: 0 }] : []),
+  ]
+}
+
+// Whether a thread reads as a table: once a question beyond its own, or a comparison, is a shown column
+export const isTable = (shown: ThreadRead) => shown.columns.some((c) => c.id !== QUESTION_COLUMN && c.kind !== "grouping" && !c.hidden)
+
+// The papers, the groups they are in and how many Owlit read in full, for the line over the papers
+export function paperCounts(shown: ThreadRead) {
+  const grouping = shownGrouping(shown)
+  const groups = grouping ? groupSections(shown, grouping).groups.filter((g) => g.depth === 0).length : 0
+  const full = shown.rows.filter((r) => r.cells[QUESTION_COLUMN]?.depth === "full").length
+  return { papers: shown.rows.length, groups, full }
 }

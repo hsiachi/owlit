@@ -1,5 +1,7 @@
-import { t } from "@lingui/core/macro"
-import { itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadRead, type ThreadRowRead, threadUri } from "@owlit/protocol"
+import { plural, t } from "@lingui/core/macro"
+import { itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadGroup, type ThreadRead, type ThreadRowRead, threadUri } from "@owlit/protocol"
+import { ChevronDownIcon } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
 import { CitationHover } from "@/components/citation-card"
@@ -9,27 +11,95 @@ import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import { useLibraryStore } from "@/features/library/store"
 import { stripLatex } from "@/features/library/lib/latex"
-import { cn } from "@/lib/utils"
-import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
+import { cn, scrollMotion } from "@/lib/utils"
+import { citeOf, nameOf, noteSections, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
 import { useThreadsStore } from "../store"
 import { useThreadsUi } from "../ui-store"
 import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
 
-// The papers of a thread without columns, one line each: what the paper says about the question
-// first, the paper after it, named as the report names it ("CiteSee · 2023"). Every answer is in ink: one from
-// the full text ends in the page it rests on, so an answer without a page is from the abstract, and grey
-// keeps meaning only "secondary" or "unread". The slot before it is Owlit's dot while the answer is new
-// since the user looked; their own reading is a half ring after the paper's name, on the thing it is about.
+// Rows a section shows before "N more"
+const SHOWN = 8
+
+// The papers of a thread without asked columns, under its groups as headings (two levels), each group's
+// first SHOWN and then "N more". A link in the report to one of them (ring) unfolds its section if it
+// is hidden there, scrolls to it and rings it.
 export function AnswerRows({ thread, shown, visit }: { thread: ThreadRead; shown: ThreadRead; visit: VisitDots }) {
   const peek = useThreadsUi((s) => s.peek)
-  if (!shown.rows.length) return null
+  const ring = useThreadsUi((s) => s.ring)
+  const [all, setAll] = useState<Set<string>>(new Set())
+  const sections = noteSections(shown)
+  // A paper in two groups is a row in each; the link goes to the first, and shows that section whole
+  const ringAt = ring ? sections.find((s) => s.rows.some((r) => r.id === ring.id)) : undefined
+  const whole = (key: string) => all.has(key) || ringAt?.key === key
+  useEffect(() => {
+    if (!ring || !ringAt) return
+    const row = document.querySelector<HTMLElement>(`[data-place="${CSS.escape(`${ringAt.key}:${ring.id}`)}"]`)
+    if (!row) return
+    row.scrollIntoView({ block: "center", behavior: scrollMotion() })
+    row.classList.remove("animate-place-ring")
+    void row.offsetWidth
+    row.classList.add("animate-place-ring")
+    row.addEventListener("animationend", () => row.classList.remove("animate-place-ring"), { once: true })
+    // Once per click on a link (ring.at), not on every change to the thread
+  }, [ring]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!sections.length) return null
+  // A paper opened in place opens where it first appears
+  const firstAt = new Map<string, string>()
+  for (const s of sections) for (const r of s.rows) if (!firstAt.has(r.id)) firstAt.set(r.id, s.key)
   return (
-    <div className="-mx-1.5 mt-8 flex flex-col">
-      {shown.rows.map((row) => {
-        const items = [itemId.row(row.id), itemId.cell(row.id, QUESTION_COLUMN)]
-        return <AnswerRow key={row.id} thread={thread} row={row} items={items} fresh={items.some(visit.fresh)} reread={readInFull(visit.changeOf(items[1]!))} open={peek === row.id} />
+    <div className="mt-2 flex flex-col">
+      {sections.map((s) => {
+        const many = s.rows.length > SHOWN && !whole(s.key)
+        return (
+          <section key={`${s.key}:${s.depth}`} className="flex flex-col">
+            {s.group && s.grouping ? (
+              <GroupHeading group={s.group} total={s.total} depth={s.depth} fresh={visit.fresh(itemId.group(s.grouping.id, s.group.id))} />
+            ) : (
+              sections.length > 1 && <GroupHeading total={s.total} depth={0} fresh={false} />
+            )}
+            <div className="-mx-1.5 flex flex-col">
+              {(many ? s.rows.slice(0, SHOWN) : s.rows).map((row) => {
+                const items = [itemId.row(row.id), itemId.cell(row.id, QUESTION_COLUMN)]
+                return (
+                  <AnswerRow
+                    key={row.id}
+                    place={`${s.key}:${row.id}`}
+                    first={firstAt.get(row.id) === s.key}
+                    thread={thread}
+                    row={row}
+                    items={items}
+                    fresh={items.some(visit.fresh)}
+                    reread={readInFull(visit.changeOf(items[1]!))}
+                    open={peek === row.id && firstAt.get(row.id) === s.key}
+                  />
+                )
+              })}
+            </div>
+            {many && (
+              <div className="py-1">
+                <Button variant="text" size="inline" onClick={() => setAll((a) => new Set(a).add(s.key))}>
+                  <ChevronDownIcon />
+                  {plural(s.rows.length - SHOWN, { one: "# more paper", other: "# more papers" })}
+                </Button>
+              </div>
+            )}
+          </section>
+        )
       })}
     </div>
+  )
+}
+
+// A group of the thread as a heading, with how many papers it holds (its subgroups' too). No group: the
+// papers in none of them, after the groups.
+function GroupHeading({ group, total, depth, fresh }: { group?: ThreadGroup; total: number; depth: number; fresh: boolean }) {
+  const Tag = depth ? "h3" : "h2"
+  return (
+    <Tag className={cn("mb-1 flex items-baseline gap-2", depth ? "mt-5 text-sm font-semibold" : "mt-8 text-base font-semibold")}>
+      {fresh && <NoteDot className="self-center" />}
+      <span className="text-balance">{group?.name ?? t({ message: "Not in a group", comment: "papers of a thread in none of its groups" })}</span>
+      <span className="shrink-0 text-detail font-normal text-muted-foreground">{plural(total, { one: "# paper", other: "# papers" })}</span>
+    </Tag>
   )
 }
 
@@ -40,7 +110,9 @@ export function ReadingMark({ paper, className }: { paper: Paper | undefined; cl
 
 // reread: the dot's change is Owlit answering again from the full text: the page says so while the dot
 // lasts, and the opened row keeps the answer it replaced after
-function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: ThreadRead; row: ThreadRowRead; items: string[]; fresh: boolean; reread: ReturnType<typeof readInFull>; open: boolean }) {
+// place: the row's section and paper, which a link from the report finds it by; first: the first place the
+// paper shows, which keeps the id other pages link to
+function AnswerRow({ place, first, thread, row, items, fresh, reread, open }: { place: string; first: boolean; thread: ThreadRead; row: ThreadRowRead; items: string[]; fresh: boolean; reread: ReturnType<typeof readInFull>; open: boolean }) {
   const seenRef = useSeenOnScreen<HTMLDivElement>(thread.id, items)
   const set = useThreadsUi((s) => s.set)
   const library = useLibraryPaper(row)
@@ -51,7 +123,8 @@ function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: Thread
   return (
     <div
       ref={seenRef}
-      id={`row-${row.id}`}
+      id={first ? `row-${row.id}` : undefined}
+      data-place={place}
       className={cn(
         "rounded-xl border border-transparent px-[5px] transition-[background-color,border-color,box-shadow,margin,padding] duration-(--t-layout) ease-(--ease) motion-reduce:transition-none",
         open && "my-1.5 border-border bg-card py-1.5 shadow-sm",

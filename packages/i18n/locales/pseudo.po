@@ -461,7 +461,7 @@ msgstr ""
 #: app/src/features/library/digest-rows.tsx
 #: app/src/features/library/digests.ts
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
+#: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Retry"
 msgstr ""
 
@@ -1243,7 +1243,7 @@ msgstr ""
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Work.tsx
+#: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Stop"
 msgstr ""
 
@@ -5858,6 +5858,22 @@ msgstr ""
 msgid "Papers like {of}"
 msgstr ""
 
+#. placeholder {0}: s.rows.length - SHOWN
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "{0, plural, one {# more paper} other {# more papers}}"
+msgstr ""
+
+#. papers of a thread in none of its groups
+#. papers of a thread in none of its groups
+#: app/src/features/threads/components/AnswerRows.tsx
+#: app/src/features/threads/components/ThreadTable.tsx
+msgid "Not in a group"
+msgstr ""
+
+#: app/src/features/threads/components/AnswerRows.tsx
+msgid "{total, plural, one {# paper} other {# papers}}"
+msgstr ""
+
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "You've read some of it"
 msgstr ""
@@ -5907,11 +5923,6 @@ msgstr ""
 msgid "Export as CSV"
 msgstr ""
 
-#. papers of a thread in none of its groups
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Not in a group"
-msgstr ""
-
 #. papers that speak to none of the user's sentences
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Bear on none of them"
@@ -5954,19 +5965,6 @@ msgstr ""
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Open at p. {0}"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{papers} so far"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{more, plural, one {and # more} other {and # more}}"
-msgstr ""
-
-#: app/src/features/threads/components/Work.tsx
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Owlit stopped."
 msgstr ""
 
 #. heading in an exported thread: papers in no group
@@ -6033,16 +6031,48 @@ msgstr ""
 msgid "Thread actions"
 msgstr ""
 
+#. under the report at the top of a thread
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Owlit's report. To change it, ask in a chat."
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{papers, plural, one {# paper} other {# papers}}"
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{groups, plural, one {# group} other {# groups}}"
+msgstr ""
+
+#. the line over a thread's papers: how many, in how many groups, how many Owlit read in full
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Papers · {n}, {g} · {full} in full"
+msgstr ""
+
+#. the line over a thread's papers: how many, how many Owlit read in full
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "Papers · {n} · {full} in full"
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+msgid "{more, plural, one {and # more} other {and # more}}"
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadPage.tsx
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "Owlit stopped."
+msgstr ""
+
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Find a thread"
 msgstr ""
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Ask Owlit in a chat to find papers; the thread appears here."
+msgid "No threads yet"
 msgstr ""
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "No threads yet"
+msgid "Ask Owlit in a chat to find papers; the thread appears here."
 msgstr ""
 
 #. a thread whose search found no papers
