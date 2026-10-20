@@ -159,10 +159,6 @@ export interface Methods {
     result: { files: DocStat[]; folders: string[] }
   }
   // Opens a file in the system's app for it (files that aren't Markdown)
-  // Owlit goes through this material (a meeting's transcript, reviews, comments from someone) against
-  // the user's docs, in a chat owlit starts about it (or a new turn in the one that broke): a record
-  // beside it, and the points as comments where they belong
-  "docs.goThrough": { params: { path: string }; result: { chatId: string } }
   "docs.open": { params: { path: string }; result: null }
   // Shows a file or folder in Finder, selected
   "docs.reveal": { params: { path: string }; result: null }

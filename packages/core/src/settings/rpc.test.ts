@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { Core } from "./core.ts"
-import type { SecretBox } from "./host.ts"
+import { Core } from "../core.ts"
+import type { SecretBox } from "../host.ts"
 
 // Stands in for the keychain: reversible, and plainly not the key
 const box: SecretBox = {

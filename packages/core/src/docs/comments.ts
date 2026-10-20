@@ -181,7 +181,7 @@ export function commentChanges(before: DocComment | null, after: DocComment | nu
 // ---- Owlit correcting its own comment ----
 
 // What an Owlit reply under its own comment starts with when it rewrites the comment's first entry
-// instead (recipes/reply.ts tells the agent; comments.put in core.ts applies it)
+// instead (recipes/reply.ts tells the agent; comments.put in docs/rpc.ts applies it)
 export const CORRECT = "CORRECT:"
 
 // Owlit may rewrite its first entry: the comment is Owlit's and not a point a Go through carried over

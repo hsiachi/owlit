@@ -1,8 +1,8 @@
 import type { AppSettings } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import path from "node:path"
-import { readJson, writeJsonAtomic } from "./fs-util.ts"
-import type { SecretBox } from "./host.ts"
+import { readJson, writeJsonAtomic } from "../fs-util.ts"
+import type { SecretBox } from "../host.ts"
 
 const RECENT_LIMIT = 10
 

@@ -124,7 +124,7 @@ export class AgentFs {
   }
 
   // Writes a doc of the agent's own whole (owlit-mcp's docs_write), once the policy found it the caller's:
-  // a new Markdown file, or one only the caller has changed (core.ts docTarget). Recorded as the
+  // a new Markdown file, or one only the caller has changed (docTarget in agents/rpc.ts). Recorded as the
   // caller's write, so its chat offers Undo; a new doc's Undo takes it away.
   async writeOwn(file: string, content: string, caller: Caller) {
     const ws = this.workspace()
@@ -177,7 +177,7 @@ export class AgentFs {
     return at
   }
 
-  // A workspace path an agent names; whether it may delete or move it is the policy's (core.ts gives the
+  // A workspace path an agent names; whether it may delete or move it is the policy's (agents/rpc.ts gives the
   // router target for agents.deleteDocs and agents.moveDoc)
   private docPath(file: string) {
     return this.workspace().docs.resolve(file)
