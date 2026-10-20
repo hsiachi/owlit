@@ -214,7 +214,9 @@ describe("library.import", () => {
 
     const continued: ImportSummary = await call("library.continueImport", { id: started.id })
     expect(continued.taskId).not.toBe(started.taskId)
-    await until(continued.taskId, ["done"])
+    // 200 papers: alone the import takes well under a second, but with the whole suite running beside
+    // it the shared patience isn't enough, as the hundred-PDF test below already knows
+    await until(continued.taskId, ["done"], 30_000)
     expect(await summary(started.id)).toMatchObject({ total: 200, existed: 0 })
     expect((await summary(started.id)).added).toHaveLength(200)
   })
