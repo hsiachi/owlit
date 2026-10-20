@@ -245,6 +245,24 @@ describe("the extension's port", () => {
     expect((await request(`/papers?url=${encodeURIComponent(`https://dl.acm.org/doi/abs/${DOI}`)}`, { token })).body.paper).toMatchObject({ id: "doi-10.1145-3626772.3657891" })
   })
 
+  it("brings owlit to the front, on a Library paper when one is named", async () => {
+    const { request, pair, call, core } = await setup({ routes: published })
+    const token = await pair()
+    const shown: unknown[] = []
+    core.onNotify((n: RpcNotification) => {
+      if (n.method !== "ui.request") return
+      const asked = n.params as { requestId: string; method: string; params: unknown }
+      shown.push(asked.params)
+      void call("ui.respond", { requestId: asked.requestId, result: { title: "ChroniclingAmericaQA" } })
+    })
+    const { body } = await request("/papers", { token, body: { doi: DOI } })
+    expect(await request("/open", { token, body: { paper: body.paper.id } })).toMatchObject({ status: 200, body: { shown: true } })
+    expect(shown).toEqual([{ uri: `owlit://library/${body.paper.id}` }])
+    expect(await request("/open", { token, body: {} })).toMatchObject({ status: 200, body: { shown: true } })
+    expect(await request("/open", { token, body: { paper: "nothing-like-it" } })).toMatchObject({ status: 404, body: { reason: "not-found" } })
+    expect(await request("/open", { body: {} })).toMatchObject({ status: 401 })
+  })
+
   it("adds a paper from the page's own words when nothing resolves", async () => {
     const { request, pair, call } = await setup({ routes: { "api.openalex.org": 503, "api.semanticscholar.org": 503, "api.crossref.org": 503 } })
     const token = await pair()

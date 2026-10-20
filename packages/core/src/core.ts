@@ -205,6 +205,15 @@ export class Core {
             changed: (view) => this.notifier.notify("extension.changed", view),
             openInBrowser: options.host?.openInBrowser ?? (options.host?.openExternal && ((url) => options.host!.openExternal!(url))),
             showBrowser: options.host?.showBrowser,
+            show: async (uri) => {
+              await options.host?.showApp?.()
+              if (!uri) return true
+              // The window the user was in last shows it; none open (or none answering) shows nothing
+              return this.ui.act("open", { uri }).then(
+                () => true,
+                () => false,
+              )
+            },
             browserApp: options.host?.browserApp,
           },
           options.extension === true ? {} : options.extension,

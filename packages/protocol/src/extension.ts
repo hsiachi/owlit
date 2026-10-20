@@ -149,6 +149,16 @@ export interface PaperAnswer {
   paper: ExtensionPaper
 }
 
+// POST /open: brings owlit to the front, showing the Library paper when one is named (the card's and the
+// popup's Open, Open owlit). shown: false when the paper isn't in the open workspace's Library, or no
+// window could show it.
+export interface OpenBody {
+  paper?: string
+}
+export interface OpenAnswer {
+  shown: boolean
+}
+
 // ---- Fetching for owlit. owlit decides what and when; the extension fetches nothing else.
 
 // A paper owlit's own routes couldn't get, for the extension to fetch with the user's cookies
