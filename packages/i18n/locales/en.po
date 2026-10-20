@@ -7383,6 +7383,10 @@ msgid "{name}'s usage limit is reached."
 msgstr "{name}'s usage limit is reached."
 
 #: packages/core/src/agents/failure.ts
+msgid "{name}'s usage limit is reached; it resets in {after}."
+msgstr "{name}'s usage limit is reached; it resets in {after}."
+
+#: packages/core/src/agents/failure.ts
 msgid "{name}'s usage limit is reached; it resets at {at}."
 msgstr "{name}'s usage limit is reached; it resets at {at}."
 
