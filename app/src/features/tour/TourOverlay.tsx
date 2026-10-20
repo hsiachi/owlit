@@ -8,12 +8,16 @@ import { isMarkdown } from "@/features/docs/types"
 import { showInPaper, usePaperView } from "@/features/library/paper-view"
 import { useWindowKeydown } from "@/hooks/use-window-keydown"
 import { cn } from "@/lib/utils"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { FRESH_CHAT } from "@/features/chat/components/ChatEmpty"
 import { useTour } from "./store"
+import { openExampleForTour } from "./take"
 
 // The tour: the page dims around one part of the real app, a card beside it says what it does, and the
-// spotlight glides to the next stop. Nothing is blocked: the dim lets clicks through, so the user can do
-// what a stop shows (open the paper, switch to the PDF), and a stop that waits for that moves on by itself
-// once it's done. Next is always there too; Skip tour or Esc ends it.
+// spotlight glides to the next stop (with reduced motion it moves there at once, and its ring is still).
+// Nothing is blocked: the dim lets clicks through, so the user can do what a stop shows (open the paper,
+// switch to the PDF), and a stop that waits for that moves on by itself once it's done. Next is always
+// there too; Skip tour or Esc ends it.
 
 // The example's paper the tour opens, and its draft
 const PAPER = "arxiv-2310.11511"
@@ -69,6 +73,14 @@ const STOPS: Stop[] = [
     },
   },
   {
+    kicker: () => t`Threads`,
+    title: () => t`Papers gathered for a question`,
+    body: () => t`Give Owlit a question and it gathers papers on it, with what each one says, groups them, and writes a short memo. The example has threads to look through.`,
+    // The rail's own Threads button: the page's parts are the thread's, and the place is what to learn
+    target: ['a[href="/threads"]'],
+    enter: (navigate, pathname) => !pathname.startsWith("/threads") && navigate("/threads"),
+  },
+  {
     kicker: () => t`Docs`,
     title: () => t`Cite as you write`,
     body: () => (
@@ -85,6 +97,13 @@ const STOPS: Stop[] = [
     },
   },
   {
+    kicker: () => t`Chat`,
+    title: () => t`Longer work`,
+    body: () => t`Chat is for work that takes a few minutes: finding papers, comparing them, reviewing a draft. What Owlit changes comes back under its answer, each with Undo.`,
+    target: ['[data-tour="composer"]'],
+    enter: (navigate, pathname) => pathname !== "/chat" && navigate("/chat", { state: FRESH_CHAT }),
+  },
+  {
     kicker: () => t`Owlit`,
     title: () => t`Ask from anywhere`,
     body: () => (
@@ -97,7 +116,7 @@ const STOPS: Stop[] = [
   {
     kicker: () => t`That's it`,
     title: () => t`Help is here`,
-    body: () => t`Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › Open Workspace opens a folder of your own.`,
+    body: () => t`Take the tour again, see every shortcut, or ask Owlit how to do something. When you're ready, File › New Workspace starts a folder of your own.`,
     target: ['[data-tour="help"]'],
   },
 ]
@@ -113,8 +132,41 @@ const CARD_WIDTH = 320
 
 export function TourOverlay() {
   const stop = useTour((s) => s.stop)
-  if (stop === null) return null
-  return <Tour index={stop} />
+  return (
+    <>
+      <TourAsk />
+      {stop !== null && <Tour index={stop} />}
+    </>
+  )
+}
+
+// Help › Take the tour from a workspace of the person's own: the tour runs in the example, so it asks
+// before leaving, and says how to come back
+function TourAsk() {
+  const asking = useTour((s) => s.asking)
+  const navigate = useNavigate()
+  const close = () => useTour.setState({ asking: false })
+  return (
+    <AlertDialog open={asking} onOpenChange={(o) => !o && close()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t`Open the example workspace?`}</AlertDialogTitle>
+          <AlertDialogDescription>{t`The tour runs in the example. You can come back from File › Open Recent.`}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t`Cancel`}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              close()
+              void openExampleForTour(() => navigate("/"))
+            }}
+          >
+            {t({ message: "Open the example", comment: "opens the example workspace for the tour" })}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
 }
 
 function Tour({ index }: { index: number }) {
@@ -176,19 +228,19 @@ function Tour({ index }: { index: number }) {
     <div className="pointer-events-none fixed inset-0 z-50">
       <div
         aria-hidden
-        className={cn("absolute rounded-xl transition-all duration-500 ease-(--ease)", !rect && "opacity-0")}
+        className={cn("absolute rounded-xl transition-all duration-500 ease-(--ease) motion-reduce:transition-opacity", !rect && "opacity-0")}
         style={{
           ...(rect ?? { left: "50%", top: "50%", width: 0, height: 0 }),
           boxShadow: "0 0 0 9999px oklch(0.15 0.01 60 / 45%)",
         }}
       >
-        <span className="absolute -inset-[3px] animate-pulse rounded-[15px] ring-2 ring-white/80" />
+        <span className="absolute -inset-[3px] animate-pulse rounded-[15px] ring-2 ring-white/80 motion-reduce:animate-none" />
       </div>
       <div
         ref={card}
         role="dialog"
         aria-label={stop.title()}
-        className="menu-surface pointer-events-auto absolute rounded-xl bg-popover px-4 pt-4 pb-3 text-popover-foreground transition-[left,top,opacity] duration-500 ease-(--ease)"
+        className="menu-surface pointer-events-auto absolute rounded-xl bg-popover px-4 pt-4 pb-3 text-popover-foreground transition-[left,top,opacity] duration-500 ease-(--ease) motion-reduce:transition-opacity"
         style={{ width: CARD_WIDTH, ...(cardAt ?? { left: -9999, top: 0 }) }}
       >
         <div className="text-xs font-medium text-muted-foreground">
@@ -199,7 +251,7 @@ function Tour({ index }: { index: number }) {
           <div className="text-sm leading-normal text-muted-foreground">{stop.body()}</div>
           {stop.waiting && (
             <div className="mt-2.5 flex items-center gap-2 text-xs text-owlit">
-              <span className="size-2.5 animate-ring-breathe rounded-full border-[1.5px] border-owlit-mark" />
+              <span className="size-2.5 animate-ring-breathe rounded-full border-[1.5px] border-owlit-mark motion-reduce:animate-none" />
               {stop.waiting()}
             </div>
           )}

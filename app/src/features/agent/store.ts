@@ -141,8 +141,10 @@ export const useAgentWindow = create<AgentWindowState>()(
 
       send: (input, context, newId) => {
         const chats = useChatStore.getState()
-        const { chatId, selection, stage } = get()
-        const chat = stage === "open" && chatId && chats.chats[chatId] ? chats.chats[chatId] : chats.createChat(newId ? { id: newId } : undefined)
+        const { chatId, selection, stage, hint } = get()
+        // Only Help › Ask Owlit how to… sets a hint: the chat it starts is about owlit itself
+        const init = { ...(newId && { id: newId }), ...(hint && { help: true as const }) }
+        const chat = stage === "open" && chatId && chats.chats[chatId] ? chats.chats[chatId] : chats.createChat(init)
         set({ chatId: chat.id, stage: "open", selection: null, hint: null })
         void chats.send(chat.id, { ...input, context, selection: selection ?? undefined })
       },

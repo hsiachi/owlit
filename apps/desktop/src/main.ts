@@ -335,6 +335,9 @@ async function updateMenu(core: Core) {
     {
       label: t`File`,
       submenu: [
+        // The window's own form (the welcome page's Create), so it needs an open workspace's window; with
+        // none, the welcome page itself has Create
+        { label: t`New Workspace…`, enabled: !!current, click: () => send("new-workspace") },
         { label: t`Open Workspace…`, accelerator: "CmdOrCtrl+O", click: () => void chooseWorkspace(core) },
         {
           label: t`Open Recent`,

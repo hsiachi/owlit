@@ -86,9 +86,11 @@ export function docPlaces(files: Iterable<WorkspaceFile>, marks: readonly { path
 }
 
 // A chat's place: the same object while its title and the user's last message stay the same, so a
-// streamed reply (which leaves both alone) neither requotes the chat nor redraws Home
+// streamed reply (which leaves both alone) neither requotes the chat nor redraws Home. A chat about
+// using owlit itself (Help › Ask Owlit how to…) isn't work, so it is no place.
 const chatPlaceCache = new Map<string, { mine: ChatMessage; place: Place }>()
 export function chatPlace(c: Chat): Place[] {
+  if (c.help) return []
   const mine = c.messages.findLast((m) => m.role === "user")
   if (!mine) return []
   const was = chatPlaceCache.get(c.id)

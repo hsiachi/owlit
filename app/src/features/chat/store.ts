@@ -36,7 +36,7 @@ export interface ChatState extends ConnectorSlice {
   // What the person sent while a chat's turn ran, one message per chat: sent when the turn ends
   queued: Record<string, PromptInput>
 
-  createChat: (init?: Partial<Pick<Chat, "id" | "connectorId" | "modelId" | "role" | "effortId">>) => Chat
+  createChat: (init?: Partial<Pick<Chat, "id" | "connectorId" | "modelId" | "role" | "effortId" | "help">>) => Chat
   deleteChat: (id: string) => void
   // Brings a deleted chat back, with its files (Undo)
   restoreChat: (id: string) => Promise<void>

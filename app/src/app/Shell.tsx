@@ -25,6 +25,8 @@ import { SettingsDialog } from "@/features/settings/SettingsDialog"
 import { useSettingsShortcut } from "@/features/settings/hooks"
 import { WelcomePage } from "@/features/welcome/WelcomePage"
 import { OnboardingFlow } from "@/features/onboarding/OnboardingFlow"
+import { NewWorkspaceDialog } from "@/features/welcome/NewWorkspaceDialog"
+import { WorkspaceMenu } from "./WorkspaceMenu"
 import { useIntro } from "@/features/onboarding/store"
 import { useSettings } from "@/features/settings/store"
 import { TourOverlay } from "@/features/tour/TourOverlay"
@@ -111,6 +113,7 @@ function AppShell() {
               <ArrowRightIcon />
             </IconButton>
             {hasPanel && <SidebarTrigger />}
+            <WorkspaceMenu />
             <AgentToggle />
           </header>
           <div className="flex min-h-0 flex-1">
@@ -133,6 +136,7 @@ function AppShell() {
         <ShortcutsDialog />
         <UpdateNotices />
         <ImportDialog />
+        <NewWorkspaceDialog />
         <TourOverlay />
         <IntroReplay />
         {/* Toasts move clear of the docked agent window so they never cover its composer */}

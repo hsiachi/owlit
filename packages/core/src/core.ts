@@ -488,6 +488,7 @@ export class Core {
       modelId: z.string().optional(),
       role: roleSchema.optional(),
       effortId: z.string().optional(),
+      help: z.literal(true).optional(),
     })
     // Messages are the app's own shape (protocol/chat.ts); core checks only what it relies on
     const message = z.looseObject({

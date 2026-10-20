@@ -6,6 +6,7 @@ import { showIntro } from "@/features/onboarding/store"
 import { openImportDialog } from "@/features/library/imports"
 import { openSettings } from "@/features/settings/store"
 import { takeTour } from "@/features/tour/take"
+import { openNewWorkspace } from "@/features/welcome/NewWorkspaceDialog"
 import { t } from "@lingui/core/macro"
 import { toast } from "sonner"
 import { bridge, rpc } from "@/lib/rpc"
@@ -28,6 +29,7 @@ export function startMenu(router: typeof appRouter) {
     if (command === "shortcuts") openShortcuts()
     if (command === "how-to") askOwlitHowTo(router.state.location.pathname, (to) => router.navigate(to))
     if (command === "tour") takeTour()
+    if (command === "new-workspace") openNewWorkspace()
     if (command === "intro") showIntro()
     if (command === "import") openImportDialog()
     if (command === "diagnostics") void copyDiagnostics()

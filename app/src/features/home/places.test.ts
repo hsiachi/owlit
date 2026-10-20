@@ -85,7 +85,10 @@ describe("chatPlace", () => {
   it("counts a chat once the person sent something", () => {
     const chat = (messages: unknown[]) => ({ id: "c", title: "Q", messages }) as unknown as Chat
     expect(chatPlace(chat([]))).toEqual([])
-    expect(chatPlace(chat([{ id: "m", role: "user", createdAt: 7, parts: [{ type: "text", text: "Hello" }] }]))[0]).toMatchObject({ kind: "chat", at: 7 })
+    const asked = [{ id: "m", role: "user", createdAt: 7, parts: [{ type: "text", text: "Hello" }] }]
+    expect(chatPlace(chat(asked))[0]).toMatchObject({ kind: "chat", at: 7 })
+    // Help › Ask Owlit how to… isn't work
+    expect(chatPlace({ ...chat(asked), id: "h", help: true })).toEqual([])
   })
 })
 
