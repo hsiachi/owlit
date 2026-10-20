@@ -53,14 +53,25 @@ const ascii = (s: string) =>
     .replace(/[^a-zA-Z0-9]/g, "")
     .toLowerCase()
 
-// Google Scholar's shape: first author's family name, year, first real word of the title
+// What a key may hold besides letters and digits: BibTeX and biblatex take these in a key
+const keySafe = (s: string) => s.normalize("NFKD").replace(/[^a-zA-Z0-9:._-]/g, "")
+
+// Google Scholar's shape: first author's family name, year, first real word of the title. A family name
+// with no Latin letters (one written in Chinese) has nothing to give, so the key is the DOI's suffix or
+// the paper's id instead: something that names this paper, not "anon" shared by all of them.
 function bibtexKey(p: Paper): string {
-  const family = ascii(splitName(p.authors[0] ?? "anon").family) || "anon"
+  const family = ascii(splitName(p.authors[0] ?? "").family)
+  if (!family) return keySafe(p.ids.doi?.split("/").slice(1).join("/") ?? "") || keySafe(p.id) || "paper"
   const word = p.title.split(/[\s:—-]+/).map(ascii).find((w) => w && !STOP_WORDS.has(w)) ?? ""
   return `${family}${p.year ?? ""}${word}`
 }
 
-const escapeTex = (s: string) => s.replace(/([&%$#_])/g, "\\$1")
+// TeX's special characters in a field's text. The backslash goes in the same pass as the rest, so the
+// braces of \textbackslash{} aren't escaped again.
+const TEX: Record<string, string> = { "\\": "\\textbackslash{}", "{": "\\{", "}": "\\}", "~": "\\textasciitilde{}", "^": "\\textasciicircum{}" }
+const escapeTex = (s: string) => s.replace(/[\\{}~^&%$#_]/g, (c) => TEX[c] ?? `\\${c}`)
+
+const VERBATIM = new Set(["doi", "eprint", "url"])
 
 const ENTRY: Record<PaperKind, string> = {
   article: "article",
@@ -71,7 +82,7 @@ const ENTRY: Record<PaperKind, string> = {
   other: "misc",
 }
 
-export function bibtex(p: Paper): string {
+export function bibtex(p: Paper, key = bibtexKey(p)): string {
   const kind = kindOf(p)
   const fields: [string, string | number | undefined][] = [
     // Double braces keep the title's capitals through any bibliography style
@@ -93,7 +104,26 @@ export function bibtex(p: Paper): string {
 
   const body = fields
     .filter(([, v]) => v !== undefined && v !== "")
-    .map(([k, v]) => `  ${k} = {${k === "title" ? v : escapeTex(String(v))}}`)
+    // A DOI, an arXiv id and a URL are read as written (biblatex takes them verbatim)
+    .map(([k, v]) => `  ${k} = {${k === "title" || VERBATIM.has(k) ? v : escapeTex(String(v))}}`)
     .join(",\n")
-  return `@${ENTRY[kind]}{${bibtexKey(p)},\n${body}\n}`
+  return `@${ENTRY[kind]}{${key},\n${body}\n}`
 }
+
+// Several papers as one .bib: a key two papers would share gets a letter after the first ("wang2023large",
+// "wang2023largea", "wang2023largeb"), so every entry can be cited
+export function bibtexAll(papers: Paper[]): string {
+  const used = new Set<string>()
+  return papers
+    .map((p) => {
+      const base = bibtexKey(p)
+      let key = base
+      for (let i = 0; used.has(key); i++) key = `${base}${letters(i)}`
+      used.add(key)
+      return bibtex(p, key)
+    })
+    .join("\n\n")
+}
+
+// 0 → "a", 25 → "z", 26 → "aa"
+const letters = (i: number): string => (i < 26 ? String.fromCharCode(97 + i) : letters(Math.floor(i / 26) - 1) + letters(i % 26))

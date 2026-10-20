@@ -2,7 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { copyText } from "@/lib/clipboard"
-import { apaCitation, bibtex } from "./lib/cite"
+import { apaCitation, bibtexAll } from "./lib/cite"
 import { useLibraryStore } from "./store"
 import { useLibraryUi } from "./ui-store"
 import { toastUndo } from "@/lib/toast"
@@ -31,7 +31,7 @@ export function usePaperActions() {
   }
 
   const copyBibtex = async (papers: Paper[]) => {
-    if (await copyText(papers.map(bibtex).join("\n\n"))) toast(papers.length > 1 ? plural(papers.length, { one: "BibTeX for # paper copied", other: "BibTeX for # papers copied" }) : t`BibTeX copied`)
+    if (await copyText(bibtexAll(papers))) toast(papers.length > 1 ? plural(papers.length, { one: "BibTeX for # paper copied", other: "BibTeX for # papers copied" }) : t`BibTeX copied`)
   }
 
   // Removal is immediate; the toast's Undo puts everything back
