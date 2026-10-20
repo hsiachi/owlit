@@ -2,7 +2,6 @@ import { t } from "@lingui/core/macro"
 import {
   applyThreadEdit,
   type Change,
-  type ChatAbout,
   type ChangeOrigin,
   GROUPING_COLUMN,
   itemId,
@@ -16,14 +15,12 @@ import {
   type Thread,
   type ThreadBatch,
   type ThreadCell,
-  type ThreadColumn,
   type ThreadEdit,
   type ThreadGroup,
   type ThreadSearch,
   type ThreadPaper,
   type ThreadRead,
   type ThreadRow,
-  type ThreadSize,
   type ThreadSummary,
   type ThreadWrite,
   type PaperIds,
@@ -32,24 +29,24 @@ import {
 import { randomBytes } from "node:crypto"
 import { mkdir, readdir, rename } from "node:fs/promises"
 import path from "node:path"
-import type { Started } from "../chats/chats.ts"
 import type { ChangeLog } from "../changes/log.ts"
 import { newWriteId, type RecordInput, type Recorder } from "../changes/record.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { sameJson, Serial } from "../util.ts"
-import { THREAD_RECIPES } from "../recipes/threads.ts"
 
 // Threads: Owlit's reports on the user's questions with the papers they rest on, in .owlit/threads/<id>/:
 //
 //   thread.json       the thread; each row names a Library paper by its id and keeps none of its facts
-//   history.jsonl     one line per agent write: which chat, which items, why, the searches it
-//                     rests on (About)
+//   history.jsonl     what a write rests on that the change log doesn't keep: the searches, Owlit's
+//                     note, the later question it was for (About)
 //
-// A thread is given out with each row's paper as the Library has it (read()); what is saved is only what
-// changed, never those facts. Every change, Owlit's and the user's, goes in the change log one item at a
-// time (a row, a cell, a group, the report, the title), with the item on each side, so an undo puts back
-// that item alone and leaves what was done to others since.
+// A thread is Owlit's: the user changes it by asking in a chat, and from a window only moves it to a
+// project or chooses what its table is grouped by. It is given out with each row's paper as the Library
+// has it (read()); what is saved is only what changed, never those facts. Every change goes in the change
+// log one item at a time (a row, a cell, a group, the report, the title), with the item on each side, the
+// entries of one write sharing its writeId, so the chat's card undoes a write whole and an item that
+// changed since stays.
 
 // What owlit itself does (an upgrade adding a thread's papers to the Library) is Owlit's
 const OWLIT: Caller = { kind: "owlit" }
@@ -67,8 +64,6 @@ export interface ThreadsServices {
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
   // undefined when owlit has no text of the paper
   findPassage?: (paperId: string, quote: string) => Promise<number | null | undefined>
-  // Whether owlit has a paper's full text (its text.md)
-  hasText?: (id: string) => Promise<boolean>
   // The library's id for a paper named by any id it goes by, undefined when it isn't in the library: a
   // search names a paper by its own id, which often isn't the library's (Library.canonical)
   canonical?: (id: string, ids?: PaperIds) => Promise<string | undefined>
@@ -77,10 +72,6 @@ export interface ThreadsServices {
   facts?: (id: string) => Promise<ThreadPaper | undefined>
   // A thread changed under the windows (null: deleted)
   changed?: (id: string, thread: ThreadRead | null) => void
-  // Starts a chat owlit starts for the person (core.ts startFor), on the agent Settings picks for its work
-  startChat?: (start: { about: ChatAbout; title: string; recipe: string }) => Promise<Started>
-  // Throws the sentence that says why a chat can't start now (no agent is set up)
-  canStartChat?: () => Promise<unknown>
 }
 
 // A line of history.jsonl: what a write rests on that neither the thread nor the change log keeps (the
@@ -128,15 +119,6 @@ const LINE_MATCH_MS = 60_000
 
 // What About says set a batch going, by the recipe of the chat owlit started that wrote it (older lines)
 const RECIPE_TRIGGER: Record<string, ThreadBatch["trigger"]> = { gather: "gather", "find-more": "more", "ask-each": "fill", group: "fill", "read-in-full": "read" }
-
-// Work started on a thread that changed it first (a new thread, a new column): the thread, and the chat
-// doing the work
-export interface ThreadStarted {
-  thread: ThreadRead
-  chatId: string
-}
-
-type ThreadRecipe = keyof typeof THREAD_RECIPES
 
 const FILE = "thread.json"
 
@@ -192,184 +174,6 @@ export class Threads {
     if (exact || !rows.length) return exact
     const here = await this.services.canonical?.(paperId)
     return here ? rows.find((r) => r.id === here) : undefined
-  }
-
-  // ---- Owlit's work on a thread: a chat owlit starts about it ----
-
-  // The rows Read in full reads: answered from their abstracts or titles, with a PDF to be had (a free
-  // one the search found, or the paper's text in the library already). The thread's button counts the
-  // same rows (app/src/features/threads/components/Work.tsx), so it says what the chat will do.
-  async toRead(c: ThreadRead): Promise<string[]> {
-    const rows = c.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
-    const hasText = this.services.hasText
-    const can = await Promise.all(rows.map(async (r) => r.paper.openPdf || (hasText ? await hasText(r.id) : false)))
-    return rows.filter((_, i) => can[i]).map((r) => r.id)
-  }
-
-  // A recipe written out for this thread (recipes/threads.ts), for owlit_help. column: the column ask-each
-  // or group fills, by its id or its question; lookFor: what find-more looks for this time
-  async recipe(name: ThreadRecipe, id: string, opts: { column?: string; lookFor?: string } = {}): Promise<string> {
-    const c = await this.get(id)
-    let column: ThreadColumn | undefined
-    if (name === "ask-each" || name === "group") {
-      const grouping = name === "group"
-      const want = opts.column?.trim() ?? ""
-      column = c.columns.find((col) => (col.kind === "grouping") === grouping && (col.id === want || sameWords(col.question, want)))
-      if (!column)
-        throw new RpcFailure(
-          RpcErrorCode.InvalidParams,
-          grouping
-            ? `There is no grouping "${want}" in thread ${id}: start it with thread_write new_grouping, then ask for this recipe with its id.`
-            : `There is no column "${want}" in thread ${id}: add the question with thread_write columns, then ask for this recipe with its id.`,
-        )
-    }
-    return this.recipeFor(c, name, { ...(column ? { column } : {}), ...(opts.lookFor ? { lookFor: opts.lookFor } : {}) })
-  }
-
-  private async recipeFor(c: ThreadRead, name: ThreadRecipe, opts: { column?: ThreadColumn; lookFor?: string; size?: ThreadSize }) {
-    const lookFor = opts.lookFor?.trim()
-    return THREAD_RECIPES[name].text({
-      thread: c,
-      withText: await this.withText(c),
-      toRead: name === "read-in-full" ? await this.toRead(c) : [],
-      ...(lookFor && !sameWords(lookFor, c.asked.text) ? { lookFor } : {}),
-      ...(opts.column ? { column: opts.column } : {}),
-      ...(opts.size ? { size: opts.size } : {}),
-    })
-  }
-
-  // Starts the work on a thread: a chat owlit starts for the person about the thread, with the recipe as
-  // its first message; its id. Never inside this.serial: the chat's agent writes the thread through it.
-  private async begin(c: Thread, name: ThreadRecipe, opts: { column?: ThreadColumn; lookFor?: string; size?: ThreadSize } = {}): Promise<string> {
-    const start = this.services.startChat
-    if (!start) throw new RpcFailure(RpcErrorCode.Unavailable, t`Owlit can't work on threads here.`)
-    const about: ChatAbout = { kind: "thread", id: c.id, recipe: name, ...(opts.column ? { column: opts.column.id } : {}) }
-    return (await start({ about, title: c.title, recipe: await this.recipeFor(await this.read(c), name, opts) })).chatId
-  }
-
-  // The thread's rows whose full text owlit has: Owlit answers those from it from the start
-  private async withText(c: Thread): Promise<string[]> {
-    const hasText = this.services.hasText
-    if (!hasText) return []
-    const has = await Promise.all(c.rows.map((r) => hasText(r.id)))
-    return c.rows.filter((_, i) => has[i]).map((r) => r.id)
-  }
-
-  // Owlit gathers papers for a question: the thread is there at once, titled by the question until
-  // Owlit names it, and a chat about it fills it. A chat that can't start leaves no empty thread: that is
-  // known before the thread is made, and one that still fails to start takes it away again.
-  async gather(input: { question: string; project?: string; size: ThreadSize }, caller: Caller): Promise<ThreadStarted> {
-    const question = input.question.trim()
-    if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
-    await this.services.canStartChat?.()
-    const thread = await this.serial.run(async () => {
-      const c = await this.blank({ asked: question, title: question, project: input.project ?? "" }, Date.now())
-      await this.save(c)
-      await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id } }, { quiet: true })
-      await this.announce(c)
-      return c
-    })
-    try {
-      return { thread: await this.read(thread), chatId: await this.begin(thread, "gather", { size: input.size }) }
-    } catch (error) {
-      await this.delete(thread.id, caller)
-      throw error
-    }
-  }
-
-  // more: with what to look for this time when it isn't the thread's question, kept on the thread as one
-  // more question asked (About shows it) and told to the chat that does it
-  async start(id: string, work: "more" | "read", caller: Caller, what?: string): Promise<{ chatId: string }> {
-    const asked = what?.trim()
-    const c = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      if (work === "more" && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
-        const before = structuredClone(c)
-        c.alsoAsked = [...(c.alsoAsked ?? []), { text: asked, at: Date.now() }]
-        c.updatedAt = Date.now()
-        await this.save(c)
-        await this.recordItems(caller, before, c, ["alsoAsked"])
-        await this.announce(c)
-      }
-      return c
-    })
-    return { chatId: await this.begin(c, work === "more" ? "find-more" : "read-in-full", work === "more" && asked ? { lookFor: asked } : {}) }
-  }
-
-  // A new column: one question for every paper, answered in a chat about the thread
-  async ask(id: string, question: string, caller: Caller): Promise<ThreadStarted> {
-    const [thread, column] = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      const q = question.trim()
-      if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to ask of each paper.`)
-      let column = c.columns.find((col) => sameWords(col.question, q))
-      if (!column) {
-        const before = structuredClone(c)
-        column = { id: freshId("c", c.columns.map((col) => col.id)), question: q, kind: "ask" }
-        c.columns.push(column)
-        c.updatedAt = Date.now()
-        await this.save(c)
-        await this.recordItems(caller, before, c, [`column:${column.id}`])
-        await this.announce(c)
-      } else if (column.hidden) {
-        const before = structuredClone(c)
-        column.hidden = false
-        await this.save(c)
-        await this.recordItems(caller, before, c, [`column:${column.id}`])
-        await this.announce(c)
-      }
-      return [c, column] as const
-    })
-    return { thread: await this.read(thread), chatId: await this.begin(thread, "ask-each", { column }) }
-  }
-
-  // A new way of grouping the papers: a hidden grouping column with the user's words as its question,
-  // filled in a chat about the thread. The same words again fill the grouping there is (Ask again).
-  async group(id: string, question: string, caller: Caller): Promise<ThreadStarted> {
-    const [thread, column] = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      const q = question.trim()
-      if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to group the papers by.`)
-      let column = c.columns.find((col) => col.kind === "grouping" && sameWords(col.question, q))
-      if (!column) {
-        const before = structuredClone(c)
-        column = { id: freshId("g", c.columns.map((col) => col.id)), question: q, kind: "grouping", hidden: true, groups: [] }
-        c.columns.push(column)
-        c.updatedAt = Date.now()
-        await this.save(c)
-        await this.recordItems(caller, before, c, [`column:${column.id}`])
-        await this.announce(c)
-      }
-      return [c, column] as const
-    })
-    return { thread: await this.read(thread), chatId: await this.begin(thread, "group", { column }) }
-  }
-
-  // Fills what a column still lacks (Ask again)
-  async fill(id: string, columnId: string): Promise<{ chatId: string }> {
-    const c = await this.get(id)
-    const column = c.columns.find((col) => col.id === columnId)
-    if (!column) throw new RpcFailure(RpcErrorCode.NotFound, t`That column isn't there any more.`)
-    return { chatId: await this.begin(c, column.kind === "grouping" ? "group" : "ask-each", { column }) }
-  }
-
-  // A column that sets every paper against sentences the user picked from a doc of theirs. The column is
-  // theirs (they chose the sentences); its cells are Owlit's reading.
-  async compare(id: string, doc: string, sentences: string[], caller: Caller): Promise<ThreadStarted> {
-    const [thread, column] = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      const lines = sentences.map((text) => text.trim()).filter(Boolean)
-      if (!lines.length) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Pick at least one sentence to compare with.`)
-      const before = structuredClone(c)
-      const column = { id: freshId("c", c.columns.map((col) => col.id)), question: doc, kind: "compare" as const, doc, sentences: lines.map((text, i) => ({ id: `l${i + 1}`, text })) }
-      c.columns.push(column)
-      c.updatedAt = Date.now()
-      await this.save(c)
-      await this.recordItems(caller, before, c, [`column:${column.id}`])
-      await this.announce(c)
-      return [c, column] as const
-    })
-    return { thread: await this.read(thread), chatId: await this.begin(thread, "ask-each", { column }) }
   }
 
   // ---- Owlit's writes ----
@@ -467,6 +271,7 @@ export class Threads {
           if (!row.in?.[col.id] || kept?.length === row.in[col.id]!.length) continue
           if (kept?.length) row.in[col.id] = kept
           else delete row.in[col.id]
+          if (!Object.keys(row.in).length) delete row.in
           changed.add(itemId.row(row.id))
         }
       }
@@ -578,7 +383,10 @@ export class Threads {
           const was = row.in?.[col.id] ?? []
           if (groups.join() !== was.join()) {
             if (groups.length) row.in = { ...row.in, [col.id]: groups }
-            else if (row.in) delete row.in[col.id]
+            else if (row.in) {
+              delete row.in[col.id]
+              if (!Object.keys(row.in).length) delete row.in
+            }
             touched = true
             mark(itemId.row(id))
           }
@@ -660,23 +468,17 @@ export class Threads {
 
   // ---- The user's changes ----
 
-  // Saves what the edit changed, read from disk: the facts a window was shown are never saved (read())
+  // The thread's project, or what its table is grouped by: read from disk and saved, so the facts a window
+  // was shown are never saved (read()). The project is logged; how the user looks changes nothing worth an
+  // entry in the log, nor the order of the list.
   edit(id: string, edit: ThreadEdit, caller: Caller) {
     return this.serial.run(async () => {
       const c = await this.mustLoad(id)
       const before = structuredClone(c)
-      const now = Date.now()
-      const done = applyThreadEdit(c, edit, now)
-      if ("problem" in done) {
-        if (done.problem === "empty") throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something, or remove it instead.`)
-        if (done.problem === "row") throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the thread any more.`)
-        if (done.problem === "group") throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
-        throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the thread any more.`)
-      }
-      // How the user looks changes nothing worth an entry in the log, nor the order of the list
-      if (edit.op !== "view") {
-        c.updatedAt = now
-        await this.recordItems(caller, before, c, done.items.length ? done.items : [edit.op])
+      applyThreadEdit(c, edit)
+      if (edit.op === "project") {
+        c.updatedAt = Date.now()
+        await this.recordItems(caller, before, c, ["project"])
       }
       await this.save(c)
       const read = await this.read(c)

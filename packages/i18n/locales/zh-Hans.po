@@ -341,8 +341,6 @@ msgstr "上一条评论"
 #: app/src/components/rename-input.tsx
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/docs/actions.ts
-#: app/src/features/threads/components/ThreadMenu.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Rename"
 msgstr "重命名"
 
@@ -640,8 +638,6 @@ msgstr "评论"
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/threads/components/CompareDialog.tsx
-#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -3376,14 +3372,12 @@ msgstr "添加标签"
 msgid "Copy BibTeX"
 msgstr "复制 BibTeX"
 
-#. take a paper off this thread
 #. verb: remove the paper from the library
 #. verb: remove the selected papers from the library
 #. verb: take a line out of what Owlit keeps in mind
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/settings/sections/Memory.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Remove"
 msgstr "移除"
 
@@ -4300,9 +4294,7 @@ msgid "This digest was written the old way."
 msgstr "这份导读是按旧方式写的。"
 
 #. button: write the digest again
-#. verb: change the words of Owlit's sentence
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Rewrite"
 msgstr "重写"
 
@@ -5745,18 +5737,6 @@ msgstr "与 {of} 相似的论文"
 msgid "You've read some of it"
 msgstr "你读过一部分"
 
-#. button on a paper's card: the groups of the thread it is in
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Groups…"
-msgstr "分组…"
-
-#. placeholder {0}: g.name
-#. placeholder {0}: here.name
-#: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Removed from {0}"
-msgstr "已移出「{0}」"
-
 #. chip on a thread cell Owlit answered again from the full text
 #. chip on a thread cell Owlit answered again from the full text
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5794,39 +5774,12 @@ msgstr "也在"
 msgid "Open at p. {page}"
 msgstr "打开到第 {page} 页"
 
-#. placeholder {0}: displayName(file.path)
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Which sentences of {0}?"
-msgstr "选 {0} 里的哪些句子？"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Compare with a doc"
-msgstr "对照一篇文档"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Owlit says for every paper whether it supports, challenges or relates to the sentences you pick. They stay as you wrote them."
-msgstr "Owlit 会说出每篇论文是支持、质疑还是关联你选的句子。句子保持你写的原样。"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "There are no docs in this workspace yet."
-msgstr "这个工作区里还没有文档。"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Another doc"
-msgstr "换一篇文档"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Compare"
-msgstr "对照"
-
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
 msgstr "移到项目"
 
 #. a thread that belongs to no project folder
-#. a thread that belongs to no project folder
 #: app/src/features/threads/components/ThreadMenu.tsx
-#: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "No project"
 msgstr "不属于项目"
 
@@ -5847,21 +5800,6 @@ msgstr "未分组"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Bear on none of them"
 msgstr "都不相干"
-
-#. put a paper in one more group of its thread, keeping it where it is
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Add to group"
-msgstr "加入分组"
-
-#. take a paper out of this group and put it in another
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Move to"
-msgstr "移到"
-
-#. take a paper out of the group it shows under; it stays in the thread
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Remove from this group"
-msgstr "移出这个分组"
 
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -5893,75 +5831,9 @@ msgstr "{0, plural, other {还有 # 篇}}"
 msgid "Group by"
 msgstr "分组"
 
-#. menu switch: the groups each paper is in, as a column of the table
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Show as a column"
-msgstr "显示为一列"
-
-#. ask Owlit to group a thread's papers by something else
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group another way…"
-msgstr "换一种分法…"
-
-#. ask Owlit to group a thread's papers
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group the papers…"
-msgstr "给论文分组…"
-
-#. placeholder: what to group a thread's papers by, in the user's words
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group by…"
-msgstr "按什么分…"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "What to group the papers by"
-msgstr "按什么给论文分组"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done."
-msgstr "用你自己的话说，比如「研究故事的章节」或「方法」。Owlit 先提出几个组，再把每篇论文放进去；分好后表格就按它分组。"
-
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{done} of {of}"
 msgstr "{done} / {of}"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Ask again"
-msgstr "再问一次"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Hide column"
-msgstr "隐藏这一列"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Merge into"
-msgstr "合并到"
-
-#. placeholder {0}: o.name
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Merged into {0}"
-msgstr "已合并到「{0}」"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Ungroup"
-msgstr "取消分组"
-
-#. placeholder {0}: g.name
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Ungrouped {0}"
-msgstr "已取消分组「{0}」"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group name"
-msgstr "分组名称"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group actions"
-msgstr "分组操作"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Paper actions"
-msgstr "论文操作"
 
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -5980,95 +5852,6 @@ msgstr "{more, plural, other {另有 # 项}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Owlit stopped."
 msgstr "Owlit 停下了。"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
-msgstr "{minutes, plural, other {你的智能体大约要 # 分钟}}"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
-msgstr "{noPdf, plural, other {# 篇没有 PDF，不读}}"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
-msgstr "根据脉络“{title}”起草一份文献综述。先给出提纲，等我确认后再写。"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
-msgstr "“{asked}”什么都没找到。帮我把问题放宽一些：建议几个更宽或相近的问题去搜。"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Owlit suggests broader or neighbouring questions in a chat"
-msgstr "Owlit 在对话里建议更宽或相近的问题"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Widen the question…"
-msgstr "放宽问题…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "None of the papers answered from their abstracts has a PDF to read"
-msgstr "按摘要作答的论文都没有可读的 PDF"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
-msgstr "{toRead, plural, other {通读 # 篇}}"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Owlit proposes an outline in a chat first"
-msgstr "Owlit 会先在对话里给出提纲"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Draft a review…"
-msgstr "起草综述…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr "继续检索，把论文加进这条脉络"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers…"
-msgstr "再找些论文…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "What to look for"
-msgstr "要找什么"
-
-#. button: start finding more papers for a thread
-#: app/src/features/threads/components/Work.tsx
-msgid "Find"
-msgstr "找"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Method and sample"
-msgstr "方法与样本"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Main finding"
-msgstr "主要发现"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Limitations"
-msgstr "局限"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "What they built"
-msgstr "做出了什么"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Ask each paper…"
-msgstr "问每篇论文…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "A question for every paper"
-msgstr "问每篇论文的问题"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Compare with a doc…"
-msgstr "对照一篇文档…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Each question becomes a column; Owlit answers it from the abstracts."
-msgstr "每个问题成为一列；Owlit 根据摘要回答。"
 
 #. heading in an exported thread: papers in no group
 #: app/src/features/threads/export.ts
@@ -6134,35 +5917,9 @@ msgstr "回到脉络"
 msgid "Thread actions"
 msgstr "脉络操作"
 
-#: app/src/features/threads/pages/ThreadPage.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Thread name"
-msgstr "脉络名称"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Find a thread, or collect papers on…"
-msgstr "找脉络，或收集关于…的论文"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Find a thread, or collect papers on a question"
-msgstr "找脉络，或就一个问题收集论文"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Project"
-msgstr "项目"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "How many papers"
-msgstr "多少篇"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "About 10 papers"
-msgstr "10 篇左右"
-
-#. how many papers to collect: a whole venue or year, up to about 200
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "As many as it takes"
-msgstr "需要多少就多少"
+msgid "Find a thread"
+msgstr "查找脉络"
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "No threads yet"
@@ -6171,15 +5928,6 @@ msgstr "还没有脉络"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
 msgstr "在对话里请 Owlit 找某个主题的论文。它找到的会收在这里，并写明每篇对你的问题说了什么。"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Collect papers on “{question}”"
-msgstr "收集关于“{question}”的论文"
-
-#. the key that does this
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Enter"
-msgstr "回车"
 
 #. placeholder {0}: summary.columns
 #: app/src/features/threads/pages/ThreadsPage.tsx
@@ -6190,10 +5938,6 @@ msgstr "{0, plural, other {# 列}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "什么也没找到"
-
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
-msgstr "已从脉络移除"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
@@ -6230,14 +5974,6 @@ msgstr "正在读全文…"
 #: app/src/features/threads/work.ts
 msgid "Owlit is working on this thread…"
 msgstr "Owlit 正在处理这条脉络…"
-
-#: app/src/features/threads/work.ts
-msgid "Owlit gathers papers in the desktop app."
-msgstr "Owlit 在桌面版里收集论文。"
-
-#: app/src/features/threads/work.ts
-msgid "Owlit works on threads in the desktop app."
-msgstr "Owlit 在桌面版里处理脉络。"
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "The example's papers"
@@ -7892,48 +7628,12 @@ msgid "That thread isn't here any more."
 msgstr "那条脉络已经不在了。"
 
 #: packages/core/src/threads/threads.ts
-msgid "Owlit can't work on threads here."
-msgstr "这里无法让 Owlit 处理脉络。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Say what to collect papers on."
-msgstr "说说要收集关于什么的论文。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Say what to ask of each paper."
-msgstr "说说要问每篇论文什么。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Say what to group the papers by."
-msgstr "说一下按什么给论文分组。"
-
-#: packages/core/src/threads/threads.ts
-msgid "That column isn't there any more."
-msgstr "那一列已经不在了。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Pick at least one sentence to compare with."
-msgstr "至少选一句来对照。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Write something, or remove it instead."
-msgstr "写点内容，或者直接移除它。"
+msgid "That changed in the thread since, so owlit left it as it is."
+msgstr "这一项在脉络里之后又被改过，owlit 没有动它。"
 
 #: packages/core/src/threads/threads.ts
 msgid "That paper isn't in the thread any more."
 msgstr "那篇论文已不在脉络中。"
-
-#: packages/core/src/threads/threads.ts
-msgid "That group isn't there any more."
-msgstr "那个分组已经不在了。"
-
-#: packages/core/src/threads/threads.ts
-msgid "That isn't in the thread any more."
-msgstr "脉络里已经没有这一项了。"
-
-#: packages/core/src/threads/threads.ts
-msgid "That changed in the thread since, so owlit left it as it is."
-msgstr "这一项在脉络里之后又被改过，owlit 没有动它。"
 
 #: packages/core/src/threads/threads.ts
 msgid "That change holds the whole thread at once, so it can't be undone."

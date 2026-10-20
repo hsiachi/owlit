@@ -139,7 +139,6 @@ export class Workspace {
       canonical: (id, ids) => this.library.canonical(id, ids),
       facts: (id) => this.library.threadFacts(id),
       findPassage: (id, quote) => this.findPassage(id, quote),
-      hasText: (id) => this.hasText(id),
       searches: (by, since) => this.library.searchesBy(by, since),
       ...options.threads,
     })

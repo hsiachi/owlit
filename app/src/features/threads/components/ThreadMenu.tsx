@@ -5,7 +5,6 @@ import { useDocsStore } from "@/features/docs/store"
 import type { MenuGroups } from "@/components/action-menu"
 import { shown } from "../lib"
 import { deleteThread, editThread } from "../store"
-import { useThreadsUi } from "../ui-store"
 import { useNavigate } from "react-router-dom"
 import { downloadCsv, exportAsDoc } from "../export"
 
@@ -26,10 +25,8 @@ export function useProjects(): string[] {
 export function useThreadMenu(c: ThreadRead | undefined, projects: string[], opts: { afterDelete?: () => void } = {}): MenuGroups {
   const navigate = useNavigate()
   if (!c) return []
-  const rename = useThreadsUi.getState().set
   return [
     [
-      { label: t`Rename`, onSelect: () => rename({ renaming: c.id }), afterClose: true },
       {
         label: t`Move to project`,
         childrenClassName: "w-52",

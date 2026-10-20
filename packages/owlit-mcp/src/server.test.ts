@@ -366,7 +366,7 @@ describe("owlit-mcp", () => {
     const c = await call("threads.get", { id })
     expect(c.rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
 
-    await call("threads.edit", { id, edit: { op: "rename", title: "Retrieval granularity" } })
+    await tool("thread_edit", { id, title: "Retrieval granularity" })
     expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper\n  Asked: 检索粒度有什么研究？\n  One paper so far: Retrieval-Augmented Generation retrieves per token.`)
     expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\nOne paper so far/)
     expect((await tool("thread_read", { id })).text).toMatch(/- arxiv-2005\.11401 · Retrieval-Augmented Generation \(Patrick Lewis, 2020\) · what it is: not said · Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
@@ -379,7 +379,7 @@ describe("owlit-mcp", () => {
     const groups = JSON.stringify([{ id: "tok", name: "Per token" }, { id: "doc", name: "Per document" }])
     await tool("thread_write", { id, groups, rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "tok" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/Grouping topic \(Topic\): tok = Per token; doc = Per document/)
-    await call("threads.edit", { id, edit: { op: "move", column: "topic", row: "arxiv-2005.11401", group: "doc" } })
+    await tool("thread_write", { id, rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "doc" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/arxiv-2005.11401 · .* · in doc \(Per document\)/)
 
     // Another way to group them is a new grouping of the same thread

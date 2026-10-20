@@ -341,8 +341,6 @@ msgstr "Previous comment"
 #: app/src/components/rename-input.tsx
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/docs/actions.ts
-#: app/src/features/threads/components/ThreadMenu.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Rename"
 msgstr "Rename"
 
@@ -640,8 +638,6 @@ msgstr "Comment"
 #: app/src/features/library/components/ImportDialog.tsx
 #: app/src/features/settings/parts.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
-#: app/src/features/threads/components/CompareDialog.tsx
-#: app/src/features/threads/components/Work.tsx
 #: app/src/features/welcome/AgentCheck.tsx
 #: app/src/features/welcome/WelcomePage.tsx
 #: apps/desktop/src/cli-tool.ts
@@ -3376,14 +3372,12 @@ msgstr "Add tag"
 msgid "Copy BibTeX"
 msgstr "Copy BibTeX"
 
-#. take a paper off this thread
 #. verb: remove the paper from the library
 #. verb: remove the selected papers from the library
 #. verb: take a line out of what Owlit keeps in mind
 #: app/src/features/library/components/BulkBar.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/settings/sections/Memory.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Remove"
 msgstr "Remove"
 
@@ -4300,9 +4294,7 @@ msgid "This digest was written the old way."
 msgstr "This digest was written the old way."
 
 #. button: write the digest again
-#. verb: change the words of Owlit's sentence
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Rewrite"
 msgstr "Rewrite"
 
@@ -5745,18 +5737,6 @@ msgstr "Papers like {of}"
 msgid "You've read some of it"
 msgstr "You've read some of it"
 
-#. button on a paper's card: the groups of the thread it is in
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Groups…"
-msgstr "Groups…"
-
-#. placeholder {0}: g.name
-#. placeholder {0}: here.name
-#: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Removed from {0}"
-msgstr "Removed from {0}"
-
 #. chip on a thread cell Owlit answered again from the full text
 #. chip on a thread cell Owlit answered again from the full text
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -5794,39 +5774,12 @@ msgstr "Also in"
 msgid "Open at p. {page}"
 msgstr "Open at p. {page}"
 
-#. placeholder {0}: displayName(file.path)
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Which sentences of {0}?"
-msgstr "Which sentences of {0}?"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Compare with a doc"
-msgstr "Compare with a doc"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Owlit says for every paper whether it supports, challenges or relates to the sentences you pick. They stay as you wrote them."
-msgstr "Owlit says for every paper whether it supports, challenges or relates to the sentences you pick. They stay as you wrote them."
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "There are no docs in this workspace yet."
-msgstr "There are no docs in this workspace yet."
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Another doc"
-msgstr "Another doc"
-
-#: app/src/features/threads/components/CompareDialog.tsx
-msgid "Compare"
-msgstr "Compare"
-
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
 msgstr "Move to project"
 
 #. a thread that belongs to no project folder
-#. a thread that belongs to no project folder
 #: app/src/features/threads/components/ThreadMenu.tsx
-#: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "No project"
 msgstr "No project"
 
@@ -5847,21 +5800,6 @@ msgstr "Not in a group"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Bear on none of them"
 msgstr "Bear on none of them"
-
-#. put a paper in one more group of its thread, keeping it where it is
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Add to group"
-msgstr "Add to group"
-
-#. take a paper out of this group and put it in another
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Move to"
-msgstr "Move to"
-
-#. take a paper out of the group it shows under; it stays in the thread
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Remove from this group"
-msgstr "Remove from this group"
 
 #. placeholder {0}: displayName(c.doc ?? c.question)
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -5893,75 +5831,9 @@ msgstr "{0, plural, one {# more} other {# more}}"
 msgid "Group by"
 msgstr "Group by"
 
-#. menu switch: the groups each paper is in, as a column of the table
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Show as a column"
-msgstr "Show as a column"
-
-#. ask Owlit to group a thread's papers by something else
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group another way…"
-msgstr "Group another way…"
-
-#. ask Owlit to group a thread's papers
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group the papers…"
-msgstr "Group the papers…"
-
-#. placeholder: what to group a thread's papers by, in the user's words
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group by…"
-msgstr "Group by…"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "What to group the papers by"
-msgstr "What to group the papers by"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done."
-msgstr "Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done."
-
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "{done} of {of}"
 msgstr "{done} of {of}"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Ask again"
-msgstr "Ask again"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Hide column"
-msgstr "Hide column"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Merge into"
-msgstr "Merge into"
-
-#. placeholder {0}: o.name
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Merged into {0}"
-msgstr "Merged into {0}"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Ungroup"
-msgstr "Ungroup"
-
-#. placeholder {0}: g.name
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Ungrouped {0}"
-msgstr "Ungrouped {0}"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group name"
-msgstr "Group name"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Group actions"
-msgstr "Group actions"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Paper actions"
-msgstr "Paper actions"
 
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -5980,95 +5852,6 @@ msgstr "{more, plural, one {and # more} other {and # more}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Owlit stopped."
 msgstr "Owlit stopped."
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
-msgstr "{minutes, plural, one {About # minute with your agent} other {About # minutes with your agent}}"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
-msgstr "{noPdf, plural, one {# has no PDF and is left out} other {# have no PDF and are left out}}"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
-msgstr "Draft a review from the thread “{title}”. Propose an outline first, and wait for me before writing."
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
-msgstr "Nothing came up for “{asked}”. Help me widen the question: suggest broader or neighbouring questions to search."
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Owlit suggests broader or neighbouring questions in a chat"
-msgstr "Owlit suggests broader or neighbouring questions in a chat"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Widen the question…"
-msgstr "Widen the question…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "None of the papers answered from their abstracts has a PDF to read"
-msgstr "None of the papers answered from their abstracts has a PDF to read"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "{toRead, plural, one {Read # in full} other {Read # in full}}"
-msgstr "{toRead, plural, one {Read # in full} other {Read # in full}}"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Owlit proposes an outline in a chat first"
-msgstr "Owlit proposes an outline in a chat first"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Draft a review…"
-msgstr "Draft a review…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Searches further and adds papers to this thread"
-msgstr "Searches further and adds papers to this thread"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Find more papers…"
-msgstr "Find more papers…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "What to look for"
-msgstr "What to look for"
-
-#. button: start finding more papers for a thread
-#: app/src/features/threads/components/Work.tsx
-msgid "Find"
-msgstr "Find"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Method and sample"
-msgstr "Method and sample"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Main finding"
-msgstr "Main finding"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Limitations"
-msgstr "Limitations"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "What they built"
-msgstr "What they built"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Ask each paper…"
-msgstr "Ask each paper…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "A question for every paper"
-msgstr "A question for every paper"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Compare with a doc…"
-msgstr "Compare with a doc…"
-
-#: app/src/features/threads/components/Work.tsx
-msgid "Each question becomes a column; Owlit answers it from the abstracts."
-msgstr "Each question becomes a column; Owlit answers it from the abstracts."
 
 #. heading in an exported thread: papers in no group
 #: app/src/features/threads/export.ts
@@ -6134,35 +5917,9 @@ msgstr "Back to Threads"
 msgid "Thread actions"
 msgstr "Thread actions"
 
-#: app/src/features/threads/pages/ThreadPage.tsx
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Thread name"
-msgstr "Thread name"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Find a thread, or collect papers on…"
-msgstr "Find a thread, or collect papers on…"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Find a thread, or collect papers on a question"
-msgstr "Find a thread, or collect papers on a question"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Project"
-msgstr "Project"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "How many papers"
-msgstr "How many papers"
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "About 10 papers"
-msgstr "About 10 papers"
-
-#. how many papers to collect: a whole venue or year, up to about 200
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "As many as it takes"
-msgstr "As many as it takes"
+msgid "Find a thread"
+msgstr "Find a thread"
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "No threads yet"
@@ -6171,15 +5928,6 @@ msgstr "No threads yet"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
 msgstr "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Collect papers on “{question}”"
-msgstr "Collect papers on “{question}”"
-
-#. the key that does this
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Enter"
-msgstr "Enter"
 
 #. placeholder {0}: summary.columns
 #: app/src/features/threads/pages/ThreadsPage.tsx
@@ -6190,10 +5938,6 @@ msgstr "{0, plural, one {# column} other {# columns}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "Found nothing"
-
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
-msgstr "Removed from the thread"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
@@ -6230,14 +5974,6 @@ msgstr "Reading papers in full…"
 #: app/src/features/threads/work.ts
 msgid "Owlit is working on this thread…"
 msgstr "Owlit is working on this thread…"
-
-#: app/src/features/threads/work.ts
-msgid "Owlit gathers papers in the desktop app."
-msgstr "Owlit gathers papers in the desktop app."
-
-#: app/src/features/threads/work.ts
-msgid "Owlit works on threads in the desktop app."
-msgstr "Owlit works on threads in the desktop app."
 
 #: app/src/features/tour/TourOverlay.tsx
 msgid "The example's papers"
@@ -7892,48 +7628,12 @@ msgid "That thread isn't here any more."
 msgstr "That thread isn't here any more."
 
 #: packages/core/src/threads/threads.ts
-msgid "Owlit can't work on threads here."
-msgstr "Owlit can't work on threads here."
-
-#: packages/core/src/threads/threads.ts
-msgid "Say what to collect papers on."
-msgstr "Say what to collect papers on."
-
-#: packages/core/src/threads/threads.ts
-msgid "Say what to ask of each paper."
-msgstr "Say what to ask of each paper."
-
-#: packages/core/src/threads/threads.ts
-msgid "Say what to group the papers by."
-msgstr "Say what to group the papers by."
-
-#: packages/core/src/threads/threads.ts
-msgid "That column isn't there any more."
-msgstr "That column isn't there any more."
-
-#: packages/core/src/threads/threads.ts
-msgid "Pick at least one sentence to compare with."
-msgstr "Pick at least one sentence to compare with."
-
-#: packages/core/src/threads/threads.ts
-msgid "Write something, or remove it instead."
-msgstr "Write something, or remove it instead."
+msgid "That changed in the thread since, so owlit left it as it is."
+msgstr "That changed in the thread since, so owlit left it as it is."
 
 #: packages/core/src/threads/threads.ts
 msgid "That paper isn't in the thread any more."
 msgstr "That paper isn't in the thread any more."
-
-#: packages/core/src/threads/threads.ts
-msgid "That group isn't there any more."
-msgstr "That group isn't there any more."
-
-#: packages/core/src/threads/threads.ts
-msgid "That isn't in the thread any more."
-msgstr "That isn't in the thread any more."
-
-#: packages/core/src/threads/threads.ts
-msgid "That changed in the thread since, so owlit left it as it is."
-msgstr "That changed in the thread since, so owlit left it as it is."
 
 #: packages/core/src/threads/threads.ts
 msgid "That change holds the whole thread at once, so it can't be undone."

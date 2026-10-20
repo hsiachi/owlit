@@ -1,9 +1,8 @@
 import { plural, t } from "@lingui/core/macro"
-import { itemId, QUESTION_COLUMN, readInFull, sameWords, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRowRead, type Relation } from "@owlit/protocol"
+import { itemId, readInFull, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadGroup, type ThreadRowRead, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { citationCardSurface } from "@/components/citation"
 import { CitationCard } from "@/components/citation-card"
@@ -11,24 +10,22 @@ import { NoteDot } from "@/components/marks"
 import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
-import { RenameInput } from "@/components/rename-input"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
-import { SentenceEditor } from "@/components/sentence-editor"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { displayName } from "@/features/docs/types"
 import { cn, scrollMotion } from "@/lib/utils"
 import { citeOf, columnLabel, groupSections, paperFacts, passageRoute, relWord, useLibraryPaper } from "../lib"
-import { editThread, editWithUndo, regroupRow } from "../store"
+import { editThread } from "../store"
 import { ReadingMark, RowPeek, WasLine } from "./AnswerRows"
-import { askAgain, groupAnotherWay, useThreadWork } from "../work"
+import { useThreadWork } from "../work"
 import { useThreadsUi } from "../ui-store"
-import { AskEach } from "./Work"
 
 // A thread with columns, as a ruled table like the Library's: a row per paper, a column per question
-// asked of every paper, the user's comparison with a doc as a column of plain words. Groups are Owlit's and
-// fold; a row opens its card under it; a cell opens to show the words it rests on, and can be rewritten.
+// asked of every paper, a comparison with a doc as a column of plain words. Groups are Owlit's and fold; a
+// row opens its card under it; a cell opens to show the words it rests on. Everything in it is Owlit's: the
+// user changes it by asking in a chat, and here only chooses what it is grouped by.
 
 // Rows a group shows before "Show N more"
 const SHOWN = 8
@@ -159,37 +156,6 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
     // Only when a row is asked for: folding its group again afterwards is the user's to do
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asked])
-  // A row's ⋯ in a grouping: one more group, another group instead of this one, or out of this one
-  const rowMenu = (s: Section, r: ThreadRowRead): MenuGroups | undefined => {
-    if (!grouping) return undefined
-    const column = grouping.id
-    const groups = grouping.groups ?? []
-    const isIn = r.in?.[column] ?? []
-    const here = s.group
-    return [
-      [
-        {
-          label: t({ message: "Add to group", comment: "put a paper in one more group of its thread, keeping it where it is" }),
-          childrenClassName: "w-56",
-          children: groups.filter((g) => !isIn.includes(g.id)).map((g) => ({ label: g.name, onSelect: () => void regroupRow(thread, { op: "place", column, row: r.id, group: g.id, in: true }) })),
-        },
-        {
-          label: t({ message: "Move to", comment: "take a paper out of this group and put it in another" }),
-          childrenClassName: "w-56",
-          children: groups.filter((g) => g.id !== here?.id).map((g) => ({ label: g.name, onSelect: () => void regroupRow(thread, { op: "move", column, row: r.id, group: g.id, from: here?.id ?? "" }) })),
-        },
-      ].filter((a) => a.children.length),
-      here
-        ? [
-            {
-              label: t({ message: "Remove from this group", comment: "take a paper out of the group it shows under; it stays in the thread" }),
-              onSelect: () => void regroupRow(thread, { op: "place", column, row: r.id, group: here.id, in: false }, t`Removed from ${here.name}`),
-            },
-          ]
-        : [],
-    ]
-  }
-
   const span = columns.length + 2
   const root = useRef<HTMLDivElement>(null)
   const head = useRef<HTMLDivElement>(null)
@@ -218,7 +184,7 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
   return (
     <div ref={root} className="group/table mt-8">
       <div className="mb-2 -ml-2 flex flex-wrap items-center gap-1">
-        <GroupByMenu thread={thread} value={groupBy} options={groupOptions} grouping={grouping} onChange={setGroupBy} onAnotherWay={(id) => setGroupBy(`grouping:${id}`)} />
+        <GroupByMenu value={groupBy} options={groupOptions} onChange={setGroupBy} />
         <ChoiceMenu
           value={sort}
           onChange={setSort}
@@ -249,9 +215,7 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
                   <ColumnHeader thread={thread} column={c} />
                 </HeadCell>
               ))}
-              <HeadCell last>
-                <AskEach thread={thread} trigger="plus" />
-              </HeadCell>
+              <HeadCell last />
             </tr>
           </thead>
         </table>
@@ -269,7 +233,6 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
                 <Fragment key={`${s.key}:${s.depth}`}>
                   {s.label && (
                     <GroupRow
-                      thread={thread}
                       section={s}
                       open={open}
                       span={span}
@@ -288,7 +251,6 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
                           first={places.get(r.id)?.[0] === s}
                           others={(places.get(r.id) ?? []).filter((o) => o !== s)}
                           onJump={(o) => jump(o, r.id)}
-                          menu={rowMenu(s, r)}
                           columns={columns}
                           // Grouped by a comparison's sentences, the group says which sentence; one sentence
                           // needs no saying
@@ -301,7 +263,7 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
                             setPeek(isOpen(s, r.id) ? "" : placeKey(s, r.id))
                           }}
                         />
-                        <PeekRow thread={thread} row={r} grouping={grouping ?? groupings[0]} here={grouping ? s.group?.id : undefined} open={isOpen(s, r.id)} span={span} />
+                        <PeekRow thread={thread} row={r} open={isOpen(s, r.id)} span={span} />
                       </Fragment>
                     ))}
                   {open && many && (
@@ -343,91 +305,25 @@ const pinnedEdge = "group-data-scrolled/table:shadow-[inset_-1px_0_0_var(--color
 // fill is the row's (translucent) laid over that sheet
 const pinnedCell = "sticky left-0 z-[1] bg-background group-hover/row:[background-image:linear-gradient(var(--color-muted),var(--color-muted))]"
 
-// Group by: the thread's groupings, its comparisons' sentences, or none; the grouping shown as a column or
-// not; and Group another way…, which asks Owlit for a new grouping in the user's words and groups by it once
-// Owlit is done
-function GroupByMenu({
-  thread,
-  value,
-  options,
-  grouping,
-  onChange,
-  onAnotherWay,
-}: {
-  thread: ThreadRead
-  value: GroupBy
-  options: { value: GroupBy; label: string }[]
-  grouping: ThreadColumn | undefined
-  onChange: (value: GroupBy) => void
-  onAnotherWay: (column: string) => void
-}) {
-  const [asking, setAsking] = useState(false)
-  const [question, setQuestion] = useState("")
-  // The question opens once the menu is wholly gone: while it closes, its focus trap would take the focus
-  // back from the question's field, and that closes the question
-  const askAfterClose = useRef(false)
-  const another = options.some((o) => o.value.startsWith("grouping:"))
-  const ask = async () => {
-    const q = question.trim()
-    if (!q) return
-    setAsking(false)
-    setQuestion("")
-    const c = await groupAnotherWay(thread.id, q)
-    const column = c?.columns.find((col) => col.kind === "grouping" && sameWords(col.question, q))
-    if (column) onAnotherWay(column.id)
-  }
+// Group by: the thread's groupings, its comparisons' sentences, or none
+function GroupByMenu({ value, options, onChange }: { value: GroupBy; options: { value: GroupBy; label: string }[]; onChange: (value: GroupBy) => void }) {
   return (
-    <Popover open={asking} onOpenChange={setAsking}>
-      <DropdownMenu>
-        <PopoverAnchor asChild>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground">
-              <GroupWord label={t`Group by`} value={options.find((o) => o.value === value)?.label} />
-              <ChevronDownIcon />
-            </Button>
-          </DropdownMenuTrigger>
-        </PopoverAnchor>
-        <DropdownMenuContent
-          align="start"
-          className="w-auto max-w-80 min-w-48"
-          onCloseAutoFocus={(e) => {
-            if (!askAfterClose.current) return
-            e.preventDefault()
-            askAfterClose.current = false
-            setAsking(true)
-          }}
-        >
-          {options.map((o) => (
-            <DropdownMenuItem key={o.value} onSelect={() => o.value !== value && onChange(o.value)}>
-              <span className="flex-1 truncate">{o.label}</span>
-              {o.value === value && <CheckIcon className="text-muted-foreground" />}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          {grouping && (
-            <DropdownMenuItem onSelect={() => void editThread(thread.id, { op: "hide", column: grouping.id, hidden: !grouping.hidden })}>
-              <span className="flex-1">{t({ message: "Show as a column", comment: "menu switch: the groups each paper is in, as a column of the table" })}</span>
-              {!grouping.hidden && <CheckIcon className="text-muted-foreground" />}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onSelect={() => (askAfterClose.current = true)}>
-            {another ? t({ message: "Group another way…", comment: "ask Owlit to group a thread's papers by something else" }) : t({ message: "Group the papers…", comment: "ask Owlit to group a thread's papers" })}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground">
+          <GroupWord label={t`Group by`} value={options.find((o) => o.value === value)?.label} />
+          <ChevronDownIcon />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-auto max-w-80 min-w-48">
+        {options.map((o) => (
+          <DropdownMenuItem key={o.value} onSelect={() => o.value !== value && onChange(o.value)}>
+            <span className="flex-1 truncate">{o.label}</span>
+            {o.value === value && <CheckIcon className="text-muted-foreground" />}
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <PopoverContent align="start" className="w-80 gap-0 p-1.5">
-        <input
-          autoFocus
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void ask()}
-          placeholder={t({ message: "Group by…", comment: "placeholder: what to group a thread's papers by, in the user's words" })}
-          aria-label={t`What to group the papers by`}
-          className="mb-1 h-9 w-full rounded-lg border bg-card px-2.5 text-sm outline-none focus:border-foreground/30"
-        />
-        <p className="px-2.5 pt-1 pb-1 text-detail text-muted-foreground">{t`Say it your way, like “the chapters of my story” or “method”. Owlit proposes the groups, then puts each paper in them; the table switches to it when Owlit is done.`}</p>
-      </PopoverContent>
-    </Popover>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -440,89 +336,31 @@ function GroupWord({ label, value }: { label: string; value: string | undefined 
   )
 }
 
-// A column's name, with what can be done to it; while Owlit fills it, how far it got
+// A column's name; while Owlit fills it, how far it got
 function ColumnHeader({ thread, column }: { thread: ThreadRead; column: ThreadColumn }) {
   const filling = useThreadWork(thread.id).running.some((chat) => chat.about.column === column.id)
   // A grouping counts the papers Owlit has put in a group so far
   const done = thread.rows.filter((r) => (column.kind === "grouping" ? r.in?.[column.id]?.length : r.cells[column.id])).length
   const of = thread.rows.length
-  const label = columnLabel(column)
-  const progress = filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>
-  if (column.id === QUESTION_COLUMN)
-    return (
-      <span className="flex items-center" title={column.question}>
-        <span className="truncate">{label}</span>
-        {progress}
-      </span>
-    )
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button type="button" title={column.kind === "compare" ? column.sentences?.map((s) => s.text).join("\n") : column.question} className="group/h -mx-1.5 flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 outline-none hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground">
-          <span className="truncate">{label}</span>
-          {progress}
-          <ChevronDownIcon className="size-3.5 shrink-0 opacity-0 group-hover/h:opacity-100 group-data-[state=open]/h:opacity-100" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => void askAgain(thread.id, column.id)}>{t`Ask again`}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => void editThread(thread.id, { op: "hide", column: column.id, hidden: true })}>{t`Hide column`}</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <span className="flex items-center" title={column.kind === "compare" ? column.sentences?.map((s) => s.text).join("\n") : column.question}>
+      <span className="truncate">{columnLabel(column)}</span>
+      {filling && <span className="shimmer ml-1.5 font-normal tabular-nums">{t`${done} of ${of}`}</span>}
+    </span>
   )
 }
 
-function GroupRow({ thread, section, open, span, count, rels, onToggle }: { thread: ThreadRead; section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
-  const [renaming, setRenaming] = useState(false)
-  const g = section.group
-  const column = section.grouping?.id
-  const groups: MenuGroups =
-    g && column
-      ? [
-        [
-          { label: t`Rename`, onSelect: () => setRenaming(true), afterClose: true },
-          {
-            label: t`Merge into`,
-            childrenClassName: "w-56",
-            children: (section.grouping?.groups ?? [])
-              .filter((o) => o.id !== g.id)
-              .map((o) => ({
-                label: o.name,
-                onSelect: () => void editWithUndo(thread.id, { op: "merge", column, group: g.id, into: o.id }, t`Merged into ${o.name}`),
-              })),
-          },
-          {
-            label: t`Ungroup`,
-            onSelect: () => void editWithUndo(thread.id, { op: "ungroup", column, group: g.id }, t`Ungrouped ${g.name}`),
-          },
-        ],
-      ]
-    : []
+function GroupRow({ section, open, span, count, rels, onToggle }: { section: Section; open: boolean; span: number; count: string; rels: string; onToggle: () => void }) {
   return (
     <tr className="group/row">
       <td colSpan={span} className="border-b p-0">
         <div className={cn(inView, "flex items-center gap-2 pt-4 pb-1.5")} style={{ paddingLeft: 6 + section.depth * 20 }}>
-          {renaming && g && column ? (
-            <RenameInput
-              initial={section.label}
-              label={t`Group name`}
-              onDone={(name) => {
-                if (name !== null) void editThread(thread.id, { op: "rewrite", item: itemId.group(column, g.id), text: name })
-                setRenaming(false)
-              }}
-              className="h-7 max-w-sm px-2"
-            />
-          ) : (
-            <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none hover:bg-muted focus-key:bg-muted">
-              <ChevronRightIcon className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--t-layout)", open && "rotate-90")} />
-              <span className={cn("text-sm", section.depth === 0 ? "font-medium" : "", section.sentence && "font-normal")}>{section.label}</span>
-            </button>
-          )}
+          <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 text-left outline-none hover:bg-muted focus-key:bg-muted">
+            <ChevronRightIcon className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--t-layout)", open && "rotate-90")} />
+            <span className={cn("text-sm", section.depth === 0 ? "font-medium" : "", section.sentence && "font-normal")}>{section.label}</span>
+          </button>
           {section.one && <span className="min-w-0 truncate text-detail text-muted-foreground">{section.one}</span>}
-          <span className="ml-auto shrink-0 text-detail text-muted-foreground tabular-nums">{[count, rels].filter(Boolean).join(" · ")}</span>
-          {/* The ⋯ holds its place while hidden, and a section without one keeps the same room, so the counts
-              stay put on hover and line up from row to row */}
-          {g && column ? <RowMenuButton groups={groups} label={t`Group actions`} menuClassName="w-56" keepSpace /> : <span className="size-6 shrink-0" />}
+          <span className="ml-auto shrink-0 pr-1.5 text-detail text-muted-foreground tabular-nums">{[count, rels].filter(Boolean).join(" · ")}</span>
         </div>
       </td>
     </tr>
@@ -538,7 +376,6 @@ function TableRow({
   first,
   others,
   onJump,
-  menu,
   columns,
   sentenceShown,
   indent,
@@ -552,7 +389,6 @@ function TableRow({
   first: boolean
   others: Section[]
   onJump: (section: Section) => void
-  menu: MenuGroups | undefined
   columns: ThreadColumn[]
   sentenceShown: (column: ThreadColumn) => boolean
   indent: number
@@ -614,16 +450,16 @@ function TableRow({
           )}
         </td>
       ))}
-      <td className={cn(td, "py-1.5 pr-1.5 pl-0 group-hover/row:bg-muted")}>{menu && <RowMenuButton groups={menu} label={t`Paper actions`} menuClassName="w-56" keepSpace />}</td>
+      <td className={cn(td, "py-1.5 pr-1.5 pl-0 group-hover/row:bg-muted")} />
     </tr>
   )
 }
 
-function PeekRow({ thread, row, grouping, here, open, span }: { thread: ThreadRead; row: ThreadRowRead; grouping: ThreadColumn | undefined; here: string | undefined; open: boolean; span: number }) {
+function PeekRow({ thread, row, open, span }: { thread: ThreadRead; row: ThreadRowRead; open: boolean; span: number }) {
   const library = useLibraryPaper(row)
   return (
     <TablePeekRow open={open} span={span} pinned>
-      <RowPeek thread={thread} row={row} grouping={grouping} here={here} library={library} className={tablePeekCard} />
+      <RowPeek thread={thread} row={row} library={library} className={tablePeekCard} />
     </TablePeekRow>
   )
 }
@@ -637,12 +473,11 @@ function GroupsCell({ column, row }: { column: ThreadColumn; row: ThreadRowRead 
 // A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the full text.
 // A comparison says how the paper stands and why, Owlit's reason being what the user doesn't know yet; their
 // own sentence is one muted line under it only where nothing else says which one. It opens to the words it
-// rests on, and to rewriting it; the user's words stay through every later answer.
+// rests on.
 // reread: the dot's change is Owlit answering again from the full text: the page's place says so while the
 // dot lasts, and the card keeps the answer it replaced after.
 function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryId }: { thread: ThreadRead; row: ThreadRowRead; column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean; libraryId?: string }) {
   const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
   const item = itemId.cell(row.id, column.id)
   const was = useReadInFull(thread.id, item, open)
@@ -677,7 +512,7 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
       </span>
     )
   return (
-    <Popover open={open} onOpenChange={(o) => (setOpen(o), setEditing(false))}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className={cn("-mx-1 -my-0.5 block w-full rounded-md px-1 py-0.5 text-left outline-none hover:bg-accent focus-key:bg-accent data-[state=open]:bg-accent", "line-clamp-4")}>
           {fresh && <NoteDot className="mr-1.5 mb-px align-middle" />}
@@ -686,25 +521,12 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
       </PopoverTrigger>
       <PopoverContent align="start" className={cn(citationCardSurface, "w-96")}>
         <p className="text-detail text-muted-foreground">{columnLabel(column)}</p>
-        {editing ? (
-          <div className="mt-1.5">
-            <SentenceEditor
-              value={cell.text}
-              onCancel={() => setEditing(false)}
-              onSave={(text) => {
-                setEditing(false)
-                void editThread(thread.id, { op: "rewrite", item, text })
-              }}
-            />
-          </div>
-        ) : (
-          // An answer from the title only is thin: muted, as the short list's peek draws it
-          <p className={cn("mt-1 text-sm leading-relaxed", cell.depth === "title" && "text-muted-foreground")}>
-            {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
-            {text}
-          </p>
-        )}
-        {!editing && <WasLine was={was === undefined ? reread : was} className="mt-1" />}
+        {/* An answer from the title only is thin: muted, as the short list's peek draws it */}
+        <p className={cn("mt-1 text-sm leading-relaxed", cell.depth === "title" && "text-muted-foreground")}>
+          {column.kind === "compare" && cell.rel && <span className="mr-1 font-medium">{relWord(cell.rel)}:</span>}
+          {text}
+        </p>
+        <WasLine was={was === undefined ? reread : was} className="mt-1" />
         {column.kind === "compare" && sentence && <Quote className="mt-2">“{sentence.text}”</Quote>}
         {/* What the answer rests on, as every citation's card says it, then the row that changes it */}
         <div className="mt-3 border-t pt-2.5">
@@ -713,11 +535,6 @@ function Cell({ thread, row, column, cell, fresh, reread, showSentence, libraryI
             footer={
               <div className="mt-2.5 flex items-center gap-2 border-t pt-2 text-detail text-muted-foreground">
                 <span className="flex-1" />
-                {!editing && (
-                  <Button variant="text" size="inline" onClick={() => setEditing(true)}>
-                    {t({ message: "Rewrite", comment: "verb: change the words of Owlit's sentence" })}
-                  </Button>
-                )}
                 {cell.passage && libraryId && (
                   <MentionToken label={t`Open at p. ${cell.passage.page}`} onClick={() => navigate(passageRoute(libraryId, cell.passage))} />
                 )}

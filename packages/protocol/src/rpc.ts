@@ -5,7 +5,7 @@ import type { Role } from "./roles.ts"
 import type { CommentAnchor, CommentInput, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
-import type { ThreadBatch, ThreadEdit, ThreadPaper, ThreadRead, ThreadSize, ThreadSummary, ThreadWrite } from "./threads.ts"
+import type { ThreadBatch, ThreadEdit, ThreadPaper, ThreadRead, ThreadSummary, ThreadWrite } from "./threads.ts"
 import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./search.ts"
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
@@ -209,24 +209,6 @@ export interface Methods {
   "threads.edit": { params: { id: string; edit: ThreadEdit }; result: ThreadRead }
   // Owlit's work on the thread in batches, oldest first, for About
   "threads.about": { params: { id: string }; result: ThreadBatch[] }
-  // Each of Owlit's pieces of work on a thread is a chat owlit starts about it (Chat.about), whose id
-  // comes back; several run side by side.
-  // Owlit gathers papers for a question: the thread is there at once (empty, titled by the question until
-  // Owlit names it) and fills as the chat works
-  "threads.gather": { params: { question: string; project?: string; size: ThreadSize }; result: { thread: ThreadRead; chatId: string } }
-  // More of Owlit's work on a thread: find more papers, read the abstract-only ones in full
-  // more: what to look for this time (what), when it isn't the thread's question; read: the rows answered
-  // from their abstracts whose paper has a PDF to read (the button says how many)
-  "threads.start": { params: { id: string; work: "more" | "read"; what?: string }; result: { chatId: string } }
-  // A new column: a question Owlit answers for every paper
-  "threads.ask": { params: { id: string; question: string }; result: { thread: ThreadRead; chatId: string } }
-  // Owlit answers a column again where it has no answer yet (the user's own answers always stay)
-  "threads.fill": { params: { id: string; column: string }; result: { chatId: string } }
-  // Group another way: a new grouping, by what the user said to group by, which Owlit fills (groups
-  // first, then each paper's)
-  "threads.group": { params: { id: string; question: string }; result: { thread: ThreadRead; chatId: string } }
-  // A column that sets every paper against sentences the user picked from a doc of theirs
-  "threads.compare": { params: { id: string; doc: string; sentences: string[] }; result: { thread: ThreadRead; chatId: string } }
   // Moves the thread to .owlit/trash/
   "threads.delete": { params: { id: string }; result: null }
   "threads.undelete": { params: { id: string }; result: ThreadRead }

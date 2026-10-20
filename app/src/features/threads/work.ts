@@ -1,14 +1,10 @@
 import { t } from "@lingui/core/macro"
-import type { ChatAbout, ChatMessage, StartedChat, ThreadRead, ThreadSize } from "@owlit/protocol"
-import { toast } from "sonner"
-import { mockStarted, useRunning, useStand } from "@/features/chat/started"
-import { isDesktop, rpc } from "@/lib/rpc"
-import { toastError } from "@/lib/toast"
-import { put } from "./store"
+import type { ChatAbout, ChatMessage, StartedChat, ThreadRead } from "@owlit/protocol"
+import { useRunning, useStand } from "@/features/chat/started"
 
-// Owlit's work on a thread: each button starts a chat owlit starts about the thread (core's threads.ts),
-// read here by what it is about (features/chat/started.ts): the chats at work now, several at once, and
-// the last one's failure while none works, said where the user looks
+// Chats owlit started about a thread, read by what they are about (features/chat/started.ts): the chats
+// at work on it now, several at once, and the last one's failure while none works, said where the user
+// looks
 
 const threadAbout = (id: string): ChatAbout => ({ kind: "thread", id })
 
@@ -46,58 +42,3 @@ export function workWords(chat: StartedChat, c: ThreadRead | undefined): string 
       return t`Owlit is working on this thread…`
   }
 }
-
-// Without core (pnpm dev:web) the work runs a few seconds and is then cut off (started.ts)
-const mock = (id: string, recipe: string, column?: string) => mockStarted({ kind: "thread", id, recipe, ...(column ? { column } : {}) })
-
-export async function gather(question: string, size: ThreadSize, project: string): Promise<ThreadRead | undefined> {
-  if (!isDesktop) {
-    toast(t`Owlit gathers papers in the desktop app.`)
-    return undefined
-  }
-  try {
-    const { thread } = await rpc.threads.gather({ question, size, ...(project ? { project } : {}) })
-    put(thread)
-    return thread
-  } catch (error) {
-    toastError(error)
-    return undefined
-  }
-}
-
-// what: for more, what to look for this time
-export async function startWork(id: string, work: "more" | "read", what?: string) {
-  if (!isDesktop) return mock(id, work === "more" ? "find-more" : "read-in-full")
-  await rpc.threads.start({ id, work, ...(what ? { what } : {}) }).catch(toastError)
-}
-
-// Group another way: a new grouping Owlit works out; the thread with it
-export async function groupAnotherWay(id: string, question: string): Promise<ThreadRead | undefined> {
-  if (!isDesktop) return void mock(id, "group")
-  try {
-    const { thread } = await rpc.threads.group({ id, question })
-    put(thread)
-    return thread
-  } catch (error) {
-    toastError(error)
-    return undefined
-  }
-}
-
-export async function askEach(id: string, question: string) {
-  if (!isDesktop) return mock(id, "ask-each")
-  try {
-    put((await rpc.threads.ask({ id, question })).thread)
-  } catch (error) {
-    toastError(error)
-  }
-}
-
-// Ask again: fills what a column still lacks; the answers there stay, and the user's own whatever happens
-export async function askAgain(id: string, column: string) {
-  if (!isDesktop) return mock(id, "ask-each", column)
-  await rpc.threads.fill({ id, column }).catch(toastError)
-}
-
-// What the browser preview says when asked for work only core does
-export const desktopOnly = () => void toast(t`Owlit works on threads in the desktop app.`)

@@ -995,7 +995,6 @@ export class Core {
       sentence: z.string().optional(),
     })
     const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
-    const item = z.string().regex(/^(cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+:[\w-]+)$/, "an item: cell:<paper>:<column>, row:<paper> or group:<column>:<id>")
     this.router.register("threads.list", noParams, "read", () => threads().list())
     this.router.register("threads.get", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().get(id))
     this.router.register(
@@ -1024,41 +1023,13 @@ export class Core {
       "threads.edit",
       z.object({
         id: z.string().min(1),
-        edit: z.discriminatedUnion("op", [
-          z.object({ op: z.literal("rename"), title: z.string() }),
-          z.object({ op: z.literal("rewrite"), item, text: z.string() }),
-          z.object({ op: z.literal("remove"), item }),
-          z.object({ op: z.literal("place"), column: z.string().min(1), row: z.string().min(1), group: z.string().min(1), in: z.boolean() }),
-          z.object({ op: z.literal("move"), column: z.string().min(1), row: z.string().min(1), group: z.string().nullable(), from: z.string().optional() }),
-          z.object({ op: z.literal("ungroup"), column: z.string().min(1), group: z.string().min(1) }),
-          z.object({ op: z.literal("merge"), column: z.string().min(1), group: z.string().min(1), into: z.string().min(1) }),
-          z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
-          z.object({ op: z.literal("project"), project: z.string() }),
-          z.object({ op: z.literal("view"), groupBy: z.string().min(1) }),
-        ]),
+        edit: z.discriminatedUnion("op", [z.object({ op: z.literal("project"), project: z.string() }), z.object({ op: z.literal("view"), groupBy: z.string().min(1) })]),
       }),
-      // The thread's name and settings are its marks; a rewrite is the person's words; what removes, moves
-      // or merges its parts is its structure
-      {
-        touches: ({ edit }) => (edit.op === "rename" || edit.op === "hide" || edit.op === "project" || edit.op === "view" ? "meta" : edit.op === "rewrite" ? "words" : "structure"),
-      },
+      // Which project it is in, and how the user looks at it, are its marks
+      "meta",
       ({ id, edit }, caller) => threads().edit(id, edit, caller),
     )
     this.router.register("threads.about", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().about(id))
-    this.router.register(
-      "threads.gather",
-      z.object({ question: z.string().min(1), project: z.string().optional(), size: z.enum(["few", "many"]) }), "own",
-      (params, caller) => threads().gather(params, caller),
-    )
-    this.router.register("threads.start", z.object({ id: z.string().min(1), work: z.enum(["more", "read"]), what: z.string().optional() }), "own", ({ id, work, what }, caller) => threads().start(id, work, caller, what))
-    this.router.register(
-      "threads.compare",
-      z.object({ id: z.string().min(1), doc: z.string().min(1), sentences: z.array(z.string().min(1)).min(1).max(20) }), "own",
-      ({ id, doc, sentences }, caller) => threads().compare(id, doc, sentences, caller),
-    )
-    this.router.register("threads.fill", z.object({ id: z.string().min(1), column: z.string().min(1) }), "own", ({ id, column }) => threads().fill(id, column))
-    this.router.register("threads.group", z.object({ id: z.string().min(1), question: z.string().min(1) }), "own", ({ id, question }, caller) => threads().group(id, question, caller))
-    this.router.register("threads.ask", z.object({ id: z.string().min(1), question: z.string().min(1) }), "own", ({ id, question }, caller) => threads().ask(id, question, caller))
     this.router.register("threads.delete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().delete(id, caller))
     this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
     this.router.register("comments.all", noParams, "read", () => docs().commentsAll())
@@ -1213,11 +1184,6 @@ export class Core {
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
-                startChat: (start) => {
-                  if (this.workspace?.root !== root) throw new Error("The workspace closed.")
-                  return this.startFor(start)
-                },
-                canStartChat: () => this.workAgent(),
               },
               profile: async () => (await this.settings.get()).profile,
               changeAdded: (notification) => {

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadRead, type ThreadColumn, type ThreadRowRead, threadUri } from "@owlit/protocol"
+import { itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadRead, type ThreadRowRead, threadUri } from "@owlit/protocol"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
 import { CitationHover } from "@/components/citation-card"
@@ -11,8 +11,7 @@ import { useLibraryStore } from "@/features/library/store"
 import { stripLatex } from "@/features/library/lib/latex"
 import { cn } from "@/lib/utils"
 import { citeOf, nameOf, paperFacts, passageRoute, shown, useLibraryPaper } from "../lib"
-import { regroupRow, removeRow, useThreadsStore } from "../store"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useThreadsStore } from "../store"
 import { useThreadsUi } from "../ui-store"
 import { useReadInFull, useSeenOnScreen, type VisitDots } from "../seen"
 
@@ -89,37 +88,6 @@ function AnswerRow({ thread, row, items, fresh, reread, open }: { thread: Thread
   )
 }
 
-// The groups of a grouping, ticked where the paper is: ticking one puts it in that group too, unticking
-// takes it out of that one only. The menu stays open, so several can be changed at once.
-function GroupsMenu({ thread, row, grouping, here }: { thread: ThreadRead; row: ThreadRowRead; grouping: ThreadColumn; here?: string }) {
-  const isIn = row.in?.[grouping.id] ?? []
-  const groups = grouping.groups ?? []
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="font-normal text-muted-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground">
-          {t({ message: "Groups…", comment: "button on a paper's card: the groups of the thread it is in" })}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-auto min-w-48">
-        {groups.map((g) => (
-          <DropdownMenuCheckboxItem
-            key={g.id}
-            checked={isIn.includes(g.id)}
-            onSelect={(e) => e.preventDefault()}
-            onCheckedChange={(on) =>
-              void regroupRow(thread, { op: "place", column: grouping.id, row: row.id, group: g.id, in: on }, on ? undefined : t`Removed from ${g.name}`)
-            }
-            className={cn(g.parent && "pl-5", g.id === here && "font-medium")}
-          >
-            {g.name}
-          </DropdownMenuCheckboxItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 // The page an answer rests on, which opens the paper at those words (a paper read in full is in the
 // Library); on hover, the citation's card checks the words against the paper. changed: the answer was
 // just written again from the full text, said in Owlit's colour where the page alone would be.
@@ -152,10 +120,9 @@ export function WasLine({ was, className }: { was: ReturnType<typeof readInFull>
 
 // A row opened in place: enough to decide whether to read the paper. A paper Owlit only found isn't in
 // the Library: opening it, or adding it, brings it in, since it is then being used.
-// grouping: the shown grouping whose groups the card lists, when there is one; here: the group the row
-// was opened under; was: the answer Owlit replaced when it read the paper in full (the list's rows; a
-// table's cell says it on its own card)
-export function RowPeek({ thread, row, grouping, here, library, className, was }: { thread: ThreadRead; row: ThreadRowRead; grouping?: ThreadColumn; here?: string; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
+// was: the answer Owlit replaced when it read the paper in full (the list's rows; a table's cell says it on
+// its own card)
+export function RowPeek({ thread, row, library, className, was }: { thread: ThreadRead; row: ThreadRowRead; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
   const navigate = useNavigate()
   const addPaper = useLibraryStore((s) => s.addPaper)
   const facts = paperFacts(row, library)
@@ -204,10 +171,6 @@ export function RowPeek({ thread, row, grouping, here, library, className, was }
         )}
       </div>
       <div className="mt-3.5 flex items-center gap-1">
-        <Button variant="ghost" size="sm" className="-ml-2.5 font-normal text-muted-foreground" onClick={() => void removeRow(thread.id, row.id)}>
-          {t({ message: "Remove", comment: "take a paper off this thread" })}
-        </Button>
-        {grouping?.groups?.length ? <GroupsMenu thread={thread} row={row} grouping={grouping} here={here} /> : null}
         <span className="flex-1" />
         {!library && (
           <Button variant="outline" size="sm" onClick={() => bring()}>
