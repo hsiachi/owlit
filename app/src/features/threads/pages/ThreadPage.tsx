@@ -10,7 +10,7 @@ import { useTakeParam } from "@/hooks/use-take-param"
 import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
 import { WorkLine } from "../components/Work"
-import { useThreadMenu, useProjects } from "../components/ThreadMenu"
+import { useThreadMenu } from "../components/ThreadMenu"
 import { Memo } from "../components/Memo"
 import { shown as shownOf } from "../lib"
 import { useThread, useThreadsStore } from "../store"
@@ -34,7 +34,7 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const navigate = useNavigate()
   const thread = useThread(threadId)
   const loaded = useThreadsStore((s) => s.loaded)
-  const groups = useThreadMenu(thread, useProjects(), { afterDelete: () => navigate("/threads") })
+  const groups = useThreadMenu(thread, { afterDelete: () => navigate("/threads") })
   const set = useThreadsUi((s) => s.set)
   // What changed since the user last looked carries the dot until they leave
   const visit = useVisitDots(threadId)

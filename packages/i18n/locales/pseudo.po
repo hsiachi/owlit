@@ -5900,15 +5900,6 @@ msgid "Open at p. {page}"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Move to project"
-msgstr ""
-
-#. a thread that belongs to no project folder
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
-msgstr ""
-
-#: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"
 msgstr ""
 
@@ -6047,16 +6038,11 @@ msgid "Find a thread"
 msgstr ""
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "Ask Owlit in a chat to find papers; the thread appears here."
+msgstr ""
+
+#: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "No threads yet"
-msgstr ""
-
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Ask Owlit in a chat to find papers on something. What it finds gathers here, with what each paper says about your question."
-msgstr ""
-
-#. placeholder {0}: summary.columns
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "{0, plural, one {# column} other {# columns}}"
 msgstr ""
 
 #. a thread whose search found no papers
@@ -6064,36 +6050,13 @@ msgstr ""
 msgid "Found nothing"
 msgstr ""
 
+#. a thread whose project folder was renamed or deleted, then that folder's old name
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "was in {was}"
+msgstr ""
+
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Gathering papers…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Finding more papers…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Asking each paper “{question}”…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Asking each paper…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Grouping the papers by “{question}”…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Grouping the papers…"
-msgstr ""
-
-#: app/src/features/threads/work.ts
-msgid "Reading papers in full…"
 msgstr ""
 
 #: app/src/features/threads/work.ts

@@ -73,14 +73,21 @@ export function memoParts(text: string): MemoPart[] {
 }
 
 // The list's groups: one per project, the most recently changed project first, then the threads that
-// belong to none. A list with no projects at all has one group and no label.
-export function byProject(list: ThreadSummary[]): { key: string; label?: string; threads: ThreadSummary[] }[] {
-  const groups = new Map<string, ThreadSummary[]>()
-  for (const c of list) groups.set(c.project, [...(groups.get(c.project) ?? []), c])
-  const projects = [...groups.keys()].filter((p) => p)
-  if (!projects.length) return list.length ? [{ key: "", threads: list }] : []
+// belong to none. A thread whose project is no longer a top-level folder (renamed or deleted; the thread
+// still names the old one) is in none, and keeps the old name as `was`. projects: the workspace's folders,
+// undefined until they are known, when every project counts. A list with no projects at all has one group
+// and no label.
+export function byProject(list: ThreadSummary[], projects?: string[]): { key: string; label?: string; threads: (ThreadSummary & { was?: string })[] }[] {
+  const live = (p: string) => !!p && (!projects || projects.includes(p))
+  const groups = new Map<string, (ThreadSummary & { was?: string })[]>()
+  for (const c of list) {
+    const key = live(c.project) ? c.project : ""
+    groups.set(key, [...(groups.get(key) ?? []), key || !c.project ? c : { ...c, was: c.project }])
+  }
+  const named = [...groups.keys()].filter((p) => p)
+  if (!named.length) return list.length ? [{ key: "", threads: groups.get("")! }] : []
   return [
-    ...projects.map((p) => ({ key: p, label: p, threads: groups.get(p)! })),
+    ...named.map((p) => ({ key: p, label: p, threads: groups.get(p)! })),
     ...(groups.has("") ? [{ key: "", label: t({ message: "Not in a project", comment: "group of threads that belong to no project folder" }), threads: groups.get("")! }] : []),
   ]
 }

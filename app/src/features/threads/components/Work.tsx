@@ -16,7 +16,7 @@ export function WorkLine({ thread }: { thread: ThreadRead }) {
     const more = running.length - 1
     return (
       <p className="mt-2 flex items-center gap-1.5 text-detail text-muted-foreground">
-        <span className="shimmer">{workWords(chat, thread)}</span>
+        <span className="shimmer">{workWords()}</span>
         {chat.about.recipe === "gather" && papers > 0 && <span>{t`${papers} so far`}</span>}
         {more > 0 && <span>{plural(more, { one: "and # more", other: "and # more" })}</span>}
         <Button variant="text" size="inline" onClick={() => stopChat(chat)}>
