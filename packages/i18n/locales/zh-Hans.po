@@ -7579,30 +7579,14 @@ msgstr "那个对话已不在废纸篓中。"
 msgid "That isn't a file of this chat."
 msgstr "那不是这个对话的文件。"
 
-#: packages/core/src/core.ts
-msgid "The browser extension needs the owlit desktop app."
-msgstr "浏览器扩展需要 owlit 桌面应用。"
-
-#: packages/core/src/core.ts
-msgid "This copy of owlit has no example workspace."
-msgstr "这个 owlit 没有附带示例工作区。"
-
-#: packages/core/src/core.ts
+#: packages/core/src/chats/rpc.ts
 #: packages/core/src/docs/docs.ts
 msgid "owlit can't open files in other apps here."
 msgstr "owlit 在这里无法用其他应用打开文件。"
 
-#: packages/core/src/core.ts
+#: packages/core/src/chats/rpc.ts
 msgid "owlit no longer has that file."
 msgstr "owlit 已不再有那个文件。"
-
-#: packages/core/src/core.ts
-msgid "That paper isn't in the library."
-msgstr "那篇论文不在文献库里。"
-
-#: packages/core/src/core.ts
-msgid "That comment is already there."
-msgstr "那条评论已经在了。"
 
 #: packages/core/src/core.ts
 msgid "Owlit couldn't get this paper's text to read."
@@ -7672,6 +7656,10 @@ msgstr "{name} 已不在磁盘上。"
 msgid "{name} changed on disk."
 msgstr "{name} 在磁盘上有改动。"
 
+#: packages/core/src/docs/rpc.ts
+msgid "That comment is already there."
+msgstr "那条评论已经在了。"
+
 #: packages/core/src/extension/http.ts
 #: packages/core/src/rpc/errors.ts
 msgid "Something went wrong inside owlit."
@@ -7705,6 +7693,10 @@ msgstr "owlit 里没有人回应。请再点一次“连接”。"
 #: packages/core/src/extension/papers.ts
 msgid "This page doesn't say which paper it is."
 msgstr "这个页面没有说明是哪篇论文。"
+
+#: packages/core/src/extension/rpc.ts
+msgid "The browser extension needs the owlit desktop app."
+msgstr "浏览器扩展需要 owlit 桌面应用。"
 
 #: packages/core/src/extension/server.ts
 msgid "Only owlit's browser extension can connect here."
@@ -7844,6 +7836,10 @@ msgstr "owlit 无法打开那个页面来确认是哪篇论文。"
 #: packages/core/src/library/resolve.ts
 msgid "That page doesn't say which paper it is."
 msgstr "那个页面没有说明是哪篇论文。"
+
+#: packages/core/src/library/rpc.ts
+msgid "That paper isn't in the library."
+msgstr "那篇论文不在文献库里。"
 
 #: packages/core/src/library/text/extract.ts
 msgid "The PDF is password-protected."
@@ -8058,6 +8054,10 @@ msgstr "GitHub 暂时拒绝了检查请求，一小时后再试。"
 #: packages/core/src/updates/updates.ts
 msgid "The update didn't come through: {0}"
 msgstr "更新没有完成：{0}"
+
+#: packages/core/src/workspace/rpc.ts
+msgid "This copy of owlit has no example workspace."
+msgstr "这个 owlit 没有附带示例工作区。"
 
 #. the suggested folder name for a new workspace
 #: packages/core/src/workspace/welcome.ts
