@@ -447,6 +447,31 @@ describe("turns", () => {
     }
   })
 
+  it("counts the silence from the agent's session being ready, not from the send", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    const gate = path.join(realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-gate-"))), "open")
+    process.env.FAKE_ACP_SESSION_GATE = gate
+    try {
+      const { send, call, updates } = await setup()
+      const notices = () => updates.filter((u) => u.type === "notice")
+      const turn = send("mute")
+      await until(async () => (await call("agents.running")).length, { what: "the turn to start" })
+      // The agent takes most of the two minutes to start its session
+      await vi.advanceTimersByTimeAsync(SILENT_MS - 20_000)
+      writeFileSync(gate, "")
+      await until(() => existsSync(`${gate}.prompted`), { what: "the prompt to reach the agent" })
+      await vi.advanceTimersByTimeAsync(SILENT_MS - 1000)
+      expect(notices()).toEqual([])
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(notices()).toEqual([{ type: "notice", notice: "silent", since: expect.any(Number) }])
+      await call("agents.cancel", { chatId: "c1" })
+      await turn
+    } finally {
+      delete process.env.FAKE_ACP_SESSION_GATE
+      vi.useRealTimers()
+    }
+  })
+
   it("serves file reads inside the workspace and refuses the rest", async () => {
     const { send, text, updates } = await setup()
     await send("read notes.md")

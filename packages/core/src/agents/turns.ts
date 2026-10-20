@@ -234,6 +234,9 @@ export class Turns {
       live.turn = turn
       await startOrStop(turn, this.configure(live, req, fresh.guard))
       log("configured")
+      // A session started (or loaded) and set up is word from the agent: the silence counts from here,
+      // not from the send, so a slow start alone doesn't bring the line
+      listen()
       // owlit's rules and the role: in a new session's first prompt, unless the agent takes them itself
       const preamble = fresh.created && !fresh.rulesInSystemPrompt
       const userName = preamble ? await this.options.userName?.() : undefined

@@ -14,6 +14,8 @@
 //                      session) and reports what the user chose
 //   "slow"             streams for a few seconds (to be cancelled)
 //   "quiet"            says one word, then nothing until cancelled
+//   "mute"             says nothing until cancelled; with FAKE_ACP_SESSION_GATE it first leaves
+//                      <gate>.prompted, so a test knows the prompt arrived
 //   "whole prompt…"    says back everything it was given (links as [uri], other blocks as [type])
 //   "title"            says the title the session was given (codex-acp's _session/rename), or "untitled"
 //   "crash"            exits mid-turn
@@ -26,6 +28,7 @@
 // FAKE_ACP_LIMIT="You've hit your session limit · resets 2:20am" fails every prompt as Claude Code does at
 // its usage limit: the message as its answer, then an internal error carrying it.
 // FAKE_ACP_HANG=session never answers a new session, as an agent stuck starting.
+// FAKE_ACP_SESSION_GATE=<file> answers a new session only once that file exists, as a slow start.
 // FAKE_ACP_AUTH=required makes every new session fail as not signed in. FAKE_ACP_AUTH=browser is signed out
 // as claude-agent-acp is, offering its terminal sign-in, until that has run: "--login" leaves the file
 // FAKE_ACP_SIGNED_IN behind and exits, as `claude auth login` does once the browser comes back; with
@@ -148,6 +151,8 @@ class FakeAgent implements acp.Agent {
   async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
     if (process.env.FAKE_ACP_AUTH === "required") throw acp.RequestError.authRequired()
     if (process.env.FAKE_ACP_HANG === "session") await new Promise(() => {})
+    const gate = process.env.FAKE_ACP_SESSION_GATE
+    while (gate && !existsSync(gate)) await new Promise((resolve) => setTimeout(resolve, 20))
     const sessionId = randomUUID()
     const session: Session = { cwd: params.cwd, turn: null, config: { mode: MODES?.at(-1) ?? "ask", model: "small", effort: "low" }, history: [], owlit: params.mcpServers.find((m) => m.name === "owlit") }
     this.sessions.set(sessionId, session)
@@ -425,6 +430,11 @@ class FakeAgent implements acp.Agent {
         await this.conn.writeTextFile({ sessionId: params.sessionId, path: `${session.cwd}/${write[1]}`, content: write[2] })
         await say("written")
         return { stopReason: "end_turn" }
+      }
+      if (text.includes("mute")) {
+        if (process.env.FAKE_ACP_SESSION_GATE) writeFileSync(`${process.env.FAKE_ACP_SESSION_GATE}.prompted`, "")
+        await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve()))
+        return { stopReason: "cancelled" }
       }
       if (text.includes("quiet")) {
         await say("Hm.")
