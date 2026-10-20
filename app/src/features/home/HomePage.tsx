@@ -7,22 +7,22 @@ import { DropOverlay, PdfFileInput } from "@/components/file-drop"
 import { GroupLabel } from "@/components/group-label"
 import { KindIcon } from "@/components/kind-icon"
 import { ListRow } from "@/components/list-row"
-import { NoteDot } from "@/components/marks"
+import { NoteDot, WaitingDot } from "@/components/marks"
 import { PageTitle } from "@/components/page"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { Quote } from "@/components/quote"
 import { KIND_ICON } from "@/lib/kinds"
 import { useNewDoc } from "@/features/docs/use-new-doc"
-import { useNewDigest } from "@/features/library/digests"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { useWorkspace } from "@/lib/workspace"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
 import { ago } from "@/lib/time"
-import { type Place, usePlaces } from "./where"
+import { nameOf } from "@/lib/actors"
+import { type News, type Place, useNews, usePlaces } from "./where"
 
 // Home: where the user was and what waits for them (WaitingOnYou), in that order. What others changed is
-// marked where it happened (a thread's dot, a doc's changed lines, a chat's finished mark), not listed
-// here. PDFs dropped anywhere on it go to the Library.
+// not listed here: it is a mark on the row of the place it happened in, saying what came. PDFs dropped
+// anywhere on it go to the Library.
 
 const RECENT = 8
 
@@ -70,12 +70,13 @@ export function HomePage() {
   )
 }
 
-// A paper whose digest came since the user last looked at it carries Owlit's dot in its icon's place and
-// says so where its time was, until the digest has been seen
+// A place with something new since the user last looked (a digest, a finished reply, new papers, someone's
+// edit) carries Owlit's dot in its icon's place, or the warning dot for comments, and says what where its
+// time was, until the user has seen it there
 function RecentRow({ place }: { place: Place }) {
-  const fresh = useNewDigest(place.paperId)
-  return fresh ? (
-    <ListRow to={place.to} mark={<NoteDot label={false} />} title={place.title} detail={place.detail} end={t`Digest ready`} />
+  const news = useNews(place)
+  return news ? (
+    <ListRow to={place.to} mark={<NewsDot news={news} />} title={place.title} detail={place.detail} end={news.words} />
   ) : (
     <ListRow to={place.to} icon={KIND_ICON[place.kind]} title={place.title} detail={place.detail} end={ago(place.at)} />
   )
@@ -84,17 +85,17 @@ function RecentRow({ place }: { place: Place }) {
 // The last thing worked on, with the user's own last words in it. First on the page, in the rows' own
 // look (no card): it is where most launches go next.
 function LeadCard({ place }: { place: Place }) {
-  const fresh = useNewDigest(place.paperId)
-  // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday · digest ready"
-  const meta = [place.detail, didWords(place), fresh && t({ message: "digest ready", comment: "Home: the last item of a paper's line, after when it was read" })].filter(Boolean).join(" · ")
+  const news = useNews(place)
+  // "Drafts · edited 2 h ago", "Lewis & Card · 2020 · read yesterday · Digest ready"
+  const meta = [place.detail, didWords(place), news?.words].filter(Boolean).join(" · ")
   return (
     <section className="mt-5">
       <GroupLabel>{t({ message: "Continue", context: "Home: what was worked on last" })}</GroupLabel>
       <Link to={place.to} className="block rounded-md px-2.5 py-2 outline-none hover:bg-muted focus-key:bg-muted">
         <div className="flex min-w-0 items-center gap-2.5">
-          {fresh ? (
+          {news ? (
             <span className="flex size-4 shrink-0 items-center justify-center">
-              <NoteDot label={false} />
+              <NewsDot news={news} />
             </span>
           ) : (
             <KindIcon kind={place.kind} className="size-4 shrink-0 text-muted-foreground" />
@@ -112,6 +113,8 @@ function LeadCard({ place }: { place: Place }) {
   )
 }
 
+const NewsDot = ({ news }: { news: News }) => (news.comment ? <WaitingDot /> : <NoteDot label={false} />)
+
 // What was done there and when, as one phrase: "edited 2 h ago", "Owlit wrote yesterday", "read Oct 9"
 function didWords(place: Place) {
   const when = ago(place.at, { inSentence: true })
@@ -122,6 +125,11 @@ function didWords(place: Place) {
       return t`Owlit wrote ${when}`
     case "owlit-edited":
       return t`Owlit edited ${when}`
+    case "others-edited": {
+      if (place.by === "other") return t({ message: `changed outside owlit ${when}`, comment: "Home: when another program last changed a doc" })
+      const who = nameOf(place.by!)
+      return t({ message: `${who} edited ${when}`, comment: "Home: a person's name, then when they last changed a doc" })
+    }
     case "read":
       return t`read ${when}`
   }

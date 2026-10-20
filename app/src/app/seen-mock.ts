@@ -1,13 +1,14 @@
 import { itemId, QUESTION_COLUMN, type Change, type ChangedPassage, type Proposal, type SeenMarks, type Thread } from "@owlit/protocol"
 import { seedComments, seedFiles } from "@/features/docs/mocks/seed"
 import { seedThreads } from "@/features/threads/mocks/seed"
-import { WEB_OWLIT } from "@/lib/actors"
+import { WEB_ME, WEB_OWLIT, WEB_RUTH } from "@/lib/actors"
 import { DAY, HOUR } from "@/lib/time"
 
 // What the browser preview has instead of core's log and seen marks: the Library's tool-reading thread
 // with two rows, a sentence and an answer read again in full that Owlit changed since the person looked,
 // an answer of the venue thread read again in full, a paragraph Owlit wrote in Related work and its last
-// comment there, and a note Owlit wrote whole
+// comment there, a note Owlit wrote whole, the person's own edits to four docs, and since then a
+// co-author's edit to one and another program's to another
 
 const now = Date.now()
 const threads = seedThreads()
@@ -38,13 +39,25 @@ export const MOCK_CHANGES: Change[] = [
   ...(seedComments.d1 ?? [])
     .filter((c) => c.id === "n1")
     .map((c) => change(c.createdAt, { kind: "comment", path: relatedWork.path, part: c.id }, { action: "create" })),
+  ...[
+    ["writing/Related work.md", 3 * HOUR],
+    ["writing/Proposal draft.md", 3 * DAY],
+    ["notes/Tool use reading notes.md", 2 * DAY],
+    ["experiments/Evaluation plan.md", 9 * HOUR],
+  ].map(([path, ago]) => change(now - (ago as number), { kind: "doc", path: path as string }, { actor: WEB_ME, origin: { via: "editor" } })),
+  change(now - 5 * HOUR, { kind: "doc", path: "experiments/Evaluation plan.md" }, { actor: WEB_RUTH, origin: { via: "watcher" } }),
+  change(now - DAY, { kind: "doc", path: "notes/Tool use reading notes.md" }, { actor: "other", origin: { via: "watcher" } }),
 ].sort((a, b) => b.at - a.at)
 
 // Every mock thread looked at once, before Owlit's latest changes; Related work last on screen before
 // Owlit's paragraph
 export const MOCK_MARKS: SeenMarks = {
   since: now - 30 * DAY,
-  docs: { [relatedWork.path]: { hash: "mock", at: now - 3 * HOUR } },
+  docs: {
+    [relatedWork.path]: { hash: "mock", at: now - 3 * HOUR },
+    "experiments/Evaluation plan.md": { hash: "mock", at: now - 9 * HOUR },
+    "notes/Tool use reading notes.md": { hash: "mock", at: now - 2 * DAY },
+  },
   threads: Object.fromEntries(Object.values(threads).map((c) => [c.id, { [c.id]: c.createdAt + 60_000 }])),
   chats: {},
   comments: { [relatedWork.path]: now - 3 * DAY },

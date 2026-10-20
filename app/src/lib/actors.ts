@@ -8,6 +8,8 @@ import { isDesktop, onNotify, rpc } from "@/lib/rpc"
 export const WEB_PROFILE_ID = "0000000a"
 export const WEB_ME: PersonId = `p_${WEB_PROFILE_ID}`
 export const WEB_OWLIT: OwlitId = owlitOf(WEB_ME)
+// A co-author in the mock data, whose edits came through a sync
+export const WEB_RUTH: PersonId = "p_0000000b"
 
 // Who made a change, as the viewer reads it: "you" for their own id (me), a person's name from the
 // workspace's roster, "Owlit" for any person's Owlit, "outside owlit" when owlit couldn't tell
@@ -36,7 +38,7 @@ export const myOwlit = (): ActorId => {
 }
 
 // The open workspace's roster, read when first needed and again after the workspace or a name changed
-let roster: Roster = {}
+let roster: Roster = isDesktop ? {} : { [WEB_RUTH]: { kind: "person", name: "Ruth" } }
 let asked = false
 if (isDesktop) {
   const forget = () => {

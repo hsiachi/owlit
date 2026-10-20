@@ -2,83 +2,35 @@ import { useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
-import { baseName, displayName, isMarkdown, parentPath } from "@/features/docs/types"
 import { useLibraryStore } from "@/features/library/store"
 import { authorsYear } from "@/features/library/lib/format"
-import { useTrail, workspaceKey } from "./trail"
-import type { Kind } from "@/lib/kinds"
+import { useThreadsStore } from "@/features/threads/store"
 import { markdownPlain } from "@/lib/markdown-plain"
-import { messageText } from "@/features/chat/lib/message-text"
-import { isOwlit, type Change, type Chat, type ChatMessage } from "@owlit/protocol"
+import { isOwlit, type Change } from "@owlit/protocol"
 import { listChanges, useSeen } from "@/app/seen"
+import { nameOf, useMe } from "@/lib/actors"
+import { useTrail, workspaceKey } from "./trail"
+import { chatPlace, docPlaces, lastParagraph, placeNews, threadPlace, type News, type Place } from "./places"
 
-// "Where was I": everything the user did something in, newest first, across docs, chats and papers.
-// A doc counts once written in, a chat once the user sent something, a paper once opened to read,
-// highlighted or noted.
+export type { News, Place } from "./places"
 
-export interface Place {
-  kind: Extract<Kind, "doc" | "chat" | "paper">
-  key: string
-  title: string
-  // Muted text after the title: the doc's folder, the paper's authors and year
-  detail: string
-  at: number
-  to: string
-  // The user's own last words there: the paragraph the cursor was in, their last message, their last
-  // highlight or note. Never reading progress.
-  words?: string
-  // What the time means for this kind ("edited", "Owlit edited", "read"); Home words it, none for a chat
-  did: Did | null
-  // A paper's id, for the marks it can carry (a new digest)
-  paperId?: string
-}
+// Home's places from the stores, kept current (places.ts says what counts as one)
 
-export type Did = "edited" | "owlit-wrote" | "owlit-edited" | "read"
-
-// The paragraph around an offset: the run of non-blank lines that holds it
-function paragraphAt(text: string, head: number) {
-  const at = Math.min(Math.max(head, 0), text.length)
-  const start = text.lastIndexOf("\n\n", Math.max(at - 1, 0))
-  const end = text.indexOf("\n\n", at)
-  const words = markdownPlain(text.slice(start < 0 ? 0 : start + 2, end < 0 ? text.length : end))
-  return words || undefined
-}
-
-const lastParagraph = (text: string) => markdownPlain(text.trim().split(/\n\s*\n/).at(-1) ?? "") || undefined
-
-// A chat's place: the same object while its title and the user's last message stay the same, so a
-// streamed reply (which leaves both alone) neither requotes the chat nor redraws Home
-const chatPlaceCache = new Map<string, { mine: ChatMessage; place: Place }>()
-function chatPlace(c: Chat): Place[] {
-  const mine = c.messages.findLast((m) => m.role === "user")
-  if (!mine) return []
-  const was = chatPlaceCache.get(c.id)
-  if (was && was.mine === mine && was.place.title === c.title) return [was.place]
-  const words = markdownPlain(messageText(mine, " ")) || undefined
-  const place: Place = { kind: "chat", key: `chat:${c.id}`, title: c.title, detail: "", at: mine.createdAt, to: `/chat/${c.id}`, words, did: null }
-  chatPlaceCache.set(c.id, { mine, place })
-  return [place]
-}
-
-// Each doc's newest entry in the change log, by path; asked again whenever something new came
-function useLastDocChanges() {
+// Each doc's entries in the change log, newest first; asked again whenever something new came
+function useDocChanges() {
   const unseen = useSeen((s) => s.unseen)
-  const [last, setLast] = useState<Map<string, Change>>(new Map())
+  const [changes, setChanges] = useState<Change[]>([])
   useEffect(() => {
     let live = true
     listChanges({ target: { kind: "doc" } }).then(
-      (changes) => {
-        const byPath = new Map<string, Change>()
-        for (const c of changes) if (!byPath.has(c.target.path)) byPath.set(c.target.path, c)
-        if (live) setLast(byPath)
-      },
+      (list) => live && setChanges(list),
       () => undefined,
     )
     return () => {
       live = false
     }
   }, [unseen])
-  return last
+  return changes
 }
 
 export function usePlaces(): Place[] {
@@ -87,34 +39,14 @@ export function usePlaces(): Place[] {
   const papers = useLibraryStore((s) => s.papers)
   const highlights = useLibraryStore((s) => s.highlights)
   const notes = useLibraryStore((s) => s.notes)
+  const threads = useThreadsStore((s) => s.threads)
   const marks = useTrail((s) => s.docs[workspaceKey()])
-  const lastChanges = useLastDocChanges()
+  const changes = useDocChanges()
+  const me = useMe()
 
   // One list per kind, so a streamed reply doesn't requote every doc
-  const docPlaces = useMemo(() => {
-    const out: Place[] = []
-    const markByPath = new Map((marks ?? []).map((m) => [m.path, m]))
-    for (const f of Object.values(files)) {
-      if (!isMarkdown(f.path)) continue
-      const mark = markByPath.get(f.path)
-      // The doc's last change was Owlit's, after the user last wrote in it: "Owlit wrote" one it made,
-      // "Owlit edited" one it changed
-      const last = lastChanges.get(f.path)
-      const owlit = last && isOwlit(last.actor) && last.at > (mark?.at ?? 0) ? last : undefined
-      out.push({
-        kind: "doc",
-        key: `doc:${f.id}`,
-        title: displayName(f.path),
-        detail: baseName(parentPath(f.path)),
-        at: Math.max(mark?.at ?? 0, f.modifiedAt),
-        to: `/docs/${f.id}`,
-        // Without a cursor to go by, the end of the doc: drafts grow at the bottom
-        words: f.content ? (mark ? paragraphAt(f.content, mark.head) : lastParagraph(f.content)) : undefined,
-        did: owlit ? (owlit.action === "create" ? "owlit-wrote" : "owlit-edited") : "edited",
-      })
-    }
-    return out
-  }, [files, marks, lastChanges])
+  const docs = useMemo(() => docPlaces(Object.values(files), marks ?? [], changes, me), [files, marks, changes, me])
+  const threadPlaces = useMemo(() => Object.values(threads).map(threadPlace), [threads])
 
   const paperPlaces = useMemo(() => {
     const out: Place[] = []
@@ -132,20 +64,16 @@ export function usePlaces(): Place[] {
       const mark = lastMark.get(p.id)
       const at = Math.max(p.lastOpenedAt ?? 0, mark?.at ?? 0)
       if (!at) continue
-      out.push({
-        kind: "paper",
-        key: `paper:${p.id}`,
-        title: p.title,
-        detail: authorsYear(p),
-        at,
-        to: `/library/${p.id}`,
-        words: mark?.words,
-        did: "read",
-        paperId: p.id,
-      })
+      out.push({ kind: "paper", key: `paper:${p.id}`, id: p.id, title: p.title, detail: authorsYear(p), at, to: `/library/${p.id}`, words: mark?.words, did: "read" })
     }
     return out
   }, [papers, highlights, notes])
 
-  return useMemo(() => [...docPlaces, ...chatPlaces, ...paperPlaces].sort((a, b) => b.at - a.at), [docPlaces, chatPlaces, paperPlaces])
+  return useMemo(() => [...docs, ...chatPlaces, ...paperPlaces, ...threadPlaces].sort((a, b) => b.at - a.at), [docs, chatPlaces, paperPlaces, threadPlaces])
+}
+
+// What came to the place since the user last looked, kept current
+export function useNews(place: Place): News | null {
+  const unseen = useSeen((s) => s.unseen)
+  return useMemo(() => placeNews(place, unseen, nameOf), [place, unseen])
 }
