@@ -29,7 +29,6 @@ import { SocketServer } from "./rpc/socket.ts"
 import { ExtensionServer, type ExtensionServerOptions } from "./extension/server.ts"
 import { AGENT_RULES } from "./agents/rules.ts"
 import { guide } from "./agents/guide.ts"
-import { isRecipe, RECIPES } from "./recipes/index.ts"
 import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
 import { wearOf } from "./library/wear.ts"
@@ -283,18 +282,7 @@ export class Core {
     this.router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
     // What agents are told about owlit (owlit-mcp's instructions)
     this.router.register("agents.rules", noParams, "read", () => AGENT_RULES)
-    this.router.register(
-      "agents.guide",
-      z.object({ topic: z.string().optional(), thread: z.string().optional(), column: z.string().optional(), lookFor: z.string().optional() }), "read",
-      async ({ topic, thread, column, lookFor }) => {
-        const name = topic?.trim().toLowerCase() ?? ""
-        if (!isRecipe(name)) return guide(topic)
-        // A recipe for a doc or a comment says how to find what it works on, so it needs no input here
-        if (name === "go-through" || name === "reply") return RECIPES[name].text(undefined)
-        if (!thread) return `The recipe ${name} is written out for one thread: give thread, its id (thread_list has them).`
-        return this.requireWorkspace().threads.recipe(name, thread, { ...(column ? { column } : {}), ...(lookFor ? { lookFor } : {}) })
-      },
-    )
+    this.router.register("agents.guide", z.object({ topic: z.string().optional() }), "read", ({ topic }) => guide(topic))
     this.router.register("core.version", noParams, "read", () => this.version())
     this.router.register("core.diagnostics", noParams, "read", () => this.diagnostics())
     this.router.register("extension.get", noParams, "read", async () => (await this.extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [] })
@@ -713,9 +701,9 @@ export class Core {
 
     const library = () => this.requireWorkspace().library
     this.router.register("library.resolve", z.object({ input: z.string().min(1) }), "read", ({ input }) => library().resolve(input))
-    // A search's results are kept for hours, a thread's papers for good: an agent filling a column a day
+    // A search's results are kept for hours; a thread's papers are in the Library: an agent filling a column a day
     // later still gets the whole abstract
-    this.router.register("library.found", z.object({ id: z.string().min(1) }), "read", async ({ id }) => (await library().snapshot(id)) ?? (await this.requireWorkspace().threads.paperOf(id)) ?? null)
+    this.router.register("library.found", z.object({ id: z.string().min(1) }), "read", async ({ id }) => (await library().snapshot(id)) ?? null)
     this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), "read", ({ inputs }) => library().known(inputs))
     this.router.register("library.list", noParams, "read", () => library().list())
     const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
@@ -1011,7 +999,7 @@ export class Core {
       sentence: z.string().optional(),
     })
     const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
-    const item = z.string().regex(/^(title|memo:[\w-]+|cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+:[\w-]+)$/, "an item: title, memo:<id>, cell:<paper>:<column>, row:<paper> or group:<column>:<id>")
+    const item = z.string().regex(/^(cell:[^:]+:[\w-]+|row:[^:]+|group:[\w-]+:[\w-]+)$/, "an item: cell:<paper>:<column>, row:<paper> or group:<column>:<id>")
     this.router.register("threads.list", noParams, "read", () => threads().list())
     this.router.register("threads.get", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().get(id))
     this.router.register(
@@ -1022,9 +1010,10 @@ export class Core {
         title: z.string().optional(),
         project: z.string().optional(),
         sources: z.array(z.string()).optional(),
-        memo: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), text: z.string() })).optional(),
+        report: z.string().optional(),
+        one: z.string().optional(),
         columns: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), question: z.string() })).optional(),
-        rows: z.array(z.object({ id: z.string().min(1), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), groups: z.array(z.string()).optional(), foundBy: z.string().optional() })).optional(),
+        rows: z.array(z.object({ id: z.string().min(1), is: z.string().optional(), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), groups: z.array(z.string()).optional(), foundBy: z.string().optional() })).optional(),
         groups: z.array(group).optional(),
         grouping: z.string().optional(),
         newGrouping: z.string().optional(),
@@ -1043,13 +1032,9 @@ export class Core {
         edit: z.discriminatedUnion("op", [
           z.object({ op: z.literal("rename"), title: z.string() }),
           z.object({ op: z.literal("rewrite"), item, text: z.string() }),
-          z.object({ op: z.literal("revert"), item }),
           z.object({ op: z.literal("remove"), item }),
-          z.object({ op: z.literal("unremove"), item }),
           z.object({ op: z.literal("place"), column: z.string().min(1), row: z.string().min(1), group: z.string().min(1), in: z.boolean() }),
           z.object({ op: z.literal("move"), column: z.string().min(1), row: z.string().min(1), group: z.string().nullable(), from: z.string().optional() }),
-          z.object({ op: z.literal("unplace"), column: z.string().min(1), row: z.string().min(1), placed: z.record(z.string(), z.object({ in: z.boolean(), at: z.number() }).nullable()) }),
-          z.object({ op: z.literal("unmerge"), column: z.string().min(1), group: z.string().min(1) }),
           z.object({ op: z.literal("ungroup"), column: z.string().min(1), group: z.string().min(1) }),
           z.object({ op: z.literal("merge"), column: z.string().min(1), group: z.string().min(1), into: z.string().min(1) }),
           z.object({ op: z.literal("hide"), column: z.string().min(1), hidden: z.boolean() }),
@@ -1064,12 +1049,6 @@ export class Core {
       },
       ({ id, edit }, caller) => threads().edit(id, edit, caller),
     )
-    this.router.register(
-      "threads.split",
-      z.object({ id: z.string().min(1), rows: z.array(z.string().min(1)).min(1), asked: z.string(), group: z.object({ column: z.string().min(1), id: z.string().min(1) }).optional(), chatId: z.string().optional() }), "structure",
-      ({ id, rows, asked, group, chatId }, caller) => threads().split(id, rows, asked, group, caller, chatId),
-    )
-    this.router.register("threads.unsplit", z.object({ id: z.string().min(1), chatId: z.string().optional() }), "structure", ({ id, chatId }, caller) => threads().unsplit(id, caller, chatId))
     this.router.register("threads.about", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().about(id))
     this.router.register(
       "threads.gather",

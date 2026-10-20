@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A doc with Owlit's notes from before comments opens again instead of showing an error page; they read as Owlit's comments.
 - Home lists your threads beside docs, chats and papers, and every Recent row says what came since you looked: "3 new papers", "Ruth edited", "2 comments", "Owlit finished", "Digest ready". A doc shows on Home once you have written in it, not because a sync touched it, and someone else's change says who made it.
 - Waiting on you has no Dismiss: a reply that broke waits there for three days, then stays only as the chat's red mark.
 - "Find papers on a question" on an empty Home starts a chat for it; chats from Help › Ask Owlit how to… stay off Home.

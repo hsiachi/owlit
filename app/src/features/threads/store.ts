@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { applyThreadEdit, itemId, upgradeThread, type Thread, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
+import { applyThreadEdit, itemId, type ThreadRead, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -14,7 +14,7 @@ import { seedThreads } from "./mocks/seed"
 // them in localStorage.
 
 interface ThreadsState {
-  threads: Record<string, Thread>
+  threads: Record<string, ThreadRead>
   // Whether the workspace's threads have arrived (until then the list says nothing rather than "none")
   loaded: boolean
 }
@@ -22,18 +22,16 @@ interface ThreadsState {
 export const useThreadsStore = create<ThreadsState>()(
   persist(() => ({ threads: isDesktop ? {} : seedThreads(), loaded: !isDesktop }), {
     name: "owlit-threads",
-    // 2: groupings are columns (upgradeThread)
-    version: 2,
-    migrate: (kept) => {
-      const threads = (kept as { threads?: Record<string, Parameters<typeof upgradeThread>[0]> } | undefined)?.threads ?? {}
-      return { threads: Object.fromEntries(Object.entries(threads).map(([id, c]) => [id, upgradeThread(c)])) }
-    },
+    // 3: a thread is a report plus Library papers. The preview's threads kept by an older version start
+    // again from the seed: their rows held the papers' facts, which only core can give a version 3 thread.
+    version: 3,
+    migrate: () => ({ threads: seedThreads() }),
     skipHydration: isDesktop,
     partialize: (s) => (isDesktop ? {} : { threads: s.threads }),
   }),
 )
 
-export const put = (c: Thread) => useThreadsStore.setState((s) => ({ threads: { ...s.threads, [c.id]: c } }))
+export const put = (c: ThreadRead) => useThreadsStore.setState((s) => ({ threads: { ...s.threads, [c.id]: c } }))
 export const drop = (id: string) =>
   useThreadsStore.setState((s) => {
     const { [id]: _gone, ...rest } = s.threads
@@ -61,19 +59,36 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
   return true
 }
 
-// A paper into or out of a group. What takes it out of one says so with Undo (undo), which puts the user's
-// earlier placements of that paper in that grouping back as they were.
-export async function regroupRow(c: Thread, edit: Extract<ThreadEdit, { op: "place" | "move" }>, undo?: string) {
-  const prefix = `${edit.column}:${edit.row}:`
-  const groups = c.columns.find((col) => col.id === edit.column)?.groups ?? []
-  const placed = Object.fromEntries(groups.map((g) => [g.id, c.overrides.placed[`${prefix}${g.id}`] ?? null]))
-  if ((await editThread(c.id, edit)) && undo) toastUndo(undo, () => editThread(c.id, { op: "unplace", column: edit.column, row: edit.row, placed }))
+// One of the user's changes, said with Undo (label), which takes back the change log's entries the change
+// made; in the browser preview, which has no log, it puts the thread back as it was
+export async function editWithUndo(id: string, edit: ThreadEdit, label: string) {
+  const was = useThreadsStore.getState().threads[id]
+  const since = Date.now()
+  if (!(await editThread(id, edit))) return
+  toastUndo(label, async () => {
+    if (!isDesktop) {
+      if (was) put(was)
+      return
+    }
+    try {
+      // Newest first; one change's entries share a writeId
+      const entries = (await rpc.changes.list({ path: id, since })).filter((c) => c.target.kind === "thread" && !c.undoes)
+      const writeId = entries[0]?.origin.writeId
+      for (const e of entries.filter((c) => c.origin.writeId === writeId)) await rpc.changes.undo({ id: e.id })
+    } catch (error) {
+      toastError(error)
+    }
+  })
+}
+
+// A paper into or out of a group. What takes it out of one says so with Undo (undo).
+export async function regroupRow(c: ThreadRead, edit: Extract<ThreadEdit, { op: "place" | "move" }>, undo?: string) {
+  if (undo) await editWithUndo(c.id, edit, undo)
+  else await editThread(c.id, edit)
 }
 
 // Removing is immediate and says so with Undo, like every removal in owlit
-export async function removeItem(id: string, item: string, label: string) {
-  if (await editThread(id, { op: "remove", item })) toastUndo(label, () => editThread(id, { op: "unremove", item }))
-}
+export const removeItem = (id: string, item: string, label: string) => editWithUndo(id, { op: "remove", item }, label)
 
 export const removeRow = (id: string, row: string) => removeItem(id, itemId.row(row), t`Removed from the thread`)
 

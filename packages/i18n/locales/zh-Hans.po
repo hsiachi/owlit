@@ -1379,11 +1379,6 @@ msgstr "{count, plural, other {# 条评论}}"
 msgid "{updated, plural, one {# answer updated} other {# answers updated}}"
 msgstr "{updated, plural, other {更新了 # 条答案}}"
 
-#. papers the agent added to a thread, moved by the user into a thread of their own
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Kept separate"
-msgstr "已单独成集"
-
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {New thread · # paper} other {New thread · # papers}}"
 msgstr "{papers, plural, other {新脉络 · # 篇论文}}"
@@ -1397,11 +1392,6 @@ msgstr "{papers, plural, other {篇论文}}"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Updated"
 msgstr "已更新"
-
-#. make the papers the agent just added into a thread of their own
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Keep it separate"
-msgstr "单独成集"
 
 #. the agent wrote or rewrote a paper's digest
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -3454,7 +3444,6 @@ msgstr "复制 BibTeX"
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/settings/sections/Memory.tsx
 #: app/src/features/threads/components/AnswerRows.tsx
-#: app/src/features/threads/components/Memo.tsx
 msgid "Remove"
 msgstr "移除"
 
@@ -4379,9 +4368,7 @@ msgstr "这份导读是按旧方式写的。"
 
 #. button: write the digest again
 #. verb: change the words of Owlit's sentence
-#. verb: change the words of Owlit's sentence
 #: app/src/features/library/pages/paper/Digest.tsx
-#: app/src/features/threads/components/Memo.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Rewrite"
 msgstr "重写"
@@ -4977,9 +4964,7 @@ msgid "Collect papers on…"
 msgstr "收集关于…的论文"
 
 #. after a sentence of Owlit's that the user rewrote
-#. after a sentence of Owlit's that the user rewrote
 #: app/src/features/onboarding/demos/CollectDemo.tsx
-#: app/src/features/threads/components/Memo.tsx
 msgid "you edited"
 msgstr "你改过"
 
@@ -5773,26 +5758,12 @@ msgid "a chat"
 msgstr "一个对话"
 
 #: app/src/features/threads/components/About.tsx
-msgid "another thread"
-msgstr "另一条脉络"
-
-#. a thread the user made from one of another thread's groups
-#: app/src/features/threads/components/About.tsx
-msgid "Made from the group <0>“{asked}”</0> in {originLink}, {when}."
-msgstr "由 {originLink} 里的分组<0>“{asked}”</0>建成，{when}。"
-
-#: app/src/features/threads/components/About.tsx
 msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
 msgstr "你在 <1/> 里问过<0>“{asked}”</0>，{when}。"
 
 #: app/src/features/threads/components/About.tsx
 msgid "You asked <0>“{asked}”</0>, {when}."
 msgstr "你问过<0>“{asked}”</0>，{when}。"
-
-#. after the question: its papers were first added to another thread, then kept apart
-#: app/src/features/threads/components/About.tsx
-msgid "Kept separate from {originLink}."
-msgstr "已从 {originLink} 分出来。"
 
 #: app/src/features/threads/components/About.tsx
 msgid "{searched, plural, one {Searched once} other {Searched # times}}"
@@ -5958,31 +5929,6 @@ msgstr "换一篇文档"
 msgid "Compare"
 msgstr "对照"
 
-#: app/src/features/threads/components/Memo.tsx
-#: app/src/features/threads/store.ts
-msgid "Removed from the thread"
-msgstr "已从脉络移除"
-
-#: app/src/features/threads/components/Memo.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Use Owlit's words"
-msgstr "改回 Owlit 的原话"
-
-#: app/src/features/threads/components/Memo.tsx
-msgid "Sentence removed"
-msgstr "已移除这句"
-
-#. placeholder {0}: edit.was
-#. placeholder {0}: plainMemo(edit.was).plain
-#: app/src/features/threads/components/Memo.tsx
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Was: {0}"
-msgstr "原为：{0}"
-
-#: app/src/features/threads/components/Memo.tsx
-msgid "Sentence actions"
-msgstr "这句话的操作"
-
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
 msgstr "移到项目"
@@ -6116,14 +6062,6 @@ msgid "Ungrouped {0}"
 msgstr "已取消分组「{0}」"
 
 #: app/src/features/threads/components/ThreadTable.tsx
-msgid "Make it a thread of its own"
-msgstr "单独成为一条脉络"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "Made a thread of its own"
-msgstr "已单独成为一条脉络"
-
-#: app/src/features/threads/components/ThreadTable.tsx
 msgid "Group name"
 msgstr "分组名称"
 
@@ -6134,10 +6072,6 @@ msgstr "分组操作"
 #: app/src/features/threads/components/ThreadTable.tsx
 msgid "Paper actions"
 msgstr "论文操作"
-
-#: app/src/features/threads/components/ThreadTable.tsx
-msgid "You edited this"
-msgstr "你改过"
 
 #. placeholder {0}: cell.passage.page
 #: app/src/features/threads/components/ThreadTable.tsx
@@ -6366,6 +6300,10 @@ msgstr "{0, plural, other {# 列}}"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "什么也没找到"
+
+#: app/src/features/threads/store.ts
+msgid "Removed from the thread"
+msgstr "已从脉络移除"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"
@@ -8067,18 +8005,6 @@ msgstr "那个分组已经不在了。"
 #: packages/core/src/threads/threads.ts
 msgid "That isn't in the thread any more."
 msgstr "脉络里已经没有这一项了。"
-
-#: packages/core/src/threads/threads.ts
-msgid "Those papers aren't in the thread any more."
-msgstr "那些论文已不在脉络中。"
-
-#: packages/core/src/threads/threads.ts
-msgid "This thread wasn't kept separate from another."
-msgstr "这条脉络不是从别的脉络里分出来的。"
-
-#: packages/core/src/threads/threads.ts
-msgid "The thread these papers came from is gone."
-msgstr "这些论文原来所在的脉络已经不在了。"
 
 #: packages/core/src/threads/threads.ts
 msgid "That changed in the thread since, so owlit left it as it is."

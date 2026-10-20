@@ -1,4 +1,4 @@
-import { itemId, QUESTION_COLUMN, type Change, type ChangedPassage, type Proposal, type SeenMarks, type Thread } from "@owlit/protocol"
+import { itemId, QUESTION_COLUMN, type Change, type ChangedPassage, type Proposal, type SeenMarks, type ThreadRead } from "@owlit/protocol"
 import { seedComments, seedFiles } from "@/features/docs/mocks/seed"
 import { seedThreads } from "@/features/threads/mocks/seed"
 import { WEB_ME, WEB_OWLIT, WEB_RUTH } from "@/lib/actors"
@@ -22,7 +22,7 @@ let n = 0
 const change = (at: number, target: Change["target"], extra: Partial<Change> = {}): Change => ({ id: `mock-${n++}`, at, actor: WEB_OWLIT, action: "update", target, origin: { via: "tool" }, ...extra })
 
 // A cell Owlit answered again from the full text: the entry holds the cell on each side, as core's does
-const reread = (thread: Thread, paper: string, column: string, at: number, was: string, from: "abstract" | "title") => {
+const reread = (thread: ThreadRead, paper: string, column: string, at: number, was: string, from: "abstract" | "title") => {
   const cell = thread.rows.find((r) => r.id === paper)!.cells[column]!
   return change(at, { kind: "thread", path: thread.id, part: itemId.cell(paper, column) }, { before: { value: { text: was, depth: from, at: thread.createdAt } }, after: { value: { ...cell, at } } })
 }
@@ -31,7 +31,7 @@ export const MOCK_CHANGES: Change[] = [
   ...reading.rows
     .filter((r) => r.addedAt > reading.createdAt)
     .map((r) => change(r.addedAt, { kind: "thread", path: reading.id, part: itemId.row(r.id) }, { action: "create", after: { value: r } })),
-  change(now - 30 * 60_000, { kind: "thread", path: reading.id, part: itemId.memo("s3") }),
+  change(now - 30 * 60_000, { kind: "thread", path: reading.id, part: itemId.report() }),
   reread(reading, "p15", QUESTION_COLUMN, now - 25 * 60_000, "Highlights a paper's objective, method and result sentences in different colours to guide skimming.", "abstract"),
   reread(venue, "u1", QUESTION_COLUMN, now - 3 * HOUR, "Seems to show citation context inline while reading.", "title"),
   change(now - 2 * HOUR, { kind: "doc", path: relatedWork.path }),

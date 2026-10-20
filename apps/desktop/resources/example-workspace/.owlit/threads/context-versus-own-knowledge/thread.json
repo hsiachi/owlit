@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "id": "context-versus-own-knowledge",
   "title": "Retrieved context versus the model's own knowledge",
   "asked": {
@@ -11,16 +11,8 @@
   "sources": [
     "Your library"
   ],
-  "memo": [
-    {
-      "id": "s1",
-      "text": "[Wu et al. 2024](owlit://library/arxiv-2404.10198) and [Sun et al. 2024](owlit://library/arxiv-2410.11414) study opposite failures: following a wrong document over a correct prior, and overriding a correct document with what the model already holds."
-    },
-    {
-      "id": "s2",
-      "text": "[Mallen et al. 2022](owlit://library/arxiv-2212.10511) gives a reason the two meet: how well a model knows a fact depends on how popular it is."
-    }
-  ],
+  "report": "[Wu et al. 2024](owlit://library/arxiv-2404.10198) compare the answer's mean token probability with and without the document and keep the more confident one; calibrated, this raises accuracy by 14% and improves context bias by 20%. It is a remedy for one direction of the conflict: a model following a wrong document.\n\nThe other three papers frame that conflict. [Sun et al. 2024](owlit://library/arxiv-2410.11414) study the opposite failure, a model overriding a correct document with what it already holds. [Mallen et al. 2022](owlit://library/arxiv-2212.10511) give a reason the two meet: a model knows popular facts well and rare ones poorly, so which source should win depends on the fact. [Asai et al. 2023](owlit://library/arxiv-2310.11511) avoid part of the conflict by retrieving only when the model decides it needs to.\n\n## What it means for your related work\n\nYour paragraph cites ClashEval for models taking a wrong document over a correct prior; its token-probability correction is the one measured remedy here, and it addresses only that direction. A sentence on ReDeEP's opposite case would make the paragraph two-sided. What Mallen et al. and Self-RAG say here rests on their abstracts.\n\n## Read first\n\n[Wu et al. 2024](owlit://library/arxiv-2404.10198), for the method and its numbers; [Mallen et al. 2022](owlit://library/arxiv-2212.10511), for why the answer depends on the fact.",
+  "one": "ClashEval's calibrated token probability keeps the more confident answer: 14% more accurate",
   "columns": [
     {
       "id": "q",
@@ -31,20 +23,7 @@
   "rows": [
     {
       "id": "arxiv-2404.10198",
-      "paper": {
-        "title": "ClashEval: Quantifying the tug-of-war between an LLM's internal prior and external evidence",
-        "authors": [
-          "Kevin Wu",
-          "Eric Wu",
-          "James Zou"
-        ],
-        "ids": {
-          "arxiv": "2404.10198"
-        },
-        "year": 2024,
-        "abstract": "Retrieval augmented generation (RAG) is frequently used to mitigate hallucinations and provide up-to-date knowledge for large language models (LLMs). However, given that document retrieval is an imprecise task and sometimes results in erroneous or even harmful content being presented in context, this raises the question of how LLMs handle retrieved information: If the provided content is incorrect, does the model know to ignore it, or does it recapitulate the error? Conversely, when the model's initial response is incorrect, does it always know to use the retrieved information to correct itself, or does it insist on its wrong prior response? To answer this, we curate a dataset of over 1200 questions across six domains (e.g., drug dosages, Olympic records, locations) along with content relevant to answering each question. We further apply precise perturbations to the answers in the content that range from subtle to blatant errors. We benchmark six top-performing LLMs, including GPT-4o, on this dataset and find that LLMs are susceptible to adopting incorrect retrieved content, overriding their own correct prior knowledge over 60% of the time. However, the more unrealistic the retrieved content is (i.e. more deviated from truth), the less likely the model is to adopt it. Also, the less confident a model is in its initial response (via measuring token probabilities), the more likely it is to adopt the information in the retrieved content. We exploit this finding and demonstrate simple methods for improving model accuracy where there is conflicting retrieved content. Our results highlight a difficult task and benchmark for LLMs -- namely, their ability to correctly discern when it is wrong in light of correct retrieved content and to reject cases when the provided content is incorrect.",
-        "kind": "preprint"
-      },
+      "is": "Benchmark, about 1,200 questions in six domains; six models",
       "cells": {
         "q": {
           "text": "Compares the answer's mean token probability with and without the document, and keeps the more confident one; calibrated, it raises accuracy by 14%.",
@@ -56,34 +35,12 @@
           }
         }
       },
-      "addedAt": 1791900239273,
-      "foundBy": "your library"
+      "foundBy": "your library",
+      "addedAt": 1791900239273
     },
     {
       "id": "arxiv-2410.11414",
-      "paper": {
-        "title": "ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation via Mechanistic Interpretability",
-        "authors": [
-          "Zhongxiang Sun",
-          "Xiaoxue Zang",
-          "Kai Zheng",
-          "Yang Song",
-          "Jun Xu",
-          "Xiao Zhang",
-          "Weijie Yu",
-          "Yang Song",
-          "Han Li"
-        ],
-        "ids": {
-          "s2": "f3658afcd181e4078e1e96ff86eac224fd92faab",
-          "arxiv": "2410.11414"
-        },
-        "year": 2024,
-        "abstract": "Retrieval-Augmented Generation (RAG) models are designed to incorporate external knowledge, reducing hallucinations caused by insufficient parametric (internal) knowledge. However, even with accurate and relevant retrieved content, RAG models can still produce hallucinations by generating outputs that conflict with the retrieved information. Detecting such hallucinations requires disentangling how Large Language Models (LLMs) utilize external and parametric knowledge. Current detection methods often focus on one of these mechanisms or without decoupling their intertwined effects, making accurate detection difficult. In this paper, we investigate the internal mechanisms behind hallucinations in RAG scenarios. We discover hallucinations occur when the Knowledge FFNs in LLMs overemphasize parametric knowledge in the residual stream, while Copying Heads fail to effectively retain or integrate external knowledge from retrieved content. Based on these findings, we propose ReDeEP, a novel method that detects hallucinations by decoupling LLM's utilization of external context and parametric knowledge. Our experiments show that ReDeEP significantly improves RAG hallucination detection accuracy. Additionally, we introduce AARF, which mitigates hallucinations by modulating the contributions of Knowledge FFNs and Copying Heads.",
-        "tldr": "This paper proposes ReDeEP, a novel method that detects hallucinations by decoupling LLM's utilization of external context and parametric knowledge, and introduces AARF, which mitigates hallucinations by modulating the contributions of Knowledge FFNs and Copying Heads.",
-        "kind": "preprint",
-        "citationCount": 135
-      },
+      "is": "Method, white-box; RAGTruth and Dolly",
       "cells": {
         "q": {
           "text": "Even with a correct document, the model can override it with its own knowledge when FFN layers outweigh the copying heads.",
@@ -95,28 +52,12 @@
           }
         }
       },
-      "addedAt": 1791900239273,
-      "foundBy": "your library"
+      "foundBy": "your library",
+      "addedAt": 1791900239273
     },
     {
       "id": "arxiv-2212.10511",
-      "paper": {
-        "title": "When Not to Trust Language Models: Investigating Effectiveness of Parametric and Non-Parametric Memories",
-        "authors": [
-          "Alex Mallen",
-          "Akari Asai",
-          "Victor Zhong",
-          "Rajarshi Das",
-          "Daniel Khashabi",
-          "Hannaneh Hajishirzi"
-        ],
-        "ids": {
-          "arxiv": "2212.10511"
-        },
-        "year": 2022,
-        "abstract": "Despite their impressive performance on diverse tasks, large language models (LMs) still struggle with tasks requiring rich world knowledge, implying the limitations of relying solely on their parameters to encode a wealth of world knowledge. This paper aims to understand LMs' strengths and limitations in memorizing factual knowledge, by conducting large-scale knowledge probing experiments of 10 models and 4 augmentation methods on PopQA, our new open-domain QA dataset with 14k questions. We find that LMs struggle with less popular factual knowledge, and that scaling fails to appreciably improve memorization of factual knowledge in the long tail. We then show that retrieval-augmented LMs largely outperform orders of magnitude larger LMs, while unassisted LMs remain competitive in questions about high-popularity entities. Based on those findings, we devise a simple, yet effective, method for powerful and efficient retrieval-augmented LMs, which retrieves non-parametric memories only when necessary. Experimental results show that this significantly improves models' performance while reducing the inference costs.",
-        "kind": "preprint"
-      },
+      "is": "Benchmark (PopQA) and analysis across ten models",
       "cells": {
         "q": {
           "text": "Models recall popular facts well from their own parameters; retrieval helps most for less popular ones.",
@@ -124,27 +65,12 @@
           "at": 1791900239273
         }
       },
-      "addedAt": 1791900239273,
-      "foundBy": "your library"
+      "foundBy": "your library",
+      "addedAt": 1791900239273
     },
     {
       "id": "arxiv-2310.11511",
-      "paper": {
-        "title": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection",
-        "authors": [
-          "Akari Asai",
-          "Zeqiu Wu",
-          "Yizhong Wang",
-          "Avirup Sil",
-          "Hannaneh Hajishirzi"
-        ],
-        "ids": {
-          "arxiv": "2310.11511"
-        },
-        "year": 2023,
-        "abstract": "Despite their remarkable capabilities, large language models (LLMs) often produce responses containing factual inaccuracies due to their sole reliance on the parametric knowledge they encapsulate. Retrieval-Augmented Generation (RAG), an ad hoc approach that augments LMs with retrieval of relevant knowledge, decreases such issues. However, indiscriminately retrieving and incorporating a fixed number of retrieved passages, regardless of whether retrieval is necessary, or passages are relevant, diminishes LM versatility or can lead to unhelpful response generation. We introduce a new framework called Self-Reflective Retrieval-Augmented Generation (Self-RAG) that enhances an LM's quality and factuality through retrieval and self-reflection. Our framework trains a single arbitrary LM that adaptively retrieves passages on-demand, and generates and reflects on retrieved passages and its own generations using special tokens, called reflection tokens. Generating reflection tokens makes the LM controllable during the inference phase, enabling it to tailor its behavior to diverse task requirements. Experiments show that Self-RAG (7B and 13B parameters) significantly outperforms state-of-the-art LLMs and retrieval-augmented models on a diverse set of tasks. Specifically, Self-RAG outperforms ChatGPT and retrieval-augmented Llama2-chat on Open-domain QA, reasoning and fact verification tasks, and it shows significant gains in improving factuality and citation accuracy for long-form generations relative to these models.",
-        "kind": "preprint"
-      },
+      "is": "Method; Llama 2 7B and 13B, six QA and long-form tasks",
       "cells": {
         "q": {
           "text": "Decides per segment whether to retrieve at all, with a learned retrieval token.",
@@ -152,16 +78,10 @@
           "at": 1791900239273
         }
       },
-      "addedAt": 1791900239273,
-      "foundBy": "your library"
+      "foundBy": "your library",
+      "addedAt": 1791900239273
     }
   ],
-  "groups": [],
-  "watch": false,
   "createdAt": 1791900239273,
-  "updatedAt": 1791900239273,
-  "overrides": {
-    "edits": {},
-    "removed": {}
-  }
+  "updatedAt": 1791900239273
 }

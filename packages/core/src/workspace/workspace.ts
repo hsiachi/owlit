@@ -20,7 +20,8 @@ import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Threads, type ThreadsServices } from "../threads/threads.ts"
 import { findQuote } from "../library/quotes.ts"
-import { paperDir } from "../library/paths.ts"
+import { isPaperId, paperDir } from "../library/paths.ts"
+import { paperIdOf } from "../library/refs.ts"
 import { Scheduler, TaskStore, type SchedulerOptions, type TaskDefinition } from "../tasks/index.ts"
 import { Shares, type SharesServices } from "../share/shares.ts"
 import { acquireLock, lockFileFor, WorkspaceLockedError } from "./lock.ts"
@@ -160,10 +161,23 @@ export class Workspace {
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
+      // Added as the writer's own, recorded so it can be taken back, and with no PDF sought. Filed by its
+      // DOI or arXiv id when it has one, like any add; by the id it was named by otherwise.
+      addPaper: async (id, paper, caller) => {
+        const { paper: added, existed } = await this.library.addNew(
+          { ...(!paperIdOf(paper.ids) && isPaperId(id) ? { id } : {}), title: paper.title, authors: paper.authors, ids: paper.ids, year: paper.year, venue: paper.venue, abstract: paper.abstract, kind: paper.kind },
+          await this.recorder.actorOf(caller),
+          "background",
+          { fetchPdf: false },
+        )
+        if (!existed) await this.recorder.record(caller, { action: "create", target: { kind: "paper", path: added.id } }, { label: added.title, quiet: true })
+        return added.id
+      },
+      foundBy: (id) => this.library.foundBy(id),
       canonical: (id, ids) => this.library.canonical(id, ids),
-      facts: (id, paper) => this.library.rowFacts(id, paper),
+      facts: (id) => this.library.threadFacts(id),
       findPassage: (id, quote) => this.findPassage(id, quote),
-      hasText: (id, ids) => this.hasText(id, ids),
+      hasText: (id) => this.hasText(id),
       searches: (by, since) => this.library.searchesBy(by, since),
       chatAbout: async (chatId) => {
         const chat = await this.chats.get(chatId).catch(() => null)

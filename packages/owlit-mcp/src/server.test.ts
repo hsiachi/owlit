@@ -344,7 +344,7 @@ describe("owlit-mcp", () => {
     expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "No owlit window is open.", isError: true })
   })
 
-  it("gathers papers into a thread, keeps what the user did, and adds to it later", async () => {
+  it("gathers papers into a thread with its report, and adds to it later", async () => {
     const { root, core, call, tool } = await setup()
     const changed: Notifications["changes.added"][] = []
     core.onNotify((n) => {
@@ -358,8 +358,8 @@ describe("owlit-mcp", () => {
     expect(unknown).toEqual({ isError: true, text: "owlit didn't write it:\n- owlit doesn't know the paper doi-10.9999-nope: name papers by the id a search gave you." })
 
     const rows = JSON.stringify([{ id: "arxiv-2005.11401", answer: "Each token may draw on its own retrieved document.", depth: "full", quote: "a different latent document for each target token" }])
-    const memo = JSON.stringify([{ text: "One paper so far: [Lewis et al. 2020](owlit://library/arxiv-2005.11401) retrieves per token." }])
-    const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, memo, note: "Semantic Scholar was not reachable." })
+    const report = "One paper so far: [Retrieval-Augmented Generation](owlit://library/arxiv-2005.11401) retrieves per token."
+    const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, report, note: "Semantic Scholar was not reachable." })
     const id = /owlit:\/\/threads\/([\w-]+)/.exec(wrote.text)![1]!
     expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/threads\/t-[0-9a-f]{6}\): added 1\./)
     expect(changed).toMatchObject([{ change: { action: "create", target: { kind: "thread" } }, label: "检索粒度", thread: { rows: ["arxiv-2005.11401"] } }])
@@ -368,24 +368,19 @@ describe("owlit-mcp", () => {
 
     await call("threads.edit", { id, edit: { op: "rename", title: "Retrieval granularity" } })
     expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper · asked: 检索粒度有什么研究？`)
-    expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nMemo:\n- \[s1\] One paper so far/)
+    expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\nOne paper so far/)
     expect((await tool("thread_read", { id })).text).toMatch(/q: Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
-    expect((await tool("thread_read", { id })).text).toMatch(/The user rewrote \(keep their words\): title$/)
 
     const wrongQuote = JSON.stringify([{ id: "arxiv-2005.11401", answer: "x", depth: "full", quote: "not in the paper" }])
     expect((await tool("thread_write", { id, rows: wrongQuote })).text).toMatch(/isn't in its text word for word/)
     expect((await tool("thread_write", { id, rows: "[{" })).text).toBe("rows should be a JSON array.")
 
-    // Groups: what the user did to them is in thread_read, and a write that goes against it says so
+    // Groups, as thread_read gives them
     const groups = JSON.stringify([{ id: "tok", name: "Per token" }, { id: "doc", name: "Per document" }])
     await tool("thread_write", { id, groups, rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "tok" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/Grouping topic \(Topic\): tok = Per token; doc = Per document/)
     await call("threads.edit", { id, edit: { op: "move", column: "topic", row: "arxiv-2005.11401", group: "doc" } })
-    await call("threads.edit", { id, edit: { op: "ungroup", column: "topic", group: "tok" } })
-    const read = (await tool("thread_read", { id })).text
-    expect(read).toMatch(/arxiv-2005.11401 · .* · in doc \(Per document\) \(the user put it here, keep it\)/)
-    expect(read).toMatch(/The user changed the groups \(keep it so\):\n- ungrouped tok \(Per token\): leave it out\n- took arxiv-2005.11401 out of tok: don't put it back/)
-    expect((await tool("thread_write", { id, groups })).text).toMatch(/Kept as the user had it:\n- The user ungrouped tok \(Per token\)/)
+    expect((await tool("thread_read", { id })).text).toMatch(/arxiv-2005.11401 · .* · in doc \(Per document\)/)
 
     // Another way to group them is a new grouping of the same thread
     await tool("thread_write", { id, new_grouping: "by method", groups: JSON.stringify([{ id: "abl", name: "Ablations" }]), rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "abl" }]) })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Paper, Thread } from "@owlit/protocol"
+import type { Paper, ThreadRead } from "@owlit/protocol"
 import { bibtex, bibtexAll, citedPapers } from "./cite"
 
 const paper = (over: Partial<Paper> & Pick<Paper, "id" | "title" | "authors">): Paper => ({
@@ -60,7 +60,7 @@ describe("citedPapers", () => {
   const resolve = (id: string) => library[id] ?? (aliases[id] ? library[aliases[id]] : undefined)
   const threads = {
     t1: { rows: [{ id: "found", paper: { title: "A paper a thread found", authors: ["Mei Chen"], ids: { doi: "10.1/x" }, year: 2024 } }] },
-  } as unknown as Record<string, Thread>
+  } as unknown as Record<string, ThreadRead>
 
   it("lists the doc's papers in order of first use, each once", () => {
     const md = [

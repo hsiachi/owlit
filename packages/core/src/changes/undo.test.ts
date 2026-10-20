@@ -172,7 +172,7 @@ describe("changes.undo", () => {
     await call("threads.edit", { id, edit: { op: "rename", title: "Replay as a method" } })
     const [rename] = await call("changes.list", { target: { kind: "thread", path: id, part: "title" } })
     await undo(rename.id)
-    expect((await call("threads.get", { id })).overrides.edits).toEqual({})
+    expect((await call("threads.get", { id })).title).toBe("Replay")
   })
 
   it("takes back a comment's reply alone, and a whole comment with its replies", async () => {

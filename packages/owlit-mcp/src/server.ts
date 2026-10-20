@@ -8,12 +8,11 @@ import {
   threadUri,
   OWLIT_TOOLS,
   QUESTION_COLUMN,
-  placedKey,
   shownThread,
   type CommentInput,
-  type Thread,
   type ThreadCell,
   type ThreadGroup,
+  type ThreadRead,
   type ThreadRowWrite,
   type DocComment,
   type FoundPaper,
@@ -330,12 +329,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return `Left a comment on "${anchor.quote.slice(0, 60)}${anchor.quote.length > 60 ? "…" : ""}" in ${str("path")}. The file itself is unchanged.`
     }
     case "owlit_help":
-      return owlit.rpc.agents.guide({
-        ...(optStr("topic") ? { topic: str("topic") } : {}),
-        ...(optStr("thread") ? { thread: str("thread") } : {}),
-        ...(optStr("column") ? { column: str("column") } : {}),
-        ...(optStr("look_for") ? { lookFor: str("look_for") } : {}),
-      })
+      return owlit.rpc.agents.guide(optStr("topic") ? { topic: str("topic") } : {})
     case "ui_open": {
       const { title } = await owlit.rpc.ui.open({ uri: str("uri"), ...asker })
       return `Showing ${title} in owlit.`
@@ -353,41 +347,36 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "thread_list": {
       const all = await owlit.rpc.threads.list()
       if (!all.length) return "There are no threads yet."
-      const lines = await Promise.all(
-        all.map(async (c) => {
-          const asked = (await owlit.rpc.threads.get({ id: c.id })).asked.text
+      return all
+        .map((c) => {
           const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
-          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${asked}`
-        }),
-      )
-      return lines.join("\n")
+          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size} · asked: ${c.question}`
+        })
+        .join("\n")
     }
     case "thread_read":
       return threadText(await owlit.rpc.threads.get({ id: str("id") }))
     case "thread_write": {
-      const parsed = parseJsonArgs(args, ["rows", "memo", "groups"])
+      const parsed = parseJsonArgs(args, ["rows", "groups"])
       if (typeof parsed === "string") return parsed
       const rows = (parsed.rows as RowArg[] | undefined)?.map(rowWrite)
       if (rows?.some((r) => typeof r === "string")) return rows.find((r) => typeof r === "string") as string
       const done = await owlit.rpc.threads.write({
-        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
+        ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", report: "report", one: "one", note: "note", why: "why", grouping: "grouping", newGrouping: "new_grouping" }),
         ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
-        ...(parsed.memo ? { memo: parsed.memo as { id?: string; text: string }[] } : {}),
         ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
         ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
         ...(Array.isArray(args.remove_rows) ? { removeRows: args.remove_rows as string[] } : {}),
         ...writer,
       })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
-      const left = done.left.length ? ` Left out, because the user removed them: ${done.left.join(", ")}.` : ""
-      const kept = done.userKept.length ? `\nKept as the user had it:\n${done.userKept.map((line) => `- ${line}`).join("\n")}` : ""
-      return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}.${left} Link it in your answer as [${done.title}](${threadUri(done.id)}).${kept}`
+      return `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}. Link it in your answer as [${done.title}](${threadUri(done.id)}).`
     }
     case "thread_edit": {
       // The title is Owlit's own, so it goes through a write of its own (a threads.edit rename is the
-      // user's rewrite, kept over Owlit's title)
+      // user's)
       await owlit.rpc.threads.write({ id: str("id"), title: str("title").trim(), ...writer })
-      const thread = shownThread(await owlit.rpc.threads.get({ id: str("id") }))
+      const thread = await owlit.rpc.threads.get({ id: str("id") })
       return `“${thread.title}” (${threadUri(thread.id)}).`
     }
     case "memory_write": {
@@ -425,6 +414,8 @@ interface RowArg {
   answer?: string
   depth?: string
   quote?: string
+  is?: string
+  found_by?: string
   group?: string
   groups?: string[]
   cells?: Record<string, { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }>
@@ -444,7 +435,7 @@ function rowWrite(r: RowArg): ThreadRowWrite | string {
   })
   const cells = Object.fromEntries(Object.entries(r.cells ?? {}).map(([col, c]) => [col, cell(c)]))
   if (r.answer) cells[QUESTION_COLUMN] = cell({ text: r.answer, depth: r.depth, quote: r.quote })
-  return { id: r.id, ...(Object.keys(cells).length ? { cells } : {}), ...(r.group !== undefined ? { group: r.group } : {}), ...(Array.isArray(r.groups) ? { groups: r.groups.map(String) } : {}) }
+  return { id: r.id, ...(r.is ? { is: r.is } : {}), ...(r.found_by ? { foundBy: r.found_by } : {}), ...(Object.keys(cells).length ? { cells } : {}), ...(r.group !== undefined ? { group: r.group } : {}), ...(Array.isArray(r.groups) ? { groups: r.groups.map(String) } : {}) }
 }
 
 function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<string, unknown[] | undefined> | string {
@@ -466,22 +457,20 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
   return out
 }
 
-// A thread as the agent reads it: what the user sees, then what of it is the user's
-function threadText(stored: Thread) {
+// A thread as the agent reads it
+function threadText(stored: ThreadRead) {
   const c = shownThread(stored)
   const columns = c.columns.filter((col) => !col.hidden && col.kind !== "grouping")
   const groupings = c.columns.filter((col) => col.kind === "grouping")
   const groupName = new Map(groupings.flatMap((col) => (col.groups ?? []).map((g) => [`${col.id}:${g.id}`, g.name] as const)))
-  // The user's own placements, which a write of yours doesn't change
-  const userPut = (col: string, paper: string, group: string) => stored.overrides.placed[placedKey(col, paper, group)]?.in === true
   const lines = [
     `${c.title} (${threadUri(c.id)})`,
     `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
     `Columns: ${columns.map((col) => `${col.id} = ${col.question}`).join("; ")}`,
     ...groupings.map((col) => `Grouping ${col.id} (${col.question})${(col.groups ?? []).length ? `: ${(col.groups ?? []).map((g) => `${g.id} = ${g.name}${g.parent ? ` (in ${g.parent})` : ""}`).join("; ")}` : ", no groups yet"}`),
     "",
-    "Memo:",
-    ...(c.memo.length ? c.memo.map((s) => `- [${s.id}] ${s.text}`) : ["(none yet)"]),
+    "Report:",
+    c.report || "(none yet)",
     "",
     `Papers (${c.rows.length}):`,
   ]
@@ -489,39 +478,15 @@ function threadText(stored: Thread) {
     const p = r.paper
     const placed = groupings
       .filter((col) => r.in?.[col.id]?.length)
-      .map((col) => `${groupings.length > 1 ? `${col.id}: ` : ""}in ${r.in![col.id]!.map((g) => `${g} (${groupName.get(`${col.id}:${g}`) ?? g})${userPut(col.id, r.id, g) ? " (the user put it here, keep it)" : ""}`).join(", ")}`)
+      .map((col) => `${groupings.length > 1 ? `${col.id}: ` : ""}in ${r.in![col.id]!.map((g) => `${g} (${groupName.get(`${col.id}:${g}`) ?? g})`).join(", ")}`)
     lines.push(`- ${r.id} · ${p.title} · ${[p.authors[0], p.year, p.venue].filter(Boolean).join(", ")}${placed.length ? ` · ${placed.join(" · ")}` : ""}`)
     for (const col of columns) {
       const cell = r.cells[col.id]
       if (cell) lines.push(`  ${col.id}: ${cell.rel ? `${cell.rel} ` : ""}${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`)
     }
   }
-  const edits = Object.keys(stored.overrides.edits)
-  const removed = Object.entries(stored.overrides.removed)
-    .filter(([item]) => !item.startsWith("group:"))
-    .map(([, r]) => r.text)
-  if (edits.length) lines.push("", `The user rewrote (keep their words): ${edits.join(", ")}`)
-  if (removed.length) lines.push("", "The user removed (never bring back):", ...removed.map((t) => `- ${t}`))
-  // What the user did to the groups, which stays whatever you write
-  const regrouped: string[] = []
-  for (const [key, into] of Object.entries(stored.overrides.merged)) {
-    const [col, id] = key.split(":")
-    const owlit = stored.columns.find((x) => x.id === col)?.groups?.find((g) => g.id === id)?.name
-    if (groupings.some((x) => x.id === col)) regrouped.push(`- merged ${id}${owlit ? ` (${owlit})` : ""} into ${into}: papers you put in ${id} go in ${into}`)
-  }
-  for (const [item, r] of Object.entries(stored.overrides.removed)) {
-    const [, col, id] = item.split(":")
-    if (item.startsWith("group:")) regrouped.push(`- ungrouped ${id} (${r.text})${groupings.length > 1 ? ` in ${col}` : ""}: leave it out`)
-  }
-  for (const [key, p] of Object.entries(stored.overrides.placed)) {
-    if (p.in) continue
-    const [col, paper, group] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1, key.lastIndexOf(":")), key.slice(key.lastIndexOf(":") + 1)]
-    if (c.rows.some((r) => r.id === paper)) regrouped.push(`- took ${paper} out of ${group}${groupings.length > 1 ? ` (${col})` : ""}: don't put it back`)
-  }
-  if (regrouped.length) lines.push("", "The user changed the groups (keep it so):", ...regrouped)
   return lines.join("\n")
 }
-
 
 // This agent's Owlit, as its own entries in these comments name it; none when it hasn't written one
 function owlitOf(comments: DocComment[]): string | undefined {

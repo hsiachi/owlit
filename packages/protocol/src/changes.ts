@@ -17,7 +17,7 @@ export interface ChangeTarget {
   // The doc's path, the comment's doc path, the paper's id, the thread's id, "memory"
   path: string
   // The piece inside it: a comment's id (<comment>/<entry> for one entry), a paper's field (status,
-  // overrides.title…), a thread item (row:…, cell:…, memo:…, title), a memory line's id, or on an undo of
+  // overrides.title…), a thread item (row:…, cell:…, report, title), a memory line's id, or on an undo of
   // one passage of a doc's change, passage:<its index among the change's> (changes.undoPart); absent
   // when the whole thing was created, deleted or changed
   part?: string
@@ -153,26 +153,24 @@ export interface ChangedPassage {
 }
 
 // A thread item's entry by someone else carries a dot when it is something the person reads: the title,
-// a memo sentence, a group, a new row, Owlit's answer in a cell the person didn't rewrite. Columns, a
-// row moved between groups and the thread's settings don't.
+// the report, a group, a new row, an answer in a cell. Columns, a row moved between groups, the list's
+// one line and the thread's settings don't.
 export function threadDot(change: Change): boolean {
   const part = change.target.part ?? ""
   const [kind] = part.split(":")
-  if (part === "title" || kind === "memo" || kind === "group") return true
+  if (part === "title" || part === "report" || kind === "group" || kind === "cell") return true
   if (kind === "row") return change.action === "create"
-  if (kind === "cell") return !(change.after as { edit?: unknown } | undefined)?.edit
   return false
 }
 
 // A cell's entry that is Owlit answering again from the full text what it had answered from the abstract
 // or the title only: the answer it replaced and what that was from. The entry holds the whole cell on each
-// side, so nothing else records it. A cell the person rewrote shows their words, so Owlit's rewrite under
-// them isn't one.
+// side, so nothing else records it.
 export function readInFull(change: Change | undefined): { was: string; from: "abstract" | "title" } | null {
   if (!change || change.action !== "update" || !change.target.part?.startsWith("cell:")) return null
   const before = (change.before as { value?: ThreadCell } | undefined)?.value
-  const after = change.after as { value?: ThreadCell; edit?: unknown } | undefined
-  if (!before || !after?.value || after.edit || after.value.depth !== "full" || before.depth === "full") return null
+  const after = change.after as { value?: ThreadCell } | undefined
+  if (!before || !after?.value || after.value.depth !== "full" || before.depth === "full") return null
   return { was: before.text, from: before.depth }
 }
 

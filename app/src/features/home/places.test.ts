@@ -50,34 +50,27 @@ describe("docPlaces", () => {
 
 const thread = (over: Partial<Thread> = {}): Thread =>
   ({
-    version: 2,
+    version: 3,
     id: "t1",
     title: "Reading tools",
     asked: { text: "What tools help people read papers?", at: 100 },
     project: "lit-review",
     sources: [],
-    memo: [
-      { id: "m1", text: "Most tools [annotate](owlit://paper/p1) the PDF." },
-      { id: "m2", text: "Second." },
-    ],
+    report: "Most tools [annotate](owlit://library/p1) the PDF.",
+    one: "Most tools [annotate](owlit://library/p1) the PDF.",
     columns: [],
     rows: [],
     createdAt: 100,
     updatedAt: 900,
-    overrides: { edits: {}, removed: {}, placed: {}, merged: {} },
     ...over,
   }) as Thread
 
 describe("threadPlace", () => {
-  it("is titled by the question, dated by the person's last act, and quotes the memo's first sentence", () => {
-    const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }], overrides: { edits: {}, removed: { "row:p2": { text: "x", at: 450 } }, placed: {}, merged: {} } }))
+  it("is titled by the question, dated by the person's last question or change, and quotes Owlit's one line", () => {
+    const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] }), 450)
     expect(place).toMatchObject({ kind: "thread", title: "What tools help people read papers?", at: 450, to: "/threads/t1", detail: "lit-review", words: "Most tools annotate the PDF." })
-  })
-
-  it("quotes the memo as the person left it", () => {
-    const place = threadPlace(thread({ overrides: { edits: {}, removed: { "memo:m1": { text: "x", at: 200 } }, placed: {}, merged: {} } }))
-    expect(place.words).toBe("Second.")
-    expect(place.at).toBe(200)
+    // Owlit's own later writes don't date it
+    expect(threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] })).at).toBe(300)
   })
 })
 
@@ -97,8 +90,8 @@ describe("placeNews", () => {
   const threadChange = (part: string, action: Change["action"] = "update", actor: ActorId = OWLIT): Change => ({ id: `c${n++}`, at: 1, actor, action, target: { kind: "thread", path: "t1", part }, origin: { via: "tool" } })
 
   it("counts a thread's new papers, else says who changed it", () => {
-    expect(placeNews(place("thread", "t1"), { ...NONE, changes: [threadChange("row:a", "create"), threadChange("row:b", "create"), threadChange("memo:m1")] }, names)?.words).toBe("2 new papers")
-    expect(placeNews(place("thread", "t1"), { ...NONE, changes: [threadChange("memo:m1")] }, names)?.words).toBe("Owlit edited")
+    expect(placeNews(place("thread", "t1"), { ...NONE, changes: [threadChange("row:a", "create"), threadChange("row:b", "create"), threadChange("report")] }, names)?.words).toBe("2 new papers")
+    expect(placeNews(place("thread", "t1"), { ...NONE, changes: [threadChange("report")] }, names)?.words).toBe("Owlit edited")
     // A column added carries no dot
     expect(placeNews(place("thread", "t1"), { ...NONE, changes: [threadChange("column:c")] }, names)).toBeNull()
   })

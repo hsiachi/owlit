@@ -1,11 +1,11 @@
 import { answer, callsTo, deferred, notify, openedWorkspace } from "@/test/fake-bridge"
-import type { Thread, ThreadSummary } from "@owlit/protocol"
+import type { ThreadRead, ThreadSummary } from "@owlit/protocol"
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { startWorkspace } from "@/lib/workspace"
 import { useThreadsStore } from "./store"
 import "./disk"
 
-const thread = (id: string, title = id) => ({ id, title }) as unknown as Thread
+const thread = (id: string, title = id) => ({ id, title }) as unknown as ThreadRead
 
 beforeAll(() => {
   answer("workspace.state", () => ({ current: null, opening: false }))

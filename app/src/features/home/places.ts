@@ -3,7 +3,7 @@ import { baseName, displayName, isMarkdown, parentPath, type WorkspaceFile } fro
 import { messageText } from "@/features/chat/lib/message-text"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
-import { isOwlit, shownThread, threadDot, type ActorId, type Change, type Chat, type ChatMessage, type PersonId, type Thread, type Unseen } from "@owlit/protocol"
+import { isOwlit, threadDot, type ActorId, type Change, type Chat, type ChatMessage, type PersonId, type Thread, type Unseen } from "@owlit/protocol"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats, papers and
 // threads. A doc counts once the user wrote in it (the trail has a mark for it, or the change log has a
@@ -101,21 +101,18 @@ export function chatPlace(c: Chat): Place[] {
   return [place]
 }
 
-// A thread is a place from the moment it was asked: titled by the question, dated by the user's last
-// question or change to it, quoting the first sentence of Owlit's memo
-export function threadPlace(c: Thread): Place {
-  const o = c.overrides
-  const acts = [c.asked, ...(c.alsoAsked ?? []), ...Object.values(o.edits), ...Object.values(o.removed), ...Object.values(o.placed)]
-  const first = shownThread(c).memo[0]?.text
+// A thread is a place from the moment it was asked: titled by the question, dated by the person's last
+// question or own change to it (mine: their newest entry in its log), quoting Owlit's one line on it
+export function threadPlace(c: Pick<Thread, "id" | "title" | "asked" | "alsoAsked" | "project" | "one">, mine?: number): Place {
   return {
     kind: "thread",
     key: `thread:${c.id}`,
     id: c.id,
     title: c.asked.text || c.title,
     detail: c.project,
-    at: Math.max(...acts.map((a) => a.at)),
+    at: Math.max(c.asked.at, ...(c.alsoAsked ?? []).map((a) => a.at), mine ?? 0),
     to: `/threads/${c.id}`,
-    words: first ? markdownPlain(first) || undefined : undefined,
+    words: markdownPlain(c.one) || undefined,
     did: null,
   }
 }

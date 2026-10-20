@@ -1,4 +1,4 @@
-import type { Paper, PaperKind, Thread } from "@owlit/protocol"
+import type { Paper, PaperKind, ThreadRead } from "@owlit/protocol"
 import { externalLinks, surname } from "./format"
 
 // What a reference is made from: a Library paper, or a paper a thread found
@@ -141,7 +141,7 @@ export const linkedPaperIds = (markdown: string) => [...markdown.matchAll(PAPER_
 // The papers a doc's Markdown links to, in order of first use, each once: the Library's record (an id it
 // knows under another name included), else the row of a thread that found the paper. A link to a paper
 // neither knows is left out.
-export function citedPapers(markdown: string, library: (id: string) => Paper | undefined, threads: Record<string, Thread>): Citable[] {
+export function citedPapers(markdown: string, library: (id: string) => Paper | undefined, threads: Record<string, ThreadRead>): Citable[] {
   const out = new Map<string, Citable>()
   for (const id of linkedPaperIds(markdown)) {
     const paper = library(id)

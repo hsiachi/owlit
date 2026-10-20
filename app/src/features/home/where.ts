@@ -16,20 +16,20 @@ export type { News, Place } from "./places"
 
 // Home's places from the stores, kept current (places.ts says what counts as one)
 
-// Each doc's entries in the change log, newest first; asked again whenever something new came
-function useDocChanges() {
+// The change log's entries for one kind, newest first; asked again whenever something new came
+function useChanges(kind: "doc" | "thread") {
   const unseen = useSeen((s) => s.unseen)
   const [changes, setChanges] = useState<Change[]>([])
   useEffect(() => {
     let live = true
-    listChanges({ target: { kind: "doc" } }).then(
+    listChanges({ target: { kind } }).then(
       (list) => live && setChanges(list),
       () => undefined,
     )
     return () => {
       live = false
     }
-  }, [unseen])
+  }, [unseen, kind])
   return changes
 }
 
@@ -41,12 +41,18 @@ export function usePlaces(): Place[] {
   const notes = useLibraryStore((s) => s.notes)
   const threads = useThreadsStore((s) => s.threads)
   const marks = useTrail((s) => s.docs[workspaceKey()])
-  const changes = useDocChanges()
+  const changes = useChanges("doc")
+  const threadChanges = useChanges("thread")
   const me = useMe()
 
   // One list per kind, so a streamed reply doesn't requote every doc
   const docs = useMemo(() => docPlaces(Object.values(files), marks ?? [], changes, me), [files, marks, changes, me])
-  const threadPlaces = useMemo(() => Object.values(threads).map(threadPlace), [threads])
+  const threadPlaces = useMemo(() => {
+    // The person's own newest change to each thread
+    const mine = new Map<string, number>()
+    for (const c of threadChanges) if (c.actor === me && !mine.has(c.target.path)) mine.set(c.target.path, c.until ?? c.at)
+    return Object.values(threads).map((c) => threadPlace(c, mine.get(c.id)))
+  }, [threads, threadChanges, me])
 
   const paperPlaces = useMemo(() => {
     const out: Place[] = []

@@ -5,10 +5,10 @@ import { seedThreads } from "./mocks/seed"
 describe("a thread exported as a doc", () => {
   const all = Object.values(seedThreads())
 
-  it("starts with the title and the memo, papers and the thread kept as links", () => {
-    const c = all.find((c) => c.memo.length)!
+  it("starts with the title and the report, papers and the thread kept as links", () => {
+    const c = all.find((c) => c.report)!
     const md = threadMarkdown(c, new Date(2026, 9, 14))
-    expect(md.startsWith(`# ${c.title}\n\n- ${c.memo[0]!.text}`)).toBe(true)
+    expect(md.startsWith(`# ${c.title}\n\n${c.report}`)).toBe(true)
     expect(md).toContain(`(owlit://library/${c.rows[0]!.id})`)
     expect(md.trim().split("\n").at(-1)).toMatch(new RegExp(`\\(owlit://threads/${c.id}\\)`))
   })
