@@ -182,7 +182,6 @@ export interface Methods {
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
   // One of Owlit's comments the user doesn't want, put away for good
-  "comments.dismiss": { params: { path: string; id: string }; result: DocComment }
   // Passages edited while the doc was open, saved as they read now: comment id → its new anchor
   "comments.reanchor": { params: { path: string; moved: Record<string, CommentAnchor> }; result: null }
 

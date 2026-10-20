@@ -116,8 +116,11 @@ export class Comments {
     return path.join(this.dir, ...rel.split("/"))
   }
 
-  private read(file: string): Promise<DocComment[]> {
-    return readJsonl<DocComment>(file, () => console.error(`[core] skipping a comment that isn't JSON in ${file}`))
+  // A comment an older owlit let the person dismiss (dismissedAt) reads as resolved: put away, and one
+  // menu away in Resolved comments
+  private async read(file: string): Promise<DocComment[]> {
+    const comments = await readJsonl<DocComment & { dismissedAt?: number }>(file, () => console.error(`[core] skipping a comment that isn't JSON in ${file}`))
+    return comments.map(({ dismissedAt, ...c }) => (dismissedAt === undefined ? c : { ...c, resolvedAt: c.resolvedAt ?? dismissedAt }))
   }
 
   private async save(rel: string, comments: DocComment[]) {

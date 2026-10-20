@@ -472,7 +472,6 @@ export class Core {
       ),
       createdAt: z.number(),
       resolvedAt: z.number().optional(),
-      dismissedAt: z.number().optional(),
       foldedAt: z.number().optional(),
       source: z.object({ path: z.string(), label: z.string() }).optional(),
     })
@@ -1088,7 +1087,6 @@ export class Core {
       const by = was.entries[0]?.by
       return { what: "comment", by, was, ...(replies ? { touchedBy: was.entries.slice(1).map((e) => e.by) } : {}) }
     }
-    const ownComment: Policy<"comments.dismiss"> = { touches: "own", target: ({ path, id }) => commentTarget(path, id) }
     const addComment: Policy<"comments.add"> = { touches: "own", target: ({ path, comment }) => commentTarget(path, comment.id) }
     this.router.register("comments.add", z.object({ path: rel, comment: commentSchema }), addComment, async ({ path, comment }, caller) => {
       const agent = caller.kind !== "window"
@@ -1127,15 +1125,6 @@ export class Core {
         this.answerReply(this.requireWorkspace(), path, comment.id)
       }
       return before
-    })
-    // One of Owlit's comments the user doesn't want: put away for good
-    this.router.register("comments.dismiss", z.object({ path: rel, id: z.string() }), ownComment, async ({ path, id }, caller) => {
-      const comment = (await docs().listComments(path)).find((c) => c.id === id)
-      if (!comment) throw new RpcFailure(RpcErrorCode.NotFound, t`That comment isn't there any more.`)
-      if (!comment.entries[0] || !isOwlit(comment.entries[0].by)) throw new RpcFailure(RpcErrorCode.InvalidParams, "Only Owlit's comments are dismissed; yours are resolved or deleted.")
-      const dismissed = { ...comment, dismissedAt: Date.now() }
-      await this.putComment(path, dismissed, caller, {}, true)
-      return dismissed
     })
     this.router.register("comments.remove", z.object({ path: rel, id: z.string() }), { touches: "own", target: ({ path, id }) => commentTarget(path, id, { replies: true }) }, async ({ path, id }, caller) => {
       const removed = await docs().removeComment(path, id)

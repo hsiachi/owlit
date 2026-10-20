@@ -285,7 +285,7 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return `Moved ${str("path")} to ${moved.path}.`
     }
     case "docs_comments": {
-      const comments = ((await owlit.rpc.comments.all())[str("path")] ?? []).filter((c) => !c.dismissedAt && !c.foldedAt)
+      const comments = ((await owlit.rpc.comments.all())[str("path")] ?? []).filter((c) => !c.foldedAt)
       if (!comments.length) return `There are no comments on ${str("path")}.`
       const me = owlitOf(comments)
       const who = (by: string) => (by === me ? "Owlit (you)" : by.startsWith("o_") ? "Owlit" : by === "other" ? "someone" : "the user")

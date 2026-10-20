@@ -55,6 +55,18 @@ describe("anchors", () => {
     expect(findAnchor(text, { quote: "dog", prefix: "", suffix: "" })).toBeNull()
   })
 
+  it("places a short quote only where the text around it matches too, else nearest the place it was", () => {
+    const text = "**2. Data.** The set.\n\n**2. Method.** The model.\n\n**2. Results.** The numbers."
+    const second = text.indexOf("**2. Method")
+    // Its words anywhere, its surroundings nowhere: not placed at a guess
+    expect(findAnchor(text, { quote: "**2. ", prefix: "Background.\n\n", suffix: "Approach" })).toBeNull()
+    expect(findAnchor(text, anchorAt(text, second, second + 5))).toBe(second)
+    // No surroundings kept: the copy nearest where it was
+    expect(findAnchor(text, { quote: "**2. ", prefix: "", suffix: "" }, second + 3)).toBe(second)
+    // The only copy needs nothing around it
+    expect(findAnchor("one **2. ", { quote: "**2. ", prefix: "x", suffix: "y" })).toBe(4)
+  })
+
   it("finds words a reader saw in the source that has marks around them", () => {
     const source = "**Verbosity.** Longer answers win ([Dubois 2024](owlit://library/d)); people too."
     const seen = readableText(source).text
