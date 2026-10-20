@@ -148,6 +148,8 @@ const macAliases = (root: string) => {
 // workspace's folder, maybe with a :line after it), as that file's owlit:// address, so it opens here
 // rather than in the browser; null for a web link or a path that names nothing in the workspace
 export function docUriOfLink(href: string): string | null {
+  // Markdown writes a destination with spaces in angle brackets: [x](<notes/Reading log.md>)
+  href = href.replace(/^<(.*)>$/s, "$1")
   let path: string
   if (/^file:\/\//i.test(href)) {
     try {

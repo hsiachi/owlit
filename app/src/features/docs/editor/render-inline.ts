@@ -1,9 +1,10 @@
 import katex from "katex"
 import { linkTitleText } from "@owlit/protocol"
+import { docUriOfLink } from "../lib/mentions"
 
 // Draws a line of Markdown inside a rendered block (a table cell): mentions, links, wikilinks, bold,
 // italics, code and math. Anything else stays as written.
-const TOKEN = /(\[[^\]]*\]\([^)\s]+(?:\s+"(?:[^"\\]|\\.)*")?\))|(\[\[[^\]]+\]\])|(\*\*[^*]+\*\*)|(`[^`]+`)|(\$[^$\s](?:[^$]*[^$\s])?\$)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
+const TOKEN = /(\[[^\]]*\]\((?:<[^>]*>|[^)\s]+)(?:\s+"(?:[^"\\]|\\.)*")?\))|(\[\[[^\]]+\]\])|(\*\*[^*]+\*\*)|(`[^`]+`)|(\$[^$\s](?:[^$]*[^$\s])?\$)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
 
 export function renderInline(text: string, into: HTMLElement) {
   let last = 0
@@ -12,14 +13,16 @@ export function renderInline(text: string, into: HTMLElement) {
     last = m.index + m[0].length
     const [whole, link, wiki, bold, code, math] = m
     if (link) {
-      const [, label, href, title] = /^\[([^\]]*)\]\(([^)\s]+)(?:\s+("(?:[^"\\]|\\.)*"))?\)$/.exec(link) ?? []
-      const el = document.createElement(href?.startsWith("owlit://") ? "span" : "a")
-      el.className = href?.startsWith("owlit://") ? "cm-mention" : "cm-link"
-      if (href?.startsWith("owlit://")) {
-        el.dataset.uri = href
+      const [, label, href, title] = /^\[([^\]]*)\]\((<[^>]*>|[^)\s]+)(?:\s+("(?:[^"\\]|\\.)*"))?\)$/.exec(link) ?? []
+      // A doc linked by its file's path is a mention, as in the text around the table
+      const uri = href?.startsWith("owlit://") ? href : href ? docUriOfLink(href) : null
+      const el = document.createElement(uri ? "span" : "a")
+      el.className = uri ? "cm-mention" : "cm-link"
+      if (uri) {
+        el.dataset.uri = uri
         // A citation's sentence, for its card and its click, as the editor's own mentions carry it
         if (title) el.dataset.quote = linkTitleText(title)
-      } else (el as HTMLAnchorElement).href = href ?? ""
+      } else (el as HTMLAnchorElement).href = href?.replace(/^<(.*)>$/s, "$1") ?? ""
       el.textContent = label ?? ""
       into.append(el)
     } else if (wiki) {
