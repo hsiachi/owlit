@@ -26,6 +26,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - Keep Owlit out and Dismiss on Owlit's comments are gone: tell Owlit in the chat, undo its edit or resolve its comment. A comment dismissed before now shows among Resolved comments.
 - Go through is asked for in a chat ("go through this meeting against my docs"); the doc's menu no longer has it.
 - Copy references in a doc's menu copies the papers the doc cites, in the order you first cite them, as APA text or as BibTeX. Papers a thread found that aren't in your Library come along too.
+- A paper opened in a thread shows the card the Library shows (authors, venue, citations, whether its PDF is there, the abstract), then what the thread says of it with the passage. In a thread's table any cell opens it, also from the keyboard, and a What it is column says what each paper is. Export as a doc follows the table's Group by, and the CSV opens in Excel with accents and Chinese intact.
 - Owlit's edits to a paper's note show above the note until you have seen them: the old words struck, the new ones underlined, each with Undo.
 - On a window 1400px wide or more, clicking a citation in a doc while the chat is docked opens the paper between the doc and the chat, instead of closing the chat.
 - A paper's About says which of your docs cite it.

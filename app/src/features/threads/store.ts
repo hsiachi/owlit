@@ -22,9 +22,9 @@ interface ThreadsState {
 export const useThreadsStore = create<ThreadsState>()(
   persist(() => ({ threads: isDesktop ? {} : seedThreads(), loaded: !isDesktop }), {
     name: "owlit-threads",
-    // 3: a thread is a report plus Library papers. The preview's threads kept by an older version start
-    // again from the seed: their rows held the papers' facts, which only core can give a version 3 thread.
-    version: 3,
+    // The preview's threads kept by an older version start again from the seed. 3: a thread is a report
+    // plus Library papers, whose facts only core can give; 4: the seed's reports, groups and rows' `is`.
+    version: 4,
     migrate: () => ({ threads: seedThreads() }),
     skipHydration: isDesktop,
     partialize: (s) => (isDesktop ? {} : { threads: s.threads }),

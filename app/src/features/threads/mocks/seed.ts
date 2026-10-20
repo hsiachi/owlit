@@ -8,8 +8,9 @@ const now = Date.now()
 
 const lib = (title: string, authors: string[], year: number, venue?: string): ThreadPaper => ({ title, authors, ids: {}, year, ...(venue ? { venue } : {}) })
 
-function row(id: string, paper: ThreadPaper, answer: string, depth: AnswerDepth, at: number, passage?: { quote: string; page: number }): ThreadRowRead {
-  return { id, paper, cells: { [QUESTION_COLUMN]: { text: answer, depth, at, ...(passage ? { passage } : {}) } }, addedAt: Math.min(at, now - 2 * HOUR), foundBy: "search" }
+// more: what the paper is, how Owlit found it, and the groups it is in (by grouping)
+function row(id: string, paper: ThreadPaper, answer: string, depth: AnswerDepth, at: number, passage?: { quote: string; page: number }, more: Pick<ThreadRowRead, "is" | "foundBy" | "in"> = {}): ThreadRowRead {
+  return { id, paper, cells: { [QUESTION_COLUMN]: { text: answer, depth, at, ...(passage ? { passage } : {}) } }, addedAt: Math.min(at, now - 2 * HOUR), foundBy: "search", ...more }
 }
 
 function readingTools(): ThreadRead {
@@ -20,25 +21,52 @@ function readingTools(): ThreadRead {
     id: "reading-support-tools",
     title: "Tools that support reading scientific papers",
     asked: { text: asked, chatId: "c1", at },
-    project: "Reading tools study",
+    project: "writing",
     sources: ["Semantic Scholar", "OpenAlex"],
-    report: "Most tools add context inside the paper itself: [CiteSee](owlit://library/p9) marks citations the reader has seen, [Scim](owlit://library/p15) highlights a paper's key sentences. Two systems work across papers rather than within one: [Synergi](owlit://library/p10) builds a thread of related work from a seed citation, [Relatedly](owlit://library/p11) from existing related-work sections. Evaluations are short lab studies; none followed readers over weeks, and none measured reading speed directly.",
-    one: "Most tools add context inside the paper itself: CiteSee marks citations the reader has seen, Scim highlights a paper's key sentences.",
-    columns: [{ id: QUESTION_COLUMN, question: asked, kind: "ask" }],
+    report: [
+      "Eight systems that help researchers read papers, nearly all from one research group's reading tools, tested in short lab sessions. They split by where the help sits: inside the paper being read, or across the papers around it.",
+      "## Inside the paper",
+      "[CiteSee](owlit://library/p9) marks citations the reader has already seen or saved; [Scim](owlit://library/p15) highlights a paper's key sentences, and readers skimmed faster with it. [Paper Plain](owlit://library/doi-10.1145-3589955) adds plain-language summaries for readers outside the field, which made papers easier but not faster to read.",
+      "## Across papers",
+      "[Synergi](owlit://library/p10) builds a hierarchy of related work from a citation the user picks; [Relatedly](owlit://library/p11) reuses other papers' related-work sections as a map; [Threddy](owlit://library/doi-10.1145-3526113.3545660) lets the reader pull threads out as they read.",
+      "## What it means for the study",
+      "None followed readers over weeks, and none measured reading speed directly: [Scim](owlit://library/p15) is the only one that times skimming. A study of reading over a term would sit where none of these does.",
+      "## Read first",
+      "[CiteSee](owlit://library/p9) and [Synergi](owlit://library/p10), one of each kind; [The Semantic Reader Project](owlit://library/p12) for the whole family.",
+    ].join("\n\n"),
+    one: "Help inside the paper (CiteSee, Scim) or across papers (Synergi, Relatedly); none followed readers over weeks.",
+    columns: [
+      { id: QUESTION_COLUMN, question: asked, kind: "ask" },
+      {
+        id: GROUPING_COLUMN,
+        question: "Topic",
+        kind: "grouping",
+        hidden: true,
+        groups: [
+          { id: "inside", name: "Inside the paper", one: "help at the moment of reading" },
+          { id: "cites", name: "Citations", parent: "inside" },
+          { id: "skim", name: "Skimming and summaries", parent: "inside" },
+          { id: "across", name: "Across papers", one: "maps and threads of related work" },
+          { id: "overview", name: "Overviews" },
+        ],
+      },
+    ],
     rows: [
-      row("p9", lib("CiteSee: Augmenting Citations in Scientific Papers with Persistent and Personalized Historical Context", ["Joseph Chee Chang", "Amy X. Zhang"], 2023, "CHI"), "Marks citations the reader has already seen or saved, so familiar work stands out while reading.", "full", at, { quote: "personalized and persistent citation context", page: 2 }),
+      row("p9", lib("CiteSee: Augmenting Citations in Scientific Papers with Persistent and Personalized Historical Context", ["Joseph Chee Chang", "Amy X. Zhang"], 2023, "CHI"), "Marks citations the reader has already seen or saved, so familiar work stands out while reading.", "full", at, { quote: "personalized and persistent citation context", page: 2 }, { is: "System and lab study, 16 readers", foundBy: "search: citation context reading", in: { [GROUPING_COLUMN]: ["cites"] } }),
       // Answered again from the full text after the user asked for the thread to be read in full (the
       // preview's change log has the answer it replaced)
-      row("p15", lib("Scim: Intelligent Skimming Support for Scientific Papers", ["Raymond Fok", "Hita Kambhamettu"], 2023, "IUI"), "Highlights objective, method and result sentences in four colours; readers skimmed faster with no loss of recall.", "full", now - 25 * 60_000, { quote: "faceted highlights", page: 3 }),
-      row("p10", lib("Synergi: A Mixed-Initiative System for Scholarly Synthesis and Sensemaking", ["Hyeonsu B. Kang", "Sherry Tongshuang Wu"], 2023, "UIST"), "Builds a hierarchy of related work from a citation the user picks, mixing the user's choices with an LLM's.", "full", at, { quote: "threads of related work", page: 4 }),
-      row("p11", lib("Relatedly: Scaffolding Literature Reviews with Existing Related Work Sections", ["Srishti Palani", "Aakanksha Naik"], 2023, "CHI"), "Reuses related-work sections of other papers as a map of a topic, with the papers each one cites.", "abstract", at),
-      row("p12", lib("The Semantic Reader Project", ["Kyle Lo", "Joseph Chee Chang"], 2024, "CACM"), "An overview of reading interfaces built on one PDF reader; most were tested with fewer than twenty readers.", "abstract", at),
+      row("p15", lib("Scim: Intelligent Skimming Support for Scientific Papers", ["Raymond Fok", "Hita Kambhamettu"], 2023, "IUI"), "Highlights objective, method and result sentences in four colours; readers skimmed faster with no loss of recall.", "full", now - 25 * 60_000, { quote: "faceted highlights", page: 3 }, { is: "System and lab study, 19 readers", foundBy: "search: skimming support", in: { [GROUPING_COLUMN]: ["skim"] } }),
+      row("p10", lib("Synergi: A Mixed-Initiative System for Scholarly Synthesis and Sensemaking", ["Hyeonsu B. Kang", "Sherry Tongshuang Wu"], 2023, "UIST"), "Builds a hierarchy of related work from a citation the user picks, mixing the user's choices with an LLM's.", "full", at, { quote: "threads of related work", page: 4 }, { is: "System and lab study, 12 researchers", foundBy: "cited by Relatedly", in: { [GROUPING_COLUMN]: ["across"] } }),
+      row("p11", lib("Relatedly: Scaffolding Literature Reviews with Existing Related Work Sections", ["Srishti Palani", "Aakanksha Naik"], 2023, "CHI"), "Reuses related-work sections of other papers as a map of a topic, with the papers each one cites.", "abstract", at, undefined, { is: "System and lab study", foundBy: "search: literature review scaffolding", in: { [GROUPING_COLUMN]: ["across"] } }),
+      row("p12", lib("The Semantic Reader Project", ["Kyle Lo", "Joseph Chee Chang"], 2024, "CACM"), "An overview of reading interfaces built on one PDF reader; most were tested with fewer than twenty readers.", "abstract", at, undefined, { is: "Overview article", foundBy: "cites CiteSee", in: { [GROUPING_COLUMN]: ["overview"] } }),
       row(
         "doi-10.1145-3526113.3545660",
         { title: "Threddy: An Interactive System for Personalized Thread-based Exploration and Organization of Scientific Literature", authors: ["Hyeonsu B. Kang", "Joseph Chee Chang"], ids: { doi: "10.1145/3526113.3545660" }, year: 2022, venue: "UIST", abstract: "Reviewing the literature to understand relevant threads of past work is a critical part of research. Threddy lets researchers extract threads of related work from the papers they read and organize them as they go." },
         "Lets readers pull threads of related work out of papers as they read and keep them organised.",
         "abstract",
         now - 30 * 60_000,
+        undefined,
+        { is: "System and lab study", foundBy: "cited by Synergi", in: { [GROUPING_COLUMN]: ["across"] } },
       ),
       row(
         "doi-10.1145-3589955",
@@ -46,6 +74,8 @@ function readingTools(): ThreadRead {
         "Adds plain-language section summaries for readers outside the field; readers found papers easier but not faster to read.",
         "abstract",
         now - 30 * 60_000,
+        undefined,
+        { is: "System and two lab studies", foundBy: "search: plain-language summaries", in: { [GROUPING_COLUMN]: ["skim"] } },
       ),
       // A paper whose source gave no abstract: answered from its title only
       row(
@@ -54,6 +84,8 @@ function readingTools(): ThreadRead {
         "Seems to bring guided highlights to skimming on phones.",
         "title",
         at,
+        undefined,
+        { foundBy: "cites Scim", in: { [GROUPING_COLUMN]: ["skim"] } },
       ),
     ],
     createdAt: at,
@@ -85,6 +117,8 @@ function toolUse(): ThreadRead {
   }
 }
 
+// Its project is a folder the preview's workspace hasn't got (renamed since), so the list shows it under
+// "Not in a project"
 function nothingFound(): ThreadRead {
   const at = now - 9 * DAY
   const asked = "has anyone compared replay ratings with live ratings of reminders?"
@@ -113,6 +147,7 @@ function venue(): ThreadRead {
   const p = (id: string, title: string, authors: string[], answer: string, method: string, rel?: { rel: "supports" | "challenges" | "related"; sentence: string; text: string }, group?: string, full?: { quote: string; page: number }): ThreadRowRead => ({
     id,
     paper: { title, authors, ids: { doi: `10.1145/${id}` }, year: 2026, venue: "UIST" },
+    is: method.startsWith("Survey") ? "Survey paper" : method.startsWith("Technical") ? "Technical paper" : "System paper with a study",
     cells: {
       [QUESTION_COLUMN]: { text: answer, depth: full ? "full" : "title", at, ...(full ? { passage: full } : {}) },
       c2: { text: method, depth: full ? "full" : "title", at },
@@ -126,7 +161,7 @@ function venue(): ThreadRead {
     id: "uist-2026-papers",
     title: "UIST 2026 papers",
     asked: { text: asked, at },
-    project: "Reading tools study",
+    project: "writing",
     sources: ["ACM DL proceedings"],
     report: "The largest group builds reading and writing aids that act inside the document; most add context at the moment of reading rather than before it. Evaluations are lab sessions of under an hour; two of nine report reading time, and both find no speed-up.",
     one: "The largest group builds reading and writing aids that act inside the document; most add context at the moment of reading rather than before it.",

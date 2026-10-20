@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { threadMarkdown } from "./export"
+import type { ThreadRead } from "@owlit/protocol"
+import { threadCsv, threadMarkdown } from "./export"
 import { seedThreads } from "./mocks/seed"
 
 describe("a thread exported as a doc", () => {
@@ -29,5 +30,55 @@ describe("a thread exported as a doc", () => {
     const row = c.rows.find((r) => r.cells.q?.passage)!
     const { quote, page } = row.cells.q!.passage!
     expect(threadMarkdown(c)).toContain(`(owlit://library/${row.id}#p${page} "${quote}")`)
+  })
+
+  // The table thread with a second way of grouping its papers, by study kind
+  const twoWays = (): ThreadRead => {
+    const c = all.find((c) => c.id === "uist-2026-papers")!
+    return {
+      ...c,
+      columns: [...c.columns, { id: "kind", question: "Study kind", kind: "grouping", groups: [{ id: "lab", name: "Lab studies" }, { id: "field", name: "Studies in the field" }] }],
+      rows: c.rows.map((r, i) => ({ ...r, in: { ...r.in, kind: [i % 2 ? "field" : "lab"] } })),
+    }
+  }
+
+  it("groups by the grouping the table shows, not the first one", () => {
+    const c = twoWays()
+    const md = threadMarkdown({ ...c, view: { groupBy: "grouping:kind" } })
+    expect(md).toMatch(/^## Lab studies$/m)
+    expect(md).toMatch(/^## Studies in the field$/m)
+    expect(md).not.toMatch(/^## Reading and writing aids$/m)
+    expect(md.split("\n").filter((l) => l.startsWith("| ["))).toHaveLength(c.rows.length)
+    // With no view, the first grouping, a subgroup a level under its parent
+    const first = threadMarkdown(c)
+    expect(first).toMatch(/^## Reading and writing aids$/m)
+    expect(first).toMatch(/^### Inside one paper$/m)
+    expect(first).not.toMatch(/^## Lab studies$/m)
+  })
+
+  it("has no group headings when the table is grouped by nothing", () => {
+    const c = { ...twoWays(), view: { groupBy: "none" } }
+    const md = threadMarkdown(c)
+    expect(md).not.toMatch(/^##/m)
+    expect(md.split("\n").filter((l) => l.startsWith("| ["))).toHaveLength(c.rows.length)
+  })
+
+  it("says what each paper is, in the doc and the CSV", () => {
+    const c = all.find((c) => c.id === "uist-2026-papers")!
+    const row = c.rows.find((r) => r.is)!
+    expect(threadMarkdown(c)).toMatch(new RegExp(`\\(owlit://library/${row.id}\\) \\([^)]*\\) \\| ${row.is} \\|`))
+    const [head, first] = threadCsv(c).split("\n")
+    expect(head).toContain("What it is")
+    expect(head).toContain(",Answer,Depth,")
+    expect(first).toContain(c.rows[0]!.is!)
+  })
+})
+
+describe("a thread exported as a CSV", () => {
+  it("starts with a byte-order mark, so a spreadsheet reads it as UTF-8", () => {
+    const c = Object.values(seedThreads())[0]!
+    const csv = threadCsv(c)
+    expect(csv.charCodeAt(0)).toBe(0xfeff)
+    expect(csv.slice(1).startsWith("Paper,")).toBe(true)
   })
 })
