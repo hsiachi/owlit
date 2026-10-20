@@ -2,7 +2,6 @@ import { t } from "@lingui/core/macro"
 import {
   applyThreadEdit,
   type Change,
-  type ChatAbout,
   type ChangeOrigin,
   GROUPING_COLUMN,
   itemId,
@@ -16,14 +15,12 @@ import {
   type Thread,
   type ThreadBatch,
   type ThreadCell,
-  type ThreadColumn,
   type ThreadEdit,
   type ThreadGroup,
   type ThreadSearch,
   type ThreadPaper,
   type ThreadRead,
   type ThreadRow,
-  type ThreadSize,
   type ThreadSummary,
   type ThreadWrite,
   type PaperIds,
@@ -32,23 +29,24 @@ import {
 import { randomBytes } from "node:crypto"
 import { mkdir, readdir, rename } from "node:fs/promises"
 import path from "node:path"
-import type { Started } from "../chats/chats.ts"
+import type { ChangeLog } from "../changes/log.ts"
 import { newWriteId, type RecordInput, type Recorder } from "../changes/record.ts"
 import { appendJsonl, readJson, readJsonl, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, type Caller } from "../rpc/index.ts"
 import { sameJson, Serial } from "../util.ts"
-import { THREAD_RECIPES } from "../recipes/threads.ts"
 
 // Threads: Owlit's reports on the user's questions with the papers they rest on, in .owlit/threads/<id>/:
 //
 //   thread.json       the thread; each row names a Library paper by its id and keeps none of its facts
-//   history.jsonl     one line per agent write: which chat, which items, why, the searches it
-//                     rests on (About)
+//   history.jsonl     what a write rests on that the change log doesn't keep: the searches, Owlit's
+//                     note, the later question it was for (About)
 //
-// A thread is given out with each row's paper as the Library has it (read()); what is saved is only what
-// changed, never those facts. Every change, Owlit's and the user's, goes in the change log one item at a
-// time (a row, a cell, a group, the report, the title), with the item on each side, so an undo puts back
-// that item alone and leaves what was done to others since.
+// A thread is Owlit's: the user changes it by asking in a chat, and from a window only moves it to a
+// project or chooses what its table is grouped by. It is given out with each row's paper as the Library
+// has it (read()); what is saved is only what changed, never those facts. Every change goes in the change
+// log one item at a time (a row, a cell, a group, the report, the title), with the item on each side, the
+// entries of one write sharing its writeId, so the chat's card undoes a write whole and an item that
+// changed since stays.
 
 // What owlit itself does (an upgrade adding a thread's papers to the Library) is Owlit's
 const OWLIT: Caller = { kind: "owlit" }
@@ -66,8 +64,6 @@ export interface ThreadsServices {
   // The 1-based page a quote is on in a paper's full text, word for word; null when it isn't there,
   // undefined when owlit has no text of the paper
   findPassage?: (paperId: string, quote: string) => Promise<number | null | undefined>
-  // Whether owlit has a paper's full text (its text.md)
-  hasText?: (id: string) => Promise<boolean>
   // The library's id for a paper named by any id it goes by, undefined when it isn't in the library: a
   // search names a paper by its own id, which often isn't the library's (Library.canonical)
   canonical?: (id: string, ids?: PaperIds) => Promise<string | undefined>
@@ -76,47 +72,53 @@ export interface ThreadsServices {
   facts?: (id: string) => Promise<ThreadPaper | undefined>
   // A thread changed under the windows (null: deleted)
   changed?: (id: string, thread: ThreadRead | null) => void
-  // Starts a chat owlit starts for the person (core.ts startFor), on the agent Settings picks for its work
-  startChat?: (start: { about: ChatAbout; title: string; recipe: string }) => Promise<Started>
-  // Throws the sentence that says why a chat can't start now (no agent is set up)
-  canStartChat?: () => Promise<unknown>
-  // What a chat owlit started works on, by the chat's id; undefined for a chat the person typed into
-  chatAbout?: (chatId: string) => Promise<ChatAbout | undefined>
 }
 
+// A line of history.jsonl: what a write rests on that neither the thread nor the change log keeps (the
+// searches its chat made since its last write, Owlit's note on what it couldn't reach, the later question
+// it was for), named by the write's id in the change log. Only a write with one of those has a line.
 interface HistoryLine {
   at: number
+  // chat:<id>, or agent for a write that names no chat
   by: string
-  // On a line a scheduler task's agent wrote, that task as "<kind>:<task id>": its lines are one batch
-  run?: string
-  // The recipe of the chat owlit started that wrote it (recipes/threads.ts)
-  recipe?: string
-  why?: string
-  items: string[]
-  // Rows the write added, the question it was for when that was a later one, Owlit's note on what it
-  // couldn't reach, and the searches it rests on (made since the same chat's last write)
-  added?: string[]
+  writeId?: string
   asked?: string
   note?: string
   searches?: { at: number; query: string; source: string; results: string[] }[]
+  // Lines from before the change log also name the items they changed and the rows they added, and what
+  // set them going: a scheduler task as "<kind>:<task id>", or the recipe of a chat owlit started
+  items?: string[]
+  added?: string[]
+  run?: string
+  recipe?: string
+}
+
+// One write of Owlit's to the thread as About reads it
+interface Write {
+  at: number
+  by: string
+  // Its entries are in the change log; itemized: one at least names an item (an older write that started
+  // a thread logged only that it did)
+  logged: boolean
+  itemized: boolean
+  line?: HistoryLine
+  added: Set<string>
+  // Row and column of each answer it wrote
+  answered: [string, string][]
+  asked?: string
+  notes: string[]
+  searches: NonNullable<HistoryLine["searches"]>
 }
 
 // How far back a write looks for the searches it rests on, when nothing of the same chat came before
 const SEARCHES_SINCE_MS = 6 * 3_600_000
 // Writes of one chat this close together are one batch
 const BATCH_GAP_MS = 30 * 60_000
+// An older history line was appended just before its write's entries in the change log
+const LINE_MATCH_MS = 60_000
 
-// What About says set a batch going, by the recipe of the chat owlit started that wrote it
+// What About says set a batch going, by the recipe of the chat owlit started that wrote it (older lines)
 const RECIPE_TRIGGER: Record<string, ThreadBatch["trigger"]> = { gather: "gather", "find-more": "more", "ask-each": "fill", group: "fill", "read-in-full": "read" }
-
-// Work started on a thread that changed it first (a new thread, a new column): the thread, and the chat
-// doing the work
-export interface ThreadStarted {
-  thread: ThreadRead
-  chatId: string
-}
-
-type ThreadRecipe = keyof typeof THREAD_RECIPES
 
 const FILE = "thread.json"
 
@@ -124,15 +126,17 @@ export class Threads {
   private readonly dir: string
   private readonly trashDir: string
   private readonly recorder: Recorder
+  private readonly changes: ChangeLog
   private readonly services: ThreadsServices
   private readonly serial = new Serial()
   // When each chat's searches were last given to a write
   private attributed = new Map<string, number>()
 
-  constructor(owlitDir: string, parts: { recorder: Recorder }, services: ThreadsServices = {}) {
+  constructor(owlitDir: string, parts: { recorder: Recorder; changes: ChangeLog }, services: ThreadsServices = {}) {
     this.dir = path.join(owlitDir, "threads")
     this.trashDir = path.join(owlitDir, "trash")
     this.recorder = parts.recorder
+    this.changes = parts.changes
     this.services = services
   }
 
@@ -172,202 +176,29 @@ export class Threads {
     return here ? rows.find((r) => r.id === here) : undefined
   }
 
-  // ---- Owlit's work on a thread: a chat owlit starts about it ----
-
-  // The rows Read in full reads: answered from their abstracts or titles, with a PDF to be had (a free
-  // one the search found, or the paper's text in the library already). The thread's button counts the
-  // same rows (app/src/features/threads/components/Work.tsx), so it says what the chat will do.
-  async toRead(c: ThreadRead): Promise<string[]> {
-    const rows = c.rows.filter((r) => Object.values(r.cells).every((cell) => cell.depth !== "full"))
-    const hasText = this.services.hasText
-    const can = await Promise.all(rows.map(async (r) => r.paper.openPdf || (hasText ? await hasText(r.id) : false)))
-    return rows.filter((_, i) => can[i]).map((r) => r.id)
-  }
-
-  // A recipe written out for this thread (recipes/threads.ts), for owlit_help. column: the column ask-each
-  // or group fills, by its id or its question; lookFor: what find-more looks for this time
-  async recipe(name: ThreadRecipe, id: string, opts: { column?: string; lookFor?: string } = {}): Promise<string> {
-    const c = await this.get(id)
-    let column: ThreadColumn | undefined
-    if (name === "ask-each" || name === "group") {
-      const grouping = name === "group"
-      const want = opts.column?.trim() ?? ""
-      column = c.columns.find((col) => (col.kind === "grouping") === grouping && (col.id === want || sameWords(col.question, want)))
-      if (!column)
-        throw new RpcFailure(
-          RpcErrorCode.InvalidParams,
-          grouping
-            ? `There is no grouping "${want}" in thread ${id}: start it with thread_write new_grouping, then ask for this recipe with its id.`
-            : `There is no column "${want}" in thread ${id}: add the question with thread_write columns, then ask for this recipe with its id.`,
-        )
-    }
-    return this.recipeFor(c, name, { ...(column ? { column } : {}), ...(opts.lookFor ? { lookFor: opts.lookFor } : {}) })
-  }
-
-  private async recipeFor(c: ThreadRead, name: ThreadRecipe, opts: { column?: ThreadColumn; lookFor?: string; size?: ThreadSize }) {
-    const lookFor = opts.lookFor?.trim()
-    return THREAD_RECIPES[name].text({
-      thread: c,
-      withText: await this.withText(c),
-      toRead: name === "read-in-full" ? await this.toRead(c) : [],
-      ...(lookFor && !sameWords(lookFor, c.asked.text) ? { lookFor } : {}),
-      ...(opts.column ? { column: opts.column } : {}),
-      ...(opts.size ? { size: opts.size } : {}),
-    })
-  }
-
-  // Starts the work on a thread: a chat owlit starts for the person about the thread, with the recipe as
-  // its first message; its id. Never inside this.serial: the chat's agent writes the thread through it.
-  private async begin(c: Thread, name: ThreadRecipe, opts: { column?: ThreadColumn; lookFor?: string; size?: ThreadSize } = {}): Promise<string> {
-    const start = this.services.startChat
-    if (!start) throw new RpcFailure(RpcErrorCode.Unavailable, t`Owlit can't work on threads here.`)
-    const about: ChatAbout = { kind: "thread", id: c.id, recipe: name, ...(opts.column ? { column: opts.column.id } : {}) }
-    return (await start({ about, title: c.title, recipe: await this.recipeFor(await this.read(c), name, opts) })).chatId
-  }
-
-  // The thread's rows whose full text owlit has: Owlit answers those from it from the start
-  private async withText(c: Thread): Promise<string[]> {
-    const hasText = this.services.hasText
-    if (!hasText) return []
-    const has = await Promise.all(c.rows.map((r) => hasText(r.id)))
-    return c.rows.filter((_, i) => has[i]).map((r) => r.id)
-  }
-
-  // Owlit gathers papers for a question: the thread is there at once, titled by the question until
-  // Owlit names it, and a chat about it fills it. A chat that can't start leaves no empty thread: that is
-  // known before the thread is made, and one that still fails to start takes it away again.
-  async gather(input: { question: string; project?: string; size: ThreadSize }, caller: Caller): Promise<ThreadStarted> {
-    const question = input.question.trim()
-    if (!question) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to collect papers on.`)
-    await this.services.canStartChat?.()
-    const thread = await this.serial.run(async () => {
-      const c = await this.blank({ asked: question, title: question, project: input.project ?? "" }, Date.now())
-      await this.save(c)
-      await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id } }, { quiet: true })
-      await this.announce(c)
-      return c
-    })
-    try {
-      return { thread: await this.read(thread), chatId: await this.begin(thread, "gather", { size: input.size }) }
-    } catch (error) {
-      await this.delete(thread.id, caller)
-      throw error
-    }
-  }
-
-  // more: with what to look for this time when it isn't the thread's question, kept on the thread as one
-  // more question asked (About shows it) and told to the chat that does it
-  async start(id: string, work: "more" | "read", caller: Caller, what?: string): Promise<{ chatId: string }> {
-    const asked = what?.trim()
-    const c = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      if (work === "more" && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
-        const before = structuredClone(c)
-        c.alsoAsked = [...(c.alsoAsked ?? []), { text: asked, at: Date.now() }]
-        c.updatedAt = Date.now()
-        await this.save(c)
-        await this.recordItems(caller, before, c, ["alsoAsked"])
-        await this.announce(c)
-      }
-      return c
-    })
-    return { chatId: await this.begin(c, work === "more" ? "find-more" : "read-in-full", work === "more" && asked ? { lookFor: asked } : {}) }
-  }
-
-  // A new column: one question for every paper, answered in a chat about the thread
-  async ask(id: string, question: string, caller: Caller): Promise<ThreadStarted> {
-    const [thread, column] = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      const q = question.trim()
-      if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to ask of each paper.`)
-      let column = c.columns.find((col) => sameWords(col.question, q))
-      if (!column) {
-        const before = structuredClone(c)
-        column = { id: freshId("c", c.columns.map((col) => col.id)), question: q, kind: "ask" }
-        c.columns.push(column)
-        c.updatedAt = Date.now()
-        await this.save(c)
-        await this.recordItems(caller, before, c, [`column:${column.id}`])
-        await this.announce(c)
-      } else if (column.hidden) {
-        const before = structuredClone(c)
-        column.hidden = false
-        await this.save(c)
-        await this.recordItems(caller, before, c, [`column:${column.id}`])
-        await this.announce(c)
-      }
-      return [c, column] as const
-    })
-    return { thread: await this.read(thread), chatId: await this.begin(thread, "ask-each", { column }) }
-  }
-
-  // A new way of grouping the papers: a hidden grouping column with the user's words as its question,
-  // filled in a chat about the thread. The same words again fill the grouping there is (Ask again).
-  async group(id: string, question: string, caller: Caller): Promise<ThreadStarted> {
-    const [thread, column] = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      const q = question.trim()
-      if (!q) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Say what to group the papers by.`)
-      let column = c.columns.find((col) => col.kind === "grouping" && sameWords(col.question, q))
-      if (!column) {
-        const before = structuredClone(c)
-        column = { id: freshId("g", c.columns.map((col) => col.id)), question: q, kind: "grouping", hidden: true, groups: [] }
-        c.columns.push(column)
-        c.updatedAt = Date.now()
-        await this.save(c)
-        await this.recordItems(caller, before, c, [`column:${column.id}`])
-        await this.announce(c)
-      }
-      return [c, column] as const
-    })
-    return { thread: await this.read(thread), chatId: await this.begin(thread, "group", { column }) }
-  }
-
-  // Fills what a column still lacks (Ask again)
-  async fill(id: string, columnId: string): Promise<{ chatId: string }> {
-    const c = await this.get(id)
-    const column = c.columns.find((col) => col.id === columnId)
-    if (!column) throw new RpcFailure(RpcErrorCode.NotFound, t`That column isn't there any more.`)
-    return { chatId: await this.begin(c, column.kind === "grouping" ? "group" : "ask-each", { column }) }
-  }
-
-  // A column that sets every paper against sentences the user picked from a doc of theirs. The column is
-  // theirs (they chose the sentences); its cells are Owlit's reading.
-  async compare(id: string, doc: string, sentences: string[], caller: Caller): Promise<ThreadStarted> {
-    const [thread, column] = await this.serial.run(async () => {
-      const c = await this.mustLoad(id)
-      const lines = sentences.map((text) => text.trim()).filter(Boolean)
-      if (!lines.length) throw new RpcFailure(RpcErrorCode.InvalidParams, t`Pick at least one sentence to compare with.`)
-      const before = structuredClone(c)
-      const column = { id: freshId("c", c.columns.map((col) => col.id)), question: doc, kind: "compare" as const, doc, sentences: lines.map((text, i) => ({ id: `l${i + 1}`, text })) }
-      c.columns.push(column)
-      c.updatedAt = Date.now()
-      await this.save(c)
-      await this.recordItems(caller, before, c, [`column:${column.id}`])
-      await this.announce(c)
-      return [c, column] as const
-    })
-    return { thread: await this.read(thread), chatId: await this.begin(thread, "ask-each", { column }) }
-  }
-
   // ---- Owlit's writes ----
 
+  // A write goes in as far as it can: a row with a problem is left out whole, a report that links a paper
+  // the thread hasn't got stays as it was, and each is named in `left` for the agent to fix and write
+  // again. It is refused whole when it can't be read at all (a new thread without its question, groups
+  // that don't fit together) or when nothing in it could go in.
   write(input: ThreadWrite, caller: Caller) {
     return this.serial.run(async () => {
       const now = Date.now()
       const existing = input.id ? await this.load(input.id) : undefined
       if (input.id && !existing) throw new RpcFailure(RpcErrorCode.NotFound, `There is no thread ${input.id}; leave id out to start one.`)
-      const problems: string[] = []
-      if (!existing && !input.asked?.trim()) problems.push("A new thread needs asked: the question as the user put it.")
-      if (!existing && !input.title?.trim()) problems.push("A new thread needs a title: a short, neutral name for what it gathers.")
-      if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+      const refused: string[] = []
+      if (!existing && !input.asked?.trim()) refused.push("A new thread needs asked: the question as the user put it.")
+      if (!existing && !input.title?.trim()) refused.push("A new thread needs a title: a short, neutral name for what it gathers.")
+      if (refused.length) throw refusal(refused)
 
       const c: Thread = existing ? structuredClone(existing) : await this.blank(input, now)
+      const before = structuredClone(c)
       const fresh = !existing
-      // Every item the write changed goes in the history and the log (which of them carry a dot is
-      // threadDot's to say)
+      // Every item the write changed goes in the log (which of them carry a dot is threadDot's to say)
       const changed = new Set<string>()
       const mark = (item: string) => changed.add(item)
+      const left: string[] = []
 
       if (existing && input.title?.trim() && input.title.trim() !== c.title) {
         c.title = input.title.trim()
@@ -394,6 +225,8 @@ export class Threads {
       // Groups: the whole of one grouping as Owlit means it now
       const wantsGroups = !!input.groups || (input.rows ?? []).some((r) => r.group !== undefined || r.groups !== undefined)
       const newGrouping = input.newGrouping?.trim()
+      // The Topic grouping this write starts only because its rows name groups
+      let topic: string | undefined
       let grouping = newGrouping
         ? c.columns.find((col) => col.kind === "grouping" && sameWords(col.question, newGrouping))
         : wantsGroups
@@ -405,13 +238,14 @@ export class Threads {
         grouping = { id: freshId("g", c.columns.map((col) => col.id)), question: newGrouping, kind: "grouping", hidden: true, groups: [] }
         c.columns.push(grouping)
         mark(`column:${grouping.id}`)
-      } else if (wantsGroups && input.grouping && grouping?.kind !== "grouping") problems.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic), or give new_grouping to start one.`)
+      } else if (wantsGroups && input.grouping && grouping?.kind !== "grouping") refused.push(`There is no grouping ${input.grouping}; leave grouping out for the thread's own (Topic), or give new_grouping to start one.`)
       else if (wantsGroups && !grouping) {
         let id = GROUPING_COLUMN
         for (let n = 2; c.columns.some((col) => col.id === id); n++) id = `${GROUPING_COLUMN}${n}`
         grouping = { id, question: "Topic", kind: "grouping", hidden: true, groups: [] }
         c.columns.push(grouping)
         mark(`column:${id}`)
+        topic = `column:${id}`
       }
       const col = grouping?.kind === "grouping" ? grouping : undefined
       if (col && input.groups) {
@@ -419,16 +253,16 @@ export class Threads {
         for (const g of input.groups) {
           if (!g.parent) continue
           const parent = given.get(g.parent)
-          if (!parent) problems.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
-          else if (parent.parent || g.parent === g.id) problems.push(`Groups go two levels deep at most: ${g.id} sits under ${g.parent}, which is itself under ${parent.parent}.`)
+          if (!parent) refused.push(`Group ${g.id} sits under ${g.parent}, which isn't one of the groups.`)
+          else if (parent.parent || g.parent === g.id) refused.push(`Groups go two levels deep at most: ${g.id} sits under ${g.parent}, which is itself under ${parent.parent}.`)
         }
-        const before = col.groups ?? []
+        const was = col.groups ?? []
         const next: ThreadGroup[] = input.groups.map((g) => ({ ...g }))
         for (const g of next) {
-          const was = before.find((have) => have.id === g.id)
-          if (!was || was.name !== g.name || was.one !== g.one || was.parent !== g.parent) mark(itemId.group(col.id, g.id))
+          const had = was.find((have) => have.id === g.id)
+          if (!had || had.name !== g.name || had.one !== g.one || had.parent !== g.parent) mark(itemId.group(col.id, g.id))
         }
-        for (const g of before) if (!next.some((have) => have.id === g.id)) changed.add(itemId.group(col.id, g.id))
+        for (const g of was) if (!next.some((have) => have.id === g.id)) changed.add(itemId.group(col.id, g.id))
         col.groups = next
         // Papers in a group that is gone fall out of it
         const ids = new Set(next.map((g) => g.id))
@@ -437,50 +271,39 @@ export class Threads {
           if (!row.in?.[col.id] || kept?.length === row.in[col.id]!.length) continue
           if (kept?.length) row.in[col.id] = kept
           else delete row.in[col.id]
+          if (!Object.keys(row.in).length) delete row.in
           changed.add(itemId.row(row.id))
         }
       }
+      if (refused.length) throw refusal(refused)
 
-      // Rows: new papers, and answers for the ones there. A new paper the Library hasn't got is added to
-      // it once the write is known to be good (toAdd); until then its row goes by the id it was named by.
+      // Rows: new papers, and answers for the ones there. Each row is checked whole before any of it
+      // goes in. A new paper the Library hasn't got is added to it once the write is known to go in
+      // (toAdd); until then its row goes by the id it was named by.
       const added: string[] = []
       const toAdd = new Map<string, ThreadPaper>()
       let updated = 0
-      for (const asked of input.rows ?? []) {
+      for (const given of input.rows ?? []) {
+        const problems: string[] = []
         // A paper the thread has under the Library's id is that row
-        let row = await this.rowOf(c.rows, asked.id)
-        const r = row ? { ...asked, id: row.id } : asked
+        let row = await this.rowOf(c.rows, given.id)
+        let paper: ThreadPaper | undefined
+        let id = row?.id ?? given.id
         if (!row) {
-          const here = await this.services.canonical?.(r.id)
+          const here = await this.services.canonical?.(given.id)
           if (!here) {
-            const paper = await this.services.paper?.(r.id)
+            paper = await this.services.paper?.(given.id)
             if (!paper && this.services.paper) {
-              problems.push(`owlit doesn't know the paper ${r.id}: name papers by the id a search gave you.`)
+              left.push(`owlit doesn't know the paper ${given.id}: name papers by the id a search gave you.`)
               continue
             }
-            if (paper) toAdd.set(r.id, paper)
           }
-          const id = here ?? r.id
-          const foundBy = r.foundBy?.trim() || foundByOf(this.services.foundBy?.(r.id))
-          row = { id, cells: {}, addedAt: now, ...(foundBy ? { foundBy } : {}) }
-          c.rows.push(row)
-          added.push(id)
-          mark(itemId.row(id))
-        } else if (r.foundBy?.trim() && !row.foundBy) {
-          row.foundBy = r.foundBy.trim()
-          changed.add(itemId.row(row.id))
-        }
-        const id = row.id
-        let touched = false
-        const is = r.is?.trim()
-        if (is && is !== row.is) {
-          row.is = is
-          touched = true
-          mark(itemId.row(id))
+          id = here ?? given.id
         }
         // Whether the paper's record has an abstract, asked once per row and only for answers not from the full text
         let abstract: boolean | undefined
-        for (const [colId, cell] of Object.entries(r.cells ?? {})) {
+        const cells: Record<string, ThreadCell> = {}
+        for (const [colId, cell] of Object.entries(given.cells ?? {})) {
           if (!c.columns.some((have) => have.id === colId)) {
             problems.push(`There is no column ${colId}; add it under columns first.`)
             continue
@@ -491,16 +314,16 @@ export class Threads {
           let passage = cell.passage
           if (cell.depth === "full") {
             if (!passage) {
-              problems.push(`${r.id}'s answer for ${colId} says it is from the full text but gives no passage; quote the words it rests on.`)
+              problems.push(`${given.id}'s answer for ${colId} says it is from the full text but gives no passage; quote the words it rests on.`)
               continue
             }
-            const page = this.services.findPassage ? await this.services.findPassage(r.id, passage.quote) : passage.page
+            const page = this.services.findPassage ? await this.services.findPassage(id, passage.quote) : passage.page
             if (page === undefined) {
-              problems.push(`owlit has no full text of ${r.id}, so its answer can only be from the abstract (depth abstract).`)
+              problems.push(`owlit has no full text of ${given.id}, so its answer can only be from the abstract (depth abstract).`)
               continue
             }
             if (page === null) {
-              problems.push(`The passage for ${r.id} isn't in its text word for word; quote it as library_read gives it.`)
+              problems.push(`The passage for ${given.id} isn't in its text word for word; quote it as library_read gives it.`)
               continue
             }
             passage = { quote: passage.quote, page }
@@ -509,27 +332,61 @@ export class Threads {
           // the cell and the export to say
           let depth = cell.depth
           if (depth === "abstract") {
-            abstract ??= !!(toAdd.get(id) ?? (await this.services.facts?.(id)))?.abstract?.trim()
+            abstract ??= !!(paper ?? (await this.services.facts?.(id)))?.abstract?.trim()
             if (!abstract) depth = "title"
           }
-          const was = row.cells[colId]
           const next: ThreadCell = { ...cell, depth, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
           if (cell.depth !== "full") delete next.passage
-          if (was && sameCell(was, next)) continue
-          row.cells[colId] = next
+          const was = row?.cells[colId]
+          if (!was || !sameCell(was, next)) cells[colId] = next
+        }
+        let groups: string[] | undefined
+        if (col && (given.group !== undefined || given.groups !== undefined)) {
+          groups = placeIn(col.groups ?? [], given.groups ?? (given.group ? [given.group] : []), (gid) => {
+            if ((col.groups ?? []).some((g) => g.id === gid)) return gid
+            problems.push(`Row ${given.id} is put in group ${gid}, which isn't one of the groups.`)
+            return null
+          })
+        }
+        if (problems.length) {
+          left.push(...problems)
+          continue
+        }
+
+        if (!row) {
+          const foundBy = given.foundBy?.trim() || foundByOf(this.services.foundBy?.(given.id))
+          row = { id, cells: {}, addedAt: now, ...(foundBy ? { foundBy } : {}) }
+          c.rows.push(row)
+          added.push(id)
+          if (paper) toAdd.set(id, paper)
+          mark(itemId.row(id))
+        }
+        let touched = false
+        const foundBy = given.foundBy?.trim()
+        if (foundBy && foundBy !== row.foundBy) {
+          row.foundBy = foundBy
+          touched = true
+          changed.add(itemId.row(id))
+        }
+        const is = given.is?.trim()
+        if (is && is !== row.is) {
+          row.is = is
+          touched = true
+          mark(itemId.row(id))
+        }
+        for (const [colId, cell] of Object.entries(cells)) {
+          row.cells[colId] = cell
           touched = true
           mark(itemId.cell(id, colId))
         }
-        if (col && (r.group !== undefined || r.groups !== undefined)) {
-          const ids = placeIn(col.groups ?? [], r.groups ?? (r.group ? [r.group] : []), (gid) => {
-            if ((col.groups ?? []).some((g) => g.id === gid)) return gid
-            problems.push(`Row ${r.id} is put in group ${gid}, which isn't one of the groups.`)
-            return null
-          })
+        if (col && groups) {
           const was = row.in?.[col.id] ?? []
-          if (ids.join() !== was.join()) {
-            if (ids.length) row.in = { ...row.in, [col.id]: ids }
-            else if (row.in) delete row.in[col.id]
+          if (groups.join() !== was.join()) {
+            if (groups.length) row.in = { ...row.in, [col.id]: groups }
+            else if (row.in) {
+              delete row.in[col.id]
+              if (!Object.keys(row.in).length) delete row.in
+            }
             touched = true
             mark(itemId.row(id))
           }
@@ -538,15 +395,24 @@ export class Threads {
       }
       for (const name of input.removeRows ?? []) {
         const row = await this.rowOf(c.rows, name)
-        if (!row) continue
+        if (!row) {
+          left.push(`${name} isn't a paper of this thread, so there was nothing to take out.`)
+          continue
+        }
         c.rows.splice(c.rows.indexOf(row), 1)
         changed.add(itemId.row(row.id))
       }
 
-      // The report, whole, and the one line: the report's first sentence when the write gives no line
-      if (input.report !== undefined && input.report.trim() !== c.report) {
-        c.report = input.report.trim()
-        mark(itemId.report())
+      // The report, whole, and the one line: the report's first sentence when the write gives no line. A
+      // report's papers are rows of the thread, its links named by their ids.
+      if (input.report !== undefined) {
+        const { text, strangers } = await this.linkRows(c.rows, input.report.trim())
+        if (strangers.length)
+          left.push(`The report links ${strangers.join(", ")}, which ${strangers.length === 1 ? "isn't a paper" : "aren't papers"} of this thread, so the report stays as it was: link only papers that are rows (add them in rows first).`)
+        else if (text !== c.report) {
+          c.report = text
+          mark(itemId.report())
+        }
       }
       const one = input.one?.trim() || (changed.has(itemId.report()) && !input.one ? firstSentence(c.report) : undefined)
       if (one !== undefined && one !== c.one) {
@@ -554,7 +420,9 @@ export class Threads {
         mark(itemId.one())
       }
 
-      if (problems.length) throw new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+      // Nothing could go in: a new thread whose papers all had problems is no thread either, and a Topic
+      // grouping started for rows that were left out is nothing either
+      if (left.length && (fresh ? !c.rows.length : ![...changed].some((item) => item !== topic))) throw refusal(left)
       if (!fresh && !changed.size) return { id: c.id, title: c.title, added: 0, updated: 0 }
 
       // The papers new to the Library, added as the writer's; a row then goes by the Library's id
@@ -565,50 +433,52 @@ export class Threads {
 
       c.updatedAt = now
       await this.save(c)
-      const searches = await this.searchesFor(c.id, input, now)
-      const recipe = input.chatId ? (await this.services.chatAbout?.(input.chatId))?.recipe : undefined
-      await this.record(c.id, {
-        at: now,
-        by: input.chatId ? `chat:${input.chatId}` : "agent",
-        ...(recipe ? { recipe } : {}),
-        ...(input.why ? { why: input.why } : {}),
-        items: [...changed],
-        ...(added.length ? { added } : {}),
-        ...(asked && changed.has("alsoAsked") ? { asked } : {}),
-        ...(input.note?.trim() ? { note: input.note.trim() } : {}),
-        ...(searches.length ? { searches } : {}),
-      })
-      await this.announce(c)
-      // One write is one undo on the chat's card: its entries share the tool call's id, or one of their own
+      // One write is one undo on the chat's card: its entries share the tool call's id, or one of their own.
+      // A thread it starts is one entry, and each item it put in one more, so About reads what it added.
       const origin = { writeId: (caller.kind !== "window" && caller.toolCallId) || newWriteId(), ...(input.chatId ? { chatId: input.chatId } : {}) }
-      const entries = fresh
-        ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })]
-        : await this.recordItems(caller, existing!, c, [...changed], origin)
+      const searches = await this.searchesFor(c.id, input, now)
+      const note = input.note?.trim()
+      const question = asked && changed.has("alsoAsked") ? asked : undefined
+      if (searches.length || note || question)
+        await this.record(c.id, { at: now, by: input.chatId ? `chat:${input.chatId}` : "agent", writeId: origin.writeId, ...(question ? { asked: question } : {}), ...(note ? { note } : {}), ...(searches.length ? { searches } : {}) })
+      await this.announce(c)
+      const entries = [
+        ...(fresh ? [await this.recorder.record(caller, { action: "create", target: { kind: "thread", path: c.id }, origin }, { quiet: true })] : []),
+        ...(await this.recordItems(caller, before, c, [...changed], origin)),
+      ]
       // Said once per write and only for a chat, which shows it under the answer
       if (input.chatId && entries[0]) this.recorder.say(entries[0], { label: c.title, thread: { rows: added, updated, ...(asked ? { asked } : {}) } })
-      return { id: c.id, title: c.title, added: added.length, updated }
+      return { id: c.id, title: c.title, added: added.length, updated, ...(left.length ? { left } : {}) }
     })
+  }
+
+  // The report with each owlit://library/ link naming its row by the row's id, and the papers it links
+  // that are no row of the thread
+  private async linkRows(rows: ThreadRow[], report: string) {
+    const strangers: string[] = []
+    const named = new Map<string, string>()
+    for (const [, id] of report.matchAll(LIBRARY_LINK)) {
+      if (named.has(id!)) continue
+      const row = await this.rowOf(rows, id!)
+      named.set(id!, row?.id ?? id!)
+      if (!row) strangers.push(id!)
+    }
+    return { text: report.replace(LIBRARY_LINK, (link, id: string) => link.replace(id, named.get(id) ?? id)), strangers }
   }
 
   // ---- The user's changes ----
 
-  // Saves what the edit changed, read from disk: the facts a window was shown are never saved (read())
+  // The thread's project, or what its table is grouped by: read from disk and saved, so the facts a window
+  // was shown are never saved (read()). The project is logged; how the user looks changes nothing worth an
+  // entry in the log, nor the order of the list.
   edit(id: string, edit: ThreadEdit, caller: Caller) {
     return this.serial.run(async () => {
       const c = await this.mustLoad(id)
       const before = structuredClone(c)
-      const now = Date.now()
-      const done = applyThreadEdit(c, edit, now)
-      if ("problem" in done) {
-        if (done.problem === "empty") throw new RpcFailure(RpcErrorCode.InvalidParams, t`Write something, or remove it instead.`)
-        if (done.problem === "row") throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the thread any more.`)
-        if (done.problem === "group") throw new RpcFailure(RpcErrorCode.NotFound, t`That group isn't there any more.`)
-        throw new RpcFailure(RpcErrorCode.NotFound, t`That isn't in the thread any more.`)
-      }
-      // How the user looks changes nothing worth an entry in the log, nor the order of the list
-      if (edit.op !== "view") {
-        c.updatedAt = now
-        await this.recordItems(caller, before, c, done.items.length ? done.items : [edit.op])
+      applyThreadEdit(c, edit)
+      if (edit.op === "project") {
+        c.updatedAt = Date.now()
+        await this.recordItems(caller, before, c, ["project"])
       }
       await this.save(c)
       const read = await this.read(c)
@@ -687,47 +557,95 @@ export class Threads {
     return (await this.services.searches(by, since)).map(({ at, query, source, results }) => ({ at, query, source, results }))
   }
 
-  // Owlit's writes in batches: a chat owlit started with a recipe is one however long it takes (Retry is
-  // a turn in the same chat), as a scheduler task's lines are; a chat's writes close together are one, and
-  // so are lines that name neither.
+  // Owlit's work on the thread in batches, for About. Each write is read from the change log, its entries
+  // sharing a writeId, leaving out what was undone since; its line in history.jsonl adds the searches, the
+  // note and the question it was for. A write whose entries the log no longer keeps (log.ts KEEP_MS) is
+  // read from its line: the rows still here that came in at its moment. Lines from before the change log
+  // list the items they changed and are read as written. A chat's writes close together are one batch, and
+  // so are writes that name no chat.
   async about(id: string): Promise<ThreadBatch[]> {
     const c = await this.get(id)
+    const present = new Set(c.rows.map((r) => r.id))
+    const entries = (await this.changes.list({ target: { kind: "thread", path: id } })).reverse()
+    const undone = undoneOf(entries)
+    const writes: Write[] = []
+    const logged = new Map<string, Write>()
+    for (const e of entries) {
+      // The person's own changes (the thread's project) and undos are no work of Owlit's
+      if (e.undoes || e.actor.startsWith("p_") || !e.origin.writeId) continue
+      let w = logged.get(e.origin.writeId)
+      if (!w) {
+        w = { at: e.at, by: e.origin.chatId ? `chat:${e.origin.chatId}` : "agent", logged: true, itemized: false, added: new Set(), answered: [], notes: [], searches: [] }
+        logged.set(e.origin.writeId, w)
+        writes.push(w)
+      }
+      if (!e.target.part) continue
+      w.itemized = true
+      if (undone.has(e.id)) continue
+      const [kind, row, col] = e.target.part.split(":")
+      if (kind === "row" && e.action === "create") w.added.add(row!)
+      else if (kind === "cell" && e.action !== "delete") w.answered.push([row!, col!])
+    }
+    for (const line of await this.history(id)) {
+      // An older line has no writeId: its write is the first of its chat's logged just after it
+      let w = line.writeId ? logged.get(line.writeId) : writes.find((x) => x.logged && !x.line && x.by === line.by && x.at >= line.at && x.at - line.at < LINE_MATCH_MS)
+      if (!w) {
+        w = { at: line.at, by: line.by, logged: false, itemized: false, added: new Set(), answered: [], notes: [], searches: [] }
+        writes.push(w)
+      }
+      w.line = line
+      if (!w.itemized) {
+        for (const r of line.added ?? c.rows.filter((r) => r.addedAt === line.at).map((r) => r.id)) if (present.has(r)) w.added.add(r)
+        for (const item of line.items ?? []) {
+          const [kind, row, col] = item.split(":")
+          if (kind === "cell" && present.has(row!)) w.answered.push([row!, col!])
+        }
+      }
+      if (line.asked) w.asked = line.asked
+      if (line.note) w.notes.push(line.note)
+      w.searches.push(...(line.searches ?? []))
+    }
+
     const columns = new Map(c.columns.map((col) => [col.id, col]))
     const titles = new Map(c.rows.map((r) => [r.id, r.paper.title]))
-    const batches: (ThreadBatch & { key: string; last: number; rows: Set<string>; lines: HistoryLine[] })[] = []
-    for (const line of await this.history(id)) {
-      const key = line.run ?? line.by
-      let batch = batches.at(-1)
-      if (!batch || batch.key !== key || (!line.run && !line.recipe && line.at - batch.last > BATCH_GAP_MS)) {
-        const kind = line.run?.split(":")[0]?.replace(/^threads\./, "") ?? (line.recipe ? RECIPE_TRIGGER[line.recipe] : undefined)
-        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : line.by.startsWith("chat:") ? "chat" : "agent"
-        batch = { key, last: line.at, rows: new Set(), lines: [], at: line.at, trigger, added: 0, answered: 0, columns: [], searches: [], notes: [] }
-        if (trigger === "chat") batch.chatId = line.by.slice("chat:".length)
-        batches.push(batch)
+    const batches: { key: string; last: number; batch: ThreadBatch; writes: Write[] }[] = []
+    for (const w of writes.sort((a, b) => a.at - b.at)) {
+      const { run, recipe } = w.line ?? {}
+      const key = run ?? w.by
+      let open = batches.at(-1)
+      // A scheduler task's lines, and a chat owlit started with a recipe, were one batch however far apart
+      if (!open || open.key !== key || (!run && !recipe && w.at - open.last > BATCH_GAP_MS)) {
+        const kind = run?.split(":")[0]?.replace(/^threads\./, "") ?? (recipe ? RECIPE_TRIGGER[recipe] : undefined)
+        const trigger: ThreadBatch["trigger"] = kind && ["gather", "more", "read", "fill"].includes(kind) ? (kind as ThreadBatch["trigger"]) : w.by.startsWith("chat:") ? "chat" : "agent"
+        open = { key, last: w.at, writes: [], batch: { at: w.at, trigger, ...(trigger === "chat" ? { chatId: w.by.slice("chat:".length) } : {}), added: 0, answered: 0, columns: [], searches: [], notes: [] } }
+        batches.push(open)
       }
-      batch.last = line.at
-      batch.lines.push(line)
-      // Rows a line added; an older line doesn't record them, so for it the rows that came in at that moment
-      for (const r of line.added ?? c.rows.filter((r) => r.addedAt === line.at).map((r) => r.id)) batch.rows.add(r)
-      if (line.asked) batch.asked = line.asked
-      if (line.note) batch.notes.push(line.note)
+      open.last = w.at
+      open.writes.push(w)
     }
     return batches
-      .map(({ key: _key, last: _last, rows, lines, ...batch }) => {
+      .map(({ batch, writes }) => {
+        const rows = new Set(writes.flatMap((w) => [...w.added]))
         const answered = new Set<string>()
         const asked = new Set<string>()
-        for (const line of lines)
-          for (const item of line.items) {
-            const m = /^cell:(.+):([^:]+)$/.exec(item)
-            if (!m || rows.has(m[1]!)) continue
-            answered.add(m[1]!)
-            const col = columns.get(m[2]!)
-            if (col && col.id !== QUESTION_COLUMN) asked.add(col.kind === "compare" ? (col.doc ?? col.question) : col.question)
-          }
-        const searches: ThreadSearch[] = lines.flatMap((l) => l.searches ?? []).map((s) => searchOf(s, rows, titles))
-        return { ...batch, added: rows.size, answered: answered.size, columns: [...asked], searches }
+        for (const [row, colId] of writes.flatMap((w) => w.answered)) {
+          if (rows.has(row)) continue
+          answered.add(row)
+          const col = columns.get(colId)
+          if (col && col.id !== QUESTION_COLUMN) asked.add(col.kind === "compare" ? (col.doc ?? col.question) : col.question)
+        }
+        const question = writes.findLast((w) => w.asked)?.asked
+        return {
+          ...batch,
+          ...(question ? { asked: question } : {}),
+          added: rows.size,
+          answered: answered.size,
+          columns: [...asked],
+          searches: writes.flatMap((w) => w.searches).map((s) => searchOf(s, rows, titles)),
+          notes: writes.flatMap((w) => w.notes),
+        }
       })
-      .filter((b) => b.added || b.answered || b.searches.length || b.notes.length)
+      .filter((b) => b.added || b.answered || b.searches.length || b.notes.length || b.asked)
   }
 
   // ---- Inside ----
@@ -930,6 +848,26 @@ function rekeyRow(c: Thread, from: string, to: string, write?: { added: string[]
     write.changed.delete(item)
     write.changed.add(kind === "row" ? itemId.row(to) : itemId.cell(to, rest!))
   }
+}
+
+// A paper named in a report: [Short title](owlit://library/<id>), maybe with a page after the id
+const LIBRARY_LINK = /\(owlit:\/\/library\/([^)\s#?]+)[^)\s]*\)/g
+
+const refusal = (problems: string[]) => new RpcFailure(RpcErrorCode.InvalidParams, `owlit didn't write it:\n- ${problems.join("\n- ")}`)
+
+// The entries an undo still in force took back: an undo undone (a redo) puts its entry back
+function undoneOf(entries: Change[]): Set<string> {
+  const undos = new Map<string, Change[]>()
+  for (const e of entries) if (e.undoes) undos.set(e.undoes, [...(undos.get(e.undoes) ?? []), e])
+  const memo = new Map<string, boolean>()
+  const isUndone = (id: string): boolean => {
+    if (!memo.has(id)) {
+      memo.set(id, false)
+      memo.set(id, (undos.get(id) ?? []).some((u) => !isUndone(u.id)))
+    }
+    return memo.get(id)!
+  }
+  return new Set(entries.filter((e) => isUndone(e.id)).map((e) => e.id))
 }
 
 // A logged search as a row's foundBy says it

@@ -5,16 +5,15 @@ import { useEffect, useLayoutEffect, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ActionsDropdownContent, MenuButton } from "@/components/action-menu"
 import { NotFound, PageHeader, PageTitle } from "@/components/page"
-import { RenameInput } from "@/components/rename-input"
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { useTakeParam } from "@/hooks/use-take-param"
 import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
-import { ThreadActions, WorkLine } from "../components/Work"
+import { WorkLine } from "../components/Work"
 import { useThreadMenu, useProjects } from "../components/ThreadMenu"
 import { Memo } from "../components/Memo"
 import { shown as shownOf } from "../lib"
-import { editThread, useThread, useThreadsStore } from "../store"
+import { useThread, useThreadsStore } from "../store"
 import { SEEN_AFTER_MS, useVisitDots } from "../seen"
 import { markSeen } from "@/app/seen"
 import { useThreadsUi } from "../ui-store"
@@ -36,7 +35,6 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   const thread = useThread(threadId)
   const loaded = useThreadsStore((s) => s.loaded)
   const groups = useThreadMenu(thread, useProjects(), { afterDelete: () => navigate("/threads") })
-  const renaming = useThreadsUi((s) => s.renaming === threadId)
   const set = useThreadsUi((s) => s.set)
   // What changed since the user last looked carries the dot until they leave
   const visit = useVisitDots(threadId)
@@ -108,24 +106,9 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
             a column is added, and only a table reaches into the Library's wide column below them */}
         <article className="pt-8 pb-32">
           <div className="mx-auto w-full max-w-3xl px-4">
-            {renaming ? (
-              <RenameInput
-                initial={shown.title}
-                label={t`Thread name`}
-                onDone={(name) => {
-                  if (name !== null) void editThread(thread.id, { op: "rename", title: name })
-                  set({ renaming: null })
-                }}
-                className="-mx-2 h-9 px-2 text-title font-medium"
-              />
-            ) : (
-              <PageTitle className="text-balance">{shown.title}</PageTitle>
-            )}
+            <PageTitle className="text-balance">{shown.title}</PageTitle>
             <WorkLine thread={thread} />
             <Memo thread={thread} fresh={fresh} onRow={openRow} />
-            {/* What can be asked of the papers, in one place for both forms, before them, so a long list
-                doesn't bury it */}
-            <ThreadActions thread={thread} />
             {!table && <AnswerRows thread={thread} shown={shown} visit={visit} />}
           </div>
           {table && (

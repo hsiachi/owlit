@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { makePdf, paragraph } from "../../core/src/library/text/make-pdf.ts"
-import { pdfFact } from "./server.ts"
+import { pdfFact, threadText, threadWriteOf } from "./server.ts"
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 const fixtures = path.join(import.meta.dirname, "../../core/src/library/fixtures")
@@ -366,26 +366,26 @@ describe("owlit-mcp", () => {
     const c = await call("threads.get", { id })
     expect(c.rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
 
-    await call("threads.edit", { id, edit: { op: "rename", title: "Retrieval granularity" } })
-    expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper · asked: 检索粒度有什么研究？`)
+    await tool("thread_edit", { id, title: "Retrieval granularity" })
+    expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper\n  Asked: 检索粒度有什么研究？\n  One paper so far: Retrieval-Augmented Generation retrieves per token.`)
     expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\nOne paper so far/)
-    expect((await tool("thread_read", { id })).text).toMatch(/q: Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
+    expect((await tool("thread_read", { id })).text).toMatch(/- arxiv-2005\.11401 · Retrieval-Augmented Generation \(Patrick Lewis, 2020\) · what it is: not said · Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
 
     const wrongQuote = JSON.stringify([{ id: "arxiv-2005.11401", answer: "x", depth: "full", quote: "not in the paper" }])
-    expect((await tool("thread_write", { id, rows: wrongQuote })).text).toMatch(/isn't in its text word for word/)
+    expect(await tool("thread_write", { id, rows: wrongQuote })).toMatchObject({ isError: true, text: expect.stringMatching(/isn't in its text word for word/) })
     expect((await tool("thread_write", { id, rows: "[{" })).text).toBe("rows should be a JSON array.")
 
     // Groups, as thread_read gives them
     const groups = JSON.stringify([{ id: "tok", name: "Per token" }, { id: "doc", name: "Per document" }])
     await tool("thread_write", { id, groups, rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "tok" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/Grouping topic \(Topic\): tok = Per token; doc = Per document/)
-    await call("threads.edit", { id, edit: { op: "move", column: "topic", row: "arxiv-2005.11401", group: "doc" } })
+    await tool("thread_write", { id, rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "doc" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/arxiv-2005.11401 · .* · in doc \(Per document\)/)
 
     // Another way to group them is a new grouping of the same thread
     await tool("thread_write", { id, new_grouping: "by method", groups: JSON.stringify([{ id: "abl", name: "Ablations" }]), rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "abl" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/Grouping g\d+ \(by method\): abl = Ablations/)
-    expect((await tool("thread_list")).text.split("\n")).toHaveLength(1)
+    expect((await tool("thread_list")).text.match(/^- /gm)).toHaveLength(1)
   })
 
   it("names the tool call Claude Code says a request is for in the change it makes", async () => {
@@ -553,5 +553,66 @@ describe("docs_read on a PDF", () => {
     expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "Recurrent models." })).text).toMatch(/^Not done: That highlight is the user's/)
     expect((await tool("library_unmark", { id: "arxiv-1706.03762", quote: "nowhere" })).text).toMatch(/^No highlight in arxiv-1706.03762 reads that way/)
     expect((await call("library.highlights", { id: "arxiv-1706.03762" })).map((h: { id: string }) => h.id)).toEqual(["h2"])
+  })
+})
+
+describe("threadWriteOf", () => {
+  it("takes the report, the thread's line and each row's what it is, answer and how it was found", () => {
+    const rows = JSON.stringify([{ id: "arxiv-2005.11401", is: "Method paper, no user study", answer: "Per token.", depth: "full", quote: "each target token", found_by: "cited by Lewis 2021", groups: ["tok"] }])
+    expect(threadWriteOf({ id: "t1", report: "## Granularity\n\n[RAG](owlit://library/arxiv-2005.11401) retrieves per token.", one: "Per token or per document.", rows, remove_rows: ["arxiv-1"] })).toEqual({
+      id: "t1",
+      report: "## Granularity\n\n[RAG](owlit://library/arxiv-2005.11401) retrieves per token.",
+      one: "Per token or per document.",
+      rows: [{ id: "arxiv-2005.11401", is: "Method paper, no user study", foundBy: "cited by Lewis 2021", cells: { q: { text: "Per token.", depth: "full", passage: { quote: "each target token", page: 1 } } }, groups: ["tok"] }],
+      removeRows: ["arxiv-1"],
+    })
+    expect(threadWriteOf({ rows: [{ answer: "x" }] })).toBe("Every row needs the paper's id, as a search gave it.")
+  })
+})
+
+describe("threadText", () => {
+  it("prints each paper as what it is, how it bears and how it was found, a comparison's sentences and the columns out of sight", () => {
+    const paper = { title: "Replay or Live?", authors: ["Fernández"], ids: {}, year: 2026, venue: "CHI" }
+    const text = threadText({
+      version: 3,
+      id: "replay",
+      title: "Replay as a method",
+      asked: { text: "Are replay ratings valid?", at: 1 },
+      alsoAsked: [{ text: "Does lifelog video help recall?", at: 2 }],
+      project: "Study",
+      sources: [],
+      report: "Replay runs lower: [Replay or Live?](owlit://library/doi-1).",
+      one: "Replay runs lower.",
+      columns: [
+        { id: "q", question: "Are replay ratings valid?", kind: "ask" },
+        { id: "c2", question: "Sample size", kind: "ask", hidden: true },
+        { id: "c3", question: "Draft.md", kind: "compare", doc: "Draft.md", sentences: [{ id: "l1", text: "Replay is enough." }] },
+        { id: "topic", question: "Topic", kind: "grouping", hidden: true, groups: [{ id: "eval", name: "Evaluation", one: "how ratings are checked" }] },
+      ],
+      rows: [
+        {
+          id: "doi-1",
+          paper,
+          is: "Field study, 12 people",
+          foundBy: "search: replay ratings",
+          in: { topic: ["eval"] },
+          addedAt: 1,
+          cells: {
+            q: { text: "Ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 lower", page: 7 }, at: 1 },
+            c2: { text: "12", depth: "abstract", at: 1 },
+            c3: { text: "Lower, so not quite.", depth: "abstract", rel: "challenges", sentence: "l1", at: 1 },
+          },
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    expect(text).toContain("Later questions added here: «Does lifelog video help recall?»")
+    expect(text).toContain("Columns: q = Are replay ratings valid?; c2 (hidden from the user) = Sample size; c3 = set against sentences of Draft.md: l1 «Replay is enough.»")
+    expect(text).toContain("Grouping topic (Topic): eval = Evaluation (how ratings are checked)")
+    expect(text).toContain("- doi-1 · Replay or Live? (Fernández, 2026, CHI) · Field study, 12 people · Ratings run 0.6 lower. [full, p. 7] · found by search: replay ratings · in eval (Evaluation)")
+    expect(text).toContain("  c2: 12 [abstract]")
+    expect(text).toContain("  c3: challenges l1 «Replay is enough.»: Lower, so not quite. [abstract]")
+    expect(text).not.toMatch(/rewrote/)
   })
 })

@@ -4,9 +4,9 @@ export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim()
 
 // A thread: Owlit's report on a question the user asked, with the papers it rests on. Each paper is a row
 // naming a Library paper by its id, with what the paper is and what it says about the question (one cell
-// per column), and the groups Owlit put it in. Owlit's own record, in .owlit/threads/<id>/thread.json; a
-// change of the user's lands in it as it is (ThreadEdit). A thread with only the question's own column
-// reads as a list; adding a column makes it a table.
+// per column), and the groups Owlit put it in. Owlit's own record, in .owlit/threads/<id>/thread.json; the
+// user changes it by asking in a chat. A thread with only the question's own column reads as a list;
+// adding a column makes it a table.
 
 // How far Owlit read for an answer: the title only (the paper's record has no abstract), the abstract,
 // or the full text (then it has a passage)
@@ -122,10 +122,6 @@ export interface Thread {
   updatedAt: number
 }
 
-// How many papers the user asks for when they start a thread from the Threads page: about ten, or as
-// many as the question takes (a venue's proceedings)
-export type ThreadSize = "few" | "many"
-
 // A thread as core gives it out (threads.get, threads.changed): each row with its paper's facts
 export type ThreadRead = Omit<Thread, "rows"> & { rows: ThreadRowRead[] }
 
@@ -239,7 +235,6 @@ export interface ThreadWrite {
   newGrouping?: string
   // Rows Owlit takes out
   removeRows?: string[]
-  why?: string
   // One sentence on what this batch couldn't reach (a source that failed, an index that is incomplete,
   // papers without an abstract), kept with the batch in About
   note?: string
@@ -250,7 +245,8 @@ export interface ThreadWrite {
 }
 
 // One batch of Owlit's work on a thread, for About: what set it going, what it added or answered,
-// the searches it made and what it said it couldn't reach. Worked out from the thread's history.
+// the searches it made and what it said it couldn't reach. Worked out from the change log, less what was
+// undone, and the searches and notes kept beside the thread.
 export interface ThreadBatch {
   at: number
   // Its first gathering, Find more papers, reading in full, a column, a chat, or Owlit without saying
@@ -290,130 +286,16 @@ export interface ThreadRowWrite {
   foundBy?: string
 }
 
-// The user's own changes, from a window. Each lands in the thread's data, recorded in the change log
-// item by item, so an undo puts back the item as it was.
+// What the user changes of a thread from a window: which project it belongs to, and what the table is
+// grouped by. Everything else in a thread is Owlit's, changed by asking in a chat.
 export type ThreadEdit =
-  | { op: "rename"; title: string }
-  // A cell's or a group's name, by itemId
-  | { op: "rewrite"; item: string; text: string }
-  // A row, by itemId
-  | { op: "remove"; item: string }
-  // A paper into one more group of a grouping (in: true), or out of one (false); the others stay
-  | { op: "place"; column: string; row: string; group: string; in: boolean }
-  // Into a group, out of the one it was opened in (from; "" for none), or out of all of them when from is
-  // absent; null: into none
-  | { op: "move"; column: string; row: string; group: string | null; from?: string }
-  // The group goes; its papers go to its parent (or to none), its subgroups to the top
-  | { op: "ungroup"; column: string; group: string }
-  // The group goes; its papers and subgroups go to the other
-  | { op: "merge"; column: string; group: string; into: string }
-  // A column out of sight, or back
-  | { op: "hide"; column: string; hidden: boolean }
   | { op: "project"; project: string }
   // What the table is grouped by, remembered for the thread
   | { op: "view"; groupBy: string }
 
-// Applies one of the user's changes to a thread in place, the same in core and in a window that has
-// no core (the browser preview): the items it touched, or what stood in the way
-export function applyThreadEdit(c: Thread, edit: ThreadEdit, now: number): { items: string[] } | { problem: "gone" | "empty" | "row" | "group" } {
-  const grouping = (id: string) => c.columns.find((x) => x.id === id && x.kind === "grouping")
-  switch (edit.op) {
-    case "rename": {
-      const text = edit.title.trim()
-      if (!text) return { problem: "empty" }
-      c.title = text
-      return { items: [itemId.title()] }
-    }
-    case "rewrite": {
-      const text = edit.text.trim()
-      if (!text) return { problem: "empty" }
-      const [kind, a, b] = edit.item.split(":")
-      if (kind === "cell") {
-        const cell = c.rows.find((r) => r.id === a)?.cells[b!]
-        if (!cell) return { problem: "gone" }
-        cell.text = text
-        cell.at = now
-      } else if (kind === "group") {
-        const group = grouping(a!)?.groups?.find((g) => g.id === b)
-        if (!group) return { problem: "gone" }
-        group.name = text
-      } else return { problem: "gone" }
-      return { items: [edit.item] }
-    }
-    // The row's cells are items of their own: each goes with it, so an undo puts them back too
-    case "remove": {
-      const [kind, a] = edit.item.split(":")
-      const at = kind === "row" ? c.rows.findIndex((r) => r.id === a) : -1
-      if (at < 0) return { problem: "gone" }
-      const [row] = c.rows.splice(at, 1)
-      return { items: [edit.item, ...Object.keys(row!.cells).map((col) => itemId.cell(row!.id, col))] }
-    }
-    case "place":
-    case "move": {
-      const row = c.rows.find((r) => r.id === edit.row)
-      const col = grouping(edit.column)
-      if (!row) return { problem: "row" }
-      if (!col) return { problem: "group" }
-      const view = groupingView(col)
-      if (edit.group && !view.groups.some((g) => g.id === edit.group)) return { problem: "group" }
-      const ids = new Set(view.of(row))
-      if (edit.op === "place") {
-        if (edit.in) ids.add(edit.group)
-        else ids.delete(edit.group)
-      } else {
-        for (const id of edit.from === undefined ? [...ids] : edit.from ? [edit.from] : []) ids.delete(id)
-        if (edit.group) ids.add(edit.group)
-      }
-      putIn(row, col, [...ids])
-      return { items: [itemId.row(row.id)] }
-    }
-    case "ungroup":
-    case "merge": {
-      const col = grouping(edit.column)
-      const group = col?.groups?.find((g) => g.id === edit.group)
-      const into = edit.op === "merge" ? col?.groups?.find((g) => g.id === edit.into) : undefined
-      if (!col || !group || (edit.op === "merge" && (!into || into.id === group.id))) return { problem: "group" }
-      // Where its papers go: the other group, or its parent; where its subgroups go: under the other
-      // group's top-level group, or to the top
-      const heir = edit.op === "merge" ? into!.id : group.parent
-      const top = into && (into.parent && into.parent !== group.id ? into.parent : into.id)
-      const items = [itemId.group(col.id, group.id)]
-      col.groups = col.groups!.filter((g) => g.id !== group.id).map((g) => {
-        if (g.parent !== group.id) return g
-        items.push(itemId.group(col.id, g.id))
-        const { parent: _parent, ...rest } = g
-        return top && top !== g.id ? { ...rest, parent: top } : rest
-      })
-      for (const row of c.rows) {
-        const ids = row.in?.[col.id]
-        if (!ids?.includes(group.id)) continue
-        putIn(row, col, [...ids.filter((id) => id !== group.id), ...(heir ? [heir] : [])])
-        items.push(itemId.row(row.id))
-      }
-      return { items }
-    }
-    case "hide": {
-      const column = c.columns.find((col) => col.id === edit.column)
-      if (!column || column.id === QUESTION_COLUMN) return { problem: "gone" }
-      column.hidden = edit.hidden
-      return { items: [`column:${column.id}`] }
-    }
-    case "project":
-      c.project = edit.project
-      return { items: [] }
-    case "view":
-      c.view = { ...c.view, groupBy: edit.groupBy }
-      return { items: [] }
-  }
-}
-
-// A row's groups in one grouping, as groupingView would read them back
-function putIn(row: ThreadRow, col: ThreadColumn, ids: string[]) {
-  const placed = groupingView(col).of({ in: { [col.id]: [...new Set(ids)] } })
-  if (placed.length) row.in = { ...row.in, [col.id]: placed }
-  else if (row.in) {
-    const { [col.id]: _gone, ...rest } = row.in
-    if (Object.keys(rest).length) row.in = rest
-    else delete row.in
-  }
+// Applies one of the user's changes to a thread in place, the same in core and in a window that has no
+// core (the browser preview)
+export function applyThreadEdit(c: Thread, edit: ThreadEdit): void {
+  if (edit.op === "project") c.project = edit.project
+  else c.view = { ...c.view, groupBy: edit.groupBy }
 }

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { applyThreadEdit, itemId, type ThreadRead, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
+import { applyThreadEdit, type ThreadRead, type ThreadEdit, type ThreadSummary } from "@owlit/protocol"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { isDesktop, rpc } from "@/lib/rpc"
@@ -38,7 +38,8 @@ export const drop = (id: string) =>
     return { threads: rest }
   })
 
-// One of the user's changes. Resolves to whether it was made.
+// One of the user's changes (a thread's project, what its table is grouped by). Resolves to whether it
+// was made.
 export async function editThread(id: string, edit: ThreadEdit): Promise<boolean> {
   if (isDesktop) {
     try {
@@ -52,45 +53,11 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
   const was = useThreadsStore.getState().threads[id]
   if (!was) return false
   const c = structuredClone(was)
-  const done = applyThreadEdit(c, edit, Date.now())
-  if ("problem" in done) return false
+  applyThreadEdit(c, edit)
   if (edit.op !== "view") c.updatedAt = Date.now()
   put(c)
   return true
 }
-
-// One of the user's changes, said with Undo (label), which takes back the change log's entries the change
-// made; in the browser preview, which has no log, it puts the thread back as it was
-export async function editWithUndo(id: string, edit: ThreadEdit, label: string) {
-  const was = useThreadsStore.getState().threads[id]
-  const since = Date.now()
-  if (!(await editThread(id, edit))) return
-  toastUndo(label, async () => {
-    if (!isDesktop) {
-      if (was) put(was)
-      return
-    }
-    try {
-      // Newest first; one change's entries share a writeId
-      const entries = (await rpc.changes.list({ path: id, since })).filter((c) => c.target.kind === "thread" && !c.undoes)
-      const writeId = entries[0]?.origin.writeId
-      for (const e of entries.filter((c) => c.origin.writeId === writeId)) await rpc.changes.undo({ id: e.id })
-    } catch (error) {
-      toastError(error)
-    }
-  })
-}
-
-// A paper into or out of a group. What takes it out of one says so with Undo (undo).
-export async function regroupRow(c: ThreadRead, edit: Extract<ThreadEdit, { op: "place" | "move" }>, undo?: string) {
-  if (undo) await editWithUndo(c.id, edit, undo)
-  else await editThread(c.id, edit)
-}
-
-// Removing is immediate and says so with Undo, like every removal in owlit
-export const removeItem = (id: string, item: string, label: string) => editWithUndo(id, { op: "remove", item }, label)
-
-export const removeRow = (id: string, row: string) => removeItem(id, itemId.row(row), t`Removed from the thread`)
 
 export async function deleteThread(id: string) {
   const c = useThreadsStore.getState().threads[id]
