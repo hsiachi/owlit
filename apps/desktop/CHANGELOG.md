@@ -4,6 +4,11 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The browser extension's button acts at once: on a paper's page it adds the paper (or saves the PDF the page names for a paper you have without one), and a small card in the page's corner says how it went, with Open to see it in owlit. The button opens its panel only to connect, when owlit has no workspace open, or on pages where no card can be drawn. Its one setting is on the button's right-click menu.
+- The extension's button is the feather alone, light on a dark toolbar.
+- On a site where papers wait for your sign-in or a check, the extension's card says how many wait there, and that owlit goes on once you're through; its panel counts them as they come ("Going on · 1 of 3").
+- With "Take PDFs I open" on, opening the page of a paper you have without its PDF brings the PDF in, as opening the PDF itself did. The extension also reads papers from IEEE Xplore and from pages that describe them only in JSON-LD, and says plainly that Google Scholar's results list papers.
+
 - A paper you add by its arXiv id, or that a chat or the extension finds under another id, teaches the paper already in your Library that id, and looks for its PDF there: a free arXiv copy is no longer missed. A preprint and its published version, added at different times under different titles, become one paper. A copy kept apart because you worked with it says which paper it looks like.
 - Adding a paper says the same thing from the find field, a chat's step, an attachment or a dropped PDF: "Added to library" with Undo, or "Already in your library" with Open. A PDF dropped on a paper that had none says "PDF attached". An import's done card has Undo for the whole import.
 - Missing PDFs are looked for again while owlit stays open, every hour for a look that couldn't reach the network, not only at launch. Unpaywall's open copies are looked for even without a contact email in Settings.
