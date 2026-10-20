@@ -6,6 +6,9 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
 import { Compartment, EditorSelection, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { useAgentWindow } from "@/features/agent/store"
+import { useChatStore } from "@/features/chat/store"
+import { undoAll } from "@/lib/changes"
+import { isDesktop } from "@/lib/rpc"
 import { reportDocEdited } from "@/app/activity"
 import { markDocEdit } from "@/features/home/trail"
 import { leftMissingDoc } from "../disk"
@@ -15,7 +18,7 @@ import { allDocMentions, docMentionable, mentionTooltip, openMention, paperUnrea
 import { paperById, useLibraryStore } from "@/features/library/store"
 import { BESIDE_MIN_WINDOW, useBeside } from "@/features/agent/beside"
 import { freshDocIds, useDocsStore } from "../store"
-import { type CommentAnchor, type WorkspaceFile } from "../types"
+import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
 import { mentionPopup } from "./mention-popup"
@@ -172,7 +175,17 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
           ),
           keymap.of([{ key: "Mod-Alt-m", run: (view) => startComment(id, view) }]),
           changedSince,
-          proposalMarks(() => seen?.seen()),
+          proposalMarks({
+            onKeepAll: () => seen?.seen(),
+            chatTitle: (chatId) => useChatStore.getState().chats[chatId]?.title,
+            openChat: (chatId) => useAgentWindow.getState().showChat(chatId),
+            undoWhole: (p) => {
+              const name = displayName(useDocsStore.getState().files[id]?.path ?? "")
+              if (isDesktop) void undoAll([...(p.whole?.also ?? []).toReversed(), p.id], name)
+              // Without core (pnpm dev:web) the doc goes, as core's Undo of a doc it made takes it away
+              else useDocsStore.getState().deleteFile(id)
+            },
+          }),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),

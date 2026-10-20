@@ -9,6 +9,8 @@ import type { Proposal, ProposalHunk } from "@owlit/protocol"
 // passage show on hover (⌘⏎ and ⌘⌫ on the one at the cursor); a line above the first says how many and
 // offers Keep all and Undo all. Keep only takes the marks away; Undo puts the passage back as the
 // user's own edit. The marks are this visit's: once the doc has been seen, the next visit shows none.
+// A doc Owlit wrote whole has no marks, only a line above it saying so, with Undo: every word of it is
+// Owlit's, and a page underlined throughout reads as nothing marked at all.
 
 export const setProposals = StateEffect.define<Proposal[]>()
 // Passages kept or undone, by key: their marks go
@@ -37,7 +39,9 @@ function locate(doc: string, h: ProposalHunk): { from: number; to: number } | nu
   return { from: i + h.before.length, to: i + h.before.length + h.insert.length }
 }
 
+// The passages drawn: none in a doc Owlit wrote whole, which has its line instead
 export function proposalSpots(state: EditorState, proposals: Proposal[], settled: Set<string>): ProposalSpot[] {
+  if (proposals.some((p) => p.whole)) return []
   const doc = state.doc.toString()
   const spots: ProposalSpot[] = []
   for (const p of proposals) {
@@ -162,6 +166,57 @@ class HeadWidget extends WidgetType {
   }
 }
 
+// The line above a doc Owlit wrote: "Owlit wrote this doc · from <chat> · Undo"
+class WholeWidget extends WidgetType {
+  readonly proposal: Proposal
+  readonly options: ProposalOptions
+  constructor(proposal: Proposal, options: ProposalOptions) {
+    super()
+    this.proposal = proposal
+    this.options = options
+  }
+  eq(other: WholeWidget) {
+    return other.proposal.id === this.proposal.id && other.proposal.whole?.also.length === this.proposal.whole?.also.length
+  }
+  toDOM() {
+    const bar = document.createElement("div")
+    bar.className = "suggest-bar proposal-head proposal-whole"
+    bar.contentEditable = "false"
+    const label = document.createElement("span")
+    label.append(t`Owlit wrote this doc`)
+    const { chatId } = this.proposal
+    if (chatId) {
+      const title = this.options.chatTitle(chatId)
+      const link = document.createElement("button")
+      link.type = "button"
+      link.className = "proposal-chat"
+      link.textContent = title ? t`from “${title}”` : t`from a chat`
+      link.onclick = () => this.options.openChat(chatId)
+      label.append(" · ", link)
+    }
+    const undo = document.createElement("button")
+    undo.type = "button"
+    undo.className = "suggest-discard"
+    undo.textContent = t({ message: "Undo", comment: "verb: take back the doc Owlit wrote" })
+    undo.onclick = () => this.options.undoWhole(this.proposal)
+    bar.append(label, undo)
+    return bar
+  }
+  ignoreEvent() {
+    return true
+  }
+}
+
+export interface ProposalOptions {
+  // Keep all: the doc as it reads is seen
+  onKeepAll: () => void
+  // A chat's title, when this window knows it
+  chatTitle: (chatId: string) => string | undefined
+  openChat: (chatId: string) => void
+  // Undo on a doc Owlit wrote whole
+  undoWhole: (proposal: Proposal) => void
+}
+
 interface Value {
   proposals: Proposal[]
   settled: Set<string>
@@ -169,15 +224,16 @@ interface Value {
   decos: DecorationSet
 }
 
-// The passage at the cursor: the one its position is in, else the one on its line
-function spotAt(state: EditorState, spots: ProposalSpot[]) {
-  const { head } = state.selection.main
-  const line = state.doc.lineAt(head)
-  return spots.find((s) => s.from <= head && head <= s.to) ?? spots.find((s) => s.from >= line.from && s.from <= line.to)
+// The passage whose end the cursor is at, with nothing selected: ⌘⌫ and ⌘⏎ act on it there and only
+// there, so anywhere else they keep their usual meaning (⌘⌫ deletes to the line's start)
+export function spotAt(state: EditorState, spots: ProposalSpot[]) {
+  const { head, empty } = state.selection.main
+  if (!empty) return undefined
+  return spots.find((s) => s.to === head)
 }
 
-// `onKeepAll` hears Keep all, so the doc as it reads can be marked seen
-export function proposalMarks(onKeepAll: () => void): Extension {
+export function proposalMarks(options: ProposalOptions): Extension {
+  const { onKeepAll } = options
   let view: EditorView | undefined
   const act = (key: string, keep: boolean) => {
     if (!view) return
@@ -194,6 +250,8 @@ export function proposalMarks(onKeepAll: () => void): Extension {
     if (keep) onKeepAll()
   }
   const build = (state: EditorState, proposals: Proposal[], settled: Set<string>): Pick<Value, "spots" | "decos"> => {
+    const whole = proposals.find((p) => p.whole)
+    if (whole) return { spots: [], decos: Decoration.set([Decoration.widget({ widget: new WholeWidget(whole, options), block: true, side: -1 }).range(0)]) }
     const spots = proposalSpots(state, proposals, settled)
     const decos: Range<Decoration>[] = []
     if (spots.length) {
@@ -231,8 +289,8 @@ export function proposalMarks(onKeepAll: () => void): Extension {
     EditorView.updateListener.of((u) => {
       view = u.view
     }),
-    // Before the editor's own keys, which also have ⌘⌫ (delete to the line's start); only when a passage
-    // is at the cursor, so the keys mean what they always do elsewhere
+    // Before the editor's own keys, which also have ⌘⌫ (delete to the line's start); only at a passage's
+    // end (spotAt)
     Prec.high(
       keymap.of([
         { key: "Mod-Enter", run: (v) => keyAct(v, true) },

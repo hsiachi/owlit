@@ -61,14 +61,12 @@ describe("docProposals", () => {
     const c = "One. Two. Three.\n"
     const [made, madeContent] = entry(20, MY_OWLIT, a, b)
     const undo = entry(30, ME, b, a, { undoes: made.id })
-    const log = await logWith([entry(10, MY_OWLIT, null, a), [made, madeContent], undo, entry(40, MY_OWLIT, a, c)])
+    const later = entry(40, MY_OWLIT, a, c)
+    const log = await logWith([entry(10, MY_OWLIT, null, a, { origin: { via: "tool", chatId: "c1" } }), [made, madeContent], undo, later])
     const got = await docProposals(log, DOC, c, { hash: sha1(a) })
     expect(got.map((p) => p.at)).toEqual([40])
-    // From a time: the create of the doc counts as a proposal of its whole text
-    expect((await docProposals(log, DOC, c, { since: 5 })).map((p) => [p.at, p.hunks.length])).toEqual([
-      [10, 1],
-      [40, 1],
-    ])
+    // From a time: the doc Owlit made is one whole proposal with no passages, taking in its later changes
+    expect(await docProposals(log, DOC, c, { since: 5 })).toEqual([{ id: expect.any(String), at: 10, actor: MY_OWLIT, chatId: "c1", hunks: [], whole: { also: [later[0].id] } }])
     expect((await docProposals(log, DOC, c, { since: 35 })).map((p) => p.at)).toEqual([40])
   })
 })

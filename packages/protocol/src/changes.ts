@@ -117,12 +117,18 @@ export interface Unseen {
 }
 
 // changes.proposals: one of Owlit's changes to a doc since the text the person last had on screen, as
-// the passages it replaced, so the doc can mark each and offer Keep and Undo on it
+// the passages it replaced, so the doc can mark each and offer Undo on it
 export interface Proposal {
   id: string
   at: number
   actor: ActorId
+  // The chat it came from
+  chatId?: string
   hunks: ProposalHunk[]
+  // The change made the doc: Owlit wrote it whole, so the doc shows one line about it and no passages.
+  // also: Owlit's later changes to it before the person saw it, which are part of what it wrote (their
+  // Undo goes with the doc's, newest first).
+  whole?: { also: string[] }
 }
 
 // One passage of a proposal, as the text it put in and the text it took out, with the words either side

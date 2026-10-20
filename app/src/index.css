@@ -665,6 +665,10 @@
    joins to the passage under it */
 .proposal-head { margin: 0 0 4px; }
 .proposal-head::before { top: 0; bottom: -4px; }
+/* A doc Owlit wrote whole: the line alone, with no rule, since nothing under it is marked */
+.proposal-whole::before { content: none; }
+.suggest-bar .proposal-chat { height: auto; padding: 0; border-radius: 0; color: inherit; }
+.suggest-bar .proposal-chat:hover { color: var(--foreground); text-decoration: underline; }
 .proposal-acts { display: inline-flex; gap: 2px; margin-left: 0.4em; vertical-align: baseline; font-size: 12px; line-height: 1.2; color: var(--muted-foreground); opacity: 0; transition: opacity var(--t-mark) var(--ease); }
 .suggest-line:hover .proposal-acts, .proposal-acts:focus-within { opacity: 1; }
 .proposal-acts button { padding: 1px 6px; border-radius: 6px; cursor: default; }

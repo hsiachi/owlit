@@ -34,6 +34,8 @@ export function proposalHunks(before: string, after: string): ProposalHunk[] {
 
 // Owlit's changes to a doc since the text the person last had on screen (the one whose sha1 is hash,
 // else those from `since` on), each still standing (not undone) and as its passages, for the doc to mark.
+// A doc Owlit made since is one whole proposal with no passages: marks are for edits to words that were
+// there before, and every word of a new doc is Owlit's.
 // current: the doc as the window has it, which the newest entry left. Nothing when the log no longer
 // keeps the text the person saw: a gap shows nothing rather than everything.
 export async function docProposals(log: ChangeLog, rel: string, current: string, base: { hash?: string; since?: number }): Promise<Proposal[]> {
@@ -51,12 +53,24 @@ export async function docProposals(log: ChangeLog, rel: string, current: string,
     if (start < 0) return []
   } else start = entries.findIndex((e) => e.at >= (base.since ?? 0))
   if (start < 0) return []
-  const out: Proposal[] = []
+  let out: Proposal[] = []
+  let whole: Proposal | undefined
   for (let i = start; i < entries.length; i++) {
     const e = entries[i]!
     if (!isOwlit(e.actor) || e.undoes || e.action === "delete" || befores[i] === null || undone(e, entries)) continue
+    const said = { id: e.id, at: e.at, actor: e.actor, ...(e.origin.chatId ? { chatId: e.origin.chatId } : {}) }
+    if (e.action === "create") {
+      // What came before a doc made again isn't in it
+      whole = { ...said, hunks: [], whole: { also: [] } }
+      out = [whole]
+      continue
+    }
+    if (whole) {
+      whole.whole!.also.push(e.id)
+      continue
+    }
     const parts = proposalHunks(befores[i]!, after(i))
-    if (parts.length) out.push({ id: e.id, at: e.at, actor: e.actor, hunks: parts })
+    if (parts.length) out.push({ ...said, hunks: parts })
   }
   return out
 }
