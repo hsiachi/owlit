@@ -180,7 +180,8 @@ function UpdatesRows() {
   if (status.kind === "off" && status.available) {
     // An unsigned build: the newer release is downloaded from its page
     const { available } = status
-    help = t`Owlit ${available.version} is out. This build can't install updates itself yet.`
+    const next = available.version
+    help = t`Owlit ${next} is out. This build can't install updates itself yet.`
     control = (
       <>
         {available.notes && (

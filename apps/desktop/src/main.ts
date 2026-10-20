@@ -454,8 +454,9 @@ async function checkForUpdates(core: Core) {
   } else if (found.kind === "available") {
     // An unsigned build: the release is downloaded from its page, by hand
     const { release } = found
+    const next = release.version
     const buttons = [t`Download`, ...(release.notes ? [t`What's New`] : []), t`Later`]
-    const { response } = await showBox({ message: t`Owlit ${release.version} is out`, detail: t`This build can't install updates itself yet. Download the new version from its release page.`, buttons, defaultId: 0, cancelId: buttons.length - 1 })
+    const { response } = await showBox({ message: t`Owlit ${next} is out`, detail: t`This build can't install updates itself yet. Download the new version from its release page.`, buttons, defaultId: 0, cancelId: buttons.length - 1 })
     if (response === 0) void shell.openExternal(release.url)
     else if (release.notes && response === 1) frontWindow()?.webContents.send("menu", "whats-new" satisfies MenuCommand)
   } else if (found.kind === "found") {

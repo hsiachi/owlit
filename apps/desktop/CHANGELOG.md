@@ -4,6 +4,16 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Home lists your threads beside docs, chats and papers, and every Recent row says what came since you looked: "3 new papers", "Ruth edited", "2 comments", "Owlit finished", "Digest ready". A doc shows on Home once you have written in it, not because a sync touched it, and someone else's change says who made it.
+- Waiting on you has no Dismiss: a reply that broke waits there for three days, then stays only as the chat's red mark.
+- "Find papers on a question" on an empty Home starts a chat for it; chats from Help › Ask Owlit how to… stay off Home.
+- The first launch is shorter and shows Owlit as it works now: the digest comes when you ask for it, Owlit's edit lands marked with Undo, the language is asked in About you, and the proxy and Look steps are gone (both are in Settings). Enter on Change… in the last step no longer creates the folder.
+- A browser sign-in shows "Open the page again" and Cancel while it waits, and leaving the step and coming back still shows it.
+- File › New Workspace…, and the workspace's name in the top bar opens your recent workspaces.
+- Help › Take the tour asks before leaving your workspace for the example, and the tour now stops at Threads and Chat. With reduced motion it moves without gliding.
+- An unsigned Owlit tells you when a newer version is out, with Download and What's new, in Settings › Updates and in Check for Updates….
+- Settings: the extension's Install… opens the release page; a key macOS didn't let Owlit read says so instead of looking unset; the Warm and Neutral paper tones are one; Dim PDF pages is kept with the rest of Appearance.
+- A renamed or moved workspace folder keeps its shared links (and can stop them) and its unfinished tasks. When the share server can't be reached, Stop sharing offers to forget the link here; a link on a server owlit no longer uses can be replaced with a new one. The Share dialog says the link lasts until you stop it and carries your name.
 - A doc Owlit wrote opens clean, with one line above it: "Owlit wrote this doc · from <chat> · Undo". Underlines are for Owlit's edits to words that were already there, and ⌘⌫ undoes a passage only with the cursor at its end.
 - One Undo per Owlit edit: Undo on a passage, Undo all, the chat's card and Versions all take back the same change, and the card says when you undid part of it in the doc. Keep and Keep all are gone; the marks leave once you've seen the doc. An edit to the doc you have open no longer raises an "Edit applied" toast.
 - A doc counts as seen once each of Owlit's passages and each changed paragraph has been on screen a moment, not after three seconds anywhere in it. A paragraph someone else removed leaves a small mark in the margin where it was.
