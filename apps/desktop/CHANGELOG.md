@@ -4,6 +4,17 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- A paper you add by its arXiv id, or that a chat or the extension finds under another id, teaches the paper already in your Library that id, and looks for its PDF there: a free arXiv copy is no longer missed. A preprint and its published version, added at different times under different titles, become one paper. A copy kept apart because you worked with it says which paper it looks like.
+- Adding a paper says the same thing from the find field, a chat's step, an attachment or a dropped PDF: "Added to library" with Undo, or "Already in your library" with Open. A PDF dropped on a paper that had none says "PDF attached". An import's done card has Undo for the whole import.
+- Missing PDFs are looked for again while owlit stays open, every hour for a look that couldn't reach the network, not only at launch. Unpaywall's open copies are looked for even without a contact email in Settings.
+- An import from Zotero or BibTeX gives its PDF to a paper your Library already had without one, and says how many did.
+- Clicking a waiting line's Open it or Sign in now answers: "Opened in Chrome. Pass the check there; owlit goes on by itself.", then "Getting 14 PDFs from dl.acm.org · 3 so far", then "12 PDFs came from dl.acm.org · 2 without · Show" until you put it away.
+- A paper owlit couldn't find a PDF of says "No PDF found" in the list, the table and its page. Its card offers Open the page and Choose file first, says "Download it there, then drop it here" after you open the page, and asks to use your library's access (Set up opens the library proxy and the extension in Settings). Look again that finds nothing says when owlit looks next; Refresh details says what changed.
+- Venues read the way people say them (IMWUT, NeurIPS, CHI, KDD…), and a preprint without one shows arXiv. The Added column shows only the date.
+- The monthly citation recount changes a paper's file only when its count changed, so a synced workspace no longer shows every paper as changed once a month. Preprints are looked up again then, to learn their published version.
+- Importing a folder of PDFs that is inside your workspace moves them into the Library instead of copying them; a Docs folder of nothing but PDFs offers Import as papers….
+- A thread's papers fetch their PDFs only when you open one or Owlit reads it. The Library can show one thread's papers (In thread), and a paper's page lists the threads it is in.
+- Owlit can look at a paper's figures and pages as pictures when you ask what a figure shows. A Chinese paper's title is recognised on its PDF.
 - A doc with Owlit's notes from before comments opens again instead of showing an error page; they read as Owlit's comments.
 - Home lists your threads beside docs, chats and papers, and every Recent row says what came since you looked: "3 new papers", "Ruth edited", "2 comments", "Owlit finished", "Digest ready". A doc shows on Home once you have written in it, not because a sync touched it, and someone else's change says who made it.
 - Waiting on you has no Dismiss: a reply that broke waits there for three days, then stays only as the chat's red mark.

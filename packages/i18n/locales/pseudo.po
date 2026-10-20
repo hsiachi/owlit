@@ -107,6 +107,8 @@ msgstr ""
 #. button: open a paper to read
 #. button: open a paper to read
 #. button: open a paper to read
+#. button: open a paper to read
+#. button: open a paper to read
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
 #. toast button: open the paper's digest
@@ -118,6 +120,7 @@ msgstr ""
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
+#: app/src/features/library/actions.ts
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
 #: app/src/features/library/components/PaperPeek.tsx
@@ -417,6 +420,7 @@ msgstr ""
 #. verb: take back what was just done
 #. verb: take back what was just done
 #. verb: take back what was just done
+#. verb: take back what was just done
 #. verb: undo a passage Owlit changed
 #. verb: undo a passage Owlit changed
 #. verb: undo a passage Owlit changed
@@ -424,6 +428,7 @@ msgstr ""
 #: app/src/features/chat/components/messages/ResultRows.tsx
 #: app/src/features/docs/components/VersionsDialog.tsx
 #: app/src/features/docs/editor/proposals.ts
+#: app/src/features/library/components/ImportBanner.tsx
 #: app/src/features/library/notes/NoteChanges.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
 #: app/src/features/onboarding/demos/WriteDemo.tsx
@@ -671,66 +676,9 @@ msgid "Look again"
 msgstr ""
 
 #: app/src/components/paper-card.tsx
+#: app/src/features/library/lib/pdf-wait.ts
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Finding a PDF…"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waiting for the network"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for your library sign-in"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a sign-in at {site}"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for a check at {site}"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-msgid "Waits for a check"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Waits for the extension to be allowed on {site}"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-msgid "Waits for the extension to be allowed"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No PDF found"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "No access through your library"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library doesn't offer this paper"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{host} has no PDF of this paper"
-msgstr ""
-
-#: app/src/components/paper-card.tsx
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The publisher has no PDF of this paper"
 msgstr ""
 
 #: app/src/components/paper-card.tsx
@@ -1172,10 +1120,12 @@ msgstr ""
 #. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: show the Library, where the papers wait
+#. verb: show these papers in the Library
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/extension/waits.ts
+#: app/src/features/library/components/ExtensionWaitLines.tsx
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/features/library/pages/paper/PaperBeside.tsx
 msgid "Show"
@@ -1774,18 +1724,6 @@ msgid "A question went unanswered"
 msgstr ""
 
 #: app/src/features/chat/components/messages/step-results.tsx
-msgid "Already in your Library"
-msgstr ""
-
-#: app/src/features/chat/components/messages/step-results.tsx
-msgid "Added “{title}”"
-msgstr ""
-
-#: app/src/features/chat/components/messages/step-results.tsx
-msgid "Couldn't add that paper."
-msgstr ""
-
-#: app/src/features/chat/components/messages/step-results.tsx
 msgid "In Library"
 msgstr ""
 
@@ -1825,18 +1763,6 @@ msgstr ""
 
 #: app/src/features/chat/lib/attachments.ts
 msgid "Pasted file"
-msgstr ""
-
-#: app/src/features/chat/lib/attachments.ts
-#: app/src/features/library/lib/add-pdfs.ts
-#: app/src/features/library/lib/use-ref-lookup.ts
-msgid "Added to library"
-msgstr ""
-
-#: app/src/features/chat/lib/attachments.ts
-#: app/src/features/library/components/AddCandidate.tsx
-#: app/src/features/library/lib/add-pdfs.ts
-msgid "Already in your library"
 msgstr ""
 
 #: app/src/features/chat/lib/attachments.ts
@@ -2194,6 +2120,10 @@ msgid "{n, plural, one {read a paper} other {read # papers}}"
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {looked at a figure} other {looked at # figures}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr ""
 
@@ -2376,6 +2306,14 @@ msgstr ""
 #: app/src/features/chat/lib/tool-title.ts
 msgctxt "a step that ran"
 msgid "Read a paper"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Look at a figure"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Looked at a figure"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
@@ -2668,6 +2606,10 @@ msgstr ""
 #: app/src/features/docs/components/DocsListPanel.tsx
 #: app/src/features/docs/store.ts
 msgid "New folder"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Import as papers…"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
@@ -3494,6 +3436,104 @@ msgstr ""
 msgid "Highlight deleted"
 msgstr ""
 
+#. in: Already in your library · owlit added its arXiv id
+#: app/src/features/library/actions.ts
+msgid "arXiv id"
+msgstr ""
+
+#. in: Already in your library · owlit added its Semantic Scholar id
+#: app/src/features/library/actions.ts
+msgid "Semantic Scholar id"
+msgstr ""
+
+#. in: Already in your library · owlit added its OpenAlex id
+#: app/src/features/library/actions.ts
+msgid "OpenAlex id"
+msgstr ""
+
+#. names: the ids owlit learnt, e.g. arXiv id
+#: app/src/features/library/actions.ts
+msgid "Already in your library · owlit added its {names}"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Already in your library"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "PDF attached"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "Added to library"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Couldn't add that paper."
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Folded into “{title}”"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "It was a copy of a paper already in your library."
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Details refreshed"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Details checked; nothing changed"
+msgstr ""
+
+#: app/src/features/library/actions.ts
+msgid "Couldn't refresh the details."
+msgstr ""
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "title"
+msgstr ""
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "authors"
+msgstr ""
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "year"
+msgstr ""
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "venue"
+msgstr ""
+
+#. a paper's field
+#. a paper's field, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+#: packages/core/src/changes/undo.ts
+msgid "abstract"
+msgstr ""
+
+#. a paper's DOI, arXiv id and the like, in a list of what Refresh details changed
+#: app/src/features/library/actions.ts
+msgid "ids"
+msgstr ""
+
 #: app/src/features/library/components/AddCandidate.tsx
 msgid "Looking up {input}…"
 msgstr ""
@@ -3598,6 +3638,59 @@ msgstr ""
 msgid "Abstract"
 msgstr ""
 
+#. in: Opened in your browser
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "your browser"
+msgstr ""
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Sign in there; owlit goes on by itself."
+msgstr ""
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Pass the check there; owlit goes on by itself."
+msgstr ""
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Allow the extension there; owlit goes on by itself."
+msgstr ""
+
+#. button: opens the sign-in or check page in the user's browser once more
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Open again"
+msgstr ""
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
+msgstr ""
+
+#. how many PDFs have come so far
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{got} so far"
+msgstr ""
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "From {host}"
+msgstr ""
+
+#. verb: put a stopped import away
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "Dismiss"
+msgstr ""
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
+msgstr ""
+
+#. placeholder {0}: without.length
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{0, plural, one {# without} other {# without}}"
+msgstr ""
+
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
 msgstr ""
@@ -3658,11 +3751,6 @@ msgstr ""
 msgid "from the {name} folder"
 msgstr ""
 
-#. verb: put a stopped import away
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Dismiss"
-msgstr ""
-
 #: app/src/features/library/components/ImportBanner.tsx
 msgctxt "carry on with a stopped import"
 msgid "Continue"
@@ -3709,6 +3797,11 @@ msgstr ""
 msgid "{0, plural, one {# was here already} other {# were here already}}"
 msgstr ""
 
+#. placeholder {0}: summary.attached
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "{0, plural, one {# of those got its PDF} other {# of those got their PDF}}"
+msgstr ""
+
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "{withoutPdf, plural, one {# without a PDF} other {# without a PDF}}"
 msgstr ""
@@ -3719,6 +3812,10 @@ msgstr ""
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Nothing new came in {origin}"
+msgstr ""
+
+#: app/src/features/library/components/ImportBanner.tsx
+msgid "The import {origin}"
 msgstr ""
 
 #: app/src/features/library/components/ImportBanner.tsx
@@ -3953,6 +4050,16 @@ msgstr ""
 msgid "Stop filtering by {tag}"
 msgstr ""
 
+#. filter menu: show only the papers one thread holds
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "In thread"
+msgstr ""
+
+#. chip: the Library shows only the papers of this thread
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "In thread “{title}”"
+msgstr ""
+
 #: app/src/features/library/components/LibraryHeader.tsx
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -3998,10 +4105,6 @@ msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
 msgid "Refresh details"
-msgstr ""
-
-#: app/src/features/library/components/PaperMenu.tsx
-msgid "Couldn't refresh the details."
 msgstr ""
 
 #: app/src/features/library/components/PaperMenu.tsx
@@ -4087,6 +4190,11 @@ msgstr ""
 msgid "Couldn't save the library."
 msgstr ""
 
+#. placeholder {0}: found.length
+#: app/src/features/library/disk.ts
+msgid "{0} papers"
+msgstr ""
+
 #. toast: owlit set a paper's status to Read because it was read to the end
 #: app/src/features/library/disk.ts
 msgid "Marked as read"
@@ -4109,7 +4217,11 @@ msgid "Adding {number} of {total}…"
 msgstr ""
 
 #: app/src/features/library/lib/add-pdfs.ts
-msgid "{added} added"
+msgid "{count} added"
+msgstr ""
+
+#: app/src/features/library/lib/add-pdfs.ts
+msgid "{placed, plural, one {# PDF attached} other {# PDFs attached}}"
 msgstr ""
 
 #: app/src/features/library/lib/add-pdfs.ts
@@ -4194,7 +4306,7 @@ msgstr ""
 
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Not found"
+msgid "No PDF found"
 msgstr ""
 
 #. the user's library doesn't give them this paper
@@ -4205,6 +4317,58 @@ msgstr ""
 #. the publisher has no PDF of the paper
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No PDF yet"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "The PDF is gone"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for the network"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for your library sign-in"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for a sign-in at {site}"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for a check at {site}"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for a check"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for the extension to be allowed on {site}"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waits for the extension to be allowed"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "No access through your library"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Your library doesn't offer this paper"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "{site} has no PDF of this paper"
+msgstr ""
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "The publisher has no PDF of this paper"
 msgstr ""
 
 #. time spent in a paper, then the pages read, e.g. 12 min, pp. 1–6
@@ -4382,6 +4546,11 @@ msgstr ""
 msgid "About"
 msgstr ""
 
+#. followed by a link to the other paper in the library
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "This looks like the same paper as"
+msgstr ""
+
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "No abstract."
 msgstr ""
@@ -4391,9 +4560,9 @@ msgstr ""
 msgid "{when} by {who}"
 msgstr ""
 
+#. label before the threads that hold this paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgctxt "label before the threads that hold this paper"
-msgid "In"
+msgid "In threads"
 msgstr ""
 
 #. the paper's PDF file
@@ -4485,6 +4654,10 @@ msgid "Page {number}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets it now that the paper is open."
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr ""
 
@@ -4498,10 +4671,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit will try {site} through your browser."
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The PDF is gone"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4553,7 +4722,7 @@ msgid "Once it may, owlit goes on with every paper waiting there."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit couldn't reach any source of PDFs when it looked. It looks again the next time it opens."
+msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4605,10 +4774,6 @@ msgid "It answered 404 · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "PDF attached"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Couldn't attach that file."
 msgstr ""
 
@@ -4617,12 +4782,15 @@ msgid "PDF found"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Choose file"
+msgid "Still no copy; owlit looks again on {date}"
 msgstr ""
 
-#. button: opens Settings › Papers › Browser extension, where the owlit extension is installed from
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Install the extension"
+msgid "Still no copy"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Choose file"
 msgstr ""
 
 #. button: opens the paper's page at its publisher in the user's browser
@@ -4631,7 +4799,7 @@ msgid "Open the page"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit couldn't get this alone. With the owlit extension, your browser can use your library's access."
+msgid "Download it there, then drop it here."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -4643,7 +4811,7 @@ msgid "owlit won't look again"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Your library may have it. <0>Set up library proxy</0>"
+msgid "Use your library's access · <0>Set up</0>"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
@@ -5740,7 +5908,7 @@ msgid "Contact email"
 msgstr ""
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
-msgid "With an address, OpenAlex and Unpaywall answer faster and more often, and Unpaywall can find open copies."
+msgid "OpenAlex and Crossref answer faster and more often to your own address. Unpaywall is asked under owlit's address until you give one."
 msgstr ""
 
 #: app/src/features/settings/sections/SourcesGroup.tsx
@@ -7230,31 +7398,6 @@ msgstr ""
 #. a paper's field
 #: packages/core/src/changes/undo.ts
 msgid "tags"
-msgstr ""
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "title"
-msgstr ""
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "authors"
-msgstr ""
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "year"
-msgstr ""
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "venue"
-msgstr ""
-
-#. a paper's field
-#: packages/core/src/changes/undo.ts
-msgid "abstract"
 msgstr ""
 
 #. a paper's field: its kind or ids
