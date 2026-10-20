@@ -1,19 +1,17 @@
 import { t } from "@lingui/core/macro"
-import { isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPerson, normalizeNoteLanguage, RpcErrorCode, type ActorId, type BuildInfo, type ChangeOrigin, type Highlight, type CoreVersion, type Paper, type PaperPatch, type PersonId, type ReadTrace, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
+import { isOpenComment, sameAbout, type ResultOf, type StopReason, isOwlit, isPerson, normalizeNoteLanguage, RpcErrorCode, type BuildInfo, type ChangeOrigin, type CoreVersion, type Paper, type PaperPatch, type PersonId, type RpcNotification, type RpcRequest, type RpcResponse, type WorkspaceInfo, type WorkspaceState } from "@owlit/protocol"
 import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 
 import path from "node:path"
-import { z } from "zod"
-import { ActivityBus, Journal, readJournal, readingOf, traceOf } from "./activity/index.ts"
+import { ActivityBus, Journal } from "./activity/index.ts"
 import { Agents } from "./agents/agents.ts"
 import type { CutOff } from "@owlit/protocol"
 import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
-import { docPassages } from "./changes/passages.ts"
-import { docProposals } from "./changes/proposals.ts"
+
 import { Turns } from "./agents/turns.ts"
 import { ReadLog, readFromOf } from "./agents/read-from.ts"
 import { latestRelease } from "./updates/github.ts"
@@ -21,7 +19,7 @@ import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
 import { noParams, Notifier, Router, RpcFailure, WINDOW, type Caller, type Policy } from "./rpc/index.ts"
-import { decide, type Target, type Who } from "./agents/policy.ts"
+import { decide, type Who } from "./agents/policy.ts"
 import { newWriteId } from "./changes/record.ts"
 
 import { replyRecipe } from "./recipes/reply.ts"
@@ -30,7 +28,7 @@ import { ExtensionServer, type ExtensionServerOptions } from "./extension/server
 
 import { askAgain, startedWith, startFor, tryAgain, type StartFor, type Started, type TurnAgent } from "./chats/chats.ts"
 import { becameReadInFull } from "./library/read-in-full.ts"
-import { wearOf } from "./library/wear.ts"
+
 import { limitMetadataHosts } from "./library/resolve.ts"
 import { noteRelPath } from "./library/state.ts"
 
@@ -38,22 +36,28 @@ import { serveWorkspaceFile } from "./files/serve.ts"
 
 import { Http } from "./net/http.ts"
 import { SettingsStore } from "./settings.ts"
-import { isMissing, sha1 } from "./fs-util.ts"
+import { isMissing } from "./fs-util.ts"
 import { messageOf } from "./util.ts"
 import { defaultNoteLanguage, registerSettings } from "./settings-rpc.ts"
-import { debugTasks, LANE_LIMITS, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
+import { debugTasks, TaskThrottle, type TaskDefinition } from "./tasks/index.ts"
 
 import { resolveFolder, Workspace } from "./workspace/workspace.ts"
 
 import { registerActivity } from "./activity/rpc.ts"
-import { registerExtension } from "./extension/rpc.ts"
-import { registerUpdates } from "./updates/rpc.ts"
-import { registerWorkspace } from "./workspace/rpc.ts"
 import { registerAgents } from "./agents/rpc.ts"
+import { registerChanges } from "./changes/rpc.ts"
 import { registerChats } from "./chats/rpc.ts"
 import { registerDocs } from "./docs/rpc.ts"
+import { registerExtension } from "./extension/rpc.ts"
+import { registerLibrary } from "./library/rpc.ts"
+import { registerMemory } from "./memory/rpc.ts"
+import { registerSearch } from "./search/rpc.ts"
 import { registerShare } from "./share/rpc.ts"
+import { registerTasks } from "./tasks/rpc.ts"
+import { registerThreads } from "./threads/rpc.ts"
 import { registerUi } from "./ui/rpc.ts"
+import { registerUpdates } from "./updates/rpc.ts"
+import { registerWorkspace } from "./workspace/rpc.ts"
 
 export const CORE_VERSION = "0.0.0"
 
@@ -297,7 +301,7 @@ export class Core {
     // Router refuses a method registered twice, so the order here carries no meaning.
     const requireWorkspace = () => this.requireWorkspace()
     const workspace = () => this.workspace
-    const { router, notifier, settings, turns } = this
+    const { router, notifier, settings, journal, turns } = this
     // core.* is about this object itself (diagnostics reads most of it), so it stays here
     router.register("core.ping", noParams, "read", () => ({ ok: true as const }))
     router.register("core.version", noParams, "read", () => this.version())
@@ -306,7 +310,6 @@ export class Core {
     registerUpdates({ router, updates: this.updates })
     registerWorkspace({ router, settings, workspace, requireWorkspace, open: (folder) => this.openWorkspace(folder), state: () => this.state(), exampleDir: options.exampleDir })
     registerActivity({ router, notifier, settings, activity: this.activity, workspace, requireWorkspace, systemLanguages: this.systemLanguages })
-
     registerSettings({
       router,
       settings,
@@ -322,460 +325,13 @@ export class Core {
     registerChats({ router, turns, requireWorkspace, host: options.host, workAgent: () => this.workAgent(), announceStarted: (ws, chatId) => this.announceStarted(ws, chatId) })
     registerAgents({ router, agents: this.agents, turns, fs: this.fs, requireWorkspace })
     registerUi({ router, ui: this.ui })
+    registerMemory({ router, requireWorkspace })
+    registerChanges({ router, notifier, undo: this.undo, requireWorkspace, personAt: (caller) => this.personAt(caller) })
+    registerLibrary({ router, turns, reads: this.reads, journal, requireWorkspace, updatePaper: (id, patch, caller, origin) => this.updatePaper(id, patch, caller, origin), requestDigest: (id, rewrite) => this.requestDigest(id, rewrite) })
+    registerSearch({ router, requireWorkspace })
+    registerTasks({ router, requireWorkspace, debug: options.debug ? this.debugTasks : undefined })
+    registerThreads({ router, requireWorkspace })
     registerShare({ router, requireWorkspace })
-
-    this.router.register("memory.list", noParams, "read", async () => {
-      const memory = this.requireWorkspace().memory
-      return { lines: await memory.list(), claudeNotes: await memory.claudeNotes() }
-    })
-    const memoryKind = z.enum(["work", "about"])
-    this.router.register(
-      "memory.write",
-      z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
-      { touches: "own", target: ({ op, id }) => this.memoryTarget(op === "add" ? undefined : id) },
-      async ({ op, id, kind, text }, caller) => {
-        // Said to the agent, so plain English
-        const need = (what: string) => {
-          throw new RpcFailure(RpcErrorCode.InvalidParams, `memory_write with op "${op}" needs ${what}.`)
-        }
-        return this.requireWorkspace().memory.agentWrite(
-          op === "add" ? { op, kind: kind ?? need("kind"), text: text ?? need("text") } : op === "replace" ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}) } : { op, id: id ?? need("id") },
-          caller,
-        )
-      },
-    )
-    this.router.register(
-      "memory.put",
-      z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }),
-      { touches: "own", target: ({ id }) => this.memoryTarget(id) },
-      (input, caller) => this.requireWorkspace().memory.put(input, caller),
-    )
-    this.router.register("memory.remove", z.object({ id: z.string().min(1) }), { touches: "own", target: ({ id }) => this.memoryTarget(id) }, ({ id }, caller) => this.requireWorkspace().memory.remove(id, caller))
-    this.router.register(
-      "memory.decideClaudeNotes",
-      z.object({ keep: z.array(z.object({ file: z.string().min(1), kind: memoryKind, text: z.string() })), drop: z.array(z.string().min(1)) }), "own",
-      ({ keep, drop }, caller) => this.requireWorkspace().memory.decideClaudeNotes(keep, drop, caller),
-    )
-    const rel = z.string()
-    this.router.register(
-      "changes.undo",
-      z.object({ id: z.string().min(1) }),
-      { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
-      ({ id }, caller) => this.undo.undo(id, caller),
-    )
-    this.router.register(
-      "changes.undoPart",
-      z.object({ id: z.string().min(1), index: z.number().int().min(0) }),
-      { touches: "own", target: async ({ id }) => ({ what: "change", by: (await this.requireWorkspace().changes.get(id))?.actor }) },
-      ({ id, index }, caller) => this.undo.undoPart(id, index, caller),
-    )
-    this.router.register("changes.passages", z.object({ id: z.string().min(1) }), "read", ({ id }) => this.undo.passagesOf(id))
-    this.router.register("changes.stats", z.object({ ids: z.array(z.string().min(1)).min(1) }), "read", ({ ids }) => this.undo.stats(ids))
-    const actor = z.custom<ActorId>((v) => typeof v === "string" && /^([po]_[0-9a-f]+|other)$/.test(v))
-    this.router.register(
-      "changes.list",
-      z.object({
-        target: z.object({ kind: z.enum(["doc", "comment", "paper", "thread", "memory"]), path: z.string(), part: z.string() }).partial().optional(),
-        path: z.string().optional(),
-        chatId: z.string().optional(),
-        actor: actor.optional(),
-        since: z.number().optional(),
-      }), "read",
-      (filter) => this.requireWorkspace().changes.list(filter),
-    )
-    this.router.register("members.get", noParams, "read", () => this.requireWorkspace().members.get())
-    this.router.register("changes.unseen", z.object({ since: z.number().optional() }), "read", async ({ since }, caller) => {
-      const ws = this.requireWorkspace()
-      const me = await this.personAt(caller)
-      const marks = await ws.seen.get(me, ["chats"])
-      // A chat owlit started is never news as a chat (chats.list leaves it out): its work is, where it lands
-      const [changes, chatList, { papers }] = await Promise.all([ws.changes.list(), ws.chats.list(), ws.library.list()])
-      // Only the chats that moved after the person's mark on them can have a reply they haven't seen
-      const moved = chatList.filter((c) => (marks.chats[c.id]?.at ?? Infinity) < c.updatedAt)
-      const chats = (await Promise.all(moved.map((c) => ws.chats.get(c.id).catch(() => null)))).filter((c) => c !== null)
-      return ws.seen.unseen(me, { changes, chats, papers, since })
-    })
-    this.router.register("changes.since", z.object({ path: rel, hash: z.string().min(1), text: z.string() }), "read", async ({ path, hash, text }, caller) => {
-      const ws = this.requireWorkspace()
-      return docPassages(ws.changes, path, hash, text, await this.personAt(caller))
-    })
-    this.router.register("changes.proposals", z.object({ path: rel, text: z.string(), hash: z.string().min(1).optional(), since: z.number().optional() }), "read", ({ path, text, hash, since }) =>
-      docProposals(this.requireWorkspace().changes, path, text, { ...(hash !== undefined ? { hash } : {}), ...(since !== undefined ? { since } : {}) }),
-    )
-    const seenKind = z.enum(["docs", "threads", "chats", "comments", "digests"])
-    this.router.register("seen.get", z.object({ kinds: z.array(seenKind).optional() }), "read", async ({ kinds }, caller) => this.requireWorkspace().seen.get(await this.personAt(caller), kinds))
-    const at = { at: z.number().optional() }
-    this.router.register(
-      "seen.mark",
-      z.union([
-        z.object({ kind: z.literal("doc"), path: z.string().min(1), hash: z.string().min(1), ...at }),
-        z.object({ kind: z.literal("thread"), id: z.string().min(1), items: z.array(z.string().min(1)), ...at }),
-        z.object({ kind: z.literal("chat"), id: z.string().min(1), message: z.string().min(1), ...at }),
-        z.object({ kind: z.literal("comments"), path: z.string().min(1), ...at }),
-        z.object({ kind: z.literal("digest"), paper: z.string().min(1), ...at }),
-      ]), "admin",
-      async (mark, caller) => {
-        const ws = this.requireWorkspace()
-        const marks = await ws.seen.mark(await this.personAt(caller), mark)
-        this.notifier.notify("seen.changed", marks)
-        // A shared doc held for Owlit's unseen edits goes out now
-        if (mark.kind === "doc") ws.shares.touched({ docs: [mark.path] })
-        return marks
-      },
-    )
-
-    const library = () => this.requireWorkspace().library
-    this.router.register("library.resolve", z.object({ input: z.string().min(1) }), "read", ({ input }) => library().resolve(input))
-    // A search's results are kept for hours; a thread's papers are in the Library: an agent filling a column a day
-    // later still gets the whole abstract
-    this.router.register("library.found", z.object({ id: z.string().min(1) }), "read", async ({ id }) => (await library().snapshot(id)) ?? null)
-    this.router.register("library.known", z.object({ inputs: z.array(z.string()) }), "read", ({ inputs }) => library().known(inputs))
-    this.router.register("library.list", noParams, "read", () => library().list())
-    this.router.register("library.papers", noParams, "read", () => library().papers())
-    this.router.register("library.get", z.object({ id: z.string().min(1) }), "read", ({ id }) => library().one(id))
-    const paperId = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)
-    const ids = z.object({ doi: z.string(), arxiv: z.string(), s2: z.string(), openalex: z.string(), url: z.string() }).partial()
-    const kind = z.enum(["article", "conference", "preprint", "book", "thesis", "other"])
-    const resolved = z.object({
-      id: paperId.optional(),
-      title: z.string(),
-      authors: z.array(z.string()),
-      ids,
-      year: z.number().optional(),
-      venue: z.string().optional(),
-      abstract: z.string().optional(),
-      kind: kind.optional(),
-    })
-    // A paper added is the adder's own, whoever adds it (addedBy), until someone else touches it
-    this.router.register(
-      "library.add",
-      z.object({ paper: resolved, chatId: z.string().optional() }), "own",
-      async ({ paper }, caller) => {
-        const ws = this.requireWorkspace()
-        const { paper: added, existed } = await library().addNew(paper, await ws.recorder.actorOf(caller))
-        // A paper the library had already isn't the adder's to take back
-        if (!existed) await ws.recorder.record(caller, { action: "create", target: { kind: "paper", path: added.id } }, { label: added.title, quiet: caller.kind === "window" })
-        return added
-      },
-    )
-    const position = z.object({ page: z.number(), y: z.number() })
-    const patch = z
-      .object({
-        title: z.string(),
-        authors: z.array(z.string()),
-        year: z.number().optional(),
-        venue: z.string().optional(),
-        abstract: z.string().optional(),
-        kind: kind.optional(),
-        ids,
-        starred: z.boolean(),
-        status: z.enum(["unread", "reading", "read"]),
-        tags: z.array(z.string()),
-        position,
-        view: z.enum(["digest", "pdf"]),
-        digestPosition: z.object({ y: z.number() }),
-        lastOpenedAt: z.number(),
-      })
-      .partial()
-    // A paper's marks (star, status, tags) and where it was left are meta; its details are the person's words
-    const DETAILS = new Set<keyof PaperPatch>(["title", "authors", "year", "venue", "abstract", "kind", "ids"])
-    this.router.register(
-      "library.update",
-      z.object({ id: paperId, patch }),
-      { touches: ({ patch }) => ((Object.keys(patch) as (keyof PaperPatch)[]).some((f) => DETAILS.has(f)) ? "words" : "meta") },
-      ({ id, patch }, caller) => this.updatePaper(id, patch, caller),
-    )
-    // The reader opened a paper: its status follows on its own, the person's all the same (via auto)
-    this.router.register("library.opened", z.object({ id: paperId }), "meta", async ({ id }, caller) => {
-      const paper = await library().get(id)
-      if (!paper) throw new RpcFailure(RpcErrorCode.NotFound, t`That paper isn't in the library.`)
-      return this.updatePaper(id, { lastOpenedAt: Date.now(), ...(paper.status === "unread" ? { status: "reading" as const } : {}) }, caller, { via: "auto" })
-    })
-    this.router.register("library.remove", z.object({ ids: z.array(paperId) }), "structure", async ({ ids }, caller) => {
-      const ws = this.requireWorkspace()
-      const titles = new Map(await Promise.all(ids.map(async (id) => [id, (await ws.library.get(id))?.title] as const)))
-      await library().remove(ids)
-      const writeId = newWriteId()
-      for (const [id, title] of titles) if (title !== undefined) await ws.recorder.record(caller, { action: "delete", target: { kind: "paper", path: id }, origin: { writeId } }, { label: title, quiet: true })
-      return null
-    })
-    // An agent's own additions; each removal is a change the user can undo. The library's own check
-    // (addedBy, and nothing of the user's on the paper) holds past the log's keep window too.
-    this.router.register("library.removeByAgent", z.object({ ids: z.array(z.string()) }), { touches: "own", target: ({ ids }) => this.papersTarget(ids) }, async ({ ids }, caller) => {
-      const ws = this.requireWorkspace()
-      // Named as the user knows them, while they are still there to read
-      const titles = new Map(await Promise.all(ids.map(async (id) => [id, (await ws.library.get(id))?.title ?? id] as const)))
-      const done = await ws.library.removeByAgent(ids)
-      const writeId = newWriteId()
-      for (const id of done.removed) await ws.recorder.record(caller, { action: "delete", target: { kind: "paper", path: id }, origin: { writeId } }, { label: titles.get(id) ?? id })
-      return done
-    })
-    this.router.register("library.restore", z.object({ ids: z.array(paperId) }), "structure", async ({ ids }, caller) => {
-      const ws = this.requireWorkspace()
-      const here = new Set((await Promise.all(ids.map(async (id) => ((await ws.library.get(id)) ? id : null)))).filter(Boolean))
-      const restored = await library().restore(ids)
-      const writeId = newWriteId()
-      for (const p of restored) if (!here.has(p.id)) await ws.recorder.record(caller, { action: "create", target: { kind: "paper", path: p.id }, origin: { writeId } }, { label: p.title, quiet: true })
-      return restored
-    })
-    this.router.register("library.trash", noParams, "read", () => library().trash())
-    this.router.register("library.refresh", z.object({ id: paperId }), "meta", ({ id }) => library().refresh(id))
-    const rect = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() })
-    const highlight = z.object({
-      id: z.string().min(1),
-      paperId,
-      page: z.number().int().nonnegative(),
-      rects: z.array(rect.extend({ page: z.number().int().nonnegative() })),
-      text: z.string(),
-      color: z.enum(["yellow", "green", "blue", "pink"]),
-      comment: z.string().optional(),
-      createdAt: z.number(),
-    })
-    // A highlight's owner is whoever added it; one not there yet is the caller's to make
-    const highlightTarget = async (paperId: string, id: string): Promise<Target> => {
-      const was = (await library().highlights(paperId).catch(() => [] as Highlight[])).find((h) => h.id === id)
-      return { what: "highlight", ...(was ? { by: was.addedBy, was } : {}) }
-    }
-    const HIGHLIGHT_PUT: Policy<"library.putHighlight"> = {
-      touches: (_params, target, who) => (target.by === undefined || target.by === who.actor ? "own" : "words"),
-      target: ({ highlight }) => highlightTarget(highlight.paperId, highlight.id),
-    }
-    this.router.register("library.putHighlight", z.object({ highlight, chatId: z.string().optional() }), HIGHLIGHT_PUT, async ({ highlight, chatId }, caller) => {
-      const by: Caller = chatId ? { kind: "owlit", chatId } : caller
-      return (await library().putHighlight(highlight, await this.requireWorkspace().recorder.actorOf(by))).highlight
-    })
-    this.router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), { touches: "own", target: ({ paperId, id }) => highlightTarget(paperId, id) }, ({ paperId, id }) =>
-      library().removeHighlight(paperId, id),
-    )
-    const search = () => this.requireWorkspace().search
-    const query = z.object({ q: z.string() })
-    this.router.register("search.palette", query, "read", ({ q }) => search().palette(q))
-    this.router.register("search.papers", query.extend({ marked: z.boolean().optional() }), "read", ({ q, marked }) => search().papers(q, marked))
-    this.router.register("search.status", noParams, "read", () => search().status())
-    this.router.register("search.rebuild", noParams, "read", () => {
-      search().rebuild()
-      return null
-    })
-    this.router.register("links.to", z.object({ uri: z.string().min(1) }), "read", ({ uri }) => search().linksTo(uri))
-    this.router.register("library.importPdf", z.object({ path: z.string().min(1) }), "own", async ({ path }, caller) => {
-      const done = await library().importPdf(path)
-      if (!done.existed) await this.requireWorkspace().recorder.record(caller, { action: "create", target: { kind: "paper", path: done.paper.id } }, { label: done.paper.title, quiet: true })
-      return done
-    })
-    this.router.register("library.digest", z.object({ id: paperId }), "read", ({ id }) => library().digest(id))
-    this.router.register("library.digestSource", z.object({ id: paperId }), "read", ({ id }) => library().digestSource(id))
-    this.router.register("library.requestDigest", z.object({ id: z.string().min(1), rewrite: z.boolean().optional() }), "own", ({ id, rewrite }) => this.requestDigest(id, rewrite))
-    this.router.register(
-      "library.writeDigest",
-      z.object({ id: z.string().min(1), summary: z.string(), details: z.string() }),
-      "own",
-      async ({ id, summary, details }, caller) => {
-        const ws = this.requireWorkspace()
-        const chatId = caller.kind === "window" ? undefined : caller.chatId
-        // The agent and model of the turn that writes it, and the pictures that chat sent, when it is the
-        // chat about this paper
-        const turn = chatId ? this.turns.inFlight().find((t) => t.chatId === chatId) : undefined
-        const chat = chatId ? await ws.chats.get(chatId).catch(() => null) : null
-        const canonical = (await ws.library.canonical(id)) ?? id
-        const pictures = chatId && chat?.about?.kind === "paper" && chat.about.id === canonical ? this.turns.picturesSent(chatId) : undefined
-        const by = turn?.message.connectorId ?? chat?.connectorId ?? "unknown"
-        const model = turn?.message.modelId ?? chat?.modelId
-        const done = await ws.library.writeDigest(id, { summary, details }, { by, ...(model ? { model } : {}), ...(pictures !== undefined ? { pictures } : {}) })
-        await ws.recorder.record(
-          caller,
-          {
-            action: done.before === null ? "create" : "update",
-            target: { kind: "paper", path: done.id, part: "digest" },
-            ...(done.beforeRecord ? { before: done.beforeRecord } : {}),
-            after: done.record,
-            afterHash: sha1(done.text),
-            ...(done.before !== null ? { content: done.before } : {}),
-          },
-          { label: done.title },
-        )
-        return { id: done.id }
-      },
-    )
-    this.router.register("library.figures", z.object({ id: paperId }), "read", ({ id }) => library().figures(id))
-    // An agent looking at a figure or a page: a read, recorded as one of that page (read-from.ts)
-    this.router.register(
-      "library.figure",
-      z.object({ id: z.string().min(1), figure: z.string().min(1).optional(), page: z.number().int().min(1).optional(), asker: z.string().optional() }),
-      "read",
-      async ({ id, figure, page, asker }) => {
-        const picture = await library().figurePicture(id, { figure, page })
-        const paperId = (await library().canonical(id)) ?? id
-        if (asker) this.reads.record({ asker, paperId, part: "text", pages: String(picture.page), at: Date.now() })
-        return picture
-      },
-    )
-    this.router.register("library.pagePicture", z.object({ id: paperId, page: z.number().int().min(0) }), "read", ({ id, page }) => library().pagePicture(id, page))
-    this.router.register(
-      "library.read",
-      z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional(), asker: z.string().optional() }), "read",
-      async ({ id, part, pages, section, asker }) => {
-        const read = await library().read(id, part, { pages, section })
-        // Only what was there to read counts as read
-        if (asker && read.text.trim()) this.reads.record({ asker, paperId: id, part, ...(pages ? { pages } : {}), ...(section ? { section } : {}), at: Date.now() })
-        return read
-      },
-    )
-    const year = z.string().max(20).optional()
-    const sort = z.enum(["relevance", "citations", "newest"]).optional()
-    this.router.register(
-      "library.searchOnline",
-      z.object({
-        q: z.string().min(1),
-        limit: z.number().int().positive().max(50).optional(),
-        by: z.string().optional(),
-        source: z.enum(["openalex", "s2", "arxiv"]).optional(),
-        year,
-        sort,
-        minCitations: z.number().int().nonnegative().optional(),
-        type: z.enum(["article", "review", "preprint", "book"]).optional(),
-        author: z.string().min(1).optional(),
-        venue: z.string().min(1).optional(),
-        openAccess: z.boolean().optional(),
-      }), "read",
-      ({ q, by, ...options }) => library().searchOnline(q, options, by),
-    )
-    this.router.register(
-      "library.related",
-      z.object({ ref: z.string().min(1), kind: z.enum(["references", "cited_by", "similar"]), limit: z.number().int().positive().max(100).optional(), year, sort, by: z.string().optional() }), "read",
-      ({ ref, kind, by, ...options }) => library().related(ref, kind, options, by),
-    )
-    this.router.register(
-      "library.journal",
-      z.object({
-        journal: z.string().min(1),
-        year: z.string().min(4).max(20),
-        query: z.string().optional(),
-        offset: z.number().int().nonnegative().optional(),
-        limit: z.number().int().positive().max(200).optional(),
-        by: z.string().optional(),
-      }), "read",
-      ({ journal, year, by, ...options }) => library().journal(journal, year, options, by),
-    )
-    this.router.register("library.highlights", z.object({ id: paperId }), "read", ({ id }) => library().highlights(id))
-    this.router.register(
-      "library.import",
-      z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1), collectionsAsTags: z.boolean().optional(), parse: z.boolean().optional() }), "own",
-      ({ source, path, collectionsAsTags, parse }) => library().imports.start(source, path, { collectionsAsTags, parse }),
-    )
-    this.router.register("library.previewImport", z.object({ source: z.enum(["zotero", "bibtex", "folder"]), path: z.string().min(1) }), "read", ({ source, path }) =>
-      library().imports.preview(source, path),
-    )
-    this.router.register("library.continueImport", z.object({ id: z.string().min(1) }), "own", ({ id }) => library().imports.continue(id))
-    this.router.register("library.imports", noParams, "read", () => library().imports.list())
-    this.router.register("library.findZotero", noParams, "read", () => library().imports.findZotero())
-    this.router.register("library.importAnswer", z.object({ id: z.string().min(1), parse: z.boolean() }), "own", ({ id, parse }) => library().imports.answer(id, parse))
-    this.router.register("library.dismissImport", z.object({ id: z.string().min(1) }), "own", async ({ id }) => {
-      await library().imports.dismiss(id)
-      return null
-    })
-    this.router.register("library.text", z.object({ id: paperId }), "read", ({ id }) => library().text(id))
-    this.router.register("library.findPassage", z.object({ id: paperId, quote: z.string().min(1).max(4000) }), "read", async ({ id, quote }) => {
-      const page = await this.requireWorkspace().findPassage(id, quote)
-      return typeof page === "number" ? { page } : null
-    })
-    // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
-    this.router.register("library.wear", z.object({ id: paperId }), "read", async ({ id }) => {
-      const ws = this.requireWorkspace()
-      return wearOf(id, { chats: ws.chats, threads: ws.threads, journal: ws.owlitPath("journal.jsonl"), aliases: await ws.library.aliases() })
-    })
-    this.router.register("library.trace", z.object({ ids: z.array(paperId).max(500) }), "read", async ({ ids }) => {
-      const ws = this.requireWorkspace()
-      await this.journal.flush()
-      const [aliases, entries] = await Promise.all([ws.library.aliases(), readJournal(ws.owlitPath("journal.jsonl")).catch(() => [])])
-      const readings = readingOf(entries, (id) => aliases[id] ?? id)
-      const out: Record<string, ReadTrace> = {}
-      for (const id of ids) out[id] = traceOf(readings.get(aliases[id] ?? id), (await ws.library.get(id))?.status)
-      return out
-    })
-    this.router.register("library.seek", z.object({ id: paperId }), "meta", ({ id }) => library().seek(id))
-    this.router.register("library.fetchPdf", z.object({ id: paperId }), "meta", ({ id }) => library().fetchPdf(id))
-    this.router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), "meta", ({ id, path }) =>
-      library().attachPdf(id, path),
-    )
-    this.router.register("library.setNote", z.object({ paperId, content: z.string() }), "words", async ({ paperId, content }, caller) => {
-      const before = (await library().read(paperId, "note")).text
-      const note = await library().setNote(paperId, content)
-      await this.requireWorkspace().recorder.saved(caller, noteRelPath(paperId), before || null, content)
-      return note
-    })
-
-    const tasks = () => this.requireWorkspace().tasks
-    const taskId = z.string().min(1)
-    this.router.register("tasks.list", noParams, "read", () => tasks().list())
-    this.router.register("tasks.cancel", z.object({ id: taskId }), "admin", ({ id }) => tasks().cancel(id))
-    this.router.register("tasks.resume", z.object({ id: taskId }), "admin", ({ id }) => tasks().resume(id))
-    if (options.debug) {
-      const lanes = Object.keys(LANE_LIMITS) as [keyof typeof LANE_LIMITS, ...(keyof typeof LANE_LIMITS)[]]
-      this.router.register(
-        "tasks.debugEnqueue",
-        z.object({
-          subject: z.string().min(1),
-          lane: z.enum(lanes).optional(),
-          priority: z.enum(["waiting", "asked", "background"]).optional(),
-          ms: z.number().nonnegative().optional(),
-          steps: z.number().int().positive().optional(),
-          fail: z.boolean().optional(),
-          waitForYou: z.boolean().optional(),
-        }), "admin",
-        ({ subject, lane = "network", priority, ...params }) => {
-          const task = tasks().enqueue(`debug.${lane}`, subject, priority)
-          this.debugTasks.params.set(task.id, params)
-          return task
-        },
-      )
-    }
-
-    const threads = () => this.requireWorkspace().threads
-    const cellWrite = z.object({
-      text: z.string(),
-      depth: z.enum(["abstract", "full"]),
-      passage: z.object({ quote: z.string().min(1), page: z.number().int().min(1) }).optional(),
-      rel: z.enum(["supports", "challenges", "related"]).optional(),
-      sentence: z.string().optional(),
-    })
-    const group = z.object({ id: z.string().regex(/^[\w-]+$/, "letters, digits, - and _"), name: z.string().min(1), one: z.string().optional(), parent: z.string().optional() })
-    this.router.register("threads.list", noParams, "read", () => threads().list())
-    this.router.register("threads.get", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().get(id))
-    this.router.register(
-      "threads.write",
-      z.object({
-        id: z.string().optional(),
-        asked: z.string().optional(),
-        title: z.string().optional(),
-        project: z.string().optional(),
-        sources: z.array(z.string()).optional(),
-        report: z.string().optional(),
-        one: z.string().optional(),
-        columns: z.array(z.object({ id: z.string().regex(/^[\w-]+$/).optional(), question: z.string() })).optional(),
-        rows: z.array(z.object({ id: z.string().min(1), is: z.string().optional(), cells: z.record(z.string(), cellWrite).optional(), group: z.string().optional(), groups: z.array(z.string()).optional(), foundBy: z.string().optional() })).optional(),
-        groups: z.array(group).optional(),
-        grouping: z.string().optional(),
-        newGrouping: z.string().optional(),
-        removeRows: z.array(z.string()).optional(),
-        note: z.string().optional(),
-        chatId: z.string().optional(),
-        docPath: z.string().optional(),
-      }), "own",
-      (params, caller) => threads().write(params, caller),
-    )
-    this.router.register(
-      "threads.edit",
-      z.object({
-        id: z.string().min(1),
-        edit: z.discriminatedUnion("op", [z.object({ op: z.literal("project"), project: z.string() }), z.object({ op: z.literal("view"), groupBy: z.string().min(1) })]),
-      }),
-      // Which project it is in, and how the user looks at it, are its marks
-      "meta",
-      ({ id, edit }, caller) => threads().edit(id, edit, caller),
-    )
-    this.router.register("threads.about", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().about(id))
-    this.router.register("threads.delete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().delete(id, caller))
-    this.router.register("threads.undelete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().undelete(id, caller))
 
   }
 
@@ -998,39 +554,6 @@ export class Core {
     const touches = typeof policy.touches === "function" ? policy.touches(params as never, target, who) : policy.touches
     const decision = decide(who, touches, target)
     if (decision !== "allow") throw new RpcFailure(RpcErrorCode.Forbidden, `Not done: ${decision.refuse}`)
-  }
-
-  // Whose papers these are: who added them (a person's or an outside addition names the owner before an
-  // Owlit's; every adder counts as having touched the batch, so papers of two Owlits aren't one's), and
-  // whoever else changed one since it was added, from the log
-  private async papersTarget(ids: string[]): Promise<Target> {
-    const ws = this.requireWorkspace()
-    const papers = (await Promise.all(ids.map((id) => ws.library.get(id)))).filter((p): p is Paper => p !== null)
-    const changes = await ws.changes.list({ target: { kind: "paper" } })
-    const adders = [...new Set(papers.map((p) => p.addedBy))]
-    const touchedBy: ActorId[] = [...adders]
-    for (const p of papers) {
-      const added = changes.findLast((c) => c.target.path === p.id && c.action === "create")
-      for (const c of changes) if (c.target.path === p.id && c.actor !== p.addedBy && (!added || c.at > added.at)) touchedBy.push(c.actor)
-    }
-    const theirs = papers.find((p) => !isOwlit(p.addedBy))
-    const by = theirs?.addedBy ?? adders[0]
-    return { what: theirs ? `paper ${theirs.id}` : "paper", ...(by ? { by } : {}), touchedBy }
-  }
-
-  // Whose a memory line is: whoever kept it, as the change log says, and whoever changed it since. A line
-  // the log has no record of was written by hand in memory.md, the person's, unless it names the chat it
-  // came from. No id: a line not there yet, the caller's to make.
-  private async memoryTarget(id: string | undefined): Promise<Target> {
-    if (!id) return { what: "memory line" }
-    const ws = this.requireWorkspace()
-    const line = (await ws.memory.list()).find((l) => l.id === id)
-    if (!line) return { what: "memory line" }
-    const changes = (await ws.changes.list({ target: { kind: "memory", part: id } })).reverse()
-    const made = changes.findLast((c) => c.action === "create")
-    const by = made?.actor ?? (line.chatId ? undefined : await ws.recorder.actorOf(WINDOW))
-    const since = made ? changes.slice(changes.indexOf(made) + 1) : changes
-    return { what: "memory line", ...(by ? { by } : {}), touchedBy: since.map((c) => c.actor) }
   }
 
   // Owlit writing a paper's digest: a chat about the paper, whose agent writes it with
@@ -1281,6 +804,3 @@ export class Core {
     return { version: this.options.appVersion ?? CORE_VERSION, node: process.versions.node }
   }
 }
-
-// The card's icon for a change the policy asks about, from what the method does
-
