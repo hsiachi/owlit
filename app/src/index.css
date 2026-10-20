@@ -647,7 +647,6 @@
 .suggest-ins-after { margin-left: 0.25em; }
 .suggest-line, .suggest-block, .suggest-bar { position: relative; }
 .suggest-line::before, .suggest-block::before, .suggest-bar::before { content: ""; position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: var(--owlit); }
-.note-editor .suggest-block::before, .note-editor .suggest-bar::before { left: -12px; }
 /* A paragraph someone else wrote since the user last had the doc on screen (editor/changed-since.ts): a
    thinner, lighter rule where Owlit's proposed edits have theirs, with who and when on hover. It is there
    from the first frame, never drawn in. */
