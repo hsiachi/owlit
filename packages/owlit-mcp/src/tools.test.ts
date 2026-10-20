@@ -50,3 +50,59 @@ describe("owlit's tools", () => {
     }
   })
 })
+
+// A write as owlit_help('threads') tells the agent to make one: a new thread with its report, its one
+// line, a grouping and rows that say what each paper is, how it bears and how it was found
+const SKILL_WRITE = {
+  asked: "帮我了解前瞻记忆的理论",
+  title: "前瞻记忆的定义与理论模型",
+  project: "Proactive",
+  one: "Two families of models, and a gap where wearable reminders sit.",
+  report:
+    "Prospective memory is remembering to act later; [Multiprocess framework](owlit://library/doi-10.1037-0096-3445.129.3.347) and [The PAM theory](owlit://library/doi-10.1037-0278-7393.29.3.347) split on whether noticing the cue costs attention.\n\n## Monitoring\n\n…",
+  note: "2000 on; a model of how an intention is retrieved. Excluded clinical studies without a model.",
+  groups: JSON.stringify([
+    { id: "spont", name: "Spontaneous retrieval", one: "the cue brings the intention back" },
+    { id: "monitor", name: "Monitoring", one: "attention is spent watching for the cue" },
+  ]),
+  rows: JSON.stringify([
+    {
+      id: "doi-10.1037-0096-3445.129.3.347",
+      is: "Theory paper with four experiments",
+      answer: "Retrieval can be spontaneous when the cue is focal.",
+      depth: "full",
+      quote: "retrieval can occur spontaneously",
+      found_by: "search: prospective memory model",
+      group: "spont",
+    },
+    {
+      id: "doi-10.1037-0278-7393.29.3.347",
+      is: "Lab experiments, 3 studies",
+      answer: "Noticing the cue always costs some attention.",
+      depth: "abstract",
+      found_by: "cited by the multiprocess framework",
+      groups: ["monitor", "spont"],
+    },
+  ]),
+}
+
+describe("thread_write", () => {
+  const spec = OWLIT_TOOLS.find((t) => t.name === "thread_write")!
+
+  it("declares every field of a write in the skill's shape", () => {
+    for (const key of Object.keys(SKILL_WRITE)) expect(spec.inputSchema.properties, key).toHaveProperty(key)
+    expect(spec.inputSchema.properties).not.toHaveProperty("memo")
+    const rows = spec.inputSchema.properties.rows!.description
+    for (const row of JSON.parse(SKILL_WRITE.rows) as Record<string, unknown>[]) for (const key of Object.keys(row)) expect(rows, key).toContain(`"${key}"`)
+    const groups = spec.inputSchema.properties.groups!.description
+    for (const group of JSON.parse(SKILL_WRITE.groups) as Record<string, unknown>[]) for (const key of Object.keys(group)) expect(groups, key).toContain(`"${key}"`)
+  })
+
+  it("names a paper in the report one way, by its short title, as the skill does", () => {
+    const report = spec.inputSchema.properties.report!.description
+    expect(report).toContain("[CiteSee](owlit://library/<id>)")
+    expect(report).not.toMatch(/Author Year/)
+    const ids = new Set((JSON.parse(SKILL_WRITE.rows) as { id: string }[]).map((r) => r.id))
+    for (const [, id] of SKILL_WRITE.report.matchAll(/\]\(owlit:\/\/library\/([^)#\s]+)\)/g)) expect(ids).toContain(id)
+  })
+})
