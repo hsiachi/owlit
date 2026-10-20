@@ -49,11 +49,12 @@ export function usePaperViewOf(paperId: string, paper: Paper | undefined, fresh:
 
 // The paper's reader with its PDF in view, once it has laid out its pages. The PDF stays loaded under the
 // digest, so turning to it doesn't load it again. A paper without a PDF never gets a reader: refused at
-// once, in a sentence an agent can read.
+// once, in a sentence an agent can read. Turned for this visit only: the side the paper reopens on stays
+// the one the user last chose, not where a link, the tour or an agent took them.
 export function pdfReader(paperId: string): Promise<ReaderApi> {
   const paper = useLibraryStore.getState().papers[paperId]
   if (!paper?.pdf) return Promise.reject(new Error(`${paper?.title ?? "That paper"} has no PDF in owlit yet.`))
-  usePaperView.getState().setView(paperId, "pdf")
+  usePaperView.setState({ paperId, view: "pdf" })
   return whenReaderReady(paperId)
 }
 
