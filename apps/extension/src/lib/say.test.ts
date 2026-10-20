@@ -58,6 +58,7 @@ describe("cardOf", () => {
       { kind: "has-pdf", paperId: "p" },
       { kind: "none-named", paperId: "p" },
       { kind: "no-paper" },
+      { kind: "no-paper", listing: "Google Scholar" },
       { kind: "unknown-pdf" },
       { kind: "needs-site", host: "x.org" },
       { kind: "no-workspace" },

@@ -1,4 +1,5 @@
 import type { Connection, Outcome, PageState } from "./messages.ts"
+import { listingOf } from "./page.ts"
 
 // What the toolbar button's click does on a tab: the one thing the page asks for, or the reason it
 // can't, which is then said (say.ts). Pure, so a test runs it on every page and connection.
@@ -19,7 +20,9 @@ export function clickPlan({ connection, page }: { connection: Connection; page: 
   const library = page.inLibrary
   if (!library) {
     if (page.paper) return { do: "add" }
-    return page.pdfTab ? { do: "take" } : say({ kind: "no-paper" })
+    if (page.pdfTab) return { do: "take" }
+    const listing = listingOf(page.url)
+    return say(listing ? { kind: "no-paper", listing } : { kind: "no-paper" })
   }
   if (library.hasPdf) return say({ kind: "has-pdf", paperId: library.id })
   if (pdfAddress(page)) return { do: "save", paperId: library.id }

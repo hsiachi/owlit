@@ -66,7 +66,8 @@ export type Outcome =
   | { kind: "has-pdf"; paperId: string }
   // In the Library without its PDF, on a page that names none
   | { kind: "none-named"; paperId: string }
-  | { kind: "no-paper" }
+  // listing: the site's name when the page lists papers (Google Scholar's results)
+  | { kind: "no-paper"; listing?: string }
   // A PDF owlit can't place: no Library paper's, as far as its first pages tell
   | { kind: "unknown-pdf" }
   // The PDF's site isn't one the extension may read; Allow asks on the extension's own page

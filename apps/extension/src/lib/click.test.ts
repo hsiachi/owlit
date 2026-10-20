@@ -35,6 +35,11 @@ describe("clickPlan", () => {
     expect(clickPlan({ connection: connected, page: null })).toEqual({ do: "say", outcome: { kind: "no-paper" } })
   })
 
+  it("says plainly that a page of search results lists papers", () => {
+    const scholar = { url: "https://scholar.google.com/scholar?q=attention", host: "scholar.google.com", pdfTab: false, inLibrary: null }
+    expect(clickPlan({ connection: connected, page: scholar })).toEqual({ do: "say", outcome: { kind: "no-paper", listing: "Google Scholar" } })
+  })
+
   it("says why it can't act before looking at the page", () => {
     const plan = (connection: Connection) => clickPlan({ connection, page: article })
     expect(plan({ state: "offline", paired: true })).toEqual({ do: "say", outcome: { kind: "offline" } })

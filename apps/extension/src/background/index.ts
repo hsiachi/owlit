@@ -7,7 +7,7 @@ import { afterStatus, outcomeOfError } from "../lib/connect.ts"
 import { startI18n } from "../lib/i18n.ts"
 import { type Answers, type CardAction, type CardView, type Connection, type GoingOn, type Outcome, type PageState, type PopupState, type Request, type ToPage } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
-import { idsInUrl, paperOfPage, type PagePaper } from "../lib/page.ts"
+import { idsInUrl, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, placesFor, TAKEN, WAITING, WORKING } from "../lib/say.ts"
@@ -130,7 +130,7 @@ async function pageOf(tabId: number): Promise<Page | null> {
   if (showsPdf(url, await pdfTabOf(tabId))) return pdfPage(true)
   // A site the content script doesn't run on: the click lent the extension this tab (activeTab)
   try {
-    const [result] = await ext.scripting.executeScript({ target: { tabId }, func: () => document.head?.outerHTML ?? "" })
+    const [result] = await ext.scripting.executeScript({ target: { tabId }, func: paperMarkup })
     const page = { url, host, pdfTab: false, paper: paperOfPage(String(result?.result ?? ""), url) }
     await rememberPage(tabId, page)
     return page

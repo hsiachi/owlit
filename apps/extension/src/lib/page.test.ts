@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { idsInUrl, paperOfPage } from "./page.ts"
+import { idsInUrl, listingOf, paperOfPage } from "./page.ts"
 
 // A publisher's article page, as ACM's Digital Library writes its head (abridged)
 const publisher = `<head>
@@ -58,6 +58,64 @@ describe("paperOfPage", () => {
     expect(paperOfPage(nothing, "https://www.tandfonline.com/doi/full/10.1080/01639374.2021.1881009")?.doi).toBe("10.1080/01639374.2021.1881009")
     // arXiv's own DOI in Dublin Core is the arXiv paper
     expect(paperOfPage(`<meta name="DC.identifier" content="https://doi.org/10.48550/arXiv.2403.17859">`, "https://example.org/x")).toMatchObject({ arxiv: "2403.17859" })
+  })
+})
+
+// A journal page that describes its article only in schema.org's JSON-LD (abridged, as Nature's and many
+// society journals' sites write it)
+const jsonLd = `<head><title>Some article</title>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"Journal home"},
+  {"@type":"ScholarlyArticle","headline":"Retrieval &amp; Reasoning in Long Contexts","datePublished":"2023-05-02T00:00:00Z",
+   "author":[{"@type":"Person","name":"Ana Lima"},{"@type":"Person","name":"Wei Zhang"}],
+   "isPartOf":{"@type":"Periodical","name":"Journal of Things"},
+   "sameAs":"https://doi.org/10.1234/jot.2023.42"}]}</script>
+</head>`
+
+// IEEE Xplore's article page: no citation tags, its metadata in a script in the body (abridged)
+const ieee = `<head><meta property="og:title" content="IEEE Xplore"></head>
+<script type="text/javascript">
+  xplGlobal.document.metadata={"title":"Deep Residual Learning for Image Recognition","authors":[{"name":"Kaiming He"},{"name":"Xiangyu Zhang"}],
+  "doi":"10.1109/CVPR.2016.90","publicationTitle":"2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)","publicationYear":"2016",
+  "abstract":"Deeper {networks} are \\"harder\\" to train."};
+</script>`
+
+// A page with only an og:title, and a DOI it links
+const ogTitle = `<head><meta property="og:title" content="A Study of Things">
+  <link rel="canonical" href="https://example.org/articles/a-study"></head>
+  <p>Cite as <a href="https://doi.org/10.5555/things.2020.7">https://doi.org/10.5555/things.2020.7</a></p>`
+
+describe("paperOfPage, beyond citation tags", () => {
+  it("reads a ScholarlyArticle in JSON-LD, anywhere in its graph", () => {
+    expect(paperOfPage(jsonLd, "https://example.org/articles/42")).toEqual({
+      doi: "10.1234/jot.2023.42",
+      title: "Retrieval & Reasoning in Long Contexts",
+      authors: ["Ana Lima", "Wei Zhang"],
+      year: 2023,
+      venue: "Journal of Things",
+    })
+  })
+
+  it("reads IEEE Xplore's metadata script, and names the PDF itself", () => {
+    expect(paperOfPage(ieee, "https://ieeexplore.ieee.org/document/7780459")).toEqual({
+      doi: "10.1109/cvpr.2016.90",
+      title: "Deep Residual Learning for Image Recognition",
+      authors: ["Kaiming He", "Xiangyu Zhang"],
+      year: 2016,
+      venue: "2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)",
+      pdfUrl: "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=7780459",
+    })
+  })
+
+  it("takes an og:title as the paper's only beside a DOI the page links", () => {
+    expect(paperOfPage(ogTitle, "https://example.org/articles/a-study")).toEqual({ doi: "10.5555/things.2020.7", title: "A Study of Things", authors: [] })
+    expect(paperOfPage(`<meta property="og:title" content="Our team">`, "https://example.org/team")).toBeUndefined()
+  })
+
+  it("finds no paper on Google Scholar's results, however many DOIs they link", () => {
+    const results = `<head><title>attention - Google Scholar</title></head><a href="https://doi.org/10.1145/3626772.3657891">x</a>`
+    expect(paperOfPage(results, "https://scholar.google.com/scholar?q=attention")).toBeUndefined()
+    expect(listingOf("https://scholar.google.com.hk/scholar?q=attention")).toBe("Google Scholar")
+    expect(listingOf("https://dl.acm.org/doi/10.1145/3626772.3657891")).toBeUndefined()
   })
 })
 

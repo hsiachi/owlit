@@ -83,8 +83,11 @@ export function cardOf(outcome: Outcome): CardView {
       return fades(t`In your Library, with its PDF`, { action: open(outcome.paperId) })
     case "none-named":
       return fades(t`In your Library, without its PDF`, { detail: t`This page names none. owlit keeps looking.`, action: open(outcome.paperId) })
-    case "no-paper":
+    case "no-paper": {
+      const listing = outcome.listing
+      if (listing) return fades(t`${listing} lists papers`, { detail: t`Open one, then press the button on its page.` })
       return fades(t`This page doesn't show a paper`)
+    }
     case "unknown-pdf":
       return fades(t`owlit can't tell which paper this PDF is`, { detail: t`Add the paper from its page.` })
     case "needs-site": {

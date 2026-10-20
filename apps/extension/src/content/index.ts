@@ -1,9 +1,10 @@
 import { ext } from "../lib/browser.ts"
 import type { Request, ToPage } from "../lib/messages.ts"
+import { paperMarkup } from "../lib/page.ts"
 import { drawCard } from "./card.ts"
 
 // On a publisher's page (and any site the user let the extension read, or one the button was pressed on):
-// the page's <head>, where its paper's meta tags are, goes to the background, which reads it (lib/page.ts)
+// the page's <head> and the scripts that describe its paper (page.ts paperMarkup) go to the background, which reads it (lib/page.ts)
 // and asks owlit whether the paper is in the Library; and whether the browser is dark, which the toolbar
 // icon follows. Nothing else of the page leaves it. The background's cards are drawn here (card.ts).
 
@@ -22,5 +23,5 @@ if (!scope.owlitContent) {
     respond(true)
     return false
   })
-  void send({ kind: "page", html: document.head?.outerHTML ?? "", url: location.href, dark: matchMedia("(prefers-color-scheme: dark)").matches })
+  void send({ kind: "page", html: paperMarkup(), url: location.href, dark: matchMedia("(prefers-color-scheme: dark)").matches })
 }
