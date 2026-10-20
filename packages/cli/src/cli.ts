@@ -30,7 +30,7 @@ Commands:
   tasks                    What owlit is working on, and what finished since it opened
   open                     Open the workspace in owlit
   mcp                      owlit's tools for an agent, over stdio (owlit-mcp); it reads the
-                           workspace and changes nothing:
+                           workspace and changes only what it added itself:
                            claude mcp add owlit -- owlit mcp --workspace ~/Research
   import <kind> <path>     Bring in a library: zotero (zotero.sqlite, its folder, or a
                            Better BibTeX .json), bibtex (a .bib file) or folder (its PDFs).

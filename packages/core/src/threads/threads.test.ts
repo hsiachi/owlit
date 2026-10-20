@@ -46,6 +46,8 @@ const ME = "p_1234abcd" as const
 
 // Owlit's agent, writing for the chat its write names when it names one
 const agent = { kind: "owlit" as const }
+// Owlit working for a chat: the chat a write names is the caller's
+const chat = (chatId: string) => ({ kind: "owlit" as const, chatId })
 const window = { kind: "window" as const }
 
 const start = (threads: Threads, extra: object = {}) =>
@@ -61,7 +63,7 @@ const start = (threads: Threads, extra: object = {}) =>
     ],
     chatId: "chat-1",
     ...extra,
-  }, agent)
+  }, chat("chat-1"))
 
 describe("Threads.write", () => {
   it("starts a thread with the question as its first column, the papers as the Library has them, and the report's first sentence as its line", async () => {
@@ -379,7 +381,7 @@ describe("Threads, a close question", () => {
   it("keeps a later question with the thread and says which rows were added for it", async () => {
     const { threads, wrote } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, asked: "回放评价和当场评价，偏差方向有没有研究？", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower in retrospect.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
+    await threads.write({ id, asked: "回放评价和当场评价，偏差方向有没有研究？", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower in retrospect.", depth: "abstract" } } }], chatId: "chat-2" }, chat("chat-2"))
     expect((await threads.get(id)).alsoAsked).toMatchObject([{ text: "回放评价和当场评价，偏差方向有没有研究？", chatId: "chat-2" }])
     expect(wrote.at(-1)).toMatchObject({ change: { action: "create", target: { kind: "thread", path: id, part: "alsoAsked" } }, thread: { rows: ["doi-10.1145-3"], asked: "回放评价和当场评价，偏差方向有没有研究？" } })
   })
@@ -429,9 +431,9 @@ describe("Threads, undo", () => {
   it("takes back an agent's write item by item, keeping what a later write did since", async () => {
     const { threads, changes, wrote } = setup()
     const { id } = await start(threads)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
-    await threads.write({ id, title: "Replay as a method", chatId: "chat-3" }, agent)
-    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6, from the abstract.", depth: "abstract" } } }], chatId: "chat-3" }, agent)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Lower.", depth: "abstract" } } }], chatId: "chat-2" }, chat("chat-2"))
+    await threads.write({ id, title: "Replay as a method", chatId: "chat-3" }, chat("chat-3"))
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6, from the abstract.", depth: "abstract" } } }], chatId: "chat-3" }, chat("chat-3"))
     const second = await writeOf(changes, id, "chat-2")
     // One entry per item the write changed, both sides inline, one writeId, said once
     expect(second.map((c) => [c.actor, c.action, c.target.part])).toEqual([
@@ -469,9 +471,9 @@ describe("Threads, undo", () => {
         ],
         chatId: "chat-2",
       },
-      agent,
+      chat("chat-2"),
     )
-    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6, in two studies.", depth: "abstract" } } }], chatId: "chat-3" }, agent)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6, in two studies.", depth: "abstract" } } }], chatId: "chat-3" }, chat("chat-3"))
     // As the chat's card does it: each entry of the write, newest first, on past one that is refused
     const left: string[] = []
     for (const e of await writeOf(changes, id, "chat-2")) {
@@ -522,7 +524,7 @@ describe("Threads, About", () => {
     )
     const { id } = await start(threads, { note: "Semantic Scholar wasn't reachable." })
     searched.push({ by: "chat:c9", at: Date.now(), query: "lifelog video recall", source: "arxiv", results: ["doi-10.1145-3"] })
-    await threads.write({ id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" }, agent)
+    await threads.write({ id, asked: "Does lifelog video help recall?", rows: [{ id: "doi-10.1145-3", cells: { q: { text: "It helps.", depth: "abstract" } } }], chatId: "c9" }, chat("c9"))
 
     const [gathered, typed, ...rest] = await threads.about(id)
     expect(rest).toEqual([])
@@ -538,7 +540,7 @@ describe("Threads, About", () => {
     const { threads, changes, searched } = withSearches()
     const { id } = await start(threads)
     searched.push({ by: "chat:chat-2", at: Date.now(), query: "experience sampling recall", source: "s2", results: ["doi-10.1145-3"] })
-    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Recall ran lower.", depth: "abstract" } } }, { id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6.", depth: "abstract" } } }], chatId: "chat-2" }, agent)
+    await threads.write({ id, rows: [{ id: "doi-10.1145-3", cells: { q: { text: "Recall ran lower.", depth: "abstract" } } }, { id: "doi-10.1145-1", cells: { q: { text: "Lower by 0.6.", depth: "abstract" } } }], chatId: "chat-2" }, chat("chat-2"))
     expect((await threads.about(id)).at(-1)).toMatchObject({ chatId: "chat-2", added: 1, answered: 1, searches: [{ kept: 1 }] })
     const undos = []
     for (const e of await writeOf(changes, id, "chat-2")) undos.push(await undo(threads, e))

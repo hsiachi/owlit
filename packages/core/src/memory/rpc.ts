@@ -1,4 +1,4 @@
-import { RpcErrorCode } from "@owlit/protocol"
+import { isPerson, owlitOf, RpcErrorCode } from "@owlit/protocol"
 import { z } from "zod"
 import type { Target } from "../agents/policy.ts"
 import { noParams, RpcFailure, WINDOW, type Router } from "../rpc/index.ts"
@@ -46,7 +46,7 @@ export function registerMemory({ router, requireWorkspace }: Deps) {
 
   // Whose a memory line is: whoever kept it, as the change log says, and whoever changed it since. A line
   // the log has no record of was written by hand in memory.md, the person's, unless it names the chat it
-  // came from. No id: a line not there yet, the caller's to make.
+  // came from: then it is the person's Owlit's. No id: a line not there yet, the caller's to make.
   async function memoryTarget(id: string | undefined): Promise<Target> {
     if (!id) return { what: "memory line" }
     const ws = requireWorkspace()
@@ -54,8 +54,9 @@ export function registerMemory({ router, requireWorkspace }: Deps) {
     if (!line) return { what: "memory line" }
     const changes = (await ws.changes.list({ target: { kind: "memory", part: id } })).reverse()
     const made = changes.findLast((c) => c.action === "create")
-    const by = made?.actor ?? (line.chatId ? undefined : await ws.recorder.actorOf(WINDOW))
+    const person = await ws.recorder.actorOf(WINDOW)
+    const by = made?.actor ?? (line.chatId && isPerson(person) ? owlitOf(person) : person)
     const since = made ? changes.slice(changes.indexOf(made) + 1) : changes
-    return { what: "memory line", ...(by ? { by } : {}), touchedBy: since.map((c) => c.actor) }
+    return { what: "memory line", by, touchedBy: since.map((c) => c.actor) }
   }
 }

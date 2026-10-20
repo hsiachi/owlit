@@ -182,7 +182,12 @@ export class Threads {
   // the thread hasn't got stays as it was, and each is named in `left` for the agent to fix and write
   // again. It is refused whole when it can't be read at all (a new thread without its question, groups
   // that don't fit together) or when nothing in it could go in.
-  write(input: ThreadWrite, caller: Caller) {
+  write(given: ThreadWrite, caller: Caller) {
+    // The chat a write is for is the caller's: a program names its chat only through its session's grant
+    // (rpc/socket.ts), never in the params
+    const chatId = caller.kind === "window" ? given.chatId : caller.chatId
+    const { chatId: _named, ...rest } = given
+    const input: ThreadWrite = { ...rest, ...(chatId ? { chatId } : {}) }
     return this.serial.run(async () => {
       const now = Date.now()
       const existing = input.id ? await this.load(input.id) : undefined

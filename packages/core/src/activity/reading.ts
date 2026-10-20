@@ -1,4 +1,6 @@
 import { isPerson, JOURNALED_KINDS, type JournalEntry, type ReadStatus, type ReadTrace } from "@owlit/protocol"
+import path from "node:path"
+import { oldActors } from "../changes/members.ts"
 import { readJsonl } from "../fs-util.ts"
 
 // What the person has done with each paper, summed from the journal. The journal keeps raw events,
@@ -137,5 +139,10 @@ const JOURNALED = new Set<string>(JOURNALED_KINDS)
 
 // The entries of a journal file in order. A line that doesn't parse (a write cut short) is skipped, and so
 // is one of a kind owlit doesn't write: older journals also hold Owlit's decisions and feedback, docs
-// closing, and the window going to the background and coming back.
-export const readJournal = async (file: string) => (await readJsonl<JournalEntry>(file)).filter((e) => JOURNALED.has(e.kind))
+// closing, and the window going to the background and coming back. A journal from before actor ids says
+// "user", "agent" or "owlit": read as ids, from the members.json beside it.
+export async function readJournal(file: string): Promise<JournalEntry[]> {
+  const actor = oldActors(path.dirname(file))
+  const entries = (await readJsonl<JournalEntry>(file)).filter((e) => JOURNALED.has(e.kind))
+  return Promise.all(entries.map(async (e) => ({ ...e, actor: (await actor(e.actor)) as JournalEntry["actor"] })))
+}

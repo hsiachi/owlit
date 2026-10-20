@@ -64,13 +64,13 @@ const isAlive = (pid: number) => {
 }
 
 describe("owlit-mcp", () => {
-  it("tells an agent outside owlit that it reads the workspace and changes nothing from there", async () => {
+  it("tells an agent outside owlit that it reads the workspace and changes only what it added", async () => {
     const { root, dir, mcp } = await setup()
     expect(mcp.getInstructions()).toMatch(/^owlit agent rules/)
     const outside = new Client({ name: "outside-agent", version: "1" })
     await outside.connect(new StdioClientTransport({ command: process.execPath, args: [MAIN, "--workspace", root, "--socket-dir", dir], stderr: "pipe" }))
     cleanups.push(() => outside.close())
-    expect(outside.getInstructions()).toMatch(/^You are reading the user's owlit workspace from outside owlit\.[\s\S]*\n\nowlit agent rules/)
+    expect(outside.getInstructions()).toMatch(/^You are working in the user's owlit workspace from outside owlit\.[\s\S]*change or remove only what you added yourself[\s\S]*\n\nowlit agent rules/)
   })
 
   it("leaves when the agent that started it closes its stdin, after using owlit", async () => {

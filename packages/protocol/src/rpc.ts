@@ -178,6 +178,9 @@ export interface Methods {
   // Replaces a comment as it is now (a reply, an edit, a deleted entry, resolved or opened again); the
   // comment as it was, or null if it wasn't there
   "comments.put": { params: { path: string; comment: CommentInput }; result: DocComment | null }
+  // Adds one entry of the caller's under a comment as it is when the entry lands, and resolves it with
+  // that entry when resolve is set: a reply made meanwhile stays. The comment as it is now
+  "comments.reply": { params: { path: string; id: string; text: string; resolve?: boolean; toolCallId?: string }; result: DocComment }
   // The comment removed, or null if it wasn't there
   "comments.remove": { params: { path: string; id: string }; result: DocComment | null }
   // One of Owlit's comments the user doesn't want, put away for good

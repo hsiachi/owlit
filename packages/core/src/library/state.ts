@@ -1,7 +1,9 @@
 import type { Highlight, Paper, PaperNote, PaperOverrides, PaperPatch, PaperRecord, PaperState } from "@owlit/protocol"
 import { readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
+import { oldActors } from "../changes/members.ts"
 import { readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
+import { OWLIT_DIR } from "../workspace/paths.ts"
 import { paperDir, paperStateDir } from "./paths.ts"
 import { clean } from "../util.ts"
 
@@ -10,8 +12,13 @@ import { clean } from "../util.ts"
 
 const METADATA_KEYS = ["title", "authors", "year", "venue", "abstract", "kind"] as const
 
-export const readState = (root: string, id: string) =>
-  readJson<PaperState>(path.join(paperStateDir(root, id), "state.json")).catch(() => undefined)
+// A state from before actor ids says addedBy "user" or "agent"; it is read as today's and rewritten so
+// the next time the state is saved
+export async function readState(root: string, id: string): Promise<PaperState | undefined> {
+  const state = await readJson<PaperState>(path.join(paperStateDir(root, id), "state.json")).catch(() => undefined)
+  if (!state) return undefined
+  return { ...state, addedBy: await oldActors(path.join(root, OWLIT_DIR))(state.addedBy) }
+}
 
 export const writeState = (root: string, id: string, state: PaperState) =>
   writeJsonAtomic(path.join(paperStateDir(root, id), "state.json"), state)
@@ -89,8 +96,11 @@ export function applyPatch(state: PaperState, record: PaperRecord, patch: PaperP
 
 const highlightsFile = (root: string, id: string) => path.join(paperStateDir(root, id), "highlights.jsonl")
 
+// A highlight from before actor ids has no addedBy when the person made it, or "agent"; it is read as
+// today's and rewritten so the next time the paper's highlights are saved
 export async function readHighlights(root: string, id: string): Promise<Highlight[]> {
-  return (await readJsonl<Highlight>(highlightsFile(root, id))).map((h) => ({ ...h, paperId: id }))
+  const actor = oldActors(path.join(root, OWLIT_DIR))
+  return Promise.all((await readJsonl<Highlight>(highlightsFile(root, id))).map(async (h) => ({ ...h, paperId: id, addedBy: await actor(h.addedBy, "person") })))
 }
 
 export async function writeHighlights(root: string, id: string, highlights: Highlight[]) {

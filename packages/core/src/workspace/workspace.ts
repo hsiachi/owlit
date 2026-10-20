@@ -137,14 +137,16 @@ export class Workspace {
     })
     this.members = new Members(path.join(root, OWLIT_DIR))
     this.seen = new Seen(path.join(root, OWLIT_DIR))
-    // The window's saves; a doc that followed its first line to a new name is recorded as leaving the old
-    // one and arriving at the new
-    this.docs.saved = async (rel, before, after, at) => {
-      await this.recorder.saved(WINDOW, rel, before, after)
+    // Saves through docs.write; a doc that followed its first line to a new name is recorded as leaving the
+    // old one and arriving at the new. Only the window's fold into the person's typing session; a
+    // program's is its own change, said like any other
+    this.docs.saved = async (rel, before, after, at, caller) => {
+      if (caller.kind === "window") await this.recorder.saved(caller, rel, before, after)
+      else if (before !== after) await this.recorder.doc(caller, rel, before, after)
       if (at === rel) return
       const writeId = newWriteId()
-      await this.recorder.doc(WINDOW, rel, after, null, { origin: { writeId } }, { quiet: true })
-      await this.recorder.doc(WINDOW, at, null, after, { origin: { writeId } }, { quiet: true })
+      await this.recorder.doc(caller, rel, after, null, { origin: { writeId } }, { quiet: true })
+      await this.recorder.doc(caller, at, null, after, { origin: { writeId } }, { quiet: true })
     }
     this.chats = new Chats(path.join(root, OWLIT_DIR))
     this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged)

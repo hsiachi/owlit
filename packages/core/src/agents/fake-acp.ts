@@ -255,11 +255,11 @@ class FakeAgent implements acp.Agent {
           await say("Nothing to add.")
           return { stopReason: "end_turn" }
         }
-        // As owlit-mcp's comments_reply does: the comment as it is, with one more entry
+        // As owlit-mcp's comments_reply does: one more entry under the comment
         const all = (await callOwlit(session.owlit, "comments.all", {})) as Record<string, { id: string; entries: unknown[] }[]>
         const comment = all[where[1]!]!.find((c) => c.id === where[2])!
         const answer = latest.includes("FAKE: correct") ? "CORRECT: The right words, after all." : `Answered, ${comment.entries.length} entries in.`
-        await callOwlit(session.owlit, "comments.put", { path: where[1], comment: { ...comment, entries: [...comment.entries, { id: randomUUID(), text: answer, at: Date.now() }] } })
+        await callOwlit(session.owlit, "comments.reply", { path: where[1], id: where[2], text: answer })
         await say("Replied.")
         return { stopReason: "end_turn" }
       }

@@ -1,4 +1,4 @@
-import type { PromptInput } from "@owlit/protocol"
+import { isOwlit, type ActorId, type Change, type PromptInput } from "@owlit/protocol"
 import { z } from "zod"
 import { chatId, messageSchema as message, roleSchema } from "../chats/rpc.ts"
 import { noParams, WINDOW, type Router } from "../rpc/index.ts"
@@ -65,19 +65,56 @@ export function registerAgents({ router, agents, turns, fs, requireWorkspace }: 
     turns.answerQuestion(chatId, requestId, answers),
   )
 
-  // Whose a doc is, for an agent writing one of its own (agents.writeDoc): nobody's while it isn't there,
-  // so making it is the caller's; else whoever made it, as the change log says, and whoever changed it
-  // since. A doc the log has no record of making (made before the log, or outside owlit, or its entries
-  // since dropped) is the person's.
+  // Whose a doc is, for an agent writing one of its own (agents.writeDoc), from the change log (docOwner)
   async function docTarget(file: string): Promise<Target> {
     const ws = requireWorkspace()
     const files = await fs.target([file])
     const rel = files.files?.[0]
-    if (!rel || files.notDoc || (await fs.text(rel)) === null) return { ...files, what: "doc" }
-    const changes = (await ws.changes.list({ target: { kind: "doc", path: rel } })).reverse()
-    const made = changes.findLast((c) => c.action === "create")
-    const by = made?.actor ?? (await ws.recorder.actorOf(WINDOW))
-    const since = made ? changes.slice(changes.indexOf(made) + 1) : []
-    return { ...files, what: "doc", by, touchedBy: since.map((c) => c.actor) }
+    if (!rel || files.notDoc) return { ...files, what: "doc" }
+    const log = (await ws.changes.list({ target: { kind: "doc" } })).reverse()
+    const owner = docOwner(rel, log, (await fs.text(rel)) !== null, await ws.recorder.actorOf(WINDOW))
+    return { ...files, what: "doc", ...owner }
   }
+}
+
+// Whose the doc at rel is, from the log's doc entries (oldest first): nobody's while it isn't there, so
+// making it is the caller's; else whoever made it, and whoever changed it since. A doc the log has no
+// record of making (made before the log, or outside owlit, or its entries since dropped) is the person's.
+// Moving a doc, or taking it away and back, doesn't make it anyone else's: one that arrived by a move is
+// whose it was where it came from, one an undo brought back whose it was before it went, and one Owlit
+// took away is still whose it was, so it can't be written anew in its place as Owlit's own. Whoever moved,
+// took away or brought it back has touched it.
+export function docOwner(rel: string, log: Change[], present: boolean, person: ActorId): Pick<Target, "by" | "touchedBy"> {
+  const at = (id: string | undefined) => (id ? log.findIndex((c) => c.id === id) : -1)
+  // As of before the entry at end, walking back along moves and undos (each step goes to an earlier entry)
+  const as = (path: string, end: number): { by: ActorId; touchedBy: ActorId[] } => {
+    const mine = log.slice(0, end).flatMap((c, i) => (c.target.path === path ? [i] : []))
+    const made = mine.findLast((i) => log[i]!.action === "create")
+    if (made === undefined) return { by: person, touchedBy: mine.map((i) => log[i]!.actor) }
+    const create = log[made]!
+    const since = mine.filter((i) => i > made).map((i) => log[i]!.actor)
+    const came = cameFrom(made)
+    if (!came) return { by: create.actor, touchedBy: since }
+    const was = as(came.path, came.end)
+    return { by: was.by, touchedBy: [...was.touchedBy, create.actor, ...since] }
+  }
+  // Where a create's doc was before: an undo of its delete, or the arriving half of a move (the nearest
+  // delete of another path before it in the same write)
+  const cameFrom = (made: number): { path: string; end: number } | undefined => {
+    const create = log[made]!
+    const undone = at(create.undoes)
+    if (undone >= 0 && undone < made && log[undone]!.action === "delete") return { path: log[undone]!.target.path, end: undone }
+    const writeId = create.origin.writeId
+    if (!writeId) return undefined
+    for (let i = made - 1; i >= 0; i--) {
+      const c = log[i]!
+      if (c.origin.writeId === writeId && c.action === "delete" && c.target.path !== create.target.path) return { path: c.target.path, end: i }
+    }
+    return undefined
+  }
+  if (present) return as(rel, log.length)
+  const last = log.findLastIndex((c) => c.target.path === rel)
+  if (last < 0 || log[last]!.action !== "delete" || !isOwlit(log[last]!.actor)) return {}
+  const was = as(rel, last)
+  return { by: was.by, touchedBy: [...was.touchedBy, log[last]!.actor] }
 }

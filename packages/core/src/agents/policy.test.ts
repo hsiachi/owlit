@@ -1,5 +1,5 @@
 import { ROLE_TABLE, type DocComment, type Role, type Touches } from "@owlit/protocol"
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -117,7 +117,7 @@ async function setup() {
   await call("workspace.open", { path: root })
   await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false, role: "reviewer" } })
   const paper = (id: string) => ({ id, title: `Paper ${id}`, authors: [], ids: { doi: `10.9/${id}` } })
-  return { call, paper, mcp: { kind: "socket", chatId: "c1" } as Caller }
+  return { call, paper, root, mcp: { kind: "socket", chatId: "c1" } as Caller }
 }
 
 describe("the router's policy", () => {
@@ -239,5 +239,118 @@ describe("the router's policy", () => {
     expect((await call("library.list", undefined, borrowed)).papers).toHaveLength(1)
     await call("library.add", { paper: paper("doi-10.9-b") }, borrowed)
     expect((await call("library.list")).papers).toHaveLength(2)
+  })
+})
+
+describe("what a caller can't take over", () => {
+  it("reads authors as 0.2.0 wrote them as ids: added by the user or the agent, highlights with no author", async () => {
+    const { call, paper, root, mcp } = await setup()
+    await call("chats.update", { id: "c1", patch: { role: "assistant" } })
+    for (const id of ["doi-10.9-a", "doi-10.9-b"]) await call("library.add", { paper: paper(id) })
+    const state = (id: string) => path.join(root, ".owlit/papers", id)
+    const old = (id: string, addedBy: string, highlights: object[]) => {
+      writeFileSync(path.join(state(id), "state.json"), JSON.stringify({ version: 1, addedAt: 1, addedBy, starred: false, status: "unread", tags: [] }))
+      writeFileSync(path.join(state(id), "highlights.jsonl"), highlights.map((h) => JSON.stringify({ id: "h1", page: 1, rects: [], text: "x", color: "yellow", createdAt: 1, ...h }) + "\n").join(""))
+    }
+    // The agent added a; the person highlighted it (no addedBy). The agent added b and highlighted it itself
+    old("doi-10.9-a", "agent", [{}])
+    old("doi-10.9-b", "agent", [{ addedBy: "agent" }])
+    expect((await call("library.list")).papers.map((p: { id: string; addedBy: string }) => [p.id, p.addedBy]).sort()).toEqual([["doi-10.9-a", MY_OWLIT], ["doi-10.9-b", MY_OWLIT]])
+    expect((await call("library.highlights", { id: "doi-10.9-a" })).map((h: { addedBy: string }) => h.addedBy)).toEqual([ME])
+    expect(await call("library.removeByAgent", { ids: ["doi-10.9-a", "doi-10.9-b"] }, mcp)).toMatchObject({ removed: ["doi-10.9-b"], refused: [{ id: "doi-10.9-a" }] })
+    // The person's highlight is theirs to change
+    await expect(call("library.removeHighlight", { paperId: "doi-10.9-a", id: "h1" }, mcp)).rejects.toThrow(/^Not done: That highlight is the user's/)
+  })
+
+  it("never takes a chat a program names in its params", async () => {
+    const { call, paper } = await setup()
+    const command: Caller = { kind: "socket" }
+    await call("library.add", { paper: paper("doi-10.9-a") })
+    const highlight = { id: "h1", paperId: "doi-10.9-a", page: 1, rects: [], text: "x", color: "yellow", createdAt: 1 }
+    expect((await call("library.putHighlight", { highlight, chatId: "c1" }, command)).addedBy).toBe("other")
+    // The window draws an agent's highlight for its chat
+    expect((await call("library.putHighlight", { highlight: { ...highlight, id: "h2" }, chatId: "c1" })).addedBy).toBe(MY_OWLIT)
+    const { id } = await call("threads.write", { asked: "What is known?", title: "Known", chatId: "c1" }, command)
+    expect((await call("changes.list", { target: { kind: "thread", path: id } }))[0]).toMatchObject({ actor: "other", origin: { via: "tool" } })
+    expect((await call("changes.list", { target: { kind: "thread", path: id } }))[0].origin.chatId).toBeUndefined()
+    expect((await call("threads.get", { id })).asked.chatId).toBeUndefined()
+  })
+
+  it("doesn't make the person's doc Owlit's by moving it, or by taking it away and writing it anew", async () => {
+    const { call, mcp } = await setup()
+    await call("chats.update", { id: "c1", patch: { role: "assistant" } })
+    const theirs = /^Not done: That doc is the user's/
+    await call("agents.moveDoc", { path: "notes.md", to: "moved.md" }, mcp)
+    await expect(call("agents.writeDoc", { path: "moved.md", content: "Mine now." }, mcp)).rejects.toThrow(theirs)
+    await call("agents.moveDoc", { path: "moved.md", to: "notes.md" }, mcp)
+    await expect(call("agents.writeDoc", { path: "notes.md", content: "Mine now." }, mcp)).rejects.toThrow(theirs)
+    await call("agents.deleteDocs", { paths: ["notes.md"] }, mcp)
+    await expect(call("agents.writeDoc", { path: "notes.md", content: "Mine now." }, mcp)).rejects.toThrow(theirs)
+    // Owlit's own doc stays its own wherever it moves it
+    await call("agents.writeDoc", { path: "reading.md", content: "# Reading\n" }, mcp)
+    await call("agents.moveDoc", { path: "reading.md", to: "Meetings/reading.md" }, mcp)
+    expect(await call("agents.writeDoc", { path: "Meetings/reading.md", content: "# Reading, again\n" }, mcp)).toEqual({ path: "Meetings/reading.md", created: false })
+    // A doc the person took away leaves its name free
+    await call("docs.create", { path: "draft.md", content: "Draft.\n" })
+    await call("docs.delete", { path: "draft.md" })
+    expect(await call("agents.writeDoc", { path: "draft.md", content: "# Owlit's\n" }, mcp)).toEqual({ path: "draft.md", created: true })
+  })
+
+  it("records a program's docs.write as its own change, not the person's typing", async () => {
+    const { call, mcp } = await setup()
+    await call("chats.update", { id: "c1", patch: { role: "coauthor" } })
+    const save = async (content: string, caller?: Caller) => call("docs.write", { path: "notes.md", content, expectedModifiedAt: (await call("docs.read", { path: "notes.md" })).modifiedAt }, caller)
+    await save("The first claim, typed.\n")
+    await save("The first claim, by Owlit.\n", mcp)
+    await save("The first claim, typed again.\n")
+    const log = (await call("changes.list", { target: { kind: "doc", path: "notes.md" } })).reverse()
+    expect(log.map((c: { actor: string; origin: { via: string; chatId?: string } }) => [c.actor, c.origin.via, c.origin.chatId])).toEqual([
+      [ME, "editor", undefined],
+      [MY_OWLIT, "tool", "c1"],
+      [ME, "editor", undefined],
+    ])
+  })
+
+  it("keeps a memory line the person rewrote theirs after the log forgets, and one Owlit kept its", async () => {
+    const { call, mcp, root } = await setup()
+    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies." }, mcp)
+    const [line] = (await call("memory.list")).lines
+    expect(line.chatId).toBe("c1")
+    await call("memory.put", { id: line.id, kind: "about", text: "Works on replay annotation." })
+    expect((await call("memory.list")).lines[0].chatId).toBeUndefined()
+    // A program naming a chat for its line doesn't get it
+    await call("memory.put", { kind: "work", text: "Cite as (Author, Year).", chatId: "c1" }, { kind: "socket" })
+    expect((await call("memory.list")).lines[1].chatId).toBeUndefined()
+    // Past the log's keep: only the lines themselves say whose they are
+    rmSync(path.join(root, ".owlit/versions"), { recursive: true, force: true })
+    await expect(call("memory.write", { op: "replace", id: line.id, text: "Owlit's again." }, mcp)).rejects.toThrow(/^Not done: That memory line is the user's/)
+    await call("memory.write", { op: "add", kind: "work", text: "Prefers short answers." }, mcp)
+    const owlits = (await call("memory.list")).lines.find((l: { text: string }) => l.text === "Prefers short answers.")
+    rmSync(path.join(root, ".owlit/versions"), { recursive: true, force: true })
+    await expect(call("memory.write", { op: "replace", id: owlits.id, text: "From outside." }, { kind: "socket" })).rejects.toThrow(/^Not done: That memory line is the user's/)
+    await call("memory.write", { op: "replace", id: owlits.id, text: "Prefers short answers, in English." }, mcp)
+  })
+
+  it("adds a reply under a comment as it is when the reply lands, and resolves with it as the role lets", async () => {
+    const { call, mcp } = await setup()
+    const comment = { id: "n1", quote: "The first claim.", prefix: "", suffix: "", entries: [{ id: "e1", text: "Is this right?", at: 1 }], createdAt: 1 }
+    await call("comments.add", { path: "notes.md", comment })
+    // The person replies after Owlit read the comment and before its reply lands: their reply stays
+    const all = async () => (await call("comments.all"))["notes.md"][0]
+    const read = await all()
+    await call("comments.put", { path: "notes.md", comment: { ...read, entries: [...read.entries, { id: "e2", text: "Or is it?", at: 2 }] } })
+    await call("comments.reply", { path: "notes.md", id: "n1", text: "It is, on p. 3." }, mcp)
+    expect((await all()).entries.map((e: { by: string; text: string }) => [e.by, e.text])).toEqual([
+      [ME, "Is this right?"],
+      [ME, "Or is it?"],
+      [MY_OWLIT, "It is, on p. 3."],
+    ])
+    expect((await call("changes.list", { target: { kind: "comment", path: "notes.md" } }))[0]).toMatchObject({ actor: MY_OWLIT, origin: { chatId: "c1" } })
+    // A Reviewer may not resolve the person's comment; an Assistant may
+    await expect(call("comments.reply", { path: "notes.md", id: "n1", text: "Done.", resolve: true }, mcp)).rejects.toThrow(/^Not done: Owlit works as Reviewer/)
+    await call("chats.update", { id: "c1", patch: { role: "assistant" } })
+    expect((await call("comments.reply", { path: "notes.md", id: "n1", text: "Done.", resolve: true }, mcp)).resolvedAt).toEqual(expect.any(Number))
+    await expect(call("comments.reply", { path: "notes.md", id: "n1", text: "Again.", resolve: true }, mcp)).rejects.toThrow("That comment is already resolved.")
+    await expect(call("comments.reply", { path: "notes.md", id: "nope", text: "?" }, mcp)).rejects.toThrow(/There is no comment nope on notes\.md/)
   })
 })

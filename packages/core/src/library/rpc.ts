@@ -145,7 +145,9 @@ export function registerLibrary({ router, turns, reads, journal, requireWorkspac
     target: ({ highlight }) => highlightTarget(highlight.paperId, highlight.id),
   }
   router.register("library.putHighlight", z.object({ highlight, chatId: z.string().optional() }), HIGHLIGHT_PUT, async ({ highlight, chatId }, caller) => {
-    const by: Caller = chatId ? { kind: "owlit", chatId } : caller
+    // The window draws an agent's highlight for the chat it came from; a program names no chat this way
+    // (rpc/socket.ts)
+    const by: Caller = chatId && caller.kind === "window" ? { kind: "owlit", chatId } : caller
     return (await library().putHighlight(highlight, await requireWorkspace().recorder.actorOf(by))).highlight
   })
   router.register("library.removeHighlight", z.object({ paperId, id: z.string() }), { touches: "own", target: ({ paperId, id }) => highlightTarget(paperId, id) }, ({ paperId, id }) =>
