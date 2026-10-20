@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { FIREFOX_ANDROID_MIN, FIREFOX_MIN, GECKO_ID, manifest, TARGETS } from "./manifest.ts"
 
@@ -24,7 +26,9 @@ describe("manifest", () => {
   it.each(TARGETS)("puts the feather on the toolbar and the app icon in the store, for %s", (target) => {
     const m = built(target)
     expect(Object.values(m.action.default_icon).every((icon) => icon.includes("feather-") && !icon.includes("light"))).toBe(true)
-    expect(m.icons[128]).toBe("icons/128.png")
+    // The extensions page asks for 96 and the 32 slot for 64 on a 2x display; scripts/icons.mjs draws them
+    expect(Object.keys(m.icons).map(Number)).toEqual([16, 32, 48, 64, 96, 128])
+    for (const icon of [...Object.values(m.icons), ...Object.values(m.action.default_icon)]) expect(existsSync(path.join(import.meta.dirname, "../public", icon)), icon).toBe(true)
   })
 
   it("lets Firefox pick the feather by its theme, and Chrome follow from the background", () => {
