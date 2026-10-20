@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
+import { EditorState } from "@codemirror/state"
 import { look, LOOKED_AFTER_MS } from "./changed"
+import { changedPlaces } from "./editor/changed-since"
 
 describe("look", () => {
   const places = [
@@ -28,5 +30,16 @@ describe("look", () => {
     look(places, [{ from: 450, to: 600 }], since, looked, 0)
     look(places, [{ from: 450, to: 600 }], since, looked, LOOKED_AFTER_MS)
     expect([...looked]).toEqual(["removed"])
+  })
+})
+
+describe("changedPlaces", () => {
+  it("keys two paragraphs that read the same apart, so each is looked at on its own", () => {
+    const state = EditorState.create({ doc: "Same words.\n\nBetween.\n\nSame words.\n" })
+    const places = changedPlaces(state, [{ text: "Same words.", title: "Owlit" }])
+    expect(places.map((p) => [p.key, p.from])).toEqual([
+      ["written:Same words.", 0],
+      ["written:Same words.#1", 23],
+    ])
   })
 })
