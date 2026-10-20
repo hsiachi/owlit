@@ -113,6 +113,10 @@ export function showingDigest(id: string) {
   }
 }
 
+// How long a reply that ended well is given for its digest to arrive before the wait is dropped: the
+// paper's change (hasDigest) can reach the renderer after the chat's turn has finished
+const SETTLE_MS = 15_000
+
 // Watches the waited-for digests from the shell. Done or stopped, the user hears it where they are: on the
 // paper's page nothing is said (its switch carries the mark); elsewhere in owlit a toast that opens the
 // digest; with owlit behind other windows a system notification too, as a chat waiting on them does.
@@ -123,6 +127,8 @@ export function useDigestNotices() {
       const subject = routeSubject(window.location.pathname)
       return document.hasFocus() && subject?.kind === "paper" && subject.id === id
     }
+    // One timer for replies that ended well without a digest yet, however many changes come meanwhile
+    let settle: ReturnType<typeof setTimeout> | undefined
     const check = () => {
       const papers = useLibraryStore.getState().papers
       const started = useStarted.getState()
@@ -144,6 +150,13 @@ export function useDigestNotices() {
         if (stand?.state === "running") continue
         const reply = started.byAbout[aboutKey(digestAbout(id))]?.reply
         if (!reply || (reply.finishedAt ?? 0) < since) continue
+        if (stand?.state !== "failed" && Date.now() - (reply.finishedAt ?? 0) < SETTLE_MS) {
+          settle ??= setTimeout(() => {
+            settle = undefined
+            check()
+          }, SETTLE_MS)
+          continue
+        }
         waiting.delete(id)
         // On the paper's page the Digest side says it already
         if (stand?.state !== "failed" || onPaperPage(id) || (onScreen === id && document.hasFocus())) continue
@@ -157,6 +170,7 @@ export function useDigestNotices() {
     return () => {
       offPapers()
       offStarted()
+      clearTimeout(settle)
     }
   }, [navigate])
 }
