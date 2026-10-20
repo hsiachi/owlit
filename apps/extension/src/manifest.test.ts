@@ -21,6 +21,17 @@ describe("manifest", () => {
     for (const origin of [...m.host_permissions, ...m.optional_host_permissions]) expect(origin).toMatch(/^https?:\/\/(\*|\*\.[^/:*]+|[^/:*]+)\/\*$/)
   })
 
+  it.each(TARGETS)("puts the feather on the toolbar and the app icon in the store, for %s", (target) => {
+    const m = built(target)
+    expect(Object.values(m.action.default_icon).every((icon) => icon.includes("feather-") && !icon.includes("light"))).toBe(true)
+    expect(m.icons[128]).toBe("icons/128.png")
+  })
+
+  it("lets Firefox pick the feather by its theme, and Chrome follow from the background", () => {
+    expect(built("firefox").action.theme_icons).toEqual([16, 32, 48].map((size) => ({ light: `icons/feather-light-${size}.png`, dark: `icons/feather-${size}.png`, size })))
+    expect(built("chrome").action.theme_icons).toBeUndefined()
+  })
+
   it("runs a module service worker in Chrome, and names nothing of Firefox's", () => {
     const m = built("chrome")
     expect(m.background).toEqual({ service_worker: "background.js", type: "module" })
