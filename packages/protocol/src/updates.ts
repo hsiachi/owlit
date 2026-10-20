@@ -12,9 +12,24 @@ export interface BuildInfo {
   commit?: string
 }
 
+// Where owlit's releases are published, until it has a site of its own: the latest one's page, and the
+// API that names it
+export const RELEASES_URL = "https://github.com/hsiachi/owlit/releases/latest"
+export const LATEST_RELEASE_API = "https://api.github.com/repos/hsiachi/owlit/releases/latest"
+
+// A release newer than this build, for a build that can't install it itself
+export interface AvailableRelease {
+  version: string
+  // Its page, where it is downloaded
+  url: string
+  // Its notes, Markdown; absent when it has none
+  notes?: string
+}
+
 export type UpdateStatus =
-  // This build doesn't update itself; why, as one of the reasons below
-  | { kind: "off"; reason: "build" | "unsigned" | "location" }
+  // This build doesn't update itself; why, as one of the reasons below. An unsigned release still looks
+  // for a newer one, and names it here when there is one.
+  | { kind: "off"; reason: "build" | "unsigned" | "location"; available?: AvailableRelease }
   // No check has run yet, or the last one found nothing newer
   | { kind: "idle" }
   | { kind: "checking" }
@@ -44,6 +59,8 @@ export interface UpdatedNote {
 // What a check started by hand found
 export type UpdateCheck =
   | { kind: "off"; reason: "build" | "unsigned" | "location" }
+  // A newer release exists that this build can't install itself
+  | { kind: "available"; release: AvailableRelease }
   | { kind: "current"; version: string }
   | { kind: "found"; version: string }
   | { kind: "failed"; message: string }

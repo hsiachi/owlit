@@ -16,6 +16,7 @@ import { docPassages } from "./changes/passages.ts"
 import { docProposals } from "./changes/proposals.ts"
 import { Turns } from "./agents/turns.ts"
 import { ReadLog, readFromOf } from "./agents/read-from.ts"
+import { latestRelease } from "./updates/github.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
 import type { Host } from "./host.ts"
@@ -251,6 +252,7 @@ export class Core {
       changelog: options.changelog,
       onboarded: async () => (await this.settings.get()).onboardedAt !== undefined,
       answering: () => this.turns.answering(),
+      latest: () => latestRelease((url) => this.http.json(url)),
       notify: (view) => this.notifier.notify("updates.changed", view),
     })
     // A visit to a paper ended: if it made the paper read in full, its status becomes Read (never down

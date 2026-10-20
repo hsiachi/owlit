@@ -451,6 +451,13 @@ async function checkForUpdates(core: Core) {
   const found = await call(core, "updates.check")
   if (found.kind === "current") {
     await showBox({ message: t`You're up to date`, detail: t`Owlit ${found.version} is the newest version.`, buttons: [t`OK`] })
+  } else if (found.kind === "available") {
+    // An unsigned build: the release is downloaded from its page, by hand
+    const { release } = found
+    const buttons = [t`Download`, ...(release.notes ? [t`What's New`] : []), t`Later`]
+    const { response } = await showBox({ message: t`Owlit ${release.version} is out`, detail: t`This build can't install updates itself yet. Download the new version from its release page.`, buttons, defaultId: 0, cancelId: buttons.length - 1 })
+    if (response === 0) void shell.openExternal(release.url)
+    else if (release.notes && response === 1) frontWindow()?.webContents.send("menu", "whats-new" satisfies MenuCommand)
   } else if (found.kind === "found") {
     const { status } = await call(core, "updates.get")
     if (status.kind === "ready") {
@@ -468,7 +475,7 @@ async function checkForUpdates(core: Core) {
     const label = [build.channel, build.commit].filter(Boolean).join(" · ")
     const detail =
       found.reason === "unsigned"
-        ? t`This copy isn't signed by Owlit's developer, so it can't install updates. Download the latest Owlit from GitHub.`
+        ? t`This build can't install updates itself yet. Download the latest Owlit from its release page.`
         : t`This Owlit was built from source (${label}), so it doesn't update itself.`
     await showBox({ message: t`This Owlit doesn't update itself`, detail, buttons: [t`OK`] })
   }

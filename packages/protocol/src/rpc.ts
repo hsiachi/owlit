@@ -607,7 +607,7 @@ export interface CoreVersion {
   node: string
 }
 
-export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics" | "new-workspace"
+export type MenuCommand = "settings" | "shortcuts" | "how-to" | "tour" | "intro" | "import" | "diagnostics" | "new-workspace" | "whats-new"
 
 // What the desktop preload exposes as window.owlit. Absent in a plain browser (pnpm dev:web).
 export interface OwlitBridge {
