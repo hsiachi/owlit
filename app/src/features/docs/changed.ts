@@ -168,6 +168,8 @@ export function followChangedSince(view: EditorView, path: () => string | undefi
       changed = []
       view.dispatch({ effects: setChanged.of([]) })
       void sha1(now).then((hash) => {
+        // An ask made while the hash was on its way counted from the old baseline
+        asked++
         base = hash
         markSeen({ kind: "doc", path: p, hash })
       })
