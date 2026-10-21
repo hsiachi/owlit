@@ -223,6 +223,21 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       if (lines.some((l) => l.startsWith("Added"))) lines.push("PDFs and text arrive by themselves. For a paper worth a digest, ask for one with library_request_digest.")
       return lines.join("\n")
     }
+    case "library_fetch_pdf": {
+      const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))].slice(0, 10)
+      if (!ids.length) return "library_fetch_pdf needs at least one id."
+      const lines = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const paper = await owlit.rpc.library.fetchPdf({ id })
+            return `- ${paper.id}: ${pdfStatus(paper)}`
+          } catch (error) {
+            return `- ${id}: ${error instanceof Error ? error.message : String(error)}`
+          }
+        }),
+      )
+      return `Where each paper's PDF stands now:\n${lines.join("\n")}`
+    }
     case "library_remove": {
       const ids = [...new Set((args.ids as string[]).map((r) => r.trim()).filter(Boolean))]
       if (!ids.length) return "library_remove needs at least one id."
@@ -373,7 +388,10 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       const done = await owlit.rpc.threads.write({ ...write, ...writer })
       const counts = [done.added ? `added ${done.added}` : "", done.updated ? `updated ${done.updated}` : ""].filter(Boolean).join(", ")
       const wrote = `Wrote “${done.title}” (${threadUri(done.id)})${counts ? `: ${counts}` : ""}. Link it in your answer as [${done.title}](${threadUri(done.id)}).`
-      return done.left?.length ? `${wrote}\nLeft out, the rest went in; fix these and write them again:\n- ${done.left.join("\n- ")}` : wrote
+      // Where the written papers' PDFs stand now: what an answer or a report says about PDFs comes from
+      // here, not from an earlier turn, since PDFs come in while the agent works
+      const pdfs = write.rows?.length ? await pdfLines(owlit, write.rows.map((r) => r.id)) : ""
+      return `${wrote}${pdfs}${done.left?.length ? `\nLeft out, the rest went in; fix these and write them again:\n- ${done.left.join("\n- ")}` : ""}`
     }
     case "thread_edit": {
       // The title is Owlit's own, so it changes through threads.write, recorded as Owlit's
@@ -606,8 +624,6 @@ export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) 
   switch (wait) {
     case undefined:
       return ""
-    case "unsought":
-      return "no PDF yet: owlit fetches it the first time the paper is read (library_read starts it)"
     case "finding":
       return s?.extension ? "no PDF yet (owlit is getting it through the user's browser)" : "no PDF yet (owlit is looking)"
     case "offline":
@@ -621,6 +637,42 @@ export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) 
     default:
       return ((s?.reason && OWN_LOOK[s.reason.ended]) ?? NO_PDF[wait]) + (extension ? "" : NO_EXTENSION)
   }
+}
+
+// Where a paper's PDF stands, in a few words, for a list the agent reads at the moment it writes
+export function pdfStatus(p: Pick<Paper, "pdf" | "pdfState">) {
+  const wait = pdfWait(p)
+  const s = p.pdfState
+  switch (wait) {
+    case undefined:
+      return "has PDF"
+    case "finding":
+      return s?.extension ? `finding (through the user's browser, at ${s.extension.host})` : "finding"
+    case "offline":
+      return "finding (waiting for the network)"
+    case "for-sign-in":
+      return s?.extension?.proxied || !s?.extension ? "waits for the user's library sign-in in their browser" : `waits for the user to sign in at ${s.extension.host} in their browser`
+    case "for-check":
+      return "waits for the user to pass a check in their browser"
+    case "for-permission":
+      return "waits for the user to let the owlit extension read the publisher's site"
+    case "not-found":
+      return "no PDF: owlit found no copy"
+    case "no-access":
+      return "no PDF: the publisher offered access instead of the PDF"
+    case "not-offered":
+      return "no PDF: the user's library doesn't offer it"
+    case "not-there":
+      return "no PDF: the publisher has none at the paper's address"
+  }
+}
+
+// The papers' PDF standing as lines under a write's answer; ids a write named that aren't in the
+// library (left out) are skipped
+async function pdfLines(owlit: OwlitClient, ids: string[]) {
+  const papers = await Promise.all(ids.map((id) => owlit.rpc.library.get({ id }).catch(() => null)))
+  const lines = papers.flatMap((one) => (one ? [`- ${one.paper.id}: ${pdfStatus(one.paper)}`] : []))
+  return lines.length ? `\nPDFs now (say it from this, not from memory):\n${lines.join("\n")}` : ""
 }
 
 // Whether the user allowed a browser's extension to connect; true when owlit couldn't say, so nothing

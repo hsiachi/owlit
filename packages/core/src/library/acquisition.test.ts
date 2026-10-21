@@ -1,6 +1,6 @@
 import type { PdfTry } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { forExtension, lookDue, standing } from "./acquisition.ts"
+import { forExtension, lookDue, nextLookAt, standing } from "./acquisition.ts"
 
 const owlit = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "search", ended, at, ...extra })
 const extension = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "extension", ended, at, ...extra })
@@ -81,5 +81,26 @@ describe("a paper the extension tried", () => {
     // The extension reached nothing (the network dropped, the proxy's minute limit): asked for again
     expect(forExtension({ state: "finding", tried: [owlit("no-copy", 1), extension("offline", 2)] })).toMatchObject({ by: "extension", ended: "offline", at: 2 })
     expect(forExtension({ state: "finding", tried: [] })).toBeUndefined()
+  })
+})
+
+describe("owlit's back-off look", () => {
+  const day = 24 * 60 * 60 * 1000
+  const noPdf = (looks: number, at = 10 * day) => ({ state: "no-pdf" as const, tried: [owlit("no-copy", at)], looks })
+
+  it("is due a day, then 3, 7 and 30 days after the look that found nothing", () => {
+    expect(nextLookAt(noPdf(1))).toBe(11 * day)
+    expect(nextLookAt(noPdf(2))).toBe(13 * day)
+    expect(nextLookAt(noPdf(3))).toBe(17 * day)
+    expect(nextLookAt(noPdf(4))).toBe(40 * day)
+    expect(lookDue(noPdf(4), 40 * day - 2 * 60 * 60 * 1000)).toBe(false)
+    expect(lookDue(noPdf(4), 40 * day)).toBe(true)
+  })
+
+  it("stops after the last step: the paper has no PDF, and owlit says it won't look again", () => {
+    expect(nextLookAt(noPdf(5))).toBeUndefined()
+    expect(lookDue(noPdf(5), 1000 * day)).toBe(false)
+    // The user's own Look again counts as one more look, and still ends nowhere
+    expect(nextLookAt(noPdf(6))).toBeUndefined()
   })
 })

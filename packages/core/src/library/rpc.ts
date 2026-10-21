@@ -289,8 +289,8 @@ export function registerLibrary({ router, turns, reads, journal, requireWorkspac
     for (const id of ids) out[id] = traceOf(readings.get(aliases[id] ?? id), (await ws.library.get(id))?.status)
     return out
   })
-  router.register("library.seek", z.object({ id: paperId }), "meta", ({ id }) => library().seek(id))
   router.register("library.fetchPdf", z.object({ id: paperId }), "meta", ({ id }) => library().fetchPdf(id))
+  router.register("library.fetchPdfs", z.object({ ids: z.array(paperId) }), "meta", ({ ids }) => library().fetchPdfs(ids))
   router.register("library.attachPdf", z.object({ id: paperId, path: z.string().min(1) }), "meta", ({ id, path }) =>
     library().attachPdf(id, path),
   )

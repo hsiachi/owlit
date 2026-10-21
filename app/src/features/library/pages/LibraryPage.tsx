@@ -10,6 +10,7 @@ import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
 import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
+import { GetAllLine } from "../components/GetAllLine"
 import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
@@ -121,6 +122,7 @@ export function LibraryPage() {
         ) : (
           <>
             <FilterBar />
+            {byReason && <GetAllLine papers={visible} />}
             <div className="mt-6">
               {noMatch ? (
                 <NoMatch words={words} onAsk={askOwlit} />

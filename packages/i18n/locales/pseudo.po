@@ -3745,12 +3745,20 @@ msgid "Open again"
 msgstr ""
 
 #: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{total, plural, one {Getting # PDF through your browser} other {Getting # PDFs through your browser}}"
+msgstr ""
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
 msgstr ""
 
 #. how many PDFs have come so far
 #: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{got} so far"
+msgstr ""
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Through your browser"
 msgstr ""
 
 #: app/src/features/library/components/ExtensionWaitLines.tsx
@@ -3764,12 +3772,46 @@ msgid "Dismiss"
 msgstr ""
 
 #: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{got, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
+msgstr ""
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
 msgstr ""
 
 #. placeholder {0}: without.length
 #: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{0, plural, one {# without} other {# without}}"
+msgstr ""
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "The owlit extension isn't connected."
+msgstr ""
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Open the browser it is in, then try again."
+msgstr ""
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Set it up in your browser from Settings › Papers, then try again."
+msgstr ""
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Couldn't hand the papers to the extension."
+msgstr ""
+
+#. button: every paper without a PDF goes to the browser extension, with the user's library access
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Get them all with my access"
+msgstr ""
+
+#. placeholder {0}: withDoi.length
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "{0, plural, one {# paper your browser can try} other {# papers your browser can try}}"
+msgstr ""
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "{without, plural, one {# without a DOI} other {# without a DOI}}"
 msgstr ""
 
 #: app/src/features/library/components/HighlightsList.tsx
@@ -4396,10 +4438,6 @@ msgid "No PDF there"
 msgstr ""
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "No PDF yet"
-msgstr ""
-
-#: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"
 msgstr ""
 
@@ -4727,10 +4765,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit gets it now that the paper is open."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

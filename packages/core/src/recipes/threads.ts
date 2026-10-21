@@ -112,10 +112,12 @@ memory model"; "cites Smith 2020" for a paper among those citing Smith (\`librar
 paper is the later one: a 2026 paper is never "cited by" a 2022 one.
 
 Read in full the papers the report leans on: the ones it names more than once, the ones that decide a
-disagreement, the ones the user will read first. Add them with \`library_add\` (the user asked for this
-work; several in one call) and read them when their text is there. Say in the answer how far you read, in
-the words owlit shows: how many from the full text, how many from part of the text, how many from the
-abstract only. Don't read everything in full for a survey of fifty; do read the five that carry it.
+disagreement, the ones the user will read first. A row's paper is in the library once its write went in,
+with its PDF being looked for like any paper's; \`library_fetch_pdf\` on those you want now waits for
+owlit's look and says where each stands, and \`library_read\` reads them when their text is there. Say
+in the answer how far you read, in the words owlit shows: how many from the full text, how many from
+part of the text, how many from the abstract only. Don't read everything in full for a survey of fifty;
+do read the five that carry it.
 
 ## 6. The report
 
@@ -134,7 +136,10 @@ naming, add it as a row first. Its parts, in the order that fits:
 - what it means for the user's work: where their idea sits, what it can rest on, what it has to argue
   itself. Say this plainly; it is why they asked. It is your reading, so it reads as yours ("this is
   where the dataset sits"), never as theirs;
-- what to read first, two to five papers, a few words on why each;
+- what to read first, two to five papers, a few words on why each. Before the write that carries the
+  report, get their PDFs with \`library_fetch_pdf\` (the rows went in already), and say in one line
+  which of them the user can't open and why, from that answer: "Smith 2020 has no PDF (no open copy);
+  Lee 2021 waits for your library sign-in". Nothing when all can be opened;
 - for a survey, what was searched and what was excluded (the record has the detail).
 
 Don't pad. A line that would be the same in any report is not worth a line. Where the papers don't say,

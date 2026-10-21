@@ -85,7 +85,8 @@ export const siteWaitItems = (waits: ExtensionWait[], showLibrary: () => void) =
 // browser the page opened in. The Library's line says, in turn, that the page is open there, how many
 // PDFs have come while the site's queue drains, and what came of it all (ExtensionWaitLines).
 export interface FollowedWait {
-  kind: ExtensionWait["kind"]
+  // all: Get them all, the papers sent to the extension in one go, at every site (host ALL_SITES)
+  kind: ExtensionWait["kind"] | "all"
   host: string
   ids: string[]
   browser?: string
@@ -106,6 +107,17 @@ function follow(wait: ExtensionWait, browser: string | undefined) {
     const all = [...new Set([...(before?.ids ?? []), ...ids])]
     const next: FollowedWait = { kind: wait.kind, host: wait.host, ids: all, ...(browser ? { browser } : {}), at: Date.now() }
     return { list: [...s.list.filter((f) => f.host !== wait.host), next] }
+  })
+}
+
+// Get them all: followed like a site the person acted on, through from the start (no one site's wait
+// stands for it); the papers waiting for a sign-in among them have the site's own line to act on
+export const ALL_SITES = "*"
+export function followBatch(ids: string[]) {
+  useFollowedWaits.setState((s) => {
+    const before = s.list.find((f) => f.host === ALL_SITES)
+    const next: FollowedWait = { kind: "all", host: ALL_SITES, ids: [...new Set([...(before?.ids ?? []), ...ids])], at: Date.now(), through: true }
+    return { list: [...s.list.filter((f) => f.host !== ALL_SITES), next] }
   })
 }
 

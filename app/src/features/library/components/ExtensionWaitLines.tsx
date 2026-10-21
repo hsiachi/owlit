@@ -95,18 +95,23 @@ function OpenedLine({ wait, followed }: { wait: ExtensionWait; followed: Followe
   )
 }
 
-// The site is through: its papers' PDFs coming, then what came of them
+// The site is through: its papers' PDFs coming, then what came of them. The same for Get them all's
+// papers, at every site: there, a paper waiting for a sign-in isn't still coming (the site's own line
+// says what to do), so the line says what came once nothing is being fetched.
 function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; papers: Record<string, Paper>; showOnly: (ids: string[], label: string) => void }) {
   const { host } = followed
+  const all = followed.kind === "all"
   const here = followed.ids.map((id) => papers[id]).filter((p): p is Paper => !!p)
   const got = here.filter((p) => p.pdf).length
-  const still = here.filter((p) => !p.pdf && isFinding(p)).length
+  const still = here.filter((p) => !p.pdf && (all ? isFetching(p) : isFinding(p))).length
   const total = here.length
   if (still > 0) {
     return (
       <StatusLine mark={<Spinner className="size-3.5" />}>
         <span className="truncate">
-          {plural(total, { one: `Getting # PDF from ${host}`, other: `Getting # PDFs from ${host}` })}
+          {all
+            ? plural(total, { one: "Getting # PDF through your browser", other: "Getting # PDFs through your browser" })
+            : plural(total, { one: `Getting # PDF from ${host}`, other: `Getting # PDFs from ${host}` })}
           {" · "}
           {t({ message: `${got} so far`, comment: "how many PDFs have come so far" })}
         </span>
@@ -114,7 +119,7 @@ function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; pap
     )
   }
   const without = here.filter((p) => !p.pdf)
-  const label = t`From ${host}`
+  const label = all ? t`Through your browser` : t`From ${host}`
   return (
     <StatusLine
       actions={
@@ -124,7 +129,9 @@ function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; pap
       }
     >
       <span className="truncate">
-        {plural(got, { one: `# PDF came from ${host}`, other: `# PDFs came from ${host}` })}
+        {all
+          ? plural(got, { one: "# PDF came through your browser", other: "# PDFs came through your browser" })
+          : plural(got, { one: `# PDF came from ${host}`, other: `# PDFs came from ${host}` })}
         {without.length > 0 && (
           <>
             {" · "}
@@ -142,4 +149,10 @@ function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; pap
 const isFinding = (p: Paper) => {
   const wait = pdfWait(p)
   return wait === "finding" || wait === "offline" || wait === "for-sign-in" || wait === "for-check" || wait === "for-permission"
+}
+
+// Being fetched, or in line at a site that goes on by itself
+const isFetching = (p: Paper) => {
+  const wait = pdfWait(p)
+  return wait === "finding" || wait === "offline"
 }

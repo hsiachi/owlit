@@ -3745,6 +3745,10 @@ msgid "Open again"
 msgstr "再次打开"
 
 #: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{total, plural, one {Getting # PDF through your browser} other {Getting # PDFs through your browser}}"
+msgstr "{total, plural, other {正在通过你的浏览器拿 # 篇 PDF}}"
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
 msgstr "{total, plural, other {正在从 {host} 获取 # 篇 PDF}}"
 
@@ -3752,6 +3756,10 @@ msgstr "{total, plural, other {正在从 {host} 获取 # 篇 PDF}}"
 #: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{got} so far"
 msgstr "已到 {got} 篇"
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Through your browser"
+msgstr "通过你的浏览器"
 
 #: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "From {host}"
@@ -3764,6 +3772,10 @@ msgid "Dismiss"
 msgstr "忽略"
 
 #: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "{got, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
+msgstr "{got, plural, other {通过你的浏览器拿到 # 篇 PDF}}"
+
+#: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
 msgstr "{got, plural, other {从 {host} 拿到 # 篇 PDF}}"
 
@@ -3771,6 +3783,36 @@ msgstr "{got, plural, other {从 {host} 拿到 # 篇 PDF}}"
 #: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "{0, plural, one {# without} other {# without}}"
 msgstr "{0, plural, other {# 篇没有}}"
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "The owlit extension isn't connected."
+msgstr "owlit 扩展没有连接。"
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Open the browser it is in, then try again."
+msgstr "打开装有它的浏览器，再试一次。"
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Set it up in your browser from Settings › Papers, then try again."
+msgstr "先在「设置 › 论文」里把它装进你的浏览器，再试一次。"
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Couldn't hand the papers to the extension."
+msgstr "没能把论文交给扩展。"
+
+#. button: every paper without a PDF goes to the browser extension, with the user's library access
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "Get them all with my access"
+msgstr "用我的权限全部获取"
+
+#. placeholder {0}: withDoi.length
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "{0, plural, one {# paper your browser can try} other {# papers your browser can try}}"
+msgstr "{0, plural, other {# 篇可以由你的浏览器试试}}"
+
+#: app/src/features/library/components/GetAllLine.tsx
+msgid "{without, plural, one {# without a DOI} other {# without a DOI}}"
+msgstr "{without, plural, other {# 篇没有 DOI}}"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
@@ -4396,10 +4438,6 @@ msgid "No PDF there"
 msgstr "出版方无 PDF"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "No PDF yet"
-msgstr "还没有 PDF"
-
-#: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"
 msgstr "PDF 不见了"
 
@@ -4728,10 +4766,6 @@ msgstr "{label} · 第 {page} 页"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
 msgstr "第 {number} 页"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit gets it now that the paper is open."
-msgstr "论文已打开，owlit 正在获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."

@@ -181,7 +181,7 @@ describe("the extension's queue", () => {
     expect(work.waits().find((w) => w.kind === "permission" && w.host === "sagepub.com")).toBeDefined()
   })
 
-  it("tries one paper of a paused site now and then, and goes on there once one gets through", async () => {
+  it("tries one paper of a paused site once more, then waits for the user", async () => {
     const { work, take, never } = setup()
     work.fetch(library, paper("t1", "tandfonline.com"), false)
     work.fetch(library, paper("t2", "tandfonline.com"), false)
@@ -198,14 +198,52 @@ describe("the extension's queue", () => {
     expect(work.waits()).toMatchObject([{ kind: "sign-in", host: "tandfonline.com", papers: 2 }])
     work.settle(again.id, "sign-in")
     expect(work.waits()).toMatchObject([{ kind: "sign-in", papers: 2 }])
-    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    // Met again: no third try on owlit's own, however long the site waits
+    vi.advanceTimersByTime(24 * 60 * PAUSED_RETRY_MS)
+    expect(await take()).toEqual([])
+    // The user got through (the extension saw it): the site goes on
+    expect(work.resume("tandfonline.com")).toBe(true)
     const [third] = await take()
     expect(third.paperId).toBe("t1")
-    // Through (the user signed in somewhere the extension didn't see): the site goes on
     work.settle(third.id, "no-access")
     expect(work.waits()).toEqual([])
     vi.advanceTimersByTime(GAP_MS)
     expect((await take()).map((w) => w.paperId)).toEqual(["t2"])
+  })
+
+  it("goes on through once a try at a paused site gets through by itself", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("t1", "tandfonline.com"), false)
+    const [t1] = await take()
+    work.settle(t1.id, "sign-in")
+    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    const [again] = await take()
+    // The user signed in somewhere the extension didn't see
+    work.settle(again.id, "no-access")
+    expect(work.waits()).toEqual([])
+    expect(work.holding(library, "t1")).toBeUndefined()
+  })
+
+  it("takes a pause a paper's record carries over as the site's own, line up and one try to come", async () => {
+    const { work, take, waitsChanged } = setup()
+    const before = waitsChanged()
+    work.fetch(library, paper("p1", "sagepub.com", { signIn: "https://proxy.example.edu/login" }), false, { kind: "sign-in" })
+    expect(work.waits()).toMatchObject([{ kind: "sign-in", host: "sagepub.com", papers: 1, url: "https://proxy.example.edu/login" }])
+    expect(waitsChanged()).toBeGreaterThan(before)
+    expect(work.holding(library, "p1")).toMatchObject({ host: "sagepub.com", waits: "sign-in" })
+    // A second paper of the site joins the line; a site with something going on keeps its own state
+    work.fetch(library, paper("p2", "sagepub.com"), false, { kind: "check" })
+    expect(work.waits()).toMatchObject([{ kind: "sign-in", papers: 2 }])
+    // Its one try on owlit's own goes at once (the user may have got through since owlit last ran);
+    // met again, the site waits for the user
+    const [p1] = await take()
+    expect(p1.paperId).toBe("p1")
+    work.settle(p1.id, "sign-in")
+    vi.advanceTimersByTime(24 * 60 * PAUSED_RETRY_MS)
+    expect(await take()).toEqual([])
+    // Asked for by the user, it is tried at once
+    work.fetch(library, paper("p1", "sagepub.com"), true)
+    expect((await take()).map((w) => w.paperId)).toEqual(["p1"])
   })
 
   it("lets go of a paper that got its PDF another way or left the library", async () => {

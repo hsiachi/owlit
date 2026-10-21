@@ -29,9 +29,11 @@ export const CONNECTED_MS = 60_000
 // After a fetch at a site reached nothing (the network dropped, the proxy's minute-limit page), the site
 // waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
 // was learnt about it, and a limit that counts every request isn't asked again within the minute
-// A site paused for the user tries its first paper again this long after the pause began: the user may
-// have got through where the extension couldn't tell (signing in can end on a page that still looks like
-// a sign-in, the proxy's own front page), and nothing else would let the site go on
+// A site paused for the user tries its first paper once more this long after the pause began: the user
+// may have got through where the extension couldn't tell (signing in can end on a page that still looks
+// like a sign-in, the proxy's own front page). Once only: a try every quarter of an hour for days wrote
+// dozens of silent tries into a paper's record and told the user nothing. After it the site waits for
+// the user to get through (resume), or to ask for one of its papers (fetch with askedFor).
 export const PAUSED_RETRY_MS = 15 * 60_000
 export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 
@@ -54,10 +56,16 @@ interface Paused {
   host?: string
   // What the user's browser opens for it
   url: string
-  // When the newest try met it, for the next try (PAUSED_RETRY_MS)
-  at: number
+  // When the one try on owlit's own goes (PAUSED_RETRY_MS after the pause began); absent once it ran
+  tryAt?: number
   // The pairing whose fetch met it: its browser is the one where the user gets through
   by?: string
+}
+
+// A pause carried over from a paper's record (its newest try met it before owlit restarted), so the
+// site's waiting line is up as soon as the extension connects, without a try first
+export interface KnownPause {
+  kind: ExtensionWait["kind"]
 }
 
 interface Site {
@@ -156,8 +164,10 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
   // when the user asked now; asked for, it goes before the ones that weren't, and a site paused for the
-  // user is tried once more, since the user may have got through already.
-  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean) {
+  // user is tried once more, since the user may have got through already. paused: the paper's record
+  // says its site waits for the user; a site with nothing going on there takes that pause as its own,
+  // with its one try on owlit's own still to come.
+  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean, paused?: KnownPause) {
     this.own(library)
     // A paper whose publisher (or proxy) changed since it was queued moves to that site
     for (const site of this.sites.values()) {
@@ -182,6 +192,10 @@ export class ExtensionWork implements ExtensionFetcher {
     }
     const unpaused = askedFor && !!site.paused
     if (unpaused) site.paused = undefined
+    else if (paused && !askedFor && !site.paused && !site.inFlight && site.queue.length === 1) {
+      // Its one try goes at once: the user may have got through since owlit last ran
+      site.paused = { kind: paused.kind, url: (paused.kind === "sign-in" && paper.signIn) || paper.url, tryAt: Date.now() }
+    }
     this.host.papers(library, unpaused ? ids(site) : [paper.paperId])
     this.host.waits()
     this.kick()
@@ -252,8 +266,8 @@ export class ExtensionWork implements ExtensionFetcher {
     site.endedAt = Date.now()
     const pause = ended && PAUSES[ended]
     if (ended === "offline" && site.paused) {
-      // Its try reached nothing: it waits for the user as it did
-      site.paused.at = site.endedAt
+      // Its try reached nothing: it waits for the user as it did, the one try still to come
+      if (site.paused.tryAt !== undefined) site.paused.tryAt = site.endedAt + PAUSED_RETRY_MS
       site.queue.unshift(item)
       sortQueue(site)
     } else if (ended === "offline") {
@@ -270,7 +284,9 @@ export class ExtensionWork implements ExtensionFetcher {
       // The site named is the whole publisher's (siteOf), so one Allow covers its other hosts too
       // (doi.apa.org, then psycnet.apa.org)
       const host = pause === "permission" && page.host && siteOf(page.host) !== site.key ? siteOf(page.host) : undefined
-      site.paused = { kind: pause, url, at: site.endedAt, by, ...(host ? { host } : {}) }
+      // Met again by the one try on owlit's own: no more until the user acts
+      const tryAt = site.paused ? undefined : site.endedAt + PAUSED_RETRY_MS
+      site.paused = { kind: pause, url, by, ...(tryAt !== undefined ? { tryAt } : {}), ...(host ? { host } : {}) }
       this.host.papers(this.library, ids(site))
       this.host.waits()
     } else if (site.paused) {
@@ -361,9 +377,10 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   // When the site's next fetch may go out: after the gap, after an offline back-off, and while it is
-  // paused for the user, only for its next try
+  // paused for the user, only for its one try on owlit's own; never once that ran
   private dueAt(site: Site) {
-    return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0, site.paused ? site.paused.at + PAUSED_RETRY_MS : 0)
+    const paused = site.paused ? (site.paused.tryAt ?? Number.POSITIVE_INFINITY) : 0
+    return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0, paused)
   }
 
   private due(by: string | undefined): WorkItem[] {
