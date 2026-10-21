@@ -18,7 +18,7 @@ import { unansweredSentence } from "../../lib/step-words"
 import { messageText } from "../../lib/message-text"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultCard } from "./ResultRows"
-import { ReadFromContext } from "@/components/citation-card"
+import { ReadFromContext } from "@/components/citation"
 import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
 
 // The one red mark a reply can have, as a small bordered block (the result card's frame) so it reads as

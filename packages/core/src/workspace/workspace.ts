@@ -153,9 +153,11 @@ export class Workspace {
       canonical: (id) => this.library.canonical(id),
       paper: async (id) => {
         const text = path.join(paperDir(this.root, id), "text.md")
+        const info = await stat(text).catch(() => null)
         return {
           abstract: (await this.library.get(id))?.abstract,
-          hasText: await exists(text),
+          hasText: !!info,
+          ...(info ? { stamp: `${info.mtimeMs}:${info.size}` } : {}),
           text: () => readFile(text, "utf8").catch(() => null),
         }
       },

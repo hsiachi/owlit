@@ -1,4 +1,4 @@
-import { isOwlit, isPerson, type Change, type CitationCounts, type CitationState, type DocCitation, type DocCitations, type OwlitReading, type ReadFrom } from "@owlit/protocol"
+import { isOwlit, isPerson, type Change, type CitationPassage, type CitedWork, type CitationCounts, type CitationState, type DocCitation, type DocCitations, type OwlitReading, type ReadFrom } from "@owlit/protocol"
 import path from "node:path"
 import { pageList, pageNumbers, type LibraryRead } from "../agents/read-from.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -51,8 +51,9 @@ export interface CitationServices {
   answered: (chatId: string, exceptReply?: string) => Promise<ReadFrom[]>
   // The Library's id for a paper, by any id it goes by
   canonical: (id: string) => Promise<string | undefined>
-  // A paper's abstract, whether owlit has its text.md, and the text itself
-  paper: (libraryId: string) => Promise<{ abstract?: string; hasText: boolean; text: () => Promise<string | null> }>
+  // A paper's abstract, whether owlit has its text.md (and its stamp, which changes with it), and the
+  // text itself
+  paper: (libraryId: string) => Promise<{ abstract?: string; hasText: boolean; stamp?: string; text: () => Promise<string | null> }>
 }
 
 // .owlit/citations.json: who put each citation into each doc and, for Owlit's, what core saw it read of
@@ -64,6 +65,7 @@ export class Citations {
   private readonly services: CitationServices
   private readonly turn = new Serial((error) => console.error("[core] couldn't keep a doc's citations", error))
   private stored?: Stored
+  private readonly places = new Map<string, Place>()
   // The doc a write took away, so the same write bringing it in elsewhere (a move) takes its citations
   private leaving?: { writeId: string; path: string }
 
@@ -174,26 +176,37 @@ export class Citations {
   of(rel: string, text: string): Promise<DocCitations> {
     return this.turn.run(async () => {
       const kept = new Map(((await this.load()).docs[rel] ?? []).map((k) => [keyOf(k), k]))
-      // Each paper once; its text only for a citation with a sentence to look for
-      const papers = new Map<string, Promise<{ paper: Paper; text: () => Promise<string | null> }>>()
-      const texts = new Map<string, Promise<string | null>>()
+      // Each paper once
+      const papers = new Map<string, Promise<{ paper: Paper; place: (quote: string) => Promise<Place> }>>()
       const citations: DocCitation[] = []
       for (const c of citationSpans(text)) {
         let found = papers.get(c.paperId)
         if (!found) papers.set(c.paperId, (found = this.paper(c.paperId)))
-        const { paper, text: read } = await found
-        if (c.quote && paper.hasText && !texts.has(c.paperId)) texts.set(c.paperId, read())
-        citations.push(stateOf(c, kept.get(keyOf(c)), { ...paper, text: (await texts.get(c.paperId)) ?? null }))
+        const { paper, place } = await found
+        citations.push(stateOf(c, kept.get(keyOf(c)), paper, c.quote ? await place(c.quote) : NOWHERE))
       }
       return { citations, counts: countsOf(citations) }
     })
   }
 
-  private async paper(paperId: string): Promise<{ paper: Paper; text: () => Promise<string | null> }> {
+  // A paper, and where a sentence sits in it: kept for as long as the paper's text and abstract stay
+  // the same, so asking again as the doc is typed reads no text.md twice
+  private async paper(paperId: string): Promise<{ paper: Paper; place: (quote: string) => Promise<Place> }> {
     const libraryId = await this.services.canonical(paperId)
-    if (!libraryId) return { paper: { hasText: false, text: null }, text: async () => null }
-    const { abstract, hasText, text } = await this.services.paper(libraryId)
-    return { paper: { libraryId, ...(abstract ? { abstract } : {}), hasText, text: null }, text }
+    if (!libraryId) return { paper: { hasText: false }, place: async (quote) => ({ passage: placeOf(quote, { text: null }), citesOther: citesOtherIn(quote) }) }
+    const { abstract, hasText, stamp, text } = await this.services.paper(libraryId)
+    let read: Promise<string | null> | undefined
+    const place = async (quote: string) => {
+      const key = `${libraryId}\n${stamp ?? ""}\n${abstract ?? ""}\n${quote}`
+      const known = this.places.get(key)
+      if (known) return known
+      const t = hasText ? await (read ??= text()) : null
+      const found: Place = { passage: placeOf(quote, { abstract, text: t }), citesOther: citesOtherIn(quote, t) }
+      if (this.places.size >= PLACES_KEPT) this.places.clear()
+      this.places.set(key, found)
+      return found
+    }
+    return { paper: { libraryId, ...(abstract ? { abstract } : {}), hasText }, place }
   }
 
   private async load(): Promise<Stored> {
@@ -205,19 +218,25 @@ export class Citations {
   }
 }
 
-// text: read only for a citation with a sentence; null otherwise, or when owlit has none
 interface Paper {
   libraryId?: string
   abstract?: string
   hasText: boolean
-  text: string | null
 }
 
+// Where a citation's sentence sits in the paper (library/passage.ts placeOf), and what it cites itself
+export interface Place {
+  passage: CitationPassage | null
+  citesOther: CitedWork[]
+}
+const NOWHERE: Place = { passage: null, citesOther: [] }
+
+// Sentences' places kept across asks: a few big surveys' worth
+const PLACES_KEPT = 5_000
+
 // A citation's state (protocol CitationState), from the paper and what was kept of the write that brought it
-export function stateOf(c: Citation & { from: number; to: number }, kept: Kept | undefined, paper: Paper): DocCitation {
+export function stateOf(c: Citation & { from: number; to: number }, kept: Kept | undefined, paper: Paper, { passage, citesOther }: Place): DocCitation {
   const by = kept?.by ?? "unknown"
-  const passage = c.quote ? placeOf(c.quote, paper) : null
-  const citesOther = c.quote ? citesOtherIn(c.quote, paper.text) : []
   const read = by === "owlit" ? kept?.read : undefined
   let state: CitationState | null
   if (by === "person") state = null

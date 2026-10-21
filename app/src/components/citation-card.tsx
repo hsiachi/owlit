@@ -1,9 +1,9 @@
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { useContext, useEffect, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
-import { paperUri, shortTitle, type CitationPassage, type CitationState, type CitedWork, type DocCitation, type OwlitReading, type Paper, type ReadFrom, type ReadTrace, type ThreadPaper } from "@owlit/protocol"
-import { CARD_CLOSE_DELAY, CARD_OPEN_DELAY, citationCardSurface, type Citation } from "@/components/citation"
+import { paperUri, shortTitle, type CitationPassage, type CitationState, type CitedWork, type DocCitation, type OwlitReading, type Paper, type ReadTrace, type ThreadPaper } from "@owlit/protocol"
+import { CARD_CLOSE_DELAY, CARD_OPEN_DELAY, citationCardSurface, DocCitationsContext, ReadFromContext, type Citation } from "@/components/citation"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { citationLabel, shortVenue } from "@/features/library/lib/format"
 import { traceDetail } from "@/features/library/lib/trace"
@@ -13,16 +13,6 @@ import { threadHolding } from "@/features/threads/lib"
 import { useThreadsStore } from "@/features/threads/store"
 import { rpc } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
-
-// What the answer around a citation was built from, as core saw its turn read (a chat's reply sets it):
-// the card says how far Owlit read the cited paper from it. null: Owlit's answer, with its reads not
-// recorded; undefined: not in an answer of Owlit's.
-export const ReadFromContext = createContext<ReadFrom[] | null | undefined>(undefined)
-
-// A doc's citations as core keeps them (docs.citations): who wrote each and what it rests on. The doc's
-// card finds its citation here by the link as written; a citation the doc has newer than core's answer
-// isn't found and is told as one whose writer isn't known.
-export const DocCitationsContext = createContext<DocCitation[] | undefined>(undefined)
 
 // A citation in React text (a chat's or a comment's link, a cell's page): the card opens on hover after
 // the delay and on keyboard focus of what it wraps, as Radix's hover card does

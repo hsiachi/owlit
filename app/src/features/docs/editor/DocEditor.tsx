@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
@@ -20,8 +20,8 @@ import { freshDocIds, useDocsStore } from "../store"
 import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
-import { DocCitationsContext } from "@/components/citation-card"
-import { useDocCitations } from "../lib/citations"
+import { DocCitationsContext } from "@/components/citation"
+import { citationsLine, useDocCitations, useMarkedCitations } from "../lib/citations"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
@@ -100,6 +100,11 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const citations = useDocCitations(file.id)
+  // The part of the citations line picked, by the states it names: its citations are marked for this visit
+  const [picked, setPicked] = useState<string | null>(null)
+  const line = useMemo(() => (citations ? citationsLine(citations.counts) : []), [citations])
+  const pickedStates = line.find((p) => p.states.join() === picked)?.states ?? null
+  useMarkedCitations(host, citations?.citations, pickedStates)
   const navigate = useNavigate()
   const navigateRef = useRef(navigate)
   useEffect(() => {
@@ -348,6 +353,27 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
 
   return (
     <>
+      {line.length > 0 && (
+        // One muted line over the text, naming only what wasn't read in the paper; a part marks its citations
+        <p className="mb-3 text-detail text-muted-foreground">
+          {line.map((part, i) => {
+            const key = part.states.join()
+            return (
+              <span key={key}>
+                {i > 0 && " · "}
+                <button
+                  type="button"
+                  aria-pressed={picked === key}
+                  onClick={() => setPicked(picked === key ? null : key)}
+                  className="rounded-sm underline-offset-2 outline-none hover:text-foreground hover:underline focus-key:underline aria-pressed:text-foreground aria-pressed:underline"
+                >
+                  {part.text}
+                </button>
+              </span>
+            )
+          })}
+        </p>
+      )}
       <div ref={host} className="min-h-full" />
       <DocCitationsContext.Provider value={citations?.citations}>
         <DocCitationHover
