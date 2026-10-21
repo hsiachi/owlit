@@ -525,22 +525,12 @@ msgid "Not in your Library"
 msgstr "Not in your Library"
 
 #: app/src/components/citation-card.tsx
-msgid "Owlit, from the title only"
-msgstr "Owlit, from the title only"
+msgid "Owlit, from the text; how much of it isn't recorded"
+msgstr "Owlit, from the text; how much of it isn't recorded"
 
-#: app/src/components/citation-card.tsx
-msgid "Owlit, from the abstract"
-msgstr "Owlit, from the abstract"
-
-#: app/src/components/citation-card.tsx
-msgid "Owlit, from the full text"
-msgstr "Owlit, from the full text"
-
-#. a thread's answer written from the paper's abstract
 #. label before the first lines of a cited paper's abstract, in its card
 #: app/src/components/citation-card.tsx
 #: app/src/features/library/components/EditDetailsDialog.tsx
-#: app/src/features/threads/components/AnswerRows.tsx
 msgid "Abstract"
 msgstr "Abstract"
 
@@ -696,6 +686,101 @@ msgstr "Finding a PDF…"
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Show more"
 msgstr "Show more"
+
+#. how far Owlit read a paper: its whole text
+#: app/src/components/read-depth.ts
+msgctxt "read depth"
+msgid "Full text"
+msgstr "Full text"
+
+#. how far Owlit read a paper: some of its pages or a section
+#: app/src/components/read-depth.ts
+msgctxt "read depth"
+msgid "Part of the text"
+msgstr "Part of the text"
+
+#. how Owlit read a paper: only its own digest of it
+#: app/src/components/read-depth.ts
+msgctxt "read depth"
+msgid "From the digest"
+msgstr "From the digest"
+
+#. how far Owlit read a paper: its abstract, none of the text
+#: app/src/components/read-depth.ts
+msgctxt "read depth"
+msgid "Abstract only"
+msgstr "Abstract only"
+
+#. how far Owlit read a paper: its title, it has no abstract
+#: app/src/components/read-depth.ts
+msgctxt "read depth"
+msgid "Title only"
+msgstr "Title only"
+
+#: app/src/components/read-depth.ts
+msgid "Owlit, from the full text"
+msgstr "Owlit, from the full text"
+
+#: app/src/components/read-depth.ts
+msgid "Owlit, from part of the text"
+msgstr "Owlit, from part of the text"
+
+#: app/src/components/read-depth.ts
+msgid "Owlit, from its digest"
+msgstr "Owlit, from its digest"
+
+#: app/src/components/read-depth.ts
+msgid "Owlit, from the abstract"
+msgstr "Owlit, from the abstract"
+
+#: app/src/components/read-depth.ts
+msgid "Owlit, from the title only"
+msgstr "Owlit, from the title only"
+
+#: app/src/components/read-depth.ts
+msgid "{n, plural, one {# full text} other {# full text}}"
+msgstr "{n, plural, one {# full text} other {# full text}}"
+
+#: app/src/components/read-depth.ts
+msgid "{n, plural, one {# part of the text} other {# part of the text}}"
+msgstr "{n, plural, one {# part of the text} other {# part of the text}}"
+
+#: app/src/components/read-depth.ts
+msgid "{n, plural, one {# from the digest} other {# from the digest}}"
+msgstr "{n, plural, one {# from the digest} other {# from the digest}}"
+
+#: app/src/components/read-depth.ts
+msgid "{n, plural, one {# abstract only} other {# abstract only}}"
+msgstr "{n, plural, one {# abstract only} other {# abstract only}}"
+
+#: app/src/components/read-depth.ts
+msgid "{n, plural, one {# title only} other {# title only}}"
+msgstr "{n, plural, one {# title only} other {# title only}}"
+
+#. every paper an answer rests on was read whole
+#: app/src/components/read-depth.ts
+msgid "all full text"
+msgstr "all full text"
+
+#. every paper an answer rests on was read in part
+#: app/src/components/read-depth.ts
+msgid "all part of the text"
+msgstr "all part of the text"
+
+#. every paper an answer rests on was read through Owlit's digest
+#: app/src/components/read-depth.ts
+msgid "all from the digest"
+msgstr "all from the digest"
+
+#. every paper an answer rests on was known from its abstract
+#: app/src/components/read-depth.ts
+msgid "all abstract only"
+msgstr "all abstract only"
+
+#. every paper an answer rests on was known from its title
+#: app/src/components/read-depth.ts
+msgid "all title only"
+msgstr "all title only"
 
 #: app/src/components/segmented-control.tsx
 msgid "New since you last looked"
@@ -1559,62 +1644,27 @@ msgstr "Undo all"
 msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, one {Show # more} other {Show # more}}"
 
-#. how Owlit read a paper an answer was built from
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
-msgid "Read in full"
-msgstr "Read in full"
-
-#. how Owlit read a paper an answer was built from
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
-msgid "From the digest"
-msgstr "From the digest"
-
-#. how Owlit read a paper an answer was built from
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
-msgid "Abstract only"
-msgstr "Abstract only"
-
-#. how Owlit read a paper an answer was built from: owlit has no text of it
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
-msgid "No PDF"
-msgstr "No PDF"
-
-#. how Owlit read a paper an answer was built from: some of its pages or a section
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
-msgid "Part of the text"
-msgstr "Part of the text"
-
-#. how Owlit read a paper an answer was built from: pages 4–5 of it
+#. a page of a paper
+#. a page of a paper
+#. page 4 of a paper
+#. placeholder {0}: cell.passage.page
 #. placeholder {0}: r.pages
+#. placeholder {0}: row.page
 #: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
-msgid "pp. {0}"
-msgstr "pp. {0}"
-
-#. how Owlit read a paper an answer was built from: page 4 of it
-#. placeholder {0}: r.pages
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgctxt "read depth"
+#: app/src/features/onboarding/demos/CollectDemo.tsx
+#: app/src/features/threads/export.ts
 msgid "p. {0}"
 msgstr "p. {0}"
+
+#. pages 4–5 of a paper
+#. placeholder {0}: r.pages
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "pp. {0}"
+msgstr "pp. {0}"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{papers, plural, one {From # paper} other {From # papers}}"
 msgstr "{papers, plural, one {From # paper} other {From # papers}}"
-
-#. placeholder {0}: thin.length
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "{0, plural, one {# abstract only} other {# abstract only}}"
-msgstr "{0, plural, one {# abstract only} other {# abstract only}}"
-
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "{papers, plural, one {read} other {all read}}"
-msgstr "{papers, plural, one {read} other {all read}}"
 
 #. a helper agent's status
 #. a step that failed
@@ -1915,14 +1965,22 @@ msgstr "Runs commands in this workspace; what they change outside your docs has 
 msgid "Never changes anything with commands"
 msgstr "Never changes anything with commands"
 
+#: app/src/features/chat/lib/selection.ts
+msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+msgstr "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
+
+#: app/src/features/chat/lib/selection.ts
+msgid "Reviewer, which changes nothing of yours, and Co-author, which edits your docs without marking its edits as proposals, are in the composer, for one chat at a time."
+msgstr "Reviewer, which changes nothing of yours, and Co-author, which edits your docs without marking its edits as proposals, are in the composer, for one chat at a time."
+
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on a question"
 msgstr "Find papers on a question"
 
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
-msgid "Find recent papers on "
-msgstr "Find recent papers on "
+msgid "Find papers on "
+msgstr "Find papers on "
 
 #: app/src/features/chat/lib/starters.ts
 msgid "Compare papers"
@@ -4998,10 +5056,6 @@ msgid "As Assistant, its usual role, Owlit"
 msgstr "As Assistant, its usual role, Owlit"
 
 #: app/src/features/onboarding/AgentSetup.tsx
-msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
-msgstr "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time."
-
-#: app/src/features/onboarding/AgentSetup.tsx
 msgid "Owlit will use <0>{name}</0>"
 msgstr "Owlit will use <0>{name}</0>"
 
@@ -5190,15 +5244,6 @@ msgstr "Searching arXiv and Semantic Scholar"
 #: app/src/features/onboarding/demos/AskDemo.tsx
 msgid "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
 msgstr "{kept, plural, one {Added # paper to your Library} other {Added # papers to your Library}}"
-
-#. a page of a paper
-#. a page of a paper
-#. placeholder {0}: cell.passage.page
-#. placeholder {0}: row.page
-#: app/src/features/onboarding/demos/CollectDemo.tsx
-#: app/src/features/threads/export.ts
-msgid "p. {0}"
-msgstr "p. {0}"
 
 #: app/src/features/onboarding/demos/CollectDemo.tsx
 msgid "Ask Owlit to change this thread…"
@@ -5591,8 +5636,8 @@ msgid "What Owlit may do"
 msgstr "What Owlit may do"
 
 #: app/src/features/settings/sections/OwlitSection.tsx
-msgid "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
-msgstr "Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy."
+msgid "What the agent reads of your workspace is under Privacy."
+msgstr "What the agent reads of your workspace is under Privacy."
 
 #: app/src/features/settings/sections/OwlitSection.tsx
 #: app/src/features/settings/store.ts
@@ -5969,13 +6014,11 @@ msgstr "About this thread"
 msgid "Then <0>“{later}”</0>, {on}."
 msgstr "Then <0>“{later}”</0>, {on}."
 
+#. under a thread's About: how far Owlit read its papers, e.g. 5 full text, 12 abstract only
+#. placeholder {0}: readDepthSummary(depths)
 #: app/src/features/threads/components/About.tsx
-msgid "Read {read} of the {papers} papers in full; the rest are from their abstracts."
-msgstr "Read {read} of the {papers} papers in full; the rest are from their abstracts."
-
-#: app/src/features/threads/components/About.tsx
-msgid "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
-msgstr "{titles, plural, one {# had no abstract and is from its title only.} other {# had no abstract and are from their titles only.}}"
+msgid "Of the {papers} papers: {0}."
+msgstr "Of the {papers} papers: {0}."
 
 #: app/src/features/threads/components/About.tsx
 msgid "a chat"
@@ -6091,22 +6134,12 @@ msgstr "Not in a group"
 msgid "{total, plural, one {# paper} other {# papers}}"
 msgstr "{total, plural, one {# paper} other {# papers}}"
 
-#. a thread's answer written from the paper's title alone
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Title only"
-msgstr "Title only"
-
-#. a thread's answer written from the paper's full text; followed by its page
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "Full text"
-msgstr "Full text"
-
-#. chip on a thread cell Owlit answered again from the full text
-#. chip on a thread cell Owlit answered again from the full text
+#. chip on a thread cell Owlit answered again from the paper's text
+#. chip on a thread cell Owlit answered again from the paper's text
 #: app/src/features/threads/components/AnswerRows.tsx
 #: app/src/features/threads/components/ThreadTable.tsx
-msgid "Changed after reading in full"
-msgstr "Changed after reading in full"
+msgid "Changed after reading the text"
+msgstr "Changed after reading the text"
 
 #. after “was: …”: what Owlit's earlier answer was written from
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -6122,14 +6155,6 @@ msgstr "from the abstract"
 #: app/src/features/threads/components/AnswerRows.tsx
 msgid "was: {text}"
 msgstr "was: {text}"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the title only"
-msgstr "From the title only"
-
-#: app/src/features/threads/components/AnswerRows.tsx
-msgid "From the abstract"
-msgstr "From the abstract"
 
 #. how Owlit came to a thread's paper: a search's words, or the paper that cites it
 #: app/src/features/threads/components/AnswerRows.tsx
@@ -6278,15 +6303,15 @@ msgstr "{papers, plural, one {# paper} other {# papers}}"
 msgid "{groups, plural, one {# group} other {# groups}}"
 msgstr "{groups, plural, one {# group} other {# groups}}"
 
-#. the line over a thread's papers: how many, in how many groups, how many Owlit read in full
+#. the line over a thread's papers: how many, in how many groups, how far Owlit read them
 #: app/src/features/threads/pages/ThreadPage.tsx
-msgid "Papers · {n}, {g} · {full} in full"
-msgstr "Papers · {n}, {g} · {full} in full"
+msgid "Papers · {n}, {g} · {read}"
+msgstr "Papers · {n}, {g} · {read}"
 
-#. the line over a thread's papers: how many, how many Owlit read in full
+#. the line over a thread's papers: how many, how far Owlit read them
 #: app/src/features/threads/pages/ThreadPage.tsx
-msgid "Papers · {n} · {full} in full"
-msgstr "Papers · {n} · {full} in full"
+msgid "Papers · {n} · {read}"
+msgstr "Papers · {n} · {read}"
 
 #: app/src/features/threads/pages/ThreadPage.tsx
 msgid "{more, plural, one {and # more} other {and # more}}"
@@ -6319,10 +6344,10 @@ msgstr "Ask Owlit to find papers on a question; the thread appears here."
 msgid "Found nothing"
 msgstr "Found nothing"
 
-#. a thread whose project folder was renamed or deleted, then that folder's old name
+#. after a thread's title: the project folder it names isn't in the workspace
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "was in {was}"
-msgstr "was in {was}"
+msgid "no folder named {was}"
+msgstr "no folder named {was}"
 
 #: app/src/features/threads/store.ts
 msgid "Moved to {project}"

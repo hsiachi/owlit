@@ -143,10 +143,13 @@ function joinSentences(sentences: string[]) {
   return sentences.reduce((out, s) => (!out ? s : /[　-〿＀-￯]$/.test(out) ? out + s : `${out} ${s}`), "")
 }
 
-// A sentence of Markdown as plain words: a link keeps its label
+// A sentence of Markdown as plain words: a link keeps its label, emphasis and code keep their words
 export function plainLine(markdown: string) {
   return markdown
     .replace(/\[((?:\\.|[^\]\\])+)\]\([^)\s]+\)/g, (_, label: string) => label.replace(/\\(.)/g, "$1"))
+    .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2")
+    .replace(/(^|[^\w*])[*_](?=\S)([^*_\n]*?\S)[*_](?![\w*])/g, "$1$2")
+    .replace(/`([^`\n]+)`/g, "$1")
     .replace(/\s+/g, " ")
     .trim()
 }

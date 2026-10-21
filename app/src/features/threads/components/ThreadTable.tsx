@@ -1,5 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
-import { itemId, readInFull, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadRowRead, type Relation } from "@owlit/protocol"
+import { readDepthLabel } from "@/components/read-depth"
+import { fromText, itemId, readInFull, type ThreadRead, type ThreadCell, type ThreadColumn, type ThreadRowRead, type Relation } from "@owlit/protocol"
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
@@ -419,11 +420,11 @@ function PeekRow({ thread, row, open, span }: { thread: ThreadRead; row: ThreadR
   )
 }
 
-// A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the full text;
+// A cell: Owlit's answer, in ink like the short list's, ending in its page when it came from the text;
 // one from the title only is thin, so muted. A comparison says how the paper stands and why, Owlit's reason
 // being what the user doesn't know yet; their own sentence is one muted line under it only where nothing
 // else says which one. The words it rests on are on the row's card.
-// reread: the dot's change is Owlit answering again from the full text: the page's place says so while the
+// reread: the dot's change is Owlit answering again from the text: the page's place says so while the
 // dot lasts.
 function Cell({ column, cell, fresh, reread, showSentence }: { column: ThreadColumn; cell: ThreadCell | undefined; fresh: boolean; reread: ReturnType<typeof readInFull>; showSentence: boolean }) {
   if (!cell) return <span className="text-muted-foreground/60">…</span>
@@ -431,16 +432,22 @@ function Cell({ column, cell, fresh, reread, showSentence }: { column: ThreadCol
   if (column.kind === "compare" && !cell.rel) return <span title={cell.text} />
   const sentence = column.sentences?.find((s) => s.id === cell.sentence)
   const text = cell.text
-  const page = cell.depth === "full" && cell.passage ? cell.passage.page : undefined
+  const page = fromText(cell.depth) && cell.passage ? cell.passage.page : undefined
   // The words wrap in a narrow column; the page stays on one line, as it does alone
   const pageMark =
     fresh && reread ? (
       <span className="ml-1 text-owlit">
-        {t({ message: "Changed after reading in full", comment: "chip on a thread cell Owlit answered again from the full text" })}
+        {t({ message: "Changed after reading the text", comment: "chip on a thread cell Owlit answered again from the paper's text" })}
         {page && <span className="whitespace-nowrap tabular-nums"> · {t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>}
       </span>
     ) : (
-      page && <span className="ml-1 whitespace-nowrap text-muted-foreground tabular-nums">{t({ message: `p. ${page}`, comment: "a page of a paper" })}</span>
+      // The page alone, in a dense table; how far Owlit read (full text, part of the text) on hover, in the
+      // words the row's card and the line over the papers say
+      page && (
+        <span className="ml-1 whitespace-nowrap text-muted-foreground tabular-nums" title={readDepthLabel(cell.depth)}>
+          {t({ message: `p. ${page}`, comment: "a page of a paper" })}
+        </span>
+      )
     )
   return (
     <span className="line-clamp-4">

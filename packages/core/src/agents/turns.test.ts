@@ -62,9 +62,10 @@ describe("turns", () => {
     // The fake agent says back the first words of the prompt: a citation, short enough
     await send("[A](owlit://library/doi-10.1-c)")
     const chat = await call("chats.get", { id: "c1" })
+    // The cited paper was never read, and its record has no abstract: the title only
     expect(chat.messages[1].readFrom).toEqual([
       { paperId: "doi-10.1-read", depth: "full" },
-      { paperId: "doi-10.1-c", depth: "none" },
+      { paperId: "doi-10.1-c", depth: "title" },
     ])
   })
 
@@ -544,7 +545,7 @@ describe("turns", () => {
     expect(wrote.map((c) => c.origin.replyId)).toEqual([first.id, second.id])
   })
 
-  it("records a change no tool call names as outside owlit, with the Co-author turn it came during as the only hint", async () => {
+  it("records a change no tool call names as outside owlit, unless a Co-author turn was at work then: then Owlit's, by that chat", async () => {
     const { send, core, call } = await setup()
     await call("docs.list")
     const wrote: any[] = []
@@ -555,8 +556,9 @@ describe("turns", () => {
     await until(() => wrote.length >= 2, { what: "the co-author's change" })
     expect(wrote[0]).toMatchObject({ actor: "other", target: { path: "notes.md" }, origin: { via: "watcher" } })
     expect(wrote[0].origin.chatId).toBeUndefined()
-    // Never Owlit's: nothing says it wrote that, only that it was at work then
-    expect(wrote[1]).toMatchObject({ actor: "other", origin: { via: "watcher", chatId: "c1" } })
+    // Owlit's, by the chat at work then (a Co-author's shell writes with no tool call naming the file):
+    // the entry names that chat, and a change from a chat is never "outside owlit"
+    expect(wrote[1]).toMatchObject({ actor: expect.stringMatching(/^o_/), origin: { via: "watcher", chatId: "c1" } })
     expect(wrote[1].origin.toolCallId).toBeUndefined()
   })
 

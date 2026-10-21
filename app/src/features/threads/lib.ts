@@ -167,12 +167,13 @@ export function noteSections(shown: ThreadRead): { key: string; group?: ThreadGr
 // Whether a thread reads as a table: once a question beyond its own, or a comparison, is a shown column
 export const isTable = (shown: ThreadRead) => shown.columns.some((c) => c.id !== QUESTION_COLUMN && c.kind !== "grouping" && !c.hidden)
 
-// The papers, the groups they are in and how many Owlit read in full, for the line over the papers
+// The papers, the groups they are in and how far Owlit read each (its answer to the question), for the
+// line over the papers
 export function paperCounts(shown: ThreadRead) {
   const grouping = shownGrouping(shown)
   const groups = grouping ? groupSections(shown, grouping).groups.filter((g) => g.depth === 0).length : 0
-  const full = shown.rows.filter((r) => r.cells[QUESTION_COLUMN]?.depth === "full").length
-  return { papers: shown.rows.length, groups, full }
+  const depths = shown.rows.flatMap((r) => r.cells[QUESTION_COLUMN]?.depth ?? [])
+  return { papers: shown.rows.length, groups, depths }
 }
 
 // What a thread's table is grouped by: one of its groupings, a comparison's sentences, or none

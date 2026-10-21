@@ -48,21 +48,31 @@ export function roleName(role: Role) {
 // What a role may do, one sentence a class, read off the policy's table (protocol's ROLE_TABLE), so the
 // composer's menu, onboarding and Settings say what core decides; the agent hears the same sentences in
 // English (protocol's roleSentences). Each is a line, so a change of one word changes it everywhere.
-export function roleLines(role: Role): string[] {
+// commands: whether the agent has a tool that runs commands (Connector.commands); without one no role
+// runs any, and the lines don't say otherwise.
+export function roleLines(role: Role, commands = true): string[] {
   const out = [t`Reads your workspace`, t`Keeps its own comments, threads, memory and highlights`]
   if (ROLE_TABLE.meta[role] !== "refuse") out.push(t`Stars, tags and sorts papers, with Undo`)
   const words = ROLE_TABLE.words[role]
   out.push(words === "refuse" ? t`Never changes your writing` : words === "propose" ? t`Edits your docs as marked proposals; undo any part` : t`Edits your docs; undo any part`)
   if (ROLE_TABLE.structure[role] !== "refuse") out.push(t`Moves or deletes into the Trash, with Undo`)
+  if (!commands) return out
   if (RUNS_COMMANDS[role]) out.push(t`Runs commands in this workspace; what they change outside your docs has no Undo`)
   else if (words !== "refuse") out.push(t`Never changes anything with commands`)
   return out
 }
 
 // A role's name and what it does, as one sentence (the chip's tooltip)
-export function roleWords(role: Role): { name: string; description: string } {
-  return { name: roleName(role), description: `${roleLines(role).join(". ")}.` }
+export function roleWords(role: Role, commands = true): { name: string; description: string } {
+  return { name: roleName(role), description: `${roleLines(role, commands).join(". ")}.` }
 }
+
+// The sentence that names the other two roles beside the usual one, said where only Assistant's lines are
+// shown; what Co-author adds depends on whether the agent runs commands
+export const otherRolesSentence = (commands = true) =>
+  commands
+    ? t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time.`
+    : t`Reviewer, which changes nothing of yours, and Co-author, which edits your docs without marking its edits as proposals, are in the composer, for one chat at a time.`
 
 // The name of the model a reply came from, while its agent still lists it
 export const modelNameOf = (connectors: Connector[], connectorId?: string, modelId?: string) =>

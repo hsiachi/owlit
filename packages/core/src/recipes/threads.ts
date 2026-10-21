@@ -99,17 +99,23 @@ library. Write rows in batches of up to 25. For each row write two things from t
   no study". The reader has not read the paper; this is what they look at first.
 - **how it bears on the question** (\`answer\`): one plain sentence on what the paper found or claims that
   matters for the question, in the question's language. From the whole abstract (\`library_get\`; a
-  search's own line cuts it short) with \`depth\` \`abstract\`; from the full text (\`library_read\`) with
+  search's own line cuts it short) with \`depth\` \`abstract\`; from the text (\`library_read\`) with
   \`depth\` \`full\` and the words it rests on in \`quote\`, word for word (owlit finds the page). A paper
-  whose text owlit has is answered from the text from the start.
+  whose text owlit has is answered from the text from the start. owlit shows each row on one scale, from
+  your library_read calls: the full text (a read with no pages or section), part of the text (pages or a
+  section), the abstract only, or the title only; an answer with a quote after reading pages shows as
+  part of the text, whatever depth says.
 
-Also \`found_by\`: how the paper got here ("search: prospective memory model", "cited by Smith 2020",
-"references of Kliegel 2002"), so the record says why it is in the thread.
+Also \`found_by\`: how the paper got here, so the record says why it is in the thread: "search: prospective
+memory model"; "cites Smith 2020" for a paper among those citing Smith (\`library_related\` cited_by);
+"cited by Kliegel 2002" for one in Kliegel's reference list (\`library_related\` references). The citing
+paper is the later one: a 2026 paper is never "cited by" a 2022 one.
 
 Read in full the papers the report leans on: the ones it names more than once, the ones that decide a
 disagreement, the ones the user will read first. Add them with \`library_add\` (the user asked for this
-work; several in one call) and read them when their text is there. Say in the answer how many you read in
-full. Don't read everything in full for a survey of fifty; do read the five that carry it.
+work; several in one call) and read them when their text is there. Say in the answer how far you read, in
+the words owlit shows: how many from the full text, how many from part of the text, how many from the
+abstract only. Don't read everything in full for a survey of fifty; do read the five that carry it.
 
 ## 6. The report
 
@@ -132,7 +138,7 @@ naming, add it as a row first. Its parts, in the order that fits:
 - for a survey, what was searched and what was excluded (the record has the detail).
 
 Don't pad. A line that would be the same in any report is not worth a line. Where the papers don't say,
-say so. Where you answered from abstracts only, the report says what rests on abstracts.
+say so. Where you answered from abstracts only, the report says what rests on the abstract only.
 
 ## 7. Title, project, one line, answer
 

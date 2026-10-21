@@ -1,6 +1,6 @@
 import type { Chat } from "./chat.ts"
 import type { Paper } from "./library.ts"
-import type { ThreadCell } from "./threads.ts"
+import type { ReadDepth, ThreadCell } from "./threads.ts"
 
 // The change log: every change to something in the workspace, whoever made it, in .owlit/versions/.
 
@@ -163,16 +163,20 @@ export function threadDot(change: Change): boolean {
   return false
 }
 
-// A cell's entry that is Owlit answering again from the full text what it had answered from the abstract
-// or the title only: the answer it replaced and what that was from. The entry holds the whole cell on each
-// side, so nothing else records it.
+// A cell's entry that is Owlit answering again from the paper's text (part or full) what it had answered
+// from the abstract or the title only: the answer it replaced and what that was from. The entry holds the
+// whole cell on each side, so nothing else records it.
 export function readInFull(change: Change | undefined): { was: string; from: "abstract" | "title" } | null {
   if (!change || change.action !== "update" || !change.target.part?.startsWith("cell:")) return null
   const before = (change.before as { value?: ThreadCell } | undefined)?.value
   const after = change.after as { value?: ThreadCell } | undefined
-  if (!before || !after?.value || after.value.depth !== "full" || before.depth === "full") return null
+  if (!before || !after?.value || !fromText(after.value.depth) || fromText(before.depth)) return null
   return { was: before.text, from: before.depth }
 }
+
+// Whether an answer rests on the paper's own text, in part or whole
+export const fromText = (depth: ReadDepth): depth is "part" | "full" => depth === "part" || depth === "full"
+
 
 // A chat whose last reply ended well after the last message the person saw. A chat they never looked at
 // (one from before the marks) has none: it is not news.

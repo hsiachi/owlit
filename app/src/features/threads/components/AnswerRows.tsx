@@ -1,9 +1,10 @@
 import { plural, t } from "@lingui/core/macro"
-import { itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadGroup, type ThreadPaper, type ThreadRead, type ThreadRowRead, threadUri } from "@owlit/protocol"
+import { fromText, itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadGroup, type ThreadPaper, type ThreadRead, type ThreadRowRead, threadUri } from "@owlit/protocol"
 import { ChevronDownIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
+import { readDepthLabel } from "@/components/read-depth"
 import { CitationHover } from "@/components/citation-card"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
@@ -179,13 +180,7 @@ function Bearing({ row, library, changed }: { row: ThreadRowRead; library: Paper
       <span className="text-detail text-muted-foreground">
         {answer && (
           <span className="ml-1.5 whitespace-nowrap">
-            {answer.depth === "full" ? (
-              <PageLink paperId={row.id} passage={answer.passage} library={library} changed={changed} />
-            ) : answer.depth === "abstract" ? (
-              t({ message: "Abstract", comment: "a thread's answer written from the paper's abstract" })
-            ) : (
-              t({ message: "Title only", comment: "a thread's answer written from the paper's title alone" })
-            )}
+            {fromText(answer.depth) ? <PageLink paperId={row.id} depth={answer.depth} passage={answer.passage} library={library} changed={changed} /> : readDepthLabel(answer.depth)}
           </span>
         )}
         {row.foundBy && <span> · {row.foundBy}</span>}
@@ -194,24 +189,24 @@ function Bearing({ row, library, changed }: { row: ThreadRowRead; library: Paper
   )
 }
 
-// "Full text · p. 3" in the mention colour: the page an answer rests on, which opens the paper at those
-// words; on hover, the citation's card checks the words against the paper. changed: the answer was just
-// written again from the full text, said in Owlit's colour.
-function PageLink({ paperId, passage, library, changed }: { paperId: string; passage?: { quote: string; page: number }; library: Paper | undefined; changed?: boolean }) {
+// "Full text · p. 3" (or "Part of the text · p. 3") in the mention colour: how far Owlit read and the
+// page the answer rests on, which opens the paper at those words; on hover, the citation's card checks the
+// words against the paper. changed: the answer was just written again from the text, said in Owlit's colour.
+function PageLink({ paperId, depth, passage, library, changed }: { paperId: string; depth: "part" | "full"; passage?: { quote: string; page: number }; library: Paper | undefined; changed?: boolean }) {
   const navigate = useNavigate()
-  const full = t({ message: "Full text", comment: "a thread's answer written from the paper's full text; followed by its page" })
-  if (!passage) return <span className="text-mention">{full}</span>
+  const read = readDepthLabel(depth)
+  if (!passage) return <span className="text-mention">{read}</span>
   const page = passage.page
-  const pageLabel = `${full} · ${t({ message: `p. ${page}`, comment: "a page of a paper" })}`
-  const label = changed ? `${t({ message: "Changed after reading in full", comment: "chip on a thread cell Owlit answered again from the full text" })} · ${pageLabel}` : pageLabel
+  const pageLabel = `${read} · ${t({ message: `p. ${page}`, comment: "a page of a paper" })}`
+  const label = changed ? `${t({ message: "Changed after reading the text", comment: "chip on a thread cell Owlit answered again from the paper's text" })} · ${pageLabel}` : pageLabel
   return (
-    <CitationHover citation={{ paperId, page, quote: passage.quote, depth: "full" }}>
+    <CitationHover citation={{ paperId, page, quote: passage.quote, depth }}>
       <MentionToken label={label} title={null} className={changed ? "text-owlit" : undefined} onClick={library ? () => navigate(passageRoute(library.id, passage)) : undefined} />
     </CitationHover>
   )
 }
 
-// What Owlit's answer was before it read the paper in full, under the answer that replaced it
+// What Owlit's answer was before it read the paper's text, under the answer that replaced it
 export function WasLine({ was, className }: { was: ReturnType<typeof readInFull>; className?: string }) {
   if (!was) return null
   const text = was.was
@@ -226,7 +221,7 @@ export function WasLine({ was, className }: { was: ReturnType<typeof readInFull>
 
 // A row opened in place: the paper's card, as the Library shows it, with what this thread says of the paper.
 // The paper is in the Library already (a row is a Library paper), so Open only opens it.
-// was: the answer Owlit replaced when it read the paper in full
+// was: the answer Owlit replaced when it read the paper's text
 export function RowPeek({ thread, row, library, className, was }: { thread: ThreadRead; row: ThreadRowRead; library: Paper | undefined; className?: string; was?: ReturnType<typeof readInFull> }) {
   const navigate = useNavigate()
   const setStarred = useLibraryStore((s) => s.setStarred)
@@ -254,7 +249,7 @@ export function RowPeek({ thread, row, library, className, was }: { thread: Thre
               {placed.is && <span className="text-muted-foreground">{placed.is}</span>}
               {placed.is && answer && " · "}
               {answer?.text}
-              {answer && answer.depth !== "full" && <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{answer.depth === "title" ? t`From the title only` : t`From the abstract`}</span>}
+              {answer && <span className="ml-1.5 text-detail whitespace-nowrap text-muted-foreground">{readDepthLabel(answer.depth)}</span>}
             </p>
           )}
           {answer && <WasLine was={was ?? null} className="mt-1" />}

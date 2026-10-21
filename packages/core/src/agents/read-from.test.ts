@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { ReadLog, readFromOf } from "./read-from.ts"
+import { ReadLog, readFromOf, textDepthOf } from "./read-from.ts"
 
 describe("what an answer was built from", () => {
-  it("counts each paper once, by how far the turn read it, and cited papers by whether owlit has their text", async () => {
+  it("counts each paper once, by how far the turn read it, and cited papers by whether their record has an abstract", async () => {
     const log = new ReadLog()
     log.record({ asker: "chat:c1", paperId: "old-id", part: "text", pages: "3-5", at: 100 })
     log.record({ asker: "chat:c1", paperId: "b", part: "digest", at: 101 })
@@ -11,12 +11,12 @@ describe("what an answer was built from", () => {
     log.record({ asker: "chat:c1", paperId: "earlier", part: "text", at: 10 })
     const answer = "[A 2020](owlit://library/a#p4 \"words\") and [C](owlit://library/c), [D](owlit://library/d), [B](owlit://library/b)."
     const canonical = async (id: string) => (id === "old-id" ? "a" : id)
-    const hasText = async (id: string) => id !== "d"
-    expect(await readFromOf(log.since("chat:c1", 50), answer, canonical, hasText)).toEqual([
-      { paperId: "a", depth: "text", pages: "3–5" },
+    const hasAbstract = async (id: string) => id !== "d"
+    expect(await readFromOf(log.since("chat:c1", 50), answer, canonical, hasAbstract)).toEqual([
+      { paperId: "a", depth: "part", pages: "3–5" },
       { paperId: "b", depth: "digest" },
       { paperId: "c", depth: "abstract" },
-      { paperId: "d", depth: "none" },
+      { paperId: "d", depth: "title" },
     ])
   })
 
@@ -29,9 +29,21 @@ describe("what an answer was built from", () => {
     log.record({ asker: "chat:c1", paperId: "c", part: "text", section: "Method", at: 5 })
     const same = async (id: string) => id
     expect(await readFromOf(log.since("chat:c1", 0), "", same, async () => true)).toEqual([
-      { paperId: "a", depth: "text", pages: "4–5, 9–10" },
+      { paperId: "a", depth: "part", pages: "4–5, 9–10" },
       { paperId: "b", depth: "full" },
-      { paperId: "c", depth: "text" },
+      { paperId: "c", depth: "part" },
     ])
+  })
+
+  it("tells a thread's cell whether the chat read the paper's whole text or part of it", () => {
+    const log = new ReadLog()
+    log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "4", at: 1 })
+    log.record({ asker: "chat:c1", paperId: "b", part: "text", at: 2 })
+    log.record({ asker: "chat:c1", paperId: "c", part: "digest", at: 3 })
+    const of = (id: string) => textDepthOf(log.since("chat:c1", 0).filter((r) => r.paperId === id))
+    expect(of("a")).toBe("part")
+    expect(of("b")).toBe("full")
+    expect(of("c")).toBeUndefined()
+    expect(of("d")).toBeUndefined()
   })
 })

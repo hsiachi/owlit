@@ -446,7 +446,8 @@ function rowWrite(r: RowArg): ThreadRowWrite | string {
   // The page is found by owlit from the quote
   const cell = (c: { text?: string; depth?: string; quote?: string; rel?: string; sentence?: string }): Omit<ThreadCell, "at"> => ({
     text: c.text ?? "",
-    depth: c.depth === "full" ? "full" : "abstract",
+    // An agent says full for an answer from the text; core stores whether it read the whole or part
+    depth: c.depth === "full" || c.depth === "part" ? "full" : "abstract",
     ...(c.quote ? { passage: { quote: c.quote, page: 1 } } : {}),
     ...(c.rel === "supports" || c.rel === "challenges" || c.rel === "related" ? { rel: c.rel } : {}),
     ...(c.sentence ? { sentence: c.sentence } : {}),

@@ -33,15 +33,15 @@ export class ReadLog {
 }
 
 // What an answer was built from: each paper the turn read or the answer cites, once, in the order they
-// came. A paper's whole text read is full; pages or a section of it is text, with the pages when the
-// reads named them all; its digest alone is digest; one only cited is abstract when owlit has its text
-// (the turn went on its details or abstract), none when it hasn't. `canonical` folds the ids a paper goes
-// by into one; `hasText` says whether owlit has its text.
+// came, on the one scale (protocol ReadDepth). A paper's whole text read is full; pages or a section of
+// it is part, with the pages when the reads named them all; its digest alone is digest; one only cited
+// is abstract when its record has one (the turn went on its details) and title when it hasn't. `canonical`
+// folds the ids a paper goes by into one; `hasAbstract` says whether the paper's record has an abstract.
 export async function readFromOf(
   reads: readonly LibraryRead[],
   answer: string,
   canonical: (id: string) => Promise<string>,
-  hasText: (id: string) => Promise<boolean>,
+  hasAbstract: (id: string) => Promise<boolean>,
 ): Promise<ReadFrom[]> {
   const byPaper = new Map<string, LibraryRead[]>()
   for (const r of reads) {
@@ -56,14 +56,23 @@ export async function readFromOf(
   }
   const out: ReadFrom[] = []
   for (const [paperId, read] of byPaper) {
-    const text = read.filter((r) => r.part === "text")
-    if (text.some((r) => !r.pages && !r.section)) out.push({ paperId, depth: "full" })
-    else if (text.length) {
+    const depth = textDepthOf(read)
+    if (depth === "full") out.push({ paperId, depth })
+    else if (depth === "part") {
+      const text = read.filter((r) => r.part === "text")
       const pages = text.every((r) => r.pages) ? pageList(text.map((r) => r.pages!)) : undefined
-      out.push({ paperId, depth: "text", ...(pages ? { pages } : {}) })
-    } else out.push({ paperId, depth: read.some((r) => r.part === "digest") ? "digest" : (await hasText(paperId)) ? "abstract" : "none" })
+      out.push({ paperId, depth, ...(pages ? { pages } : {}) })
+    } else out.push({ paperId, depth: read.some((r) => r.part === "digest") ? "digest" : (await hasAbstract(paperId)) ? "abstract" : "title" })
   }
   return out
+}
+
+// How far reads of one paper went into its text: the whole of it (a read naming neither pages nor a
+// section), part of it, or none
+export function textDepthOf(reads: readonly LibraryRead[]): "full" | "part" | undefined {
+  const text = reads.filter((r) => r.part === "text")
+  if (text.some((r) => !r.pages && !r.section)) return "full"
+  return text.length ? "part" : undefined
 }
 
 // Pages as library_read takes them ("3", "3-5", "2,7"), several reads' together, as one list of runs:

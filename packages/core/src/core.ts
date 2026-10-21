@@ -11,7 +11,7 @@ import { hasProxyEnv, systemProxyEnv } from "./agents/proxy.ts"
 import { AgentFs } from "./agents/fs.ts"
 import { Undo } from "./changes/undo.ts"
 import { Turns } from "./agents/turns.ts"
-import { ReadLog, readFromOf } from "./agents/read-from.ts"
+import { ReadLog, readFromOf, textDepthOf } from "./agents/read-from.ts"
 import { latestRelease } from "./updates/github.ts"
 import { Updates } from "./updates/updates.ts"
 import { UiBridge } from "./ui/bridge.ts"
@@ -258,7 +258,12 @@ export class Core {
       readFrom: async (chatId, since, answer) => {
         const ws = this.workspace
         if (!ws) return []
-        return readFromOf(this.reads.since(`chat:${chatId}`, since), answer, async (id) => (await ws.library.canonical(id)) ?? id, (id) => ws.hasText(id))
+        return readFromOf(
+          this.reads.since(`chat:${chatId}`, since),
+          answer,
+          async (id) => (await ws.library.canonical(id)) ?? id,
+          async (id) => !!(await ws.library.snapshot(id))?.abstract?.trim(),
+        )
       },
     })
     this.updates = new Updates({
@@ -412,6 +417,8 @@ export class Core {
                 changed: (id, thread) => {
                   if (this.workspace?.root === root) this.notifier.notify("threads.changed", { id, thread })
                 },
+                // How far the chat read the paper's text, from its library_read calls (read-from.ts)
+                readDepth: (chatId, paperId) => textDepthOf(this.reads.since(`chat:${chatId}`, 0).filter((r) => r.paperId === paperId)),
               },
               profile: async () => (await this.settings.get()).profile,
               changeAdded: (notification) => {
@@ -517,6 +524,9 @@ export class Core {
     const ws = this.requireWorkspace()
     const before = await ws.library.get(id)
     const after = await ws.library.update(id, patch)
+    // A paper's star, status and tags live in .owlit/, outside what the library's watcher follows, so a
+    // change an agent makes is told to the windows here; the window's own change is already on its screen
+    if (caller.kind !== "window" && this.workspace === ws) this.notifier.notify("library.changed", { papers: [after], removed: [] })
     if (!before) return after
     const writeId = newWriteId()
     for (const field of Object.keys(patch) as (keyof PaperPatch)[]) {

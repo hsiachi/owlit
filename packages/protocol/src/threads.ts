@@ -46,9 +46,13 @@ export function relabelReport(report: string, paper: (id: string) => Pick<Thread
 // user changes it by asking in a chat. A thread with only the question's own column reads as a list;
 // adding a column makes it a table.
 
-// How far Owlit read for an answer: the title only (the paper's record has no abstract), the abstract,
-// or the full text (then it has a passage)
-export type AnswerDepth = "title" | "abstract" | "full"
+// How far Owlit read a paper, one scale wherever the app says it (a chat's answer, a thread's rows, a
+// citation's card): the title only (the paper's record has no abstract), the abstract only, part of the
+// text (some pages or a section), or the whole text. What core saw read decides it, not the agent's word.
+export type ReadDepth = "title" | "abstract" | "part" | "full"
+
+// How far Owlit read for an answer in a thread; from part of the text or the whole of it, it has a passage
+export type AnswerDepth = ReadDepth
 
 // How a paper bears on a sentence of the user's, in a column that compares papers with a doc
 export type Relation = "supports" | "challenges" | "related"
@@ -72,7 +76,7 @@ export interface ThreadPaper {
 export interface ThreadCell {
   text: string
   depth: AnswerDepth
-  // The words the answer rests on, when Owlit read the full text; page is 1-based
+  // The words the answer rests on, when Owlit read the text (part or full); page is 1-based
   passage?: { quote: string; page: number }
   // Compare columns: how the paper bears on one of the user's sentences (absent: it doesn't speak to any)
   rel?: Relation

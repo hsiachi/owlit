@@ -9,6 +9,7 @@ import { NotFound, PageHeader, PageTitle } from "@/components/page"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu } from "@/components/ui/dropdown-menu"
 import { useTakeParam } from "@/hooks/use-take-param"
+import { readDepthSummary } from "@/components/read-depth"
 import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { stopChat, tryAgain } from "@/features/chat/started"
 import { About } from "../components/About"
@@ -148,18 +149,19 @@ function Report({ thread, fresh, onLink }: { thread: ThreadRead; fresh: boolean;
   )
 }
 
-// "Papers · 10 papers, 5 groups · 5 in full": the papers below, the groups they are in, how many Owlit read
-// in full
+// "Papers · 10 papers, 5 groups · 5 full text, 5 abstract only": the papers below, the groups they are
+// in, how far Owlit read them, in the words the rows and a chat's answer use (components/read-depth.ts)
 function PaperCounts({ shown }: { shown: ThreadRead }) {
-  const { papers, groups, full } = paperCounts(shown)
+  const { papers, groups, depths } = paperCounts(shown)
   if (!papers) return null
   const n = plural(papers, { one: "# paper", other: "# papers" })
   const g = plural(groups, { one: "# group", other: "# groups" })
+  const read = readDepthSummary(depths)
   return (
     <p className="mt-8 border-t pt-4 text-detail text-muted-foreground">
       {groups
-        ? t({ message: `Papers · ${n}, ${g} · ${full} in full`, comment: "the line over a thread's papers: how many, in how many groups, how many Owlit read in full" })
-        : t({ message: `Papers · ${n} · ${full} in full`, comment: "the line over a thread's papers: how many, how many Owlit read in full" })}
+        ? t({ message: `Papers · ${n}, ${g} · ${read}`, comment: "the line over a thread's papers: how many, in how many groups, how far Owlit read them" })
+        : t({ message: `Papers · ${n} · ${read}`, comment: "the line over a thread's papers: how many, how far Owlit read them" })}
     </p>
   )
 }

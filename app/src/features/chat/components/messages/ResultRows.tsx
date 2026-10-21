@@ -6,6 +6,7 @@ import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FoldChevron } from "@/components/fold"
 import { Unfold } from "@/components/unfold"
+import { readDepthCounts, readDepthLabel } from "@/components/read-depth"
 import { KIND_ICON } from "@/lib/kinds"
 import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
@@ -326,11 +327,13 @@ function Row({ row, className }: { row: ResultRow; className?: string }) {
       {row.view && live && <button type="button" onClick={row.view} aria-label={t`Open ${name}`} className="absolute inset-0 rounded-md outline-none focus-key:bg-muted" />}
       <Icon className="size-4 shrink-0 text-muted-foreground" />
       {/* In a narrow panel the detail gives way once the name is down to 40% of the row, so neither is cut
-          to nothing. The strike is drawn across the words only, not the room the name is given. */}
+          to nothing. The strike is drawn across the words only, not the room the name is given; being
+          positioned for it, the name would paint over the row's button and take its clicks, so it
+          takes none. */}
       <span className="flex min-w-[40%] flex-1">
         <span
           data-struck={live ? undefined : ""}
-          className={`strike w-fit max-w-full truncate transition-colors duration-(--t-mark) ease-(--ease) ${live ? "text-foreground" : "text-muted-foreground"}`}
+          className={`strike pointer-events-none w-fit max-w-full truncate transition-colors duration-(--t-mark) ease-(--ease) ${live ? "text-foreground" : "text-muted-foreground"}`}
         >
           {row.name}
         </span>
@@ -413,13 +416,12 @@ export function ResultCard({ message, chatId }: { message: ChatMessage; chatId: 
   )
 }
 
-// What the answer was built from, as core saw the turn read. Closed, one line that says how many papers it
-// knew only from their abstracts ("From 6 papers · 3 abstract only", or "all read"): the one fact that bears
-// on how far to trust the answer, and short enough for the narrowest panel. A paper without a PDF counts
-// as abstract only, one read from its digest as read. Open, each paper with how it was read. Resting on the
-// count or a paper marks, in the answer above, the citations it stands for.
+// What the answer was built from, as core saw the turn read. Closed, one line that says how far Owlit
+// read, in the words every place uses (components/read-depth.ts): "From 6 papers · 2 full text, 4
+// abstract only", or "all full text": the one fact that bears on how far to trust the answer, and short
+// enough for the narrowest panel. Open, each paper with how it was read. Resting on a count or a paper
+// marks, in the answer above, the citations it stands for.
 const PaperIcon = KIND_ICON.paper
-const THIN: ReadFrom["depth"][] = ["abstract", "none"]
 function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
   const line = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
@@ -427,7 +429,7 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
   const library = useLibraryStore((s) => s.papers)
   const aliases = useLibraryStore((s) => s.aliases)
   const papers = readFrom.length
-  const thin = readFrom.filter((r) => THIN.includes(r.depth))
+  const counts = readDepthCounts(readFrom.map((r) => r.depth))
   const mark = (ids: string[] | null) => {
     const answer = line.current?.closest<HTMLElement>('[data-slot="message"]')
     if (!answer) return
@@ -438,13 +440,12 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
       el.toggleAttribute("data-marked", want.has(id))
     }
   }
+  // The label beside a paper, with the pages when the turn named them all
   const depthOf = (r: ReadFrom) => {
-    if (r.depth === "full") return t({ message: "Read in full", context: "read depth", comment: "how Owlit read a paper an answer was built from" })
-    if (r.depth === "digest") return t({ message: "From the digest", context: "read depth", comment: "how Owlit read a paper an answer was built from" })
-    if (r.depth === "abstract") return t({ message: "Abstract only", context: "read depth", comment: "how Owlit read a paper an answer was built from" })
-    if (r.depth === "none") return t({ message: "No PDF", context: "read depth", comment: "how Owlit read a paper an answer was built from: owlit has no text of it" })
-    if (!r.pages) return t({ message: "Part of the text", context: "read depth", comment: "how Owlit read a paper an answer was built from: some of its pages or a section" })
-    return /[–,]/.test(r.pages) ? t({ message: `pp. ${r.pages}`, context: "read depth", comment: "how Owlit read a paper an answer was built from: pages 4–5 of it" }) : t({ message: `p. ${r.pages}`, context: "read depth", comment: "how Owlit read a paper an answer was built from: page 4 of it" })
+    const label = readDepthLabel(r.depth)
+    if (r.depth !== "part" || !r.pages) return label
+    const pages = /[–,]/.test(r.pages) ? t({ message: `pp. ${r.pages}`, comment: "pages 4–5 of a paper" }) : t({ message: `p. ${r.pages}`, comment: "page 4 of a paper" })
+    return `${label} · ${pages}`
   }
   return (
     <div ref={line} className="text-sm text-muted-foreground" onPointerLeave={() => mark(null)}>
@@ -458,13 +459,16 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="shrink-0">{plural(papers, { one: "From # paper", other: "From # papers" })}</span>
           <span aria-hidden>·</span>
-          {thin.length ? (
-            <span className="truncate rounded-sm hover:text-foreground" onPointerEnter={() => mark(thin.map((r) => r.paperId))} onPointerLeave={() => mark(null)}>
-              {plural(thin.length, { one: "# abstract only", other: "# abstract only" })}
-            </span>
-          ) : (
-            <span className="truncate">{plural(papers, { one: "read", other: "all read" })}</span>
-          )}
+          <span className="truncate">
+            {counts.map((g, i) => (
+              <span key={g.depth}>
+                {i > 0 && ", "}
+                <span className="rounded-sm hover:text-foreground" onPointerEnter={() => mark(readFrom.filter((r) => r.depth === g.depth).map((r) => r.paperId))} onPointerLeave={() => mark(null)}>
+                  {g.text}
+                </span>
+              </span>
+            ))}
+          </span>
         </span>
         <FoldChevron open={open} className="-ml-1" />
       </button>

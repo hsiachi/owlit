@@ -364,7 +364,12 @@ describe("owlit-mcp", () => {
     expect(wrote.text).toMatch(/^Wrote “检索粒度” \(owlit:\/\/threads\/t-[0-9a-f]{6}\): added 1\./)
     expect(changed).toMatchObject([{ change: { action: "create", target: { kind: "thread" } }, label: "检索粒度", thread: { rows: ["arxiv-2005.11401"] } }])
     const c = await call("threads.get", { id })
-    expect(c.rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
+    // The chat read nothing of the paper's text that core saw: the quote makes it part of the text, not the whole
+    expect(c.rows[0].cells.q).toMatchObject({ depth: "part", passage: { page: 3 } })
+    // Read whole through owlit (no pages or section), the same row is from the full text
+    await tool("library_read", { id: "arxiv-2005.11401" })
+    await tool("thread_write", { id, rows })
+    expect((await call("threads.get", { id })).rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
 
     await tool("thread_edit", { id, title: "Retrieval granularity" })
     expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper\n  Asked: 检索粒度有什么研究？\n  One paper so far: Retrieval-Augmented Generation retrieves per token.`)

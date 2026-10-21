@@ -1,5 +1,5 @@
 import type { Chat, CitedPassage, CollectedPassage, Thread, ThreadSummary, PaperWear } from "@owlit/protocol"
-import { parseOwlitUri, QUESTION_COLUMN, shownThread } from "@owlit/protocol"
+import { fromText, parseOwlitUri, QUESTION_COLUMN, shownThread } from "@owlit/protocol"
 import { readJournal, readingOf } from "../activity/reading.ts"
 import type { Chats } from "../chats/chats.ts"
 
@@ -67,7 +67,7 @@ async function collectedOf(id: string, threads: ThreadsReader, alias: (id: strin
       if (alias(row.id) !== id) continue
       for (const col of shown.columns) {
         const passage = row.cells[col.id]?.passage
-        if (!passage?.quote || row.cells[col.id]?.depth !== "full") continue
+        if (!passage?.quote || !fromText(row.cells[col.id]!.depth)) continue
         out.push({
           quote: passage.quote,
           ...(passage.page ? { page: passage.page } : {}),

@@ -2,6 +2,8 @@ import { t } from "@lingui/core/macro"
 import { useState } from "react"
 import { DEFAULT_ROLE, FIRST_CHOICE_AGENT, NOTE_LANGUAGES } from "@owlit/protocol"
 import { RoleLines } from "@/components/role-lines"
+import { otherRolesSentence } from "@/features/chat/lib/selection"
+import { useResolvedSelection } from "@/features/chat/use-selection"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { isFound as isReady } from "@/features/chat/lib/connector-status"
@@ -23,6 +25,8 @@ export function OwlitSection() {
   // What Owlit keeps in mind belongs to a workspace: on the welcome page and in the first launch there is
   // none to ask, and it isn't shown
   const workspace = useWorkspace((s) => !!s.current)
+  // The lines are for the agent new chats start with: on the Owlit engine no role runs commands
+  const commands = useResolvedSelection().connector?.commands ?? true
   return (
     <>
       <Group id="profile">
@@ -31,8 +35,8 @@ export function OwlitSection() {
           {workspace && <KeptInMindRow />}
         </List>
       </Group>
-      <Group id="roles" label={t`What Owlit may do`} note={t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time. What the agent reads of your workspace is under Privacy.`}>
-        <RoleLines role={DEFAULT_ROLE} className="mt-1 text-sm leading-6 text-foreground" />
+      <Group id="roles" label={t`What Owlit may do`} note={`${otherRolesSentence(commands)} ${t`What the agent reads of your workspace is under Privacy.`}`}>
+        <RoleLines role={DEFAULT_ROLE} commands={commands} className="mt-1 text-sm leading-6 text-foreground" />
       </Group>
       <Group id="background" label={t`Tasks you hand Owlit`}>
         <HandedTasks />

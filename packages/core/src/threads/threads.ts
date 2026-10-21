@@ -7,6 +7,7 @@ import {
   itemId,
   keptPapers,
   plainLine,
+  fromText,
   QUESTION_COLUMN,
   RpcErrorCode,
   sameWords,
@@ -72,6 +73,9 @@ export interface ThreadsServices {
   facts?: (id: string) => Promise<ThreadPaper | undefined>
   // A thread changed under the windows (null: deleted)
   changed?: (id: string, thread: ThreadRead | null) => void
+  // How far a chat read a paper's text, from what core saw it read: the whole text, part of it, or
+  // none so far (undefined)
+  readDepth?: (chatId: string, paperId: string) => "full" | "part" | undefined
 }
 
 // A line of history.jsonl: what a write rests on that neither the thread nor the change log keeps (the
@@ -315,11 +319,12 @@ export class Threads {
           }
           const text = cell.text.trim()
           if (!text) continue
-          // An answer from the full text rests on a passage that is in the paper word for word
+          // An answer from the text rests on a passage that is in the paper word for word
           let passage = cell.passage
-          if (cell.depth === "full") {
+          let depth = cell.depth
+          if (fromText(depth)) {
             if (!passage) {
-              problems.push(`${given.id}'s answer for ${colId} says it is from the full text but gives no passage; quote the words it rests on.`)
+              problems.push(`${given.id}'s answer for ${colId} says it is from the text but gives no passage; quote the words it rests on.`)
               continue
             }
             const page = this.services.findPassage ? await this.services.findPassage(id, passage.quote) : passage.page
@@ -332,16 +337,18 @@ export class Threads {
               continue
             }
             passage = { quote: passage.quote, page }
+            // Whether the whole text was read or part of it is what core saw the chat read, not the
+            // agent's word: a quote after reading pages is part of the text
+            if (input.chatId && this.services.readDepth) depth = this.services.readDepth(input.chatId, id) ?? "part"
           }
           // An answer "from the abstract" of a paper with none was from its title: stored so, for the report,
           // the cell and the export to say
-          let depth = cell.depth
           if (depth === "abstract") {
             abstract ??= !!(paper ?? (await this.services.facts?.(id)))?.abstract?.trim()
             if (!abstract) depth = "title"
           }
-          const next: ThreadCell = { ...cell, depth, text, at: now, ...(passage && cell.depth === "full" ? { passage } : {}) }
-          if (cell.depth !== "full") delete next.passage
+          const next: ThreadCell = { ...cell, depth, text, at: now, ...(passage && fromText(depth) ? { passage } : {}) }
+          if (!fromText(depth)) delete next.passage
           const was = row?.cells[colId]
           if (!was || !sameCell(was, next)) cells[colId] = next
         }
@@ -358,8 +365,9 @@ export class Threads {
           continue
         }
 
+        const year = (paper ?? (await this.services.facts?.(id)))?.year
         if (!row) {
-          const foundBy = given.foundBy?.trim() || foundByOf(this.services.foundBy?.(given.id))
+          const foundBy = citingOrder(given.foundBy?.trim() || foundByOf(this.services.foundBy?.(given.id)), year)
           row = { id, cells: {}, addedAt: now, ...(foundBy ? { foundBy } : {}) }
           c.rows.push(row)
           added.push(id)
@@ -367,7 +375,7 @@ export class Threads {
           mark(itemId.row(id))
         }
         let touched = false
-        const foundBy = given.foundBy?.trim()
+        const foundBy = citingOrder(given.foundBy?.trim(), year)
         if (foundBy && foundBy !== row.foundBy) {
           row.foundBy = foundBy
           touched = true
@@ -419,7 +427,7 @@ export class Threads {
           mark(itemId.report())
         }
       }
-      const one = input.one?.trim() || (changed.has(itemId.report()) && !input.one ? firstSentence(c.report) : undefined)
+      const one = (input.one?.trim() && plainLine(input.one)) || (changed.has(itemId.report()) && !input.one ? firstSentence(c.report) : undefined)
       if (one !== undefined && one !== c.one) {
         c.one = one
         mark(itemId.one())
@@ -875,10 +883,26 @@ function undoneOf(entries: Change[]): Set<string> {
   return new Set(entries.filter((e) => isUndone(e.id)).map((e) => e.id))
 }
 
-// A logged search as a row's foundBy says it
+// A logged search as a row's foundBy says it: a paper from X's reference list is cited by X, one from
+// the papers citing X cites X
 function foundByOf(query: string | undefined) {
   if (!query) return undefined
-  return /^(references|cited_by|similar) of /.test(query) ? query : `search: ${query}`
+  const m = /^(references|cited_by|similar) of (.*)$/.exec(query)
+  if (!m) return `search: ${query}`
+  return m[1] === "references" ? `cited by ${m[2]}` : m[1] === "cited_by" ? `cites ${m[2]}` : `like ${m[2]}`
+}
+
+// A foundBy that names a citing paper by its year, turned the right way round when the years say it
+// is backwards: a 2026 paper can't be cited by a 2022 one, so it cites it (agents mix the two up when
+// the paper came from library_related cited_by). Left as it is without both years.
+export function citingOrder(foundBy: string | undefined, year: number | undefined) {
+  if (!foundBy || !year) return foundBy
+  const m = /^(cited by|cites) (.*?\b(\d{4})\b.*)$/i.exec(foundBy)
+  if (!m) return foundBy
+  const other = Number(m[3])
+  if (m[1].toLowerCase() === "cited by" && other < year) return `cites ${m[2]}`
+  if (m[1].toLowerCase() === "cites" && other > year) return `cited by ${m[2]}`
+  return foundBy
 }
 
 // The first sentence of a report's first paragraph, as plain words. "et al.", "e.g." and an initial
