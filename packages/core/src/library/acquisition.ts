@@ -33,7 +33,9 @@ const MAX_TRIES = 60
 
 // The daily look for a paper without a PDF, spaced out the longer nothing comes: a day after the first
 // look, then 3, 7 and 30 days, since a daily look at every such paper visits their publishers dozens of
-// times a day for nothing. New open copies do turn up, so it never stops.
+// times a day for nothing. After the look at the end of the last step it stops: open copies that turn up
+// later are rare, and a paper looked for every month for ever is a paper nobody is told about. The user's
+// Look again, or Get them all, is one more look, and the card says owlit won't look again on its own.
 const LOOK_AGAIN_DAYS = [1, 3, 7, 30]
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -89,15 +91,16 @@ const saysLess = (later: PdfTry, earlier: PdfTry) =>
   later.by === "search" && ((later.ended === "no-copy" && earlier.ended !== "no-copy") || ((later.ended === "check" || later.ended === "sign-in") && earlier.by !== "search"))
 
 // When owlit's back-off look is next due for a paper without its PDF: from its newest look, after
-// LOOK_AGAIN_DAYS by how many found nothing. undefined while it isn't spaced out (finding). A record that
-// had the PDF is asked only when its file is gone (deleted outside owlit): due since then, since nothing
-// else looks for it.
+// LOOK_AGAIN_DAYS by how many found nothing; undefined once every step was taken (owlit won't look again
+// on its own) and while it isn't spaced out (finding). A record that had the PDF is asked only when its
+// file is gone (deleted outside owlit): due since then, since nothing else looks for it.
 export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "looks">) {
   if (acquisition.state === "have-it") return acquisition.tried.at(-1)?.at ?? 0
   if (acquisition.state !== "no-pdf") return undefined
+  const looks = Math.max(acquisition.looks ?? 1, 1)
+  if (looks > LOOK_AGAIN_DAYS.length) return undefined
   const last = acquisition.tried.findLast((t) => t.by === "search")?.at ?? acquisition.tried.at(-1)?.at ?? 0
-  const days = LOOK_AGAIN_DAYS[Math.min(Math.max(acquisition.looks ?? 1, 1), LOOK_AGAIN_DAYS.length) - 1]
-  return last + days * DAY_MS
+  return last + LOOK_AGAIN_DAYS[looks - 1] * DAY_MS
 }
 
 // Whether the daily look takes the paper now: a paper with no PDF once its back-off is over, one whose

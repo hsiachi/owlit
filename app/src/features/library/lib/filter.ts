@@ -23,11 +23,7 @@ const NO_PDF_GROUPS: PdfWait[][] = [
   ["finding", "offline", "for-sign-in", "for-check", "for-permission"],
 ]
 
-// No PDF, after a look: a thread's paper nobody has opened isn't missing one yet
-const lacksPdf = (p: Paper) => {
-  const wait = pdfWait(p)
-  return !!wait && wait !== "unsought"
-}
+const lacksPdf = (p: Paper) => !!pdfWait(p)
 
 function matchesFilter(p: Paper, f: StatusFilter): boolean {
   switch (f) {

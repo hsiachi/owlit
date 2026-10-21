@@ -422,9 +422,6 @@ export interface Methods {
   // asker: who reads, as library.searchOnline's by ("chat:<id>", or "agent"), so a chat's answer can say
   // what it was built from
   "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number; pending?: "pdf" | "text" } }
-  // Starts getting the PDF of a paper nobody has sought yet (a thread's), as opening or reading it does;
-  // whether it started
-  "library.seek": { params: { id: string }; result: boolean }
   // Papers out in the world for a query, from one source (OpenAlex unless asked); inLibrary when the
   // library has one already. A filter the source can't apply is refused. Each search, and each of the
   // two below, is kept in .owlit/searches.jsonl.
@@ -488,6 +485,9 @@ export interface Methods {
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
+  // Get them all: every one of these papers without its PDF goes to the extension in the user's browser,
+  // asked for; which went, which have no DOI to go by, or that no extension is connected
+  "library.fetchPdfs": { params: { ids: string[] }; result: { queued: string[]; noDoi: string[]; noExtension?: true } }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md

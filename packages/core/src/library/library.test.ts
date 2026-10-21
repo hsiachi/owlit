@@ -380,18 +380,34 @@ describe("what an agent reads of one paper", () => {
 })
 
 describe("a thread's papers", () => {
-  it("come in without a PDF fetch, which reading one starts", async () => {
-    const { root, core, call } = await setup({ "arxiv.org/pdf/1706.03762": "%PDF-1.4\n%%EOF\n" })
+  it("get their first look for a PDF like any paper, in the background", async () => {
+    const { root, core } = await setup({ "arxiv.org/pdf/1706.03762": "%PDF-1.4\n%%EOF\n" })
     const workspace = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
-    await workspace.library.addNew({ id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } }, undefined, "background", { fetchPdf: false })
-    expect(workspace.tasks.list().some((t) => t.kind === "paper.pdf")).toBe(false)
-    const [listed] = (await call("library.list")).papers
-    expect(listed.pdfState).toMatchObject({ unsought: true })
-    expect(await call("library.read", { id: "arxiv-1706.03762", part: "text" })).toEqual({ text: "", pending: "pdf" })
+    await workspace.library.addNew({ id: "arxiv-1706.03762", title: "Attention", authors: [], ids: { arxiv: "1706.03762" } }, undefined, "background")
+    expect(workspace.tasks.list().find((t) => t.kind === "paper.pdf")).toMatchObject({ subject: "arxiv-1706.03762", priority: "background" })
     const acquisition = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
     await eventually(() => expect(JSON.parse(readFileSync(acquisition, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
-    // Sought now: opening it again starts nothing
-    expect(await call("library.seek", { id: "arxiv-1706.03762" })).toBe(false)
+  })
+
+  it("that nobody ever looked for get their first look when the workspace opens", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-library-")))
+    const root = path.join(base, "ws")
+    mkdirSync(root)
+    // From before every add sought a PDF: a paper with its details and no acquisition.json; one that was
+    // looked for already, and one with its PDF, are left to their own looks
+    putPaper(root, { id: "arxiv-1706.03762", title: "Attention", ids: { arxiv: "1706.03762" } })
+    putPaper(root, { id: "doi-10.9999-looked", title: "Looked for", ids: { doi: "10.9999/looked" } })
+    writeFileSync(path.join(root, "library/papers/doi-10.9999-looked/acquisition.json"), JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "search", ended: "no-copy", at: Date.now() }], dropHere: "", looks: 1 }))
+    putPaper(root, { id: "doi-10.9999-has", title: "Has it", ids: { doi: "10.9999/has" } })
+    writeFileSync(path.join(root, "library/papers/doi-10.9999-has/paper.pdf"), "%PDF-1.4\n%%EOF\n")
+    const fetch = (async (url: string) => (url.includes("arxiv.org/pdf/1706.03762") ? new Response("%PDF-1.4\n%%EOF\n") : new Response("not found", { status: 404 }))) as unknown as typeof globalThis.fetch
+    const core = new Core({ userDataDir: path.join(base, "userData"), host: { fetch }, retryBaseMs: 1 })
+    cores.push(core)
+    await core.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+    const workspace = (core as unknown as { workspace: import("../workspace/workspace.ts").Workspace }).workspace
+    await eventually(() => expect(workspace.tasks.list().filter((t) => t.kind === "paper.pdf").map((t) => t.subject)).toEqual(["arxiv-1706.03762"]))
+    const acquisition = path.join(root, "library/papers/arxiv-1706.03762/acquisition.json")
+    await eventually(() => expect(JSON.parse(readFileSync(acquisition, "utf8"))).toMatchObject({ state: "have-it", route: "arxiv" }))
   })
 })
 
@@ -528,7 +544,7 @@ describe("library on disk", () => {
     expect((await call("threads.get", { id: thread })).rows[0].paper.year).toBe(2024)
   })
 
-  it("takes in the papers of a thread kept by an older version as Owlit's, without seeking their PDFs", async () => {
+  it("takes in the papers of a thread kept by an older version as Owlit's, seeking their PDFs like any add", async () => {
     const { root, call, core } = await setup({})
     const ws = (core as unknown as { workspace: Workspace }).workspace
     putPaper(root, { id: "doi-10.1145-9", title: "Replay ratings", ids: { doi: "10.1145/9" }, year: 2023 })
@@ -562,10 +578,7 @@ describe("library on disk", () => {
     expect(added.addedBy).not.toMatch(/^p_/)
     const tasks = ws.tasks.list().filter((t) => t.subject === "doi-10.1145-8").map((t) => t.kind)
     expect(tasks).toContain("index.paper")
-    expect(tasks).not.toContain("paper.pdf")
-    // An add the person asks for still seeks the PDF
-    await call("library.add", { paper: { title: "Asked for", authors: [], ids: { doi: "10.1145/7" } } })
-    expect(ws.tasks.list().filter((t) => t.subject === "doi-10.1145-7").map((t) => t.kind)).toContain("paper.pdf")
+    expect(tasks).toContain("paper.pdf")
   })
 
   it("moves a removed paper to the trash and Undo brings it back whole", async () => {

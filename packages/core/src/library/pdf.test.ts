@@ -353,14 +353,17 @@ describe("a repository's page instead of its PDF", () => {
 describe("looking again for a paper without a PDF", () => {
   const day = 24 * 60 * 60 * 1000
   const noPdf = (at: number, looks?: number) => ({ state: "no-pdf" as const, tried: [{ by: "search" as const, ended: "no-copy" as const, at }], looks })
-  it("waits longer each time nothing came: 1, 3, 7, then 30 days", () => {
+  it("waits longer each time nothing came: 1, 3, 7, then 30 days, then stops", () => {
     const now = 100 * day
     expect(lookDue(noPdf(now - day, 1), now)).toBe(true)
     expect(lookDue(noPdf(now - day, 2), now)).toBe(false)
     expect(lookDue(noPdf(now - 3 * day, 2), now)).toBe(true)
     expect(lookDue(noPdf(now - 6 * day, 3), now)).toBe(false)
-    expect(lookDue(noPdf(now - 29 * day, 9), now)).toBe(false)
-    expect(lookDue(noPdf(now - 30 * day, 9), now)).toBe(true)
+    expect(lookDue(noPdf(now - 29 * day, 4), now)).toBe(false)
+    expect(lookDue(noPdf(now - 30 * day, 4), now)).toBe(true)
+    // Every step taken: never again on owlit's own
+    expect(lookDue(noPdf(now - 30 * day, 5), now)).toBe(false)
+    expect(lookDue(noPdf(now - 90 * day, 9), now)).toBe(false)
     // Written before looks were counted: as after the first
     expect(lookDue(noPdf(now - day), now)).toBe(true)
   })

@@ -159,6 +159,17 @@ function TOOLS(): ToolSpec[] {
     },
   },
   {
+    name: "library_fetch_pdf",
+    touches: "meta",
+    description:
+      "Get the PDFs of papers in the user's library now, and wait for owlit's own look (up to a minute or two): says, for each, whether it has the PDF, is still finding it (the extension in the user's browser tries it with their access, or waits there for their sign-in or a check), or has none and why. Call it on the papers you tell the user to read first, before writing the report, so the report says which they can open; a paper owlit looked for already is looked for once more. Up to ten in a call.",
+    inputSchema: {
+      type: "object",
+      properties: { ids: { type: "array", items: { type: "string" }, description: "Library ids of the papers" } },
+      required: ["ids"],
+    },
+  },
+  {
     name: "library_remove",
     touches: "own",
     description:
@@ -401,7 +412,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_write",
     touches: "own",
     description:
-      "Write a thread, new (no id) or existing: your report on the user's question and the papers it rests on. Read owlit_help('threads') first. A paper is named by the id library_search, library_related or library_journal gave; owlit brings it into the user's library without its PDF and fills in its details. Each row says what the paper is (is), how it bears on the question (answer), from its whole abstract (library_get gives it; a search's line cuts it short) with depth abstract, or from its text with depth full and the words it rests on in quote, word for word as library_read gives them (owlit records whether you read the whole text or part of it); and how it was found (found_by). Only what a write gives changes; the report is given whole. One write is one Undo for the user. Says the thread's link, and what it couldn't write and why.",
+      "Write a thread, new (no id) or existing: your report on the user's question and the papers it rests on. Read owlit_help('threads') first. A paper is named by the id library_search, library_related or library_journal gave; owlit brings it into the user's library, fills in its details and looks for its PDF as for any paper. The answer says where each written paper's PDF stands at that moment. Each row says what the paper is (is), how it bears on the question (answer), from its whole abstract (library_get gives it; a search's line cuts it short) with depth abstract, or from its text with depth full and the words it rests on in quote, word for word as library_read gives them (owlit records whether you read the whole text or part of it); and how it was found (found_by). Only what a write gives changes; the report is given whole. One write is one Undo for the user. Says the thread's link, and what it couldn't write and why.",
     inputSchema: {
       type: "object",
       properties: {

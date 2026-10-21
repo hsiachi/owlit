@@ -14,6 +14,7 @@ import {
   type Paper,
   type ActorId,
   isOwlit,
+  waitedFor,
   type PaperNote,
   type PdfState,
   type PaperPatch,
@@ -35,6 +36,7 @@ import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
+import type { KnownPause } from "../extension/work.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -45,7 +47,7 @@ import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { citationsDue, countCitations } from "./citations.ts"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
 import { downloadPdf, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, registeredUrl, type Route, routesFor, unpaywallRoutes } from "./pdf.ts"
-import { Acquisitions, forExtension, lookDue, standing, type PdfTry } from "./acquisition.ts"
+import { Acquisitions, forExtension, lookDue, standing, waitsForUser, type PdfTry } from "./acquisition.ts"
 import { cleanDoi, paperIdOf, parseRef, refOfIds, stripArxivVersion } from "./refs.ts"
 import { Imports } from "./bulk/imports.ts"
 import { hasText, readText, writeText } from "./text/files.ts"
@@ -128,8 +130,9 @@ export interface ExtensionFetcher {
   // An extension is asking for work: papers the plain routes miss go to it; without one they have no
   // PDF until it connects (Library.handToExtension)
   connected(): boolean
-  // askedFor: the user waits on this paper (Look again)
-  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
+  // askedFor: the user waits on this paper (Look again, Get them all). paused: its record says its site
+  // waits for the user, which the queue takes over without a try first
+  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean, paused?: KnownPause): void
   // Where the paper stands with the extension, while it has it
   holding(library: Library, id: string): PdfState["extension"] | undefined
   // The paper no longer wants fetching: it has its PDF, or it left the library
@@ -279,7 +282,6 @@ export class Library {
     if (text) paper.text = text
     if (!pdf) {
       paper.pdfState = await this.acquisitions.shown(id)
-      if (await this.unsought(id)) paper.pdfState.unsought = true
       // In the extension's queue, or being fetched: owlit is still finding it, whatever its own look said
       const held = this.services.extension?.holding(this, id)
       if (held) {
@@ -375,15 +377,16 @@ export class Library {
   // ---- Changing
 
   // Adds a looked-up paper, saying whether the library had it already (under one of its ids, or as the
-  // same title where one of the two has no DOI); one it had is returned as it is. An import hands over the PDF it has (nothing is downloaded then)
-  // and the paper's tags. fetchPdf false leaves the PDF unsought: a paper a thread names waits until
-  // someone reads it.
+  // same title where one of the two has no DOI); one it had is returned as it is. An import hands over
+  // the PDF it has (nothing is downloaded then) and the paper's tags. Every other paper gets its first
+  // look for a PDF now, however it came (a thread's rows too): one that doesn't is a paper the user
+  // finds without a PDF and nobody looking.
   async addNew(
     resolved: ResolvedPaper,
     // The person when not given
     addedBy?: ActorId,
     priority: TaskPriority = "asked",
-    extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean }; fetchPdf?: boolean } = {},
+    extra: { pdf?: string; tags?: string[]; imported?: { parse: boolean } } = {},
   ): Promise<{ paper: Paper; existed: boolean; learned?: LearnedId[] }> {
     const added = await this.serial.run(async (): Promise<{ paper: Paper; existed: boolean; existing?: string }> => {
       const id = resolved.id ?? paperIdOf(resolved.ids)
@@ -420,7 +423,6 @@ export class Library {
       if (!resolution) this.queue("paper.metadata", id, priority)
       else if (!fullyChecked(resolution)) this.queue("paper.metadata", id, "background")
       if (extra.pdf) await this.placePdf(id, extra.pdf, await sha256Of(extra.pdf), priority)
-      else if (extra.fetchPdf === false) this.queue("index.paper", id, priority)
       else for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, priority)
       return { paper: (await this.get(id))!, existed: false }
     })
@@ -660,20 +662,37 @@ export class Library {
     this.onNote(paperId, note ?? null, before, own)
   }
 
-  // Nobody has looked for the paper's PDF (no acquisition.json) and no look is queued: a paper added
-  // without one (a thread's), waiting to be opened or read
+  // Nobody has looked for the paper's PDF (no acquisition.json) and no look is queued: a paper that came
+  // in before every add sought its PDF, or whose first look never ran (owlit quit first)
   private async unsought(id: string) {
     return !!this.scheduler?.knows("paper.pdf") && !(await this.acquisitions.read(id)) && !this.scheduler.isOpen("paper.pdf", id) && !(await hasPdfFile(this.root, id))
   }
 
-  // Starts looking for the PDF of a paper nobody has sought yet, now that someone opened or reads it;
-  // whether it started. A paper sought before is left to its own looks (Look again asks for another).
-  async seek(name: string): Promise<boolean> {
-    const id = await this.here(name)
-    if (!(await this.unsought(id))) return false
-    for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, "asked")
-    await this.announce([id])
-    return true
+  // The user asked for these papers' PDFs through the extension in their browser, with their access, in
+  // one go (Get them all): every one with a DOI and no PDF goes to the extension's queue, asked for, so a
+  // site paused for a sign-in is tried once more. Which went, and which have no DOI to go by; nothing
+  // when no extension is connected. The queueing goes on after the answer: each paper's page is looked
+  // up first, and the window follows the papers themselves.
+  async fetchPdfs(ids: string[]): Promise<{ queued: string[]; noDoi: string[]; noExtension?: true }> {
+    if (!this.services.extension?.connected()) return { queued: [], noDoi: [], noExtension: true }
+    const queued: string[] = []
+    const noDoi: string[] = []
+    const toQueue: { id: string; doi: string }[] = []
+    for (const id of ids) {
+      const record = await readRecord(this.root, id)
+      if (!record || (await hasPdfFile(this.root, id))) continue
+      if (!record.ids.doi) noDoi.push(id)
+      else {
+        queued.push(id)
+        toQueue.push({ id, doi: record.ids.doi })
+      }
+    }
+    void (async () => {
+      for (const { id, doi } of toQueue) {
+        if (!(await this.toExtension(id, doi, "waiting"))) return
+      }
+    })().catch((error) => console.error("[core] couldn't hand papers to the extension", error))
+    return { queued, noDoi }
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -946,12 +965,12 @@ export class Library {
     if (part === "note") return { text: (await readNote(this.root, id))?.content ?? "" }
     const markdown = await readFile(path.join(paperDir(this.root, id), "text.md"), "utf8").catch(() => null)
     if (markdown !== null) return pickFromText(markdown, where)
-    // No text yet: reading the paper is what fetches a thread's paper's PDF, and its text follows
+    // No text yet: the PDF is there and its text follows, or the PDF itself is still being looked for
     if (await hasPdfFile(this.root, id)) {
       this.queueText(id, "asked")
       return { text: "", pending: "text" }
     }
-    if ((await this.seek(id)) || this.scheduler?.isOpen("paper.pdf", id)) return { text: "", pending: "pdf" }
+    if (this.scheduler?.isOpen("paper.pdf", id)) return { text: "", pending: "pdf" }
     throw new RpcFailure(RpcErrorCode.NotFound, "The paper's text hasn't been read: owlit has no PDF of it.", { id })
   }
 
@@ -1286,14 +1305,16 @@ export class Library {
   }
 
   // Steps a paper is owed but never got (a PDF put in by hand or by another program, a run that failed
-  // in an older build): its text, read now, in the background; and its details looked up again when
-  // they predate the current round of checks (METADATA_CHECKS)
+  // in an older build): its text, read now, in the background; its first look for a PDF, when nobody
+  // ever looked (a thread's paper from before every add sought one, or a look owlit quit before running);
+  // and its details looked up again when they predate the current round of checks (METADATA_CHECKS)
   private async catchUp() {
     const ids = await this.ids()
     const now = Date.now()
     for (const id of ids) {
       await this.removePartials(id, now)
       if ((await hasPdfFile(this.root, id)) && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
+      else if (await this.unsought(id)) for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, "background")
       // Only details the services gave: a record written some other way (by hand, by another program)
       // is left as its author wrote it
       const record = await readRecord(this.root, id)
@@ -1307,8 +1328,7 @@ export class Library {
     this.citationsRecounted = this.recountCitationsDaily().catch((error) => console.error("[core] couldn't count citations", error))
   }
 
-  // Papers whose newest look reached nothing (offline) are looked for again: the network may be back.
-  // Papers nobody has sought (a thread's, unread) have no acquisition.json and stay unsought.
+  // Papers whose newest look reached nothing (offline) are looked for again: the network may be back
   private async retryOffline() {
     for (const id of await this.ids()) {
       const newest = (await this.acquisitions.read(id))?.tried.at(-1)
@@ -1779,13 +1799,13 @@ export class Library {
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
-  // set); false when no extension is asking for work
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal) {
+  // set); false when no extension is asking for work. paused: what its record says its site waits for.
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, paused?: KnownPause) {
     const extension = this.services.extension
     if (!extension?.connected()) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const route = extensionRoute(doi, (await this.services.settings()).proxy, registered)
-    extension.fetch(this, { paperId: id, ...route }, priority === "waiting")
+    extension.fetch(this, { paperId: id, ...route }, priority === "waiting", paused)
     return true
   }
 
@@ -1793,22 +1813,26 @@ export class Library {
   // says which): called when an extension starts asking for work. Its queue is in memory, so without
   // this a restart would strand the papers waiting at a site for the user's sign-in, and papers whose
   // plain routes missed while no extension was connected would wait for their next back-off look; with
-  // it the Library fills in by itself, at the queue's pace.
+  // it the Library fills in by itself, at the queue's pace. A paper whose newest try met a sign-in, a
+  // check or a missing permission brings that pause with it, so the site's line is up at once and the
+  // extension doesn't try the site again just to learn what the record says.
   async handToExtension() {
     const extension = this.services.extension
     if (!extension?.connected()) return
-    const waiting: { id: string; doi: string; at: number }[] = []
+    const waiting: { id: string; doi: string; at: number; paused?: KnownPause }[] = []
     for (const id of await this.ids()) {
       if (extension.holding(this, id) || (await hasPdfFile(this.root, id))) continue
       const acquisition = await this.acquisitions.read(id)
       const reason = acquisition && forExtension(acquisition)
       const doi = reason && (await readRecord(this.root, id))?.ids.doi
-      if (doi) waiting.push({ id, doi, at: reason.at })
+      if (!doi) continue
+      const kind = waitsForUser(reason) ? waitedFor(reason) : undefined
+      waiting.push({ id, doi, at: reason.at, ...(kind ? { paused: { kind } } : {}) })
     }
     waiting.sort((a, b) => a.at - b.at)
     // One at a time, so each site's queue keeps this order
-    for (const { id, doi } of waiting) {
-      if (!(await this.toExtension(id, doi, "background"))) return
+    for (const { id, doi, paused } of waiting) {
+      if (!(await this.toExtension(id, doi, "background", undefined, paused))) return
     }
   }
 

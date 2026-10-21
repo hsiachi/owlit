@@ -4,6 +4,10 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Every paper gets its first look for a PDF when it comes in, the papers a thread names too; they used to wait until opened. Papers nobody ever looked for get that look when the workspace opens.
+- owlit stops looking for a PDF on its own after its last spaced-out look (a day, 3, 7 and 30 days after the first); the paper then says "No PDF found", what was tried, and that owlit won't look again. A site waiting for your sign-in or a check is tried once more on owlit's own, then waits for you, instead of every quarter of an hour; after a restart its line is up at once.
+- The No PDF list has "Get them all with my access": every paper there with a DOI goes to the browser extension in one go, and a line at the top of the Library says how many PDFs came.
+- A thread's report says in one line which of its read-first papers you can't open and why: Owlit gets their PDFs before it writes, with a tool that waits for owlit's look and says where each stands. The PDF status under Owlit's answers comes from that moment, never from memory.
 - Six doors into asking Owlit, each opening a chat with the question begun and nothing sent: Threads has a "Find papers on a question…" button, in its header and when it is empty; a doc's menu (and a PDF's or transcript's among the docs) has "Go through this with Owlit", which opens the panel beside the doc with the file named in the question; in the Library, Enter on words that match papers offers "Ask Owlit to find papers about this" too, not only when nothing matches; and "Where did I stop?" is a starter on the Chat page and in the panel, asking Owlit to go project by project.
 - Ask Owlit on a passage goes on in the latest chat about that doc or paper instead of starting a new one, unless the panel is on a chat about it already or you pressed New chat.
 - Opening the Owlit panel beside a paper, doc or thread opens the latest chat about it, or a new one, never the chat you last had elsewhere.

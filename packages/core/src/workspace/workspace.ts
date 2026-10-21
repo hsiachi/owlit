@@ -163,14 +163,13 @@ export class Workspace {
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder, changes: this.changes }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
-      // Added as the writer's own, recorded so it can be taken back, and with no PDF sought. Filed by its
-      // DOI or arXiv id when it has one, like any add; by the id it was named by otherwise.
+      // Added as the writer's own, recorded so it can be taken back, its PDF sought as for any add. Filed
+      // by its DOI or arXiv id when it has one, like any add; by the id it was named by otherwise.
       addPaper: async (id, paper, caller) => {
         const { paper: added, existed } = await this.library.addNew(
           { ...(!paperIdOf(paper.ids) && isPaperId(id) ? { id } : {}), title: paper.title, authors: paper.authors, ids: paper.ids, year: paper.year, venue: paper.venue, abstract: paper.abstract, kind: paper.kind },
           await this.recorder.actorOf(caller),
           "background",
-          { fetchPdf: false },
         )
         if (!existed) await this.recorder.record(caller, { action: "create", target: { kind: "paper", path: added.id } }, { label: added.title, quiet: true })
         return added.id
