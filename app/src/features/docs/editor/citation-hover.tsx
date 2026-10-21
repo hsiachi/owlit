@@ -8,7 +8,8 @@ const CITATION = '.cm-mention[data-uri^="owlit://library/"]'
 // The citation card over a doc's paper mentions. CodeMirror draws them as plain DOM, so the card is one
 // popover for the whole editor, anchored to the mention the pointer rests on, with the same delays as
 // the hover card elsewhere, or at once when one gets the keyboard's focus. It never takes focus itself.
-export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null> }) {
+// onOpen: the card's passage was clicked, for the citation at el
+export function DocCitationHover({ host, onOpen }: { host: RefObject<HTMLElement | null>; onOpen: (el: HTMLElement, citation: Citation) => void }) {
   const [shown, setShown] = useState<{ el: HTMLElement; citation: Citation } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
   const timers = useRef<{ open?: ReturnType<typeof setTimeout>; close?: ReturnType<typeof setTimeout> }>({})
@@ -91,7 +92,13 @@ export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null>
           onPointerEnter={clear}
           onPointerLeave={closeSoon}
         >
-          <CitationCard citation={shown.citation} />
+          <CitationCard
+            citation={shown.citation}
+            onOpen={(citation) => {
+              setShown(null)
+              onOpen(shown.el, citation)
+            }}
+          />
         </PopoverContent>
       )}
     </Popover>

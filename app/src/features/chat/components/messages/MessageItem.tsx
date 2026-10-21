@@ -233,8 +233,9 @@ export function AssistantMessage({
   const silent = streaming ? message.parts.findLast((p) => p.type === "notice") : undefined
   return (
     <Message className="text-body">
-      {/* The citations in the answer say how far Owlit read each paper from what core saw the turn read */}
-      <ReadFromContext.Provider value={message.readFrom}>
+      {/* The citations in the answer say how far Owlit read each paper from what core saw the turn read
+          (null: an answer from before owlit kept it, or still being written) */}
+      <ReadFromContext.Provider value={message.readFrom ?? null}>
       <MessageContent className="gap-3">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1

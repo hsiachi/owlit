@@ -23,5 +23,6 @@ export function citationOf(uri: string, quote?: string): Citation | null {
 export const CARD_OPEN_DELAY = 500
 export const CARD_CLOSE_DELAY = 150
 
-// The card's surface, the same wherever it floats (a hover card here, the doc's popover, a cell's popover)
-export const citationCardSurface = "w-80 gap-0 p-3"
+// The card's surface, the same wherever it floats (a hover card here, the doc's popover, a cell's popover):
+// 24rem, so a passage with a sentence either side stays a few lines
+export const citationCardSurface = "w-96 gap-0 p-3"

@@ -20,6 +20,8 @@ import { freshDocIds, useDocsStore } from "../store"
 import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
+import { DocCitationsContext } from "@/components/citation-card"
+import { useDocCitations } from "../lib/citations"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
@@ -96,6 +98,8 @@ function scrollerOf(el: HTMLElement): HTMLElement | null {
 
 export function DocEditor({ file }: { file: WorkspaceFile }) {
   const host = useRef<HTMLDivElement>(null)
+  const viewRef = useRef<EditorView | null>(null)
+  const citations = useDocCitations(file.id)
   const navigate = useNavigate()
   const navigateRef = useRef(navigate)
   useEffect(() => {
@@ -228,6 +232,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
         ],
       }),
     })
+    viewRef.current = view
 
     // What others changed since the user last had it on screen, and marking it seen
     const diskText = () => (crlf ? view.state.doc.toString().replace(/\n/g, "\r\n") : view.state.doc.toString())
@@ -324,6 +329,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       unregister()
       seen.close()
       view.destroy()
+      viewRef.current = null
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it
       setTimeout(() => {
         const left = useDocsStore.getState().files[id]
@@ -343,7 +349,17 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   return (
     <>
       <div ref={host} className="min-h-full" />
-      <DocCitationHover host={host} />
+      <DocCitationsContext.Provider value={citations?.citations}>
+        <DocCitationHover
+          host={host}
+          // The passage on the card opens the paper as the citation's own click does, at the sentence
+          onOpen={(el, c) => {
+            const uri = `owlit://library/${c.paperId}${c.page ? `#p${c.page}` : ""}`
+            const pos = viewRef.current && el.isConnected ? viewRef.current.posAtDOM(el) : 0
+            if (!openBeside(uri, c.quote, { docId: file.id, pos })) openMention(uri, (to) => navigateRef.current(to), window.location.pathname, c.quote)
+          }}
+        />
+      </DocCitationsContext.Provider>
     </>
   )
 }
