@@ -16,12 +16,15 @@ afterEach(async () => {
   await Promise.all(cores.splice(0).map((core) => core.dispose()))
 })
 
-async function setup() {
+// tools: the workspace's socket up, so the fake agent can call owlit's core as owlit-mcp would ("call …")
+async function setup({ tools = false } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-turns-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
   writeFileSync(path.join(root, "notes.md"), "twelve chars")
-  const core = new Core({ userDataDir: path.join(base, "userData"), searchPath: testSearchPath })
+  // A short folder: a Unix socket's path has to fit in about a hundred bytes
+  const socketDir = tools ? realpathSync(mkdtempSync(path.join(tmpdir(), "s-"))) : ""
+  const core = new Core({ userDataDir: path.join(base, "userData"), ...(tools ? { socket: { dir: socketDir }, mcp: { command: "owlit-mcp", args: ["--socket-dir", socketDir] } } : {}), searchPath: testSearchPath })
   cores.push(core)
   const updates: SessionUpdate[] = []
   core.onNotify((n: RpcNotification) => {
@@ -589,6 +592,36 @@ describe("turns", () => {
     expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), target: { path: "notes.md" }, origin: { via: "apply", chatId: "c1", toolCallId: "w1" } }])
     const proposals = await call("changes.proposals", { path: "notes.md", text: "thirteen chars", since: 0 })
     expect(proposals).toMatchObject([{ id: wrote[0].id, hunks: [{ insert: "thirteen", removed: "twelve", before: "", after: " chars" }] }])
+  })
+
+  it("signs each chat's edit with that chat, though another chat's agent used the same tool call id", async () => {
+    const { send, core, call, root } = await setup()
+    await call("docs.list")
+    await call("chats.create", { chat: { id: "c2", title: "t", createdAt: 2, updatedAt: 2, pinned: false } })
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
+    // A tool call id is unique only within its session: both fake agents name their Write "w1"
+    await send("rewrite notes.md thirteen chars", { role: "assistant" })
+    await until(() => wrote.length, { what: "the first chat's change" })
+    await send("rewrite notes.md fourteen chars", { role: "assistant", chatId: "c2" })
+    await until(() => wrote.length >= 2, { what: "the second chat's change" })
+    expect(readFileSync(path.join(root, "notes.md"), "utf8")).toBe("fourteen chars")
+    const c2 = await call("chats.get", { id: "c2" })
+    expect(wrote[1]).toMatchObject({ actor: expect.stringMatching(/^o_/), origin: { via: "apply", chatId: "c2", toolCallId: "w1", replyId: c2.messages[1].id } })
+  })
+
+  it("signs a doc the chat's agent writes through owlit's tools as Owlit's, by that chat, and refuses the user's", async () => {
+    const { send, core, call, text } = await setup({ tools: true })
+    await call("docs.list")
+    const wrote: any[] = []
+    core.onNotify((n) => n.method === "changes.added" && wrote.push((n.params as any).change))
+    await send(`call agents.writeDoc {"path":"own.md","content":"Owlit's reading"}`, { role: "coauthor" })
+    expect(text()).toBe(`called: {"path":"own.md","created":true}`)
+    expect(wrote).toMatchObject([{ actor: expect.stringMatching(/^o_/), action: "create", target: { path: "own.md" }, origin: { via: "tool", chatId: "c1" } }])
+    // A doc that is the user's is refused, and the agent hears why
+    await send(`call agents.writeDoc {"path":"notes.md","content":"Owlit's words"}`, { role: "coauthor" })
+    expect(text()).toContain("refused: Not done: That doc is the user's")
+    expect(wrote).toHaveLength(1)
   })
 
   it("refuses an edit outside the user's docs before any card, whatever the role", async () => {

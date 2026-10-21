@@ -5,7 +5,7 @@
 //   "…and the user has replied…" answers with comments_reply as the reply recipe says: "FAKE: correct"
 //                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
 //   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
-//                      session owlit gave its owlit server, and says back the result
+//                      session owlit gave its owlit server, and says back the result or the refusal
 //   "memory?"          says back the memory owlit gave it, or "no memory"
 //   "rules?"           says whether owlit's rules (or their change) came with the prompt
 //   "sleep through it" ends a finished turn on Claude Code's error line for a Mac that slept
@@ -39,7 +39,7 @@
 //                      in the user's reply has it correct its comment, "FAKE: silent" leaves it unanswered
 //   "Try again."        after a digest recipe (owlit's Retry): writes the digest it was last asked for
 //   "call <method> <json>" calls owlit's core over the workspace's socket as owlit-mcp would, with the
-//                      session owlit gave its owlit server, and says back the result
+//                      session owlit gave its owlit server, and says back the result or the refusal
 //   anything else      answers "echo: <text> (model/mode/effort)", adding "with history" when owlit
 //                      passed the conversation so far
 // FAKE_ACP_LIMIT="You've hit your session limit · resets 2:20am" fails every prompt as Claude Code does at
@@ -291,7 +291,12 @@ class FakeAgent implements acp.Agent {
           await say("no owlit tools")
           return { stopReason: "end_turn" }
         }
-        await say(`called: ${JSON.stringify(await callOwlit(session.owlit, call[1]!, JSON.parse(call[2]!)))}`)
+        // A refusal is said back as owlit-mcp hands it to the agent, not a failed turn
+        const said = await callOwlit(session.owlit, call[1]!, JSON.parse(call[2]!)).then(
+          (result) => `called: ${JSON.stringify(result)}`,
+          (error: Error) => `refused: ${error.message}`,
+        )
+        await say(said)
         return { stopReason: "end_turn" }
       }
       if (text.includes("memory?")) {

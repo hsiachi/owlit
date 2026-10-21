@@ -129,10 +129,11 @@ export class Turns {
   // Files tool calls edit, move or delete, by path: the latest call to name each, until a moment after it
   // completed (the watcher hears about its writes a little later)
   private claims = new Map<string, Claim>()
-  // Tool calls whose permission was answered with an allow: by the user, or by owlit for an edit that
-  // lands as a proposal
+  // Tool calls whose permission was answered with an allow (by callKey): by the user, or by owlit for an
+  // edit that lands as a proposal
   private accepted = new Set<string>()
-  // The reply each tool call belongs to, so a change seen on disk after its turn ended still names it
+  // The reply each tool call belongs to (by callKey), so a change seen on disk after its turn ended still
+  // names it
   private callReplies = new Map<string, string>()
   // Chats whose Co-author turn runs, until when (a moment after it ends, as for claims): a change nobody
   // claimed meanwhile came while it worked
@@ -207,7 +208,7 @@ export class Turns {
     }
     const emit = (update: SessionUpdate) => {
       turn.heard++
-      if (update.type === "tool_call") this.callReplies.set(update.toolCallId, turn.message.id)
+      if (update.type === "tool_call") this.callReplies.set(callKey(req.chatId, update.toolCallId), turn.message.id)
       say(update)
       listen()
     }
@@ -322,7 +323,7 @@ export class Turns {
   // The reply a chat's change belongs to: the reply whose tool call made it, else the reply of the turn
   // the chat is running
   replyOf(chatId: string, toolCallId?: string): string | undefined {
-    return (toolCallId && this.callReplies.get(toolCallId)) || this.turns.get(chatId)?.message.id
+    return (toolCallId && this.callReplies.get(callKey(chatId, toolCallId))) || this.turns.get(chatId)?.message.id
   }
 
   // How many chats have a turn running or starting
@@ -336,7 +337,7 @@ export class Turns {
       if (!pending) continue
       // What the agent writes for this call next is the user's choice (Apply): "Owlit, taken by you"
       const kind = pending.options.find((o) => o.optionId === optionId)?.kind
-      if (kind === "allow_once" || kind === "allow_always") this.accept(pending.toolCallId)
+      if (kind === "allow_once" || kind === "allow_always") this.accept(chatId, pending.toolCallId)
       pending.resolve({ outcome: { outcome: "selected", optionId } })
       return null
     }
@@ -564,7 +565,7 @@ export class Turns {
         if (answer === "allow") {
           const allow = r.options.find((o) => o.kind === "allow_once") ?? r.options.find((o) => o.kind === "allow_always")
           if (allow) {
-            this.accept(toolCallId)
+            this.accept(turn.chatId, toolCallId)
             emit(announce)
             this.claim(turn, announce)
             return { outcome: { outcome: "selected", optionId: allow.optionId } }
@@ -658,9 +659,9 @@ export class Turns {
   }
 
   // The call's edit is allowed before it writes: its claims, made already or still to come, say so
-  private accept(toolCallId: string) {
-    this.accepted.add(toolCallId)
-    for (const claim of this.claims.values()) if (claim.toolCallId === toolCallId) claim.accepted = true
+  private accept(chatId: string, toolCallId: string) {
+    this.accepted.add(callKey(chatId, toolCallId))
+    for (const claim of this.claims.values()) if (claim.chatId === chatId && claim.toolCallId === toolCallId) claim.accepted = true
   }
 
   // A tool call that edits, moves or deletes workspace files claims them while it runs, and until a moment
@@ -670,11 +671,13 @@ export class Turns {
     const part = turn.message.parts.find((p) => p.type === "tool_call" && p.toolCallId === update.toolCallId)
     if (part?.type !== "tool_call" || !["edit", "delete", "move"].includes(part.kind)) return
     const until = part.status === "completed" || part.status === "failed" ? Date.now() + CLAIM_AFTER_MS : Infinity
+    const { chatId } = turn
     const toolCallId = part.toolCallId
-    for (const claim of this.claims.values()) if (claim.toolCallId === toolCallId && claim.until === Infinity) claim.until = until
+    const ours = (claim: Claim | undefined) => claim?.chatId === chatId && claim.toolCallId === toolCallId
+    for (const claim of this.claims.values()) if (ours(claim) && claim.until === Infinity) claim.until = until
     for (const p of [...(part.locations ?? []).map((l) => l.path), ...(part.diff ? [part.diff.path] : [])]) {
-      if (p.startsWith("/") || this.claims.get(p)?.toolCallId === toolCallId) continue
-      this.claims.set(p, { chatId: turn.chatId, toolCallId, ...(this.accepted.has(toolCallId) ? { accepted: true } : {}), until })
+      if (p.startsWith("/") || ours(this.claims.get(p))) continue
+      this.claims.set(p, { chatId, toolCallId, ...(this.accepted.has(callKey(chatId, toolCallId)) ? { accepted: true } : {}), until })
     }
   }
 
@@ -708,6 +711,9 @@ async function quiet(turn: Turn) {
 }
 
 // A tool call's claim on the files it names, while it runs (until Infinity) and a moment after
+// A tool call's id is unique only within its chat's session (ACP): two chats' agents may use the same one
+const callKey = (chatId: string, toolCallId: string) => `${chatId}/${toolCallId}`
+
 export interface Claim {
   chatId: string
   toolCallId: string
