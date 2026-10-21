@@ -1,8 +1,10 @@
 import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state"
 import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view"
+import { frontmatterEnd } from "../lib/naming"
 
 // A slot under the doc's title for the line its citations get (DocEditor draws it there): after the first
-// line when that is a heading, else before the text. Drawn only while there is a line to show.
+// line after any front matter, which the doc draws as its title whether or not it is a heading (as
+// live-preview does); before the text when that line is empty. Drawn only while there is a line to show.
 export const showCitationsSlot = StateEffect.define<boolean>()
 
 class Slot extends WidgetType {
@@ -36,9 +38,10 @@ class Slot extends WidgetType {
 const observers = new WeakMap<HTMLElement, ResizeObserver>()
 
 function placed(state: EditorState, widget: Slot): DecorationSet {
-  const first = state.doc.line(1)
-  const title = /^#{1,6}\s/.test(first.text)
-  return Decoration.set([Decoration.widget({ widget, block: true, side: title ? 1 : -1 }).range(title ? first.to : 0)])
+  const { doc } = state
+  const first = doc.lineAt(Math.min(frontmatterEnd(doc.sliceString(0, Math.min(doc.length, 4000))), doc.length))
+  const title = first.text.trim() !== ""
+  return Decoration.set([Decoration.widget({ widget, block: true, side: title ? 1 : -1 }).range(title ? first.to : first.from)])
 }
 
 // sink: told of the slot's element when it is drawn, and null when it goes
