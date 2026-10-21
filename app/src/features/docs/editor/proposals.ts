@@ -5,13 +5,15 @@ import type { Proposal, ProposalHunk } from "@owlit/protocol"
 
 // Owlit's edits that landed in the doc since the user last had it on screen (changes.proposals), each
 // passage marked as its edit would have been drawn before it landed: the new words underlined in Owlit's
-// colour, the words they replaced struck before them, a rule beside the lines. Undo on each passage shows
-// on hover (⌘⌫ at its end); a line above the first says how many and offers Undo all. Undo goes through
-// core's change log, the same Undo as the chat's card: a whole edit by its entry, one passage of a larger
-// edit by its index. Nothing is kept or accepted: the marks are this visit's, and once the doc has been
-// seen the next visit shows none.
-// A doc Owlit wrote whole has no marks, only a line above it saying so, with Undo: every word of it is
-// Owlit's, and a page underlined throughout reads as nothing marked at all.
+// colour, the words they replaced struck before them, a rule beside the lines. Undo on each passage floats
+// at its end while the pointer is near it (⌘⌫ there); a line above the first says how many, that the
+// marks clear when the person leaves the doc, and offers Clear marks and Undo all. Undo goes through core's
+// change log, the same Undo as the chat's card: a whole edit by its entry, one passage of a larger edit by
+// its index. Nothing is kept or accepted: the marks are this visit's, and once the doc has been seen the
+// next visit shows none. Clear marks counts the doc as seen now (options.clear) and drops the marks; the
+// edits stay, and the log's Undo (chat card, Versions) is untouched.
+// A doc Owlit wrote whole has no marks, only a line above it saying so, with Clear marks and Undo: every
+// word of it is Owlit's, and a page underlined throughout reads as nothing marked at all.
 
 export const setProposals = StateEffect.define<Proposal[]>()
 
@@ -99,7 +101,10 @@ class RemovedWidget extends WidgetType {
   }
 }
 
-// Undo after the passage, seen on hover of its lines
+// Undo at the passage's end. The widget itself is an empty inline span, so the line wraps as if it weren't
+// there; the button floats from it (index.css .proposal-acts) and shows for the passage nearest the
+// pointer (showActs) or on keyboard focus. The left margin can't hold it: the column's padding leaves
+// about 14px beside the rule, and "Undo" needs more.
 class ActsWidget extends WidgetType {
   readonly key: string
   readonly act: (key: string) => void
@@ -115,6 +120,7 @@ class ActsWidget extends WidgetType {
     const span = document.createElement("span")
     span.className = "proposal-acts"
     span.contentEditable = "false"
+    span.dataset.key = this.key
     const b = document.createElement("button")
     b.type = "button"
     b.textContent = t({ message: "Undo", comment: "verb: undo a passage Owlit changed" })
@@ -147,15 +153,28 @@ const setExplained = () => {
   }
 }
 
-// The line above the first passage: how many, and Undo all
+// "Clear marks", on the line above the marks
+function clearButton(clear: () => void) {
+  const b = document.createElement("button")
+  b.type = "button"
+  b.className = "suggest-discard"
+  b.textContent = t({ message: "Clear marks", comment: "verb: stop showing Owlit's marks in this doc, keeping its edits" })
+  b.title = t`Keep the edits and stop marking them`
+  b.onclick = clear
+  return b
+}
+
+// The line above the first passage: how many, that the marks end with the visit, Clear marks and Undo all
 class HeadWidget extends WidgetType {
   readonly count: number
   readonly all: () => void
+  readonly clear: () => void
   readonly first: boolean
-  constructor(count: number, all: () => void, first: boolean) {
+  constructor(count: number, all: () => void, clear: () => void, first: boolean) {
     super()
     this.count = count
     this.all = all
+    this.clear = clear
     this.first = first
   }
   eq(other: HeadWidget) {
@@ -167,13 +186,14 @@ class HeadWidget extends WidgetType {
     bar.contentEditable = "false"
     const label = document.createElement("span")
     const count = plural(this.count, { one: "Owlit changed # passage", other: "Owlit changed # passages" })
-    label.textContent = this.first ? `${count} · ${t`Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change`}` : count
+    const ends = t`the marks clear when you leave this doc`
+    label.textContent = this.first ? `${count} · ${t`Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change`} · ${ends}` : `${count} · ${ends}`
     const b = document.createElement("button")
     b.type = "button"
     b.className = "suggest-discard"
     b.textContent = t({ message: "Undo all", comment: "verb: undo every passage Owlit changed" })
     b.onclick = () => this.all()
-    bar.append(label, b)
+    bar.append(label, clearButton(this.clear), b)
     return bar
   }
   ignoreEvent() {
@@ -181,14 +201,17 @@ class HeadWidget extends WidgetType {
   }
 }
 
-// The line above a doc Owlit wrote: "Owlit wrote this doc · from <chat> · Undo"
+// The line above a doc Owlit wrote: "Owlit wrote this doc · from <chat> · this line clears when you leave
+// the doc", then Clear marks and Undo
 class WholeWidget extends WidgetType {
   readonly proposal: Proposal
   readonly options: ProposalOptions
-  constructor(proposal: Proposal, options: ProposalOptions) {
+  readonly clear: () => void
+  constructor(proposal: Proposal, options: ProposalOptions, clear: () => void) {
     super()
     this.proposal = proposal
     this.options = options
+    this.clear = clear
   }
   eq(other: WholeWidget) {
     return other.proposal.id === this.proposal.id && other.proposal.whole?.also.length === this.proposal.whole?.also.length
@@ -209,12 +232,13 @@ class WholeWidget extends WidgetType {
       link.onclick = () => this.options.openChat(chatId)
       label.append(" · ", link)
     }
+    label.append(" · ", t`this line clears when you leave the doc`)
     const undo = document.createElement("button")
     undo.type = "button"
     undo.className = "suggest-discard"
     undo.textContent = t({ message: "Undo", comment: "verb: take back the doc Owlit wrote" })
     undo.onclick = () => this.options.undoWhole(this.proposal)
-    bar.append(label, undo)
+    bar.append(label, clearButton(this.clear), undo)
     return bar
   }
   ignoreEvent() {
@@ -230,6 +254,9 @@ export interface ProposalOptions {
   openChat: (chatId: string) => void
   // Undo on a doc Owlit wrote whole
   undoWhole: (proposal: Proposal) => void
+  // Clear marks: count the doc as seen as it reads now, so the next visit shows none either; the marks
+  // drawn here go by themselves
+  clear: () => void
 }
 
 interface Value {
@@ -260,6 +287,29 @@ export function spotAt(state: EditorState, spots: ProposalSpot[]) {
   return spots.find((s) => drawnRange(state, s).to === head)
 }
 
+// The passage whose Undo shows with the pointer at pos: of those on pos's line, the nearest. One at a time,
+// since a paragraph Owlit rewrote in many passages would otherwise float an Undo over every few words.
+export function actsNear(state: EditorState, spots: ProposalSpot[], pos: number) {
+  const line = state.doc.lineAt(pos)
+  let best: ProposalSpot | undefined
+  let distance = Infinity
+  for (const s of spots) {
+    const { from, to } = drawnRange(state, s)
+    if (to < line.from || from > line.to) continue
+    const d = pos < from ? from - pos : pos > to ? pos - to : 0
+    if (d < distance) {
+      best = s
+      distance = d
+    }
+  }
+  return best
+}
+
+// Marks the one passage's Undo shown (none for undefined)
+function showActs(view: EditorView, key: string | undefined) {
+  for (const el of view.dom.querySelectorAll<HTMLElement>(".proposal-acts")) el.toggleAttribute("data-shown", el.dataset.key === key)
+}
+
 export function proposalMarks(options: ProposalOptions): Extension {
   let view: EditorView | undefined
   // Whether this visit's header carries the one-time sentence (read once, when its first header draws)
@@ -273,9 +323,13 @@ export function proposalMarks(options: ProposalOptions): Extension {
     if (spot) undo([spot])
   }
   const all = () => undo(view?.state.field(field).spots ?? [])
+  const clear = () => {
+    options.clear()
+    view?.dispatch({ effects: setProposals.of([]) })
+  }
   const build = (state: EditorState, proposals: Proposal[]): Pick<Value, "spots" | "decos"> => {
     const whole = proposals.find((p) => p.whole)
-    if (whole) return { spots: [], decos: Decoration.set([Decoration.widget({ widget: new WholeWidget(whole, options), block: true, side: -1 }).range(0)]) }
+    if (whole) return { spots: [], decos: Decoration.set([Decoration.widget({ widget: new WholeWidget(whole, options, clear), block: true, side: -1 }).range(0)]) }
     const spots = proposalSpots(state, proposals)
     const decos: Range<Decoration>[] = []
     if (spots.length) {
@@ -285,7 +339,7 @@ export function proposalMarks(options: ProposalOptions): Extension {
       }
       const head = spots[0]!
       const start = head.from + (state.sliceDoc(head.from, head.to).length - state.sliceDoc(head.from, head.to).trimStart().length)
-      decos.push(Decoration.widget({ widget: new HeadWidget(spots.length, all, first), block: true, side: -1 }).range(state.doc.lineAt(start).from))
+      decos.push(Decoration.widget({ widget: new HeadWidget(spots.length, all, clear, first), block: true, side: -1 }).range(state.doc.lineAt(start).from))
     }
     for (const s of spots) {
       const { from, to } = drawnRange(state, s)
@@ -310,6 +364,17 @@ export function proposalMarks(options: ProposalOptions): Extension {
     field,
     EditorView.updateListener.of((u) => {
       view = u.view
+    }),
+    EditorView.domEventHandlers({
+      mousemove: (e, v) => {
+        // Over a shown Undo, it stays: the pointer is on its way to it
+        if (e.target instanceof Element && e.target.closest(".proposal-acts")) return
+        const { spots } = v.state.field(field)
+        if (!spots.length) return
+        const pos = v.posAtCoords({ x: e.clientX, y: e.clientY }, false)
+        showActs(v, actsNear(v.state, spots, pos)?.key)
+      },
+      mouseleave: (_e, v) => showActs(v, undefined),
     }),
     // Before the editor's own ⌘⌫ (delete to the line's start); only at a passage's end (spotAt)
     Prec.high(

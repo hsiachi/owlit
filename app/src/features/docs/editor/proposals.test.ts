@@ -1,7 +1,8 @@
 import { EditorSelection, EditorState } from "@codemirror/state"
-import { describe, expect, it } from "vitest"
+import { type DecorationSet, EditorView } from "@codemirror/view"
+import { describe, expect, it, vi } from "vitest"
 import type { Proposal } from "@owlit/protocol"
-import { proposalSpots, spotAt, undoSteps } from "./proposals"
+import { actsNear, proposalMarks, proposalSpots, setProposals, spotAt, undoSteps } from "./proposals"
 
 const doc = "# Notes\n\nThe method works, mostly.\n\nMy own line, which Owlit touched.\n\nA closing line.\n"
 const proposal = (hunks: Proposal["hunks"], id = "c1"): Proposal => ({ id, at: 1, actor: "o_1234abcd", hunks })
@@ -94,5 +95,42 @@ describe("undoSteps", () => {
   it("counts a passage undone before as no longer standing", () => {
     const rest = { ...two, hunks: [{ insert: "", removed: "", before: "", after: "" }, two.hunks[1]!] }
     expect(undoSteps([rest], proposalSpots(EditorState.create({ doc }), [rest]))).toEqual([{ id: "c1" }])
+  })
+})
+
+describe("actsNear", () => {
+  const two = [proposal([{ insert: " quickly", removed: "", before: "The method", after: " works" }, { insert: ", mostly", removed: " well", before: "The method quickly works", after: ".\n" }])]
+  const text = doc.replace("The method works", "The method quickly works")
+  const state = EditorState.create({ doc: text })
+  const spots = proposalSpots(state, two)
+
+  it("is one passage on the pointer's line, the nearest, so a paragraph of many passages floats one Undo", () => {
+    expect(actsNear(state, spots, text.indexOf("The"))?.key).toBe("c1:0")
+    expect(actsNear(state, spots, text.indexOf("works"))?.key).toBe("c1:0")
+    expect(actsNear(state, spots, text.indexOf("works") + 4)?.key).toBe("c1:1")
+  })
+
+  it("is none on a line without a passage", () => {
+    expect(actsNear(state, spots, text.indexOf("A closing"))).toBeUndefined()
+  })
+})
+
+describe("proposalMarks", () => {
+  const marks = (state: EditorState) =>
+    state
+      .facet(EditorView.decorations)
+      .filter((d): d is DecorationSet => typeof d !== "function")
+      .reduce((n, set) => n + set.size, 0)
+  const options = { undo: vi.fn(), chatTitle: () => undefined, openChat: vi.fn(), undoWhole: vi.fn(), clear: vi.fn() }
+  const landed = [proposal([{ insert: ", mostly", removed: " well", before: "The method works", after: ".\n" }])]
+
+  it("draws a landed passage, and nothing once its proposals are cleared, leaving the text as it is", () => {
+    const state = EditorState.create({ doc, extensions: proposalMarks(options) })
+    const drawn = state.update({ effects: setProposals.of(landed) }).state
+    // The head line, the passage's line, the struck words, the new words and the Undo
+    expect(marks(drawn)).toBe(5)
+    const cleared = drawn.update({ effects: setProposals.of([]) }).state
+    expect(marks(cleared)).toBe(0)
+    expect(cleared.doc.toString()).toBe(doc)
   })
 })
