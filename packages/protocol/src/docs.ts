@@ -91,3 +91,88 @@ export type CommentInput = Omit<DocComment, "entries"> & { entries: (Omit<Commen
 // Still open: not resolved, and with something said
 export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.foldedAt && c.entries.length > 0
 
+// What a citation in a doc rests on, from what core saw Owlit read when it wrote it (never the agent's
+// word), else from the paper alone:
+// read: its sentence is on pages Owlit had read. in-paper: its sentence is in the text, on pages no
+// recorded read covers (or whose reads were lost): neutral, nothing said about reading. abstract: its
+// sentence is the abstract's. not-found: its sentence is in neither the text nor the abstract. no-text:
+// it has a sentence, owlit has no text of the paper and the abstract doesn't hold it. whole: no
+// sentence, and Owlit had read the paper (how far: owlitRead). not-read: no sentence, and Owlit had read
+// nothing of it. bare: no sentence, and what Owlit read isn't known (a citation from before this was
+// recorded, from a program outside owlit, or from a chat whose reads were lost).
+export type CitationState = "read" | "in-paper" | "abstract" | "not-found" | "no-text" | "whole" | "not-read" | "bare"
+
+// Who put a citation in the doc, as the change log saw the write that brought it: unknown for one
+// written before owlit kept this, or by a write it didn't see
+export type CitationAuthor = "owlit" | "person" | "other" | "unknown"
+
+// Where a citation's sentence sits: in the text (its page and the section heading above it) or in the
+// abstract (abstract, no page), with one sentence either side, cut to about 95 characters with "…". A
+// table right before or after shows as "[Table 3]".
+export interface CitationPassage {
+  page?: number
+  section?: string
+  before?: string
+  after?: string
+  abstract?: true
+}
+
+// A work the cited sentence itself cites: its marker as written ("(Reicherts et al., 2021)", "[12]"),
+// and for a numbered one, the start of that entry in the paper's reference list when owlit finds it
+export interface CitedWork {
+  marker: string
+  reference?: string
+}
+
+// How far Owlit had read the paper when it wrote the citation: its whole text, part of it (with the pages
+// its reads named, when they named any), or only Owlit's digest of it
+export interface OwlitReading {
+  depth: "full" | "part" | "digest"
+  pages?: string
+}
+
+export interface DocCitation {
+  // The link's place in the text it was found in: from its "[" to its ")"
+  from: number
+  to: number
+  // As the link names them
+  paperId: string
+  page?: number
+  quote?: string
+  // The Library's id for the paper; absent when it isn't in the Library
+  libraryId?: string
+  by: CitationAuthor
+  // null for a citation the person typed or edited: it has no Owlit state
+  state: CitationState | null
+  passage?: CitationPassage
+  // Whether owlit has the paper's text (text.md)
+  hasText: boolean
+  // Owlit's, when it had read anything of the paper
+  owlitRead?: OwlitReading
+  citesOther?: CitedWork[]
+  // The chat whose write brought it, and when
+  chatId?: string
+  at?: number
+}
+
+// Citations by state, over every citation in the doc (each link counts, the same paper cited twice is
+// two). notReadInPaper: those whose state says the paper's text wasn't read where they rest (abstract,
+// not-found, no-text, not-read, bare); in-paper and whole are not among them, nor the person's own.
+export interface CitationCounts {
+  total: number
+  read: number
+  inPaper: number
+  abstract: number
+  notFound: number
+  noText: number
+  whole: number
+  notRead: number
+  bare: number
+  person: number
+  notReadInPaper: number
+}
+
+export interface DocCitations {
+  citations: DocCitation[]
+  counts: CitationCounts
+}

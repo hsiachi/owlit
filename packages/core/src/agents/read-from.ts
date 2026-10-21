@@ -78,6 +78,20 @@ export function textDepthOf(reads: readonly LibraryRead[]): "full" | "part" | un
 // Pages as library_read takes them ("3", "3-5", "2,7"), several reads' together, as one list of runs:
 // "2–5, 7". Undefined when one can't be read as pages.
 export function pageList(specs: string[]): string | undefined {
+  const sorted = pageNumbers(specs)
+  if (!sorted) return undefined
+  const runs: string[] = []
+  for (let i = 0; i < sorted.length; i++) {
+    const start = sorted[i]!
+    while (sorted[i + 1] === sorted[i]! + 1) i++
+    runs.push(sorted[i] === start ? `${start}` : `${start}–${sorted[i]}`)
+  }
+  return runs.join(", ") || undefined
+}
+
+// The pages several specs name ("3-5", "2,7", or pageList's "2–5, 7"), each once and in order; undefined
+// when one can't be read as pages
+export function pageNumbers(specs: string[]): number[] | undefined {
   const pages = new Set<number>()
   for (const part of specs.flatMap((s) => s.split(","))) {
     const m = /^\s*(\d+)\s*(?:[-–]\s*(\d+)\s*)?$/.exec(part)
@@ -88,12 +102,5 @@ export function pageList(specs: string[]): string | undefined {
     if (to < from || to - from > 2000) return undefined
     for (let p = from; p <= to; p++) pages.add(p)
   }
-  const sorted = [...pages].sort((a, b) => a - b)
-  const runs: string[] = []
-  for (let i = 0; i < sorted.length; i++) {
-    const start = sorted[i]!
-    while (sorted[i + 1] === sorted[i]! + 1) i++
-    runs.push(sorted[i] === start ? `${start}` : `${start}–${sorted[i]}`)
-  }
-  return runs.join(", ") || undefined
+  return [...pages].sort((a, b) => a - b)
 }

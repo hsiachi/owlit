@@ -275,6 +275,7 @@ export function registerLibrary({ router, turns, reads, journal, requireWorkspac
     const page = await requireWorkspace().findPassage(id, quote)
     return typeof page === "number" ? { page } : null
   })
+  router.register("library.passage", z.object({ id: paperId, quote: z.string().min(1).max(4000) }), "read", ({ id, quote }) => requireWorkspace().passage(id, quote))
   // What has been read of a paper, for its reader: what Owlit's answers cited of it, and where the person stayed
   router.register("library.wear", z.object({ id: paperId }), "read", async ({ id }) => {
     const ws = requireWorkspace()

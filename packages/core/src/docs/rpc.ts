@@ -48,6 +48,9 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
     if (!markdown.replace(/<!-- page \d+ -->/g, "").trim()) return { text: `${relPath} has no text to read: its pages are images (a scan).`, pages: text.pages.length }
     return pickFromText(markdown, { pages })
   })
+  router.register("docs.citations", z.object({ path: docPath, text: z.string().max(20_000_000).optional() }), "read", async ({ path, text }) =>
+    requireWorkspace().citations.of(path, text ?? (await docs().read(path)).content),
+  )
   router.register(
     "docs.create",
     z.object({ path: docPath, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), "words",

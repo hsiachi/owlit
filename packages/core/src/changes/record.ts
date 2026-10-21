@@ -30,6 +30,10 @@ export interface Say {
 // The reply a chat's change belongs to: the one whose tool call made it, else the one whose turn is running
 export type ReplyOrigin = (chatId: string, toolCallId?: string) => string | undefined
 
+// Told of each doc's change once it is in the log, in the order they are recorded, with the doc's text on
+// each side (null: there was none). A typing session's later saves come as its one entry again.
+export type DocWritten = (change: Change, before: string | null, after: string | null) => void
+
 // Shared by the entries of one write that has no tool call to name it
 export const newWriteId = () => randomBytes(4).toString("hex")
 
@@ -47,12 +51,17 @@ export class Recorder {
   private readonly added: (notification: Notifications["changes.added"]) => void
   private readonly replyOf: ReplyOrigin
   private readonly now: () => number
+  private readonly written: DocWritten
   private readonly turn = new Serial()
   // Each doc's newest entry, read from the log the first time it is needed and kept current after
   private readonly newest = new Map<string, Change | null>()
 
-  constructor(log: ChangeLog, options: { profile: () => Promise<ProfileSettings>; added?: (notification: Notifications["changes.added"]) => void; replyOf?: ReplyOrigin; now?: () => number }) {
+  constructor(
+    log: ChangeLog,
+    options: { profile: () => Promise<ProfileSettings>; added?: (notification: Notifications["changes.added"]) => void; replyOf?: ReplyOrigin; now?: () => number; written?: DocWritten },
+  ) {
     this.log = log
+    this.written = options.written ?? (() => {})
     this.profile = options.profile
     this.added = options.added ?? (() => {})
     this.replyOf = options.replyOf ?? (() => undefined)
@@ -87,7 +96,11 @@ export class Recorder {
 
   // A doc's change from its text on each side: no text before is a create, none after a delete
   doc(caller: Caller, rel: string, before: string | null, after: string | null, extra: DocExtra = {}, say: Say = {}) {
-    return this.record(caller, docInput(rel, before, after, extra), say)
+    return this.turn.run(async () => {
+      const change = await this.append(caller, docInput(rel, before, after, extra), { before, after })
+      if (!say.quiet) this.say(change, say)
+      return change
+    })
   }
 
   // The person's save of a doc in the editor. Saves on one doc with no other author's entry between them
@@ -107,13 +120,15 @@ export class Recorder {
         const folded: Change = { ...last, until: at, afterHash }
         await this.log.replace(folded)
         this.newest.set(rel, folded)
+        this.written(folded, before, after)
         return folded
       }
-      return this.append(caller, docInput(rel, before, after))
+      return this.append(caller, docInput(rel, before, after), { before, after })
     })
   }
 
-  private async append(caller: Caller, input: RecordInput): Promise<Change> {
+  // texts: a doc's on each side of the change, for written
+  private async append(caller: Caller, input: RecordInput, texts?: { before: string | null; after: string | null }): Promise<Change> {
     const at = this.now()
     const { content, origin = {}, ...rest } = input
     const from: { chatId?: string; toolCallId?: string } = caller.kind === "window" ? {} : caller
@@ -130,6 +145,7 @@ export class Recorder {
     }
     await this.log.append(change, content)
     if (change.target.kind === "doc") this.newest.set(change.target.path, change)
+    if (texts) this.written(change, texts.before, texts.after)
     return change
   }
 
