@@ -34,7 +34,7 @@ const TOPICS: GuideTopic[] = [
   {
     id: "citing",
     title: "Citing papers",
-    text: `In a doc or a paper's note, type @ and pick a paper; it reads as "Author Year" and is a link on disk. A paper's menu has Copy citation (APA 7) and Copy BibTeX, for one paper or several selected.`,
+    text: `In a doc or a paper's note, type @ and pick a paper; it reads as "Author Year" and is a link on disk. A paper's menu has Copy citation (APA 7) and Copy BibTeX, for one paper or several selected; a doc's menu has Copy references, APA or BibTeX, for every paper the doc cites. Every paper has a cite key (lee2025sensible: first author, year, first title word), shown in its panel, given once and kept: BibTeX entries use it, and Owlit uses the same key when asked for LaTeX (\\cite{lee2025sensible}).`,
   },
   {
     id: "docs",

@@ -20,6 +20,7 @@ export interface JournalArticle {
   volume?: string
   issue?: string
   page?: string
+  publisher?: string
   abstract?: string
   citationCount?: number
 }
@@ -33,6 +34,9 @@ interface Work {
   volume?: string
   issue?: string
   page?: string
+  // PACM and other article-numbered journals: "14", where page is "1-22" or absent
+  "article-number"?: string
+  publisher?: string
   abstract?: string
   "is-referenced-by-count"?: number
 }
@@ -62,7 +66,7 @@ export async function journalArticles(
       filter: `from-pub-date:${years.from}-01-01,until-pub-date:${years.to}-12-31,type:journal-article`,
       rows: "1000",
       cursor,
-      select: "DOI,title,author,issued,container-title,volume,issue,page,abstract,is-referenced-by-count",
+      select: "DOI,title,author,issued,container-title,volume,issue,page,publisher,abstract,is-referenced-by-count",
     })
     if (keys.contactEmail) params.set("mailto", keys.contactEmail)
     const raw = await http.text(`https://${CROSSREF_HOST}/journals/${encodeURIComponent(issn)}/works?${params}`, request)
@@ -93,7 +97,8 @@ function parseWork(work: Work): JournalArticle {
     journal: squash(decodeEntities(work["container-title"]?.[0] ?? "")),
     volume: work.volume,
     issue: work.issue,
-    page: work.page,
+    page: work.page ?? work["article-number"],
+    publisher: work.publisher,
     abstract: work.abstract ? stripJats(work.abstract) : undefined,
     citationCount: work["is-referenced-by-count"],
   }
@@ -119,6 +124,10 @@ export async function fetchCrossref(http: Http, doi: string, keys: { contactEmai
       year: article.year,
       date: article.date,
       venue: article.journal,
+      volume: article.volume,
+      issue: article.issue,
+      pages: article.page,
+      publisher: article.publisher,
       abstract: article.abstract,
       citationCount: article.citationCount,
       raw,

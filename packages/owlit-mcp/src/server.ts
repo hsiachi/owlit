@@ -580,7 +580,7 @@ function paperLine(p: Paper, extension: boolean) {
     p.text === "full" ? "full text" : "",
     p.hasDigest ? "digest" : "",
   ].filter(Boolean)
-  return `- ${p.id} · ${p.title} · ${[shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", ")} · ${facts.join(", ")}`
+  return `- ${p.id} · ${p.title} · ${[shortAuthors(p.authors), p.year, p.venue].filter(Boolean).join(", ")} · cite key ${p.citeKey} · ${facts.join(", ")}`
 }
 
 const DROP = "the user can drop the PDF on the paper"

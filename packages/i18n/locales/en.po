@@ -4730,6 +4730,19 @@ msgstr "This looks like the same paper as"
 msgid "No abstract."
 msgstr "No abstract."
 
+#. label before the paper's BibTeX key
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Cite key"
+msgstr "Cite key"
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Click to copy"
+msgstr "Click to copy"
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Cite key copied"
+msgstr "Cite key copied"
+
 #. when a paper was added, and who added it: Owlit, a name or outside owlit
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "{when} by {who}"

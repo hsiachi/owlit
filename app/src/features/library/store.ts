@@ -3,7 +3,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { newId } from "@/lib/id"
 import { RpcLibraryClient } from "./rpc-client"
-import type { Highlight, HighlightColor, Paper, PaperNote, DigestPosition, PaperView, ReadingPosition, ReadStatus, ResolvedPaper } from "@owlit/protocol"
+import { citeKeyBase, type Highlight, type HighlightColor, type Paper, type PaperNote, type DigestPosition, type PaperView, type ReadingPosition, type ReadStatus, type ResolvedPaper } from "@owlit/protocol"
 import { normalizeTag } from "./lib/tags"
 
 export const libraryClient = new RpcLibraryClient()
@@ -90,6 +90,8 @@ export const useLibraryStore = create<LibraryState>()(
           ids: resolved.ids,
           pdf: resolved.pdf,
           kind: resolved.kind,
+          // Core gives the key when it answers; the shape stands in until then
+          citeKey: citeKeyBase({ id: resolved.id ?? "", title: resolved.title, authors: resolved.authors, year: resolved.year, ids: resolved.ids }),
           addedAt: Date.now(),
           addedBy,
           starred: false,

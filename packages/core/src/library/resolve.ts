@@ -8,7 +8,7 @@ import { fetchOpenAlex, OPENALEX_HOST } from "./sources/openalex.ts"
 import { fetchS2, S2_HOST } from "./sources/semanticscholar.ts"
 import type { SourceRecord } from "./sources/types.ts"
 
-export type MetadataField = "title" | "authors" | "year" | "date" | "venue" | "abstract" | "kind" | "tldr" | "citationCount"
+export type MetadataField = "title" | "authors" | "year" | "date" | "venue" | "volume" | "issue" | "pages" | "publisher" | "abstract" | "kind" | "tldr" | "citationCount"
 
 export interface Resolution {
   // The paper's id in the library (refs.paperIdOf)
@@ -19,6 +19,10 @@ export interface Resolution {
   year?: number
   date?: string
   venue?: string
+  volume?: string
+  issue?: string
+  pages?: string
+  publisher?: string
   abstract?: string
   kind?: PaperKind
   tldr?: string
@@ -161,6 +165,8 @@ export function merge(ref: Ref, records: SourceRecord[]): Resolution {
     // One service counts every paper it can, so counts compare across the library (Semantic Scholar's
     // run higher than OpenAlex's for the same paper); citations.ts keeps them to the same order
     stats: [openalex, s2, crossref],
+    // Where the paper sits: the publisher registered it, so Crossref first
+    where: [crossref, openalex, s2],
   }
   const fields: Resolution["fields"] = {}
   const pick = <K extends MetadataField>(field: K, from: (SourceRecord | undefined)[]) => {
@@ -195,6 +201,9 @@ export function merge(ref: Ref, records: SourceRecord[]): Resolution {
     year: pick("year", order.when),
     date: pick("date", order.when),
     venue: published ? pick("venue", order.when) : (arxiv?.venue ?? undefined),
+    ...(published
+      ? { volume: pick("volume", order.where), issue: pick("issue", order.where), pages: pick("pages", order.where), publisher: pick("publisher", order.where) }
+      : {}),
     abstract,
     kind,
     tldr: pick("tldr", [s2]),

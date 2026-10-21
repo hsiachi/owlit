@@ -5,7 +5,7 @@ import type { SourceRecord, Years } from "./types.ts"
 // count. Without a key it allows about one request a second, shared with everyone, so 429 is common.
 export const S2_HOST = "api.semanticscholar.org"
 
-const FIELDS = "title,authors,year,venue,publicationVenue,publicationDate,abstract,externalIds,tldr,citationCount,openAccessPdf,publicationTypes"
+const FIELDS = "title,authors,year,venue,publicationVenue,journal,publicationDate,abstract,externalIds,tldr,citationCount,openAccessPdf,publicationTypes"
 
 export async function fetchS2(
   http: Http,
@@ -35,6 +35,7 @@ interface S2Paper {
   publicationDate?: string | null
   venue?: string | null
   publicationVenue?: { name?: string; type?: string } | null
+  journal?: { name?: string | null; volume?: string | null; pages?: string | null } | null
   abstract?: string | null
   tldr?: { text?: string } | null
   citationCount?: number | null
@@ -58,6 +59,8 @@ export function parseS2(raw: string): SourceRecord | undefined {
     year: paper.year ?? undefined,
     date: paper.publicationDate ?? undefined,
     venue: paper.publicationVenue?.name || paper.venue || undefined,
+    volume: paper.journal?.volume?.trim() || undefined,
+    pages: paper.journal?.pages?.trim() || undefined,
     abstract: paper.abstract ?? undefined,
     kind:
       venueType === "conference" || types.includes("Conference")

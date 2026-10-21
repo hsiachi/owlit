@@ -45,6 +45,7 @@ import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, w
 import { OWLIT_DIR } from "../workspace/paths.ts"
 import { isPaperId, paperDir, PAPERS_DIR, paperStateDir } from "./paths.ts"
 import { citationsDue, countCitations } from "./citations.ts"
+import { citeKeyBase, uniqueCiteKey } from "@owlit/protocol"
 import { fullyChecked, keepSources, METADATA_CHECKS, PaperIndex, readRecord, recordFrom, writeRecord } from "./records.ts"
 import { downloadPdf, hasPdfFile, isPdfBytes, landingOf, NotAPdf, pdfFile, pdfNamedOnPage, registeredUrl, type Route, routesFor, unpaywallRoutes } from "./pdf.ts"
 import { Acquisitions, forExtension, lookDue, standing, waitsForUser, type PdfTry } from "./acquisition.ts"
@@ -201,6 +202,10 @@ export class Library {
   private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
+  // Every paper's cite key by id, and the keys in use: what a new key is checked against (cite-key.ts)
+  private citeKeyOf = new Map<string, string>()
+  private keysTaken = new Set<string>()
+  private citeKeysLoaded: Promise<void> | undefined
   // Libraries brought in at once (Zotero, BibTeX, a folder of PDFs)
   readonly imports: Imports
   // SHA-256 of each paper's PDF → paper, built the first time a file is dropped
@@ -269,7 +274,7 @@ export class Library {
     const record = await readRecord(this.root, id)
     if (!record) return undefined
     // A paper put here by another program has no state yet: it counts as added when it appeared
-    const state = (await readState(this.root, id)) ?? freshState("other", record.fetchedAt ?? Date.now())
+    const state = await this.citeKeyed(id, record, (await readState(this.root, id)) ?? freshState("other", record.fetchedAt ?? Date.now()))
     const pdf = await hasPdfFile(this.root, id)
     const paper = toPaper({ ...record, id }, state, pdf)
     const counted = this.countedAt.get(id)
@@ -414,7 +419,7 @@ export class Library {
       if (resolution) await keepSources(this.root, id, resolution.records)
       await writeRecord(this.root, record)
       const by = addedBy ?? (await this.person())
-      await writeState(this.root, id, { ...freshState(by), ...(extra.tags?.length ? { tags: extra.tags } : {}) })
+      await this.citeKeyed(id, record, { ...freshState(by), ...(extra.tags?.length ? { tags: extra.tags } : {}) })
       // Known as imported before any step that reads it is queued
       if (extra.imported) this.imports.note(id, extra.imported)
       this.index.set(id, record.ids, record.title)
@@ -462,6 +467,9 @@ export class Library {
     await writeState(this.root, next, applyPatch(state, record, rest))
     this.index.delete(id)
     this.index.set(next, ids, record.title)
+    const key = this.citeKeyOf.get(id)
+    this.citeKeyOf.delete(id)
+    if (key) this.citeKeyOf.set(next, key)
     for (const [sha, paper] of this.pdfHashes ?? []) if (paper === id) this.pdfHashes!.set(sha, next)
     const aliases = await this.aliases()
     for (const [from, to] of Object.entries(aliases)) if (to === id) aliases[from] = next
@@ -1796,6 +1804,69 @@ export class Library {
     await rename(paperDir(this.root, id), path.join(trash, "paper")).catch(ignoreMissing)
     await rename(paperStateDir(this.root, id), path.join(trash, "state")).catch(ignoreMissing)
     this.index.delete(id)
+    this.forgetCiteKey(id)
+  }
+
+  // ---- Cite keys
+
+  // The state with the paper's cite key in it: registered when the state has one, assigned and written
+  // when it doesn't (a paper from before keys were kept, or one just added). A kept key another paper
+  // has taken meanwhile (a paper restored from the trash after its key was given again) is given anew.
+  private async citeKeyed(id: string, record: PaperRecord, state: PaperState): Promise<PaperState> {
+    await this.loadCiteKeys()
+    // A paper the first load keyed from its folder (its record was written before its state, as add()
+    // does) has its key here though the state passed in doesn't
+    const kept = state.citeKey ?? this.citeKeyOf.get(id)
+    if (kept && (this.citeKeyOf.get(id) === kept || !this.keysTaken.has(kept))) {
+      this.citeKeyOf.set(id, kept)
+      this.keysTaken.add(kept)
+      if (state.citeKey === kept) return state
+      const next = { ...state, citeKey: kept }
+      await writeState(this.root, id, next)
+      return next
+    }
+    const key = uniqueCiteKey(citeKeyBase({ ...record, id }), (k) => this.keysTaken.has(k))
+    this.citeKeyOf.set(id, key)
+    this.keysTaken.add(key)
+    const next = { ...state, citeKey: key }
+    await writeState(this.root, id, next)
+    return next
+  }
+
+  // Every paper's key from its state, once: papers from before keys were kept get theirs now, in the
+  // order they were added, so the keys come out the same whichever paper is opened first. Reads outside
+  // the serial lock (get() runs inside it): a state written here and by a patch at the same moment keeps
+  // the patch, and the key is given again at the next read.
+  private async loadCiteKeys() {
+    this.citeKeysLoaded ??= (async () => {
+      const unkeyed: { id: string; record: PaperRecord; state: PaperState }[] = []
+      for (const id of await this.ids()) {
+        const record = await readRecord(this.root, id)
+        if (!record) continue
+        const state = await readState(this.root, id)
+        if (state?.citeKey) {
+          this.citeKeyOf.set(id, state.citeKey)
+          this.keysTaken.add(state.citeKey)
+        } else unkeyed.push({ id, record, state: state ?? freshState("other", record.fetchedAt ?? Date.now()) })
+      }
+      unkeyed.sort((a, b) => a.state.addedAt - b.state.addedAt || a.id.localeCompare(b.id))
+      for (const { id, record, state } of unkeyed) {
+        const key = uniqueCiteKey(citeKeyBase({ ...record, id }), (k) => this.keysTaken.has(k))
+        this.citeKeyOf.set(id, key)
+        this.keysTaken.add(key)
+        await writeState(this.root, id, { ...state, citeKey: key })
+      }
+    })()
+    await this.citeKeysLoaded
+  }
+
+  // A paper gone from the library frees its key. A .bib that had it keeps pointing at a paper that isn't
+  // here; the next paper to get the key is another one, which is why keys are kept, not recomputed.
+  private forgetCiteKey(id: string) {
+    const key = this.citeKeyOf.get(id)
+    if (key === undefined) return
+    this.citeKeyOf.delete(id)
+    if (![...this.citeKeyOf.values()].includes(key)) this.keysTaken.delete(key)
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
@@ -1888,7 +1959,10 @@ export class Library {
       for (const id of ids) {
         const record = await readRecord(this.root, id)
         if (record) this.index.set(id, record.ids, record.title)
-        else this.index.delete(id)
+        else {
+          this.index.delete(id)
+          this.forgetCiteKey(id)
+        }
       }
       // Told from inside the lock, so a write queued behind this look (a restore, for Undo) can't land
       // between reading the folders and telling the window: "removed" would then arrive after the paper

@@ -11,6 +11,10 @@ export interface SourceRecord {
   // ISO date of first publication, when the service has it
   date?: string
   venue?: string
+  volume?: string
+  issue?: string
+  pages?: string
+  publisher?: string
   abstract?: string
   kind?: PaperKind
   // Open-access PDF links this service knows, best first; paper.pdf tries them
