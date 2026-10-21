@@ -481,6 +481,7 @@ export class Agents {
       defaultModelId: probed?.defaultModelId ?? "default",
       defaultEffortId: probed?.defaultEffortId,
       ...(cannotRead(def.id).length ? { cannotRead: cannotRead(def.id) } : {}),
+      commands: def.id !== ENGINE_ID,
       ...(this.setups && def.builtIn && !def.launch ? await this.setups.view(def.id).then((setup) => (setup ? { setup } : {})) : {}),
     }
   }

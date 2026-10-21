@@ -108,8 +108,10 @@ function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: s
           <span className="truncate leading-5">
             {summary.title}
             {was && (
+              // The thread names a project folder the workspace hasn't got (renamed, deleted, or never
+              // there): said as that, so the row doesn't read as a history the person can't place
               <span className="ml-2 text-detail text-muted-foreground">
-                {t({ message: `was in ${was}`, comment: "a thread whose project folder was renamed or deleted, then that folder's old name" })}
+                {t({ message: `no folder named ${was}`, comment: "after a thread's title: the project folder it names isn't in the workspace" })}
               </span>
             )}
           </span>

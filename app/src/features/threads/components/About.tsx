@@ -3,6 +3,7 @@ import { Trans } from "@lingui/react/macro"
 import { chatUri, type ThreadRead, type ThreadBatch, type ThreadSearch } from "@owlit/protocol"
 import { useEffect, useState } from "react"
 import { FoldButton } from "@/components/fold"
+import { readDepthSummary } from "@/components/read-depth"
 import { GroupLabel } from "@/components/group-label"
 import { MentionLink } from "@/components/mention/mention-token"
 import { Unfold } from "@/components/unfold"
@@ -19,8 +20,12 @@ import { shown } from "../lib"
 export function About({ thread: c }: { thread: ThreadRead }) {
   const batches = useBatches(c)
   const rows = shown(c).rows
-  const read = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "full")).length
-  const titles = rows.filter((r) => Object.values(r.cells).some((cell) => cell.depth === "title")).length
+  // How far Owlit read each paper: its answer to the question; a paper read for another column counts
+  // by the deepest of its answers
+  const depths = rows.flatMap((r) => {
+    const all = Object.values(r.cells).map((cell) => cell.depth)
+    return all.length ? [all.includes("full") ? ("full" as const) : all.includes("part") ? ("part" as const) : all.includes("abstract") ? ("abstract" as const) : ("title" as const)] : []
+  })
   const papers = rows.length
   return (
     <section className="mt-12 max-w-[68ch]">
@@ -47,11 +52,8 @@ export function About({ thread: c }: { thread: ThreadRead }) {
         </ol>
       )}
       <div className="mt-3 flex flex-col gap-0.5 text-detail text-muted-foreground">
-        {papers > 0 && (
-          <p>
-            {t`Read ${read} of the ${papers} papers in full; the rest are from their abstracts.`}
-            {titles > 0 && ` ${plural(titles, { one: "# had no abstract and is from its title only.", other: "# had no abstract and are from their titles only." })}`}
-          </p>
+        {depths.length > 0 && (
+          <p>{t({ message: `Of the ${papers} papers: ${readDepthSummary(depths)}.`, comment: "under a thread's About: how far Owlit read its papers, e.g. 5 full text, 12 abstract only" })}</p>
         )}
       </div>
     </section>

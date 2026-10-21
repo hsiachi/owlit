@@ -1,8 +1,9 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
-import { paperUri, shortTitle, type Paper, type ReadTrace, type ThreadPaper } from "@owlit/protocol"
+import { paperUri, shortTitle, type Paper, type ReadFrom, type ReadTrace, type ThreadPaper } from "@owlit/protocol"
 import { CARD_CLOSE_DELAY, CARD_OPEN_DELAY, citationCardSurface, type Citation } from "@/components/citation"
+import { readDepthSource } from "@/components/read-depth"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { citationLabel, shortVenue } from "@/features/library/lib/format"
 import { traceTitle } from "@/features/library/lib/trace"
@@ -12,6 +13,20 @@ import { threadHolding } from "@/features/threads/lib"
 import { useThreadsStore } from "@/features/threads/store"
 import { rpc } from "@/lib/rpc"
 import { cn } from "@/lib/utils"
+
+// What the answer around a citation was built from, as core saw its turn read (a chat's reply sets it):
+// the card says how far Owlit read the cited paper from it
+export const ReadFromContext = createContext<ReadFrom[] | undefined>(undefined)
+
+// A citation's depth: its own, else the one the answer around it recorded for the paper
+function useDepth(citation: Citation): Citation["depth"] {
+  const readFrom = useContext(ReadFromContext)
+  const aliases = useLibraryStore((s) => s.aliases)
+  const papers = useLibraryStore((s) => s.papers)
+  if (citation.depth || !readFrom) return citation.depth
+  const id = paperById(papers, aliases, citation.paperId)?.id ?? citation.paperId
+  return readFrom.find((r) => (paperById(papers, aliases, r.paperId)?.id ?? r.paperId) === id)?.depth
+}
 
 // A citation in React text (a chat's or a comment's link, a cell's page): the card opens on hover after
 // the delay and on keyboard focus of what it wraps, as Radix's hover card does
@@ -98,6 +113,13 @@ function useTrace(library: Paper | undefined): string | null {
   return trace?.id === library.id && trace.status === library.status ? trace.line : null
 }
 
+// Whether the sentence is in the paper's abstract, word for word but for spacing and case
+function inAbstract(abstract: string | undefined, quote: string | undefined): boolean {
+  if (!abstract || !quote) return false
+  const plain = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase()
+  return plain(abstract).includes(plain(quote))
+}
+
 // The card itself, for any surface to float: the paper, the sentence the claim rests on (or the abstract's
 // first lines for a citation without one), and a line of what it rests on and the person's own trace.
 export function CitationCard({ citation }: { citation: Citation }) {
@@ -105,22 +127,24 @@ export function CitationCard({ citation }: { citation: Citation }) {
   const { library, facts } = useCitedPaper(citation.paperId)
   const check = useCheck(citation, library)
   const trace = useTrace(library)
-  const { quote, depth } = citation
+  const depth = useDepth(citation)
+  const { quote } = citation
   const venue = facts?.venue ? shortVenue(facts.venue) : undefined
   const name = facts ? shortTitle(facts.title) : undefined
   const route = mentionRoute(paperUri(library?.id ?? citation.paperId))
-  // The page where the sentence was found wins over the one the link named; an answer not from the full text has none
-  const page = depth && depth !== "full" ? undefined : typeof check === "object" && check ? check.found : check === "missing" ? undefined : citation.page
-  // A cell's depth is a stored fact; a sentence in a link only claims the full text, which a paper owlit
-  // has no text of can't back, so then the no-text line stands alone
-  const source =
-    depth === "title"
-      ? t`Owlit, from the title only`
-      : depth === "abstract"
-        ? t`Owlit, from the abstract`
-        : depth === "full" || (quote && check !== "no-text")
-          ? t`Owlit, from the full text`
-          : null
+  // The page where the sentence was found wins over the one the link named; an answer not from the text has none
+  const page = depth && depth !== "full" && depth !== "part" ? undefined : typeof check === "object" && check ? check.found : check === "missing" ? undefined : citation.page
+  // How far Owlit read is a recorded fact where there is one (a cell's depth, a chat's answer). Without
+  // one, the sentence says what it can: one in the abstract came from the abstract (its words are on the
+  // paper's first page too, which says nothing more); one found in the text came from the text, how much
+  // of it unrecorded; one without a text to look in says nothing, and the no-text line stands alone.
+  const source = depth
+    ? readDepthSource(depth)
+    : inAbstract(facts?.abstract, quote)
+      ? readDepthSource("abstract")
+      : quote && typeof check === "object" && check
+        ? t`Owlit, from the text; how much of it isn't recorded`
+        : null
   return (
     <div className="text-detail leading-normal">
       <p>

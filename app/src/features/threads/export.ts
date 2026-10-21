@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { citationLink, cleanName, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
+import { citationLink, cleanName, fromText, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
@@ -43,7 +43,8 @@ export function threadCsv(c: ThreadRead) {
       const answer = r.cells[col.id]
       if (!answer) return ["", ""]
       const text = answer.rel ? `${answer.rel}: ${answer.text}` : answer.text
-      return [text, answer.depth === "full" ? `full text${answer.passage ? `, p. ${answer.passage.page}` : ""}` : answer.depth === "title" ? "title only" : "abstract"]
+      const read = answer.depth === "full" ? "full text" : answer.depth === "part" ? "part of the text" : answer.depth === "title" ? "title only" : "abstract only"
+      return [text, `${read}${answer.passage ? `, p. ${answer.passage.page}` : ""}`]
     }),
   ])
   return BOM + [head, ...lines].map((l) => l.map(cell).join(",")).join("\n") + "\n"
@@ -80,7 +81,7 @@ export function threadMarkdown(c: ThreadRead, now = new Date()) {
       const sentence = col.kind === "compare" ? col.sentences?.find((s) => s.id === cell.sentence) : undefined
       const text = `${cell.rel ? `${relWord(cell.rel)}${sentence ? ` “${sentence.text}”` : ""}: ` : ""}${cell.text}`
       // The page is a citation with the sentence it rests on, so the doc's reader can check it
-      return cell.depth === "full" && cell.passage ? `${text} (${citationLink(t({ message: `p. ${cell.passage.page}`, comment: "a page of a paper" }), r.id, cell.passage)})` : text
+      return fromText(cell.depth) && cell.passage ? `${text} (${citationLink(t({ message: `p. ${cell.passage.page}`, comment: "a page of a paper" }), r.id, cell.passage)})` : text
     })
     return `| ${[paper, r.is ?? "", ...answers].map(mdCell).join(" | ")} |`
   }

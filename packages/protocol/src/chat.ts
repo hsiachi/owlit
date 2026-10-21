@@ -3,6 +3,7 @@
 
 import type { FileKind } from "./files.ts"
 import type { Role } from "./roles.ts"
+import type { ReadDepth } from "./threads.ts"
 
 export type SourceKind = "paper" | "doc" | "thread"
 
@@ -216,13 +217,13 @@ export interface ChatMessage {
   readFrom?: ReadFrom[]
 }
 
-// full: it read the paper's whole text; text: some of it (pages or a section); digest: only Owlit's
-// digest; abstract: none of these, though owlit has the text (it went on the abstract or the details);
-// none: owlit has no text of the paper
+// On the one scale (threads.ts ReadDepth): full, the paper's whole text; part, some of it (pages or a
+// section); abstract or title, it read none of the text and went on the paper's record. digest: only
+// Owlit's own digest of the paper, which is Owlit's text, not the paper's.
 export interface ReadFrom {
   paperId: string
-  depth: "full" | "text" | "digest" | "abstract" | "none"
-  // For text, the pages it read when they are known: "4–5, 9"
+  depth: ReadDepth | "digest"
+  // For part, the pages it read when they are known: "4–5, 9"
   pages?: string
 }
 
@@ -367,6 +368,9 @@ export interface Connector {
   defaultEffortId?: string
   // Kinds of attached file this agent can't read (profiles.ts knows), said on a file's chip before sending
   cannotRead?: FileKind[]
+  // The agent has a tool that runs commands; the Owlit engine hasn't, so a Co-author on it runs none and
+  // the role's lines don't say it does
+  commands: boolean
   // For the agents owlit can set up itself
   setup?: AgentSetup
 }

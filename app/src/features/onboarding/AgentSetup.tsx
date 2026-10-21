@@ -9,6 +9,7 @@ import { RowList, rowClass, rowHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { canRun, canSetUp, connectorProblem, isChecking, problemSentence, settingUp, statusLabel, useConnectorRecheck } from "@/features/chat/lib/connector-status"
+import { otherRolesSentence } from "@/features/chat/lib/selection"
 import { useChatStore } from "@/features/chat/store"
 import { SetupProgress } from "@/features/settings/sections/AgentsSection"
 import { BrowserSignIn } from "@/features/settings/sections/BrowserSignIn"
@@ -68,6 +69,8 @@ function AgentChoice() {
   const setSelection = useChatStore((s) => s.setSelection)
   const background = useSettings((s) => s.view?.backgroundAgent)
   const chosen = connectors.find((c) => c.id === background && canRun(c)) ?? connectors.find(canRun)
+  // The Owlit engine is not among these (it signs in here, later); the agents listed all run commands
+  const commands = chosen?.commands ?? true
   useConnectorRecheck(connectors)
 
   const choose = (c: Connector) => {
@@ -130,8 +133,8 @@ function AgentChoice() {
       </RowList>
       <div className="mt-6 text-sm leading-relaxed text-muted-foreground">
         <p className="mb-1 font-medium text-foreground">{t`As Assistant, its usual role, Owlit`}</p>
-        <RoleLines role={DEFAULT_ROLE} />
-        <p className="mt-2">{t`Reviewer, which changes nothing of yours, and Co-author, which also runs commands, are in the composer, for one chat at a time.`}</p>
+        <RoleLines role={DEFAULT_ROLE} commands={commands} />
+        <p className="mt-2">{otherRolesSentence(commands)}</p>
       </div>
     </>
   )

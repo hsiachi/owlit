@@ -12,7 +12,7 @@ export function registerThreads({ router, requireWorkspace }: Deps) {
   const threads = () => requireWorkspace().threads
   const cellWrite = z.object({
     text: z.string(),
-    depth: z.enum(["abstract", "full"]),
+    depth: z.enum(["title", "abstract", "part", "full"]),
     passage: z.object({ quote: z.string().min(1), page: z.number().int().min(1) }).optional(),
     rel: z.enum(["supports", "challenges", "related"]).optional(),
     sentence: z.string().optional(),

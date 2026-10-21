@@ -7,7 +7,7 @@ import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
 import { Seen } from "../changes/seen.ts"
 import { RpcFailure } from "../rpc/errors.ts"
-import { Threads, uniqueId, type ThreadsServices } from "./threads.ts"
+import { citingOrder, Threads, uniqueId, type ThreadsServices } from "./threads.ts"
 
 const papers: Record<string, ThreadPaper> = {
   "doi-10.1145-1": { title: "Replay or Live? Validity of Retrospective Ratings", authors: ["Fernández", "Oh"], ids: { doi: "10.1145/1" }, year: 2026 },
@@ -126,6 +126,46 @@ describe("Threads.write", () => {
     // A rewrite that stays from the full text isn't one
     await threads.write({ id, rows: [{ id: "doi-10.1145-1", cells: { q: { text: "Replay ratings run 0.6 lower.", depth: "full", passage: { quote: "0.6 points lower", page: 7 } } } }] }, agent)
     expect(readInFull(await newest("doi-10.1145-1"))).toBeNull()
+  })
+
+  it("stores how far the chat read a paper's text, from what core saw it read, not the agent's word", async () => {
+    const reads: Record<string, "full" | "part" | undefined> = { "doi-10.1145-1": "part", "doi-10.1145-2": "full" }
+    const { threads } = setup({ readDepth: (chatId, paperId) => (chatId === "chat-1" ? reads[paperId] : undefined) })
+    const { id } = await start(threads)
+    const caller = { kind: "socket" as const, chatId: "chat-1" }
+    const full = (paper: string, quote: string) => ({ id: paper, cells: { q: { text: "From the text.", depth: "full" as const, passage: { quote, page: 3 } } } })
+    await threads.write({ id, rows: [full("doi-10.1145-1", "0.6 points lower"), full("doi-10.1145-2", "a third more"), full("doi-10.1145-3", "ran lower")] }, caller)
+    const cells = Object.fromEntries((await threads.get(id)).rows.map((r) => [r.id, r.cells.q]))
+    // Pages read: part of the text; the whole text read: full; nothing seen read: part, which the passage backs
+    expect(cells["doi-10.1145-1"]).toMatchObject({ depth: "part", passage: { quote: "0.6 points lower", page: 3 } })
+    expect(cells["doi-10.1145-2"]).toMatchObject({ depth: "full", passage: { quote: "a third more", page: 3 } })
+    expect(cells["doi-10.1145-3"]).toMatchObject({ depth: "part" })
+    // Without a chat to ask about, the agent's word stands
+    await threads.write({ id, rows: [full("doi-10.1145-3", "ran lower")] }, agent)
+    expect((await threads.get(id)).rows.find((r) => r.id === "doi-10.1145-3")!.cells.q).toMatchObject({ depth: "full" })
+  })
+
+  it("turns a found-by line the right way round when the years say a paper can't be cited by an older one", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads)
+    // doi-10.1145-1 is from 2026: a 2022 paper can't cite it, so it cites that paper
+    await threads.write({ id, rows: [{ id: "doi-10.1145-1", foundBy: "cited by Spiel et al. 2022" }, { id: "doi-10.1145-2", foundBy: "cited by Fernández 2026" }] }, agent)
+    const rows = (await threads.get(id)).rows
+    expect(rows.find((r) => r.id === "doi-10.1145-1")!.foundBy).toBe("cites Spiel et al. 2022")
+    expect(rows.find((r) => r.id === "doi-10.1145-2")!.foundBy).toBe("cited by Fernández 2026")
+    expect(citingOrder("cites Kelly 2015", 2026)).toBe("cites Kelly 2015")
+    expect(citingOrder("cites Fernández 2026", 2015)).toBe("cited by Fernández 2026")
+    expect(citingOrder("search: replay", 2026)).toBe("search: replay")
+    expect(citingOrder("cited by Spiel et al. 2022", undefined)).toBe("cited by Spiel et al. 2022")
+  })
+
+  it("keeps the thread's one line as plain words, whether given or taken from the report", async () => {
+    const { threads } = setup()
+    const { id } = await start(threads)
+    await threads.write({ id, one: "**Replay** ratings run *lower* than `live` ones." }, agent)
+    expect((await threads.list()).find((c) => c.id === id)!.one).toBe("Replay ratings run lower than live ones.")
+    await threads.write({ id, report: "**Two precedents** had wearers _replay_ their own footage. The rest is history." }, agent)
+    expect((await threads.list()).find((c) => c.id === id)!.one).toBe("Two precedents had wearers replay their own footage.")
   })
 
   it("rewrites the report whole, and its line with it unless the write gives one", async () => {

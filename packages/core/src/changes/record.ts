@@ -61,13 +61,14 @@ export class Recorder {
 
   // The window is the profile's person. A program on the socket working for a chat is that
   // person's Owlit; one working for none (the CLI, an agent outside owlit) can't be told from a person
-  // at a terminal, so it is other. A change the watcher saw is Owlit's only when a tool call named the file.
+  // at a terminal, so it is other. A change the watcher saw is Owlit's when a tool call named the file or
+  // a chat's agent was at work on the workspace then (core's seenBy): the entry names that chat, and a
+  // change from a chat is never "outside owlit".
   async actorOf(caller: Caller): Promise<ActorId> {
     const id = (await this.profile()).id
     if (!id) return "other"
     if (caller.kind === "window") return `p_${id}`
     if (caller.kind === "owlit") return `o_${id}`
-    if (caller.kind === "watcher") return caller.toolCallId ? `o_${id}` : "other"
     return caller.chatId ? `o_${id}` : "other"
   }
 

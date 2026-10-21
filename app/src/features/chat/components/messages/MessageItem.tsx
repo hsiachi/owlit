@@ -18,6 +18,7 @@ import { unansweredSentence } from "../../lib/step-words"
 import { messageText } from "../../lib/message-text"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
 import { ResultCard } from "./ResultRows"
+import { ReadFromContext } from "@/components/citation-card"
 import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
 
 // The one red mark a reply can have, as a small bordered block (the result card's frame) so it reads as
@@ -232,6 +233,8 @@ export function AssistantMessage({
   const silent = streaming ? message.parts.findLast((p) => p.type === "notice") : undefined
   return (
     <Message className="text-body">
+      {/* The citations in the answer say how far Owlit read each paper from what core saw the turn read */}
+      <ReadFromContext.Provider value={message.readFrom}>
       <MessageContent className="gap-3">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1
@@ -260,6 +263,7 @@ export function AssistantMessage({
         {!streaming && <ResultCard message={message} chatId={chatId} />}
         {message.status === "error" && !message.cutOff && <StoppedNote message={message} onRetry={onRegenerate} />}
       </MessageContent>
+      </ReadFromContext.Provider>
       {!streaming && (
         <MessageFooter className="absolute -bottom-7 left-0 gap-0.5 px-0">
           {/* A partial answer says so at all times, in the same muted tone (stopping was the user's

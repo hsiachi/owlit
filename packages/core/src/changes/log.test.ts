@@ -108,9 +108,10 @@ describe("Recorder", () => {
     expect(await r.actorOf({ kind: "socket", chatId: "c1" })).toBe("o_1234abcd")
     expect(await r.actorOf({ kind: "socket" })).toBe("other")
     expect(await r.actorOf({ kind: "owlit" })).toBe("o_1234abcd")
-    // The watcher's change is Owlit's only when a tool call named the file; a running turn alone is a hint
+    // The watcher's change is Owlit's when a tool call named the file or a chat's agent was at work then
+    // (the entry names the chat, so it can't be "outside owlit"); with neither it is other
     expect(await r.actorOf({ kind: "watcher", chatId: "c1", toolCallId: "t1" })).toBe("o_1234abcd")
-    expect(await r.actorOf({ kind: "watcher", chatId: "c1" })).toBe("other")
+    expect(await r.actorOf({ kind: "watcher", chatId: "c1" })).toBe("o_1234abcd")
     expect(await r.actorOf({ kind: "watcher" })).toBe("other")
   })
 
@@ -122,7 +123,7 @@ describe("Recorder", () => {
     const tool = await r.record({ kind: "socket", chatId: "c2" }, { action: "create", target: { kind: "comment", path: "a.md", part: "x" } })
     expect(applied).toMatchObject({ actor: "o_1234abcd", origin: { via: "apply", chatId: "c1", toolCallId: "t1", writeId: "t1" } })
     expect(seen).toMatchObject({ actor: "o_1234abcd", origin: { via: "watcher", toolCallId: "t2" } })
-    expect(hinted).toMatchObject({ actor: "other", origin: { via: "watcher", chatId: "c1" } })
+    expect(hinted).toMatchObject({ actor: "o_1234abcd", origin: { via: "watcher", chatId: "c1" } })
     expect(hinted.origin.toolCallId).toBeUndefined()
     expect(tool.origin).toMatchObject({ via: "tool", chatId: "c2" })
   })

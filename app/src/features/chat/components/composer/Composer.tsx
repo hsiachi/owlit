@@ -279,7 +279,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     setText: (text) => {
       editor?.commands.setContent(text ? `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>` : "")
       editor?.commands.focus("end")
-      // HTML drops a trailing space, and a prompt stem ("Find recent papers on ") needs it to type on
+      // HTML drops a trailing space, and a prompt stem ("Find papers on ") needs it to type on
       if (/ $/.test(text)) editor?.commands.insertContent(" ")
       save()
     },

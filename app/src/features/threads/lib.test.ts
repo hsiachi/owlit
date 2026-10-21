@@ -70,7 +70,7 @@ describe("a thread's page, on the example workspace", () => {
       ["Open QA sets", 1, 2],
       ["Data the paper made for itself", 0, 5],
     ])
-    expect(paperCounts(testData)).toEqual({ papers: 8, groups: 2, full: 3 })
+    expect(paperCounts(testData)).toEqual({ papers: 8, groups: 2, depths: expect.arrayContaining(["full"]) })
   })
 
   it("has a report in sections whose paper links are its rows, and what each paper is", () => {

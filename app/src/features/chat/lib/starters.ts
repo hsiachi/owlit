@@ -10,7 +10,9 @@ import type { SourceKind } from "@owlit/protocol"
 // stop?" is a whole question, sent as it is: Owlit reads what the user did (activity_read), the chats and
 // the threads, and nothing in the app would otherwise suggest asking it.
 export const starters: { id: string; label: MessageDescriptor; prompt: MessageDescriptor; kind?: SourceKind | "all" }[] = [
-  { id: "find", label: msg`Find papers on a question`, prompt: msg({ message: "Find recent papers on ", comment: "starts a question the user finishes; keep the trailing space" }) },
+  // "papers", not "recent papers": the framing work a section cites is often years old, and the stem
+  // becomes the chat's title
+  { id: "find", label: msg`Find papers on a question`, prompt: msg({ message: "Find papers on ", comment: "starts a question the user finishes; keep the trailing space" }) },
   { id: "compare", label: msg`Compare papers`, prompt: msg({ message: "Compare the methods and findings of ", comment: "starts a question the user finishes with papers; keep the trailing space" }), kind: "paper" },
   { id: "review", label: msg`Review a draft`, prompt: msg({ message: "Review where I overstate a finding or misread a paper in ", comment: "starts a question the user finishes with a doc; keep the trailing space" }), kind: "doc" },
   { id: "ask", label: msg`Ask about your papers`, prompt: msg({ message: "What do my papers say about ", comment: "starts a question the user finishes; keep the trailing space" }) },

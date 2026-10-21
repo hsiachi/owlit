@@ -84,7 +84,9 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
   const checking = useAfterWait(connector?.status === "checking")
   const modelName = model?.name ?? ""
   const effortName = effort?.name ?? ""
-  const roleSaid = roleWords(role.id)
+  // The Owlit engine runs no commands, so its role lines don't say a Co-author does
+  const commands = connector?.commands ?? true
+  const roleSaid = roleWords(role.id, commands)
 
   return (
     <div className={cn("flex min-w-0 items-center", className)}>
@@ -170,7 +172,7 @@ export function AgentPicker({ chatId, className }: { chatId?: string; className?
         <DropdownMenuContent align="end" className="w-80">
           <DropdownMenuLabel>{chatId ? t`In this chat, Owlit works as` : t`Owlit works as`}</DropdownMenuLabel>
           {ROLES.map((r) => (
-            <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={roleWords(r.id).name} description={<RoleLines role={r.id} />} />
+            <RadioItem key={r.id} checked={r.id === role.id} onSelect={() => update({ role: r.id })} title={roleWords(r.id).name} description={<RoleLines role={r.id} commands={commands} />} />
           ))}
         </DropdownMenuContent>
       </DropdownMenu>

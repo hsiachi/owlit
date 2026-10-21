@@ -1,13 +1,14 @@
-import { parseOwlitUri, type AnswerDepth } from "@owlit/protocol"
+import { parseOwlitUri, type ReadFrom } from "@owlit/protocol"
 
 // A claim about a paper, as every place Owlit writes one carries it: the paper, the page the link names,
-// and the sentence the claim rests on (the link's title). On a thread cell, how far Owlit read is the
-// cell's own depth; elsewhere a sentence means it read the full text, and a bare link says nothing.
+// and the sentence the claim rests on (the link's title). How far Owlit read is known on a thread cell
+// (its own depth) and in a chat's answer (what core saw the turn read); elsewhere the card works it
+// out from the sentence, or says it isn't recorded.
 export interface Citation {
   paperId: string
   page?: number
   quote?: string
-  depth?: AnswerDepth
+  depth?: ReadFrom["depth"]
 }
 
 // The citation an owlit:// link makes, or null when the link isn't to a paper
