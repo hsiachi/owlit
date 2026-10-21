@@ -8,7 +8,7 @@ import { digestInstructions } from "./instructions.ts"
 
 // The way notes are written now. A note written another way (an older owlit, pitta) is still a note;
 // the paper page offers to rewrite it, and nothing rewrites it unasked.
-export const DIGEST_FORMAT = 2
+export const DIGEST_FORMAT = 3
 
 // What digest.json records beside digest.md
 export interface DigestRecord {

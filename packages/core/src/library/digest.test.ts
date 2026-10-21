@@ -83,7 +83,7 @@ describe("digests", () => {
     // Unset, the language is the system's; a test host has none, so English
     expect(digest).toMatch(/^# Paper doi-10\.1-a\n\n## Summary\n\n- \*\*Background\*\*: Written in English, having seen 0 pictures\./)
     expect(digest).toContain("## Details")
-    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-a/digest.json"), "utf8"))).toMatchObject({ format: 2, language: "en", by: expect.stringMatching(/^custom-/), pictures: 0 })
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1-a/digest.json"), "utf8"))).toMatchObject({ format: 3, language: "en", by: expect.stringMatching(/^custom-/), pictures: 0 })
     expect((await call("library.list")).papers.find((p: { id: string }) => p.id === "doi-10.1-a")).toMatchObject({ hasDigest: true, digestAt: expect.any(Number) })
     expect(await call("chats.list")).toEqual([])
     // Only the paper asked about has a chat

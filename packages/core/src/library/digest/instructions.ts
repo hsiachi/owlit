@@ -1,8 +1,12 @@
-// How a digest is written: pitta's v4 digest prompt, ported as it was, with owlit's changes: the
-// detailed part is "Details" (Notes is the user's own tab), places are pages (p. N) as well as
-// sections, and the paper's figures can be shown by id. Its wording was settled by tuning against real
-// papers, so try a change on a few before keeping it, and bump DIGEST_FORMAT (prompt.ts) when a change
-// alters what a note holds.
+// How a digest is written: pitta's v4 digest prompt, ported with owlit's changes: the detailed part is
+// "Details" (Notes is the user's own tab), places are pages (p. N) as well as sections, and the paper's
+// figures can be shown by id. pitta's prompt was tuned on GPT-5.4, a model that writes long and in
+// paragraphs, so it is all ceilings and cuts; Claude obeys those literally and answers in short stacked
+// bullets, half the budget, with no word on which statements are the paper's own. The Details therefore
+// say in so many words what pitta's model did unasked: paragraphs with a topic sentence ("How to write
+// it"), the kind of each statement named in the sentence, a floor on the length, and no character count
+// on the Summary. Its wording was settled by tuning against real papers, so try a change on a few
+// before keeping it, and bump DIGEST_FORMAT (prompt.ts) when a change alters what a note holds.
 
 export function digestInstructions({ language, title, fields, notes_budget, boundary }: { language: string; title: string; fields: string; notes_budget: number; boundary: string }) {
   return `You are a meticulous researcher writing a literature note for your own future reference. You have just read the full text of one paper.
@@ -35,6 +39,13 @@ written as one. "The paper does not say whether there was a second coder" is
 faithful; "there was no second coder" is a claim the paper never made. The slip
 happens during compression, when a clause gets shortened into its own negation,
 so it is in the Summary that it needs watching.
+
+In the Details, say which kind it is in words, inside the sentence, in the
+note's language: "the authors measured", "the authors report", "the authors
+cite", "the authors argue", "the authors sketch", "the paper does not say",
+"inference:". Once per paragraph is enough where the kind does not change
+inside it; a paragraph that mixes kinds marks each. A reader should be able to
+tell the kind of every statement without opening the paper.
 
 The test is one sentence: **would a reader come away thinking the paper
 established something it did not?** The most quotable number in a paper is often
@@ -87,10 +98,6 @@ parentheses or semicolons holding it together. A clause chained on with a dash
 is a second sentence wearing a disguise, and if you need a third clause, that
 clause belongs in the Details. Ceilings, not targets: a field finished in half a
 sentence is finished, and every field at its ceiling means the run-up is back.
-
-As a check afterwards rather than a rule while writing: the whole Summary lands
-near 1,000 characters of markdown source. Past 1,500 and you have written the
-Details a second time.
 
 Fields that hold two or more separable things take indented sub-bullets rather
 than stringing them together with semicolons:
@@ -181,10 +188,11 @@ The detailed pass: everything the Summary had to leave out. This is the record
 places where the paper does not line up with itself. A reader who has decided
 from the Summary that this paper matters comes down here to actually use it.
 
-Budget: about ${notes_budget} characters. A ceiling, not a target -- and one that
-is rarely the binding constraint. A short paper finished in half of it is
-finished; what is *not* acceptable is arriving under budget by dropping things
-worth writing.
+Budget: about ${notes_budget} characters, and use it. A note that comes in under
+two thirds of this on a paper of ordinary length has dropped things worth
+writing: the conditions a finding holds under, the numbers behind a
+percentage, the design decision a result depends on. A short paper may finish
+early; a paper of ten or more pages does not.
 
 Write the proposition, not just the evidence's status. Recording that a section
 rests on a single participant's quotes is bookkeeping; the note owes the
@@ -193,6 +201,21 @@ one person's preference". The same move everywhere: having located a number,
 a gap or an inconsistency, say what it means for someone using the paper. A note
 made of correctly-labelled evidence with none of the conclusions drawn is the
 most common way these notes fail while looking complete.
+
+### How to write it
+
+The Details are prose. Each paragraph opens with the sentence a reader needs
+first -- what this part of the paper claims, did or found -- and then carries
+the mechanism, the numbers and the conditions. A paragraph is three to six
+sentences; one idea each.
+
+A bulleted list is for an enumeration of short, parallel items -- the stages of
+a pipeline, a count per condition, the members of a taxonomy -- one line each,
+and a list item never runs to a second sentence. A bullet that needs two
+sentences is a paragraph that lost its topic sentence: write it as one. A
+subsection made of long bullets is the failure mode to watch here. It cannot be
+skimmed, because every bullet looks equally important, and it cannot be read,
+because nothing says what the pile adds up to.
 
 ### How to organise it
 
@@ -257,6 +280,12 @@ directions**:
 
 Both are things only a reader who followed the mapping can see, and both survive
 compression better than any restatement of the results.
+
+Write it as a numbered list of verdicts, four to seven. Each item opens with
+one bold sentence saying what a reader may or may not take from this paper,
+then two or three sentences of reasoning that point at the place in the paper
+the judgement rests on. The both-directions check above is one or two of the
+items.
 
 Every other subsection is adaptive. This one is fixed.
 
