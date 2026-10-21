@@ -1,22 +1,19 @@
 import { t } from "@lingui/core/macro"
 import { i18n } from "@/lib/i18n"
-import { starters } from "./starters"
+import { FIND_STEM } from "./starters"
 
 const TITLE_MAX = 80
 
-// A starter chip puts its stem in the composer ("What do my papers say about "); a person who then types a
-// whole question of their own ("Compare how …") would get a title of both. When what follows the stem
+// A page that sends the person to find papers puts its stem in the composer ("Find papers on "); a person
+// who then types a whole question of their own ("Compare how …") would get a title of both. When what follows the stem
 // starts with a capitalised word and runs longer than a few words, it reads as their own sentence and stands
 // alone. An acronym ("RAG benchmarks") or a mention ("@[Niu et al. 2023]", checked before mentions become
 // their labels) finishes the stem's sentence instead.
 function withoutStem(text: string) {
-  for (const { prompt } of starters) {
-    const stem = i18n._(prompt).trim()
-    if (!text.startsWith(stem)) continue
-    const rest = text.slice(stem.length).trim()
-    if (/^\p{Lu}\p{Ll}/u.test(rest) && rest.length > 20) return rest
-  }
-  return text
+  const stem = i18n._(FIND_STEM).trim()
+  if (!text.startsWith(stem)) return text
+  const rest = text.slice(stem.length).trim()
+  return /^\p{Lu}\p{Ll}/u.test(rest) && rest.length > 20 ? rest : text
 }
 
 // A chat's title is its first question, cut at a word when it runs long and ended with an ellipsis, so a

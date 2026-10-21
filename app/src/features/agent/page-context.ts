@@ -7,8 +7,6 @@ import { threadMentionable, docMentionable, paperMentionable } from "@/features/
 import { useDocsStore } from "@/features/docs/store"
 import { useThreadsStore } from "@/features/threads/store"
 import { useLibraryStore } from "@/features/library/store"
-import { starters } from "@/features/chat/lib/starters"
-import { i18n } from "@/lib/i18n"
 import { useAgentWindow } from "./store"
 
 // A passage's chip names where it came from: a page of a paper, the paper's note or digest
@@ -35,32 +33,6 @@ export function askAboutOrAnything(kind: PageKind) {
   if (kind === "paper") return t`Ask about this paper, or anything else.`
   if (kind === "doc") return t`Ask about this doc, or anything else.`
   return t`Ask about this thread, or anything else.`
-}
-
-// The empty panel's starters for what is on the page: a label, and the question it puts in the composer
-// for the person to send or finish. A question about the page, since that is what the panel is beside.
-export function pageStarters(kind: PageKind): { label: string; prompt: string }[] {
-  if (kind === "paper")
-    return [
-      { label: t`Summarize this paper`, prompt: t`Summarize this paper: its question, method and main findings.` },
-      { label: t`What’s the method?`, prompt: t`What method does this paper use, and how does it evaluate it?` },
-    ]
-  if (kind === "doc")
-    return [
-      { label: t`Review this draft`, prompt: t`Review where this draft overstates a finding or misreads a paper.` },
-      { label: t`Find papers to cite`, prompt: t`Find papers that support or challenge the claims in this doc.` },
-    ]
-  return [
-    { label: t`Where do they disagree?`, prompt: t`Where do the papers in this thread disagree, and why?` },
-    { label: t`What’s left open?`, prompt: t`Which questions do the papers in this thread leave open?` },
-  ]
-}
-
-// The empty panel's starters wherever it is: the questions one asks on coming back, which the Chat page
-// offers too (starters.ts); shown after the page's own
-export function generalStarters(): { label: string; prompt: string }[] {
-  const resume = starters.find((s) => s.id === "resume")!
-  return [{ label: i18n._(resume.label), prompt: i18n._(resume.prompt) }]
 }
 
 // The doc, paper or thread on screen, which the agent is shown along with the question

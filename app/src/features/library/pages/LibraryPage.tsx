@@ -29,7 +29,7 @@ import { useRefLookup } from "../lib/use-ref-lookup"
 import { usePrefsStore } from "../prefs-store"
 import { useLibraryStore } from "../store"
 import { useLibraryUi } from "../ui-store"
-import { starterPrompt } from "@/features/chat/lib/starters"
+import { findPrompt } from "@/features/chat/lib/starters"
 
 // All papers: everything in the library, narrowed by search, status and tags
 export function LibraryPage() {
@@ -84,7 +84,7 @@ export function LibraryPage() {
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the
   // way "Ask Owlit to find papers" hands over its stem (Chat's starter, in the interface's language), so
   // nothing is sent until the person says so.
-  const askOwlit = () => navigate("/chat", { state: { starter: `${starterPrompt("find")}${words}` } })
+  const askOwlit = () => navigate("/chat", { state: { starter: `${findPrompt()}${words}` } })
   // Enter in the field adds the reference it holds. Words that match nothing go to Owlit at once rather
   // than moving focus to the button: asking Owlit is the one thing offered, and it only fills the composer.
   // Words with matches have already done their work by narrowing the list, so Enter on them offers Owlit
@@ -201,7 +201,7 @@ function EmptyLibrary() {
             <Button size="sm" onClick={() => fileInput.current?.click()}>
               {t`Choose PDFs`}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/chat", { state: { starter: starterPrompt("find") } })}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/chat", { state: { starter: findPrompt() } })}>
               {t`Ask Owlit to find papers`}
             </Button>
           </>

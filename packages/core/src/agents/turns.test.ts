@@ -126,6 +126,17 @@ describe("turns", () => {
     expect(texts(promptBlocks(input, "/ws", null))).toEqual(["hi"])
   })
 
+  it("gives a command's turn its recipe, and the person's words without the name", () => {
+    const texts = (blocks: ReturnType<typeof promptBlocks>) => blocks.map((b) => (b as { text: string }).text)
+    const [recipe, line, words] = texts(promptBlocks({ text: "/review the opening @[Intro]", mentions: [], attachments: [] }, "/ws", null))
+    expect(recipe).toMatch(/^\[owlit\] The user asked for \/review\. Do it as owlit's recipe for it says:\n\nYou are Owlit, reading the user's doc as a reader would/)
+    expect(line).toBe("[owlit] The user's message follows.")
+    expect(words).toBe("the opening Intro")
+    expect(texts(promptBlocks({ text: "/revise", mentions: [], attachments: [] }, "/ws", null)).at(-1)).toBe("(Nothing more than /revise.)")
+    // Not a command: sent as typed
+    expect(texts(promptBlocks({ text: "/reviewer, please", mentions: [], attachments: [] }, "/ws", null))).toEqual(["/reviewer, please"])
+  })
+
   it("says where a selected passage came from: a page of the paper, or Owlit's digest of it", () => {
     const source = { kind: "paper" as const, id: "p1", uri: "owlit://library/p1", title: "A paper" }
     const said = (selection: { page?: number; inDigest?: boolean }) =>

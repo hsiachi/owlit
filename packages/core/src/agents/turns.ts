@@ -9,6 +9,7 @@ import {
   parseOwlitUri,
   RpcErrorCode,
   type ChatMessage,
+  commandOf,
   type CutOff,
   type MemoryLine,
   type ReadFrom,
@@ -29,6 +30,7 @@ import { pathToFileURL } from "node:url"
 import path from "node:path"
 import type { Chats } from "../chats/chats.ts"
 import type { Docs } from "../docs/docs.ts"
+import { RECIPES } from "../recipes/index.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { messageOf } from "../util.ts"
 import type { Agents } from "./agents.ts"
@@ -758,8 +760,14 @@ export function promptBlocks(
   if (role) blocks.push({ type: "text", text: role })
   if (memory) blocks.push({ type: "text", text: memory })
   if (history) blocks.push({ type: "text", text: `The conversation so far, for context:\n\n${history}\n\n---\n` })
+  // A message that starts with a command ("/review …") is the recipe's turn: the agent hears the recipe and
+  // then the person's words without the name, which an engine with slash commands of its own (Claude
+  // Code has a /review) would otherwise take for one of its own
+  const command = commandOf(input.text)
+  if (command) blocks.push({ type: "text", text: `[owlit] The user asked for /${command.name}. Do it as owlit's recipe for it says:\n\n${RECIPES[command.name].text(undefined)}` })
   if (blocks.length) blocks.push({ type: "text", text: USER_FOLLOWS })
-  blocks.push({ type: "text", text: input.text.replace(/@\[([^\]]+)\]/g, "$1") })
+  const words = command ? command.rest || `(Nothing more than /${command.name}.)` : input.text
+  blocks.push({ type: "text", text: words.replace(/@\[([^\]]+)\]/g, "$1") })
   if (input.selection) {
     const quoted = input.selection.text.split("\n").map((l) => `> ${l}`).join("\n")
     const { source, page, notePath, inDigest, comment } = input.selection

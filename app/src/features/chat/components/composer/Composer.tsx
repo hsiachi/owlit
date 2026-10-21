@@ -20,7 +20,7 @@ import { docMentionItems, type DocMention } from "@/features/docs/lib/mentions"
 import { openSettings } from "@/features/settings/store"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { fromDrop, openAttached, readerOf, useAttachments } from "../../lib/attachments"
-import type { Mentionable, PromptInput, SourceKind } from "@owlit/protocol"
+import { commandOf, commandRole, type CommandName, type Mentionable, type PromptInput, type SourceKind } from "@owlit/protocol"
 import { useResolvedSelection } from "../../use-selection"
 import { composerText } from "../../lib/composer-text"
 import { useComposerDrafts, useDraftKey } from "../../composer-drafts"
@@ -29,6 +29,7 @@ import { isUnavailable, problemSentence } from "../../lib/connector-status"
 import { AttachmentList } from "./AttachmentList"
 import { LargeFilesDialog } from "./LargeFilesDialog"
 import { mentionFilter, mentionPopup, WorkspaceMention } from "./mention-extension"
+import { SlashCommands } from "./command-extension"
 
 // A question put in the composer for the person to send or finish: words, with what it is about as a
 // mention among them (Go through names the material). A page hands one over to Chat in its route's
@@ -126,8 +127,15 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const fileInput = useRef<HTMLInputElement>(null)
   const submitRef = useRef<() => void>(() => {})
   const escapeRef = useRef<() => boolean>(() => false)
-  const { connector } = useResolvedSelection(chatId)
+  const { connector, role, update } = useResolvedSelection(chatId)
   const blocked = isUnavailable(connector)
+  // A command picked from "/" sets the chat's role for it (a review is a Reviewer's), shown in the role
+  // menu where the person can change it back; read through a ref, since the editor is made once
+  const pickRef = useRef<(name: CommandName) => void>(() => {})
+  pickRef.current = (name) => {
+    const next = commandRole(name, role.id)
+    if (next !== role.id) update({ role: next })
+  }
   // The hint says what typing does while Owlit works or waits; read through a ref, since the editor is made
   // once
   const hint =
@@ -161,6 +169,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       }),
       Placeholder.configure({ placeholder: () => hintRef.current }),
       WorkspaceMention,
+      SlashCommands.configure({ onPick: (name) => pickRef.current(name) }),
       SubmitKeymap.configure({ onSubmit: () => submitRef.current(), onEscape: () => escapeRef.current() }),
     ],
     autofocus: autoFocus ? "end" : false,
@@ -249,6 +258,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     if (!editor || !canSend) return
     const { text, mentions } = extract(editor, useComposerDrafts.getState().drafts[key]?.mentions)
     if (!text && !ready) return
+    // A command typed by hand, not picked, gets its role here, before the turn starts in it
+    const command = commandOf(text)
+    if (command) pickRef.current(command.name)
     onSubmit({ text, mentions, attachments: attachments.take() }, target)
     editor.commands.clearContent(true)
     write()

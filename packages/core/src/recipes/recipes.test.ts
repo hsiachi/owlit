@@ -4,6 +4,8 @@ import { guide } from "../agents/guide.ts"
 import { correctionOf } from "../docs/comments.ts"
 import { goThroughRecipe } from "./go-through.ts"
 import { replyRecipe } from "./reply.ts"
+import { reviewRecipe } from "./review.ts"
+import { reviseRecipe } from "./revise.ts"
 import { RECIPES } from "./index.ts"
 
 describe("the Go through recipe", () => {
@@ -19,6 +21,26 @@ describe("the Go through recipe", () => {
     expect(recipe).toContain("never guess a name from context")
     expect(RECIPES["go-through"].text(undefined)).toBe(recipe)
     expect(guide()).toMatch(/- go-through: go through material from people/)
+  })
+})
+
+describe("the review and revise recipes", () => {
+  it("reviews without changing anything, starting from earlier comments, and answers a point that stands under its old comment", () => {
+    const recipe = reviewRecipe()
+    expect(recipe).toContain("You change nothing in the doc")
+    expect(recipe.indexOf("docs_comments")).toBeLessThan(recipe.indexOf("docs_add_comment"))
+    expect(recipe).toContain("reply under that comment with comments_reply")
+    expect(recipe).toContain('"Your call:"')
+    expect(RECIPES.review.text(undefined)).toBe(recipe)
+    expect(guide()).toMatch(/- review: read the user's doc as a reader would/)
+  })
+
+  it("works through a paragraph at a time and resolves with what happened, leaving the person's calls to them", () => {
+    const recipe = reviseRecipe()
+    for (const reply of ['"Done: …"', '"Partly: …"', '"Not taken (Owlit): …"', '"Not taken (you): …"']) expect(recipe).toContain(reply)
+    expect(recipe).toContain("put the choice to them in the chat")
+    expect(recipe).toContain('"Moved to <file>"')
+    expect(RECIPES.revise.text(undefined)).toBe(recipe)
   })
 })
 

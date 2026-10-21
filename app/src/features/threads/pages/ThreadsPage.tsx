@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { EmptyPlace } from "@/components/empty-place"
 import { Button } from "@/components/ui/button"
-import { starterPrompt } from "@/features/chat/lib/starters"
+import { findPrompt } from "@/features/chat/lib/starters"
 import { GroupLabel } from "@/components/group-label"
 import { PageShell, PageTitle } from "@/components/page"
 import { NoteDot, StoppedDot } from "@/components/marks"
@@ -43,7 +43,7 @@ export function ThreadsPage() {
   }
   // The breadcrumb's project opens the list at that project's group
   useTakeParam("project", (at) => document.getElementById(`project-${at}`)?.scrollIntoView({ block: "start" }), { enabled: loaded })
-  const findPapers = () => navigate("/chat", { state: { starter: starterPrompt("find") } })
+  const findPapers = () => navigate("/chat", { state: { starter: findPrompt() } })
   const starter = t({ message: "Find papers on a question…", comment: "button: opens Chat with the question that starts a thread begun" })
   return (
     <PageShell width="narrow">

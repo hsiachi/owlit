@@ -1,6 +1,8 @@
 import { goThrough } from "./go-through.ts"
 import { reply } from "./reply.ts"
+import { review } from "./review.ts"
 import { threadSkill } from "./threads.ts"
+import { revise } from "./revise.ts"
 
 // The recipes: how Owlit does a piece of work, read whole through owlit_help (topic its name) before doing
 // it in a chat. A chat owlit starts for the person (chats.ts startFor) may be given one as its first
@@ -13,7 +15,7 @@ export interface Recipe<I> {
   text: (input: I) => string
 }
 
-export const RECIPES = { threads: threadSkill, "go-through": goThrough, reply }
+export const RECIPES = { threads: threadSkill, "go-through": goThrough, reply, review, revise }
 
 export type RecipeName = keyof typeof RECIPES
 
