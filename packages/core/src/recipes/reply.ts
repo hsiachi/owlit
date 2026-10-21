@@ -14,7 +14,7 @@ export interface ReplyInput {
 }
 
 // The citation rule of agents/rules.ts, repeated where the answer's form is asked for (change them together)
-const CITE = `When you say something about a paper, cite it with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").`
+const CITE = `When you say something specific about a paper, say it only from text you read with library_read in this chat, and cite it with the sentence it rests on as the link's title, word for word, one sentence per fact: [Author Year](owlit://library/<id>#p<page> "sentence"). A paper you haven't read is cited as a whole, without figures.`
 
 const correcting = (where: string) =>
   `If what you said in your own first entry turns out to be wrong, don't only say so: reply with comments_reply (${where}) whose text is ${CORRECT} followed by that entry rewritten so it says the right thing (the whole entry, in the same language, citations kept as they should be), and nothing else. owlit replaces your entry with it and keeps the old words; the user's replies under it stay. A comment that carries over what someone else said (from a Go through) isn't yours to rewrite: answer under it instead.`

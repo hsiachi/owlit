@@ -134,6 +134,16 @@ describe("a citation's state", () => {
     ])
   })
 
+  it("says read once Owlit gives an old bare link the sentence from a page its turn read", async () => {
+    const { recorder, owlitCaller, states } = setup({ reads: [{ asker: "chat:c1", paperId: "kim", part: "text", pages: "4", at: 0 }] })
+    const bare = `Completion rose ${link("kim")}.`
+    await recorder.saved(WINDOW, "a.md", bare, bare + " ")
+    expect(await states("a.md", bare)).toEqual([["unknown", "bare"]])
+    const titled = `Completion rose ${link("kim", "Completion rose from 62% to 86% with the agent.", 4)}.`
+    await recorder.doc(owlitCaller, "a.md", bare, titled)
+    expect(await states("a.md", titled)).toEqual([["owlit", "read"]])
+  })
+
   it("says bare for a citation another program wrote", async () => {
     const { recorder, states } = setup()
     const doc = link("kim")

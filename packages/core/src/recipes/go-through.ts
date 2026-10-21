@@ -57,7 +57,7 @@ Leave out a list with nothing in it. Six to eight items is many; with more, the 
     `Then, once the record is written (the comments point back to it, so owlit takes none before it), land each point and open question in the doc it is about, with docs_add_comment and record set to the record's path, on the exact words it is about (quote them word for word, a sentence or less; a point about something missing goes on the nearest heading):
 - comment: who said what, in your words, mentioning the record as ${recordLink}, e.g. "时英天在 ${recordLink} 上建议……你当场同意了。" Never write in a speaker's name or voice.
 - own: only when you have something to add of your own (where the doc already says it, what the point would break elsewhere, something in their library or a thread, a view worth having), one to three sentences; leave it out otherwise. A point in the user's own words usually has none.
-- A paper you name in either is cited with the sentence it rests on as the link's title, word for word from library_read: [Author Year](owlit://library/<id>#p<page> "sentence").
+- A paper you name in either is cited with the sentence it rests on as the link's title, word for word from library_read in this chat: [Author Year](owlit://library/<id>#p<page> "sentence"). A paper you haven't read is cited as a whole, without figures.
 Don't pre-write changes to the doc, and don't comment on the material itself. To-do items stay in the reading.`,
     `Change nothing else: not the material, not the user's docs, and add nothing to the library. When you are done, say in one line what you wrote; the record and the comments are the work.`,
   ].join("\n\n")

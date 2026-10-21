@@ -139,7 +139,8 @@ export class Citations {
   }
 
   // What Owlit had read of one paper: the turn's reads core saw, with what the chat's earlier answers
-  // recorded (those outlive a restart; the read log doesn't)
+  // recorded (those outlive a restart; the read log doesn't). Only the writing chat's: a paper read in
+  // another chat and cited here counts as not read.
   private async readOf(id: string, reads: LibraryRead[], chatId: string | undefined, replyId: string | undefined): Promise<KeptRead> {
     const read: KeptRead = {}
     const pages = new Set<number>()
