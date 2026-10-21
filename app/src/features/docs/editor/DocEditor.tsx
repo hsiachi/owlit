@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
@@ -20,6 +21,7 @@ import { freshDocIds, useDocsStore } from "../store"
 import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
+import { citationsSlot, showCitationsSlot } from "./citations-slot"
 import { DocCitationsContext } from "@/components/citation"
 import { citationsLine, useDocCitations, useMarkedCitations } from "../lib/citations"
 import { mentionPopup } from "./mention-popup"
@@ -105,6 +107,12 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   const line = useMemo(() => (citations ? citationsLine(citations.counts) : []), [citations])
   const pickedStates = line.find((p) => p.states.join() === picked)?.states ?? null
   useMarkedCitations(host, citations?.citations, pickedStates)
+  // Where the line is drawn: a slot the editor keeps under the doc's title
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const shown = line.length > 0
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: showCitationsSlot.of(shown) })
+  }, [shown])
   const navigate = useNavigate()
   const navigateRef = useRef(navigate)
   useEffect(() => {
@@ -217,6 +225,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
             clear: () => seen?.clear(),
           }),
+          citationsSlot(setSlot),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),
@@ -353,28 +362,31 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
 
   return (
     <>
-      {line.length > 0 && (
-        // One muted line over the text, naming only what wasn't read in the paper; a part marks its citations
-        <p className="mb-3 text-detail text-muted-foreground">
-          {line.map((part, i) => {
-            const key = part.states.join()
-            return (
-              <span key={key}>
-                {i > 0 && " · "}
-                <button
-                  type="button"
-                  aria-pressed={picked === key}
-                  onClick={() => setPicked(picked === key ? null : key)}
-                  className="rounded-sm underline-offset-2 outline-none hover:text-foreground hover:underline focus-key:underline aria-pressed:text-foreground aria-pressed:underline"
-                >
-                  {part.text}
-                </button>
-              </span>
-            )
-          })}
-        </p>
-      )}
       <div ref={host} className="min-h-full" />
+      {slot &&
+        shown &&
+        createPortal(
+          // One muted line under the title, naming only what wasn't read in the paper; a part marks its citations
+          <p className="pb-2 text-detail text-muted-foreground">
+            {line.map((part, i) => {
+              const key = part.states.join()
+              return (
+                <span key={key}>
+                  {i > 0 && " · "}
+                  <button
+                    type="button"
+                    aria-pressed={picked === key}
+                    onClick={() => setPicked(picked === key ? null : key)}
+                    className="rounded-sm underline-offset-2 outline-none hover:text-foreground hover:underline focus-key:underline aria-pressed:text-foreground aria-pressed:underline"
+                  >
+                    {part.text}
+                  </button>
+                </span>
+              )
+            })}
+          </p>,
+          slot,
+        )}
       <DocCitationsContext.Provider value={citations?.citations}>
         <DocCitationHover
           host={host}
