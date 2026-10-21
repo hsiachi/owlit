@@ -54,7 +54,7 @@ function TOOLS(): ToolSpec[] {
     name: "library_read",
     touches: "read",
     description:
-      "Read a paper. part=text is its full text as Markdown with <!-- page N --> before each page: ask for pages ('3', '3-5', '2,7') or a section (a word from its heading) rather than all of it. part=digest is the digest an agent wrote; part=note is the user's own note.",
+      "Read a paper. part=text is its full text as Markdown with <!-- page N --> before each page: ask for pages ('3', '3-5', '2,7') or a section (a word from its heading) rather than all of it. A long paper asked for whole comes from its start as far as a result holds and says which pages are left; read those too before you say you read it in full. part=digest is the digest an agent wrote; part=note is the user's own note.",
     inputSchema: {
       type: "object",
       properties: {
@@ -243,7 +243,7 @@ function TOOLS(): ToolSpec[] {
     name: "docs_read",
     touches: "read",
     description:
-      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers. A PDF in the Library is read with library_read instead.",
+      "A doc's text, as it is on disk now. Also reads a PDF in the workspace that isn't in the Library (one the user attached or keeps among their docs): its text comes page by page after <!-- page N --> lines, so cite those page numbers; a long one comes from its start as far as a result holds and says which pages are left. A PDF in the Library is read with library_read instead.",
     inputSchema: {
       type: "object",
       properties: {

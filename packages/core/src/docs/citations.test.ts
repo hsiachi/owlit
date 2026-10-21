@@ -93,6 +93,21 @@ describe("a citation's state", () => {
     ])
   })
 
+  it("takes page runs that together name every page as the whole text", async () => {
+    // A long paper comes in runs that each know its page count; read to the end, the paper was read in full
+    const runs: LibraryRead[] = [
+      { asker: "chat:c1", paperId: "kim", part: "text", pages: "1", of: 2, at: 0 },
+      { asker: "chat:c1", paperId: "kim", part: "text", pages: "2", of: 2, at: 1 },
+    ]
+    const { recorder, owlitCaller, citations } = setup({ reads: runs })
+    const doc = [link("kim", "Completion rose from 62% to 86% with the agent."), link("kim", "Nobody used the agent.")].join("\n")
+    await recorder.doc(owlitCaller, "a.md", null, doc)
+    await citations.idle
+    const all = (await citations.of("a.md", doc)).citations
+    expect(all.map((c) => c.state)).toEqual(["read", "not-found"])
+    expect(all[0]!.owlitRead).toEqual({ depth: "full" })
+  })
+
   it("says not read for a bare citation of a paper Owlit read nothing of, and counts what wasn't read", async () => {
     const { recorder, owlitCaller, citations } = setup({ reads: [{ asker: "chat:c1", paperId: "kim", part: "text", pages: "4", at: 0 }] })
     const doc = [link("lee"), link("kim", "Completion rose from 62% to 86% with the agent."), link("kim", "Agents help novices most."), link("gone")].join("\n")

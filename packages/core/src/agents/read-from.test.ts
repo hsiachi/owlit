@@ -35,6 +35,25 @@ describe("what an answer was built from", () => {
     ])
   })
 
+  it("counts page runs that together name every page as the whole text, and fewer as those pages", async () => {
+    const log = new ReadLog()
+    // A long paper comes in runs, each read knowing how many pages it has
+    log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "1-12", of: 30, at: 1 })
+    log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "13-24", of: 30, at: 2 })
+    log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "25-30", of: 30, at: 3 })
+    log.record({ asker: "chat:c1", paperId: "b", part: "text", pages: "1-12", of: 30, at: 4 })
+    // Pages that happen to be all of them, read without knowing the count, are only those pages
+    log.record({ asker: "chat:c1", paperId: "c", part: "text", pages: "1-2", at: 5 })
+    const same = async (id: string) => id
+    expect(await readFromOf(log.since("chat:c1", 0), "", same, async () => true)).toEqual([
+      { paperId: "a", depth: "full" },
+      { paperId: "b", depth: "part", pages: "1–12" },
+      { paperId: "c", depth: "part", pages: "1–2" },
+    ])
+    expect(textDepthOf(log.since("chat:c1", 0).filter((r) => r.paperId === "a"))).toBe("full")
+    expect(textDepthOf(log.since("chat:c1", 0).filter((r) => r.paperId === "b"))).toBe("part")
+  })
+
   it("tells a thread's cell whether the chat read the paper's whole text or part of it", () => {
     const log = new ReadLog()
     log.record({ asker: "chat:c1", paperId: "a", part: "text", pages: "4", at: 1 })

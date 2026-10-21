@@ -28,6 +28,7 @@ const VERSIONS: [version: number, sha1: string][] = [
   [38, "a7c657f841a19d5a9bd7183adc1057a56d7b456f"],
   [39, "6c28bfb8ac28a6ccd5cf166f7bc29af8958a546c"],
   [40, "285172ad2ce8bf74a7cdbe244217fc81b2ecded0"],
+  [41, "eda9b7294fdd0935f25f6ac4508de79db5843edc"],
 ]
 
 const textHash = () => createHash("sha1").update(AGENT_RULES.slice(AGENT_RULES.indexOf("\n"))).digest("hex")

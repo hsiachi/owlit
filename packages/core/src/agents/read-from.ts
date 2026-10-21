@@ -11,6 +11,8 @@ export interface LibraryRead {
   pages?: string
   // A section asked for by a word from its heading; a read with neither pages nor section is the whole text
   section?: string
+  // How many pages the paper has, when the read knew (a read of its text)
+  of?: number
   at: number
 }
 
@@ -68,11 +70,21 @@ export async function readFromOf(
 }
 
 // How far reads of one paper went into its text: the whole of it (a read naming neither pages nor a
-// section), part of it, or none
+// section, or page reads that together name every page), part of it, or none
 export function textDepthOf(reads: readonly LibraryRead[]): "full" | "part" | undefined {
   const text = reads.filter((r) => r.part === "text")
-  if (text.some((r) => !r.pages && !r.section)) return "full"
+  if (text.some((r) => !r.pages && !r.section) || coversAll(text)) return "full"
   return text.length ? "part" : undefined
+}
+
+// Whether reads of one paper's text together name every page of it. A whole text longer than a tool
+// result may carry comes in page runs, each read knowing the paper's page count (`of`); read to the
+// end, those runs are the whole text.
+export function coversAll(reads: readonly LibraryRead[]): boolean {
+  const of = Math.max(0, ...reads.map((r) => r.of ?? 0))
+  if (!of) return false
+  const pages = pageNumbers(reads.flatMap((r) => (r.pages ? [r.pages] : [])))
+  return !!pages && Array.from({ length: of }, (_, i) => i + 1).every((p) => pages.includes(p))
 }
 
 // Pages as library_read takes them ("3", "3-5", "2,7"), several reads' together, as one list of runs:

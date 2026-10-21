@@ -1,6 +1,6 @@
 import { isOwlit, isPerson, type Change, type CitationPassage, type CitedWork, type CitationCounts, type CitationState, type DocCitation, type DocCitations, type OwlitReading, type ReadFrom } from "@owlit/protocol"
 import path from "node:path"
-import { pageList, pageNumbers, type LibraryRead } from "../agents/read-from.ts"
+import { coversAll, pageList, pageNumbers, type LibraryRead } from "../agents/read-from.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { citesOtherIn, placeOf } from "../library/passage.ts"
 import { citationSpans, type Citation } from "../library/wear.ts"
@@ -147,16 +147,20 @@ export class Citations {
     const read: KeptRead = {}
     const pages = new Set<number>()
     const sections = new Set<string>()
+    const text: LibraryRead[] = []
     for (const r of reads) {
       if (r.part === "note" || ((await this.services.canonical(r.paperId)) ?? r.paperId) !== id) continue
       if (r.part === "digest") read.digest = true
       else if (!r.pages && !r.section) read.full = true
       else {
+        text.push(r)
         read.part = true
         for (const p of (r.pages && pageNumbers([r.pages])) || []) pages.add(p)
         if (r.section) sections.add(r.section)
       }
     }
+    // Page runs that together name every page are the whole text (read-from.ts)
+    if (coversAll(text)) read.full = true
     for (const r of chatId ? await this.services.answered(chatId, replyId) : []) {
       if (((await this.services.canonical(r.paperId)) ?? r.paperId) !== id) continue
       if (r.depth === "full") read.full = true

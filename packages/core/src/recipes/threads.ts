@@ -102,9 +102,9 @@ library. Write rows in batches of up to 25. For each row write two things from t
   search's own line cuts it short) with \`depth\` \`abstract\`; from the text (\`library_read\`) with
   \`depth\` \`full\` and the words it rests on in \`quote\`, word for word (owlit finds the page). A paper
   whose text owlit has is answered from the text from the start. owlit shows each row on one scale, from
-  your library_read calls: the full text (a read with no pages or section), part of the text (pages or a
-  section), the abstract only, or the title only; an answer with a quote after reading pages shows as
-  part of the text, whatever depth says.
+  your library_read calls: the full text (every page, read whole or in the runs a long paper comes in),
+  part of the text (pages or a section), the abstract only, or the title only; an answer with a quote
+  after reading some pages shows as part of the text, whatever depth says.
 
 Also \`found_by\`: how the paper got here, so the record says why it is in the thread: "search: prospective
 memory model"; "cites Smith 2020" for a paper among those citing Smith (\`library_related\` cited_by);
