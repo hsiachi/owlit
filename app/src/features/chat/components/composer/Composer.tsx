@@ -30,9 +30,15 @@ import { AttachmentList } from "./AttachmentList"
 import { LargeFilesDialog } from "./LargeFilesDialog"
 import { mentionFilter, mentionPopup, WorkspaceMention } from "./mention-extension"
 
+// A question put in the composer for the person to send or finish: words, with what it is about as a
+// mention among them (Go through names the material). A page hands one over to Chat in its route's
+// state, so it is plain data.
+export type AskParts = (string | DocMention)[]
+
 export interface ComposerHandle {
   focus: () => void
   setText: (text: string) => void
+  setAsk: (parts: AskParts) => void
   // Insert "@" at the cursor with the popup pre-filtered to one source
   openMention: (kind: SourceKind | "all") => void
 }
@@ -275,6 +281,19 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       editor?.commands.focus("end")
       // HTML drops a trailing space, and a prompt stem ("Find recent papers on ") needs it to type on
       if (/ $/.test(text)) editor?.commands.insertContent(" ")
+      save()
+    },
+    setAsk: (parts) => {
+      if (!editor) return
+      // A mention of a file @ doesn't offer (a PDF among the docs) is found again through the draft's own
+      const mentions = parts.filter((p): p is DocMention => typeof p !== "string")
+      if (mentions.length) {
+        const drafts = useComposerDrafts.getState()
+        drafts.put(keyRef.current, { mentions: [...(drafts.drafts[keyRef.current]?.mentions ?? []), ...mentions] })
+      }
+      const content = parts.map((p) => (typeof p === "string" ? { type: "text", text: p } : { type: "mention", attrs: { id: p.id, label: p.label, kind: p.kind } })).filter((n) => n.type !== "text" || n.text)
+      editor.commands.setContent({ type: "doc", content: [{ type: "paragraph", content }] })
+      editor.commands.focus("end")
       save()
     },
     openMention,

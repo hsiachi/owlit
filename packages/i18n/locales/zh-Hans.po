@@ -1951,6 +1951,15 @@ msgstr "就你的论文提问"
 msgid "What do my papers say about "
 msgstr "我的论文对这个问题怎么说： "
 
+#: app/src/features/chat/lib/starters.ts
+msgid "Where did I stop?"
+msgstr "我上次做到哪了？"
+
+#. a whole question, sent as it is: Owlit accounts for each project from what the user did, the chats and the threads
+#: app/src/features/chat/lib/starters.ts
+msgid "Where did I stop? Go project by project: what I last worked on, what waits on me, and what you proposed that still waits for my yes."
+msgstr "我上次做到哪了？按项目逐个说：我最后在做什么，有什么在等我，你提议过什么还在等我点头。"
+
 #: app/src/features/chat/lib/step-output.ts
 msgid "{n, plural, one {# result} other {# results}}"
 msgstr "{n, plural, other {# 条结果}}"
@@ -2555,6 +2564,16 @@ msgstr "在“{title}”中：{error}"
 msgid "Link copied"
 msgstr "链接已复制"
 
+#. starts the Go through question; a mention of the file follows; keep the trailing space
+#: app/src/features/docs/actions.ts
+msgid "Go through "
+msgstr "把 "
+
+#. ends the Go through question, after the mention of the file; keep the leading space
+#: app/src/features/docs/actions.ts
+msgid " against my docs: what does it change?"
+msgstr " 对照我的文档过一遍：它改变了什么？"
+
 #: app/src/features/docs/actions.ts
 msgid "Doc deleted"
 msgstr "文档已删除"
@@ -2596,6 +2615,10 @@ msgstr "版本…"
 #: app/src/features/docs/actions.ts
 msgid "Resolved comments…"
 msgstr "已解决的评论…"
+
+#: app/src/features/docs/actions.ts
+msgid "Go through this with Owlit"
+msgstr "让 Owlit 过一遍"
 
 #: app/src/features/docs/actions.ts
 #: app/src/features/docs/share/ShareDialog.tsx
@@ -4447,16 +4470,20 @@ msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr "拖入 PDF 来添加，或拖入 BibTeX 文件、文件夹来导入"
 
 #: app/src/features/library/pages/LibraryPage.tsx
+msgid "Owlit can look for more papers on this outside your library."
+msgstr "Owlit 可以在文库之外再找找这方面的论文。"
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Ask Owlit to find papers about this"
+msgstr "让 Owlit 查找相关论文"
+
+#: app/src/features/library/pages/LibraryPage.tsx
 msgid "No papers match “{words}”"
 msgstr "没有与“{words}”匹配的论文"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for papers on this and add what it finds."
 msgstr "Owlit 可以帮你查找相关论文，并添加找到的结果。"
-
-#: app/src/features/library/pages/LibraryPage.tsx
-msgid "Ask Owlit to find papers about this"
-msgstr "让 Owlit 查找相关论文"
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Add your first papers"
@@ -6270,6 +6297,11 @@ msgstr "{more, plural, other {另有 # 项}}"
 msgid "Owlit stopped."
 msgstr "Owlit 停下了。"
 
+#. button: opens Chat with the question that starts a thread begun
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "Find papers on a question…"
+msgstr "就一个问题找论文…"
+
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Find a thread"
 msgstr "查找脉络"
@@ -6279,8 +6311,8 @@ msgid "No threads yet"
 msgstr "还没有脉络"
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Ask Owlit in a chat to find papers; the thread appears here."
-msgstr "在聊天里请 Owlit 找论文，脉络会出现在这里。"
+msgid "Ask Owlit to find papers on a question; the thread appears here."
+msgstr "让 Owlit 就一个问题找论文，脉络会出现在这里。"
 
 #. a thread whose search found no papers
 #: app/src/features/threads/pages/ThreadsPage.tsx

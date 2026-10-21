@@ -23,6 +23,15 @@ function about(messages: ChatMessage[]) {
 // Whether one of the chat's questions was about this page, paper or doc
 export const chatIsAbout = (messages: ChatMessage[], uri: string) => about(messages).has(uri)
 
+// The chat last asked in about this page, paper or doc, by id; null when none was
+export function latestChatAbout(uri: string): string | null {
+  let latest: { id: string; updatedAt: number } | undefined
+  for (const c of Object.values(useChatStore.getState().chats)) {
+    if (about(c.messages).has(uri) && (!latest || c.updatedAt > latest.updatedAt)) latest = c
+  }
+  return latest?.id ?? null
+}
+
 // The latest chats with a question about this page, newest first, by id
 export function useChatsAbout(uri: string | undefined, max = 3) {
   return useChatStore(

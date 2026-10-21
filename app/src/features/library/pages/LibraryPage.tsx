@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { DropCard, EmptyPlace } from "@/components/empty-place"
 import { DropOverlay, PdfFileInput } from "@/components/file-drop"
@@ -86,10 +86,13 @@ export function LibraryPage() {
   const askOwlit = () => navigate("/chat", { state: { starter: `${starterPrompt("find")}${words}` } })
   // Enter in the field adds the reference it holds. Words that match nothing go to Owlit at once rather
   // than moving focus to the button: asking Owlit is the one thing offered, and it only fills the composer.
-  // Words with matches have already done their work by narrowing the list.
+  // Words with matches have already done their work by narrowing the list, so Enter on them offers Owlit
+  // under the field instead (the person may want more than the library has); the offer goes with the words.
+  const [offered, setOffered] = useState("")
   const submit = () => {
     if (refInput) add()
     else if (noMatch) askOwlit()
+    else if (words) setOffered(words)
   }
 
   return (
@@ -108,6 +111,7 @@ export function LibraryPage() {
         <ImportBanner />
         <ExtensionWaitLines />
         <LibraryFindField onSubmit={submit} onPickFiles={(files) => addPdfFiles(files, actions.open)} />
+        {offered && offered === words && !noMatch && <FindMore onAsk={askOwlit} />}
         {refInput ? (
           <AddCandidate lookup={lookup} onAdd={add} input={refInput} />
         ) : empty ? (
@@ -135,6 +139,19 @@ export function LibraryPage() {
       </PageShell>
       <BulkBar />
       {dragging && <DropOverlay label={t`Drop PDFs to add, or a BibTeX file or a folder to import`} />}
+    </div>
+  )
+}
+
+// Under the field after Enter on words that match papers: the same one button as when none does, with
+// why one might press it
+function FindMore({ onAsk }: { onAsk: () => void }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-0.5">
+      <span className="text-sm text-muted-foreground">{t`Owlit can look for more papers on this outside your library.`}</span>
+      <Button variant="outline" size="sm" onClick={onAsk}>
+        {t`Ask Owlit to find papers about this`}
+      </Button>
     </div>
   )
 }

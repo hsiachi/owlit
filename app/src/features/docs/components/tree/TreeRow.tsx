@@ -91,7 +91,8 @@ export function TreeRow({
   // While rows are picked only they are filled, so the open doc doesn't pass for one of them
   const picking = useDocsUiStore((s) => s.picked.length > 0)
   return (
-    <ActionsOnRightClick groups={menu.groups} onOpen={menu.onOpen}>
+    // Wide enough for its longest item, "Go through this with Owlit", in both languages
+    <ActionsOnRightClick groups={menu.groups} onOpen={menu.onOpen} className="w-56">
       <div
         className={cn(rowClass, ((lit && !picking) || menu.picked) && "bg-sidebar-accent", className)}
         style={indent(depth)}
@@ -138,7 +139,7 @@ export function TreeRow({
             </span>
           )}
         </button>
-        <RowMenuButton groups={menu.groups} label={menuLabel} onOpen={menu.onOpen} side="right" align="start" className="absolute top-1/2 right-1 -translate-y-1/2" />
+        <RowMenuButton groups={menu.groups} label={menuLabel} onOpen={menu.onOpen} side="right" align="start" className="absolute top-1/2 right-1 -translate-y-1/2" menuClassName="w-56" />
       </div>
     </ActionsOnRightClick>
   )

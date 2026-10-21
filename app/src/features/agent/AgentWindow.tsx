@@ -23,7 +23,7 @@ import { roleName, roleOf } from "@/features/chat/lib/selection"
 import { useChatStore } from "@/features/chat/store"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
-import { askAboutOrAnything, pageStarters, useVisibleContext } from "./page-context"
+import { askAboutOrAnything, generalStarters, pageStarters, useVisibleContext } from "./page-context"
 import { useChatsAbout } from "./chats-about"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
@@ -46,6 +46,7 @@ export function AgentPanel() {
   const chatId = useAgentWindow((s) => s.chatId)
   const selection = useAgentWindow((s) => s.selection)
   const focusTick = useAgentWindow((s) => s.focusTick)
+  const prefill = useAgentWindow((s) => s.prefill)
   const panelWidth = useAgentWindow((s) => s.panelWidth)
   const { close, send } = useAgentWindow.getState()
   const context = useVisibleContext()
@@ -57,6 +58,14 @@ export function AgentPanel() {
   useEffect(() => {
     composer.current?.focus()
   }, [focusTick, chatId])
+
+  // After the composer took its draft (its own effect runs first, as the child's), the question the page
+  // handed over replaces it
+  useEffect(() => {
+    if (!prefill) return
+    composer.current?.setAsk(prefill)
+    useAgentWindow.setState({ prefill: null })
+  }, [prefill])
 
   return (
     <aside
@@ -96,9 +105,10 @@ export function AgentPanel() {
 // A chat with nothing in it yet: one block at the bottom by the composer, where the eye already is. From
 // the top, what was said before and what can be asked now: the latest chats about the page beside it, so
 // coming back to a paper (or finding the panel started afresh after a while away) puts them one click away;
-// then the feather and what can be asked; then starters for the page. The space above stays empty; split
-// into a list in the middle and the rest at the bottom, it read as stray pieces. The feather is in ink:
-// Owlit's green is for what Owlit has done, and here it hasn't done anything yet.
+// then the feather and what can be asked; then starters for the page, and the ones asked anywhere. The
+// space above stays empty; split into a list in the middle and the rest at the bottom, it read as stray
+// pieces. The feather is in ink: Owlit's green is for what Owlit has done, and here it hasn't done
+// anything yet.
 function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (prompt: string) => void }) {
   const earlier = useChatsAbout(page?.uri)
   const showChat = useAgentWindow((s) => s.showChat)
@@ -119,16 +129,14 @@ function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (promp
             <OwlitMark className="size-4 shrink-0" />
             {page ? askAboutOrAnything(page.kind) : t`Ask anything.`}
           </p>
-          {page && (
-            <div className="flex flex-wrap gap-2">
-              {/* Drawn like the Chat page's starters */}
-              {pageStarters(page.kind).map((s) => (
-                <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
-                  {s.label}
-                </Button>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {/* Drawn like the Chat page's starters */}
+            {[...(page ? pageStarters(page.kind) : []), ...generalStarters()].map((s) => (
+              <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
+                {s.label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
