@@ -8,6 +8,7 @@ import type { Caller } from "../rpc/index.ts"
 import { Http } from "../net/http.ts"
 import { eventually, until } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
+import { pickFromText, WHOLE_READ_CHARS } from "./library.ts"
 import { METADATA_CHECKS } from "./records.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "fixtures", name), "utf8")
@@ -745,5 +746,24 @@ describe("a paper's digest when it moves or goes", () => {
   it("leaves no folder behind when a digest is written as the paper is removed", async () => {
     const { root, id } = await digestWhile((library, id) => library.remove([id]))
     expect(existsSync(path.join(root, "library/papers", id))).toBe(false)
+  })
+})
+
+describe("picking from a paper's text", () => {
+  const page = (n: number, body: string) => `<!-- page ${n} -->\n\n${body}\n\n`
+
+  it("gives a whole text that fits, and a long one from the start by whole pages with where it stopped", () => {
+    const short = page(1, "Intro.") + page(2, "Method.")
+    expect(pickFromText(short, {})).toEqual({ text: short, pages: 2 })
+    const long = page(1, "a".repeat(WHOLE_READ_CHARS / 2)) + page(2, "b".repeat(WHOLE_READ_CHARS / 2)) + page(3, "c".repeat(100))
+    expect(pickFromText(long, {})).toEqual({ text: page(1, "a".repeat(WHOLE_READ_CHARS / 2)), pages: 3, upTo: 1 })
+    expect(pickFromText(long, { pages: "2-3" })).toEqual({ text: page(2, "b".repeat(WHOLE_READ_CHARS / 2)) + page(3, "c".repeat(100)), pages: 3 })
+  })
+
+  it("gives a page longer than the budget whole, and a text without page marks whole", () => {
+    const huge = page(1, "a".repeat(WHOLE_READ_CHARS + 10)) + page(2, "b")
+    expect(pickFromText(huge, {})).toEqual({ text: page(1, "a".repeat(WHOLE_READ_CHARS + 10)), pages: 2, upTo: 1 })
+    const unmarked = "x".repeat(WHOLE_READ_CHARS + 10)
+    expect(pickFromText(unmarked, {})).toEqual({ text: unmarked, pages: 0 })
   })
 })

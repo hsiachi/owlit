@@ -212,8 +212,11 @@ export function registerLibrary({ router, turns, reads, journal, requireWorkspac
     z.object({ id: paperId, part: z.enum(["text", "digest", "note"]), pages: z.string().optional(), section: z.string().optional(), asker: z.string().optional() }), "read",
     async ({ id, part, pages, section, asker }) => {
       const read = await library().read(id, part, { pages, section })
-      // Only what was there to read counts as read
-      if (asker && read.text.trim()) reads.record({ asker, paperId: id, part, ...(pages ? { pages } : {}), ...(section ? { section } : {}), at: Date.now() })
+      // Only what was there to read counts as read; a whole text cut at a page counts as the pages that came
+      if (asker && read.text.trim()) {
+        const got = read.upTo ? `1-${read.upTo}` : pages
+        reads.record({ asker, paperId: id, part, ...(got ? { pages: got } : {}), ...(section ? { section } : {}), ...(read.pages ? { of: read.pages } : {}), at: Date.now() })
+      }
       return read
     },
   )

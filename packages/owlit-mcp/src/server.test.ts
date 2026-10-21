@@ -344,6 +344,27 @@ describe("owlit-mcp", () => {
     expect(await tool("ui_open", { uri: "owlit://library/arxiv-1706.03762" })).toEqual({ text: "No owlit window is open.", isError: true })
   })
 
+  it("gives a long paper from its start by pages, and counts it read in full only once every page came", async () => {
+    const { root, call, tool } = await setup()
+    await call("library.add", { paper: { id: "arxiv-2005.11401", title: "Retrieval-Augmented Generation", authors: ["Patrick Lewis"], ids: { arxiv: "2005.11401" }, year: 2020 } })
+    const page = (n: number, body: string) => `<!-- page ${n} -->\n\n${body}\n\n`
+    const filler = "Words of the paper. ".repeat(2000)
+    writeFileSync(path.join(root, "library/papers/arxiv-2005.11401/text.md"), page(1, filler) + page(2, filler) + page(3, "We can draw a different latent document for each target token."))
+    const whole = (await tool("library_read", { id: "arxiv-2005.11401" })).text
+    expect(whole.startsWith(page(1, filler))).toBe(true)
+    expect(whole).not.toContain("<!-- page 2 -->")
+    expect(whole.endsWith("(Pages 1–1 of 3; read the rest with pages '2-3'.)")).toBe(true)
+
+    const rows = JSON.stringify([{ id: "arxiv-2005.11401", answer: "Each token may draw on its own retrieved document.", depth: "full", quote: "a different latent document for each target token" }])
+    const wrote = await tool("thread_write", { asked: "检索粒度有什么研究？", title: "检索粒度", rows, report: "One paper." })
+    const id = /owlit:\/\/threads\/([\w-]+)/.exec(wrote.text)![1]!
+    // Only the first page came, whatever the row says
+    expect((await call("threads.get", { id })).rows[0].cells.q).toMatchObject({ depth: "part", passage: { page: 3 } })
+    expect((await tool("library_read", { id: "arxiv-2005.11401", pages: "2-3" })).text).toMatch(/\(The paper has 3 pages\.\)$/)
+    await tool("thread_write", { id, rows })
+    expect((await call("threads.get", { id })).rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
+  })
+
   it("gathers papers into a thread with its report, and adds to it later", async () => {
     const { root, core, call, tool } = await setup()
     const changed: Notifications["changes.added"][] = []

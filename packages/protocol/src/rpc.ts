@@ -140,7 +140,7 @@ export interface Methods {
   "docs.read": { params: { path: string }; result: { content: string; modifiedAt: number } }
   // A PDF in the workspace as text, each page after a <!-- page N --> line (the same reading and page
   // numbers as a paper in the Library); pages picks some ("3-5,8")
-  "docs.readPdf": { params: { path: string; pages?: string }; result: { text: string; pages: number } }
+  "docs.readPdf": { params: { path: string; pages?: string }; result: { text: string; pages: number; upTo?: number } }
   // Every citation in a doc with what it rests on (DocCitation), and the counts a line over the doc says.
   // text: the doc as the window has it (its editor may be ahead of the disk); the file's text otherwise
   "docs.citations": { params: { path: string; text?: string }; result: DocCitations }
@@ -424,7 +424,7 @@ export interface Methods {
   // the user's note. pages: how many the paper has.
   // asker: who reads, as library.searchOnline's by ("chat:<id>", or "agent"), so a chat's answer can say
   // what it was built from
-  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number; pending?: "pdf" | "text" } }
+  "library.read": { params: { id: string; part: "text" | "digest" | "note"; pages?: string; section?: string; asker?: string }; result: { text: string; pages?: number; upTo?: number; pending?: "pdf" | "text" } }
   // Papers out in the world for a query, from one source (OpenAlex unless asked); inLibrary when the
   // library has one already. A filter the source can't apply is refused. Each search, and each of the
   // two below, is kept in .owlit/searches.jsonl.

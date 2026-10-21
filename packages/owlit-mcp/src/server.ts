@@ -143,10 +143,11 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     case "library_read": {
       const part = (args.part as "text" | "digest" | "note" | undefined) ?? "text"
       // Signed like a search, so the chat's answer can say what it read
-      const { text, pages, pending } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
+      const { text, pages, pending, upTo } = await owlit.rpc.library.read({ id: str("id"), part, pages: args.pages as string | undefined, section: args.section as string | undefined, asker: searcher(options) })
       if (pending === "pdf") return "owlit is fetching the paper's PDF now; read it again in a minute."
       if (pending === "text") return "owlit is reading the paper's text now; read it again in a minute."
       if (!text.trim()) return part === "digest" ? "This paper has no digest yet." : part === "note" ? "The user hasn't written a note on this paper." : "The paper has no text."
+      if (upTo && pages) return `${text}\n\n${restNote(upTo, pages)}`
       return pages && part === "text" && (args.pages || args.section) ? `${text}\n\n(The paper has ${pages} pages.)` : text
     }
     // The picture itself, with what it is beside it; signed like library_read, so the chat's answer can
@@ -293,7 +294,8 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "docs_read": {
       if (/\.pdf$/i.test(str("path"))) {
-        const { text, pages } = await owlit.rpc.docs.readPdf({ path: str("path"), ...(optStr("pages") ? { pages: optStr("pages") } : {}) })
+        const { text, pages, upTo } = await owlit.rpc.docs.readPdf({ path: str("path"), ...(optStr("pages") ? { pages: optStr("pages") } : {}) })
+        if (upTo) return `${text}\n\n${restNote(upTo, pages)}`
         return optStr("pages") ? `${text}\n\n(The PDF has ${pages} pages.)` : text
       }
       return (await owlit.rpc.docs.read({ path: str("path") })).content
@@ -700,6 +702,9 @@ function foundLine(p: FoundPaper, abstractChars = 300) {
   const about = p.tldr ? `TLDR: ${p.tldr}` : p.abstract ? `${p.abstract.slice(0, abstractChars)}${p.abstract.length > abstractChars ? "…" : ""}` : ""
   return `- ${p.id} · ${p.title} · ${facts.join(" · ")}` + (about ? `\n  ${about}` : "")
 }
+
+// After a whole text cut at a page (core's WHOLE_READ_CHARS): what came and how to get the rest
+const restNote = (upTo: number, pages: number) => `(Pages 1–${upTo} of ${pages}; read the rest with pages '${upTo + 1}-${pages}'.)`
 
 function foundText(found: FoundPapers, none: string) {
   const source = { openalex: "OpenAlex", s2: "Semantic Scholar", arxiv: "arXiv", crossref: "Crossref" }[found.source] ?? found.source

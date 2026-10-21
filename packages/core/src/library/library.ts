@@ -967,7 +967,7 @@ export class Library {
   // Part of a paper as text for an agent: its full text (all of it, some pages, or one section), its
   // digest or the user's note. id: any id the paper goes by.
   // pending: no text yet, and owlit is getting it (the PDF, or the text of the PDF it has).
-  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number; pending?: "pdf" | "text" }> {
+  async read(name: string, part: "text" | "digest" | "note", where: { pages?: string; section?: string } = {}): Promise<{ text: string; pages?: number; upTo?: number; pending?: "pdf" | "text" }> {
     const id = await this.here(name)
     if (part === "digest") return { text: (await this.digest(id)) ?? "" }
     if (part === "note") return { text: (await readNote(this.root, id))?.content ?? "" }
@@ -2136,9 +2136,16 @@ function watchedHttp(http: Http) {
   return { http: watched, heard }
 }
 
+// The most a read of a whole text returns, cut at a page. An engine hands its model only a preview of a
+// tool result past about 25,000 tokens (Claude Code's MAX_MCP_OUTPUT_TOKENS, which it estimates at four
+// characters a token), and owlit says a paper was read in full only from what the agent could see.
+// Well under that estimate, so text that tokenizes denser than English (Chinese, tables) fits too.
+export const WHOLE_READ_CHARS = 60_000
+
 // Pages "3", "3-5" or "3,7" of a text.md (split at its <!-- page N --> marks), or the section under the
-// heading that contains `section`, or all of it
-export function pickFromText(markdown: string, where: { pages?: string; section?: string }): { text: string; pages: number } {
+// heading that contains `section`, or all of it: as far as WHOLE_READ_CHARS allows, with `upTo` the last
+// page included when the rest was left out
+export function pickFromText(markdown: string, where: { pages?: string; section?: string }): { text: string; pages: number; upTo?: number } {
   const parts = markdown.split(/(?=<!-- page \d+ -->)/)
   const pages = parts.filter((p) => /^<!-- page \d+ -->/.test(p)).length
   if (where.pages) {
@@ -2160,7 +2167,20 @@ export function pickFromText(markdown: string, where: { pages?: string; section?
     if (end < 0) end = lines.length
     return { text: lines.slice(start, end).join("\n"), pages }
   }
-  return { text: markdown, pages }
+  // A text without page marks can't be asked for by pages, so it comes whole
+  if (markdown.length <= WHOLE_READ_CHARS || pages < 2) return { text: markdown, pages }
+  // Whole pages from the start while they fit; the first always, so a page longer than the budget
+  // still comes
+  let kept = 0
+  let length = 0
+  for (const part of parts) {
+    if (kept && length + part.length > WHOLE_READ_CHARS) break
+    length += part.length
+    kept++
+  }
+  if (kept === parts.length) return { text: markdown, pages }
+  const upTo = parts.slice(0, kept).map((p) => Number(p.match(/^<!-- page (\d+) -->/)?.[1])).findLast(Number.isFinite) ?? 1
+  return { text: parts.slice(0, kept).join(""), pages, upTo }
 }
 
 // What a digest is written from (digestWork)
