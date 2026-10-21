@@ -70,6 +70,8 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`Show a passage`, done: t`Showed a passage` }
     case "ui_mark":
       return { now: t`Highlight a passage`, done: t`Highlighted a passage` }
+    case "owlit_help":
+      return { now: t`Read how to use owlit`, done: t({ message: "Read how to use owlit", context: "a step that ran" }) }
   }
   return undefined
 }

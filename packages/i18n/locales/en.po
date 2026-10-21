@@ -2181,6 +2181,18 @@ msgid "{n, plural, one {wrote a file} other {wrote # files}}"
 msgstr "{n, plural, one {wrote a file} other {wrote # files}}"
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {looked for files} =2 {looked for files twice} other {looked for files # times}}"
+msgstr "{n, plural, one {looked for files} =2 {looked for files twice} other {looked for files # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {searched files} =2 {searched files twice} other {searched files # times}}"
+msgstr "{n, plural, one {searched files} =2 {searched files twice} other {searched files # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {searched the web} =2 {searched the web twice} other {searched the web # times}}"
+msgstr "{n, plural, one {searched the web} =2 {searched the web twice} other {searched the web # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {opened a page} other {opened # pages}}"
 msgstr "{n, plural, one {opened a page} other {opened # pages}}"
 
@@ -2191,6 +2203,10 @@ msgstr "{n, plural, one {asked you a question} other {asked you # questions}}"
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {used a tool} other {used # tools}}"
 msgstr "{n, plural, one {used a tool} other {used # tools}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {listed your Library} =2 {listed your Library twice} other {listed your Library # times}}"
+msgstr "{n, plural, one {listed your Library} =2 {listed your Library twice} other {listed your Library # times}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {looked up a paper} other {looked up # papers}}"
@@ -2205,8 +2221,36 @@ msgid "{n, plural, one {looked at a figure} other {looked at # figures}}"
 msgstr "{n, plural, one {looked at a figure} other {looked at # figures}}"
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read your highlights} =2 {read your highlights twice} other {read your highlights # times}}"
+msgstr "{n, plural, one {read your highlights} =2 {read your highlights twice} other {read your highlights # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {searched for papers} =2 {searched for papers twice} other {searched for papers # times}}"
+msgstr "{n, plural, one {searched for papers} =2 {searched for papers twice} other {searched for papers # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {followed a paper's citations} =2 {followed a paper's citations twice} other {followed a paper's citations # times}}"
+msgstr "{n, plural, one {followed a paper's citations} =2 {followed a paper's citations twice} other {followed a paper's citations # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {listed a journal's papers} =2 {listed a journal's papers twice} other {listed a journal's papers # times}}"
+msgstr "{n, plural, one {listed a journal's papers} =2 {listed a journal's papers twice} other {listed a journal's papers # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {added papers to your Library} =2 {added papers twice} other {added papers # times}}"
+msgstr "{n, plural, one {added papers to your Library} =2 {added papers twice} other {added papers # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {removed papers from your Library} =2 {removed papers twice} other {removed papers # times}}"
+msgstr "{n, plural, one {removed papers from your Library} =2 {removed papers twice} other {removed papers # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {asked for a digest} other {asked for # digests}}"
 msgstr "{n, plural, one {asked for a digest} other {asked for # digests}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {listed your docs} =2 {listed your docs twice} other {listed your docs # times}}"
+msgstr "{n, plural, one {listed your docs} =2 {listed your docs twice} other {listed your docs # times}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {read a doc} other {read # docs}}"
@@ -2235,6 +2279,14 @@ msgstr "{n, plural, one {showed a passage} other {showed # passages}}"
 #: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {highlighted a passage} other {highlighted # passages}}"
 msgstr "{n, plural, one {highlighted a passage} other {highlighted # passages}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read how to use owlit} other {read how to use owlit # times}}"
+msgstr "{n, plural, one {read how to use owlit} other {read how to use owlit # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {used {server}} =2 {used {server} twice} other {used {server} # times}}"
+msgstr "{n, plural, one {used {server}} =2 {used {server} twice} other {used {server} # times}}"
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Running commands"
@@ -2569,6 +2621,15 @@ msgstr "Highlight a passage"
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Highlighted a passage"
 msgstr "Highlighted a passage"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read how to use owlit"
+msgstr "Read how to use owlit"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read how to use owlit"
+msgstr "Read how to use owlit"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Search for {query}"
@@ -4716,6 +4777,16 @@ msgstr "This digest was written the old way."
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Rewrite"
 msgstr "Rewrite"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgctxt "a digest's first section"
+msgid "Summary"
+msgstr "Summary"
+
+#: app/src/features/library/pages/paper/Digest.tsx
+msgctxt "a digest's second section"
+msgid "Details"
+msgstr "Details"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "{label}, page {page}: go to it in the PDF"

@@ -97,7 +97,7 @@ export function Digest({ paper, onShowPage }: { paper: Paper; onShowPage: (page:
       {from.length > 0 && <p className="text-detail text-muted-foreground">{from.join(" · ")}</p>}
       {failed && !writing ? <Stopped paper={paper} why={failed} /> : paper.digestOutdated && !writing && <Outdated paper={paper} />}
       <Markdown
-        text={withoutTitle(text)}
+        text={withShownHeadings(withoutTitle(text))}
         prepare={linkPages}
         className="mt-5 text-body"
         components={{
@@ -294,6 +294,10 @@ function AskAgain({ sentence, label, ask }: { sentence: string; label: string; a
 
 // The header shows the title already; the digest starts under its own
 const withoutTitle = (text: string) => text.replace(/^\s*# [^\n]*\n+/, "")
+
+// The two headings core writes into every digest file (library.ts › writeDigest) are fixed English, so
+// the file reads the same wherever it is opened; on screen they are shown in the interface's language
+const withShownHeadings = (text: string) => text.replace(/^## Summary$/m, `## ${t({ message: "Summary", context: "a digest's first section" })}`).replace(/^## Details$/m, `## ${t({ message: "Details", context: "a digest's second section" })}`)
 
 // "p. 7", "pp. 3–4" become links to their (first) page, outside code and links. Pages are the PDF's,
 // as the text's <!-- page N --> marks number them.
