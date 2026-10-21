@@ -83,7 +83,8 @@ function Question({ thread: c }: { thread: ThreadRead }) {
   const asked = question.text
   const when = shortDate(question.at)
   const from = question.chatId && chat ? chatUri(question.chatId) : undefined
-  const chatTitle = chat?.title || t`a chat`
+  // A chat named after its first message would print the question twice in this sentence
+  const chatTitle = chat?.title && !asked.startsWith(chat.title.replace(/…$/, "")) ? chat.title : t`a chat`
   return (
     <p className="text-detail text-muted-foreground">
       {from ? (
