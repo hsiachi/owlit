@@ -33,7 +33,8 @@ interface Work {
   publication_date?: string | null
   type?: string | null
   authorships?: { author: { display_name: string } }[]
-  primary_location?: { source?: { display_name?: string } | null } | null
+  primary_location?: { source?: { display_name?: string; host_organization_name?: string | null } | null } | null
+  biblio?: { volume?: string | null; issue?: string | null; first_page?: string | null; last_page?: string | null } | null
   best_oa_location?: { pdf_url?: string | null } | null
   locations?: { pdf_url?: string | null; landing_page_url?: string | null }[]
   abstract_inverted_index?: Record<string, number[]> | null
@@ -58,12 +59,22 @@ export function parseOpenAlex(raw: string): SourceRecord | undefined {
     year: work.publication_year ?? undefined,
     date: work.publication_date ?? undefined,
     venue: work.primary_location?.source?.display_name ?? undefined,
+    volume: work.biblio?.volume ?? undefined,
+    issue: work.biblio?.issue ?? undefined,
+    pages: pageRange(work.biblio?.first_page, work.biblio?.last_page),
+    publisher: work.primary_location?.source?.host_organization_name ?? undefined,
     abstract: work.abstract_inverted_index ? fromInvertedIndex(work.abstract_inverted_index) : undefined,
     kind: kindOf(work.type),
     pdfUrls,
     citationCount: work.cited_by_count,
     raw,
   }
+}
+
+// "633-643"; one page alone when the other is missing or the same (an article number)
+function pageRange(first?: string | null, last?: string | null) {
+  if (!first) return last ?? undefined
+  return last && last !== first ? `${first}-${last}` : first
 }
 
 // OpenAlex ships abstracts as word → positions

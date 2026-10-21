@@ -13,6 +13,7 @@ const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({
   addedBy: "p_1",
   starred: false,
   status: "unread",
+  citeKey: id,
   tags: [],
   ...extra,
 })

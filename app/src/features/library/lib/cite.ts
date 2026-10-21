@@ -1,8 +1,8 @@
-import type { Paper, PaperKind, ThreadRead } from "@owlit/protocol"
+import { citeKeyBase, uniqueCiteKey, type Paper, type PaperKind, type ThreadRead } from "@owlit/protocol"
 import { externalLinks, surname } from "./format"
 
-// What a reference is made from: a Library paper, or a paper a thread found
-export type Citable = Pick<Paper, "id" | "title" | "authors" | "year" | "venue" | "ids" | "kind">
+// What a reference is made from: a Library paper (with the key core gave it), or a paper a thread found
+export type Citable = Pick<Paper, "id" | "title" | "authors" | "year" | "venue" | "volume" | "issue" | "pages" | "publisher" | "ids" | "kind"> & { citeKey?: string }
 
 // Citations built from a paper's own metadata. Titles are left as recorded: changing their case
 // would lowercase names like "Transformer" that a reader expects to keep.
@@ -40,33 +40,12 @@ export function apaCitation(p: Citable): string {
   const year = `(${p.year ?? "n.d."})`
   const title = p.title.replace(/[.\s]+$/, "")
   const kind = kindOf(p)
+  // Memory & Cognition, 26(4), 633–643
+  const where = kind === "article" ? [p.volume && `${p.volume}${p.issue ? `(${p.issue})` : ""}`, p.pages?.replace("-", "–")].filter(Boolean).join(", ") : ""
   const source =
     kind === "preprint" ? "arXiv" : kind === "conference" && p.venue ? `In ${p.venue}` : p.venue && !/arxiv/i.test(p.venue) ? p.venue : undefined
   const head = authors ? `${authors} ${year}. ${title}.` : `${title}. ${year}.`
-  return [head, source && `${source}.`, externalLinks(p)[0]?.href].filter(Boolean).join(" ")
-}
-
-const STOP_WORDS = new Set(["a", "an", "the", "on", "of", "for", "in", "to", "and", "with", "is", "are", "do", "does"])
-
-const ascii = (s: string) =>
-  s
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/ł/g, "l")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toLowerCase()
-
-// What a key may hold besides letters and digits: BibTeX and biblatex take these in a key
-const keySafe = (s: string) => s.normalize("NFKD").replace(/[^a-zA-Z0-9:._-]/g, "")
-
-// Google Scholar's shape: first author's family name, year, first real word of the title. A family name
-// with no Latin letters (one written in Chinese) has nothing to give, so the key is the DOI's suffix or
-// the paper's id instead: something that names this paper, not "anon" shared by all of them.
-function bibtexKey(p: Citable): string {
-  const family = ascii(splitName(p.authors[0] ?? "").family)
-  if (!family) return keySafe(p.ids.doi?.split("/").slice(1).join("/") ?? "") || keySafe(p.id) || "paper"
-  const word = p.title.split(/[\s:—-]+/).map(ascii).find((w) => w && !STOP_WORDS.has(w)) ?? ""
-  return `${family}${p.year ?? ""}${word}`
+  return [head, source && `${source}${where ? `, ${where}` : ""}.`, externalLinks(p)[0]?.href].filter(Boolean).join(" ")
 }
 
 // TeX's special characters in a field's text. The backslash goes in the same pass as the rest, so the
@@ -85,6 +64,9 @@ const ENTRY: Record<PaperKind, string> = {
   other: "misc",
 }
 
+// The key core gave the paper; a paper a thread found and the library doesn't hold gets the shape alone
+export const bibtexKey = (p: Citable) => p.citeKey || citeKeyBase(p)
+
 export function bibtex(p: Citable, key = bibtexKey(p)): string {
   const kind = kindOf(p)
   const fields: [string, string | number | undefined][] = [
@@ -96,10 +78,13 @@ export function bibtex(p: Citable, key = bibtexKey(p)): string {
     }).join(" and ")],
     ["year", p.year],
   ]
-  if (kind === "article") fields.push(["journal", p.venue])
-  else if (kind === "conference") fields.push(["booktitle", p.venue])
+  // Pages as "633--643"; a lone number is an article number, which ACM's style prints from articleno
+  const pages = p.pages?.includes("-") ? p.pages.replace(/\s*[-–]+\s*/, "--") : undefined
+  const articleno = p.pages && !pages ? p.pages : undefined
+  if (kind === "article") fields.push(["journal", p.venue], ["volume", p.volume], ["number", p.issue], ["pages", pages], ["articleno", articleno])
+  else if (kind === "conference") fields.push(["booktitle", p.venue], ["pages", pages], ["articleno", articleno], ["publisher", p.publisher])
   else if (kind === "thesis") fields.push(["school", p.venue])
-  else if (kind === "book") fields.push(["publisher", p.venue])
+  else if (kind === "book") fields.push(["publisher", p.publisher ?? p.venue])
   else if (kind === "other" && p.venue) fields.push(["howpublished", p.venue])
   if (p.ids.doi) fields.push(["doi", p.ids.doi])
   if (p.ids.arxiv) fields.push(["eprint", p.ids.arxiv], ["archivePrefix", "arXiv"])
@@ -113,23 +98,19 @@ export function bibtex(p: Citable, key = bibtexKey(p)): string {
   return `@${ENTRY[kind]}{${key},\n${body}\n}`
 }
 
-// Several papers as one .bib: a key two papers would share gets a letter after the first ("wang2023large",
-// "wang2023largea", "wang2023largeb"), so every entry can be cited
+// Several papers as one .bib. Library papers keep the keys core gave them (unique by construction); a
+// paper a thread found takes a letter after its shape when a key is taken ("wang2023large",
+// "wang2023largea"), so every entry can be cited
 export function bibtexAll(papers: Citable[]): string {
-  const used = new Set<string>()
+  const used = new Set(papers.map((p) => p.citeKey).filter((k): k is string => !!k))
   return papers
     .map((p) => {
-      const base = bibtexKey(p)
-      let key = base
-      for (let i = 0; used.has(key); i++) key = `${base}${letters(i)}`
+      const key = p.citeKey || uniqueCiteKey(citeKeyBase(p), (k) => used.has(k))
       used.add(key)
       return bibtex(p, key)
     })
     .join("\n\n")
 }
-
-// 0 → "a", 25 → "z", 26 → "aa"
-const letters = (i: number): string => (i < 26 ? String.fromCharCode(97 + i) : letters(Math.floor(i / 26) - 1) + letters(i % 26))
 
 // A paper link's id in a doc's Markdown: [label](owlit://library/<id>…), a citation's page and sentence
 // after it or not

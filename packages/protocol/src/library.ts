@@ -77,6 +77,14 @@ export interface Paper {
   year?: number
   venue?: string
   abstract?: string
+  // Where it sits in its venue, for a reference list
+  volume?: string
+  issue?: string
+  pages?: string
+  publisher?: string
+  // The key it is cited by in BibTeX and LaTeX (\cite{lee2025sensible}): assigned once when the paper
+  // joined the library and kept, so a .bib copied last month still matches
+  citeKey: string
   ids: PaperIds
   pdf?: PaperPdf
   // Digests an agent wrote (library/papers/<id>/digest.md), and when (digest.json's at, else the
@@ -308,6 +316,11 @@ export interface PaperRecord {
   // ISO date of first publication
   date?: string
   venue?: string
+  // Where it sits in its venue: "26", "4", "633-643" or an article number; the publisher's name
+  volume?: string
+  issue?: string
+  pages?: string
+  publisher?: string
   abstract?: string
   kind?: PaperKind
   // Semantic Scholar's one-sentence summary
@@ -333,6 +346,8 @@ export interface PaperState {
   version: 1
   addedAt: number
   addedBy: Paper["addedBy"]
+  // Paper.citeKey, once core assigned it (core/library/cite-key.ts)
+  citeKey?: string
   starred: boolean
   status: ReadStatus
   tags: string[]

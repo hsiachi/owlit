@@ -26,6 +26,8 @@ import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { mentionRoute } from "@/features/docs/lib/mentions"
 import { rpc } from "@/lib/rpc"
+import { copyText } from "@/lib/clipboard"
+import { toast } from "sonner"
 import { useLibraryUi } from "../../ui-store"
 
 // Drag the panel's left edge to widen it for writing (up to half the row); double-click puts it back
@@ -152,6 +154,18 @@ function About({ paper }: { paper: Paper }) {
             </dd>
           </div>
         ))}
+        {/* The key BibTeX entries and Owlit's LaTeX cite the paper by; a coauthor asks for it, so a click copies it */}
+        <dt className="text-muted-foreground">{t({ message: "Cite key", comment: "label before the paper's BibTeX key" })}</dt>
+        <dd className="min-w-0 truncate">
+          <button
+            type="button"
+            className="font-mono text-[13px] underline decoration-border underline-offset-4 hover:decoration-foreground"
+            title={t`Click to copy`}
+            onClick={() => void copyText(paper.citeKey).then((ok) => ok && toast(t`Cite key copied`))}
+          >
+            {paper.citeKey}
+          </button>
+        </dd>
         <dt className="text-muted-foreground">{t({ message: "Added", context: "when the paper was added to the library" })}</dt>
         <dd>{paper.addedBy === viewer ? when : t({ message: `${when} by ${who}`, comment: "when a paper was added, and who added it: Owlit, a name or outside owlit" })}</dd>
         {inThreads.length > 0 && (

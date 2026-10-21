@@ -21,9 +21,10 @@ export const writeRecord = (root: string, record: PaperRecord) =>
   writeJsonAtomic(path.join(paperDir(root, record.id), "paper.json"), record, { parents: false })
 
 // The round of checks a record has had. 1: titles with their subtitles from Crossref,
-// abstracts that belong to another paper dropped, id-only records given their DOI. Raise it when a new
-// check should reach the papers already in libraries.
-export const METADATA_CHECKS = 1
+// abstracts that belong to another paper dropped, id-only records given their DOI. 2: volume, issue,
+// pages and publisher for the reference list. Raise it when a new check should reach the papers already
+// in libraries.
+export const METADATA_CHECKS = 2
 
 // Whether a resolution had every check: a published paper's needs Crossref's answer (a search result
 // or a failed request lacks it)
@@ -38,6 +39,10 @@ export function recordFrom(id: string, resolution: Resolution, previous?: PaperR
     year: resolution.year,
     date: resolution.date,
     venue: resolution.venue,
+    volume: resolution.volume,
+    issue: resolution.issue,
+    pages: resolution.pages,
+    publisher: resolution.publisher,
     abstract: resolution.abstract,
     kind: resolution.kind,
     tldr: resolution.tldr,

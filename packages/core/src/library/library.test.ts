@@ -8,6 +8,7 @@ import type { Caller } from "../rpc/index.ts"
 import { Http } from "../net/http.ts"
 import { eventually, until } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
+import { METADATA_CHECKS } from "./records.ts"
 
 const fixture = (name: string) => readFileSync(path.join(import.meta.dirname, "fixtures", name), "utf8")
 
@@ -173,6 +174,36 @@ describe("the library in the change log", () => {
   })
 })
 
+describe("cite keys", () => {
+  const state = (root: string, id: string, extra: object) => {
+    const dir = path.join(root, ".owlit/papers", id)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(path.join(dir, "state.json"), JSON.stringify({ version: 1, addedAt: 1, addedBy: "p_1", starred: false, status: "unread", tags: [], ...extra }))
+  }
+
+  it("gives papers from before keys were kept theirs in the order they were added, and keeps a key a state has", async () => {
+    const { root, call } = await setup({})
+    putPaper(root, { id: "doi-10.9-later", title: "Large models write papers", authors: ["Yu Wang"], year: 2023, ids: { doi: "10.9/later" } })
+    state(root, "doi-10.9-later", { addedAt: 20 })
+    putPaper(root, { id: "doi-10.9-first", title: "Large models read papers", authors: ["Xin Wang"], year: 2023, ids: { doi: "10.9/first" } })
+    state(root, "doi-10.9-first", { addedAt: 10 })
+    // A kept key wins over its shape, and takes its key from the others
+    putPaper(root, { id: "doi-10.9-kept", title: "Attention", authors: ["Ashish Vaswani"], year: 2017, ids: { doi: "10.9/kept" } })
+    state(root, "doi-10.9-kept", { addedAt: 5, citeKey: "wang2023largea" })
+    const papers = (await call("library.list")).papers as { id: string; citeKey: string }[]
+    const keyOf = Object.fromEntries(papers.map((p) => [p.id, p.citeKey]))
+    expect(keyOf).toEqual({ "doi-10.9-first": "wang2023large", "doi-10.9-later": "wang2023largeb", "doi-10.9-kept": "wang2023largea" })
+    // Written to the states, so the next open reads them instead of giving them again
+    for (const id of ["doi-10.9-first", "doi-10.9-later"]) {
+      expect(JSON.parse(readFileSync(path.join(root, ".owlit/papers", id, "state.json"), "utf8")).citeKey).toBe(keyOf[id])
+    }
+    // A paper added now gets the next free key, and its details show it
+    const added = await call("library.add", { paper: { id: "doi-10.9-new", title: "Large models review papers", authors: ["Li Wang"], ids: { doi: "10.9/new" }, year: 2023 } })
+    expect(added.citeKey).toBe("wang2023largec")
+    expect((await call("library.get", { id: "doi-10.9-new" })).paper.citeKey).toBe("wang2023largec")
+  })
+})
+
 describe("keeping the library clean", () => {
   const title = "Proactive behavior in voice assistants: A systematic review and conceptual model"
   const review = { id: "doi-10.1016-j.chbr.2024.100411", title, ids: { doi: "10.1016/j.chbr.2024.100411" }, year: 2024 }
@@ -291,7 +322,7 @@ describe("keeping the library clean", () => {
     expect((await tasks.wait(queued.id)).state).toBe("done")
     expect(tasks.list().some((t) => t.kind === "paper.metadata" && (t.subject === "local-abc123" || t.subject === "doi-10.1145-1"))).toBe(false)
     const record = JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.1145-3626772.3657891/paper.json"), "utf8")) as PaperRecord
-    expect(record.checked).toBe(1)
+    expect(record.checked).toBe(METADATA_CHECKS)
   })
 
   it("looks again at the next start for a paper whose look reached nothing", async () => {
@@ -332,9 +363,9 @@ describe("keeping the library clean", () => {
   it("counts citations again once a month, by OpenAlex, quietly and once a day at most", async () => {
     const { root, core } = await setup({})
     const id = "doi-10.1145-3626772.3657891"
-    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 22, fields: { citationCount: "s2" }, checked: 1 })
+    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 22, fields: { citationCount: "s2" }, checked: METADATA_CHECKS })
     // Counted a week ago: not due
-    putPaper(root, { id: "doi-10.1145-2", title: "Fresh", ids: { doi: "10.1145/2" }, fetchedAt: 1, citationCount: 5, citationsAt: Date.now() - 7 * 86_400_000, checked: 1 })
+    putPaper(root, { id: "doi-10.1145-2", title: "Fresh", ids: { doi: "10.1145/2" }, fetchedAt: 1, citationCount: 5, citationsAt: Date.now() - 7 * 86_400_000, checked: METADATA_CHECKS })
     await core.dispose()
     // The first open counted an empty library today; these papers came after it
     const workspaces = path.join(path.dirname(root), "userData/workspaces")
@@ -416,8 +447,8 @@ describe("the monthly recount", () => {
     const { root, core } = await setup({})
     const id = "doi-10.1145-3626772.3657891"
     const old = Date.now() - 40 * 86_400_000
-    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 31, citationsAt: old, fields: { citationCount: "openalex" }, checked: 1 })
-    putPaper(root, { id: "arxiv-2101.00001", title: "A preprint", ids: { arxiv: "2101.00001" }, fetchedAt: 1, checked: 1 })
+    putPaper(root, { id, title: "ChroniclingAmericaQA", ids: { doi: "10.1145/3626772.3657891", openalex: "W4393248081" }, fetchedAt: 1, citationCount: 31, citationsAt: old, fields: { citationCount: "openalex" }, checked: METADATA_CHECKS })
+    putPaper(root, { id: "arxiv-2101.00001", title: "A preprint", ids: { arxiv: "2101.00001" }, fetchedAt: 1, checked: METADATA_CHECKS })
     const file = path.join(root, "library/papers", id, "paper.json")
     const before = readFileSync(file, "utf8")
     await core.dispose()

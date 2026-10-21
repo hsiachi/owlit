@@ -8,6 +8,7 @@ const paper = (over: Partial<Paper> & Pick<Paper, "id" | "title" | "authors">): 
   addedBy: "p_1",
   starred: false,
   status: "unread",
+  citeKey: "",
   tags: [],
   year: 2023,
   ...over,

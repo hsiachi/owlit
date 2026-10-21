@@ -1,4 +1,4 @@
-import type { Highlight, Paper, PaperNote, PaperOverrides, PaperPatch, PaperRecord, PaperState } from "@owlit/protocol"
+import { citeKeyBase, type Highlight, type Paper, type PaperNote, type PaperOverrides, type PaperPatch, type PaperRecord, type PaperState } from "@owlit/protocol"
 import { readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { oldActors } from "../changes/members.ts"
@@ -42,8 +42,15 @@ export function toPaper(record: PaperRecord, state: PaperState, pdf: boolean): P
     // An override of null is a field the user cleared
     year: "year" in o ? (o.year ?? undefined) : record.year,
     venue: "venue" in o ? (o.venue ?? undefined) : record.venue,
+    volume: record.volume,
+    issue: record.issue,
+    pages: record.pages,
+    publisher: record.publisher,
     abstract: "abstract" in o ? (o.abstract ?? undefined) : record.abstract,
     kind: o.kind ?? record.kind,
+    // The kept key; a paper the library hasn't keyed yet (read before Library.get gave it one) shows the
+    // shape alone
+    citeKey: state.citeKey ?? citeKeyBase(record),
     citations:
       record.citationCount !== undefined
         ? { count: record.citationCount, source: record.fields.citationCount ?? "", at: record.citationsAt ?? record.fetchedAt ?? 0 }

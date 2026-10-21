@@ -20,6 +20,7 @@ describe("the paper card", () => {
     venue: "EMNLP",
     abstract: "Generative Large Language Models (LLMs) such as GPT-3 are capable of generating highly fluent responses to a wide variety of user prompts. However, LLMs are known to hallucinate facts.",
     ids: { arxiv: "2303.08896" },
+    citeKey: "manakul2023selfcheckgpt",
     pdf: { url: "owlit-file://workspace/library/papers/arxiv-2303.08896/paper.pdf", pages: 15 },
     citations: { count: 900, source: "openalex", at: 1 },
     addedAt: 1,

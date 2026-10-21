@@ -4730,6 +4730,19 @@ msgstr "这篇看起来和这篇是同一篇论文："
 msgid "No abstract."
 msgstr "无摘要。"
 
+#. label before the paper's BibTeX key
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Cite key"
+msgstr "引用键"
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Click to copy"
+msgstr "点击复制"
+
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "Cite key copied"
+msgstr "已复制引用键"
+
 #. when a paper was added, and who added it: Owlit, a name or outside owlit
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "{when} by {who}"
