@@ -3099,12 +3099,25 @@ msgstr "没有这个名字的文档"
 msgid "Undo this passage (⌘⌫ at its end)"
 msgstr "撤销这一处（在末尾按 ⌘⌫）"
 
+#. verb: stop showing Owlit's marks in this doc, keeping its edits
+#: app/src/features/docs/editor/proposals.ts
+msgid "Clear marks"
+msgstr "清除标记"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep the edits and stop marking them"
+msgstr "保留改动，不再标出"
+
 #. placeholder {0}: 1
 #. placeholder {0}: this.count
 #: app/src/features/docs/editor/proposals.ts
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
 msgstr "{0, plural, other {Owlit 改了 # 处}}"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "the marks clear when you leave this doc"
+msgstr "离开文档后标记即清除"
 
 #: app/src/features/docs/editor/proposals.ts
 msgid "Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change"
@@ -3121,6 +3134,10 @@ msgstr "来自“{title}”"
 #: app/src/features/docs/editor/proposals.ts
 msgid "from a chat"
 msgstr "来自一次对话"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "this line clears when you leave the doc"
+msgstr "离开文档后此行即消失"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"

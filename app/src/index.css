@@ -604,20 +604,22 @@
 .suggest-bar span { flex: 1; }
 .suggest-bar button { height: 28px; padding: 0 10px; border-radius: 8px; cursor: default; }
 .suggest-discard:hover { background: var(--accent); color: var(--foreground); }
-/* Owlit's landed passages (editor/proposals.ts): the same marks, with Keep · Undo after each passage
-   seen on hover of its lines (or by keyboard), and the counting line above the first, which the rule
-   joins to the passage under it */
+/* Owlit's landed passages (editor/proposals.ts): the same marks, with Undo at each passage's end, and the
+   counting line above the first, which the rule joins to the passage under it */
 .proposal-head { margin: 0 0 4px; }
 .proposal-head::before { top: 0; bottom: -4px; }
 /* A doc Owlit wrote whole: the line alone, with no rule, since nothing under it is marked */
 .proposal-whole::before { content: none; }
 .suggest-bar .proposal-chat { height: auto; padding: 0; border-radius: 0; color: inherit; }
 .suggest-bar .proposal-chat:hover { color: var(--foreground); text-decoration: underline; }
-.proposal-acts { display: inline-flex; gap: 2px; margin-left: 0.4em; vertical-align: baseline; font-size: 12px; line-height: 1.2; color: var(--muted-foreground); opacity: 0; transition: opacity var(--t-mark) var(--ease); }
-.suggest-line:hover .proposal-acts, .proposal-acts:focus-within { opacity: 1; }
-.proposal-acts button { padding: 1px 6px; border-radius: 6px; cursor: default; }
-.proposal-acts button:hover { background: var(--accent); color: var(--foreground); }
-@media (prefers-reduced-motion: reduce) { .proposal-acts { transition: none; } }
+/* A passage's Undo takes no room in the line: the widget is an empty inline anchor at the passage's end and
+   the button floats from it in the floating material, as the selection menu does, over the words after it
+   only while shown. Hidden, it is see-through to the pointer but still reachable by Tab. */
+.proposal-acts { position: relative; }
+.proposal-acts button { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); z-index: 1; @apply menu-surface; height: 22px; padding: 0 7px; border-radius: 6px; font-size: 12px; line-height: 22px; white-space: nowrap; color: var(--muted-foreground); cursor: default; opacity: 0; pointer-events: none; transition: opacity var(--t-mark) var(--ease); }
+.proposal-acts[data-shown] button, .proposal-acts button:focus-visible { opacity: 1; pointer-events: auto; }
+.proposal-acts button:hover { color: var(--foreground); }
+@media (prefers-reduced-motion: reduce) { .proposal-acts button { transition: none; } }
 /* A quote's page link back to its highlight: part of the quote, not a call to action */
 .markdown a[href^="owlit://highlight/"] {
   color: inherit;

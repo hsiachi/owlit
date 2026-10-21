@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Owlit's marks in a doc no longer leave gaps in the text: a passage's Undo floats at its end, one at a time, while the pointer is near it (or Tab reaches it). The line above the marks says they clear when you leave the doc, and Clear marks clears them now, keeping the edits; the chat's Undo and Versions still take them back.
 - Every paper gets its first look for a PDF when it comes in, the papers a thread names too; they used to wait until opened. Papers nobody ever looked for get that look when the workspace opens.
 - owlit stops looking for a PDF on its own after its last spaced-out look (a day, 3, 7 and 30 days after the first); the paper then says "No PDF found", what was tried, and that owlit won't look again. A site waiting for your sign-in or a check is tried once more on owlit's own, then waits for you, instead of every quarter of an hour; after a restart its line is up at once.
 - The No PDF list has "Get them all with my access": every paper there with a DOI goes to the browser extension in one go, and a line at the top of the Library says how many PDFs came.

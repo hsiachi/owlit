@@ -55,7 +55,7 @@ export function look(places: Place[], visible: readonly { from: number; to: numb
 // been on screen a moment (look), the way a person reads a long doc: Owlit's change at the bottom of a
 // page read only at the top stays unseen. A doc with nothing marked is seen after SEEN_AFTER_MS on
 // screen. Seen again after each change settles, and on closing once everything was looked at. text: the
-// doc as written to disk. Returns what the editor calls on a change and on closing.
+// doc as written to disk. Returns what the editor calls on a change, on Clear marks and on closing.
 export function followChangedSince(view: EditorView, path: () => string | undefined, text: () => string) {
   let base: string | undefined
   let closed = false
@@ -63,14 +63,17 @@ export function followChangedSince(view: EditorView, path: () => string | undefi
   let changed: ChangedLine[] = []
   const since = new Map<string, number>()
   const looked = new Set<string>()
+  // Counts the asks for what to mark: an answer to an ask overtaken by another, or by Clear marks, is dropped
+  let asked = 0
   const show = () => {
     const p = path()
     if (!p) return
+    const ask = ++asked
     // A doc the user never had on screen (one Owlit made) has no mark: Owlit's passages in it count from
     // when the user's marks began
     void proposalsOf(p, text(), base).then(
       (next) => {
-        if (closed) return
+        if (closed || ask !== asked) return
         proposals = next
         view.dispatch({ effects: setProposals.of(next) })
       },
@@ -79,7 +82,7 @@ export function followChangedSince(view: EditorView, path: () => string | undefi
     if (!base) return
     void changedPassages(p, base, text()).then(
       (passages) => {
-        if (closed) return
+        if (closed || ask !== asked) return
         changed = passages.map((c) => {
           const who = capital(nameOf(c.actor))
           const when = dateTime(c.at)
@@ -150,6 +153,26 @@ export function followChangedSince(view: EditorView, path: () => string | undefi
   return {
     changed: () => {
       changedAt = Date.now()
+    },
+    // Clear marks: the doc as it reads now is seen, as a visit marks it, and the visit counts from here, so
+    // a change coming later in it is marked against this text, not the one the visit began with. Owlit's
+    // marks go with setProposals (editor/proposals.ts); others' paragraphs go too, being seen as well.
+    clear() {
+      const p = path()
+      if (!p) return
+      const now = text()
+      asked++
+      markedText = now
+      markedOnce = true
+      proposals = []
+      changed = []
+      view.dispatch({ effects: setChanged.of([]) })
+      void sha1(now).then((hash) => {
+        // An ask made while the hash was on its way counted from the old baseline
+        asked++
+        base = hash
+        markSeen({ kind: "doc", path: p, hash })
+      })
     },
     close() {
       clearInterval(timer)

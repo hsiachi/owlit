@@ -206,6 +206,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
               const name = displayName(useDocsStore.getState().files[id]?.path ?? "")
               void undoAll([...(p.whole?.also ?? []).toReversed(), p.id], name)
             },
+            clear: () => seen?.clear(),
           }),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),

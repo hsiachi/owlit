@@ -3099,12 +3099,25 @@ msgstr "No doc with this name"
 msgid "Undo this passage (⌘⌫ at its end)"
 msgstr "Undo this passage (⌘⌫ at its end)"
 
+#. verb: stop showing Owlit's marks in this doc, keeping its edits
+#: app/src/features/docs/editor/proposals.ts
+msgid "Clear marks"
+msgstr "Clear marks"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Keep the edits and stop marking them"
+msgstr "Keep the edits and stop marking them"
+
 #. placeholder {0}: 1
 #. placeholder {0}: this.count
 #: app/src/features/docs/editor/proposals.ts
 #: app/src/features/onboarding/demos/WriteDemo.tsx
 msgid "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
 msgstr "{0, plural, one {Owlit changed # passage} other {Owlit changed # passages}}"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "the marks clear when you leave this doc"
+msgstr "the marks clear when you leave this doc"
 
 #: app/src/features/docs/editor/proposals.ts
 msgid "Owlit's edits land like this; undo any part, or tell Owlit in the chat what to change"
@@ -3121,6 +3134,10 @@ msgstr "from “{title}”"
 #: app/src/features/docs/editor/proposals.ts
 msgid "from a chat"
 msgstr "from a chat"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "this line clears when you leave the doc"
+msgstr "this line clears when you leave the doc"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
