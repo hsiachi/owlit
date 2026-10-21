@@ -168,7 +168,11 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
       const { before, after } = await docs().updateComment(path, id, (was) => {
         if (!was) throw new RpcFailure(RpcErrorCode.NotFound, `There is no comment ${id} on ${path}; docs_comments lists them.`, { path, id })
         if (resolve && was.resolvedAt) throw new RpcFailure(RpcErrorCode.Conflict, "That comment is already resolved.", { path, id })
-        return correcting({ ...was, entries: [...was.entries, entry], ...(resolve ? { resolvedAt: at } : {}) }, was, caller)
+        // A reply by whoever started a resolved comment opens it again: a review saying its point still
+        // stands answers under the old comment rather than leaving a second one beside it
+        const { resolvedAt, ...open } = was
+        const reopened = !resolve && resolvedAt !== undefined && was.entries[0]?.by === by
+        return correcting({ ...(reopened ? open : was), entries: [...was.entries, entry], ...(resolve ? { resolvedAt: at } : {}) }, was, caller)
       })
       if (caller.kind !== "window") notifier.notify("comments.changed", { path, comment: after })
       await recordComment(caller, path, before, after)

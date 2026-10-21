@@ -627,6 +627,7 @@ msgid "All"
 msgstr "全部"
 
 #: app/src/components/mention/mention-list.tsx
+#: app/src/features/chat/components/composer/CommandList.tsx
 msgid "No matches"
 msgstr "没有匹配项"
 
@@ -918,54 +919,6 @@ msgstr "问问这篇文档，或任何其他问题。"
 msgid "Ask about this thread, or anything else."
 msgstr "问关于这条脉络的问题，或别的任何事。"
 
-#: app/src/features/agent/page-context.ts
-msgid "Summarize this paper"
-msgstr "总结这篇论文"
-
-#: app/src/features/agent/page-context.ts
-msgid "Summarize this paper: its question, method and main findings."
-msgstr "总结这篇论文：它的问题、方法和主要发现。"
-
-#: app/src/features/agent/page-context.ts
-msgid "What’s the method?"
-msgstr "用了什么方法？"
-
-#: app/src/features/agent/page-context.ts
-msgid "What method does this paper use, and how does it evaluate it?"
-msgstr "这篇论文用了什么方法，又是如何评估的？"
-
-#: app/src/features/agent/page-context.ts
-msgid "Review this draft"
-msgstr "审阅这篇文档"
-
-#: app/src/features/agent/page-context.ts
-msgid "Review where this draft overstates a finding or misreads a paper."
-msgstr "找出这篇文档中夸大结论或误读论文的地方。"
-
-#: app/src/features/agent/page-context.ts
-msgid "Find papers to cite"
-msgstr "找可引用的论文"
-
-#: app/src/features/agent/page-context.ts
-msgid "Find papers that support or challenge the claims in this doc."
-msgstr "找出支持或质疑这篇文档中观点的论文。"
-
-#: app/src/features/agent/page-context.ts
-msgid "Where do they disagree?"
-msgstr "分歧在哪里？"
-
-#: app/src/features/agent/page-context.ts
-msgid "Where do the papers in this thread disagree, and why?"
-msgstr "这条脉络里的论文在哪些地方有分歧，为什么？"
-
-#: app/src/features/agent/page-context.ts
-msgid "What’s left open?"
-msgstr "还有哪些悬而未决？"
-
-#: app/src/features/agent/page-context.ts
-msgid "Which questions do the papers in this thread leave open?"
-msgstr "这条脉络里的论文还留下了哪些悬而未决的问题？"
-
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
 msgstr "怎么做…（关于 owlit）"
@@ -1064,6 +1017,11 @@ msgstr "消息"
 #: app/src/features/chat/components/ChatMessages.tsx
 msgid "In this chat, Owlit works as {0}"
 msgstr "这个对话里，Owlit 作为{0}"
+
+#. under an empty chat's composer; the /names stay as they are
+#: app/src/features/chat/components/CommandHint.tsx
+msgid "Type <0>/</0> to <1>/review</1> a doc as a reader, <2>/revise</2> it by its comments, or <3>/go-through</3> a meeting."
+msgstr "输入 <0>/</0>：<1>/review</1> 以读者身份读文档，<2>/revise</2> 按评论修改它，<3>/go-through</3> 梳理一次会议。"
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
 msgid "Not signed in"
@@ -1323,6 +1281,10 @@ msgstr "添加到文献库"
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Remove {name}"
 msgstr "移除 {name}"
+
+#: app/src/features/chat/components/composer/CommandList.tsx
+msgid "Commands"
+msgstr "命令"
 
 #: app/src/features/chat/components/composer/Composer.tsx
 #: app/src/features/onboarding/demos/AskDemo.tsx
@@ -1834,6 +1796,21 @@ msgstr "粘贴的文件"
 msgid "Couldn't add that file."
 msgstr "无法添加该文件。"
 
+#. the /review command in the composer's list
+#: app/src/features/chat/lib/commands.ts
+msgid "Read a doc as a reader and leave comments where it doesn't hold. Say what to look at, or who the reader is."
+msgstr "以读者身份读文档，在站不住的地方留评论。可以说看哪里，或读者是谁。"
+
+#. the /revise command in the composer's list
+#: app/src/features/chat/lib/commands.ts
+msgid "Revise a doc by its comments with Owlit, a paragraph at a time: edit, then resolve each saying what was done."
+msgstr "和 Owlit 按评论一段一段修改文档：改好后逐条解决，并写明做了什么。"
+
+#. the /go-through command in the composer's list
+#: app/src/features/chat/lib/commands.ts
+msgid "Go through a meeting, reviews or someone's notes against your docs: what changes, as comments on the docs."
+msgstr "对照你的文档梳理会议、审稿意见或别人的笔记：哪些要改，留成文档上的评论。"
+
 #. an agent's status: not checked yet whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Not checked"
@@ -1973,50 +1950,10 @@ msgstr "审稿人（不改动你的任何东西）和合著者（还会运行命
 msgid "Reviewer, which changes nothing of yours, and Co-author, which edits your docs without marking its edits as proposals, are in the composer, for one chat at a time."
 msgstr "审稿人（不改动你的任何东西）和合著者（直接改你的文档，不把改动标为建议）在输入框里选，只对当前这个对话生效。"
 
-#: app/src/features/chat/lib/starters.ts
-msgid "Find papers on a question"
-msgstr "围绕一个问题找论文"
-
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on "
 msgstr "查找以下主题的论文： "
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Compare papers"
-msgstr "比较论文"
-
-#. starts a question the user finishes with papers; keep the trailing space
-#: app/src/features/chat/lib/starters.ts
-msgid "Compare the methods and findings of "
-msgstr "比较以下论文的方法和发现： "
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Review a draft"
-msgstr "审阅草稿"
-
-#. starts a question the user finishes with a doc; keep the trailing space
-#: app/src/features/chat/lib/starters.ts
-msgid "Review where I overstate a finding or misread a paper in "
-msgstr "找出这份文稿中夸大结论或误读论文的地方： "
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Ask about your papers"
-msgstr "就你的论文提问"
-
-#. starts a question the user finishes; keep the trailing space
-#: app/src/features/chat/lib/starters.ts
-msgid "What do my papers say about "
-msgstr "我的论文对这个问题怎么说： "
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Where did I stop?"
-msgstr "我上次做到哪了？"
-
-#. a whole question, sent as it is: Owlit accounts for each project from what the user did, the chats and the threads
-#: app/src/features/chat/lib/starters.ts
-msgid "Where did I stop? Go project by project: what I last worked on, what waits on me, and what you proposed that still waits for my yes."
-msgstr "我上次做到哪了？按项目逐个说：我最后在做什么，有什么在等我，你提议过什么还在等我点头。"
 
 #: app/src/features/chat/lib/step-output.ts
 msgid "{n, plural, one {# result} other {# results}}"
@@ -3479,6 +3416,10 @@ msgstr "把 PDF 拖到这里任意位置，或从磁盘中选择"
 #: app/src/features/home/HomePage.tsx
 msgid "Notes and drafts are Markdown files in this folder"
 msgstr "笔记和草稿是这个文件夹里的 Markdown 文件"
+
+#: app/src/features/home/HomePage.tsx
+msgid "Find papers on a question"
+msgstr "围绕一个问题找论文"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Owlit gathers papers for it, with what each one says"

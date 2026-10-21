@@ -14,8 +14,7 @@ import { Quote } from "@/components/quote"
 import { KIND_ICON } from "@/lib/kinds"
 import { useNewDoc } from "@/features/docs/use-new-doc"
 import { FRESH_CHAT } from "@/features/chat/components/ChatEmpty"
-import { starterPrompt, starters } from "@/features/chat/lib/starters"
-import { i18n } from "@/lib/i18n"
+import { findPrompt } from "@/features/chat/lib/starters"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { usePaperActions } from "@/features/library/actions"
 import { useWorkspace } from "@/lib/workspace"
@@ -29,7 +28,6 @@ import { type News, type Place, useNews, usePlaces } from "./where"
 // anywhere on it go to the Library.
 
 const RECENT = 8
-const findStarter = starters.find((s) => s.id === "find")!
 
 export function HomePage() {
   const { open } = usePaperActions()
@@ -154,7 +152,7 @@ function Start() {
   const rows = [
     { key: "papers", icon: KIND_ICON.paper, title: t`Add papers`, detail: t`Drop PDFs anywhere here, or choose them from your disk`, run: () => fileInput?.click() },
     { key: "doc", icon: KIND_ICON.doc, title: t`New doc`, detail: t`Notes and drafts are Markdown files in this folder`, run: () => newDoc("") },
-    { key: "find", icon: KIND_ICON.thread, title: i18n._(findStarter.label), detail: t`Owlit gathers papers for it, with what each one says`, run: () => navigate("/chat", { state: { starter: starterPrompt("find") } }) },
+    { key: "find", icon: KIND_ICON.thread, title: t`Find papers on a question`, detail: t`Owlit gathers papers for it, with what each one says`, run: () => navigate("/chat", { state: { starter: findPrompt() } }) },
     { key: "chat", icon: KIND_ICON.chat, title: t`Chat with Owlit`, detail: t`Ask about anything in this folder`, run: () => navigate("/chat", { state: FRESH_CHAT }) },
   ]
   const palette = keysFor("palette")

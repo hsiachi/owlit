@@ -2,13 +2,11 @@ import { t } from "@lingui/core/macro"
 import { useEffect, useRef } from "react"
 import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { keysFor } from "@/app/shortcuts"
-import { Button } from "@/components/ui/button"
 import { useAgentWindow } from "@/features/agent/store"
 import { useSettings } from "@/features/settings/store"
-import { i18n } from "@/lib/i18n"
 import { useChatStore } from "../store"
 import type { PromptInput } from "@owlit/protocol"
-import { starters } from "../lib/starters"
+import { CommandHint } from "./CommandHint"
 import { type AskParts, Composer, type ComposerHandle } from "./composer/Composer"
 
 // With the user's name when Settings has one; each greeting is one message, as the name's place varies
@@ -36,7 +34,7 @@ export interface ChatIndexState {
 
 export const FRESH_CHAT: ChatIndexState = { fresh: true }
 
-// /chat with no conversation selected: greeting, composer, starter prompts. Reached plainly (the rail's Chat
+// /chat with no conversation selected: greeting, composer, what "/" offers. Reached plainly (the rail's Chat
 // button, a link), it goes back to the chat the person last looked at, as Docs goes back to the doc they
 // were in: in a test, someone who left a running chat for the Library and came back by the rail landed on
 // an empty page and thought the app had lost their chat. New chat and a page that sends a question to
@@ -83,24 +81,8 @@ export function ChatEmpty() {
       <div data-tour="composer" className="w-full max-w-3xl">
         <Composer ref={composer} onSubmit={start} autoFocus />
       </div>
-      <div className="flex max-w-3xl flex-wrap justify-center gap-2">
-        {/* Words only on a translucent fill: no outline to stack against the composer's border */}
-        {starters.map((s) => (
-          <Button
-            key={s.id}
-            variant="secondary"
-            size="sm"
-            className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              composer.current?.setText(i18n._(s.prompt))
-              if (s.kind) composer.current?.openMention(s.kind)
-            }}
-          >
-            {i18n._(s.label)}
-          </Button>
-        ))}
-      </div>
-      <p className="-mt-2 text-detail text-muted-foreground">{t`From anywhere, ${keys} asks Owlit about what’s on your screen.`}</p>
+      <CommandHint className="-mt-2 text-center" />
+      <p className="-mt-5 text-detail text-muted-foreground">{t`From anywhere, ${keys} asks Owlit about what’s on your screen.`}</p>
     </div>
   )
 }

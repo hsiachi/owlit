@@ -627,6 +627,7 @@ msgid "All"
 msgstr ""
 
 #: app/src/components/mention/mention-list.tsx
+#: app/src/features/chat/components/composer/CommandList.tsx
 msgid "No matches"
 msgstr ""
 
@@ -918,54 +919,6 @@ msgstr ""
 msgid "Ask about this thread, or anything else."
 msgstr ""
 
-#: app/src/features/agent/page-context.ts
-msgid "Summarize this paper"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Summarize this paper: its question, method and main findings."
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "What’s the method?"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "What method does this paper use, and how does it evaluate it?"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Review this draft"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Review where this draft overstates a finding or misreads a paper."
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Find papers to cite"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Find papers that support or challenge the claims in this doc."
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Where do they disagree?"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Where do the papers in this thread disagree, and why?"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "What’s left open?"
-msgstr ""
-
-#: app/src/features/agent/page-context.ts
-msgid "Which questions do the papers in this thread leave open?"
-msgstr ""
-
 #: app/src/features/agent/store.ts
 msgid "How do I… (about owlit)"
 msgstr ""
@@ -1063,6 +1016,11 @@ msgstr ""
 #. placeholder {0}: roleName(roleOf(chat).id)
 #: app/src/features/chat/components/ChatMessages.tsx
 msgid "In this chat, Owlit works as {0}"
+msgstr ""
+
+#. under an empty chat's composer; the /names stay as they are
+#: app/src/features/chat/components/CommandHint.tsx
+msgid "Type <0>/</0> to <1>/review</1> a doc as a reader, <2>/revise</2> it by its comments, or <3>/go-through</3> a meeting."
 msgstr ""
 
 #: app/src/features/chat/components/ConnectorStatusChip.tsx
@@ -1322,6 +1280,10 @@ msgstr ""
 #: app/src/features/chat/components/composer/AttachmentList.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 msgid "Remove {name}"
+msgstr ""
+
+#: app/src/features/chat/components/composer/CommandList.tsx
+msgid "Commands"
 msgstr ""
 
 #: app/src/features/chat/components/composer/Composer.tsx
@@ -1834,6 +1796,21 @@ msgstr ""
 msgid "Couldn't add that file."
 msgstr ""
 
+#. the /review command in the composer's list
+#: app/src/features/chat/lib/commands.ts
+msgid "Read a doc as a reader and leave comments where it doesn't hold. Say what to look at, or who the reader is."
+msgstr ""
+
+#. the /revise command in the composer's list
+#: app/src/features/chat/lib/commands.ts
+msgid "Revise a doc by its comments with Owlit, a paragraph at a time: edit, then resolve each saying what was done."
+msgstr ""
+
+#. the /go-through command in the composer's list
+#: app/src/features/chat/lib/commands.ts
+msgid "Go through a meeting, reviews or someone's notes against your docs: what changes, as comments on the docs."
+msgstr ""
+
 #. an agent's status: not checked yet whether it is installed
 #: app/src/features/chat/lib/connector-status.ts
 msgid "Not checked"
@@ -1973,49 +1950,9 @@ msgstr ""
 msgid "Reviewer, which changes nothing of yours, and Co-author, which edits your docs without marking its edits as proposals, are in the composer, for one chat at a time."
 msgstr ""
 
-#: app/src/features/chat/lib/starters.ts
-msgid "Find papers on a question"
-msgstr ""
-
 #. starts a question the user finishes; keep the trailing space
 #: app/src/features/chat/lib/starters.ts
 msgid "Find papers on "
-msgstr ""
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Compare papers"
-msgstr ""
-
-#. starts a question the user finishes with papers; keep the trailing space
-#: app/src/features/chat/lib/starters.ts
-msgid "Compare the methods and findings of "
-msgstr ""
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Review a draft"
-msgstr ""
-
-#. starts a question the user finishes with a doc; keep the trailing space
-#: app/src/features/chat/lib/starters.ts
-msgid "Review where I overstate a finding or misread a paper in "
-msgstr ""
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Ask about your papers"
-msgstr ""
-
-#. starts a question the user finishes; keep the trailing space
-#: app/src/features/chat/lib/starters.ts
-msgid "What do my papers say about "
-msgstr ""
-
-#: app/src/features/chat/lib/starters.ts
-msgid "Where did I stop?"
-msgstr ""
-
-#. a whole question, sent as it is: Owlit accounts for each project from what the user did, the chats and the threads
-#: app/src/features/chat/lib/starters.ts
-msgid "Where did I stop? Go project by project: what I last worked on, what waits on me, and what you proposed that still waits for my yes."
 msgstr ""
 
 #: app/src/features/chat/lib/step-output.ts
@@ -3478,6 +3415,10 @@ msgstr ""
 
 #: app/src/features/home/HomePage.tsx
 msgid "Notes and drafts are Markdown files in this folder"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
+msgid "Find papers on a question"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx

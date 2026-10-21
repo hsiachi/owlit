@@ -7,7 +7,6 @@ import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { StatusRing } from "@/components/status-ring"
-import { Button } from "@/components/ui/button"
 import { GroupLabel } from "@/components/group-label"
 import { ListRow } from "@/components/list-row"
 import { ago } from "@/lib/time"
@@ -23,7 +22,8 @@ import { roleName, roleOf } from "@/features/chat/lib/selection"
 import { useChatStore } from "@/features/chat/store"
 import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
-import { askAboutOrAnything, generalStarters, pageStarters, useVisibleContext } from "./page-context"
+import { askAboutOrAnything, useVisibleContext } from "./page-context"
+import { CommandHint } from "@/features/chat/components/CommandHint"
 import { useChatsAbout } from "./chats-about"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
@@ -80,13 +80,7 @@ export function AgentPanel() {
       {chat && chat.messages.length > 0 ? (
         <ChatMessages chat={chat} streaming={streaming} panel />
       ) : (
-        <PanelEmpty
-          page={context[0]}
-          onStarter={(prompt) => {
-            composer.current?.setText(prompt)
-            composer.current?.focus()
-          }}
-        />
+        <PanelEmpty page={context[0]} />
       )}
       <ComposerDock
         ref={composer}
@@ -105,11 +99,11 @@ export function AgentPanel() {
 // A chat with nothing in it yet: one block at the bottom by the composer, where the eye already is. From
 // the top, what was said before and what can be asked now: the latest chats about the page beside it, so
 // coming back to a paper (or finding the panel started afresh after a while away) puts them one click away;
-// then the feather and what can be asked; then starters for the page, and the ones asked anywhere. The
+// then the feather and what can be asked, and what "/" offers. The
 // space above stays empty; split into a list in the middle and the rest at the bottom, it read as stray
 // pieces. The feather is in ink: Owlit's green is for what Owlit has done, and here it hasn't done
 // anything yet.
-function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (prompt: string) => void }) {
+function PanelEmpty({ page }: { page?: Mentionable }) {
   const earlier = useChatsAbout(page?.uri)
   const showChat = useAgentWindow((s) => s.showChat)
   return (
@@ -129,14 +123,7 @@ function PanelEmpty({ page, onStarter }: { page?: Mentionable; onStarter: (promp
             <OwlitMark className="size-4 shrink-0" />
             {page ? askAboutOrAnything(page.kind) : t`Ask anything.`}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {/* Drawn like the Chat page's starters */}
-            {[...(page ? pageStarters(page.kind) : []), ...generalStarters()].map((s) => (
-              <Button key={s.label} variant="secondary" size="sm" className="rounded-full px-3 font-normal text-muted-foreground hover:text-foreground" onClick={() => onStarter(s.prompt)}>
-                {s.label}
-              </Button>
-            ))}
-          </div>
+          <CommandHint />
         </div>
       </div>
     </div>

@@ -352,5 +352,16 @@ describe("what a caller can't take over", () => {
     expect((await call("comments.reply", { path: "notes.md", id: "n1", text: "Done.", resolve: true }, mcp)).resolvedAt).toEqual(expect.any(Number))
     await expect(call("comments.reply", { path: "notes.md", id: "n1", text: "Again.", resolve: true }, mcp)).rejects.toThrow("That comment is already resolved.")
     await expect(call("comments.reply", { path: "notes.md", id: "nope", text: "?" }, mcp)).rejects.toThrow(/There is no comment nope on notes\.md/)
+    // Owlit's reply under the person's resolved comment leaves it resolved
+    expect((await call("comments.reply", { path: "notes.md", id: "n1", text: "Noted." }, mcp)).resolvedAt).toEqual(expect.any(Number))
+  })
+
+  it("opens a resolved comment again when whoever started it replies under it, in every role", async () => {
+    const { call, mcp } = await setup()
+    await call("comments.add", { path: "notes.md", comment: { id: "o1", quote: "The first claim.", prefix: "", suffix: "", entries: [{ id: "e1", text: "No evidence yet.", at: 1 }], createdAt: 1 } }, mcp)
+    await call("comments.reply", { path: "notes.md", id: "o1", text: "Done: cited.", resolve: true }, mcp)
+    const again = await call("comments.reply", { path: "notes.md", id: "o1", text: "Still there: the citation doesn't say it." }, mcp)
+    expect(again.resolvedAt).toBeUndefined()
+    expect(again.entries.map((e: { text: string }) => e.text)).toEqual(["No evidence yet.", "Done: cited.", "Still there: the citation doesn't say it."])
   })
 })

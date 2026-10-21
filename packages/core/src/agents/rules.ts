@@ -3,7 +3,7 @@ import type { MemoryLine } from "@owlit/protocol"
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 37
+export const RULES_VERSION = 38
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -27,6 +27,8 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 ## Comments
 - A comment is a conversation beside the passage. When the user asks you about one of their comments, or replies under one of yours, answer there with comments_reply, not only in the chat.
 - Resolve a comment of the user's (comments_resolve) only after you made the change it asked for, in the same turn, and say in its reply what you did. A comment you only answered stays open; the user resolves it.
+- When you resolve any comment after working on it, start the reply with what happened, so a later reading knows what was decided: "Done: …", "Partly: …", "Not taken (Owlit): …" with why, or "Not taken (you): …" when the user turned it down.
+- When the user asks you to read a doc as a reader (a review, a critique, "where does it not hold"), read owlit_help('review'); to revise a doc by its comments, read owlit_help('revise'). Do it in this chat as it says.
 - Never edit or remove an entry the user wrote. Your own comments you may take back with comments_remove.
 
 ## Papers
