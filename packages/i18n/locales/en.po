@@ -3177,6 +3177,12 @@ msgstr "Edit applied"
 msgid "{0, plural, one {{n} of # citation not read in the paper} other {{n} of # citations not read in the paper}}"
 msgstr "{0, plural, one {{n} of # citation not read in the paper} other {{n} of # citations not read in the paper}}"
 
+#. citations whose sentence is in the paper's text, with nothing recorded of what was read
+#. placeholder {0}: counts.inPaper
+#: app/src/features/docs/lib/citations.ts
+msgid "{0} with a sentence found, no reading recorded"
+msgstr "{0} with a sentence found, no reading recorded"
+
 #. citations whose sentence is the cited paper's abstract's
 #. placeholder {0}: counts.abstract
 #: app/src/features/docs/lib/citations.ts

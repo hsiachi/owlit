@@ -289,6 +289,6 @@ export function countsOf(citations: DocCitation[]): CitationCounts {
     total: citations.length,
     ...counts,
     person: n(null),
-    notReadInPaper: counts.abstract + counts.notFound + counts.noText + counts.notRead + counts.bare,
+    notReadInPaper: counts.inPaper + counts.abstract + counts.notFound + counts.noText + counts.notRead + counts.bare,
   }
 }

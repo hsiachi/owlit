@@ -44,11 +44,13 @@ export interface CitationsPart {
   states: CitationState[]
 }
 
-const NOT_READ_IN_PAPER: CitationState[] = ["abstract", "not-found", "no-text", "not-read", "bare"]
+const NOT_READ_IN_PAPER: CitationState[] = ["in-paper", "abstract", "not-found", "no-text", "not-read", "bare"]
 
 // The line a doc's citations get, naming only what wasn't read in the paper, and only when something
-// wasn't: "8 of 26 citations not read in the paper", then each kind of it. Never a count of what was
-// read: it would read as checked. Empty when everything was read or is the person's.
+// wasn't: "8 of 26 citations not read in the paper", then each kind of it. A sentence found in the
+// paper with no read recorded counts too: a line that left it out would say 19 of 26 were read when
+// nothing shows they were. Never a count of what was read: it would read as checked. Empty when
+// everything was read or is the person's.
 export function citationsLine(counts: CitationCounts): CitationsPart[] {
   if (!counts.notReadInPaper) return []
   const n = counts.notReadInPaper
@@ -62,6 +64,7 @@ export function citationsLine(counts: CitationCounts): CitationsPart[] {
     },
   ]
   const kinds: [number, CitationState, string][] = [
+    [counts.inPaper, "in-paper", t({ message: `${counts.inPaper} with a sentence found, no reading recorded`, comment: "citations whose sentence is in the paper's text, with nothing recorded of what was read" })],
     [counts.abstract, "abstract", t({ message: `${counts.abstract} from the abstract`, comment: "citations whose sentence is the cited paper's abstract's" })],
     [counts.notRead, "not-read", t({ message: `${counts.notRead} not read`, comment: "citations of papers Owlit read nothing of" })],
     [counts.bare, "bare", t({ message: `${counts.bare} with no reading recorded`, comment: "citations without a sentence, with nothing recorded of what was read" })],

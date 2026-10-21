@@ -94,7 +94,8 @@ export const isOpenComment = (c: DocComment) => !c.resolvedAt && !c.foldedAt && 
 // What a citation in a doc rests on, from what core saw Owlit read when it wrote it (never the agent's
 // word), else from the paper alone:
 // read: its sentence is on pages Owlit had read. in-paper: its sentence is in the text, on pages no
-// recorded read covers (or whose reads were lost): neutral, nothing said about reading. abstract: its
+// recorded read covers (or whose reads were lost): the card says nothing against it, the doc's line
+// counts it among what wasn't read, since nothing shows it was. abstract: its
 // sentence is the abstract's. not-found: its sentence is in neither the text nor the abstract. no-text:
 // it has a sentence, owlit has no text of the paper and the abstract doesn't hold it. whole: no
 // sentence, and Owlit had read the paper (how far: owlitRead). not-read: no sentence, and Owlit had read
@@ -157,7 +158,8 @@ export interface DocCitation {
 
 // Citations by state, over every citation in the doc (each link counts, the same paper cited twice is
 // two). notReadInPaper: those whose state says the paper's text wasn't read where they rest (abstract,
-// not-found, no-text, not-read, bare); in-paper and whole are not among them, nor the person's own.
+// not-found, no-text, not-read, bare), and in-paper, whose reading isn't recorded; whole is not among
+// them, nor the person's own.
 export interface CitationCounts {
   total: number
   read: number
