@@ -1,4 +1,4 @@
-import { plural, t, type ChoiceOptions } from "@lingui/core/macro"
+import { plural, t } from "@lingui/core/macro"
 import { i18n } from "@owlit/i18n"
 import type { MessagePart } from "@owlit/protocol"
 import type { ToolCall } from "../types"
@@ -226,8 +226,8 @@ export const stepGroup = (call: ToolCall) => stepWords(call).group
 // ---- A block of steps ----
 
 // An exact form for two ("twice") is ICU's "=2". Lingui's types only take "2", which its native macro
-// transform passes on unchanged and ICU then can't read, so the options are cast instead.
-type Twice = ChoiceOptions
+// transform passes on unchanged and ICU then can't read; a cast would hide the call from the extractor,
+// so each "=2" line carries a ts-expect-error instead.
 
 // What n steps of a kind did, in a lower-case phrase for the middle of a sentence ("read 3 files",
 // "searched the web twice"); undefined for a kind owlit has no phrase for
@@ -242,11 +242,14 @@ function kindPhrase(group: string, n: number): string | undefined {
     case "write":
       return plural(n, { one: "wrote a file", other: "wrote # files" })
     case "find":
-      return plural(n, { one: "looked for files", "=2": "looked for files twice", other: "looked for files # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "looked for files", "=2": "looked for files twice", other: "looked for files # times" })
     case "grep":
-      return plural(n, { one: "searched files", "=2": "searched files twice", other: "searched files # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "searched files", "=2": "searched files twice", other: "searched files # times" })
     case "web":
-      return plural(n, { one: "searched the web", "=2": "searched the web twice", other: "searched the web # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "searched the web", "=2": "searched the web twice", other: "searched the web # times" })
     case "fetch":
       return plural(n, { one: "opened a page", other: "opened # pages" })
     case "question":
@@ -254,7 +257,8 @@ function kindPhrase(group: string, n: number): string | undefined {
     case "other":
       return plural(n, { one: "used a tool", other: "used # tools" })
     case "owlit:library_list":
-      return plural(n, { one: "listed your Library", "=2": "listed your Library twice", other: "listed your Library # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "listed your Library", "=2": "listed your Library twice", other: "listed your Library # times" })
     case "owlit:library_get":
       return plural(n, { one: "looked up a paper", other: "looked up # papers" })
     case "owlit:library_read":
@@ -262,21 +266,28 @@ function kindPhrase(group: string, n: number): string | undefined {
     case "owlit:library_figure":
       return plural(n, { one: "looked at a figure", other: "looked at # figures" })
     case "owlit:library_highlights":
-      return plural(n, { one: "read your highlights", "=2": "read your highlights twice", other: "read your highlights # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "read your highlights", "=2": "read your highlights twice", other: "read your highlights # times" })
     case "owlit:library_search":
-      return plural(n, { one: "searched for papers", "=2": "searched for papers twice", other: "searched for papers # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "searched for papers", "=2": "searched for papers twice", other: "searched for papers # times" })
     case "owlit:library_related":
-      return plural(n, { one: "followed a paper's citations", "=2": "followed a paper's citations twice", other: "followed a paper's citations # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "followed a paper's citations", "=2": "followed a paper's citations twice", other: "followed a paper's citations # times" })
     case "owlit:library_journal":
-      return plural(n, { one: "listed a journal's papers", "=2": "listed a journal's papers twice", other: "listed a journal's papers # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "listed a journal's papers", "=2": "listed a journal's papers twice", other: "listed a journal's papers # times" })
     case "owlit:library_add":
-      return plural(n, { one: "added papers to your Library", "=2": "added papers twice", other: "added papers # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "added papers to your Library", "=2": "added papers twice", other: "added papers # times" })
     case "owlit:library_remove":
-      return plural(n, { one: "removed papers from your Library", "=2": "removed papers twice", other: "removed papers # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "removed papers from your Library", "=2": "removed papers twice", other: "removed papers # times" })
     case "owlit:library_request_digest":
       return plural(n, { one: "asked for a digest", other: "asked for # digests" })
     case "owlit:docs_list":
-      return plural(n, { one: "listed your docs", "=2": "listed your docs twice", other: "listed your docs # times" } as Twice)
+      // @ts-expect-error "=2" is ICU's exact form (see above)
+      return plural(n, { one: "listed your docs", "=2": "listed your docs twice", other: "listed your docs # times" })
     case "owlit:docs_read":
       return plural(n, { one: "read a doc", other: "read # docs" })
     // docs_add_note: chats from before comments
@@ -293,10 +304,13 @@ function kindPhrase(group: string, n: number): string | undefined {
       return plural(n, { one: "showed a passage", other: "showed # passages" })
     case "owlit:ui_mark":
       return plural(n, { one: "highlighted a passage", other: "highlighted # passages" })
+    case "owlit:owlit_help":
+      return plural(n, { one: "read how to use owlit", other: "read how to use owlit # times" })
   }
   if (group.startsWith("mcp:")) {
     const server = group.slice(4)
-    return plural(n, { one: `used ${server}`, "=2": `used ${server} twice`, other: `used ${server} # times` } as Twice)
+    // @ts-expect-error "=2" is ICU's exact form (see above)
+    return plural(n, { one: `used ${server}`, "=2": `used ${server} twice`, other: `used ${server} # times` })
   }
   return undefined
 }
