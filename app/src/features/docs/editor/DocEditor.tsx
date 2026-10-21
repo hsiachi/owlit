@@ -376,7 +376,14 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
                   <button
                     type="button"
                     aria-pressed={picked === key}
-                    onClick={() => setPicked(picked === key ? null : key)}
+                    onClick={() => {
+                      const on = picked !== key
+                      setPicked(on ? key : null)
+                      // The first citation marked is often screens below the title: bring it into view,
+                      // or the click looks like it did nothing
+                      const first = on ? citations?.citations.find((c) => c.state && part.states.includes(c.state)) : undefined
+                      if (first) viewRef.current?.dispatch({ effects: EditorView.scrollIntoView(first.from, { y: "center" }) })
+                    }}
                     className="rounded-sm underline-offset-2 outline-none hover:text-foreground hover:underline focus-key:underline aria-pressed:text-foreground aria-pressed:underline"
                   >
                     {part.text}
