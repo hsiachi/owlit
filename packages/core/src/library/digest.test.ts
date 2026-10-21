@@ -188,11 +188,13 @@ describe("digests", () => {
     // Put there by hand, so nothing has read it yet
     writeFileSync(path.join(root, "library/papers/doi-10.1-pdf/paper.pdf"), makePdf([paragraph(72, 100, ["The text the digest is written from, long enough to count."])]))
     expect(await call("library.requestDigest", { id: "doi-10.1-pdf" })).toEqual({ gettingText: true })
-    const started = await until(async () => (await workspace.chats.latestAbout({ kind: "paper", id: "doi-10.1-pdf" }))?.id, { what: "the digest's chat to start" })
+    // The chat starts only once the PDF is read (pdfium, behind the text task's queue): as patient as the
+    // test below, which waits on the same read
+    const started = await until(async () => (await workspace.chats.latestAbout({ kind: "paper", id: "doi-10.1-pdf" }))?.id, { timeout: 60_000, what: "the digest's chat to start" })
     expect((await ended(started)).messages.at(-1)).toMatchObject({ status: "done" })
     expect(readFileSync(path.join(root, "library/papers/doi-10.1-pdf/text.md"), "utf8")).toContain("The text the digest is written from")
     expect(existsSync(path.join(root, "library/papers/doi-10.1-pdf/digest.md"))).toBe(true)
-  })
+  }, 70_000)
 
   it("tells every window when the chat can't start once the text is read", async () => {
     const { root, call, workspace, addPaper, heard } = await setup()
