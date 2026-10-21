@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
@@ -20,6 +21,9 @@ import { freshDocIds, useDocsStore } from "../store"
 import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
+import { citationsSlot, showCitationsSlot } from "./citations-slot"
+import { DocCitationsContext } from "@/components/citation"
+import { citationsLine, useDocCitations, useMarkedCitations } from "../lib/citations"
 import { mentionPopup } from "./mention-popup"
 import { useDocsUiStore } from "../ui-store"
 import { commentMarks, commentSpots, setComments, setNewComment, setOpenComment } from "./comment-marks"
@@ -96,6 +100,19 @@ function scrollerOf(el: HTMLElement): HTMLElement | null {
 
 export function DocEditor({ file }: { file: WorkspaceFile }) {
   const host = useRef<HTMLDivElement>(null)
+  const viewRef = useRef<EditorView | null>(null)
+  const citations = useDocCitations(file.id)
+  // The part of the citations line picked, by the states it names: its citations are marked for this visit
+  const [picked, setPicked] = useState<string | null>(null)
+  const line = useMemo(() => (citations ? citationsLine(citations.counts) : []), [citations])
+  const pickedStates = line.find((p) => p.states.join() === picked)?.states ?? null
+  useMarkedCitations(host, citations?.citations, pickedStates)
+  // Where the line is drawn: a slot the editor keeps under the doc's title
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const shown = line.length > 0
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: showCitationsSlot.of(shown) })
+  }, [shown])
   const navigate = useNavigate()
   const navigateRef = useRef(navigate)
   useEffect(() => {
@@ -208,6 +225,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
             },
             clear: () => seen?.clear(),
           }),
+          citationsSlot(setSlot),
           commentMarks({
             onOpen: (key) => useDocsUiStore.getState().setOpenComment(id, key),
             onLayout: (tops) => setCommentTops(id, tops),
@@ -228,6 +246,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
         ],
       }),
     })
+    viewRef.current = view
 
     // What others changed since the user last had it on screen, and marking it seen
     const diskText = () => (crlf ? view.state.doc.toString().replace(/\n/g, "\r\n") : view.state.doc.toString())
@@ -324,6 +343,7 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
       unregister()
       seen.close()
       view.destroy()
+      viewRef.current = null
       // Checked after the route settles, so a remount of the same doc doesn't count as leaving it
       setTimeout(() => {
         const left = useDocsStore.getState().files[id]
@@ -343,7 +363,48 @@ export function DocEditor({ file }: { file: WorkspaceFile }) {
   return (
     <>
       <div ref={host} className="min-h-full" />
-      <DocCitationHover host={host} />
+      {slot &&
+        shown &&
+        createPortal(
+          // One muted line under the title, naming only what wasn't read in the paper; a part marks its citations
+          <p className="pb-2 text-detail text-muted-foreground">
+            {line.map((part, i) => {
+              const key = part.states.join()
+              return (
+                <span key={key}>
+                  {i > 0 && " · "}
+                  <button
+                    type="button"
+                    aria-pressed={picked === key}
+                    onClick={() => {
+                      const on = picked !== key
+                      setPicked(on ? key : null)
+                      // The first citation marked is often screens below the title: bring it into view,
+                      // or the click looks like it did nothing
+                      const first = on ? citations?.citations.find((c) => c.state && part.states.includes(c.state)) : undefined
+                      if (first) viewRef.current?.dispatch({ effects: EditorView.scrollIntoView(first.from, { y: "center" }) })
+                    }}
+                    className="rounded-sm underline-offset-2 outline-none hover:text-foreground hover:underline focus-key:underline aria-pressed:text-foreground aria-pressed:underline"
+                  >
+                    {part.text}
+                  </button>
+                </span>
+              )
+            })}
+          </p>,
+          slot,
+        )}
+      <DocCitationsContext.Provider value={citations?.citations}>
+        <DocCitationHover
+          host={host}
+          // The passage on the card opens the paper as the citation's own click does, at the sentence
+          onOpen={(el, c) => {
+            const uri = `owlit://library/${c.paperId}${c.page ? `#p${c.page}` : ""}`
+            const pos = viewRef.current && el.isConnected ? viewRef.current.posAtDOM(el) : 0
+            if (!openBeside(uri, c.quote, { docId: file.id, pos })) openMention(uri, (to) => navigateRef.current(to), window.location.pathname, c.quote)
+          }}
+        />
+      </DocCitationsContext.Provider>
     </>
   )
 }

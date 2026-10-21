@@ -2,7 +2,7 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
-import type { CommentAnchor, CommentInput, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { CitationPassage, CitedWork, CommentAnchor, CommentInput, DocCitations, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { ThreadBatch, ThreadEdit, ThreadPaper, ThreadRead, ThreadSummary, ThreadWrite } from "./threads.ts"
@@ -141,6 +141,9 @@ export interface Methods {
   // A PDF in the workspace as text, each page after a <!-- page N --> line (the same reading and page
   // numbers as a paper in the Library); pages picks some ("3-5,8")
   "docs.readPdf": { params: { path: string; pages?: string }; result: { text: string; pages: number } }
+  // Every citation in a doc with what it rests on (DocCitation), and the counts a line over the doc says.
+  // text: the doc as the window has it (its editor may be ahead of the disk); the file's text otherwise
+  "docs.citations": { params: { path: string; text?: string }; result: DocCitations }
   // Writes a new file. id carries over one the client already uses; followsFirstLine names the file
   // after its first line now and on later writes, until it is renamed by hand.
   "docs.create": { params: { path: string; content: string; id?: string; followsFirstLine?: boolean }; result: DocStat }
@@ -482,6 +485,10 @@ export interface Methods {
   // Where a citation's sentence is in the paper's text, word for word; null when it isn't there (or
   // owlit has no text of the paper)
   "library.findPassage": { params: { id: string; quote: string }; result: { page: number } | null }
+  // Where a sentence sits in the paper, for a citation's card: its page and section, or the abstract, with
+  // a sentence either side, and the works it cites itself; null when neither the text nor the abstract
+  // holds it
+  "library.passage": { params: { id: string; quote: string }; result: { passage: CitationPassage; citesOther?: CitedWork[] } | null }
   // Looks for the paper's PDF now and waits: arXiv, open-access links, the publisher, Unpaywall. The
   // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }

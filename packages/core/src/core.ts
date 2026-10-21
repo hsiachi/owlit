@@ -420,6 +420,10 @@ export class Core {
                 // How far the chat read the paper's text, from its library_read calls (read-from.ts)
                 readDepth: (chatId, paperId) => textDepthOf(this.reads.since(`chat:${chatId}`, 0).filter((r) => r.paperId === paperId)),
               },
+              citations: {
+                reads: (chatId) => this.reads.since(`chat:${chatId}`, 0),
+                answering: (chatId) => this.turns.replyOf(chatId) !== undefined,
+              },
               profile: async () => (await this.settings.get()).profile,
               changeAdded: (notification) => {
                 if (this.workspace?.root === root) this.notifier.notify("changes.added", notification)

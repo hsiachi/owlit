@@ -1,9 +1,10 @@
 import { t } from "@lingui/core/macro"
-import { isPerson, RpcErrorCode, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { isPerson, RpcErrorCode, type CitationPassage, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import { mkdir, readFile, realpath, rename, stat } from "node:fs/promises"
 import path from "node:path"
 import { Chats } from "../chats/chats.ts"
+import { Citations, type CitationServices } from "../docs/citations.ts"
 import { Docs } from "../docs/docs.ts"
 import type { Host } from "../host.ts"
 import { Http } from "../net/http.ts"
@@ -19,6 +20,7 @@ import { RpcFailure, WINDOW } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
 import { SearchIndex, SETTLE_MS } from "../search/search.ts"
 import { Threads, type ThreadsServices } from "../threads/threads.ts"
+import { citesOtherIn, placeOf } from "../library/passage.ts"
 import { findQuote } from "../library/quotes.ts"
 import { isPaperId, paperDir } from "../library/paths.ts"
 import { paperIdOf } from "../library/refs.ts"
@@ -88,6 +90,9 @@ export interface WorkspaceOptions {
   changeAdded?: (notification: Notifications["changes.added"]) => void
   // The chat reply a change belongs to (the change log's origin.replyId)
   replyOf?: ReplyOrigin
+  // What core saw agents read, for what Owlit's citations rest on; without it, Owlit's writes count as
+  // made with reads this workspace never saw
+  citations?: Pick<CitationServices, "reads" | "answering">
   // What sharing docs by link needs from outside the workspace (the server, the network, the author)
   shares?: Omit<SharesServices, "owlitDir" | "dataDir" | "readDoc" | "paper">
 }
@@ -111,6 +116,7 @@ export class Workspace {
   readonly docs: Docs
   readonly changes: ChangeLog
   readonly recorder: Recorder
+  readonly citations: Citations
   readonly members: Members
   readonly seen: Seen
   readonly chats: Chats
@@ -134,6 +140,27 @@ export class Workspace {
       profile,
       added: options.changeAdded,
       replyOf: options.replyOf,
+      written: (change, before, after) => this.citations.written(change, before, after),
+    })
+    this.citations = new Citations(path.join(root, OWLIT_DIR), {
+      reads: () => [],
+      answering: () => false,
+      ...options.citations,
+      answered: async (chatId, exceptReply) => {
+        const chat = await this.chats.get(chatId).catch(() => null)
+        return chat?.messages.flatMap((m) => (m.id !== exceptReply && m.readFrom) || []) ?? []
+      },
+      canonical: (id) => this.library.canonical(id),
+      paper: async (id) => {
+        const text = path.join(paperDir(this.root, id), "text.md")
+        const info = await stat(text).catch(() => null)
+        return {
+          abstract: (await this.library.get(id))?.abstract,
+          hasText: !!info,
+          ...(info ? { stamp: `${info.mtimeMs}:${info.size}` } : {}),
+          text: () => readFile(text, "utf8").catch(() => null),
+        }
+      },
     })
     this.members = new Members(path.join(root, OWLIT_DIR))
     this.seen = new Seen(path.join(root, OWLIT_DIR))
@@ -223,6 +250,18 @@ export class Workspace {
     if (!here) return undefined
     const text = await readFile(path.join(paperDir(this.root, here), "text.md"), "utf8").catch(() => null)
     return text === null ? undefined : findQuote(text, quote)
+  }
+
+  // Where a citation's sentence sits in a paper, for its card (library/passage.ts placeOf), with the works
+  // the sentence cites itself; null when neither the abstract nor the text holds it
+  async passage(id: string, quote: string): Promise<{ passage: CitationPassage; citesOther?: CitedWork[] } | null> {
+    const here = await this.library.canonical(id)
+    if (!here) return null
+    const [paper, text] = await Promise.all([this.library.get(here), readFile(path.join(paperDir(this.root, here), "text.md"), "utf8").catch(() => null)])
+    const passage = placeOf(quote, { abstract: paper?.abstract, text })
+    if (!passage) return null
+    const citesOther = citesOtherIn(quote, text)
+    return { passage, ...(citesOther.length ? { citesOther } : {}) }
   }
 
   // Whether owlit has a paper's full text (its text.md), by any id the paper goes by

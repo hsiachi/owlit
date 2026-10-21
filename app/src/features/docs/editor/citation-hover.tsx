@@ -7,10 +7,18 @@ const CITATION = '.cm-mention[data-uri^="owlit://library/"]'
 
 // The citation card over a doc's paper mentions. CodeMirror draws them as plain DOM, so the card is one
 // popover for the whole editor, anchored to the mention the pointer rests on, with the same delays as
-// the hover card elsewhere, or at once when one gets the keyboard's focus. It never takes focus itself.
-export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null> }) {
+// the hover card elsewhere, or at once when one gets the keyboard's focus. It takes focus only when asked:
+// ↓ on a focused citation moves into its card, and Esc there goes back to the citation.
+// onOpen: the card's passage was clicked, for the citation at el
+export function DocCitationHover({ host, onOpen }: { host: RefObject<HTMLElement | null>; onOpen: (el: HTMLElement, citation: Citation) => void }) {
   const [shown, setShown] = useState<{ el: HTMLElement; citation: Citation } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
+  const card = useRef<HTMLDivElement>(null)
+  // The card the keyboard is in stays while it is; the citation it came from is where Esc returns
+  const shownNow = useRef(shown)
+  useEffect(() => {
+    shownNow.current = shown
+  }, [shown])
   const timers = useRef<{ open?: ReturnType<typeof setTimeout>; close?: ReturnType<typeof setTimeout> }>({})
   const clear = () => {
     clearTimeout(timers.current.open)
@@ -58,19 +66,31 @@ export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null>
       setShown({ el: mention, citation })
     }
     const blur = (e: FocusEvent) => {
-      if ((e.target as HTMLElement).closest(CITATION)) closeSoon()
+      if ((e.target as HTMLElement).closest(CITATION) && !card.current?.contains(e.relatedTarget as Node | null)) closeSoon()
+    }
+    // Before the editor's own keys: ↓ would move its cursor
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowDown" || !shownNow.current || e.target !== shownNow.current.el) return
+      const first = card.current?.querySelector<HTMLElement>("button:not(:disabled)")
+      if (!first) return
+      e.preventDefault()
+      e.stopPropagation()
+      clear()
+      first.focus()
     }
     el.addEventListener("pointerover", over)
     el.addEventListener("pointerout", out)
     el.addEventListener("mousedown", down)
     el.addEventListener("focusin", focus)
     el.addEventListener("focusout", blur)
+    el.addEventListener("keydown", key, true)
     return () => {
       el.removeEventListener("pointerover", over)
       el.removeEventListener("pointerout", out)
       el.removeEventListener("mousedown", down)
       el.removeEventListener("focusin", focus)
       el.removeEventListener("focusout", blur)
+      el.removeEventListener("keydown", key, true)
       clear()
     }
   }, [host])
@@ -88,10 +108,20 @@ export function DocCitationHover({ host }: { host: RefObject<HTMLElement | null>
           className={citationCardSurface}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
+          ref={card}
           onPointerEnter={clear}
-          onPointerLeave={closeSoon}
+          onPointerLeave={() => !card.current?.contains(document.activeElement) && closeSoon()}
+          // Leaving the card with Tab puts it away; Esc goes back to the citation
+          onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && e.relatedTarget !== shown.el && closeSoon()}
+          onEscapeKeyDown={() => shown.el.isConnected && shown.el.focus()}
         >
-          <CitationCard citation={shown.citation} />
+          <CitationCard
+            citation={shown.citation}
+            onOpen={(citation) => {
+              setShown(null)
+              onOpen(shown.el, citation)
+            }}
+          />
         </PopoverContent>
       )}
     </Popover>

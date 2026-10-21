@@ -16,13 +16,20 @@ export interface Citation {
   quote?: string
 }
 
-export function citationsIn(text: string): Citation[] {
-  const out: Citation[] = []
+export const citationsIn = (text: string): Citation[] =>
+  citationSpans(text).map(({ paperId, page, quote }) => ({ paperId, ...(page ? { page } : {}), ...(quote ? { quote } : {}) }))
+
+// Each citation with its place in the text: from the link's "[" (the nearest one before it on its line)
+// to its ")"
+export function citationSpans(text: string): (Citation & { from: number; to: number })[] {
+  const out: (Citation & { from: number; to: number })[] = []
   for (const m of text.matchAll(CITATION)) {
     const uri = parseOwlitUri(m[1])
     if (uri?.kind !== "paper") continue
     const quote = m[2]?.replace(/\\(.)/g, "$1").replace(/\s+/g, " ").trim()
-    out.push({ paperId: uri.id, ...(uri.page ? { page: uri.page } : {}), ...(quote ? { quote } : {}) })
+    const open = text.lastIndexOf("[", m.index)
+    const from = open >= 0 && !text.slice(open, m.index).includes("\n") ? open : m.index
+    out.push({ paperId: uri.id, ...(uri.page ? { page: uri.page } : {}), ...(quote ? { quote } : {}), from, to: m.index + m[0].length })
   }
   return out
 }

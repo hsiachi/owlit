@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { citedPaperIds, type WorkspaceFile } from "@owlit/protocol"
 import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChoiceMenu } from "@/components/choice-menu"
 import { FormRow } from "@/components/form-row"
 import { GroupLabel } from "@/components/group-label"
@@ -14,6 +14,7 @@ import { useCopyFlash } from "@/hooks/use-copy-flash"
 import { copyText } from "@/lib/clipboard"
 import { toastError } from "@/lib/toast"
 import { ago } from "@/lib/time"
+import { citationsSentenceFor } from "../lib/citations"
 import { displayName } from "../types"
 import { shares, unreachable, useShareStore } from "./store"
 
@@ -29,6 +30,17 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
   const [copied, flash] = useCopyFlash()
   const name = displayName(file.path)
   const cited = share?.papers ?? citedPaperIds(file.content ?? "").length
+  // The doc's citations line, said where the doc goes out, as a fact and never a gate
+  const [notRead, setNotRead] = useState<{ path: string; said?: string } | null>(null)
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    void citationsSentenceFor(file.path, file.content).then((said) => live && setNotRead({ path: file.path, said }))
+    return () => {
+      live = false
+    }
+  }, [open, file.path, file.content])
+  const said = notRead?.path === file.path ? notRead.said : undefined
 
   const run = async (work: () => Promise<unknown>) => {
     setBusy(true)
@@ -59,24 +71,27 @@ export function ShareDialog({ file, open, onOpenChange }: { file: WorkspaceFile;
 
   // What goes along with the doc, as Settings rows: the papers (always), the notes (a switch)
   const paperRows = (
-    <div className="divide-y">
-      <FormRow
-        name={cited ? plural(cited, { one: "The paper it cites", other: "The # papers it cites" }) : t`The papers it cites`}
-        help={t`Owlit's digest of each and a link to read it. Papers you cite later join them.`}
-      />
-      <FormRow
-        name={t`Your notes on those papers`}
-        help={(share ? share.notes : notes) ? t`Readers see them beside each paper` : t`Kept to yourself`}
-        control={
-          <Switch
-            checked={share ? share.notes : notes}
-            disabled={busy || share?.foreign}
-            onCheckedChange={(on) => (share ? void run(() => shares.update(file.path, { notes: on })) : setNotes(on))}
-            aria-label={t`Share your notes on the papers`}
-          />
-        }
-      />
-    </div>
+    <>
+      <div className="divide-y">
+        <FormRow
+          name={cited ? plural(cited, { one: "The paper it cites", other: "The # papers it cites" }) : t`The papers it cites`}
+          help={t`Owlit's digest of each and a link to read it. Papers you cite later join them.`}
+        />
+        <FormRow
+          name={t`Your notes on those papers`}
+          help={(share ? share.notes : notes) ? t`Readers see them beside each paper` : t`Kept to yourself`}
+          control={
+            <Switch
+              checked={share ? share.notes : notes}
+              disabled={busy || share?.foreign}
+              onCheckedChange={(on) => (share ? void run(() => shares.update(file.path, { notes: on })) : setNotes(on))}
+              aria-label={t`Share your notes on the papers`}
+            />
+          }
+        />
+      </div>
+      {said && <p className="mt-1 text-detail text-muted-foreground">{said}</p>}
+    </>
   )
 
   return (

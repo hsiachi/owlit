@@ -2,7 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import type { ReadFrom } from "@owlit/protocol"
 
 // How far Owlit read a paper, in the same words wherever the app says it (protocol ReadDepth): the card
-// under a chat's answer, a thread's rows and the line over them, a citation's card. A digest is Owlit's
+// under a chat's answer, a thread's rows and the line over them. A digest is Owlit's
 // own text, read instead of the paper's: said apart from the scale.
 export type SaidDepth = ReadFrom["depth"]
 
@@ -19,22 +19,6 @@ export function readDepthLabel(depth: SaidDepth): string {
       return t({ message: "Abstract only", context: "read depth", comment: "how far Owlit read a paper: its abstract, none of the text" })
     case "title":
       return t({ message: "Title only", context: "read depth", comment: "how far Owlit read a paper: its title, it has no abstract" })
-  }
-}
-
-// "Owlit, from the full text": where a claim came from, on a citation's card
-export function readDepthSource(depth: SaidDepth): string {
-  switch (depth) {
-    case "full":
-      return t`Owlit, from the full text`
-    case "part":
-      return t`Owlit, from part of the text`
-    case "digest":
-      return t`Owlit, from its digest`
-    case "abstract":
-      return t`Owlit, from the abstract`
-    case "title":
-      return t`Owlit, from the title only`
   }
 }
 

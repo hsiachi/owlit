@@ -57,12 +57,15 @@ export function usePaperActions() {
 
 // A doc's reference list, from the papers its Markdown links to in order of first use: APA, one per
 // paragraph, or a .bib whose keys don't collide
-export async function copyReferences(markdown: string, format: "apa" | "bibtex") {
+// note: said under the toast (a doc's citations line), or a promise of it, waited for only once copied
+export async function copyReferences(markdown: string, format: "apa" | "bibtex", note?: Promise<string | undefined>) {
   const { papers, aliases } = useLibraryStore.getState()
   const cited = citedPapers(markdown, (id) => paperById(papers, aliases, id), useThreadsStore.getState().threads)
   if (!cited.length) return void toast(t`This doc doesn't cite any papers`)
   const text = format === "apa" ? cited.map(apaCitation).join("\n\n") : bibtexAll(cited)
-  if (await copyText(text)) toast(plural(cited.length, { one: "# reference copied", other: "# references copied" }))
+  if (!(await copyText(text))) return
+  const description = await note?.catch(() => undefined)
+  toast(plural(cited.length, { one: "# reference copied", other: "# references copied" }), description ? { description } : undefined)
 }
 
 // Deleting is immediate; the toast's Undo brings the highlight back

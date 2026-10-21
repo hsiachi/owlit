@@ -10,6 +10,7 @@ import { docMentionable } from "./lib/mentions"
 import { copyText } from "@/lib/clipboard"
 import { canReveal, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
+import { citationsSentenceFor } from "./lib/citations"
 import { useDocsStore, type Removed } from "./store"
 import { baseName, displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
@@ -131,8 +132,8 @@ export function useDocActions() {
               {
                 label: t`Copy references`,
                 children: [
-                  { label: t({ message: "As APA text", comment: "copy a doc's references as APA-formatted text" }), onSelect: () => void copyReferences(docText(file), "apa") },
-                  { label: t({ message: "As BibTeX", comment: "copy a doc's references as a .bib file's entries" }), onSelect: () => void copyReferences(docText(file), "bibtex") },
+                  { label: t({ message: "As APA text", comment: "copy a doc's references as APA-formatted text" }), onSelect: () => void copyReferences(docText(file), "apa", citationsSentenceFor(file.path, docText(file))) },
+                  { label: t({ message: "As BibTeX", comment: "copy a doc's references as a .bib file's entries" }), onSelect: () => void copyReferences(docText(file), "bibtex", citationsSentenceFor(file.path, docText(file))) },
                 ],
               },
             ]
