@@ -510,34 +510,17 @@ msgstr "Owlit finished since you last looked"
 msgid "{label}: {choice}"
 msgstr "{label}: {choice}"
 
-#. a paper's reading status
-#. reading status of a paper: finished reading (past participle)
-#. reading status of a paper: finished reading (past participle)
+#. a page of a paper
 #: app/src/components/citation-card.tsx
-#: app/src/features/library/components/LibraryHeader.tsx
-#: app/src/features/library/lib/status.ts
-#: app/src/features/onboarding/OnboardingFlow.tsx
-msgid "Read"
-msgstr "Read"
+msgid "p. {pages}"
+msgstr "p. {pages}"
 
+#. pages of a paper, e.g. pp. 2–5, 7
 #: app/src/components/citation-card.tsx
-msgid "Not in your Library"
-msgstr "Not in your Library"
+msgid "pp. {pages}"
+msgstr "pp. {pages}"
 
-#: app/src/components/citation-card.tsx
-msgid "Owlit, from the text; how much of it isn't recorded"
-msgstr "Owlit, from the text; how much of it isn't recorded"
-
-#. label before the first lines of a cited paper's abstract, in its card
-#: app/src/components/citation-card.tsx
-#: app/src/features/library/components/EditDetailsDialog.tsx
-msgid "Abstract"
-msgstr "Abstract"
-
-#: app/src/components/citation-card.tsx
-msgid "No abstract in owlit."
-msgstr "No abstract in owlit."
-
+#. a page of a paper
 #. a page of a paper
 #. a page of a paper
 #. a page of a paper
@@ -554,18 +537,155 @@ msgstr "No abstract in owlit."
 msgid "p. {page}"
 msgstr "p. {page}"
 
+#. a cited sentence that is the paper's abstract's, on its card; who cited it isn't known
 #: app/src/components/citation-card.tsx
-msgid "Owlit couldn't find this sentence in the paper"
-msgstr "Owlit couldn't find this sentence in the paper"
+msgid "From the abstract"
+msgstr "From the abstract"
 
 #: app/src/components/citation-card.tsx
-msgid "The paper's text isn't in owlit"
-msgstr "The paper's text isn't in owlit"
+msgid "owlit couldn't find this sentence in the paper"
+msgstr "owlit couldn't find this sentence in the paper"
 
-#. the person's own reading of a cited paper, e.g. You: Read · 12 min, pp. 1–6
 #: app/src/components/citation-card.tsx
-msgid "You: {trace}"
-msgstr "You: {trace}"
+msgid "owlit has no text of this paper"
+msgstr "owlit has no text of this paper"
+
+#. a citation without a sentence, whose writer isn't known
+#: app/src/components/citation-card.tsx
+msgid "The citation names no sentence in the paper"
+msgstr "The citation names no sentence in the paper"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/> from the paper, which it read in full"
+msgstr "Quoted by <0/> from the paper, which it read in full"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/> from a page it read ({pages})"
+msgstr "Quoted by <0/> from a page it read ({pages})"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/> from a part it read"
+msgstr "Quoted by <0/> from a part it read"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/>; found on {on}, its reading of that page not recorded"
+msgstr "Quoted by <0/>; found on {on}, its reading of that page not recorded"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/>"
+msgstr "Quoted by <0/>"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/> from the abstract; owlit has the full text"
+msgstr "Quoted by <0/> from the abstract; owlit has the full text"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/> from the abstract; owlit has no text of this paper"
+msgstr "Quoted by <0/> from the abstract; owlit has no text of this paper"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/>; owlit couldn't find this sentence in the paper"
+msgstr "Quoted by <0/>; owlit couldn't find this sentence in the paper"
+
+#: app/src/components/citation-card.tsx
+msgid "Quoted by <0/>; owlit has no text of this paper to find it in"
+msgstr "Quoted by <0/>; owlit has no text of this paper to find it in"
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited the whole paper, after reading all of it"
+msgstr "<0/> cited the whole paper, after reading all of it"
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited the whole paper, after reading its digest"
+msgstr "<0/> cited the whole paper, after reading its digest"
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited the whole paper, after reading {pages}"
+msgstr "<0/> cited the whole paper, after reading {pages}"
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited the whole paper, after reading part of it"
+msgstr "<0/> cited the whole paper, after reading part of it"
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited this paper without reading it. The text is in owlit."
+msgstr "<0/> cited this paper without reading it. The text is in owlit."
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited this paper without reading it. owlit has no text of it."
+msgstr "<0/> cited this paper without reading it. owlit has no text of it."
+
+#: app/src/components/citation-card.tsx
+msgid "<0/> cited the whole paper; what it read isn't recorded"
+msgstr "<0/> cited the whole paper; what it read isn't recorded"
+
+#. the person, at the start of their line on a citation's card
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#. who wrote a comment or reply: the user
+#: app/src/components/citation-card.tsx
+#: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/docs/comments/model.ts
+msgid "You"
+msgstr "You"
+
+#: app/src/components/citation-card.tsx
+msgid "Not in your Library"
+msgstr "Not in your Library"
+
+#. after You, on a citation's card
+#: app/src/components/citation-card.tsx
+msgid "haven't opened this paper"
+msgstr "haven't opened this paper"
+
+#. after You, on a citation's card: read it · 12 min, pp. 1–6
+#: app/src/components/citation-card.tsx
+msgid "read it · {detail}"
+msgstr "read it · {detail}"
+
+#. after You, on a citation's card
+#: app/src/components/citation-card.tsx
+msgid "read it"
+msgstr "read it"
+
+#. after You, on a citation's card: opened it · 4 min, pp. 1–3
+#: app/src/components/citation-card.tsx
+msgid "opened it · {detail}"
+msgstr "opened it · {detail}"
+
+#. after You, on a citation's card
+#: app/src/components/citation-card.tsx
+msgid "opened it"
+msgstr "opened it"
+
+#. the person wrote this citation themselves, then their reading of the paper
+#: app/src/components/citation-card.tsx
+msgid "{you} added this citation · {reading}"
+msgstr "{you} added this citation · {reading}"
+
+#. a cited sentence holds its own references, e.g. The sentence cites (Reicherts et al., 2021)
+#: app/src/components/citation-card.tsx
+msgid "The sentence cites {names}"
+msgstr "The sentence cites {names}"
+
+#. label over the first lines of a cited paper's abstract, in its card
+#. where a cited sentence sits in its paper: the abstract
+#: app/src/components/citation-card.tsx
+#: app/src/features/library/components/EditDetailsDialog.tsx
+msgid "Abstract"
+msgstr "Abstract"
+
+#: app/src/components/citation-card.tsx
+msgid "Open the PDF at this passage"
+msgstr "Open the PDF at this passage"
+
+#: app/src/components/citation-card.tsx
+msgid "Open in the PDF ↗"
+msgstr "Open in the PDF ↗"
+
+#: app/src/components/citation-card.tsx
+msgid "No abstract in owlit."
+msgstr "No abstract in owlit."
 
 #. verb
 #. verb: copy the large files into the workspace
@@ -717,26 +837,6 @@ msgstr "Abstract only"
 msgctxt "read depth"
 msgid "Title only"
 msgstr "Title only"
-
-#: app/src/components/read-depth.ts
-msgid "Owlit, from the full text"
-msgstr "Owlit, from the full text"
-
-#: app/src/components/read-depth.ts
-msgid "Owlit, from part of the text"
-msgstr "Owlit, from part of the text"
-
-#: app/src/components/read-depth.ts
-msgid "Owlit, from its digest"
-msgstr "Owlit, from its digest"
-
-#: app/src/components/read-depth.ts
-msgid "Owlit, from the abstract"
-msgstr "Owlit, from the abstract"
-
-#: app/src/components/read-depth.ts
-msgid "Owlit, from the title only"
-msgstr "Owlit, from the title only"
 
 #: app/src/components/read-depth.ts
 msgid "{n, plural, one {# full text} other {# full text}}"
@@ -2834,14 +2934,6 @@ msgstr "Reply…"
 msgid "Reply"
 msgstr "Reply"
 
-#. who wrote a comment or reply: the user
-#. who wrote a comment or reply: the user
-#. who wrote a comment or reply: the user
-#: app/src/features/docs/comments/CommentCard.tsx
-#: app/src/features/docs/comments/model.ts
-msgid "You"
-msgstr "You"
-
 #: app/src/features/docs/comments/CommentCard.tsx
 msgid "Comment…"
 msgstr "Comment…"
@@ -3079,6 +3171,41 @@ msgstr "this line clears when you leave the doc"
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
 msgstr "Edit applied"
+
+#. placeholder {0}: counts.total
+#: app/src/features/docs/lib/citations.ts
+msgid "{0, plural, one {{n} of # citation not read in the paper} other {{n} of # citations not read in the paper}}"
+msgstr "{0, plural, one {{n} of # citation not read in the paper} other {{n} of # citations not read in the paper}}"
+
+#. citations whose sentence is the cited paper's abstract's
+#. placeholder {0}: counts.abstract
+#: app/src/features/docs/lib/citations.ts
+msgid "{0} from the abstract"
+msgstr "{0} from the abstract"
+
+#. citations of papers Owlit read nothing of
+#. placeholder {0}: counts.notRead
+#: app/src/features/docs/lib/citations.ts
+msgid "{0} not read"
+msgstr "{0} not read"
+
+#. citations without a sentence, with nothing recorded of what was read
+#. placeholder {0}: counts.bare
+#: app/src/features/docs/lib/citations.ts
+msgid "{0} with no reading recorded"
+msgstr "{0} with no reading recorded"
+
+#. citations whose sentence isn't in the paper's text
+#. placeholder {0}: counts.notFound
+#: app/src/features/docs/lib/citations.ts
+msgid "{0} not found in the paper"
+msgstr "{0} not found in the paper"
+
+#. citations with a sentence owlit has no text of the paper to look in
+#. placeholder {0}: counts.noText
+#: app/src/features/docs/lib/citations.ts
+msgid "{0} without the paper's text"
+msgstr "{0} without the paper's text"
 
 #. placeholder {0}: p.total
 #. placeholder {0}: papers.length
@@ -4176,6 +4303,14 @@ msgstr "Starred"
 #: app/src/features/library/lib/status.ts
 msgid "Unread"
 msgstr "Unread"
+
+#. reading status of a paper: finished reading (past participle)
+#. reading status of a paper: finished reading (past participle)
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/features/library/lib/status.ts
+#: app/src/features/onboarding/OnboardingFlow.tsx
+msgid "Read"
+msgstr "Read"
 
 #. filter chip: papers owlit has no PDF of
 #: app/src/features/library/components/LibraryHeader.tsx
