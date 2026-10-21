@@ -9,7 +9,7 @@ import { i18n } from "@/lib/i18n"
 import { useChatStore } from "../store"
 import type { PromptInput } from "@owlit/protocol"
 import { starters } from "../lib/starters"
-import { Composer, type ComposerHandle } from "./composer/Composer"
+import { type AskParts, Composer, type ComposerHandle } from "./composer/Composer"
 
 // With the user's name when Settings has one; each greeting is one message, as the name's place varies
 function greeting(name?: string) {
@@ -27,9 +27,10 @@ function greeting(name?: string) {
 }
 
 // What a visit to /chat itself asks for: a starter handed over from elsewhere (the Library's Ask Owlit to
-// find papers), or a fresh page (New chat, ⌘N, a deleted or missing chat)
-interface ChatIndexState {
-  starter?: string
+// find papers; Go through on a file, which names the file), or a fresh page (New chat, ⌘N, a deleted or
+// missing chat)
+export interface ChatIndexState {
+  starter?: string | AskParts
   fresh?: boolean
 }
 
@@ -55,7 +56,8 @@ export function ChatEmpty() {
   const keys = keysFor("owlit")
 
   useEffect(() => {
-    if (starter) composer.current?.setText(starter)
+    if (typeof starter === "string") composer.current?.setText(starter)
+    else if (starter) composer.current?.setAsk(starter)
   }, [starter])
 
   if (!starter && !state?.fresh && lastChatId) {

@@ -3,6 +3,10 @@ import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { mentionLink } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
+import type { AskParts } from "@/features/chat/components/composer/Composer"
+import type { ChatIndexState } from "@/features/chat/components/ChatEmpty"
+import { useAgentWindow } from "@/features/agent/store"
+import { docMentionable } from "./lib/mentions"
 import { copyText } from "@/lib/clipboard"
 import { canReveal, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
@@ -38,6 +42,10 @@ const docText = (file: WorkspaceFile) => openEditor(file.id)?.state.doc.toString
 
 const reveal = (path: string) => void rpc.docs.reveal({ path }).catch(toastError)
 
+// What Go through can read (core's go-through recipe, through docs_read): minutes and notes in Markdown,
+// a transcript as text or subtitles, a PDF kept among the docs
+const isMaterial = (path: string) => isMarkdown(path) || /\.(txt|pdf|srt|vtt)$/i.test(path)
+
 // What can be done to docs and folders, the same from a row's ⋯, a right-click, the doc's header and the
 // keyboard
 export function useDocActions() {
@@ -60,6 +68,20 @@ export function useDocActions() {
   // follows the doc through renames and moves
   const copyLink = async (file: WorkspaceFile) => {
     if (await copyText(mentionLink(displayName(file.path), docUri(file.path)))) toast(t`Link copied`)
+  }
+
+  // Go through with Owlit: a chat with the question begun, naming the file, for the person to send or
+  // change. A doc gets it in the panel beside itself, where the comments will land; a file with no page
+  // of its own (a PDF, a transcript) gets it on the Chat page.
+  const goThrough = (file: WorkspaceFile) => {
+    const ask: AskParts = [
+      t({ message: "Go through ", comment: "starts the Go through question; a mention of the file follows; keep the trailing space" }),
+      { ...docMentionable(file), label: displayName(file.path) },
+      t({ message: " against my docs: what does it change?", comment: "ends the Go through question, after the mention of the file; keep the leading space" }),
+    ]
+    if (!isMarkdown(file.path)) return navigate("/chat", { state: { starter: ask } satisfies ChatIndexState })
+    if (activeId !== file.id) navigate(`/docs/${file.id}`)
+    useAgentWindow.getState().askWith(ask)
   }
 
   const deleteFile = (file: WorkspaceFile) => {
@@ -121,6 +143,7 @@ export function useDocActions() {
           ? [{ label: t`Resolved comments…`, onSelect: () => useDocsUiStore.getState().showResolved(file.id) }]
           : []),
       ],
+      isMaterial(file.path) ? [{ label: t`Go through this with Owlit`, onSelect: () => goThrough(file) }] : [],
       [
         ...(md ? [{ label: t`Copy link`, onSelect: () => void copyLink(file) }] : []),
         ...(canReveal ? [{ label: t`Show in Finder`, onSelect: () => reveal(file.path) }] : []),

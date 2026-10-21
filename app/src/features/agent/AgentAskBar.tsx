@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
+import { useLocation } from "react-router-dom"
 import { Kbd } from "@/components/ui/kbd"
 import { Tip } from "@/components/tip"
 import { keysFor } from "@/app/shortcuts"
@@ -8,7 +9,8 @@ import { useChatStore } from "@/features/chat/store"
 import { SelectionChip } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
 import { askAboutHint, useVisibleContext } from "./page-context"
-import { useAgentWindow } from "./store"
+import { pageUri } from "./page-uri"
+import { panelChatFor, useAgentWindow } from "./store"
 
 // A small bar at the bottom of the page for the first question; sending it opens the panel. It is the
 // chat's own composer in one line, so what is typed waits in the new chat's draft (Esc keeps it), and
@@ -19,13 +21,19 @@ export function AgentAskBar() {
   const selection = useAgentWindow((s) => s.selection)
   const focusTick = useAgentWindow((s) => s.focusTick)
   const hint = useAgentWindow((s) => s.hint)
-  // The chat ⇧⌘J would bring back, offered while the bar is empty so the way back is never a guess. Its
-  // title is in the tooltip, not the bar: an unrelated chat's title read as part of this page's question.
+  // The chat ⇧⌘J would bring back (the store's panelChatFor), offered while the bar is empty so the way
+  // back is never a guess. Its title is in the tooltip, not the bar: an unrelated chat's title read as
+  // part of this page's question.
+  const page = pageUri(useLocation().pathname)
   const chatId = useAgentWindow((s) => s.chatId)
-  const current = useChatStore((s) => {
-    const chat = chatId ? s.chats[chatId] : undefined
+  const chats = useChatStore((s) => s.chats)
+  const current = useMemo(() => {
+    const id = panelChatFor(page)
+    const chat = id ? chats[id] : undefined
     return chat?.messages.length ? chat.title : null
-  })
+    // panelChatFor reads the current chat and the chats; the deps are what it reads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, chatId, chats])
   const context = useVisibleContext()
   const composer = useRef<ComposerHandle>(null)
 

@@ -6,6 +6,8 @@ import { hasAllWords, queryWords } from "@/lib/words"
 import { useNavigate } from "react-router-dom"
 import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
 import { EmptyPlace } from "@/components/empty-place"
+import { Button } from "@/components/ui/button"
+import { starterPrompt } from "@/features/chat/lib/starters"
 import { GroupLabel } from "@/components/group-label"
 import { PageShell, PageTitle } from "@/components/page"
 import { NoteDot, StoppedDot } from "@/components/marks"
@@ -21,7 +23,7 @@ import { useThreadFresh } from "@/app/seen"
 // Threads: Owlit's reports on the questions the user asked it, by project. A row is the title with
 // Owlit's one line on the thread under it, and at the right how many papers and when it last changed;
 // the slot says whether Owlit changed it since the user looked. Threads are made and changed in a chat,
-// so the page has nothing to start one with.
+// so the page's one button leads there: Chat, with the question that starts one begun in the composer.
 export function ThreadsPage() {
   const all = useSummaries()
   const loaded = useThreadsStore((s) => s.loaded)
@@ -41,14 +43,24 @@ export function ThreadsPage() {
   }
   // The breadcrumb's project opens the list at that project's group
   useTakeParam("project", (at) => document.getElementById(`project-${at}`)?.scrollIntoView({ block: "start" }), { enabled: loaded })
+  const findPapers = () => navigate("/chat", { state: { starter: starterPrompt("find") } })
+  const starter = t({ message: "Find papers on a question…", comment: "button: opens Chat with the question that starts a thread begun" })
   return (
     <PageShell width="narrow">
-      <header className="px-0.5">
+      <header className="flex items-center gap-2 px-0.5">
         <PageTitle>{t`Threads`}</PageTitle>
+        <span className="flex-1" />
+        <Button variant="outline" size="sm" onClick={findPapers}>
+          {starter}
+        </Button>
       </header>
       <FindField value={query} onChange={setQuery} onEnter={enter} placeholder={t`Find a thread`} label={t`Find a thread`} />
       {loaded && !all.length && !words.length ? (
-        <EmptyPlace className="mt-24" title={t`No threads yet`} detail={t`Ask Owlit in a chat to find papers; the thread appears here.`} />
+        <EmptyPlace className="mt-24" title={t`No threads yet`} detail={t`Ask Owlit to find papers on a question; the thread appears here.`}>
+          <Button variant="outline" size="sm" onClick={findPapers}>
+            {starter}
+          </Button>
+        </EmptyPlace>
       ) : (
         <div className="mt-6 flex flex-col gap-6">
           {groups.map((g) => (

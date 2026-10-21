@@ -1951,6 +1951,15 @@ msgstr ""
 msgid "What do my papers say about "
 msgstr ""
 
+#: app/src/features/chat/lib/starters.ts
+msgid "Where did I stop?"
+msgstr ""
+
+#. a whole question, sent as it is: Owlit accounts for each project from what the user did, the chats and the threads
+#: app/src/features/chat/lib/starters.ts
+msgid "Where did I stop? Go project by project: what I last worked on, what waits on me, and what you proposed that still waits for my yes."
+msgstr ""
+
 #: app/src/features/chat/lib/step-output.ts
 msgid "{n, plural, one {# result} other {# results}}"
 msgstr ""
@@ -2555,6 +2564,16 @@ msgstr ""
 msgid "Link copied"
 msgstr ""
 
+#. starts the Go through question; a mention of the file follows; keep the trailing space
+#: app/src/features/docs/actions.ts
+msgid "Go through "
+msgstr ""
+
+#. ends the Go through question, after the mention of the file; keep the leading space
+#: app/src/features/docs/actions.ts
+msgid " against my docs: what does it change?"
+msgstr ""
+
 #: app/src/features/docs/actions.ts
 msgid "Doc deleted"
 msgstr ""
@@ -2595,6 +2614,10 @@ msgstr ""
 
 #: app/src/features/docs/actions.ts
 msgid "Resolved comments…"
+msgstr ""
+
+#: app/src/features/docs/actions.ts
+msgid "Go through this with Owlit"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
@@ -4447,15 +4470,19 @@ msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
+msgid "Owlit can look for more papers on this outside your library."
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "Ask Owlit to find papers about this"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
 msgid "No papers match “{words}”"
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for papers on this and add what it finds."
-msgstr ""
-
-#: app/src/features/library/pages/LibraryPage.tsx
-msgid "Ask Owlit to find papers about this"
 msgstr ""
 
 #: app/src/features/library/pages/LibraryPage.tsx
@@ -6270,6 +6297,11 @@ msgstr ""
 msgid "Owlit stopped."
 msgstr ""
 
+#. button: opens Chat with the question that starts a thread begun
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "Find papers on a question…"
+msgstr ""
+
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Find a thread"
 msgstr ""
@@ -6279,7 +6311,7 @@ msgid "No threads yet"
 msgstr ""
 
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "Ask Owlit in a chat to find papers; the thread appears here."
+msgid "Ask Owlit to find papers on a question; the thread appears here."
 msgstr ""
 
 #. a thread whose search found no papers

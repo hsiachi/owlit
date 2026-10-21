@@ -4,10 +4,12 @@ import { persist } from "zustand/middleware"
 import { useChatStore } from "@/features/chat/store"
 import { useSeen } from "@/app/seen"
 import { chatStatus, useSeenStore } from "@/features/chat/status"
-import { chatIsAbout } from "./chats-about"
+import { chatIsAbout, latestChatAbout } from "./chats-about"
+import { currentPageUri } from "./page-uri"
 import { rpc } from "@/lib/rpc"
 import { onWorkspaceOpened, useWorkspace } from "@/lib/workspace"
 import type { Mentionable, PageRect, PromptInput, QuotedSelection } from "@owlit/protocol"
+import type { AskParts } from "@/features/chat/components/composer/Composer"
 
 // The app-wide agent window. It is closed, a small ask bar, or a panel docked on the right. Its
 // conversations are ordinary chats. The ask bar is for a new question (⌘J); the panel shows the current
@@ -21,9 +23,10 @@ const PANEL_MIN = 320
 export const PAGE_MIN = 560
 const clampPanelWidth = (width: number) => Math.round(Math.max(PANEL_MIN, Math.min(width, window.innerWidth - PAGE_MIN)))
 
-// ⇧⌘J and the feather open the panel on the current chat, unless the person left it this long ago: by then
-// they are usually on another paper or doc, and the old conversation would go along with every question
-// about it. ⌘J already starts a new question; this makes ⇧⌘J mean "go on with what I was just doing".
+// Away from any paper, doc or thread, ⇧⌘J and the feather open the panel on the current chat, unless the
+// person left it this long ago: by then they are usually on to something else, and the old conversation
+// would go along with every question. ⌘J already starts a new question; this makes ⇧⌘J mean "go on with
+// what I was just doing".
 const LEFT_A_WHILE = 30 * 60_000
 
 // A chat that still has something for the person (at work, waiting on them, a reply they haven't seen, a
@@ -58,12 +61,18 @@ interface AgentWindowState {
   focusTick: number
   // The ask bar's placeholder when it was opened for something particular (Help › Ask Owlit How To…)
   hint: string | null
+  // A question put in the panel's composer when a page opened it (Go through on a doc); taken once
+  prefill: AskParts | null
   // The docked panel's width, dragged from its left edge
   panelWidth: number
 
   // Ask Owlit (⌘J, or on a selection): into the panel when it is open, else the ask bar for a new chat. A
-  // passage from something the docked chat isn't about starts an empty chat in the panel instead.
+  // passage goes on in the chat about what it came from: the panel's when that is about it or still
+  // empty (New chat), else the latest one about it; with none, an empty chat in the open panel or the bar.
   open: (selection?: QuotedSelection, rects?: { paperId: string; rects: PageRect[] }) => void
+  // A page's door into a chat (Go through on a doc): the panel on a new chat, with the question in its
+  // composer for the person to send or change
+  askWith: (parts: AskParts) => void
   // Ask Owlit on a comment: the docked panel with the passage, in the chat given or in a new one, never
   // in whatever chat happened to be docked
   askIn: (chatId: string | null, selection: QuotedSelection) => void
@@ -100,21 +109,27 @@ export const useAgentWindow = create<AgentWindowState>()(
       listShown: false,
       focusTick: 0,
       hint: null,
+      prefill: null,
       panelWidth: PANEL_WIDTH,
 
       open: (selection, rects) =>
         set((s) => {
-          const docked = s.stage === "open" && s.chatId ? useChatStore.getState().chats[s.chatId] : undefined
-          const elsewhere = !!selection && !!docked?.messages.length && !chatIsAbout(docked.messages, selection.source.uri)
-          return {
-            stage: s.stage === "open" ? "open" : "bar",
+          const base = {
             selection: selection ?? s.selection,
             selectionRects: selection ? (rects ?? null) : s.selectionRects,
             fromNote: selection ? (selection.notePath ?? null) : s.fromNote,
             focusTick: s.focusTick + 1,
-            ...(elsewhere && { chatId: null, hiddenContext: null, hint: null }),
           }
+          const open = s.stage === "open"
+          if (!selection) return { stage: open ? "open" : "bar", ...base }
+          const docked = open && s.chatId ? useChatStore.getState().chats[s.chatId] : undefined
+          if (open && (!docked || !docked.messages.length || chatIsAbout(docked.messages, selection.source.uri))) return { stage: "open", ...base }
+          const latest = latestChatAbout(selection.source.uri)
+          if (!latest && !open) return { stage: "bar", ...base }
+          return { stage: "open", chatId: latest, hiddenContext: null, hint: null, ...base }
         }),
+      askWith: (parts) =>
+        set((s) => ({ stage: "open", chatId: null, selection: null, selectionRects: null, fromNote: null, hiddenContext: null, hint: null, prefill: parts, focusTick: s.focusTick + 1 })),
       askIn: (chatId, selection) =>
         set((s) => ({ stage: "open", chatId, selection, selectionRects: null, fromNote: null, hiddenContext: null, hint: null, focusTick: s.focusTick + 1 })),
       close: () => set({ stage: "closed", listShown: false, fromNote: null, hint: null }),
@@ -122,8 +137,8 @@ export const useAgentWindow = create<AgentWindowState>()(
       togglePanel: () => {
         const { stage, chatId } = get()
         if (stage === "open") return get().close()
-        const fresh = !!chatId && leftAWhileAgo(chatId)
-        set((s) => ({ stage: "open", fromNote: null, hint: null, focusTick: s.focusTick + 1, ...(fresh && { chatId: null, hiddenContext: null }) }))
+        const next = panelChatFor(currentPageUri())
+        set((s) => ({ stage: "open", fromNote: null, hint: null, focusTick: s.focusTick + 1, ...(next !== chatId && { chatId: next, hiddenContext: null }) }))
       },
       follow: (chatId) => set((s) => (s.chatId === chatId ? s : { chatId, fromNote: null })),
       // From the panel's header: an empty chat in the panel itself, not the ask bar, so the conversation
@@ -155,6 +170,20 @@ export const useAgentWindow = create<AgentWindowState>()(
     { name: "owlit-agent-window", partialize: (s) => ({ panelWidth: s.panelWidth }) },
   ),
 )
+
+// The chat the panel opens on, by id, or null for a new one. Beside a paper, doc or thread (`uri`, the
+// page's address): the current chat when it is about it, else the latest chat about it; a chat from
+// elsewhere never comes along, since beside this page it reads as the wrong conversation (the chats about
+// the page are offered under Earlier here either way). Elsewhere: the current chat, unless the person
+// left it a while ago.
+export function panelChatFor(uri: string | null): string | null {
+  const { chatId } = useAgentWindow.getState()
+  if (uri) {
+    const current = chatId ? useChatStore.getState().chats[chatId] : undefined
+    return current && chatIsAbout(current.messages, uri) ? chatId : latestChatAbout(uri)
+  }
+  return chatId && leftAWhileAgo(chatId) ? null : chatId
+}
 
 // Set while the window takes the workspace's saved chat, which needs no saving back
 let restoring = false

@@ -12,7 +12,7 @@ export function goThroughRecipe() {
   const recordLink = "[<the record's name>](owlit://docs/<the record's path>)"
   return [
     `You are Owlit, going through material that comes from people (a meeting, reviews, someone's comments on a draft, an email of points, the user's own notes) against the user's docs. A summary says what the material contains; going through it says what it changes. You write down only what is new to the work, what differs from it, what was left open, what is owed, and what to look up. Everything that matches the work is dropped, in one closing clause.`,
-    `The material is the file the user named: read it whole with docs_read (a file attached to the chat is in .owlit/chats/<chat id>/files/). Markdown or plain text only; for anything else, say so and stop.`,
+    `The material is the file the user named: read it whole with docs_read (a file attached to the chat is in .owlit/chats/<chat id>/files/). Markdown, plain text or a PDF kept among the docs (docs_read reads all three); for anything else, say so and stop.`,
     `If you don't know the user's name and one speaker is plainly the user (the docs are theirs, they present them), write that speaker as "you" (你); otherwise name every speaker.`,
     `First find the doc or docs it is about: docs_list lists the workspace's docs. Read the likely ones with docs_read. If none is about it, go through it against nothing: everything new is a point, and you leave no comments.`,
     `Keep the kinds of statement apart, and read the whole material before calling anything decided:

@@ -4,6 +4,9 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Six doors into asking Owlit, each opening a chat with the question begun and nothing sent: Threads has a "Find papers on a question…" button, in its header and when it is empty; a doc's menu (and a PDF's or transcript's among the docs) has "Go through this with Owlit", which opens the panel beside the doc with the file named in the question; in the Library, Enter on words that match papers offers "Ask Owlit to find papers about this" too, not only when nothing matches; and "Where did I stop?" is a starter on the Chat page and in the panel, asking Owlit to go project by project.
+- Ask Owlit on a passage goes on in the latest chat about that doc or paper instead of starting a new one, unless the panel is on a chat about it already or you pressed New chat.
+- Opening the Owlit panel beside a paper, doc or thread opens the latest chat about it, or a new one, never the chat you last had elsewhere.
 - The example workspace has a third thread, Test data behind the papers, whose grouping shows as a column with groups inside groups; the chat that made it, where Owlit asked which papers to take and asked before writing; and a comment of Owlit's on Related work, with a reply.
 - The card under an answer says in one line what it was built from: "From 6 papers · 3 abstract only", or "all read". Click it for the papers, each with how Owlit read it. In a narrow Owlit panel the rest of the card is shorter too: the line saying what the reply changed is a count ("4 changes"), and a thread, paper or doc no longer shrinks to one character beside its detail. A table's columns of sentences keep a readable width and the table scrolls sideways.
 - A citation's card names the abstract it shows as the abstract, instead of saying Owlit took the claim from it.

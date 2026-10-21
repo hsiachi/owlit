@@ -7,6 +7,8 @@ import { threadMentionable, docMentionable, paperMentionable } from "@/features/
 import { useDocsStore } from "@/features/docs/store"
 import { useThreadsStore } from "@/features/threads/store"
 import { useLibraryStore } from "@/features/library/store"
+import { starters } from "@/features/chat/lib/starters"
+import { i18n } from "@/lib/i18n"
 import { useAgentWindow } from "./store"
 
 // A passage's chip names where it came from: a page of a paper, the paper's note or digest
@@ -54,8 +56,15 @@ export function pageStarters(kind: PageKind): { label: string; prompt: string }[
   ]
 }
 
+// The empty panel's starters wherever it is: the questions one asks on coming back, which the Chat page
+// offers too (starters.ts); shown after the page's own
+export function generalStarters(): { label: string; prompt: string }[] {
+  const resume = starters.find((s) => s.id === "resume")!
+  return [{ label: i18n._(resume.label), prompt: i18n._(resume.prompt) }]
+}
+
 // The doc, paper or thread on screen, which the agent is shown along with the question
-function usePageContext(): Mentionable | null {
+export function usePageContext(): Mentionable | null {
   const subject = routeSubject(useLocation().pathname)
   const id = subject?.id
   const doc = useDocsStore((s) => (subject?.kind === "doc" ? s.files[subject.id] : undefined))
