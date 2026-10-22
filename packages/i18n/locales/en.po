@@ -3082,8 +3082,10 @@ msgstr "Shared by link"
 msgid "Folder actions"
 msgstr "Folder actions"
 
+#. Library menu: show the papers one project cites, or all papers
 #. a folder of docs marked as a project
 #: app/src/features/docs/components/DocsListPanel.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
 msgid "Project"
 msgstr "Project"
 
@@ -4388,6 +4390,26 @@ msgstr "{0, plural, one {# paper, {1} with a PDF} other {# papers, {2} with a PD
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 
+#. Library scope menu: every paper, of no one project
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "All papers"
+msgstr "All papers"
+
+#. Library: which of a project's cited papers show
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Papers it cites"
+msgstr "Papers it cites"
+
+#. Library, in a project: the papers its current drafts cite
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Current drafts"
+msgstr "Current drafts"
+
+#. Library, in a project: the papers any of its docs cite
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Everything it cites"
+msgstr "Everything it cites"
+
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr "Recently added"
@@ -4513,6 +4535,20 @@ msgstr "No tags yet."
 msgid "More actions"
 msgstr "More actions"
 
+#. Library row in a project: how far Owlit read the paper for the project's citations, e.g. Owlit: Full text
+#: app/src/features/library/components/PaperList.tsx
+msgid "Owlit: {depth}"
+msgstr "Owlit: {depth}"
+
+#: app/src/features/library/components/PaperList.tsx
+msgid "How far Owlit read it for the citations it wrote in this project"
+msgstr "How far Owlit read it for the citations it wrote in this project"
+
+#. Library row in a project: the other projects whose docs cite this paper, each a link
+#: app/src/features/library/components/PaperList.tsx
+msgid "also cited in {names}"
+msgstr "also cited in {names}"
+
 #: app/src/features/library/components/PaperList.tsx
 msgid "New digest"
 msgstr "New digest"
@@ -4525,6 +4561,17 @@ msgstr "Digest stopped"
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"
 msgstr "Status"
+
+#. Library table in a project: the other projects whose docs cite the paper
+#: app/src/features/library/components/PaperList.tsx
+msgid "Also cited in"
+msgstr "Also cited in"
+
+#. Library table in a project: the person's reading of a paper beside how far Owlit read it
+#: app/src/features/library/components/PaperList.tsx
+msgctxt "table column"
+msgid "Reading"
+msgstr "Reading"
 
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -4879,6 +4926,25 @@ msgstr "No papers match."
 msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr "Drop PDFs to add, or a BibTeX file or a folder to import"
 
+#. Library scoped to a project whose newest docs cite no paper of the Library
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers cited by the current drafts of {name} yet"
+msgstr "No papers cited by the current drafts of {name} yet"
+
+#. Library scoped to a project none of whose docs cite a paper of the Library
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers cited in {name} yet"
+msgstr "No papers cited in {name} yet"
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "A paper is in a project once one of its docs cites it."
+msgstr "A paper is in a project once one of its docs cites it."
+
+#. Library, a project's drafts cite nothing: shows the papers any of its docs cite
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "See everything it cites ({everything})"
+msgstr "See everything it cites ({everything})"
+
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for more papers on this outside your library."
 msgstr "Owlit can look for more papers on this outside your library."
@@ -5035,6 +5101,11 @@ msgstr "Basic"
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Cited in"
 msgstr "Cited in"
+
+#. under a doc that cites this paper: its other citing sentences, opening the doc
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "+{more} more"
+msgstr "+{more} more"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx

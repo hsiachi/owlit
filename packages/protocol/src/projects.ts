@@ -1,3 +1,5 @@
+import type { ReadFrom } from "./chat.ts"
+
 // Projects: a folder of the workspace is a project when it holds a project.md (any case), at any depth.
 // Nothing about a project is stored outside that file; core computes the rest from the workspace each time.
 
@@ -42,6 +44,28 @@ export interface CurrentDraft {
   modifiedAt: number
   // Named by the mark's current: line rather than being the newest of its kind
   byMark?: true
+}
+
+// projects.cited: the Library's papers a project cites, the papers being in it by reference only. Found in
+// the docs' text as it is on disk, so it agrees with the doc a link opens.
+export interface ProjectCited {
+  // Cited in the project's current drafts
+  drafts: CitedPaper[]
+  // Cited in any doc under the project, its sub-projects' included; drafts' papers among them
+  all: CitedPaper[]
+}
+
+export interface CitedPaper {
+  // The Library's id
+  id: string
+  // The docs under the project citing it, its current drafts first
+  docs: string[]
+  // The deepest Owlit had read the paper for any of its citations in those docs that it wrote; absent
+  // when none says
+  depth?: ReadFrom["depth"]
+  // The other projects whose docs cite it, each its nearest mark; the project's own sub-projects aren't
+  // other
+  also: { path: string; name: string }[]
 }
 
 // projects.summary: what Home shows of each project, and the unmarked folders the person worked in lately.

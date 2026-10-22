@@ -4,7 +4,7 @@ import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown"
-import { Compartment, EditorSelection, EditorState, type Transaction } from "@codemirror/state"
+import { Compartment, EditorState, type Transaction } from "@codemirror/state"
 import { EditorView, keymap, placeholder } from "@codemirror/view"
 import { useAgentWindow } from "@/features/agent/store"
 import { useChatStore } from "@/features/chat/store"
@@ -21,6 +21,7 @@ import { freshDocIds, useDocsStore } from "../store"
 import { displayName, type CommentAnchor, type WorkspaceFile } from "../types"
 import { livePreview } from "./live-preview"
 import { DocCitationHover } from "./citation-hover"
+import { lastScroll, lastSelection } from "./places"
 import { citationsSlot, showCitationsSlot } from "./citations-slot"
 import { DocCitationsContext } from "@/components/citation"
 import { citationsLine, useDocCitations, useMarkedCitations } from "../lib/citations"
@@ -87,10 +88,6 @@ function openBeside(uri: string, quote: string | undefined, from: { docId: strin
   return true
 }
 
-// Where each doc was left, for this session: a doc reopens with the cursor where it was, scrolled as it
-// was (Back from a paper a citation opened lands on the citation, not on the cursor)
-const lastSelection = new Map<string, EditorSelection>()
-const lastScroll = new Map<string, number>()
 
 // What scrolls the doc: the page around the editor, which grows with its text
 function scrollerOf(el: HTMLElement): HTMLElement | null {

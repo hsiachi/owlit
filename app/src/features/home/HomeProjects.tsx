@@ -115,7 +115,7 @@ function ProjectGroup({ project, places }: { project: ProjectSummary; places: Pl
       <div className="flex flex-col gap-0.5">
         {/* The doc last worked on, with the person's own last words in it */}
         {place && <PlaceRow place={place} detail={place.words ?? ""} end={didWords(place)} />}
-        <WaitsRow waits={waits} docTo={docTo} />
+        <WaitsRow project={project.path} waits={waits} docTo={docTo} />
         {changed > 0 && changedTo && (
           <ListRow
             to={changedTo}
@@ -138,7 +138,7 @@ const whereDidIStop = (name: string) =>
   })
 
 // What waits on the person in the group's current drafts, in one sentence whose counts each lead to it
-function WaitsRow({ waits, docTo }: { waits: ProjectSummary["waits"]; docTo: (path: string | undefined) => string | undefined }) {
+function WaitsRow({ project, waits, docTo }: { project: string; waits: ProjectSummary["waits"]; docTo: (path: string | undefined) => string | undefined }) {
   const navigate = useNavigate()
   const parts: { key: string; words: string; open: () => void }[] = []
   const commentsTo = docTo(waits.commentsIn)
@@ -151,6 +151,8 @@ function WaitsRow({ waits, docTo }: { waits: ProjectSummary["waits"]; docTo: (pa
       key: "pdf",
       words: plural(noPdf, { one: "# paper without a PDF", other: "# papers without a PDF" }),
       open: () => {
+        // The papers the count is of: the Library scoped to what the project's current drafts cite
+        useLibraryUi.getState().setScope({ project, drafts: true })
         useLibraryUi.getState().setFilter("no-pdf")
         navigate("/library")
       },

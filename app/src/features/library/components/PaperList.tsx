@@ -1,7 +1,8 @@
 import { msg, t } from "@lingui/core/macro"
+import { Trans } from "@lingui/react/macro"
 import { ago } from "@/lib/time"
 import { i18n } from "@/lib/i18n"
-import { MARK_CLOSE, MARK_OPEN, type Paper } from "@owlit/protocol"
+import { MARK_CLOSE, MARK_OPEN, type CitedPaper, type Paper } from "@owlit/protocol"
 import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import { cn } from "@/lib/utils"
@@ -10,6 +11,7 @@ import { GroupLabel } from "@/components/group-label"
 import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
+import { readDepthLabel } from "@/components/read-depth"
 import { useDigestState, type DigestState } from "../digests"
 import { type PaperGroup } from "../lib/filter"
 import { pdfWait, pdfWord } from "../lib/pdf-wait"
@@ -64,12 +66,55 @@ function RowActions({ paper, className }: { paper: Paper; className?: string }) 
 const ON_HOVER = "invisible group-hover/row:visible group-has-focus-key/row:visible group-has-data-menu-up/row:visible"
 const ON_CARD_HOVER = "group-hover/card:visible"
 
-function RowSlot({ paper, open }: { paper: Paper; open: boolean }) {
+// In a project's scope a star is no column of the list: it shows with the actions, as an unstarred one does
+function RowSlot({ paper, open, scoped }: { paper: Paper; open: boolean; scoped: boolean }) {
   const onHover = cn(ON_HOVER, open && ON_CARD_HOVER)
   return (
     <span className="flex shrink-0 items-center">
       <RowMore id={paper.id} className={cn("flex", onHover, "data-menu-up:visible")} />
-      <RowStar paper={paper} className={paper.starred ? undefined : onHover} />
+      <RowStar paper={paper} className={paper.starred && !scoped ? undefined : onHover} />
+    </span>
+  )
+}
+
+// How far Owlit read the paper for the project's citations, said apart from the person's own reading
+const owlitDepth = (cited: CitedPaper) => {
+  if (!cited.depth) return undefined
+  const depth = readDepthLabel(cited.depth)
+  return t({ message: `Owlit: ${depth}`, comment: "Library row in a project: how far Owlit read the paper for the project's citations, e.g. Owlit: Full text" })
+}
+const OWLIT_DEPTH_HINT = () => t`How far Owlit read it for the citations it wrote in this project`
+
+// The person's reading and Owlit's, for a row in a project's scope: "Read · Owlit: Abstract only". Unread
+// says nothing, as everywhere.
+function readings(paper: Paper, cited: CitedPaper) {
+  return [paper.status !== "unread" && statusLabel(paper.status), owlitDepth(cited)].filter(Boolean).join(" · ")
+}
+
+// "also cited in ADHD Support": the other projects citing a row's paper, each a step to that project's
+// scope, keeping whether its current drafts or everything it cites shows. bare: the names alone, under a
+// column that says the rest.
+function AlsoCited({ cited, bare, className }: { cited: CitedPaper; bare?: boolean; className?: string }) {
+  if (!cited.also.length) return null
+  const go = (project: string) => {
+    const ui = useLibraryUi.getState()
+    ui.setScope({ project, drafts: ui.scope?.drafts ?? true })
+  }
+  const names = cited.also.map((p, i) => (
+    <Fragment key={p.path}>
+      {i > 0 && ", "}
+      <button
+        type="button"
+        onClick={() => go(p.path)}
+        className="rounded-sm underline decoration-muted-foreground/40 underline-offset-3 outline-none hover:text-foreground hover:decoration-foreground/40 focus-key:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
+      >
+        {p.name}
+      </button>
+    </Fragment>
+  ))
+  return (
+    <span className={cn("truncate text-detail text-muted-foreground", className)} title={cited.also.map((p) => p.name).join(", ")}>
+      {bare ? names : <Trans comment="Library row in a project: the other projects whose docs cite this paper, each a link">also cited in {names}</Trans>}
     </span>
   )
 }
@@ -123,9 +168,12 @@ function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState 
 // line, and the details unfold under it, so the paper clicked stays under the pointer and a second click
 // lands on it again. The card's padding is a peek's: the row's own 8px and 10px plus the shell's.
 // Memoized, as the table's rows are: a change to one paper redraws its row, not the list.
-const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; snippet?: string }) {
+const ListItem = memo(function ListItem({ paper, peeked, snippet, cited }: { paper: Paper; peeked: boolean; snippet?: string; cited?: CitedPaper }) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
+  // A publisher waiting on the user (or one that turned them away), or a digest that stopped, says so in
+  // words, first among the row's details; in a project's scope, the person's reading and Owlit's follow
+  const said = [noPdfWord(paper), digest === "failed" && t`Digest stopped`, cited && readings(paper, cited), paperMeta(paper)].filter(Boolean).join(" · ")
   return (
     <div
       className={cn(
@@ -140,10 +188,19 @@ const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Pap
           className={cn(selected && !peeked && "bg-accent hover:bg-accent")}
           mark={<PaperStatusMark paper={paper} digest={digest} />}
           title={paper.title}
-          // A publisher waiting on the user (or one that turned them away), or a digest that stopped, says
-          // so in words, first among the row's details
-          meta={[noPdfWord(paper), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
-          slot={<RowSlot paper={paper} open={peeked} />}
+          meta={
+            cited?.also.length ? (
+              <span className="flex min-w-0 items-baseline gap-1">
+                <span className="truncate" title={cited.depth ? OWLIT_DEPTH_HINT() : undefined}>
+                  {said && `${said} ·`}
+                </span>
+                <AlsoCited cited={cited} className="max-w-[60%] shrink-0" />
+              </span>
+            ) : (
+              <span title={cited?.depth ? OWLIT_DEPTH_HINT() : undefined}>{said}</span>
+            )
+          }
+          slot={<RowSlot paper={paper} open={peeked} scoped={!!cited} />}
           below={snippet && <TextSnippet text={snippet} className={cn("pr-14", peeked ? "pb-1.5" : "pl-7")} />}
         />
       </RowMenu>
@@ -154,7 +211,8 @@ const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Pap
   )
 })
 
-export function PaperList({ groups, snippets }: { groups: PaperGroup[]; snippets?: ReadonlyMap<string, string> }) {
+// cited: a project's papers, when the list is scoped to one (scope.ts)
+export function PaperList({ groups, snippets, cited }: { groups: PaperGroup[]; snippets?: ReadonlyMap<string, string>; cited?: ReadonlyMap<string, CitedPaper> | null }) {
   const peekId = useLibraryUi((s) => s.peekId)
   return (
     <div className="flex flex-col gap-6">
@@ -162,7 +220,7 @@ export function PaperList({ groups, snippets }: { groups: PaperGroup[]; snippets
         <section key={g.label ?? i}>
           {g.label && <GroupLabel>{g.label}</GroupLabel>}
           {g.papers.map((p) => (
-            <ListItem key={p.id} paper={p} peeked={p.id === peekId} snippet={snippets?.get(p.id)} />
+            <ListItem key={p.id} paper={p} peeked={p.id === peekId} snippet={snippets?.get(p.id)} cited={cited?.get(p.id)} />
           ))}
         </section>
       ))}
@@ -180,6 +238,10 @@ const COLUMNS = [
   { key: "thread", label: msg({ message: "Thread", comment: "table column: the thread a paper came from" }), width: 160, sort: "thread" },
   { key: "tags", label: msg`Tags`, width: 144 },
   { key: "status", label: msg`Status`, width: 104 },
+  // In a project's scope: the other projects citing the paper, and, in place of Tags and Status, the
+  // person's reading beside Owlit's
+  { key: "also", label: msg({ message: "Also cited in", comment: "Library table in a project: the other projects whose docs cite the paper" }), width: 144 },
+  { key: "reading", label: msg({ message: "Reading", context: "table column", comment: "Library table in a project: the person's reading of a paper beside how far Owlit read it" }), width: 168 },
   { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
 ] as const
 
@@ -190,7 +252,7 @@ type ColumnKey = Column["key"]
 // can't fit every column, they give way least-needed first; Year and Added (which holds the
 // row's actions) always stay.
 const TITLE_MIN = 320
-const GIVE_WAY: ColumnKey[] = ["citations", "venue", "thread", "status", "tags", "authors"]
+const GIVE_WAY: ColumnKey[] = ["citations", "venue", "thread", "status", "tags", "also", "reading", "authors"]
 
 // The threads that hold each paper, most recently changed first
 type ByThread = ReadonlyMap<string, { id: string; title: string }[]>
@@ -203,11 +265,15 @@ const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
   status: (p) => p.status !== "unread" || !!noPdfWord(p),
 }
 
-function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byThread: ByThread | undefined): Column[] {
+// The columns a project's scope leaves out, and the one only it shows
+const OUT_OF_SCOPE: ColumnKey[] = ["tags", "status"]
+const IN_SCOPE: ColumnKey[] = ["also", "reading"]
+
+function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byThread: ByThread | undefined, cited: ReadonlyMap<string, CitedPaper> | null | undefined): Column[] {
   const kept = useMemo(() => {
-    const filled = { ...FILLED, thread: (p: Paper) => !!byThread?.get(p.id)?.length }
-    return COLUMNS.filter((c) => !filled[c.key] || papers.some(filled[c.key]!)) as Column[]
-  }, [papers, byThread])
+    const filled = { ...FILLED, thread: (p: Paper) => !!byThread?.get(p.id)?.length, also: (p: Paper) => !!cited?.get(p.id)?.also.length }
+    return COLUMNS.filter((c) => !(cited ? OUT_OF_SCOPE : IN_SCOPE).includes(c.key) && (!filled[c.key] || papers.some(filled[c.key]!))) as Column[]
+  }, [papers, byThread, cited])
   // How many of GIVE_WAY are hidden. Updated inside the observer with flushSync, which runs
   // before paint, so the table never shows a frame with every column squeezed in; and it only
   // re-renders when a column actually comes or goes.
@@ -231,7 +297,7 @@ function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Pap
   return useMemo(() => kept.filter((c) => !GIVE_WAY.slice(0, hidden).includes(c.key)), [kept, hidden])
 }
 
-type TableRowProps = { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[]; holding?: { id: string; title: string }[] }
+type TableRowProps = { paper: Paper; peeked: boolean; last: boolean; columns: Set<ColumnKey>; snippet?: string; tagFilter: string[]; holding?: { id: string; title: string }[]; cited?: CitedPaper }
 
 // The threads holding a paper come fresh from every library change, so they are compared by what they say
 const sameHolding = (a: TableRowProps["holding"], b: TableRowProps["holding"]) =>
@@ -242,7 +308,7 @@ const TableRow = memo(TableRowView, (a, b) => {
   return Object.keys(a).length === Object.keys(b).length && sameHolding(a.holding, b.holding)
 })
 
-function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holding }: TableRowProps) {
+function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holding, cited }: TableRowProps) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
   // How far the person got, on hover of the Status cell
@@ -267,10 +333,11 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
             {/* Open, the row is its card's title line: the whole title, which underlines on hover since a click
                 on it now opens the paper (as the list's open row does) */}
             <span className={cn(peeked ? "font-medium text-balance decoration-foreground/30 underline-offset-3 group-hover/row:underline" : "truncate")}>{paper.title}</span>
-            {/* The table has no status slot: the digest's mark follows the title, as the star does */}
+            {/* The table has no status slot: the digest's mark follows the title, as the star does outside a
+                project's scope */}
             <span className="flex h-5 shrink-0 items-center gap-2">
               <DigestMark state={digest} />
-              {paper.starred && <StarMark />}
+              {paper.starred && !cited && <StarMark />}
             </span>
           </span>
           {snippet && <TextSnippet text={snippet} className="max-w-xl pb-1.5" />}
@@ -316,6 +383,12 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
             {noPdfWord(paper) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}
           </td>
         )}
+        {columns.has("also") && <td className={td}>{cited && <AlsoCited cited={cited} bare className="block" />}</td>}
+        {columns.has("reading") && cited && (
+          <td className={td} title={[trace.title, cited.depth && OWLIT_DEPTH_HINT()].filter(Boolean).join("\n") || undefined} onPointerEnter={trace.ask}>
+            {[noPdfWord(paper), readings(paper, cited)].filter(Boolean).join(" · ")}
+          </td>
+        )}
         <td className={cn(td, "tabular-nums")}>
           {/* The date alone: Owlit adds most papers, so a mark on its rows would say nothing (the card and the
               paper page say who added it). It gives way to the row's actions */}
@@ -341,13 +414,25 @@ const PeekRow = memo(function PeekRow({ paper, open, span }: { paper: Paper; ope
 // The same papers as a ruled table: a tinted header row, a hairline under each row, no grid.
 // Column headers sort; clicking a row opens its card in a full-width row beneath it. Sorted by
 // thread, the table falls into the list's groups, each under its thread's title.
-export function PaperTable({ papers, groups, byThread, snippets }: { papers: Paper[]; groups?: PaperGroup[]; byThread?: ByThread; snippets?: ReadonlyMap<string, string> }) {
+export function PaperTable({
+  papers,
+  groups,
+  byThread,
+  snippets,
+  cited,
+}: {
+  papers: Paper[]
+  groups?: PaperGroup[]
+  byThread?: ByThread
+  snippets?: ReadonlyMap<string, string>
+  cited?: ReadonlyMap<string, CitedPaper> | null
+}) {
   const peekId = useLibraryUi((s) => s.peekId)
   const sort = useLibraryUi((s) => s.sort)
   const sortBy = useLibraryUi((s) => s.sortBy)
   const tagFilter = useLibraryUi((s) => s.tags)
   const table = useRef<HTMLTableElement>(null)
-  const columns = useColumns(table, papers, byThread)
+  const columns = useColumns(table, papers, byThread, cited)
   // Kept while the same columns show, so the memoized rows aren't redrawn by every library change
   const keys = columns.map((c) => c.key).join(" ")
   const shown = useMemo(() => new Set(keys.split(" ") as ColumnKey[]), [keys])
@@ -393,7 +478,7 @@ export function PaperTable({ papers, groups, byThread, snippets }: { papers: Pap
             )}
             {g.papers.map((p, i) => (
               <Fragment key={p.id}>
-                <TableRow paper={p} peeked={p.id === peekId} last={i === g.papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} holding={byThread?.get(p.id)} />
+                <TableRow paper={p} peeked={p.id === peekId} last={i === g.papers.length - 1} columns={shown} snippet={snippets?.get(p.id)} tagFilter={tagFilter} holding={byThread?.get(p.id)} cited={cited?.get(p.id)} />
                 <PeekRow paper={p} open={p.id === peekId} span={columns.length} />
               </Fragment>
             ))}

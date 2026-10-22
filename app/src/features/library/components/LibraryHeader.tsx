@@ -20,15 +20,59 @@ import { useThreadsStore } from "@/features/threads/store"
 import { threadsByPaper } from "@/features/threads/lib"
 import { type Layout, usePrefsStore } from "../prefs-store"
 import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
+import { useScopePapers } from "../scope"
+import { projectChoices, useProjects } from "@/features/projects/store"
 import { TagDot } from "./TagsEditor"
 
-export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
+// scope: what narrows the whole Library to a project's papers, beside the title it narrows
+export function LibraryHeader({ scope, actions }: { scope?: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <header className="flex items-center gap-2 px-0.5">
+    <header className="flex flex-wrap items-center gap-2 px-0.5">
       <PageTitle>{t`Library`}</PageTitle>
+      {scope}
       <span className="flex-1" />
       {actions}
     </header>
+  )
+}
+
+// The Library as one project's papers, or all of them: a menu of the marked projects by name, and inside
+// one, whether its current drafts' citations or everything its docs cite. Only once the workspace has a
+// project; without one the Library has nothing of this.
+export function ScopeControls() {
+  const projects = useProjects()
+  const scope = useLibraryUi((s) => s.scope)
+  const setScope = useLibraryUi((s) => s.setScope)
+  const options = useMemo(
+    () => [
+      { value: "", label: t({ message: "All papers", comment: "Library scope menu: every paper, of no one project" }) },
+      ...projectChoices(projects).map((c) => ({ value: c.project.path, label: c.label })),
+    ],
+    [projects],
+  )
+  if (!projects.length) return null
+  return (
+    <>
+      <ChoiceMenu
+        label={t({ message: "Project", comment: "Library menu: show the papers one project cites, or all papers" })}
+        value={scope?.project ?? ""}
+        options={options}
+        // A project opens on what its current drafts cite, the papers its writing leans on now
+        onChange={(path) => setScope(path ? { project: path, drafts: true } : null)}
+        align="start"
+      />
+      {scope && (
+        <SegmentedControl
+          label={t({ message: "Papers it cites", comment: "Library: which of a project's cited papers show" })}
+          value={scope.drafts ? "drafts" : "all"}
+          options={[
+            { value: "drafts", label: t({ message: "Current drafts", comment: "Library, in a project: the papers its current drafts cite" }) },
+            { value: "all", label: t({ message: "Everything it cites", comment: "Library, in a project: the papers any of its docs cite" }) },
+          ]}
+          onChange={(step) => setScope({ ...scope, drafts: step === "drafts" })}
+        />
+      )}
+    </>
   )
 }
 
@@ -112,7 +156,8 @@ export function FilterBar() {
   const only = useLibraryUi((s) => s.only)
   const clearOnly = useLibraryUi((s) => s.clearOnly)
   const papers = useLibraryStore((s) => s.papers)
-  const counts = useMemo(() => countByFilter(papers), [papers])
+  const { ids: within } = useScopePapers()
+  const counts = useMemo(() => countByFilter(papers, within), [papers, within])
 
   return (
     <div className="mt-3.5 flex flex-wrap items-center gap-0.5">

@@ -12,7 +12,7 @@ import { BulkBar } from "../components/BulkBar"
 import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
 import { GetAllLine } from "../components/GetAllLine"
 import { ImportBanner } from "../components/ImportBanner"
-import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
+import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, ScopeControls, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
 import { RecentlyRemoved } from "../components/RecentlyRemoved"
 import { addPdfFiles } from "../lib/add-pdfs"
@@ -28,10 +28,12 @@ import { usePaperListKeys } from "../lib/use-list-keys"
 import { useRefLookup } from "../lib/use-ref-lookup"
 import { usePrefsStore } from "../prefs-store"
 import { useLibraryStore } from "../store"
-import { useLibraryUi } from "../ui-store"
+import { useLibraryUi, type Scope } from "../ui-store"
+import { useScopePapers } from "../scope"
+import { projectAt, useProjects } from "@/features/projects/store"
 import { findPrompt } from "@/features/chat/lib/starters"
 
-// All papers: everything in the library, narrowed by search, status and tags
+// All papers: everything in the library, narrowed by a project's scope, search, status and tags
 export function LibraryPage() {
   const navigate = useNavigate()
   const actions = usePaperActions()
@@ -42,6 +44,8 @@ export function LibraryPage() {
   const only = useLibraryUi((s) => s.only)
   const sort = useLibraryUi((s) => s.sort)
   const layout = usePrefsStore((s) => s.layout)
+  const scoped = useScopePapers()
+  const scope = scoped.scope
   const { dragging, dropProps } = useFileDrop((data) => {
     const dropped = droppedImport(data)
     if (dropped) reviewImport(dropped.source, dropped.path)
@@ -57,8 +61,8 @@ export function LibraryPage() {
 
   const textHits = useTextHits(searchText)
   const visible = useMemo(
-    () => visiblePapers(papers, { query: searchText, filter, tags, sort, only }, textHits),
-    [papers, searchText, filter, tags, sort, only, textHits],
+    () => visiblePapers(papers, { query: searchText, filter, tags, sort, only, within: scoped.ids }, textHits),
+    [papers, searchText, filter, tags, sort, only, scoped.ids, textHits],
   )
   // A paper found by its text, not its details, shows where the words were
   const snippets = useMemo(
@@ -79,7 +83,8 @@ export function LibraryPage() {
   const { scroller, listProps } = usePaperListKeys(order)
   const empty = Object.keys(papers).length === 0
   const noMatch = searching && visible.length === 0
-  const unfiltered = !refInput && !words && filter === "all" && tags.length === 0 && !only
+  const narrowed = !!words || filter !== "all" || tags.length > 0 || !!only
+  const unfiltered = !refInput && !narrowed && !scope
 
   // Words the library doesn't have are a question for Owlit: they go to Chat as the composer's text, the
   // way "Ask Owlit to find papers" hands over its stem (Chat's starter, in the interface's language), so
@@ -100,6 +105,7 @@ export function LibraryPage() {
     <div className="relative flex min-h-0 flex-1 flex-col" {...dropProps}>
       <PageShell scroller={scroller} {...listProps}>
         <LibraryHeader
+          scope={!empty && <ScopeControls />}
           actions={
             !empty && (
               <>
@@ -124,14 +130,17 @@ export function LibraryPage() {
             <FilterBar />
             {byReason && <GetAllLine papers={visible} />}
             <div className="mt-6">
-              {noMatch ? (
+              {/* Until core first answers for the scope, nothing: the whole Library would flash by */}
+              {scoped.loading ? null : noMatch ? (
                 <NoMatch words={words} onAsk={askOwlit} />
+              ) : visible.length === 0 && scope && !narrowed ? (
+                <ScopeEmpty scope={scope} everything={scoped.all} />
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">{t`No papers match.`}</p>
               ) : table ? (
-                <PaperTable papers={visible} groups={byGroups ? groups : undefined} byThread={byThread} snippets={snippets} />
+                <PaperTable papers={visible} groups={byGroups ? groups : undefined} byThread={byThread} snippets={snippets} cited={scoped.byId} />
               ) : (
-                <PaperList groups={groups} snippets={snippets} />
+                <PaperList groups={groups} snippets={snippets} cited={scoped.byId} />
               )}
             </div>
           </>
@@ -142,6 +151,30 @@ export function LibraryPage() {
       <BulkBar />
       {dragging && <DropOverlay label={t`Drop PDFs to add, or a BibTeX file or a folder to import`} />}
     </div>
+  )
+}
+
+// A project whose drafts, or whose docs, cite none of the Library's papers. From the drafts, the step to
+// everything it cites, when its other docs cite something.
+function ScopeEmpty({ scope, everything }: { scope: Scope; everything: number }) {
+  const setScope = useLibraryUi((s) => s.setScope)
+  const name = projectAt(useProjects(), scope.project)?.name ?? scope.project
+  return (
+    <EmptyPlace
+      title={
+        scope.drafts
+          ? t({ message: `No papers cited by the current drafts of ${name} yet`, comment: "Library scoped to a project whose newest docs cite no paper of the Library" })
+          : t({ message: `No papers cited in ${name} yet`, comment: "Library scoped to a project none of whose docs cite a paper of the Library" })
+      }
+      detail={t`A paper is in a project once one of its docs cites it.`}
+      className="py-16"
+    >
+      {scope.drafts && everything > 0 && (
+        <InlineLink className="text-sm" onClick={() => setScope({ ...scope, drafts: false })}>
+          {t({ message: `See everything it cites (${everything})`, comment: "Library, a project's drafts cite nothing: shows the papers any of its docs cite" })}
+        </InlineLink>
+      )}
+    </EmptyPlace>
   )
 }
 

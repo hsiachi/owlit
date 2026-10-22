@@ -72,14 +72,19 @@ interface ListParams {
   tags: string[]
   sort: Sort
   only?: { ids: string[] } | null
+  // A project's papers (the scope): what everything else narrows. Apart from only, which an import's chip
+  // sets and takes off on its own.
+  within?: ReadonlySet<string> | null
 }
 
-// The rows of All papers: what the search, filter chips, tag filter and sort leave. Papers found only in
-// their text (textHits, from the index, best first) follow the ones whose details match, in the index's order.
+// The rows of All papers: what the scope, search, filter chips, tag filter and sort leave. Papers found only
+// in their text (textHits, from the index, best first) follow the ones whose details match, in the index's
+// order.
 export function visiblePapers(papers: Record<string, Paper>, params: ListParams, textHits: ReadonlyMap<string, string> = new Map()): Paper[] {
   const q = params.query.trim()
   const only = params.only ? new Set(params.only.ids) : null
-  const kept = (p: Paper) => (!only || only.has(p.id)) && matchesFilter(p, params.filter) && params.tags.every((tag) => p.tags.includes(tag))
+  const within = params.within
+  const kept = (p: Paper) => (!within || within.has(p.id)) && (!only || only.has(p.id)) && matchesFilter(p, params.filter) && params.tags.every((tag) => p.tags.includes(tag))
   const byDetails = Object.values(papers)
     .filter((p) => kept(p) && matchesQuery(p, q))
     .sort((a, b) => compare(a, b, params.sort))
@@ -89,9 +94,11 @@ export function visiblePapers(papers: Record<string, Paper>, params: ListParams,
   return [...byDetails, ...byText]
 }
 
-export function countByFilter(papers: Record<string, Paper>): Record<StatusFilter, number> {
+// The status chips' counts, over the scope's papers when there is one (within)
+export function countByFilter(papers: Record<string, Paper>, within?: ReadonlySet<string> | null): Record<StatusFilter, number> {
   const c: Record<StatusFilter, number> = { all: 0, starred: 0, unread: 0, reading: 0, read: 0, "no-pdf": 0 }
   for (const p of Object.values(papers)) {
+    if (within && !within.has(p.id)) continue
     c.all++
     if (p.starred) c.starred++
     if (lacksPdf(p)) c["no-pdf"]++

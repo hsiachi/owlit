@@ -15,6 +15,7 @@ import { docProposals } from "../changes/proposals.ts"
 import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings/store.ts"
 import { Memory } from "../memory/memory.ts"
+import { Cited } from "../projects/cited.ts"
 import { Projects } from "../projects/projects.ts"
 import { journalOf, summarize } from "../projects/summary.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
@@ -131,6 +132,7 @@ export class Workspace {
   readonly memory: Memory
   readonly shares: Shares
   readonly projects: Projects
+  readonly cited: Cited
   // The person's journal, read again only once it changed
   private readonly journal: () => Promise<JournalEntry[]>
   private release: () => Promise<void>
@@ -205,6 +207,13 @@ export class Workspace {
       docsLinking: async (uri) => (await this.search.linksTo(uri)).flatMap((l) => (l.source === "doc" ? [l.key] : [])),
       canonical: (id) => this.library.canonical(id),
       changed: options.projectsChanged,
+    })
+    this.cited = new Cited({
+      projects: () => this.projects.list(),
+      files: () => this.docs.files(),
+      read: (rel) => this.docs.readDisk(rel),
+      canonical: (id) => this.library.canonical(id),
+      owlitDepths: (rel) => this.citations.owlitDepths(rel),
     })
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder, changes: this.changes }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said

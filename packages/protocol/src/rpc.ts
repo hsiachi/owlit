@@ -2,7 +2,7 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
-import type { CitationPassage, CitedWork, CommentAnchor, CommentInput, DocCitations, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { CitationPassage, CitedWork, CitingDoc, CommentAnchor, CommentInput, DocCitations, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { ThreadBatch, ThreadEdit, ThreadPaper, ThreadRead, ThreadSummary, ThreadWrite } from "./threads.ts"
@@ -11,7 +11,7 @@ import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
 import type { ClaudeNote, MemoryKind, MemoryLine, MemoryScope } from "./memory.ts"
-import type { Project, ProjectsSummary } from "./projects.ts"
+import type { Project, ProjectCited, ProjectsSummary } from "./projects.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
@@ -145,6 +145,8 @@ export interface Methods {
   // Every citation in a doc with what it rests on (DocCitation), and the counts a line over the doc says.
   // text: the doc as the window has it (its editor may be ahead of the disk); the file's text otherwise
   "docs.citations": { params: { path: string; text?: string }; result: DocCitations }
+  // The docs whose text cites a paper, by path, each with its citing sentences
+  "docs.citing": { params: { paperId: string }; result: { docs: CitingDoc[] } }
   // Writes a new file. id carries over one the client already uses; followsFirstLine names the file
   // after its first line now and on later writes, until it is renamed by hand.
   "docs.create": { params: { path: string; content: string; id?: string; followsFirstLine?: boolean }; result: DocStat }
@@ -381,6 +383,8 @@ export interface Methods {
   "projects.ofChat": { params: { chatId: string }; result: { projects: Project[] } }
   // Each project as Home shows it, for the person at the window
   "projects.summary": { params: void; result: ProjectsSummary }
+  // The Library's papers a marked folder cites, by its current drafts and by any of its docs
+  "projects.cited": { params: { path: string }; result: ProjectCited }
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library

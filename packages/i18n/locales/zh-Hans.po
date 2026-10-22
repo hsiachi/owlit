@@ -3082,8 +3082,10 @@ msgstr "已通过链接分享"
 msgid "Folder actions"
 msgstr "文件夹操作"
 
+#. Library menu: show the papers one project cites, or all papers
 #. a folder of docs marked as a project
 #: app/src/features/docs/components/DocsListPanel.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
 msgid "Project"
 msgstr "项目"
 
@@ -4388,6 +4390,26 @@ msgstr "{0, plural, one {# 篇论文，{1} 篇有 PDF} other {# 篇论文，{2} 
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr "{0, plural, other {其中 # 篇已在库中。}}"
 
+#. Library scope menu: every paper, of no one project
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "All papers"
+msgstr "全部论文"
+
+#. Library: which of a project's cited papers show
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Papers it cites"
+msgstr "这个项目引用的论文"
+
+#. Library, in a project: the papers its current drafts cite
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Current drafts"
+msgstr "当前稿子"
+
+#. Library, in a project: the papers any of its docs cite
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Everything it cites"
+msgstr "引用的全部"
+
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr "最近添加"
@@ -4513,6 +4535,20 @@ msgstr "还没有标签。"
 msgid "More actions"
 msgstr "更多操作"
 
+#. Library row in a project: how far Owlit read the paper for the project's citations, e.g. Owlit: Full text
+#: app/src/features/library/components/PaperList.tsx
+msgid "Owlit: {depth}"
+msgstr "Owlit：{depth}"
+
+#: app/src/features/library/components/PaperList.tsx
+msgid "How far Owlit read it for the citations it wrote in this project"
+msgstr "Owlit 为它在这个项目里写下的引用读到了哪一步"
+
+#. Library row in a project: the other projects whose docs cite this paper, each a link
+#: app/src/features/library/components/PaperList.tsx
+msgid "also cited in {names}"
+msgstr "也被 {names} 引用"
+
 #: app/src/features/library/components/PaperList.tsx
 msgid "New digest"
 msgstr "新导读"
@@ -4525,6 +4561,17 @@ msgstr "导读已停止"
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"
 msgstr "状态"
+
+#. Library table in a project: the other projects whose docs cite the paper
+#: app/src/features/library/components/PaperList.tsx
+msgid "Also cited in"
+msgstr "也被引用于"
+
+#. Library table in a project: the person's reading of a paper beside how far Owlit read it
+#: app/src/features/library/components/PaperList.tsx
+msgctxt "table column"
+msgid "Reading"
+msgstr "阅读"
 
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -4879,6 +4926,25 @@ msgstr "没有匹配的论文。"
 msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr "拖入 PDF 来添加，或拖入 BibTeX 文件、文件夹来导入"
 
+#. Library scoped to a project whose newest docs cite no paper of the Library
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers cited by the current drafts of {name} yet"
+msgstr "{name} 的当前稿子还没有引用论文"
+
+#. Library scoped to a project none of whose docs cite a paper of the Library
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers cited in {name} yet"
+msgstr "{name} 还没有引用论文"
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "A paper is in a project once one of its docs cites it."
+msgstr "项目里有文档引用一篇论文，这篇论文就在这个项目里。"
+
+#. Library, a project's drafts cite nothing: shows the papers any of its docs cite
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "See everything it cites ({everything})"
+msgstr "查看它引用的全部（{everything}）"
+
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for more papers on this outside your library."
 msgstr "Owlit 可以在文库之外再找找这方面的论文。"
@@ -5035,6 +5101,11 @@ msgstr "基础"
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Cited in"
 msgstr "引用于"
+
+#. under a doc that cites this paper: its other citing sentences, opening the doc
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "+{more} more"
+msgstr "还有 {more} 句"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
