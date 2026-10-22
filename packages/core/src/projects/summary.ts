@@ -4,7 +4,7 @@ import { readJournal } from "../activity/reading.ts"
 import { citationsIn } from "../library/wear.ts"
 
 // What Home shows of each project, from the person's journal (.owlit/journal.jsonl), Owlit's edits in the
-// change log and the project's current drafts. Whether a project is live is counted in the person's own
+// change log and the project's docs. Whether a project is live is counted in the person's own
 // working sessions, never in days: a project worked on three weeks ago is live when the person hasn't sat
 // down to work since, and one worked on yesterday goes quiet after a few sittings spent elsewhere. Work is
 // more than typing: much of a paper gets written by asking Owlit in a chat to write or change it.
@@ -73,7 +73,10 @@ export async function summarize(services: SummaryServices, me: PersonId): Promis
   const starts = sessionStarts(mine.map((e) => e.at))
   // Every edit since the first of the latest sessions; a journal with fewer sessions is lately whole
   const lately = starts.length > LIVE_SESSIONS ? starts[starts.length - LIVE_SESSIONS] : -Infinity
-  const docs = new Set(files.filter((f) => isMarkdown(f.path) && !isProjectMark(f.path)).map((f) => f.path))
+  const docFiles = files.filter((f) => isMarkdown(f.path) && !isProjectMark(f.path))
+  const docs = new Set(docFiles.map((f) => f.path))
+  // Newest first, so what waits opens in the doc most lately written; the same mtime goes by path
+  const byTime = docFiles.sort((a, b) => b.modifiedAt - a.modifiedAt || (a.path < b.path ? -1 : 1)).map((f) => f.path)
   const marked = new Set(projects.map((p) => p.path))
   const home = (rel: string) => {
     for (let p = parentPath(rel); p; p = parentPath(p)) if (marked.has(p)) return p
@@ -88,7 +91,6 @@ export async function summarize(services: SummaryServices, me: PersonId): Promis
     const own = work.filter((w) => (w.path !== undefined ? home(w.path) === project.path : w.projects!.includes(project.path)))
     const done = project.status === "done"
     const last = edits.find((e) => home(e.path) === project.path && docs.has(e.path))
-    const newest = project.currentDrafts[0]
     const changedDocs = new Map<string, number>()
     for (const c of unseen) {
       if (c.target.kind !== "doc" || !docs.has(c.target.path) || home(c.target.path) !== project.path) continue
@@ -101,9 +103,9 @@ export async function summarize(services: SummaryServices, me: PersonId): Promis
       ...(project.status ? { status: project.status } : {}),
       ...(project.due ? { due: project.due } : {}),
       live: !done && own.some((w) => w.at >= lately),
-      ...(last ? { lastWorked: { path: last.path, at: last.at, ...(last.by ? { by: last.by } : {}) } } : newest ? { lastWorked: { path: newest.path, at: newest.modifiedAt, draft: true } } : {}),
+      ...(last ? { lastWorked: { path: last.path, at: last.at, ...(last.by ? { by: last.by } : {}) } } : project.lastDoc ? { lastWorked: { path: project.lastDoc.path, at: project.lastDoc.modifiedAt, byTime: true } } : {}),
       ...(own.length ? { workedAt: own[0]!.at } : {}),
-      waits: await waitsOn(services, project),
+      waits: await waitsOn(services, byTime.filter((rel) => home(rel) === project.path)),
       changed: changedDocs.size,
       ...(changedIn ? { changedIn } : {}),
     })
@@ -160,17 +162,19 @@ async function workOf(services: SummaryServices, mine: JournalEntry[], lately: n
   return work.sort((a, b) => b.at - a.at)
 }
 
-async function waitsOn(services: SummaryServices, project: Project): Promise<ProjectSummary["waits"]> {
+// What waits in a project's docs (its own: a nested project's docs wait in that one), with the first doc
+// in the given order holding each kind
+async function waitsOn(services: SummaryServices, docs: string[]): Promise<ProjectSummary["waits"]> {
   const waits: ProjectSummary["waits"] = { comments: 0, proposals: 0, noPdf: 0 }
   const cited = new Set<string>()
-  for (const draft of project.currentDrafts) {
-    const open = (await services.comments(draft.path)).filter((c) => !c.resolvedAt && !c.foldedAt).length
-    if (open && !waits.commentsIn) waits.commentsIn = draft.path
+  for (const rel of docs) {
+    const open = (await services.comments(rel)).filter((c) => !c.resolvedAt && !c.foldedAt).length
+    if (open && !waits.commentsIn) waits.commentsIn = rel
     waits.comments += open
-    const text = await services.read(draft.path)
+    const text = await services.read(rel)
     if (text === null) continue
-    const proposals = await services.proposals(draft.path, text)
-    if (proposals && !waits.proposalsIn) waits.proposalsIn = draft.path
+    const proposals = await services.proposals(rel, text)
+    if (proposals && !waits.proposalsIn) waits.proposalsIn = rel
     waits.proposals += proposals
     for (const c of citationsIn(text)) cited.add(c.paperId)
   }

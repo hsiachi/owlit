@@ -87,7 +87,7 @@ describe("a thread exported as a CSV", () => {
 })
 
 describe("where a thread's doc goes", () => {
-  const project = { path: "Thesis/Ch2", mark: "Thesis/Ch2/project.md", name: "Chapter 2", parents: [], currentDrafts: [] }
+  const project = { path: "Thesis/Ch2", mark: "Thesis/Ch2/project.md", name: "Chapter 2", parents: [] }
   const none = () => false
 
   it("lands in the thread's project folder while it is marked", () => {

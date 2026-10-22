@@ -1,5 +1,4 @@
-import { baseName, frontmatterEnd, isMarkdown, isProjectMark, isWithin, paperUri, parentPath, parseOwlitUri, projectKey, threadUri, type Change, type Chat, type CurrentDraft, type MemoryLine, type Project, type ProjectStatus } from "@owlit/protocol"
-import path from "node:path"
+import { baseName, frontmatterEnd, isMarkdown, isProjectMark, paperUri, parentPath, parseOwlitUri, projectKey, threadUri, type Change, type Chat, type MemoryLine, type Project, type ProjectStatus } from "@owlit/protocol"
 import { Serial } from "../util.ts"
 
 // Projects are computed, never stored: a folder holding a project.md (any case) is one, at any depth, and a
@@ -37,7 +36,6 @@ interface MarkFields {
   name?: string
   status?: ProjectStatus
   due?: string
-  current?: string
 }
 
 export class Projects {
@@ -65,38 +63,28 @@ export class Projects {
     }
     for (const rel of this.marks.keys()) if (!marked.has(parentPath(rel)) || marked.get(parentPath(rel))!.mark !== rel) this.marks.delete(rel)
 
-    const drafts = new Map<string, Map<string, CurrentDraft>>()
+    const lastDocs = new Map<string, { path: string; modifiedAt: number }>()
     for (const file of files) {
       if (!isMarkdown(file.path) || isProjectMark(file.path)) continue
       const home = nearestIn(marked, file.path)
       if (!home) continue
-      // A doc filed under an Archive folder of its project is kept, not worked on
-      if (file.path.slice(home.length + 1).split("/").slice(0, -1).some((s) => s.toLowerCase() === "archive")) continue
-      const kind = draftKind(file.path)
-      const kinds = drafts.get(home) ?? new Map<string, CurrentDraft>()
-      drafts.set(home, kinds)
-      const was = kinds.get(kind)
-      if (!was || newer(file, was)) kinds.set(kind, { kind, path: file.path, modifiedAt: file.modifiedAt })
+      const was = lastDocs.get(home)
+      if (!was || newer(file, was)) lastDocs.set(home, { path: file.path, modifiedAt: file.modifiedAt })
     }
 
-    const byPath = new Map(files.map((f) => [f.path, f]))
     const folders = [...marked].sort(([a], [b]) => (a < b ? -1 : 1))
     return folders.map(([folder, { mark, fields }]) => {
-      const kinds = new Map(drafts.get(folder))
-      const current = fields.current !== undefined ? currentPath(folder, fields.current) : undefined
-      const named = current !== undefined ? byPath.get(current) : undefined
-      if (named) kinds.set(draftKind(named.path), { kind: draftKind(named.path), path: named.path, modifiedAt: named.modifiedAt, byMark: true })
       const parents: string[] = []
       for (let p = parentPath(folder); p; p = parentPath(p)) if (marked.has(p)) parents.push(p)
+      const lastDoc = lastDocs.get(folder)
       return {
         path: folder,
         mark,
         name: fields.name || baseName(folder),
         ...(fields.status ? { status: fields.status } : {}),
         ...(fields.due ? { due: fields.due } : {}),
-        ...(current !== undefined ? { current } : {}),
         parents,
-        currentDrafts: [...kinds.values()].sort((a, b) => (newer(a, b) ? -1 : 1)),
+        ...(lastDoc ? { lastDoc } : {}),
       }
     })
   }
@@ -199,26 +187,20 @@ export function touchedBy(chat: Chat, changes: Change[]): { docs: string[]; thre
   return { docs: [...docs], threads: [...threads] }
 }
 
-// The mark's head, read from the top: its front matter's status:, due: and current: lines, then the run
-// of lines that are the "# " heading (the name) or one of those lines, blank lines among them skipped. The
-// first other line ends the head, so the mark's own notes below can mention a status without setting it.
+// The mark's head, read from the top: its front matter's status: and due: lines, then the run of lines
+// that are the "# " heading (the name) or one of those lines, blank lines among them skipped. The first
+// other line ends the head, so the mark's own notes below can mention a status without setting it.
 export function parseMark(text: string): MarkFields {
   const fields: MarkFields = {}
   const field = (line: string) => {
-    const m = /^(status|due|current)\s*:\s*(.*)$/i.exec(line)
+    const m = /^(status|due)\s*:\s*(.*)$/i.exec(line)
     if (!m) return false
     const key = m[1].toLowerCase()
     const value = m[2].trim()
     if (key === "status") {
       const status = value.toLowerCase()
       if (status === "active" || status === "done") fields.status = status
-    } else if (key === "due") {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) fields.due = value
-    } else {
-      // Written as `path` or <path> as often as bare
-      const rel = value.replace(/^[`<]+|[`>]+$/g, "").trim()
-      if (rel) fields.current = rel
-    }
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) fields.due = value
     return true
   }
   const end = frontmatterEnd(text)
@@ -234,28 +216,6 @@ export function parseMark(text: string): MarkFields {
     if (!field(line)) break
   }
   return fields
-}
-
-// A version in a doc's name: v2, v3.1, set off by a space, -, _ or brackets ("Story-v2-Dataset",
-// "Paper (v3)", "notes_v10"); a v inside a word ("Inventory") is none
-const VERSION = /(?:^|[\s_\-(（])v\d+(?:\.\d+)*(?=$|[\s_\-)）.])/i
-
-// The kind of doc a path is, for current drafts: its name without the extension, cut before the first
-// version and without what follows it, so 研究故事-v2-Dataset.md and 研究故事-v3-委托提醒.md are one kind,
-// 研究故事. A name that starts with its version is its own kind.
-export function draftKind(rel: string): string {
-  const name = baseName(rel)
-  const stem = isMarkdown(name) ? name.slice(0, -3) : name.replace(/(.)\.[^.]*$/, "$1")
-  const m = VERSION.exec(stem)
-  const kind = m ? stem.slice(0, m.index).replace(/[\s_\-(（]+$/, "") : stem
-  return kind || stem
-}
-
-// The mark's current: line as a workspace path: written relative to the project's folder, so the line
-// stays right when the folder moves; undefined when it leads out of the folder
-function currentPath(folder: string, written: string): string | undefined {
-  const rel = path.posix.normalize(path.posix.join(folder, written.replace(/^\/+/, "")))
-  return rel !== folder && isWithin(rel, folder) ? rel : undefined
 }
 
 // The nearest key of `marked` at or above rel

@@ -7,7 +7,7 @@ const OTHER: PersonId = "p_00000002"
 const DAY = 86_400_000
 const NOW = 100 * DAY
 
-const project = (path: string, over: Partial<Project> = {}): Project => ({ path, mark: `${path}/project.md`, name: path, parents: [], currentDrafts: [], ...over })
+const project = (path: string, over: Partial<Project> = {}): Project => ({ path, mark: `${path}/project.md`, name: path, parents: [], ...over })
 const edit = (path: string, at: number, actor: PersonId = ME): JournalEntry => ({ kind: "doc.edited", path, at, actor })
 // One working session of the person's somewhere else, at a time
 const elsewhere = (at: number): JournalEntry => ({ kind: "paper.opened", paperId: "x", at, actor: ME })
@@ -86,28 +86,26 @@ describe("summarize", () => {
     expect(s.projects[0]).toMatchObject({ status: "done", live: false, lastWorked: { path: "A/d.md", at: NOW } })
   })
 
-  it("puts a doc in its nearest project, and falls back to the newest current draft for lastWorked", async () => {
-    const drafts = [{ kind: "Paper", path: "A/Paper v2.md", modifiedAt: 50 }]
+  it("puts a doc in its nearest project, and falls back to the project's newest doc for lastWorked", async () => {
     const s = await summarize(
       services({
         docs: ["A/Paper v2.md", "A/sub/notes.md"],
-        projects: async () => [project("A", { currentDrafts: drafts }), project("A/sub", { parents: ["A"] })],
+        projects: async () => [project("A", { lastDoc: { path: "A/Paper v2.md", modifiedAt: 50 } }), project("A/sub", { parents: ["A"] })],
         journal: async () => [edit("A/sub/notes.md", NOW), edit("gone/old.md", NOW + 1)],
       }),
       ME,
     )
-    expect(s.projects.find((p) => p.path === "A")).toEqual(expect.objectContaining({ live: false, lastWorked: { path: "A/Paper v2.md", at: 50, draft: true } }))
+    expect(s.projects.find((p) => p.path === "A")).toEqual(expect.objectContaining({ live: false, lastWorked: { path: "A/Paper v2.md", at: 50, byTime: true } }))
     expect(s.projects.find((p) => p.path === "A/sub")).toMatchObject({ live: true, lastWorked: { path: "A/sub/notes.md", at: NOW } })
   })
 
-  it("counts what waits on the current drafts: open comments, Owlit's proposals, cited papers owlit gave up on", async () => {
-    const drafts = [
-      { kind: "Intro", path: "A/Intro v3.md", modifiedAt: 3 },
-      { kind: "Method", path: "A/Method.md", modifiedAt: 2 },
-    ]
+  it("counts what waits in its docs: open comments, Owlit's proposals, cited papers owlit gave up on", async () => {
     const texts: Record<string, string> = {
       "A/Intro v3.md": "See [Lee](owlit://library/p1 \"a\") and [Kim](owlit://library/p2).",
       "A/Method.md": "Again [Lee](owlit://library/doi-p1) and [Wu](owlit://library/p3) and [gone](owlit://library/p4).",
+      "A/old/Method v1.md": "Before [Ng](owlit://library/p5).",
+      // A nested project's docs wait in that project
+      "A/sub/plan.md": "Its own [Ng](owlit://library/p6).",
     }
     const papers: Record<string, Pick<Paper, "id" | "pdf" | "pdfState">> = {
       p1: { id: "p1", pdfState: { state: "no-pdf", tried: [] } },
@@ -116,19 +114,24 @@ describe("summarize", () => {
       // Still being looked for
       p2: { id: "p2", pdfState: { state: "finding", tried: [] } },
       p3: { id: "p3", pdf: { url: "owlit-file://workspace/p3.pdf" } },
+      p5: { id: "p5", pdfState: { state: "no-pdf", tried: [] } },
+      p6: { id: "p6", pdfState: { state: "no-pdf", tried: [] } },
     }
     const s = await summarize(
       services({
-        docs: ["A/Intro v3.md", "A/Method.md", "A/old.md"],
-        projects: async () => [project("A", { currentDrafts: drafts })],
-        comments: async (rel) => (rel === "A/Method.md" ? [comment("c1"), comment("c2", { resolvedAt: 5 }), comment("c3", { foldedAt: 5 }), comment("c4")] : []),
+        // What waits opens in the newest doc holding it, not the first by path
+        files: async () => ["A/project.md", "A/old/Method v1.md", "A/Method.md", "A/Intro v3.md", "A/sub/project.md", "A/sub/plan.md"].map((path) => ({ path, modifiedAt: path === "A/Method.md" ? 1 : 2 })),
+        projects: async () => [project("A"), project("A/sub", { parents: ["A"] })],
+        comments: async (rel) =>
+          rel === "A/Method.md" ? [comment("c1"), comment("c2", { resolvedAt: 5 }), comment("c3", { foldedAt: 5 }), comment("c4")] : rel === "A/old/Method v1.md" || rel === "A/sub/plan.md" || rel === "A/project.md" ? [comment("c5")] : [],
         read: async (rel) => texts[rel] ?? null,
         proposals: async (rel) => (rel === "A/Intro v3.md" ? 2 : 0),
         paper: async (id) => papers[id],
       }),
       ME,
     )
-    expect(s.projects[0]!.waits).toEqual({ comments: 2, commentsIn: "A/Method.md", proposals: 2, proposalsIn: "A/Intro v3.md", noPdf: 1 })
+    expect(s.projects[0]!.waits).toEqual({ comments: 3, commentsIn: "A/old/Method v1.md", proposals: 2, proposalsIn: "A/Intro v3.md", noPdf: 2 })
+    expect(s.projects[1]!.waits).toEqual({ comments: 1, commentsIn: "A/sub/plan.md", proposals: 0, noPdf: 1 })
   })
 
   it("counts the docs others changed since the person looked, the newest first", async () => {
@@ -145,17 +148,16 @@ describe("summarize", () => {
   })
 
   it("counts the person's chats in a project as work on it, without naming a doc", async () => {
-    const drafts = [{ kind: "Paper", path: "A/Paper.md", modifiedAt: 50 }]
     const s = await summarize(
       services({
         docs: ["A/Paper.md"],
-        projects: async () => [project("A", { currentDrafts: drafts }), project("B")],
+        projects: async () => [project("A", { lastDoc: { path: "A/Paper.md", modifiedAt: 50 } }), project("B")],
         journal: async () => [chatted("c1", NOW), chatted("c2", NOW + DAY)],
         chatWork: async (id) => ({ projects: id === "c1" ? [project("A")] : [], docs: [] }),
       }),
       ME,
     )
-    expect(s.projects.find((p) => p.path === "A")).toEqual(expect.objectContaining({ live: true, workedAt: NOW, lastWorked: { path: "A/Paper.md", at: 50, draft: true } }))
+    expect(s.projects.find((p) => p.path === "A")).toEqual(expect.objectContaining({ live: true, workedAt: NOW, lastWorked: { path: "A/Paper.md", at: 50, byTime: true } }))
     expect(s.projects.find((p) => p.path === "B")).toMatchObject({ live: false })
     expect(s.projects.find((p) => p.path === "B")!.workedAt).toBeUndefined()
   })

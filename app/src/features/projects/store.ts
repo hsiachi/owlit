@@ -38,7 +38,7 @@ const follow = followCore({
   take: (projects) => useProjectsStore.setState({ projects, loaded: true }),
 })
 
-// The summary reads every project's current drafts, comments and the journal: asked once things settle,
+// The summary reads every project's docs, comments and the journal: asked once things settle,
 // not on each of a burst of changes (a turn writing several docs, typing saved every few seconds)
 const SUMMARY_SETTLE_MS = 500
 let summaryTimer: ReturnType<typeof setTimeout> | undefined
