@@ -176,7 +176,8 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - A link in your workspace that leads outside it, or into Owlit's own folders, no longer shows in Docs, and Owlit and agents can't read or write through it.
 - Clicking a file in Docs opens documents, pictures and media in their app; anything that could run, such as a .command file, is shown in Finder instead.
 - ⌘B is Bold again in docs, notes and the composer; it no longer hides the list panel. The window can't get narrow enough to lose the sidebar or Settings' sections.
-- ⌘K stays quick with a large library, showing the best 20 of each kind.- Owlit's answer to your reply under its comment shows in the comment as soon as it is written, without reloading the window.
+- ⌘K stays quick with a large library, showing the best 20 of each kind.
+- Owlit's answer to your reply under its comment shows in the comment as soon as it is written, without reloading the window.
 - "No word from Claude Code for 2 min" comes only after two minutes in which the agent said nothing once its session was ready, not while it is still starting.
 - When Claude Code ends an answer with its own error ("API Error: Your computer went to sleep mid-response…"), the reply says Owlit stopped, with the error under Details, instead of showing it as Owlit's words.
 - Home names a thread by its title, with Owlit's one line under it, instead of the whole question you typed.
