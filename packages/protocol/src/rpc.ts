@@ -81,6 +81,12 @@ export interface Methods {
   // own browser; with no extension connected, owlit opens a sign-in or a check in the browser it was
   // paired in
   "extension.open": { params: { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
+  // The user says they got through at a site that waits on them (I've signed in, I've verified it): owlit
+  // tries it at once, as when the extension sees them through. false when no site waits there now.
+  "extension.resume": { params: { host: string }; result: { resumed: boolean } }
+  // A publisher's page opened in the browser the extension was paired in, the one with the user's access
+  // (a paper to download by hand); none when owlit can't open pages there
+  "extension.openPage": { params: { url: string }; result: ExtensionOpened }
   // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
   // itself, and the window having shown "Updated to"
   "updates.get": { params: void; result: UpdatesView }
@@ -495,6 +501,9 @@ export interface Methods {
   // Get them all: every one of these papers without its PDF goes to the extension in the user's browser,
   // asked for; which went, which have no DOI to go by, or that no extension is connected
   "library.fetchPdfs": { params: { ids: string[] }; result: { queued: string[]; noDoi: string[]; noExtension?: true } }
+  // Stop on Get PDFs: these papers leave the extension's queue, their records as they were; one being
+  // fetched now still has its answer noted
+  "library.stopFetchPdfs": { params: { ids: string[] }; result: null }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md

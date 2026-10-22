@@ -20,6 +20,14 @@ export function registerExtension({ router, extension }: Deps) {
     if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
     return extension.open(kind, host)
   })
+  router.register("extension.resume", z.object({ host: z.string().min(1).max(253) }), "admin", async ({ host }) => {
+    if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
+    return { resumed: extension.work.resume(host) }
+  })
+  router.register("extension.openPage", z.object({ url: z.string().max(4096).regex(/^https?:\/\//i) }), "admin", async ({ url }) => {
+    if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
+    return extension.openPage(url)
+  })
   router.register("extension.forget", z.object({ id: z.string().min(1) }), "admin", async ({ id }) => {
     if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
     await extension.pairings.forget(id)

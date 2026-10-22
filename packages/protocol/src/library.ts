@@ -69,8 +69,10 @@ export interface PdfState {
   nextLook?: number
   // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
   // held while the site waits for the user (waits: a sign-in, a check, a way past its block, the
-  // extension being allowed there). Kept in memory only, with the extension's queue.
-  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; proxied?: boolean }
+  // extension being allowed there). waitsAt: the host that wait names (ExtensionWait.host) where it isn't
+  // the site's own: a permission, through the library's proxy, is the publisher's. Kept in memory only,
+  // with the extension's queue.
+  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; waitsAt?: string; proxied?: boolean }
 }
 
 export interface Paper {

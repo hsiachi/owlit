@@ -200,6 +200,8 @@ describe("the extension's queue", () => {
     work.settle(a.id, "no-permission", { host: "doi.apa.org" })
     expect(work.waits()).toEqual([{ kind: "permission", host: "apa.org", papers: 2, url: a.url, askedFor: false, proxied: true }])
     expect(work.waitsForExtension()).toEqual([{ kind: "permission", host: "apa.org", papers: 2, proxied: true }])
+    // Each paper names the wait it is under, which isn't the proxy's
+    expect(work.holding(library, "10.1037/b")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", waits: "permission", waitsAt: "apa.org", proxied: true })
     // Opened and resumed by the site the wait names, not the proxy's
     expect(work.open("permission", "tlink.lib.tsinghua.edu.cn")).toBeUndefined()
     expect(work.open("permission", "apa.org")).toBe("chrome")

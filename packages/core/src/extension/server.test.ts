@@ -405,6 +405,44 @@ describe("the extension's port", () => {
       expect(again).toMatchObject([{ paperId: id }])
     })
 
+    it("tries a waiting site at once when the user says they got through there", async () => {
+      const { call, request, token } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      await request(`/work/${item.id}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
+      expect((await call("extension.get")).waits).toMatchObject([{ kind: "check", host: "sagepub.com" }])
+      expect(await call("extension.resume", { host: "elsevier.com" })).toEqual({ resumed: false })
+      expect(await call("extension.resume", { host: "sagepub.com" })).toEqual({ resumed: true })
+      expect((await call("extension.get")).waits).toEqual([])
+      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id }])
+    })
+
+    it("takes a stopped batch's papers out of the extension's queue, leaving their records", async () => {
+      const { call, request, token, putPaper } = await connected()
+      const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
+      const { queued } = await call("library.fetchPdfs", { ids: [id, other.id] })
+      expect(queued).toEqual([id, other.id])
+      await eventually(async () => expect((await call("library.list")).papers.filter((p: { pdfState?: { extension?: unknown } }) => p.pdfState?.extension)).toHaveLength(2))
+      // One goes out; the other waits its turn behind it at the same site
+      const [item] = (await request("/work", { token })).body.work
+      await call("library.stopFetchPdfs", { ids: [id, other.id] })
+      const papers = (await call("library.list")).papers
+      expect(papers.find((p: { id: string }) => p.id === other.id).pdfState?.extension).toBeUndefined()
+      // The one out for a try still has its answer taken
+      expect((await request(`/work/${item.id}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })).status).toBe(200)
+      expect((await request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("opens a page to download by hand in the browser the extension was paired in", async () => {
+      const opened: Opened[] = []
+      const s = await setup({ holdMs: 20, opened })
+      await s.pair("Dia")
+      expect(await s.call("extension.openPage", { url: `https://doi.org/${SAGE}` })).toEqual({ by: "browser", browser: "Dia" })
+      expect(opened).toEqual([[`https://doi.org/${SAGE}`, { name: "Dia" }]])
+      await expect(s.call("extension.openPage", { url: "file:///etc/passwd" })).rejects.toThrow()
+    })
+
     it("opens a sign-in in the paired browser while no extension asks for work", async () => {
       const opened: Opened[] = []
       const s = await setup({ holdMs: 20, opened })

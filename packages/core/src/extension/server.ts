@@ -161,8 +161,19 @@ export class ExtensionServer {
     }
     if (kind === "permission" || !this.host.openInBrowser) return { by: "none" }
     // The browser that met it, else the one seen last
-    const pairing = pairingOf(this.work.pausedBy(host)) ?? [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]
+    const pairing = pairingOf(this.work.pausedBy(host)) ?? seenLast(paired)
     await this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser }))
+    return { by: "browser", browser: pairing?.browser }
+  }
+
+  // A page for the user to act on by hand (a paper whose PDF they download there), in the browser the
+  // extension was paired in, the one seen last: their access is there, and so is the extension that saves
+  // the PDF they open
+  async openPage(url: string): Promise<ExtensionOpened> {
+    if (!this.host.openInBrowser) return { by: "none" }
+    const paired = (await this.host.settings.get()).extension?.paired ?? []
+    const pairing = seenLast(paired)
+    await this.host.openInBrowser(url, clean({ app: pairing?.app, name: pairing?.browser }))
     return { by: "browser", browser: pairing?.browser }
   }
 
@@ -508,3 +519,6 @@ export class ExtensionServer {
     }
   }
 }
+
+// The pairing whose extension was heard from last
+const seenLast = (paired: StoredPairing[]) => [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]

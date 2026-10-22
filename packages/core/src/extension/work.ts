@@ -207,7 +207,9 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const site of this.sites.values()) {
       const proxied = site.proxied ? { proxied: true } : {}
       if (site.inFlight?.item.paper.paperId === id) return { host: site.key, fetching: true, ...proxied }
-      if (site.queue.some((q) => q.paper.paperId === id)) return site.paused ? { host: site.key, waits: site.paused.kind, ...proxied } : { host: site.key, ...proxied }
+      if (!site.queue.some((q) => q.paper.paperId === id)) continue
+      if (!site.paused) return { host: site.key, ...proxied }
+      return { host: site.key, waits: site.paused.kind, ...(site.paused.host ? { waitsAt: site.paused.host } : {}), ...proxied }
     }
     return undefined
   }
