@@ -1,6 +1,7 @@
-import { createContext, Fragment, useContext, useState } from "react"
+import { createContext, Fragment, useContext, useRef, useState } from "react"
 import { CheckIcon, EllipsisVerticalIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { revealOnHover } from "@/components/row-list"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -121,9 +122,28 @@ export function ActionsDropdownContent({ groups, children, className, ...props }
   )
 }
 
-// Wraps a row so right-clicking it opens its actions where the pointer is. `onOpen` runs as the menu opens
-// (the row it was opened on may need to become the selection). `menu` stands in for `groups` when the
-// items come from a component of their own (see MenuItems).
+// The keyboard's right-click: Shift+F10 or the Menu key, on anything in the row, opens its menu under what
+// has focus. Radix opens a context menu on the contextmenu event alone, and these keys raise none here,
+// so the key raises one; it bubbles as a pointer's would, so a row inside another trigger behaves the same
+// either way. A trigger around the one that handled the key sees it handled.
+function openOnMenuKey(e: React.KeyboardEvent) {
+  if (e.defaultPrevented || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return
+  e.preventDefault()
+  const at = (e.target as HTMLElement).getBoundingClientRect()
+  e.target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: at.left + 8, clientY: at.bottom }))
+}
+
+// As a menu closes, focus goes back to where it was before, so a keyboard user stays on the row, unless
+// what the menu did took it (a rename field, the next row after a delete), which keeps it. Radix asks
+// once the fade-out is over and the menu's own focus is gone, so "nothing has focus" tells the two apart.
+function keepOrReturnFocus(e: Event, to: Element | null) {
+  e.preventDefault()
+  if (document.activeElement === document.body && to instanceof HTMLElement && to.isConnected) to.focus()
+}
+
+// Wraps a row so right-clicking it, or Shift+F10 on it, opens its actions where the pointer is. `onOpen`
+// runs as the menu opens (the row it was opened on may need to become the selection). `menu` stands in for
+// `groups` when the items come from a component of their own (see MenuItems).
 export function ActionsOnRightClick({
   groups,
   menu,
@@ -137,12 +157,21 @@ export function ActionsOnRightClick({
   className?: string
   children: React.ReactNode
 }) {
+  const before = useRef<Element | null>(null)
   // Nothing to offer (a row being renamed): the system's own menu, as in any text field
   if (!menu && !groups?.some((g) => g.length)) return children
   return (
-    <ContextMenu onOpenChange={(open) => open && onOpen?.()}>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className={className ?? "w-44"} onCloseAutoFocus={(e) => e.preventDefault()}>
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (!open) return
+        before.current = document.activeElement
+        onOpen?.()
+      }}
+    >
+      <ContextMenuTrigger asChild onKeyDown={openOnMenuKey}>
+        {children}
+      </ContextMenuTrigger>
+      <ContextMenuContent className={className ?? "w-44"} onCloseAutoFocus={(e) => keepOrReturnFocus(e, before.current)}>
         <KitContext.Provider value={contextKit}>{menu ?? <MenuItems groups={groups!} />}</KitContext.Provider>
       </ContextMenuContent>
     </ContextMenu>
@@ -150,11 +179,14 @@ export function ActionsOnRightClick({
 }
 
 // A row's ⋯: a small square at the row's end that shows while the row (`group/row`) is hovered, holds
-// keyboard focus or has this menu up, and darkens on its own hover. "Up" lasts until the menu's fade-out
-// ends: hiding the trigger as soon as the menu closes leaves the fading menu anchored to nothing, and it
-// jumps to the window's top-left corner. A row's date that gives way to it can hide on
-// `group-has-data-menu-up/row`. Nothing in the row moves when it shows: floating at the row's end, it
-// sits over the title, which fades under it (fadeUnderRowMenu).
+// keyboard focus or has this menu up, and darkens on its own hover. It shows by fading in, never by
+// display or visibility (revealOnHover): Chromium drops a Tab whose target isn't focusable at the
+// handover, and between the row's focus leaving and the ⋯'s arriving nothing in the row has focus, so a ⋯
+// hidden that way was never reached. Faded, it keeps its place, stays in the tab order after the row and
+// shows itself once focused; Enter opens the menu. "Up" lasts until the menu's fade-out ends, so the ⋯
+// doesn't go while the menu is still fading from it. A row's date that gives way to it hides on
+// givesWayToRowMenu. Nothing in the row moves when it shows: floating at the row's end, it sits over the
+// title, which fades under it (fadeUnderRowMenu), or over the date.
 export function RowMenuButton({
   groups,
   menu,
@@ -175,6 +207,11 @@ export function RowMenuButton({
   menuClassName?: string
 }) {
   const [up, setUp] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const onClose = (e: Event) => {
+    setUp(false)
+    keepOrReturnFocus(e, trigger.current)
+  }
   return (
     <DropdownMenu
       onOpenChange={(open) => {
@@ -185,13 +222,14 @@ export function RowMenuButton({
     >
       <DropdownMenuTrigger asChild>
         <button
+          ref={trigger}
           type="button"
           aria-label={label}
           data-menu-up={up || undefined}
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-foreground/8 hover:text-foreground focus-key:bg-foreground/8 data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground [&_svg]:size-4",
-            "hidden group-hover/row:flex group-focus-key/row:flex group-has-focus-key/row:flex data-menu-up:flex",
+            "flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-foreground/8 hover:text-foreground focus-key:bg-foreground/8 data-[state=open]:bg-foreground/8 data-[state=open]:text-foreground [&_svg]:size-4",
+            revealOnHover,
             className,
           )}
         >
@@ -199,15 +237,19 @@ export function RowMenuButton({
         </button>
       </DropdownMenuTrigger>
       {groups ? (
-        <ActionsDropdownContent groups={groups} side={side} align={align} className={menuClassName} onCloseAutoFocus={(e) => (e.preventDefault(), setUp(false))} />
+        <ActionsDropdownContent groups={groups} side={side} align={align} className={menuClassName} onCloseAutoFocus={onClose} />
       ) : (
-        <ActionsDropdownContent side={side} align={align} className={menuClassName} onCloseAutoFocus={(e) => (e.preventDefault(), setUp(false))}>
+        <ActionsDropdownContent side={side} align={align} className={menuClassName} onCloseAutoFocus={onClose}>
           {menu}
         </ActionsDropdownContent>
       )}
     </DropdownMenu>
   )
 }
+
+// For a row's detail (its date) that the ⋯ replaces: gone while the ⋯ shows, keeping its room, so nothing
+// in the row moves
+export const givesWayToRowMenu = "group-hover/row:invisible group-focus-key/row:invisible group-has-focus-key/row:invisible group-has-data-menu-up/row:invisible"
 
 // For what a floating RowMenuButton sits over: its end fades out while the ⋯ shows (the
 // `fade-under-menu` utility in index.css). It goes on an element that reaches the row's end and carries

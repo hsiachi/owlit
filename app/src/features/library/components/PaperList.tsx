@@ -6,8 +6,9 @@ import { MARK_CLOSE, MARK_OPEN, type CitedPaper, type Paper } from "@owlit/proto
 import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import { cn } from "@/lib/utils"
-import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
+import { ActionsOnRightClick, givesWayToRowMenu, RowMenuButton } from "@/components/action-menu"
 import { GroupLabel } from "@/components/group-label"
+import { revealOnHover } from "@/components/row-list"
 import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
@@ -49,11 +50,12 @@ function RowMore({ id, className }: { id: string; className?: string }) {
   return <RowMenuButton menu={<PaperRowMenu id={id} />} label={t`More actions`} menuClassName="w-48" className={className} />
 }
 
-// Star and ellipsis, shown while the row is hovered, holds keyboard focus or has its menu up (the table's
-// last cell, where the date gives way to them)
-function RowActions({ paper, className }: { paper: Paper; className?: string }) {
+// Star and ellipsis at the end of the table's last cell, shown while the row is hovered, holds keyboard
+// focus or has its menu up. They float over the date, which gives way to them and keeps its room, so the
+// row stays one line and Tab can still reach them (revealOnHover says why they fade rather than hide)
+function RowActions({ paper }: { paper: Paper }) {
   return (
-    <span className={cn("hidden shrink-0 items-center group-hover/row:flex group-has-focus-key/row:flex group-has-data-menu-up/row:flex", className)}>
+    <span className={cn("absolute top-1 right-1 flex items-center", revealOnHover)}>
       <RowStar paper={paper} />
       <RowMore id={paper.id} />
     </span>
@@ -61,18 +63,16 @@ function RowActions({ paper, className }: { paper: Paper; className?: string }) 
 }
 
 // The list row's end slot: the ellipsis, then the star at the far end, where a starred paper's star stays
-// so the stars of a list line up. Both hold their place while hidden, so the details never shift.
+// so the stars of a list line up. Both hold their place while faded out, so the details never shift.
 // On an open card they show while the pointer is anywhere on it, so the card reads as one surface.
-const ON_HOVER = "invisible group-hover/row:visible group-has-focus-key/row:visible group-has-data-menu-up/row:visible"
-const ON_CARD_HOVER = "group-hover/card:visible"
+const ON_CARD_HOVER = "group-hover/card:opacity-100"
 
 // In a project's scope a star is no column of the list: it shows with the actions, as an unstarred one does
 function RowSlot({ paper, open, scoped }: { paper: Paper; open: boolean; scoped: boolean }) {
-  const onHover = cn(ON_HOVER, open && ON_CARD_HOVER)
   return (
     <span className="flex shrink-0 items-center">
-      <RowMore id={paper.id} className={cn("flex", onHover, "data-menu-up:visible")} />
-      <RowStar paper={paper} className={paper.starred && !scoped ? undefined : onHover} />
+      <RowMore id={paper.id} className={cn(open && ON_CARD_HOVER)} />
+      <RowStar paper={paper} className={paper.starred && !scoped ? undefined : cn(revealOnHover, open && ON_CARD_HOVER)} />
     </span>
   )
 }
@@ -389,13 +389,11 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
             {[noPdfWord(paper), readings(paper, cited)].filter(Boolean).join(" · ")}
           </td>
         )}
-        <td className={cn(td, "tabular-nums")}>
+        <td className={cn(td, "relative tabular-nums")}>
           {/* The date alone: Owlit adds most papers, so a mark on its rows would say nothing (the card and the
               paper page say who added it). It gives way to the row's actions */}
-          <span className="group-hover/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
-            {ago(paper.addedAt)}
-          </span>
-          <RowActions paper={paper} className="-my-1 -mr-1.5 justify-end" />
+          <span className={givesWayToRowMenu}>{ago(paper.addedAt)}</span>
+          <RowActions paper={paper} />
         </td>
       </tr>
     </RowMenu>

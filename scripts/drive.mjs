@@ -23,7 +23,7 @@
 //   pnpm drive type <text>                into whatever has focus
 //   pnpm drive paste <workspace path>     a file of the workspace, pasted into what has focus (a picture
 //                                         into the chat's composer, as ⌘V does; the file picker can't be driven)
-//   pnpm drive key <combo>                Enter, Escape, Tab, ArrowDown, Meta+j, Shift+Meta+j, …
+//   pnpm drive key <combo>                Enter, Escape, Tab, ArrowDown, F2, Shift+F10, Meta+j, Shift+Meta+j, …
 //   pnpm drive text [#id | css-selector]  the element's (or the page's) text
 //   pnpm drive eval <js>                  an expression in the page (await works); prints JSON
 //   pnpm drive url                        the page's route
@@ -433,7 +433,7 @@ async function scroll(target, dy) {
 }
 
 const MODIFIERS = { alt: 1, option: 1, ctrl: 2, control: 2, meta: 4, cmd: 4, command: 4, shift: 8 }
-const NAMED_KEYS = { enter: ["Enter", 13, "\r"], escape: ["Escape", 27], esc: ["Escape", 27], tab: ["Tab", 9], backspace: ["Backspace", 8], delete: ["Delete", 46], space: [" ", 32, " "], arrowup: ["ArrowUp", 38], arrowdown: ["ArrowDown", 40], arrowleft: ["ArrowLeft", 37], arrowright: ["ArrowRight", 39], home: ["Home", 36], end: ["End", 35], pageup: ["PageUp", 33], pagedown: ["PageDown", 34] }
+const NAMED_KEYS = { enter: ["Enter", 13, "\r"], escape: ["Escape", 27], esc: ["Escape", 27], tab: ["Tab", 9], backspace: ["Backspace", 8], delete: ["Delete", 46], space: [" ", 32, " "], arrowup: ["ArrowUp", 38], arrowdown: ["ArrowDown", 40], arrowleft: ["ArrowLeft", 37], arrowright: ["ArrowRight", 39], home: ["Home", 36], end: ["End", 35], pageup: ["PageUp", 33], pagedown: ["PageDown", 34], f2: ["F2", 113], f10: ["F10", 121], contextmenu: ["ContextMenu", 93] }
 const PUNCTUATION = { ",": ["Comma", 188], ".": ["Period", 190], "/": ["Slash", 191], ";": ["Semicolon", 186], "'": ["Quote", 222], "[": ["BracketLeft", 219], "]": ["BracketRight", 221], "\\": ["Backslash", 220], "-": ["Minus", 189], "=": ["Equal", 187], "`": ["Backquote", 192] }
 
 // A key with modifiers, as the page sees a person press it: Meta+j fires the page's ⌘J, Enter sends

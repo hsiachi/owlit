@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { ActionsOnRightClick, fadeUnderRowMenu, RowMenuButton, type MenuGroups } from "@/components/action-menu"
+import { ActionsOnRightClick, fadeUnderRowMenu, givesWayToRowMenu, RowMenuButton, type MenuGroups } from "@/components/action-menu"
 import { RenameInput } from "@/components/rename-input"
 import { useDocActions } from "../../actions"
 import { useDocsUiStore } from "../../ui-store"
@@ -134,7 +134,7 @@ export function TreeRow({
           </span>
           {/* It keeps its room while the ⋯ shows in its place, so a long name doesn't grow into it */}
           {trail && (
-            <span className="ml-auto flex shrink-0 items-center pl-1 text-muted-foreground group-hover/row:invisible group-focus-key/row:invisible group-has-focus-key/row:invisible group-has-data-menu-up/row:invisible">
+            <span className={cn("ml-auto flex shrink-0 items-center pl-1 text-muted-foreground", givesWayToRowMenu)}>
               {trail}
             </span>
           )}

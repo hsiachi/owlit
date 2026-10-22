@@ -4,7 +4,8 @@ import { useState } from "react"
 import { FindField } from "@/components/find-field"
 import { hasAllWords, queryWords } from "@/lib/words"
 import { useNavigate } from "react-router-dom"
-import { ActionsOnRightClick, RowMenuButton } from "@/components/action-menu"
+import { cn } from "@/lib/utils"
+import { ActionsOnRightClick, givesWayToRowMenu, RowMenuButton } from "@/components/action-menu"
 import { EmptyPlace } from "@/components/empty-place"
 import { Button } from "@/components/ui/button"
 import { findPrompt } from "@/features/chat/lib/starters"
@@ -98,7 +99,7 @@ function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: s
         tabIndex={0}
         onClick={(e) => !(e.target as HTMLElement).closest("button") && open()}
         onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && open()}
-        className="group/row flex min-h-9 cursor-default items-start gap-2 rounded-md py-1.5 pr-1 pl-2.5 text-sm outline-none select-none hover:bg-muted focus-key:bg-muted has-data-[state=open]:bg-muted data-[state=open]:bg-muted"
+        className="group/row relative flex min-h-9 cursor-default items-start gap-2 rounded-md py-1.5 pr-1 pl-2.5 text-sm outline-none select-none hover:bg-muted focus-key:bg-muted has-data-[state=open]:bg-muted data-[state=open]:bg-muted"
       >
         {/* The slot keeps titles in line; Owlit's dot fills it while something changed since the user looked.
             While Owlit works on the thread, the second line says so and the slot stays empty. */}
@@ -127,10 +128,11 @@ function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: s
             summary.one && <span className="line-clamp-2 text-detail leading-5 text-muted-foreground">{summary.one}</span>
           )}
         </span>
-        <span className="flex h-5 shrink-0 items-center pr-1.5 text-detail whitespace-nowrap text-muted-foreground tabular-nums group-hover/row:hidden group-focus-key/row:hidden group-has-focus-key/row:hidden group-has-data-menu-up/row:hidden">
+        {/* The ⋯ floats over the date's end, which keeps its room, so the title's column never changes width */}
+        <span className={cn("flex h-5 shrink-0 items-center pr-1.5 text-detail whitespace-nowrap text-muted-foreground tabular-nums", givesWayToRowMenu)}>
           {size} · {shortDate(summary.updatedAt)}
         </span>
-        <RowMenuButton groups={groups} label={t`Thread actions`} menuClassName="w-56" className="self-start" />
+        <RowMenuButton groups={groups} label={t`Thread actions`} menuClassName="w-56" className="absolute top-1.5 right-1" />
       </div>
     </ActionsOnRightClick>
   )
