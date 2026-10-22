@@ -63,7 +63,7 @@ const ACCESS_OFFER = /^(get (full )?access|buy|purchase|rent)\b|access through y
 const MISSING = /\b(404|410)\b|not found|page (doesn't|does not) exist|找不到|不存在/i
 // A page that stands in while its scripts go on somewhere: never the paper's page, whatever its tags
 const INTERSTITIAL_TITLE = /^(please wait|redirecting|loading)\b|^(请稍等|正在跳转|加载中)/i
-const REFUSED =/unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限/i
+const REFUSED = /unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限/i
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " }
 const decode = (text: string) =>
