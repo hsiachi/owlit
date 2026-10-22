@@ -53,13 +53,13 @@ export function CreateForm({
           <span className="truncate" title={parent}>
             {tilde(parent)}
           </span>
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={onChooseParent}>
+          <Button type="button" variant="text" size="inline" onClick={onChooseParent}>
             {t`Choose…`}
           </Button>
         </span>
       </div>
       <div className="mt-3 flex justify-end gap-1.5">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={onCancel}>
           {t`Cancel`}
         </Button>
         <Button type="submit" size="sm" disabled={!name.trim()}>

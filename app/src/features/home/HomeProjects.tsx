@@ -200,7 +200,7 @@ function FoldedLine({ projects }: { projects: ProjectSummary[] }) {
     list.map((p, i) => (
       <Fragment key={p.path}>
         {i > 0 && comma}
-        <InlineLink onClick={() => open(p)} className="text-muted-foreground hover:text-foreground focus-key:text-foreground">
+        <InlineLink muted onClick={() => open(p)}>
           {p.name}
         </InlineLink>
         {since && workedAt(p) > 0 && <span className="ms-1">{sinceWords(workedAt(p))}</span>}

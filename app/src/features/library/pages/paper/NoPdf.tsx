@@ -1,5 +1,4 @@
 import { t } from "@lingui/core/macro"
-import { Trans } from "@lingui/react/macro"
 import { useRef, useState } from "react"
 import { isTaskFinished, type Paper, type PdfTry } from "@owlit/protocol"
 import { toast } from "sonner"
@@ -155,7 +154,6 @@ export function NoPdf({ paper }: { paper: Paper }) {
       {t({ message: "Look again", comment: "button: owlit looks for the paper's PDF again, by its own routes" })}
     </Button>
   )
-  const linkClass = "text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
   // Nothing more owlit can try alone: its own routes found no copy, and no extension in the user's
   // browser may try with their library's access. The publisher's page is a plain link; nothing watches
   // what happens there.
@@ -226,13 +224,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
         {/* The first paywalled PDF is where owlit asks for the library's access: the proxy, and the
             extension that uses it in the person's browser (Settings › Papers, the two rows together) */}
         {askAccess && (
-          <p className="max-w-72 text-sm text-muted-foreground">
-            <Trans>
-              Use your library's access ·{" "}
-              <button type="button" className={linkClass} onClick={() => openSettings("proxy")}>
-                Set up
-              </button>
-            </Trans>
+          <p className="flex max-w-72 flex-wrap items-center justify-center gap-x-1.5 text-sm text-muted-foreground">
+            {t`Use your library's access`}
+            <Button variant="text" size="inline" onClick={() => openSettings("proxy")}>
+              {t({ message: "Set up…", comment: "button: opens Settings at the library proxy" })}
+            </Button>
           </p>
         )}
       </DropCard>

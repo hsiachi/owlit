@@ -263,7 +263,7 @@ function Tour({ index }: { index: number }) {
             ))}
           </div>
           {!last && (
-            <Button variant="ghost" size="sm" onClick={end}>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={end}>
               {t`Skip tour`}
             </Button>
           )}

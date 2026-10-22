@@ -109,7 +109,7 @@ function PermissionCard({ chatId, ask, call, agent, compact }: { chatId: string;
             {optionWords(o.kind) ?? o.name}
           </Button>
         ))}
-        {(diff || command) && long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} />}
+        {(diff || command) && long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} className="ml-0 h-7" />}
         {!compact && <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{t`Or type below what to do instead; it sends when Owlit finishes`}</span>}
       </div>
     </div>

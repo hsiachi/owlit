@@ -44,7 +44,7 @@ export function ExtensionGroup() {
             control={
               <Button variant="outline" size="sm" asChild>
                 <a href={INSTALL_URL} target="_blank" rel="noreferrer">
-                  {t`Install…`}
+                  {t`Install`}
                 </a>
               </Button>
             }

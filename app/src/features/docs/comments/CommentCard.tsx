@@ -144,8 +144,8 @@ function Replying({ comment }: { comment: string }) {
   if (!stand) return null
   if (stand.state === "failed")
     return (
-      <p className="mt-3 text-detail text-muted-foreground">
-        {stand.reply.error ?? t`Owlit couldn't answer.`}{" "}
+      <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-detail text-muted-foreground">
+        <span>{stand.reply.error ?? t`Owlit couldn't answer.`}</span>
         <Button variant="text" size="inline" onClick={() => void tryAgain(stand.chatId)}>
           {t`Retry`}
         </Button>

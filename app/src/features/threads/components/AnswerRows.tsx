@@ -1,6 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
 import { fromText, itemId, type Paper, QUESTION_COLUMN, readInFull, type ThreadGroup, type ThreadPaper, type ThreadRead, type ThreadRowRead, threadUri } from "@owlit/protocol"
-import { ChevronDownIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { NoteDot, ReadingRing } from "@/components/marks"
@@ -9,6 +8,7 @@ import { CitationHover } from "@/components/citation-card"
 import { MentionToken } from "@/components/mention/mention-token"
 import { Quote } from "@/components/quote"
 import { PaperCard, PaperCardThread } from "@/components/paper-card"
+import { FoldButton } from "@/components/fold"
 import { Button } from "@/components/ui/button"
 import { Unfold } from "@/components/unfold"
 import { StarButton } from "@/features/library/components/StarButton"
@@ -80,10 +80,9 @@ export function AnswerRows({ thread, shown, visit }: { thread: ThreadRead; shown
             </div>
             {many && (
               <div className="py-1">
-                <Button variant="text" size="inline" onClick={() => setAll((a) => new Set(a).add(s.key))}>
-                  <ChevronDownIcon />
-                  {plural(s.rows.length - SHOWN, { one: "# more paper", other: "# more papers" })}
-                </Button>
+                <FoldButton open={false} onClick={() => setAll((a) => new Set(a).add(s.key))}>
+{plural(s.rows.length - SHOWN, { one: "# more paper", other: "# more papers" })}
+</FoldButton>
               </div>
             )}
           </section>

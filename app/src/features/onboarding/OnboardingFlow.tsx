@@ -4,6 +4,7 @@ import { Trans } from "@lingui/react/macro"
 import type { WelcomeInfo } from "@owlit/protocol"
 import { FolderPlusIcon, UserIcon, XIcon, type LucideIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
+import { InlineLink } from "@/components/inline-link"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -115,7 +116,7 @@ export function OnboardingFlow({ mode = "first", onClose }: { mode?: "first" | "
               )}
             </div>
             {mode === "first" && INTRO.includes(step) && (
-              <Button variant="ghost" onClick={() => go(steps.indexOf("you"))}>
+              <Button variant="ghost" className="text-muted-foreground" onClick={() => go(steps.indexOf("you"))}>
                 {t`Skip intro`}
               </Button>
             )}
@@ -417,9 +418,7 @@ function Start() {
       <p className="mt-6 text-sm text-muted-foreground">
         <Trans>
           Or{" "}
-          <button type="button" className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground" onClick={() => void open()}>
-            open a folder you have
-          </button>
+          <InlineLink onClick={() => void open()}>open a folder you have</InlineLink>
           : notes, an Obsidian vault, PDFs.
         </Trans>
       </p>
