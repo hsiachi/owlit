@@ -22,7 +22,12 @@ export const FEATHER = "M 53 225 C 55 167 85 93 136 58 C 164 39 199 32 211 45 C 
 export const OWLIT = { top: "#0c9a58", bottom: "#007a43", feather: "#ffffff", bars: "#5fd393", shadow: 0.35, edgeOp: 0.1, lineOp: 0.06 }
 // The same drawing on a graphite tile, for Owlit Dev, so a preview never passes for the Owlit you use.
 export const DEV = { ...OWLIT, top: "#43464b", bottom: "#2a2c30", bars: "#7d8188" }
-const BARS = [[106, 127, 96, 30], [106, 171, 74, 28]]
+// The upper bar's top-left corner is cut along the feather's rising stroke: a square corner peeks out above
+// that stroke, between it and the outer curl.
+const BARS = [
+  "M 122 127 H 198 A 4 4 0 0 1 202 131 V 153 A 4 4 0 0 1 198 157 H 110 A 4 4 0 0 1 106 153 V 140 Z",
+  "M 110 171 H 176 A 4 4 0 0 1 180 175 V 195 A 4 4 0 0 1 176 199 H 110 A 4 4 0 0 1 106 195 V 175 A 4 4 0 0 1 110 171 Z",
+]
 // Line weight in feather units by the point size it is drawn for: 14.5 at full size, heavier when small so
 // the line keeps about a pixel.
 const strokeFor = (pt) => (pt <= 16 ? 26 : pt <= 32 ? 22 : pt <= 64 ? 18 : pt <= 128 ? 16 : 14.5)
@@ -45,7 +50,7 @@ export function svg(T, pt = 1024, part = "all") {
     <clipPath id="outside"><path d="M0 0H1024V1024H0Z M100 285 A185 185 0 0 1 285 100 H739 A185 185 0 0 1 924 285 V739 A185 185 0 0 1 739 924 H285 A185 185 0 0 1 100 739 Z" clip-rule="evenodd"/></clipPath>
   </defs>`
   const shadow = `<rect ${TILE} fill="${T.bottom}" filter="url(#shadow)"${part === "shadow" ? ` clip-path="url(#outside)"` : ""}/>`
-  const bars = barsAt(pt) ? BARS.map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${T.bars}"/>`).join("") : ""
+  const bars = barsAt(pt) ? BARS.map((d) => `<path d="${d}" fill="${T.bars}"/>`).join("") : ""
   const over = `
   <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="${T.edgeOp}" stroke-width="3"/>
   <rect ${TILE} fill="none" stroke="#ffffff" stroke-opacity="${T.lineOp}" stroke-width="2"/>
