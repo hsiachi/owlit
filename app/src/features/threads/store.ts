@@ -24,8 +24,7 @@ export const drop = (id: string) =>
     return { threads: rest }
   })
 
-// One of the user's changes (a thread's project, what its table is grouped by). Resolves to whether it
-// was made.
+// One of the user's changes (what its table is grouped by). Resolves to whether it was made.
 export async function editThread(id: string, edit: ThreadEdit): Promise<boolean> {
   try {
     put(await rpc.threads.edit({ id, edit }))
@@ -34,18 +33,6 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
     toastError(error)
     return false
   }
-}
-
-// The person files a thread under another project (a marked folder's path, and its name for the toast;
-// "" for none), with Undo
-export async function moveThread(id: string, project: string, name = project) {
-  const c = useThreadsStore.getState().threads[id]
-  if (!c || c.project === project) return
-  const was = c.project
-  if (!(await editThread(id, { op: "project", project }))) return
-  toastUndo(project ? t`Moved to ${name}` : t({ message: "Moved out of its project", comment: "toast: a thread now belongs to no project" }), () => void editThread(id, { op: "project", project: was }), {
-    description: shown(c).title,
-  })
 }
 
 export async function deleteThread(id: string) {

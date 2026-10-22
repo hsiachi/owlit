@@ -3,7 +3,7 @@ import { baseName, displayName, isMarkdown, parentPath, type WorkspaceFile } fro
 import { messageText } from "@/features/chat/lib/message-text"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
-import { isOwlit, isProjectMark, threadDot, type ActorId, type Change, type Chat, type ChatMessage, type PersonId, type Thread, type Unseen } from "@owlit/protocol"
+import { isOwlit, threadDot, type ActorId, type Change, type Chat, type ChatMessage, type PersonId, type Thread, type Unseen } from "@owlit/protocol"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats, papers and
 // threads. A doc counts once the user wrote in it (the trail has a mark for it, or the change log has a
@@ -58,9 +58,7 @@ export function docPlaces(files: Iterable<WorkspaceFile>, marks: readonly { path
   }
   const out: Place[] = []
   for (const f of files) {
-    // A project's mark says what the folder is; writing it is no work on a doc, and the person who just
-    // made one would find it as their place to continue
-    if (!isMarkdown(f.path) || isProjectMark(f.path)) continue
+    if (!isMarkdown(f.path)) continue
     const mark = markByPath.get(f.path)
     const own = mine.get(f.path)
     // Any Markdown file in the folder isn't a place: a synced vault or a git pull would fill Home with
@@ -105,15 +103,14 @@ export function chatPlace(c: Chat): Place[] {
 
 // A thread is a place from the moment it was asked: named by Owlit's short title (the question as typed
 // can run to a paragraph, and says less than the name), dated by the person's last question or own change
-// to it (mine: their newest entry in its log), quoting Owlit's one line on it. Its detail is its project's
-// name (projectName: by the marked folder's path, "" for one no longer marked).
-export function threadPlace(c: Pick<Thread, "id" | "title" | "asked" | "alsoAsked" | "project" | "one">, mine?: number, projectName: (path: string) => string = () => ""): Place {
+// to it (mine: their newest entry in its log), quoting Owlit's one line on it
+export function threadPlace(c: Pick<Thread, "id" | "title" | "asked" | "alsoAsked" | "one">, mine?: number): Place {
   return {
     kind: "thread",
     key: `thread:${c.id}`,
     id: c.id,
     title: c.title,
-    detail: projectName(c.project),
+    detail: "",
     at: Math.max(c.asked.at, ...(c.alsoAsked ?? []).map((a) => a.at), mine ?? 0),
     to: `/threads/${c.id}`,
     words: markdownPlain(c.one) || undefined,

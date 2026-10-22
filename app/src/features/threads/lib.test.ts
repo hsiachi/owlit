@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { summarize, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
 import { exampleThreads } from "@/test/example-workspace"
-import { byProject, groupSections, isTable, noteSections, paperCounts, sectionsOf, shown } from "./lib"
+import { groupSections, isTable, noteSections, paperCounts, sectionsOf, shown } from "./lib"
 
 describe("a grouping's groups in the table", () => {
   const paper = (id: string): ThreadRowRead => ({ id, paper: { title: id, authors: [], ids: {} }, cells: {}, addedAt: 0 })
@@ -92,33 +92,5 @@ describe("the list of threads", () => {
 
   it("carries Owlit's one line for each thread", () => {
     expect(summaries.every((c) => c.one)).toBe(true)
-  })
-
-  it("groups by a marked folder's path, labelled with the project's name", () => {
-    const groups = byProject(summaries, [{ path: "Hallucination in RAG", name: "RAG survey" }])
-    expect(groups.map((g) => [g.key, g.label])).toEqual([["Hallucination in RAG", "RAG survey"]])
-  })
-
-  it("orders the projects by their most recently changed thread, those in none last", () => {
-    const at = (id: string, project: string, updatedAt: number) => ({ ...summaries[0]!, id, project, updatedAt })
-    const list = [at("a", "Thesis/Ch2", 3), at("b", "", 2), at("c", "Grant", 1), at("d", "Thesis/Ch2", 0)]
-    const projects = [
-      { path: "Grant", name: "Grant" },
-      { path: "Thesis/Ch2", name: "Chapter 2" },
-    ]
-    expect(byProject(list, projects).map((g) => [g.label, g.threads.map((c) => c.id)])).toEqual([
-      ["Chapter 2", ["a", "d"]],
-      ["Grant", ["c"]],
-      ["Not in a project", ["b"]],
-    ])
-  })
-
-  it("puts a thread whose project is no marked folder any more with those in none, naming the path it was in", () => {
-    const gone = byProject(summaries, [{ path: "writing", name: "writing" }])
-    expect(gone.map((g) => g.key)).toEqual([""])
-    expect(gone[0]!.threads.every((c) => c.was === "Hallucination in RAG")).toBe(true)
-    expect(byProject(summaries, []).map((g) => g.key)).toEqual([""])
-    // Until the projects are known, every project counts, labelled by its path
-    expect(byProject(summaries).map((g) => [g.key, g.label])).toEqual([["Hallucination in RAG", "Hallucination in RAG"]])
   })
 })

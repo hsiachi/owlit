@@ -11,13 +11,6 @@ export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "
 // thread: grouped by the thread a paper came from, newest added first in each
 export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue" | "citations" | "thread"
 
-// A project's papers: those any doc under it cites. A filter over the one list, never a place papers are
-// filed: a paper cited under two projects shows in both.
-export interface Scope {
-  // The marked folder's path
-  project: string
-}
-
 export interface Sort {
   key: SortKey
   desc: boolean
@@ -30,7 +23,6 @@ interface UiState {
   tags: string[]
   // Only these papers, under a name for its chip (an import's "From this import")
   only: { ids: string[]; label: string } | null
-  scope: Scope | null
   sort: Sort
 
   // selectedIds is the selection; cursorId is the keyboard cursor and the row a plain click
@@ -52,7 +44,6 @@ interface UiState {
   // The list narrowed to these papers, everything else cleared, until the chip is taken off
   showOnly: (ids: string[], label: string) => void
   clearOnly: () => void
-  setScope: (scope: Scope | null) => void
   sortBy: (key: SortKey) => void
 
   // A plain click selects the row and opens or folds its peek; ⌘ toggles and ⇧ extends
@@ -85,7 +76,6 @@ export const useLibraryUi = create<UiState>()((set, get) => ({
   filter: "all",
   tags: [],
   only: null,
-  scope: null,
   sort: { key: "addedAt", desc: true },
   selectedIds: [],
   cursorId: null,
@@ -100,11 +90,9 @@ export const useLibraryUi = create<UiState>()((set, get) => ({
   toggleTag: (tag) =>
     set((s) => ({ tags: toggle(s.tags, tag), peekId: null })),
   // Clicking a tag chip shows everything carrying that tag
-  showTag: (tag) => set({ tags: [tag], filter: "all", query: "", scope: null, peekId: null, selectedIds: [] }),
-  showOnly: (ids, label) => set({ only: { ids, label }, tags: [], filter: "all", query: "", scope: null, peekId: null, selectedIds: [] }),
+  showTag: (tag) => set({ tags: [tag], filter: "all", query: "", peekId: null, selectedIds: [] }),
+  showOnly: (ids, label) => set({ only: { ids, label }, tags: [], filter: "all", query: "", peekId: null, selectedIds: [] }),
   clearOnly: () => set({ only: null, peekId: null }),
-  // The status chips and tags stay: they narrow the scope's papers as they narrowed the whole list
-  setScope: (scope) => set({ scope, peekId: null, selectedIds: [] }),
   // Picking the current key again flips the direction; a new key starts in its natural direction
   sortBy: (key) =>
     set((s) => ({ sort: s.sort.key === key ? { key, desc: !s.sort.desc } : { key, desc: naturalDesc(key) } })),
@@ -136,7 +124,7 @@ export const useLibraryUi = create<UiState>()((set, get) => ({
   leaveFor: (id) => set({ leavingFor: id }),
   leaveList: () => set((s) => ({ peekId: s.leavingFor && s.leavingFor === s.peekId ? s.peekId : null, leavingFor: null })),
   placeCursor: (id) => set((s) => ({ cursorId: id, anchorId: id, selectedIds: [], peekId: s.peekId === id ? id : null })),
-  revealPaper: (id) => set({ query: "", filter: "all", tags: [], only: null, scope: null, selectedIds: [id], cursorId: id, anchorId: id, peekId: id }),
+  revealPaper: (id) => set({ query: "", filter: "all", tags: [], only: null, selectedIds: [id], cursorId: id, anchorId: id, peekId: id }),
   selectAll: (order) => set({ selectedIds: order, peekId: null }),
   clearSelection: () => set({ selectedIds: [], anchorId: null, peekId: null }),
   setScrollTop: (scrollTop) => set({ scrollTop }),

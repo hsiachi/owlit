@@ -64,29 +64,3 @@ describe("papers without a PDF", () => {
     ])
   })
 })
-
-describe("a project's scope", () => {
-  const library: Record<string, Paper> = {
-    a: paper("a", { starred: true, status: "read", tags: ["x"], pdf: { pages: 1 } as Paper["pdf"] }),
-    b: paper("b", { status: "reading", tags: ["x"], pdf: { pages: 1 } as Paper["pdf"] }),
-    c: paper("c", { starred: true }),
-    d: paper("d", { pdfState: { state: "no-pdf", tried: [] } }),
-  }
-  const sort = { key: "title" as const, desc: false }
-  const within = new Set(["a", "b", "d", "gone"])
-
-  it("narrows the list, with the status chips and tags working inside it", () => {
-    const ids = (params: Partial<Parameters<typeof visiblePapers>[1]>) => visiblePapers(library, { query: "", filter: "all", tags: [], sort, within, ...params }).map((p) => p.id)
-    expect(ids({})).toEqual(["a", "b", "d"])
-    expect(ids({ filter: "starred" })).toEqual(["a"])
-    expect(ids({ tags: ["x"], filter: "reading" })).toEqual(["b"])
-    // An import's chip narrows the scope further, never widens it
-    expect(ids({ only: { ids: ["c", "d"] } })).toEqual(["d"])
-    expect(ids({ within: null })).toEqual(["a", "b", "c", "d"])
-  })
-
-  it("counts each chip within the scope", () => {
-    expect(countByFilter(library, within)).toEqual({ all: 3, starred: 1, unread: 1, reading: 1, read: 1, "no-pdf": 1 })
-    expect(countByFilter(library).all).toBe(4)
-  })
-})

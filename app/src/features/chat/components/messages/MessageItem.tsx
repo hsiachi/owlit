@@ -17,7 +17,7 @@ import { MentionBadge } from "../composer/MentionBadge"
 import { unansweredSentence } from "../../lib/step-words"
 import { messageText } from "../../lib/message-text"
 import { LooseAskPart, PlanPart, StepsPart, TextPart, type StepAsks, type StepPart } from "./parts"
-import { KeptInMindLine, ResultCard } from "./ResultRows"
+import { ResultCard } from "./ResultRows"
 import { ReadFromContext } from "@/components/citation"
 import { AgentsPart, AgentsWaitLine, type AgentPart } from "./agents"
 
@@ -237,7 +237,6 @@ export function AssistantMessage({
           (null: an answer from before owlit kept it, or still being written) */}
       <ReadFromContext.Provider value={message.readFrom ?? null}>
       <MessageContent className="gap-3">
-        {message.heard && <KeptInMindLine heard={message.heard} />}
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1
           if (seg.type === "steps") return <StepsPart key={seg.key} parts={seg.parts} active={streaming && isLast && !waiting} streaming={streaming} asks={asks} />

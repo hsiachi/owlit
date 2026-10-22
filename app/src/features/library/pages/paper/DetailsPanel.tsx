@@ -21,11 +21,10 @@ import { NoteEditor } from "../../notes/NoteEditor"
 import { addHighlightToNote } from "../../notes/note-actions"
 import { PANEL_DEFAULT, PANEL_MIN, usePrefsStore, type PanelTab } from "../../prefs-store"
 import { useLibraryStore } from "../../store"
-import { docUri, type CitingDoc, type Highlight, type Paper } from "@owlit/protocol"
+import { docUri, paperUri, type Highlight, type Paper } from "@owlit/protocol"
 import { useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
 import { mentionRoute } from "@/features/docs/lib/mentions"
-import { placeDocAt } from "@/features/docs/editor/places"
 import { rpc } from "@/lib/rpc"
 import { copyText } from "@/lib/clipboard"
 import { toast } from "sonner"
@@ -203,78 +202,42 @@ function About({ paper }: { paper: Paper }) {
   )
 }
 
-// A doc's citing sentences shown under it; the rest are a step into the doc
-const SENTENCES_SHOWN = 5
-
-// The docs whose text cites this paper (under any id it goes by), each with the sentences that cite it, so
-// reading a paper shows where the person's writing leans on it and what it says there; a sentence opens
-// the doc at its citation. From the docs' text as on disk (docs.citing), as a project's papers in the
-// Library are. Asked again when the paper or a doc changes.
+// The docs that link to this paper, from the search index's links (an old id of the paper included), so
+// reading a paper shows where the person's writing leans on it. Asked again when the paper changes.
 function CitedIn({ paper }: { paper: Paper }) {
   const navigate = useNavigate()
-  const [citing, setCiting] = useState<CitingDoc[]>([])
-  const files = useDocsStore((s) => s.files)
-  // A doc came, went, moved or was saved
-  const stamp = useMemo(
-    () =>
-      Object.values(files)
-        .map((f) => `${f.path}:${f.modifiedAt}`)
-        .join("|"),
-    [files],
-  )
+  const [paths, setPaths] = useState<string[]>([])
+  const docs = useDocsStore((s) => s.files)
   useEffect(() => {
     let live = true
-    rpc.docs.citing({ paperId: paper.id }).then(
-      ({ docs }) => live && setCiting(docs),
+    rpc.links
+      .to({ uri: paperUri(paper.id) })
+      .then((links) => links.filter((l) => l.source === "doc").map((l) => l.key))
+      .then(
+      (next) => live && setPaths(next.sort((a, b) => a.localeCompare(b))),
       () => undefined,
     )
     return () => {
       live = false
     }
-  }, [paper, stamp])
+  }, [paper])
   // Only docs still there, as the docs list names them
-  const byPath = useMemo(() => new Map(Object.values(files).map((f) => [f.path, f])), [files])
-  const shown = citing.filter((d) => byPath.has(d.path))
+  const shown = paths.filter((path) => Object.values(docs).some((f) => f.path === path))
   if (!shown.length) return null
-  const open = (path: string, at?: number) => {
-    const file = byPath.get(path)
-    if (!file) return
-    if (at !== undefined) placeDocAt(file.id, at)
-    const route = mentionRoute(docUri(path))
-    if (route) navigate(route)
-  }
   return (
     <>
       <dt className="text-muted-foreground">{t({ message: "Cited in", comment: "label before the docs that cite this paper" })}</dt>
-      <dd className="flex min-w-0 flex-col gap-2.5">
-        {shown.map((doc) => {
-          const more = doc.sentences.length - SENTENCES_SHOWN
-          return (
-            <div key={doc.path} className="min-w-0">
-              <MentionToken label={displayName(doc.path)} onClick={() => open(doc.path)} />
-              {doc.sentences.slice(0, SENTENCES_SHOWN).map((s) => (
-                <button
-                  key={s.from}
-                  type="button"
-                  title={s.text}
-                  onClick={() => open(doc.path, s.from)}
-                  className="mt-0.5 block w-full truncate rounded-sm text-left leading-normal text-muted-foreground outline-none hover:text-foreground focus-key:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
-                >
-                  {s.text}
-                </button>
-              ))}
-              {more > 0 && (
-                <button
-                  type="button"
-                  onClick={() => open(doc.path)}
-                  className="mt-0.5 rounded-sm text-muted-foreground outline-none hover:text-foreground focus-key:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
-                >
-                  {t({ message: `+${more} more`, comment: "under a doc that cites this paper: its other citing sentences, opening the doc" })}
-                </button>
-              )}
-            </div>
-          )
-        })}
+      <dd className="flex min-w-0 flex-wrap gap-x-2 gap-y-1">
+        {shown.map((path) => (
+          <MentionToken
+            key={path}
+            label={displayName(path)}
+            onClick={() => {
+              const route = mentionRoute(docUri(path))
+              if (route) navigate(route)
+            }}
+          />
+        ))}
       </dd>
     </>
   )

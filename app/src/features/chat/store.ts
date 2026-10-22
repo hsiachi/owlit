@@ -42,8 +42,6 @@ export interface ChatState extends ConnectorSlice {
   setChatSelection: (chatId: string, patch: Partial<Selection>) => void
   // The role of one chat, or of the chat about to start when there is none
   setChatRole: (chatId: string | undefined, role: Role) => void
-  // The marked folder the person puts a chat in; undefined takes it out
-  setChatProject: (chatId: string, project: string | undefined) => void
 
   // Starts a turn; while one runs, answers what it waits on or queues the message for when it ends
   send: (chatId: string, input: PromptInput) => Promise<void>
@@ -163,14 +161,6 @@ export const useChatStore = create<ChatState>()(
         if (!chatId || !get().chats[chatId]) return set({ newChatRole: role })
         set((s) => patchChat(s, chatId, (c) => ({ ...c, role })))
         disk.updateChatOnDisk(chatId, { role })
-      },
-
-      setChatProject(chatId, project) {
-        set((s) =>
-          patchChat(s, chatId, ({ project: _was, ...c }) => ({ ...c, ...(project ? { project } : {}) })),
-        )
-        // "" is how core hears none: a missing field would leave the old one
-        disk.updateChatOnDisk(chatId, { project: project ?? "" })
       },
 
       async send(chatId, input) {

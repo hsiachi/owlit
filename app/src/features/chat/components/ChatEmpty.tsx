@@ -30,8 +30,6 @@ function greeting(name?: string) {
 export interface ChatIndexState {
   starter?: string | AskParts
   fresh?: boolean
-  // The project the new chat is in from its first message (Home's "Where did I stop?"): a marked folder's path
-  project?: string
 }
 
 export const FRESH_CHAT: ChatIndexState = { fresh: true }
@@ -69,8 +67,6 @@ export function ChatEmpty() {
   // The composer names the new chat's id: files attached before sending are already in its folder
   const start = (input: PromptInput, id: string) => {
     const chat = createChat({ id })
-    // Before the send, so the first turn already hears the project's lines
-    if (state?.project) useChatStore.getState().setChatProject(chat.id, state.project)
     navigate(`/chat/${chat.id}`)
     void send(chat.id, input)
   }

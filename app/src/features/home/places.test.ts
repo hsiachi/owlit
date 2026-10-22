@@ -42,12 +42,6 @@ describe("docPlaces", () => {
     expect(by["d.md"]).toMatchObject({ did: "edited", at: 8 })
   })
 
-  it("leaves a project's mark out, written in the editor or by its menu", () => {
-    const files = [file("Paper/project.md", "# Paper"), file("Paper/Intro.md"), file("Other/PROJECT.md", "# Other")]
-    const places = docPlaces(files, [{ path: "Paper/project.md", at: 90, head: 0 }], newestFirst([change("Paper/Intro.md", ME, 20), change("Other/PROJECT.md", ME, 95, { action: "create" })]), ME)
-    expect(places.map((p) => p.id)).toEqual(["Paper/Intro.md"])
-  })
-
   it("quotes the paragraph the cursor was in when the trail has it", () => {
     const [place] = docPlaces([file("a.md", "One.\n\nTwo.\n\nThree.")], [{ path: "a.md", at: 5, head: 6 }], [], ME)
     expect(place!.words).toBe("Two.")
@@ -60,7 +54,6 @@ const thread = (over: Partial<Thread> = {}): Thread =>
     id: "t1",
     title: "Reading tools",
     asked: { text: "What tools help people read papers?", at: 100 },
-    project: "lit-review",
     sources: [],
     report: "Most tools [annotate](owlit://library/p1) the PDF.",
     one: "Most tools [annotate](owlit://library/p1) the PDF.",
@@ -73,10 +66,8 @@ const thread = (over: Partial<Thread> = {}): Thread =>
 
 describe("threadPlace", () => {
   it("is named by its title, dated by the person's last question or change, and quotes Owlit's one line", () => {
-    const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] }), 450, (path) => (path === "lit-review" ? "Literature review" : ""))
-    expect(place).toMatchObject({ kind: "thread", title: "Reading tools", at: 450, to: "/threads/t1", detail: "Literature review", words: "Most tools annotate the PDF." })
-    // A project whose mark is gone names nothing
-    expect(threadPlace(thread({}), 450, () => "").detail).toBe("")
+    const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] }), 450)
+    expect(place).toMatchObject({ kind: "thread", title: "Reading tools", at: 450, to: "/threads/t1", detail: "", words: "Most tools annotate the PDF." })
     // The question as typed is nowhere on its row
     expect(JSON.stringify(place)).not.toContain("What tools help people read papers?")
     // Owlit's own later writes don't date it

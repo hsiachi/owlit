@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { t } from "@lingui/core/macro"
 import { Trans } from "@lingui/react/macro"
@@ -7,6 +7,7 @@ import { DropOverlay, PdfFileInput } from "@/components/file-drop"
 import { GroupLabel } from "@/components/group-label"
 import { KindIcon } from "@/components/kind-icon"
 import { ListRow } from "@/components/list-row"
+import { NoteDot, WaitingDot } from "@/components/marks"
 import { PageTitle } from "@/components/page"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { Quote } from "@/components/quote"
@@ -17,27 +18,20 @@ import { findPrompt } from "@/features/chat/lib/starters"
 import { addPdfFiles } from "@/features/library/lib/add-pdfs"
 import { usePaperActions } from "@/features/library/actions"
 import { useWorkspace } from "@/lib/workspace"
-import { refreshSummary, useProjects } from "@/features/projects/store"
 import { SiteWaits, WaitingOnYou } from "./WaitingOnYou"
-import { useNames } from "@/lib/actors"
-import { OfferRows, ProjectGroups } from "./HomeProjects"
-import { useOffers } from "./offers"
-import { didWords } from "./did-words"
-import { NewsDot, PlaceRow } from "./rows"
-import { type Place, useNews, usePlaces, useProjectOfPlace } from "./where"
+import { ago } from "@/lib/time"
+import { nameOf, useNames } from "@/lib/actors"
+import { type News, type Place, useNews, usePlaces } from "./where"
 
-// Home: where the user was and what waits for them (WaitingOnYou), then the projects being worked on
-// (HomeProjects), then the rest. What others changed is not listed as such: it is a mark on the row of the
-// place it happened in, saying what came. PDFs dropped anywhere on it go to the Library.
+// Home: where the user was and what waits for them (WaitingOnYou), in that order. What others changed is
+// not listed here: it is a mark on the row of the place it happened in, saying what came. PDFs dropped
+// anywhere on it go to the Library.
 
 const RECENT = 8
 
 export function HomePage() {
   const { open } = usePaperActions()
   const places = usePlaces()
-  // The journal moves with no word to the window (reading time, typing elsewhere): the summary is asked again
-  // each time Home is shown
-  useEffect(refreshSummary, [])
   const workspace = useWorkspace((s) => s.current)
   const { dragging, dropProps } = useFileDrop((data) => void addPdfFiles(Array.from(data.files), open))
   const [lead, ...rest] = places
@@ -59,8 +53,16 @@ export function HomePage() {
               <div className="mt-8 empty:hidden">
                 <SiteWaits />
               </div>
-              <ProjectGroups places={places} />
-              <Recent places={rest} />
+              {rest.length > 0 && (
+                <section className="mt-8">
+                  <GroupLabel>{t`Recent`}</GroupLabel>
+                  <div className="flex flex-col gap-0.5">
+                    {rest.slice(0, RECENT).map((p) => (
+                      <RecentRow key={p.key} place={p} />
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           ) : (
             <Start />
@@ -72,25 +74,15 @@ export function HomePage() {
   )
 }
 
-// The places after the lead. With projects marked, only those in none of them, under "Not in a project":
-// a project's group above stands for the places inside it. With none marked, every place, as Recent.
-// Above them, the one-time offers to make a project of a folder worked in lately.
-function Recent({ places }: { places: Place[] }) {
-  const marked = useProjects().length > 0
-  const projectOf = useProjectOfPlace()
-  const shown = (marked ? places.filter((p) => !projectOf(p)) : places).slice(0, RECENT)
-  const offers = useOffers()
-  if (!shown.length && !offers.length) return null
-  return (
-    <section className="mt-8">
-      <GroupLabel>{marked ? t({ message: "Not in a project", comment: "Home: the group of places that belong to no project folder" }) : t`Recent`}</GroupLabel>
-      <OfferRows offers={offers} />
-      <div className="flex flex-col gap-0.5">
-        {shown.map((p) => (
-          <PlaceRow key={p.key} place={p} />
-        ))}
-      </div>
-    </section>
+// A place with something new since the user last looked (a digest, a finished reply, new papers, someone's
+// edit) carries Owlit's dot in its icon's place, or the warning dot for comments, and says what where its
+// time was, until the user has seen it there
+function RecentRow({ place }: { place: Place }) {
+  const news = useNews(place)
+  return news ? (
+    <ListRow to={place.to} mark={<NewsDot news={news} />} title={place.title} detail={place.detail} end={news.words} />
+  ) : (
+    <ListRow to={place.to} icon={KIND_ICON[place.kind]} title={place.title} detail={place.detail} end={ago(place.at)} />
   )
 }
 
@@ -124,6 +116,29 @@ function LeadCard({ place }: { place: Place }) {
       </Link>
     </section>
   )
+}
+
+const NewsDot = ({ news }: { news: News }) => (news.comment ? <WaitingDot /> : <NoteDot label={false} />)
+
+// What was done there and when, as one phrase: "edited 2 h ago", "Owlit wrote yesterday", "read Oct 9"
+function didWords(place: Place) {
+  const when = ago(place.at, { inSentence: true })
+  switch (place.did) {
+    case "edited":
+      return t`edited ${when}`
+    case "owlit-wrote":
+      return t`Owlit wrote ${when}`
+    case "owlit-edited":
+      return t`Owlit edited ${when}`
+    case "others-edited": {
+      if (place.by === "other") return t({ message: `changed outside owlit ${when}`, comment: "Home: when another program last changed a doc" })
+      const who = nameOf(place.by!)
+      return t({ message: `${who} edited ${when}`, comment: "Home: a person's name, then when they last changed a doc" })
+    }
+    case "read":
+      return t`read ${when}`
+  }
+  return ago(place.at)
 }
 
 // A workspace with nothing in it yet: four ways in, no checklist. Finding papers on a question starts as

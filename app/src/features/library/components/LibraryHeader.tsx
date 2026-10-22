@@ -20,44 +20,15 @@ import { useThreadsStore } from "@/features/threads/store"
 import { threadsByPaper } from "@/features/threads/lib"
 import { type Layout, usePrefsStore } from "../prefs-store"
 import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
-import { useScopePapers } from "../scope"
-import { projectChoices, useProjects } from "@/features/projects/store"
 import { TagDot } from "./TagsEditor"
 
-// scope: what narrows the whole Library to a project's papers, beside the title it narrows
-export function LibraryHeader({ scope, actions }: { scope?: React.ReactNode; actions?: React.ReactNode }) {
+export function LibraryHeader({ actions }: { actions?: React.ReactNode }) {
   return (
-    <header className="flex flex-wrap items-center gap-2 px-0.5">
+    <header className="flex items-center gap-2 px-0.5">
       <PageTitle>{t`Library`}</PageTitle>
-      {scope}
       <span className="flex-1" />
       {actions}
     </header>
-  )
-}
-
-// The Library as one project's papers, or all of them: a menu of the marked projects by name. Only once
-// the workspace has a project; without one the Library has nothing of this.
-export function ScopeControls() {
-  const projects = useProjects()
-  const scope = useLibraryUi((s) => s.scope)
-  const setScope = useLibraryUi((s) => s.setScope)
-  const options = useMemo(
-    () => [
-      { value: "", label: t({ message: "All papers", comment: "Library scope menu: every paper, of no one project" }) },
-      ...projectChoices(projects).map((c) => ({ value: c.project.path, label: c.label })),
-    ],
-    [projects],
-  )
-  if (!projects.length) return null
-  return (
-    <ChoiceMenu
-      label={t({ message: "Project", comment: "Library menu: show the papers one project cites, or all papers" })}
-      value={scope?.project ?? ""}
-      options={options}
-      onChange={(path) => setScope(path ? { project: path } : null)}
-      align="start"
-    />
   )
 }
 
@@ -141,8 +112,7 @@ export function FilterBar() {
   const only = useLibraryUi((s) => s.only)
   const clearOnly = useLibraryUi((s) => s.clearOnly)
   const papers = useLibraryStore((s) => s.papers)
-  const { ids: within } = useScopePapers()
-  const counts = useMemo(() => countByFilter(papers, within), [papers, within])
+  const counts = useMemo(() => countByFilter(papers), [papers])
 
   return (
     <div className="mt-3.5 flex flex-wrap items-center gap-0.5">
