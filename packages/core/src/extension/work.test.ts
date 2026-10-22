@@ -198,10 +198,11 @@ describe("the extension's queue", () => {
     const [a] = await take()
     // The extension may not read where the proxy sent it: the whole publisher's site is the one to allow
     work.settle(a.id, "no-permission", { host: "doi.apa.org" })
-    expect(work.waits()).toEqual([{ kind: "permission", host: "apa.org", papers: 2, url: a.url, askedFor: false, proxied: true }])
-    expect(work.waitsForExtension()).toEqual([{ kind: "permission", host: "apa.org", papers: 2, proxied: true }])
-    // Each paper names the wait it is under, which isn't the proxy's
-    expect(work.holding(library, "10.1037/b")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", waits: "permission", waitsAt: "apa.org", proxied: true })
+    expect(work.waits()).toEqual([{ kind: "permission", host: "apa.org", papers: 1, url: a.url, askedFor: false, proxied: false }])
+    expect(work.waitsForExtension()).toEqual([{ kind: "permission", host: "apa.org", papers: 1, proxied: false }])
+    // The paper that met it is under it, at the site the wait names; the other is only behind it in the queue
+    expect(work.holding(library, "10.1037/a")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", waits: "permission", waitsAt: "apa.org", proxied: true })
+    expect(work.holding(library, "10.1037/b")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "permission", host: "apa.org" }, proxied: true })
     // Opened and resumed by the site the wait names, not the proxy's
     expect(work.open("permission", "tlink.lib.tsinghua.edu.cn")).toBeUndefined()
     expect(work.open("permission", "apa.org")).toBe("chrome")
@@ -215,6 +216,31 @@ describe("the extension's queue", () => {
     const [s1] = (await take()).filter((w) => w.paperId === "s1")
     work.settle(s1.id, "no-permission", { host: "journals.sagepub.com" })
     expect(work.waits().find((w) => w.kind === "permission" && w.host === "sagepub.com")).toBeDefined()
+  })
+
+  it("names a check met at a publisher through the proxy by that publisher, and counts only its paper", async () => {
+    const { work, never } = setup()
+    const tlink = (id: string) => paper(id, "tlink.lib.tsinghua.edu.cn", { url: `https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/${id}`, proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/" })
+    const take = () => work.take(library, 0, never, "chrome")
+    for (const id of ["misq", "apa", "sage"]) work.fetch(library, tlink(id), false)
+    const [misq] = await take()
+    work.settle(misq.id, "check", { host: "misq.umn.edu", url: "https://misq.umn.edu/x" })
+    expect(work.waits()).toEqual([{ kind: "check", host: "misq.umn.edu", papers: 1, url: "https://misq.umn.edu/x", askedFor: false, proxied: false }])
+    expect(work.holding(library, "apa")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "check", host: "misq.umn.edu" }, proxied: true })
+    // The library's own sign-in is in the way of every paper there, and opens the library's sign-in page
+    work.resume("misq.umn.edu")
+    const [next] = await take()
+    work.settle(next.id, "sign-in", { host: "tlink.lib.tsinghua.edu.cn", url: "https://tlink.lib.tsinghua.edu.cn/login" })
+    expect(work.waits()).toMatchObject([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 3, url: "https://tlink.lib.tsinghua.edu.cn/", proxied: true }])
+    work.resume("tlink.lib.tsinghua.edu.cn")
+    // The paper that met a publisher's wait leaves: the ones behind it go on
+    const [again] = await take()
+    work.settle(again.id, "check", { host: "www.science.org", url: "https://www.science.org/x" })
+    expect(work.waits()).toMatchObject([{ host: "science.org", papers: 1 }])
+    work.drop(library, again.paperId)
+    expect(work.waits()).toEqual([])
+    const left = ["misq", "apa", "sage"].filter((id) => id !== again.paperId).map((id) => work.holding(library, id))
+    expect(left).toEqual([{ host: "tlink.lib.tsinghua.edu.cn", proxied: true }, { host: "tlink.lib.tsinghua.edu.cn", proxied: true }])
   })
 
   it("tries one paper of a paused site once more, then waits for the user", async () => {

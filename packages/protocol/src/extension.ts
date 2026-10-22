@@ -65,16 +65,19 @@ export interface ExtensionView {
 // and owlit goes on.
 export interface ExtensionWait {
   kind: "sign-in" | "check" | "blocked" | "permission"
-  // The site, as the queue paces it: the publisher's registrable domain, or the library proxy's host.
-  // For a permission, the site to allow, which through the proxy is the publisher's, not the proxy's
+  // Where the user acts: the publisher's registrable domain, or the library proxy's host for the proxy's
+  // own sign-in. Through the proxy, a wait met at a publisher names that publisher (misq.umn.edu; for a
+  // permission the whole site to allow, apa.org), never the proxy.
   host: string
-  // Papers waiting there
+  // Papers whose fetch it is in the way of. Through the proxy, papers only in line behind the one that met
+  // a publisher's wait aren't counted (PdfState.extension.behind).
   papers: number
   // What to open in the user's browser for it: the proxy's sign-in page, or the page that asked
   url: string
-  // The user pressed Find PDF or Look again on one of those papers since owlit started: it waits on them
+  // The user pressed Find PDF or Look again on one of the papers there, or behind it, since owlit
+  // started: it waits on them
   askedFor: boolean
-  // Fetched through the library's proxy: a sign-in there is the library's, else the site's own
+  // The wait is the library proxy's own: a sign-in there is the library's, else the site's own
   proxied: boolean
 }
 
