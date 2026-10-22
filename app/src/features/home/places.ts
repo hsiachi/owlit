@@ -103,14 +103,15 @@ export function chatPlace(c: Chat): Place[] {
 
 // A thread is a place from the moment it was asked: named by Owlit's short title (the question as typed
 // can run to a paragraph, and says less than the name), dated by the person's last question or own change
-// to it (mine: their newest entry in its log), quoting Owlit's one line on it
-export function threadPlace(c: Pick<Thread, "id" | "title" | "asked" | "alsoAsked" | "project" | "one">, mine?: number): Place {
+// to it (mine: their newest entry in its log), quoting Owlit's one line on it. Its detail is its project's
+// name (projectName: by the marked folder's path, "" for one no longer marked).
+export function threadPlace(c: Pick<Thread, "id" | "title" | "asked" | "alsoAsked" | "project" | "one">, mine?: number, projectName: (path: string) => string = () => ""): Place {
   return {
     kind: "thread",
     key: `thread:${c.id}`,
     id: c.id,
     title: c.title,
-    detail: c.project,
+    detail: projectName(c.project),
     at: Math.max(c.asked.at, ...(c.alsoAsked ?? []).map((a) => a.at), mine ?? 0),
     to: `/threads/${c.id}`,
     words: markdownPlain(c.one) || undefined,

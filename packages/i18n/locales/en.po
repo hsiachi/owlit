@@ -1482,6 +1482,7 @@ msgstr "Skip large files"
 #: app/src/features/chat/components/composer/ProjectChip.tsx
 #: app/src/features/chat/components/messages/parts.tsx
 #: app/src/features/chat/lib/step-words.ts
+#: app/src/features/home/HomeProjects.tsx
 #: app/src/lib/words.ts
 msgctxt "between things in a list"
 msgid ", "
@@ -2861,7 +2862,9 @@ msgid "Open {PROJECT_MARK}"
 msgstr "Open {PROJECT_MARK}"
 
 #. marks a folder of docs as a project
+#. marks a folder of docs as a project
 #: app/src/features/docs/actions.ts
+#: app/src/features/home/HomeProjects.tsx
 msgid "Make this a project"
 msgstr "Make this a project"
 
@@ -3603,45 +3606,26 @@ msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "The extension asks to read {host} for the papers waiting there."
 
 #: app/src/features/home/HomePage.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Recent"
-msgstr "Recent"
-
-#: app/src/features/home/HomePage.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Drop PDFs to add them to your Library"
 msgstr "Drop PDFs to add them to your Library"
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Recent"
+msgstr "Recent"
+
+#. Home: the group of places that belong to no project folder
+#. group of threads that belong to no project folder
+#: app/src/features/home/HomePage.tsx
+#: app/src/features/threads/lib.ts
+msgid "Not in a project"
+msgstr "Not in a project"
+
+#: app/src/features/home/HomePage.tsx
 msgctxt "Home: what was worked on last"
 msgid "Continue"
 msgstr "Continue"
-
-#: app/src/features/home/HomePage.tsx
-msgid "edited {when}"
-msgstr "edited {when}"
-
-#: app/src/features/home/HomePage.tsx
-msgid "Owlit wrote {when}"
-msgstr "Owlit wrote {when}"
-
-#: app/src/features/home/HomePage.tsx
-msgid "Owlit edited {when}"
-msgstr "Owlit edited {when}"
-
-#. Home: when another program last changed a doc
-#: app/src/features/home/HomePage.tsx
-msgid "changed outside owlit {when}"
-msgstr "changed outside owlit {when}"
-
-#. Home: a person's name, then when they last changed a doc
-#: app/src/features/home/HomePage.tsx
-msgid "{who} edited {when}"
-msgstr "{who} edited {when}"
-
-#: app/src/features/home/HomePage.tsx
-msgid "read {when}"
-msgstr "read {when}"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Add papers"
@@ -3679,6 +3663,62 @@ msgstr "This folder is your workspace. Papers, notes and chats you add live in i
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 
+#. Home: a project's due date, as its project.md gives it
+#: app/src/features/home/HomeProjects.tsx
+msgid "due {date}"
+msgstr "due {date}"
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{changed, plural, one {# doc changed since you last looked} other {# docs changed since you last looked}}"
+msgstr "{changed, plural, one {# doc changed since you last looked} other {# docs changed since you last looked}}"
+
+#. Home: opens a chat asking Owlit where the person left off in this group's work
+#: app/src/features/home/HomeProjects.tsx
+msgid "Where did I stop?"
+msgstr "Where did I stop?"
+
+#. the question Home's “Where did I stop?” puts in a new chat; name is the folder's project name
+#: app/src/features/home/HomeProjects.tsx
+msgid "Where did I stop in {name}? Look at what I did there lately and at its current drafts, and tell me where I left off."
+msgstr "Where did I stop in {name}? Look at what I did there lately and at its current drafts, and tell me where I left off."
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{comments, plural, one {# comment on the current drafts} other {# comments on the current drafts}}"
+msgstr "{comments, plural, one {# comment on the current drafts} other {# comments on the current drafts}}"
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{proposals, plural, one {# edit by Owlit} other {# edits by Owlit}}"
+msgstr "{proposals, plural, one {# edit by Owlit} other {# edits by Owlit}}"
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{noPdf, plural, one {# paper without a PDF} other {# papers without a PDF}}"
+msgstr "{noPdf, plural, one {# paper without a PDF} other {# papers without a PDF}}"
+
+#. Home: after a quiet project's name, the day it was last worked on
+#: app/src/features/home/HomeProjects.tsx
+msgid "(since {date})"
+msgstr "(since {date})"
+
+#. Home: before the projects nobody worked on in the person's last few sessions
+#: app/src/features/home/HomeProjects.tsx
+msgid "Quiet:"
+msgstr "Quiet:"
+
+#. Home: before the projects whose project.md says status: done
+#: app/src/features/home/HomeProjects.tsx
+msgid "Done:"
+msgstr "Done:"
+
+#. toast after the person turned down making a folder a project on Home
+#: app/src/features/home/HomeProjects.tsx
+msgid "Won't offer that again"
+msgstr "Won't offer that again"
+
+#. Home: turns down making a folder a project; it isn't offered again
+#: app/src/features/home/HomeProjects.tsx
+msgid "Not now"
+msgstr "Not now"
+
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
 msgstr "{what} {where}: {label}"
@@ -3691,6 +3731,32 @@ msgstr "{what}: {label}"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "PDFs through your browser"
 msgstr "PDFs through your browser"
+
+#: app/src/features/home/did-words.ts
+msgid "edited {when}"
+msgstr "edited {when}"
+
+#: app/src/features/home/did-words.ts
+msgid "Owlit wrote {when}"
+msgstr "Owlit wrote {when}"
+
+#: app/src/features/home/did-words.ts
+msgid "Owlit edited {when}"
+msgstr "Owlit edited {when}"
+
+#. Home: when another program last changed a doc
+#: app/src/features/home/did-words.ts
+msgid "changed outside owlit {when}"
+msgstr "changed outside owlit {when}"
+
+#. Home: a person's name, then when they last changed a doc
+#: app/src/features/home/did-words.ts
+msgid "{who} edited {when}"
+msgstr "{who} edited {when}"
+
+#: app/src/features/home/did-words.ts
+msgid "read {when}"
+msgstr "read {when}"
 
 #. Home: a chat whose reply ended since the user looked
 #: app/src/features/home/places.ts
@@ -6555,11 +6621,6 @@ msgstr "owlit couldn't make the doc."
 #: app/src/features/threads/export.ts
 msgid "Exported as a doc"
 msgstr "Exported as a doc"
-
-#. group of threads that belong to no project folder
-#: app/src/features/threads/lib.ts
-msgid "Not in a project"
-msgstr "Not in a project"
 
 #. group a thread's papers by Owlit's groups
 #: app/src/features/threads/lib.ts

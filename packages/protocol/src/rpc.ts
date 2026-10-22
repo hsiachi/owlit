@@ -11,7 +11,7 @@ import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
 import type { ClaudeNote, MemoryKind, MemoryLine, MemoryScope } from "./memory.ts"
-import type { Project } from "./projects.ts"
+import type { Project, ProjectsSummary } from "./projects.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
@@ -379,6 +379,8 @@ export interface Methods {
   "projects.list": { params: void; result: { projects: Project[] } }
   // A chat's projects (the one the person put it in, then those of what it touched), nearest marks only
   "projects.ofChat": { params: { chatId: string }; result: { projects: Project[] } }
+  // Each project as Home shows it, for the person at the window
+  "projects.summary": { params: void; result: ProjectsSummary }
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library

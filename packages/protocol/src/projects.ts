@@ -43,3 +43,33 @@ export interface CurrentDraft {
   // Named by the mark's current: line rather than being the newest of its kind
   byMark?: true
 }
+
+// projects.summary: what Home shows of each project, and the unmarked folders the person worked in lately.
+// "Lately" is the person's own last few working sessions (core's projects/summary.ts), never the clock.
+export interface ProjectsSummary {
+  // How many working sessions the person's journal holds
+  sessions: number
+  // Every project, by path
+  projects: ProjectSummary[]
+  // Folders at the top of the workspace, in no project, holding a doc the person edited lately: the
+  // newest such doc and when; newest first
+  folders: { path: string; doc: string; lastWorked: number }[]
+}
+
+export interface ProjectSummary {
+  path: string
+  name: string
+  status?: ProjectStatus
+  due?: string
+  // The person edited one of its docs lately, and it isn't done
+  live: boolean
+  // The doc in it the person last edited, else its newest current draft (draft: at is then its mtime,
+  // whoever wrote it)
+  lastWorked?: { path: string; at: number; draft?: true }
+  // On its current drafts: open comments, Owlit's changes the person hasn't had on screen, and the papers
+  // they cite that owlit tried and failed to get a PDF of; with the draft to open for the first two
+  waits: { comments: number; proposals: number; noPdf: number; commentsIn?: string; proposalsIn?: string }
+  // How many of its docs someone else changed since the person last had them on screen, and the newest
+  changed: number
+  changedIn?: string
+}

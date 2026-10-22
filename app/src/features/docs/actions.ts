@@ -211,7 +211,7 @@ export function useDocActions() {
     return [[{ label: count === 1 ? t`Delete` : plural(count, { one: "Delete # item", other: "Delete # items" }), destructive: true, onSelect: () => deleteKeys(keys) }]]
   }
 
-  return { fileGroups, folderGroups, pickedGroups, deleteKeys, startRenaming }
+  return { fileGroups, folderGroups, pickedGroups, deleteKeys, startRenaming, markAsProject }
 }
 
 // The project mark directly in a folder, as the docs store has it: the menu acts on the file at once,

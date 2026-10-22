@@ -67,8 +67,10 @@ const thread = (over: Partial<Thread> = {}): Thread =>
 
 describe("threadPlace", () => {
   it("is named by its title, dated by the person's last question or change, and quotes Owlit's one line", () => {
-    const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] }), 450)
-    expect(place).toMatchObject({ kind: "thread", title: "Reading tools", at: 450, to: "/threads/t1", detail: "lit-review", words: "Most tools annotate the PDF." })
+    const place = threadPlace(thread({ alsoAsked: [{ text: "And for code?", at: 300 }] }), 450, (path) => (path === "lit-review" ? "Literature review" : ""))
+    expect(place).toMatchObject({ kind: "thread", title: "Reading tools", at: 450, to: "/threads/t1", detail: "Literature review", words: "Most tools annotate the PDF." })
+    // A project whose mark is gone names nothing
+    expect(threadPlace(thread({}), 450, () => "").detail).toBe("")
     // The question as typed is nowhere on its row
     expect(JSON.stringify(place)).not.toContain("What tools help people read papers?")
     // Owlit's own later writes don't date it

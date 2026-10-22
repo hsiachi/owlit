@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { isPerson, RpcErrorCode, type CitationPassage, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Project, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { isPerson, RpcErrorCode, type CitationPassage, type JournalEntry, type PersonId, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Project, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import { mkdir, readFile, realpath, rename, stat } from "node:fs/promises"
 import path from "node:path"
@@ -16,6 +16,7 @@ import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings/store.ts"
 import { Memory } from "../memory/memory.ts"
 import { Projects } from "../projects/projects.ts"
+import { journalOf, summarize } from "../projects/summary.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, WINDOW } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
@@ -130,6 +131,8 @@ export class Workspace {
   readonly memory: Memory
   readonly shares: Shares
   readonly projects: Projects
+  // The person's journal, read again only once it changed
+  private readonly journal: () => Promise<JournalEntry[]>
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions, profile: () => Promise<ProfileSettings>) {
@@ -246,10 +249,7 @@ export class Workspace {
       // As the doc marks them: Owlit's standing changes since the text the person last had on screen
       held: async (rel, markdown) => {
         const me = await this.recorder.actorOf(WINDOW)
-        if (!isPerson(me)) return false
-        const marks = await this.seen.get(me, ["docs"])
-        const mark = marks.docs[rel]
-        return (await docProposals(this.changes, rel, markdown, mark ? { hash: mark.hash } : { since: marks.since })).length > 0
+        return isPerson(me) && (await this.proposalsFor(me, rel, markdown)).length > 0
       },
       paper: async (id) => {
         const paper = await this.library.get(id)
@@ -258,6 +258,34 @@ export class Workspace {
         return { paper, digest, note }
       },
     })
+    this.journal = journalOf(this.owlitPath("journal.jsonl"))
+  }
+
+  // Owlit's standing changes to a doc since the text the person last had on screen, as the doc marks them
+  private async proposalsFor(me: PersonId, rel: string, markdown: string) {
+    const marks = await this.seen.get(me, ["docs"])
+    const mark = marks.docs[rel]
+    return docProposals(this.changes, rel, markdown, mark ? { hash: mark.hash } : { since: marks.since })
+  }
+
+  // Each project as Home shows it to the person (projects/summary.ts)
+  projectsSummary(me: PersonId) {
+    return summarize(
+      {
+        projects: () => this.projects.list(),
+        files: () => this.docs.files(),
+        journal: this.journal,
+        comments: (rel) => this.docs.listComments(rel),
+        read: (rel) => this.docs.readDisk(rel),
+        proposals: async (rel, text) => (await this.proposalsFor(me, rel, text)).length,
+        paper: async (id) => {
+          const here = await this.library.canonical(id)
+          return here ? this.library.get(here) : undefined
+        },
+        unseen: async () => (await this.seen.unseen(me, { changes: await this.changes.list({ target: { kind: "doc" } }), chats: [], papers: [] })).changes,
+      },
+      me,
+    )
   }
 
   // The 1-based page a quote is on in a paper's full text, by any id the paper goes by; null when it

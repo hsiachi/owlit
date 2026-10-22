@@ -340,7 +340,7 @@ export class Core {
     registerAgents({ router, agents: this.agents, turns, fs: this.fs, requireWorkspace })
     registerUi({ router, ui: this.ui })
     registerMemory({ router, requireWorkspace })
-    registerProjects({ router, requireWorkspace })
+    registerProjects({ router, requireWorkspace, personAt: (caller) => this.personAt(caller) })
     registerChanges({ router, notifier, undo: this.undo, requireWorkspace, personAt: (caller) => this.personAt(caller) })
     registerLibrary({ router, turns, reads: this.reads, journal, requireWorkspace, updatePaper: (id, patch, caller, origin) => this.updatePaper(id, patch, caller, origin), requestDigest: (id, rewrite) => this.requestDigest(id, rewrite) })
     registerSearch({ router, requireWorkspace })
