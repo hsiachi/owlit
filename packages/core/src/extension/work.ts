@@ -214,6 +214,12 @@ export class ExtensionWork implements ExtensionFetcher {
     return undefined
   }
 
+  // How many papers the queue holds, the ones out for a try included
+  queued(library: Library): number {
+    if (library !== this.library) return 0
+    return [...this.sites.values()].reduce((n, site) => n + paused(site).length, 0)
+  }
+
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
   // answer comes (settle) or IN_FLIGHT_MS pass.
   async take(library: Library | null, holdMs: number, closed: AbortSignal, by?: string): Promise<WorkItem[]> {

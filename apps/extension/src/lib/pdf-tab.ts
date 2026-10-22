@@ -1,5 +1,8 @@
 import type { ExtensionPaper, PaperAnswer } from "@owlit/protocol"
+import type { Outcome } from "./messages.ts"
 import { OwlitError } from "./owlit.ts"
+import { idsInUrl } from "./page.ts"
+import { siteOf } from "./verdict.ts"
 
 // Whether a tab that finished loading a PDF is taken for owlit without a click: the user's PDF of a
 // Library paper that lacks one comes to owlit by itself. Only when owlit is connected, the user left
@@ -10,7 +13,42 @@ export function takesPdfTab(tab: { url: string; contentType?: string }, state: {
 }
 
 // A PDF from the web, by its Content-Type (not its address: many PDFs are served from addresses without .pdf)
-export const isPdfResponse = (url: string, contentType: string | undefined) => /^https?:\/\//i.test(url) && /^application\/(x-)?pdf\b/i.test(contentType?.trim() ?? "")
+// Why a PDF tab of a Library paper still without its PDF isn't taken: "Take PDFs I open" is off, or the
+// extension may not read the PDF's site. The PDF isn't fetched or sent to owlit then; the button and the popup
+// say which, with its one fix.
+export function whyNotTaken(state: { takePdfs: boolean; permitted: boolean }): "off" | "permission" | undefined {
+  if (!state.takePdfs) return "off"
+  if (!state.permitted) return "permission"
+  return undefined
+}
+
+// The paper a PDF tab is of, by its ids: its address's, else those of a page the user opened it from (the
+// tab's page before it, or the tab that opened it) at the same site. A PDF's address rarely names its DOI
+// (OUP's /article-pdf/53/6/573/kay067.pdf), the article page it came from does; a page at another site is
+// some other reading the user left.
+export function idsForPdf(url: string, from: ({ url: string; paper?: { doi?: string; arxiv?: string } } | undefined)[]): { doi?: string; arxiv?: string } {
+  const own = idsInUrl(url)
+  if (own.doi || own.arxiv) return own
+  const site = siteOf(new URL(url).hostname)
+  for (const page of from) {
+    if (!page?.paper || siteOf(new URL(page.url).hostname) !== site) continue
+    const { doi, arxiv } = page.paper
+    if (doi) return { doi }
+    if (arxiv) return { arxiv }
+  }
+  return {}
+}
+
+// What became of a tab's PDF (taken, or why not), kept under the tab's own key with the PDF's address, so
+// the popup says it whenever it is opened on that PDF
+export const pdfSaidKey = (tabId: number) => `pdfSaid:${tabId}`
+export interface PdfSaid {
+  url: string
+  outcome: Outcome
+}
+export const pdfSaidOn = (tabUrl: string, kept: PdfSaid | undefined) => (kept && showsPdf(tabUrl, kept.url) ? kept.outcome : undefined)
+
+export const isPdfResponse =(url: string, contentType: string | undefined) => /^https?:\/\//i.test(url) && /^application\/(x-)?pdf\b/i.test(contentType?.trim() ?? "")
 
 // The Content-Type of a response, from webRequest's headers
 export function contentTypeOf(headers: { name: string; value?: string }[] | undefined) {

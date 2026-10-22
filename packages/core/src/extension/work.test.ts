@@ -293,8 +293,11 @@ describe("the extension's queue", () => {
     work.drop(library, "t2")
     expect(work.waits()).toMatchObject([{ host: "tandfonline.com", papers: 1 }])
     expect(waitsChanged()).toBeGreaterThan(before)
+    expect(work.queued(library)).toBe(3)
     work.drop(library, "t1")
     expect(work.waits()).toEqual([])
+    expect(work.queued(library)).toBe(2)
+    expect(work.queued({} as Library)).toBe(0)
     expect(work.holding(library, "t1")).toBeUndefined()
     // A queued paper at a site going on
     work.drop(library, "w2")

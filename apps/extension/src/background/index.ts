@@ -1,15 +1,15 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionPaper, ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, WorkAnswer, WorkBlocked, WorkResume } from "@owlit/protocol"
+import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WorkAnswer, WorkBlocked, WorkResume } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
 import { afterStatus, outcomeOfError } from "../lib/connect.ts"
 import { startI18n } from "../lib/i18n.ts"
-import { type Answers, type CardAction, type CardView, type Connection, type GoingOn, type Outcome, type PageState, type PopupState, type Request, type ToPage } from "../lib/messages.ts"
+import { type Answers, type CardAction, type CardView, type Connection, type GoingOn, type Outcome, type PageState, type PopupState, type Request, type SiteWait, type ToPage } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, namesPdf, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
-import { pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "../lib/pdf-tab.ts"
+import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, whyNotTaken, type PdfSaid, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, sayIn, TAKEN, WAITING, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough } from "../lib/verdict.ts"
@@ -112,6 +112,14 @@ async function rememberPage(tabId: number, page: Page) {
 // The PDF a tab loaded last, by its address, once the writes queued before the read have landed
 const pdfTabOf = (tabId: number) => session(async () => (await ext.storage.session.get(pdfTabKey(tabId)))[pdfTabKey(tabId)] as string | undefined)
 
+// The pages a tab's PDF may have come from: the tab's own page before it (a PDF viewer runs no content
+// script, so the tab's kept page is still the one before), and the page of the tab that opened it
+async function cameFrom(tabId: number, openerTabId: number | undefined): Promise<(Page | undefined)[]> {
+  const keys = [pageKey(tabId), ...(openerTabId !== undefined ? [pageKey(openerTabId)] : [])]
+  const kept = await ext.storage.session.get(keys)
+  return keys.map((key) => kept[key] as Page | undefined)
+}
+
 // What a tab shows, as far as owlit cares; null for the browser's own pages and a tab gone
 async function pageOf(tabId: number): Promise<Page | null> {
   const tab = await ext.tabs.get(tabId).catch(() => undefined)
@@ -120,9 +128,9 @@ async function pageOf(tabId: number): Promise<Page | null> {
   if (kept?.url === tab.url) return kept
   const url = tab.url
   const host = new URL(url).hostname
-  // A PDF, named by its address
-  const pdfPage = (pdfTab: boolean) => {
-    const ids = idsInUrl(url)
+  // A PDF, named by its address or by the page it was opened from
+  const pdfPage = async (pdfTab: boolean) => {
+    const ids = pdfTab ? idsForPdf(url, await cameFrom(tabId, tab.openerTabId)) : idsInUrl(url)
     return { url, host, pdfTab, paper: ids.doi || ids.arxiv ? { ...ids, authors: [] } : undefined }
   }
   // Asked before any script: a PDF viewer that lets one in shows no paper's head
@@ -140,15 +148,17 @@ async function pageOf(tabId: number): Promise<Page | null> {
   }
 }
 
-async function lookUp(page: { url: string; paper?: PagePaper }, token: string) {
+// The page's paper in the Library, and whether owlit's queue for the extension holds it
+async function find(page: { url: string; paper?: PagePaper }, token: string) {
   const query = new URLSearchParams()
   if (page.paper?.doi) query.set("doi", page.paper.doi)
   if (page.paper?.arxiv) query.set("arxiv", page.paper.arxiv)
-  query.set("url", page.url)
+  if (page.url) query.set("url", page.url)
   // What finds a page that names no id again
   if (page.paper?.title) query.set("title", page.paper.title.slice(0, 1000))
-  return (await ask<{ paper: ExtensionPaper | null }>(`/papers?${query}`, { token })).paper
+  return ask<PaperFound>(`/papers?${query}`, { token })
 }
+const lookUp = async (page: { url: string; paper?: PagePaper }, token: string) => (await find(page, token)).paper
 
 // The toolbar button's mark for a tab: a Library paper there lacks its PDF. With "Take PDFs I open" on,
 // the PDF the page names is fetched for it then and there (pdf-tab.ts savesOnArrival).
@@ -241,12 +251,18 @@ async function act(tabId: number): Promise<Outcome> {
       const result = await putPdf(plan.paperId, address, token)
       if (result === "not-a-pdf") return { kind: "no-pdf", host: new URL(address).hostname }
       if (result === "not-this-paper") return { kind: "not-this-paper" }
+      // The PDF tab's own PDF: the popup says so from now on, not why it wasn't saved
+      if (page.pdfTab) await keepPdfSaid(tabId, page.url, { kind: "taken", paperId: plan.paperId, title: inLibrary?.title ?? "" })
       return { kind: "saved", paperId: plan.paperId }
     }
     // A PDF tab that names no paper: owlit tells by its first pages whose it is. Asked again whatever
     // was answered for it before, since the person pressed for it.
     const taken = await takePdf(page.url, {}, { ...takeDeps(token, "force-cache"), answered: { has: async () => false, add: answered.add } })
-    if ("taken" in taken) return { kind: "taken", paperId: taken.taken.id, title: taken.taken.title }
+    if ("taken" in taken) {
+      const outcome: Outcome = { kind: "taken", paperId: taken.taken.id, title: taken.taken.title }
+      await keepPdfSaid(tabId, page.url, outcome)
+      return outcome
+    }
     if ("had" in taken) return { kind: "has-pdf", paperId: taken.had.id }
     if ("refused" in taken) return outcomeOfError(taken.refused)
     if ("missed" in taken && taken.missed) return outcomeOfError(taken.missed)
@@ -369,6 +385,11 @@ async function cardAction(action: CardAction, tab: chrome.tabs.Tab | undefined) 
       await openAllowPage(action.host, tabId !== undefined && !waiting ? { tab: String(tabId) } : { papers: String(waiting?.papers ?? 0) })
       return
     }
+    // Turned on from a PDF it would have taken: this one is taken now, as the button would
+    case "take-pdfs":
+      await ext.storage.local.set({ takePdfs: true })
+      if (tabId !== undefined && tab?.windowId !== undefined) await click(tabId, tab.windowId)
+      return
     case "connect": {
       if (tabId === undefined) return
       await drawCard(tabId, cardOf({ kind: "pairing" }))
@@ -403,31 +424,79 @@ ext.webRequest.onHeadersReceived.addListener(
   ["responseHeaders"],
 )
 
-async function takePdfTab(tabId: number, url: string) {
+// What became of a tab's PDF, kept for the popup (pdf-tab.ts pdfSaidOn)
+const keepPdfSaid = (tabId: number, url: string, outcome: Outcome) => session(() => ext.storage.session.set({ [pdfSaidKey(tabId)]: { url, outcome } satisfies PdfSaid }))
+const pdfSaidOf = async (tabId: number) => (await ext.storage.session.get(pdfSaidKey(tabId)))[pdfSaidKey(tabId)] as PdfSaid | undefined
+
+// A tab that finished loading a PDF. Taken for owlit when the user lets it (pdf-tab.ts takesPdfTab); when
+// it isn't, and it is the PDF of a Library paper still without one, the button marks it "!" and the popup
+// says why, with its fix. Any other PDF on the web is left alone.
+async function pdfTab(tabId: number, url: string, tab: chrome.tabs.Tab) {
   const { token } = await local()
-  const connected = !!token && (await connection()).state === "connected"
-  if (!token || !takesPdfTab({ url, contentType: "application/pdf" }, { connected, takePdfs: await takePdfsOn(), permitted: await permitted(url) })) return
+  if (!token || (await connection()).state !== "connected") return
+  const ids = idsForPdf(url, await cameFrom(tabId, tab.openerTabId))
+  const takePdfs = await takePdfsOn()
+  const allowed = await permitted(url)
+  if (!takesPdfTab({ url, contentType: "application/pdf" }, { connected: true, takePdfs, permitted: allowed })) {
+    const why = whyNotTaken({ takePdfs, permitted: allowed })
+    if (!why || (!ids.doi && !ids.arxiv)) return
+    const paper = await lookUp({ url: "", paper: { ...ids, authors: [] } }, token).catch(() => null)
+    if (!paper || paper.hasPdf) return
+    const outcome: Outcome = why === "off" ? { kind: "not-saved", why, paperId: paper.id } : { kind: "not-saved", why, host: new URL(url).hostname, paperId: paper.id }
+    await keepPdfSaid(tabId, url, outcome)
+    return setBadge(tabId, "!", WAITING)
+  }
   // From the cache: the tab has just loaded it
-  const taken = await takePdf(url, idsInUrl(url), { ...takeDeps(token, "force-cache"), answered })
+  const taken = await takePdf(url, ids, { ...takeDeps(token, "force-cache"), answered })
   if ("missed" in taken && taken.missed && !(taken.missed instanceof OwlitError) && !(taken.missed instanceof Unreachable)) console.error("[owlit] couldn't hand a PDF to owlit", taken.missed)
+  // owlit's no for the paper the PDF was opened from; a PDF owlit couldn't place by its first pages is
+  // no Library paper's, and nothing is said
+  if ("refused" in taken && (ids.doi || ids.arxiv) && taken.refused instanceof OwlitError && taken.refused.reason === "not-this-paper") {
+    await keepPdfSaid(tabId, url, { kind: "not-this-paper" })
+    return setBadge(tabId, "!", WAITING)
+  }
   if (!("taken" in taken)) return
+  const outcome: Outcome = { kind: "taken", paperId: taken.taken.id, title: taken.taken.title }
+  await keepPdfSaid(tabId, url, outcome)
   await setBadge(tabId, "✓", TAKEN)
-  // Said in the page where the PDF viewer takes a card; the system says it where none can be drawn
-  if (await drawCard(tabId, cardOf({ kind: "taken", paperId: taken.taken.id, title: taken.taken.title }))) return
+  // Said in the page where the PDF viewer takes a card. Else in the popup, opened by itself where the
+  // browser opens one without a click and only on the tab in front, since it opens on whichever tab that
+  // is; it opens once per PDF, as a PDF is taken once a session (takePdf's answered). Else the system says it.
+  if (await drawCard(tabId, cardOf(outcome))) return
+  if (tab.active && (await openPopup(tabId, tab.windowId, outcome))) return
   void ext.notifications.create(`taken:${tabId}:${Date.now()}`, { type: "basic", iconUrl: ext.runtime.getURL("icons/128.png"), title: t`owlit took this PDF`, message: taken.taken.title }).catch(() => undefined)
 }
 
 ext.tabs.onUpdated.addListener((tabId, change, tab) => {
+  // Gone from the PDF it said something about: its "!" or "✓" goes with it (the page's own mark comes
+  // after this, from its content script)
+  if (change.url) {
+    const to = change.url
+    void (async () => {
+      const kept = await pdfSaidOf(tabId)
+      if (!kept || pdfSaidOn(to, kept)) return
+      await session(() => ext.storage.session.remove(pdfSaidKey(tabId)))
+      await setBadge(tabId, "")
+    })()
+  }
   if (change.status !== "complete" || !tab.url) return
+  const url = tab.url
   void (async () => {
     const pdfUrl = await pdfTabOf(tabId)
-    if (pdfUrl && pdfUrl === tab.url) await takePdfTab(tabId, pdfUrl)
-    else await watchForThrough(tabId, tab.url!)
+    if (pdfUrl && pdfUrl === url) {
+      // A PDF that came at a site waiting for a check or a sign-in: the user is past it
+      const wait = waitAt(await waits(), new URL(url).hostname)
+      if (wait) await resume(wait.host, tabId).catch(() => undefined)
+      return pdfTab(tabId, url, tab)
+    }
+    // A site the extension may not read shows it no response, and only the address says it is a PDF
+    if (/^https?:/.test(url) && namesPdf(url) && !(await permitted(url))) return pdfTab(tabId, url, tab)
+    await watchForThrough(tabId, url)
   })()
 })
 
 ext.tabs.onRemoved.addListener((tabId) => {
-  void session(() => ext.storage.session.remove([pageKey(tabId), pdfTabKey(tabId), saidKey(tabId)]))
+  void session(() => ext.storage.session.remove([pageKey(tabId), pdfTabKey(tabId), saidKey(tabId), pdfSaidKey(tabId)]))
 })
 
 // ---- Fetching for owlit
@@ -574,7 +643,7 @@ async function blocked(host: string, url: string, tabId: number) {
   const all = (await waits()).map((w) => (w.host === host ? { ...w, kind: "blocked" as const } : w))
   await ext.storage.session.set({ [waitsKey]: all })
   const wait = all.find((w) => w.host === host)
-  if (wait) await drawCard(tabId, cardOf({ kind: "wait", wait: { kind: wait.kind, host: wait.host, papers: wait.papers } }))
+  if (wait) await drawCard(tabId, cardOf({ kind: "wait", wait: siteWait(wait) }))
 }
 
 // A page that finished loading at a site paused for a check or a sign-in: once it is neither, the user
@@ -584,6 +653,19 @@ async function blocked(host: string, url: string, tabId: number) {
 const THROUGH_LOOKS = 20
 const THROUGH_EVERY_MS = 3000
 const watching = new Set<number>()
+
+// Whether a page the tab shows is past what its site waits for: neither a check, a block nor a sign-in
+const pastIn = (seen: { url: string; html: string }, wait: Waits[number]) => isThrough({ url: seen.url, status: 0, html: seen.html, proxy: wait.proxied ? { host: wait.host } : undefined })
+
+// The same, for a tab the popup or a page's report finds at a waiting site: owlit goes on there at once.
+// A check Cloudflare passes in the page it stands in loads no new page, and the watch above may have
+// ended before the user got to it.
+async function pastAt(tabId: number, wait: Waits[number]): Promise<boolean> {
+  const seen = await htmlOf(tabId)
+  if (!seen || !pastIn(seen, wait)) return false
+  await resume(wait.host, tabId).catch(() => undefined)
+  return true
+}
 
 async function watchForThrough(tabId: number, url: string) {
   if (!/^https?:/.test(url) || watching.has(tabId)) return
@@ -598,8 +680,7 @@ async function watchForThrough(tabId: number, url: string) {
       if (!tab?.url || !waitAt([wait], new URL(tab.url).hostname)) return
       const seen = await htmlOf(tabId)
       if (!seen) return
-      const proxy = wait.proxied ? { host: wait.host } : undefined
-      if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy })) {
+      if (pastIn(seen, wait)) {
         await resume(wait.host, tabId).catch(() => undefined)
         return
       }
@@ -671,11 +752,22 @@ async function popupState(tabId: number): Promise<PopupState> {
   const page = await pageOf(tabId)
   const base = { connection: conn, takePdfs, knownSites, needs, said }
   if (!page) return { ...base, page: null }
-  const wait = waitAt(all, page.host)
+  // A wait this page is past isn't said: owlit goes on there at once
+  let wait = waitAt(all, page.host)
+  if (wait && (await pastAt(tabId, wait))) wait = undefined
   const goingOn = (await going()).find((g) => page.host === g.host || page.host.endsWith(`.${g.host}`))
   const { token } = await local()
-  const inLibrary = conn.state === "connected" && conn.workspace && token && (page.paper || page.pdfTab) ? await lookUp(page, token).catch(() => undefined) : undefined
-  return { ...base, page: { ...page, inLibrary }, wait: wait && { kind: wait.kind, host: wait.host, papers: wait.papers }, going: goingOn }
+  const found = conn.state === "connected" && conn.workspace && token && (page.paper || page.pdfTab) ? await find(page, token).catch(() => undefined) : undefined
+  const pdfTab = pdfSaidOn(page.url, await pdfSaidOf(tabId))
+  const biggest = biggestWait(all, page.host)
+  return {
+    ...base,
+    page: { ...page, inLibrary: found?.paper },
+    wait: wait && siteWait(wait),
+    going: goingOn,
+    ...(pdfTab ? { pdfTab } : {}),
+    ...(found?.getting ? { getting: { papers: found.getting, ...(biggest ? { wait: siteWait(biggest) } : {}) } } : {}),
+  }
 }
 
 async function answer(request: Request, sender: chrome.runtime.MessageSender): Promise<Answers[Request["kind"]]> {
@@ -747,11 +839,20 @@ function waitAt(all: Waits, host: string) {
   return all.find((w) => w.kind !== "permission" && (host === w.host || host.endsWith(`.${w.host}`)))
 }
 
-// A page at a site that waits on the person: the card says what for, until they close it
+const siteWait = ({ kind, host, papers, proxied }: Waits[number]): SiteWait => ({ kind, host, papers, proxied })
+
+// The site wait that holds up the most papers, but for the one at this host
+function biggestWait(all: Waits, host: string) {
+  const elsewhere = all.filter((w) => host !== w.host && !host.endsWith(`.${w.host}`))
+  return elsewhere.sort((a, b) => b.papers - a.papers)[0]
+}
+
+// A page at a site that waits on the person: the card says what for, until they close it; a page past it
+// (the article, once a check let the user through) lets owlit go on instead
 async function sayWait(tabId: number, host: string) {
   const wait = waitAt(await waits(), host)
-  if (!wait) return
-  const card = cardOf({ kind: "wait", wait: { kind: wait.kind, host: wait.host, papers: wait.papers } })
+  if (!wait || (await pastAt(tabId, wait))) return
+  const card = cardOf({ kind: "wait", wait: siteWait(wait) })
   const closed = ((await ext.storage.session.get(closedKey))[closedKey] ?? []) as string[]
   if (card.key && closed.includes(card.key)) return
   await drawCard(tabId, card)

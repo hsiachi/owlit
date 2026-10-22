@@ -133,7 +133,13 @@ export interface ExtensionPaper {
   hasPdf: boolean
 }
 
-// GET /papers?doi=&arxiv=&url= → { paper: ExtensionPaper | null }
+// GET /papers?doi=&arxiv=&url=. getting: the papers owlit's queue for the extension holds, when this paper
+// is one of them
+export interface PaperFound {
+  paper: ExtensionPaper | null
+  getting?: number
+}
+
 // POST /papers: what the page says about its paper. The DOI or arXiv id is looked up as the app's Add
 // does; the rest stands in when nothing resolves.
 export interface AddPaperBody {

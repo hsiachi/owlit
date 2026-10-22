@@ -363,9 +363,11 @@ describe("the extension's port", () => {
 
     it("hands a paper the plain routes missed to the extension, and takes its PDF", async () => {
       const { call, request, token, root } = await connected()
+      expect((await request(`/papers?doi=${SAGE}`, { token })).body).toEqual({ paper: { id, title, hasPdf: false } })
       const looked = await call("library.fetchPdf", { id })
-      // owlit is still finding it: the extension has it now
+      // owlit is still finding it: the extension has it now, and its page says so
       expect(looked.pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } })
+      expect((await request(`/papers?doi=${SAGE}`, { token })).body).toEqual({ paper: { id, title, hasPdf: false }, getting: 1 })
       const { body } = await request("/work", { token })
       expect(body.work).toEqual([{ id: expect.any(String), paperId: id, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, host: "sagepub.com", proxied: false }])
       const [item] = body.work

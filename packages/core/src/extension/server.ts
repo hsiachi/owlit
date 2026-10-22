@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -358,8 +358,10 @@ export class ExtensionServer {
         path: is("papers"),
         handle: async ({ query }) => {
           const page = { doi: query.get("doi") ?? undefined, arxiv: query.get("arxiv") ?? undefined, url: query.get("url") ?? undefined, title: query.get("title") ?? undefined }
-          const paper = await findPaper(this.library(), page)
-          return { body: { paper: paper ? shown(paper) : null } }
+          const library = this.library()
+          const paper = await findPaper(library, page)
+          const getting = paper && this.work.holding(library, paper.id) ? this.work.queued(library) : undefined
+          return { body: { paper: paper ? shown(paper) : null, ...(getting ? { getting } : {}) } satisfies PaperFound }
         },
       },
       {

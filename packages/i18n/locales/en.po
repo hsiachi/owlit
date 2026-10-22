@@ -1367,7 +1367,6 @@ msgid "Adding…"
 msgstr "Adding…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
-#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "In your Library"
 
@@ -3473,7 +3472,10 @@ msgid "Open owlit to allow it or not."
 msgstr "Open owlit to allow it or not."
 
 #. in: Need you to sign in to your library
+#. in: Need you to sign in to your library
+#. in: Need you to sign in to your library
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "your library"
 msgstr "your library"
 
@@ -3482,6 +3484,7 @@ msgid "{n, plural, one {Needs you to sign in to {library}} other {Need you to si
 msgstr "{n, plural, one {Needs you to sign in to {library}} other {Need you to sign in to {library}}}"
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "{n, plural, one {# paper needs you to sign in to {library}} other {# papers need you to sign in to {library}}}"
 msgstr "{n, plural, one {# paper needs you to sign in to {library}} other {# papers need you to sign in to {library}}}"
 
@@ -3503,6 +3506,7 @@ msgid "{n, plural, one {Needs you to sign in at {host}} other {Need you to sign 
 msgstr "{n, plural, one {Needs you to sign in at {host}} other {Need you to sign in at {host}}}"
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "{n, plural, one {# paper needs you to sign in at {host}} other {# papers need you to sign in at {host}}}"
 msgstr "{n, plural, one {# paper needs you to sign in at {host}} other {# papers need you to sign in at {host}}}"
 
@@ -3515,6 +3519,7 @@ msgid "{n, plural, one {Needs you to verify you're human on {host}} other {Need 
 msgstr "{n, plural, one {Needs you to verify you're human on {host}} other {Need you to verify you're human on {host}}}"
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "{n, plural, one {# paper needs you to verify you're human on {host}} other {# papers need you to verify you're human on {host}}}"
 msgstr "{n, plural, one {# paper needs you to verify you're human on {host}} other {# papers need you to verify you're human on {host}}}"
 
@@ -3523,6 +3528,7 @@ msgid "Open the page and verify there. owlit usually notices by itself; if it do
 msgstr "Open the page and verify there. owlit usually notices by itself; if it doesn't, press I've verified it."
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "{host} blocks your browser"
 msgstr "{host} blocks your browser"
 
@@ -3547,6 +3553,7 @@ msgid "{n, plural, one {Needs your permission for {host}} other {Need your permi
 msgstr "{n, plural, one {Needs your permission for {host}} other {Need your permission for {host}}}"
 
 #: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "{n, plural, one {# paper needs your permission for {host}} other {# papers need your permission for {host}}}"
 msgstr "{n, plural, one {# paper needs your permission for {host}} other {# papers need your permission for {host}}}"
 
@@ -7287,6 +7294,10 @@ msgstr "Take PDFs I open for papers in my Library"
 msgid "Something went wrong in the owlit extension."
 msgstr "Something went wrong in the owlit extension."
 
+#: apps/extension/src/lib/say.ts
+msgid "Couldn't save this PDF"
+msgstr "Couldn't save this PDF"
+
 #. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
 #: apps/extension/src/lib/say.ts
@@ -7319,8 +7330,8 @@ msgid "The PDF on this page is another paper's. owlit keeps looking."
 msgstr "The PDF on this page is another paper's. owlit keeps looking."
 
 #: apps/extension/src/lib/say.ts
-msgid "Let owlit read {host} to get its PDF with your access."
-msgstr "Let owlit read {host} to get its PDF with your access."
+msgid "owlit doesn't have permission for {host} yet. Allow it, and owlit saves the PDF."
+msgstr "owlit doesn't have permission for {host} yet. Allow it, and owlit saves the PDF."
 
 #: apps/extension/src/lib/say.ts
 msgid "PDF saved to owlit"
@@ -7339,13 +7350,12 @@ msgid "In your Library, with its PDF"
 msgstr "In your Library, with its PDF"
 
 #: apps/extension/src/lib/say.ts
-#: apps/extension/src/popup/Popup.tsx
-msgid "In your Library, without its PDF"
-msgstr "In your Library, without its PDF"
+msgid "owlit needs this PDF"
+msgstr "owlit needs this PDF"
 
 #: apps/extension/src/lib/say.ts
-msgid "This page names none. owlit keeps looking."
-msgstr "This page names none. owlit keeps looking."
+msgid "Click the PDF button on this page. owlit saves the PDF when it opens."
+msgstr "Click the PDF button on this page. owlit saves the PDF when it opens."
 
 #: apps/extension/src/lib/say.ts
 msgid "{listing} lists papers"
@@ -7368,12 +7378,25 @@ msgid "Add the paper from its page."
 msgstr "Add the paper from its page."
 
 #: apps/extension/src/lib/say.ts
-msgid "Let owlit read {host}"
-msgstr "Let owlit read {host}"
+msgid "owlit needs your permission for {host}"
+msgstr "owlit needs your permission for {host}"
 
 #: apps/extension/src/lib/say.ts
-msgid "It gets the PDF there with your access."
-msgstr "It gets the PDF there with your access."
+msgid "Allow it, and owlit gets the PDF there with your access."
+msgstr "Allow it, and owlit gets the PDF there with your access."
+
+#: apps/extension/src/lib/say.ts
+msgid "Saving PDFs you open is turned off."
+msgstr "Saving PDFs you open is turned off."
+
+#. button: turns on taking the PDFs the user opens for papers in their Library
+#: apps/extension/src/lib/say.ts
+msgid "Turn on"
+msgstr "Turn on"
+
+#: apps/extension/src/lib/say.ts
+msgid "owlit doesn't have permission for {host} yet. Allow it, and owlit saves this PDF."
+msgstr "owlit doesn't have permission for {host} yet. Allow it, and owlit saves this PDF."
 
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
@@ -7427,28 +7450,16 @@ msgid "Press owlit's button to try again."
 msgstr "Press owlit's button to try again."
 
 #: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
-msgstr "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
+msgid "{n, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
+msgstr "{n, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
 
 #: apps/extension/src/lib/say.ts
-msgid "{host} blocks this browser"
-msgstr "{host} blocks this browser"
+msgid "Verify on this page; owlit goes on by itself once you have."
+msgstr "Verify on this page; owlit goes on by itself once you have."
 
 #: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
-msgstr "{papers, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"
-msgstr "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for your sign-in here} other {# papers wait for your sign-in here}}"
-msgstr "{papers, plural, one {# paper waits for your sign-in here} other {# papers wait for your sign-in here}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "Going on once you're through."
-msgstr "Going on once you're through."
+msgid "owlit goes on by itself once you're signed in."
+msgstr "owlit goes on by itself once you're signed in."
 
 #: apps/extension/src/lib/say.ts
 msgid "You're through"
@@ -7457,6 +7468,26 @@ msgstr "You're through"
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
 msgstr "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
+msgstr "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to sign in at {host}} other {# still need you to sign in at {host}}}"
+msgstr "{n, plural, one {# still needs you to sign in at {host}} other {# still need you to sign in at {host}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to sign in to {library}} other {# still need you to sign in to {library}}}"
+msgstr "{n, plural, one {# still needs you to sign in to {library}} other {# still need you to sign in to {library}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to verify you're human on {host}} other {# still need you to verify you're human on {host}}}"
+msgstr "{n, plural, one {# still needs you to verify you're human on {host}} other {# still need you to verify you're human on {host}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs your permission for {host}} other {# still need your permission for {host}}}"
+msgstr "{n, plural, one {# still needs your permission for {host}} other {# still need your permission for {host}}}"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "owlit needs to read {site} to get the PDF with your access."
