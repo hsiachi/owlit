@@ -193,8 +193,12 @@ export interface WorkAnswer {
 }
 
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
-// extension's own page with one Allow button, for the papers waiting there.
-export type OpenPage = { kind: "sign-in" | "check" | "blocked"; host: string; url: string } | { kind: "permission"; host: string; papers: number }
+// extension's own page with one Allow button, for the papers waiting there. A walk: the first paper's
+// page of a walk through the manual downloads (WalkStep), in a tab of its own.
+export type OpenPage =
+  | { kind: "sign-in" | "check" | "blocked"; host: string; url: string }
+  | { kind: "permission"; host: string; papers: number }
+  | { kind: "walk"; step: Extract<WalkStep, { kind: "paper" }> }
 
 // extension.open: who opened the page for a site that waits on the user. extension: the extension, in
 // its browser; browser: owlit, in the browser the extension was paired in, since none is connected now;
@@ -239,4 +243,25 @@ export interface WorkResume {
 export interface WorkBlocked {
   host: string
   url: string
+}
+
+// ---- Downloading by hand, one paper at a time
+
+// Where the walk through the papers to download by hand stands (extension.walk): owlit holds it, one at
+// a time, and the extension shows it in the tab it opened for it. paper: the one to download now, at its
+// page; n of total, counting from 1; saved: how many of the walk's papers have their PDF now. done: the
+// walk ended, with how many were saved; owlit forgets it then.
+export type WalkStep = { kind: "paper"; paperId: string; url: string; n: number; total: number; saved: number } | { kind: "done"; saved: number; total: number }
+
+// GET /walk: the step now, or null when no walk is on. A paper that got its PDF meanwhile (in the walk's
+// tab, or any other way) is passed over.
+export interface WalkAnswer {
+  step: WalkStep | null
+}
+
+// POST /walk/next: on from this paper (Next paper), or, with skip, after noting that the user found no
+// PDF on its page. A paper that isn't the walk's now (a press that came twice) moves nothing.
+export interface WalkNext {
+  paperId: string
+  skip?: boolean
 }

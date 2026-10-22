@@ -104,4 +104,14 @@ describe("owlit's back-off look", () => {
     // The user's own Look again counts as one more look, and still ends nowhere
     expect(nextLookAt(noPdf(6))).toBeUndefined()
   })
+
+  it("leaves a paper alone once the user looked at its page and found none, until they ask again", () => {
+    const skipped = { state: "no-pdf" as const, tried: [owlit("no-copy", 1), extension("unreadable", 2), you("skipped", 3), owlit("no-copy", 4)], looks: 1 }
+    expect(standing(skipped.tried)).toMatchObject({ state: "no-pdf", reason: { by: "person", ended: "skipped" } })
+    expect(nextLookAt(skipped)).toBeUndefined()
+    expect(lookDue(skipped, 1000 * day)).toBe(false)
+    expect(forExtension(skipped)).toBeUndefined()
+    // The extension tried again (the user asked): its word is the paper's from then on
+    expect(standing([...skipped.tried, extension("no-access", 5)]).reason).toMatchObject({ by: "extension", ended: "no-access" })
+  })
 })

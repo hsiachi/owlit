@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Outcome } from "./messages.ts"
-import { badgeOf, cardOf, gettingLine, placesFor, sayIn, TAKEN, WAITING } from "./say.ts"
+import { badgeOf, cardOf, gettingLine, placesFor, savedPaper, sayIn, TAKEN, WAITING, walkCard } from "./say.ts"
 
 const card = (outcome: Outcome) => cardOf(outcome)
 
@@ -174,5 +174,44 @@ describe("gettingLine", () => {
   it("says the count alone when nothing the user can do holds it up", () => {
     expect(gettingLine(1)).toBe("The one paper owlit is getting")
     expect(gettingLine(5, { kind: "blocked", host: "bmj.com", papers: 2, proxied: false })).toBe("One of the 5 papers owlit is getting")
+  })
+})
+
+describe("walkCard", () => {
+  const paper = (n: number, total: number, saved = 0) => walkCard({ kind: "paper", paperId: `p${n}`, url: `https://doi.org/10.1/${n}`, n, total, saved })
+
+  it("says which paper of how many, what to do on its page, and offers Skip and Next paper", () => {
+    expect(paper(1, 10)).toEqual({
+      text: "Paper 1 of 10 to download manually",
+      detail: "Click the PDF button on this page; owlit saves it. No PDF here? Skip it.",
+      stays: true,
+      close: "Close",
+      steps: [
+        { label: "Skip", do: { kind: "walk", paperId: "p1", skip: true } },
+        { label: "Next paper", do: { kind: "walk", paperId: "p1", skip: false } },
+      ],
+    })
+  })
+
+  it("counts the PDFs saved so far, and finishes on the last paper", () => {
+    expect(paper(4, 10, 2)).toMatchObject({ text: "Paper 4 of 10 to download manually", note: "2 saved" })
+    expect(paper(10, 10, 3).steps?.map((s) => s.label)).toEqual(["Skip", "Finish"])
+    expect(paper(1, 1)).toMatchObject({ text: "One paper to download manually", steps: [{ label: "Skip" }, { label: "Finish" }] })
+  })
+
+  it("says how it went at the end, and stays until closed", () => {
+    expect(walkCard({ kind: "done", saved: 3, total: 10 })).toMatchObject({ text: "Done: saved 3 of 10", stays: true, action: { label: "Open owlit", do: { kind: "open-owlit" } } })
+    expect(walkCard({ kind: "done", saved: 10, total: 10 }).text).toBe("Done: saved all 10 PDFs")
+    expect(walkCard({ kind: "done", saved: 1, total: 1 }).text).toBe("Done: saved the PDF")
+  })
+})
+
+describe("savedPaper", () => {
+  it("names the paper a click saved the PDF of, and nothing otherwise", () => {
+    expect(savedPaper({ kind: "saved", paperId: "p" })).toBe("p")
+    expect(savedPaper({ kind: "taken", paperId: "p", title: "T" })).toBe("p")
+    expect(savedPaper({ kind: "added", pdf: "saved", paperId: "p" })).toBe("p")
+    expect(savedPaper({ kind: "added", pdf: "none-named", paperId: "p" })).toBeUndefined()
+    expect(savedPaper({ kind: "has-pdf", paperId: "p" })).toBeUndefined()
   })
 })

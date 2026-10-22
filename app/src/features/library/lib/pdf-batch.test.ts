@@ -62,6 +62,17 @@ describe("a batch of papers sent to the extension", () => {
     expect(view.rows.map((r) => r.kind)).toEqual(["sign-in", "check", "manual", "none"])
   })
 
+  it("moves a paper the user skipped on its page from the downloads by hand to the ones with none", () => {
+    const unreadable = tryOf("unreadable", "psycnet.apa.org")
+    const skipped = tryOf("skipped", "psycnet.apa.org", AT + 2, "person")
+    const papers = [ended("left", "unreadable", "psycnet.apa.org"), paper("skipped", { pdfState: { state: "no-pdf", tried: [unreadable, skipped], reason: skipped } })]
+    const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
+    expect(view.rows.map((r) => [r.kind, r.ids])).toEqual([
+      ["manual", ["left"]],
+      ["none", ["skipped"]],
+    ])
+  })
+
   it("shows the sites that wait without a batch, the most papers first", () => {
     const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ kind, host, papers, url: `https://${host}/`, askedFor: false, proxied: false })
     expect(siteRows([wait("check", "oup.com", 1), wait("sign-in", "sagepub.com", 4)]).map((r) => [r.kind, r.host, r.papers])).toEqual([

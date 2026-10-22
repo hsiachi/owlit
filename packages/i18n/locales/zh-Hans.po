@@ -148,6 +148,7 @@ msgstr "选择"
 
 #. palette footer, beside the Esc key: closes the palette
 #. the owlit card in a web page: its close button, for screen readers
+#. the owlit card in a web page: its close button, for screen readers
 #. verb: close the Owlit panel
 #. verb: close the find field
 #. verb: close the paper beside the doc
@@ -1284,8 +1285,10 @@ msgstr "也可以在下方输入你自己的回答"
 msgid "Type your answer below"
 msgstr "在下方输入你的回答"
 
+#. the owlit card in a web page: the user found no PDF for this paper on its page; owlit notes it and goes on
 #. verb: skip the agent's question
 #: app/src/features/chat/components/WaitingDock.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Skip"
 msgstr "跳过"
 
@@ -4697,6 +4700,11 @@ msgstr "被拦截"
 msgid "Needs manual download"
 msgstr "需手动下载"
 
+#. the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found none"
+msgstr "你没找到 PDF"
+
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF found"
@@ -4755,6 +4763,10 @@ msgstr "需要你允许访问出版方网站"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Needs you to download it"
 msgstr "需要你手动下载"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found no PDF on its page"
+msgstr "你在它的页面上没找到 PDF"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No access through your library"
@@ -4913,7 +4925,9 @@ msgstr "{position} / {total}"
 msgid "Previous paper"
 msgstr "上一篇论文"
 
+#. the owlit card in a web page: goes on to the next paper to download manually, noting nothing about this one
 #: app/src/features/library/pages/PaperPage.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Next paper"
 msgstr "下一篇论文"
 
@@ -5160,6 +5174,10 @@ msgstr "owlit 打不开 {host} 的页面。在浏览器里打开它，点页面�
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
 msgstr "owlit 打不开出版商的页面。在浏览器里打开它，点页面上的 PDF 按钮，owlit 会保存这份 PDF。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "You looked on its page in your browser and skipped it · {date}"
+msgstr "你在浏览器里看过它的页面，跳过了 · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -7300,6 +7318,7 @@ msgstr "这个 PDF 没能存下"
 
 #. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
+#. the owlit card or popup: bring the owlit app to the front
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "Open owlit"
@@ -7468,6 +7487,36 @@ msgstr "已通过"
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
 msgstr "{papers, plural, other {owlit 接着取 # 篇论文。}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{total, plural, one {Done: saved the PDF} other {Done: saved all # PDFs}}"
+msgstr "{total, plural, one {完成：PDF 已保存} other {完成：# 篇 PDF 全部已保存}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "Done: saved {saved} of {total}"
+msgstr "完成：已保存 {total} 篇中的 {saved} 篇"
+
+#: apps/extension/src/lib/say.ts
+msgid "One paper to download manually"
+msgstr "有一篇论文需要手动下载"
+
+#: apps/extension/src/lib/say.ts
+msgid "Paper {n} of {total} to download manually"
+msgstr "手动下载：第 {n} 篇，共 {total} 篇"
+
+#: apps/extension/src/lib/say.ts
+msgid "Click the PDF button on this page; owlit saves it. No PDF here? Skip it."
+msgstr "点击本页的 PDF 按钮，owlit 会保存它。这里没有 PDF？跳过即可。"
+
+#. the owlit card in a web page: ends the walk through the papers to download manually, on its last paper
+#: apps/extension/src/lib/say.ts
+msgid "Finish"
+msgstr "完成"
+
+#. the owlit card in a web page: how many of the papers to download manually have their PDF so far
+#: apps/extension/src/lib/say.ts
+msgid "{saved} saved"
+msgstr "已保存 {saved} 篇"
 
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"

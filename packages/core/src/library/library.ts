@@ -1694,10 +1694,11 @@ export class Library {
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
           // extension, or to the user's browser), nor once the extension couldn't open its page, which it
-          // would fail to open again the same way: only the user asking looks again there.
+          // would fail to open again the same way, nor once the user found none there: only the user
+          // asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
-          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable"
+          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
           if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal)
           await this.announce([id])
@@ -1927,6 +1928,13 @@ export class Library {
   // standing changed (pdfChanged), once it has moved on. false when the paper has its PDF already.
   noteExtensionTry(id: string, tried: PdfTry) {
     return this.acquisitions.noteTried(id, tried)
+  }
+
+  // The user looked at the paper's page in their browser and found no PDF there (Skip, walking through the
+  // manual downloads): their try, which stands as the paper's reason, so neither the Library nor owlit's
+  // daily look offers it again (nextLookAt)
+  async noteSkipped(id: string) {
+    if (await this.acquisitions.noteTried(id, { by: "person", ended: "skipped", at: Date.now() })) await this.announce([id])
   }
 
   // The window hears these papers again: their standing with the extension changed

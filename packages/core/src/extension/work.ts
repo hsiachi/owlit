@@ -138,10 +138,15 @@ export class ExtensionWork implements ExtensionFetcher {
     if (!by) return undefined
     const page: OpenPage = kind === "permission" ? { kind, host, papers: paused(site).length } : { kind, host, url: site.paused.url }
     // Pressed twice before the extension collected it: opened once
-    const pending = (this.opens.get(by) ?? []).filter((o) => o.host !== host)
-    this.opens.set(by, [...pending, page])
-    this.kick()
+    this.openFor(by, page, (o) => "host" in o && o.host === host)
     return by
+  }
+
+  // A page for this pairing's extension to open, collected by its next GET /work, which it ends at once.
+  // replaces: the pages not collected yet that this one stands in for; a walk replaces any walk.
+  openFor(by: string, page: OpenPage, replaces: (pending: OpenPage) => boolean = (o) => o.kind === "walk" && page.kind === "walk") {
+    this.opens.set(by, [...(this.opens.get(by) ?? []).filter((o) => !replaces(o)), page])
+    this.kick()
   }
 
   // The pairing whose fetch met what this site waits for

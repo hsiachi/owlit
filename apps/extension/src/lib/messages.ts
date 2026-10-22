@@ -102,6 +102,8 @@ export type CardAction =
   | { kind: "connect" }
   // "Take PDFs I open" on
   | { kind: "take-pdfs" }
+  // On from this paper of the walk through the manual downloads: Next paper, or Skip (no PDF here)
+  | { kind: "walk"; paperId: string; skip: boolean }
 
 // The card the content script draws in the page (content/card.ts): all its words come from the
 // background, which has the catalogs
@@ -110,6 +112,10 @@ export interface CardView {
   detail?: string
   // A button, which asks the background
   action?: { label: string; do: CardAction }
+  // Steps to choose between, as text buttons in a row under the words (the walk's Skip and Next paper),
+  // with a quiet note at the row's end
+  steps?: { label: string; do: CardAction }[]
+  note?: string
   // Stays until closed: there is something to decide or to do. Otherwise it fades after a moment.
   stays: boolean
   // The close button's name for screen readers

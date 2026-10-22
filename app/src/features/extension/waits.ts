@@ -124,6 +124,14 @@ export async function openInBrowser(url: string) {
   if (!opened || opened.by === "none") window.open(url, "_blank", "noreferrer")
 }
 
+// The papers to download by hand, one tab at a time: the extension opens the first one's page in its
+// browser with a card that walks the user through them (Skip, Next paper). With no extension connected,
+// the first one's page opens as any page to download by hand.
+export async function walkManual(ids: string[], firstUrl: string) {
+  const opened = await rpc.extension.walk({ ids }).catch(() => undefined)
+  if (!opened || opened.by === "none") await openInBrowser(firstUrl)
+}
+
 // A site the extension waits at, as a row: amber, among what waits on the user (Home's Waiting on you,
 // the rail's dot), once they asked for one of its papers; otherwise grey, in a block of its own on Home
 export function siteWaitItem(wait: ExtensionWait, showLibrary: () => void, libraryName?: string): WaitingItem {

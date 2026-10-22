@@ -21,6 +21,7 @@ const NO_PDF_GROUPS: PdfWait[][] = [
   ["not-found"],
   ["no-access", "not-offered"],
   ["not-there"],
+  ["skipped"],
   ["finding", "offline", "for-sign-in", "for-check", "blocked", "for-permission"],
 ]
 

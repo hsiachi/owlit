@@ -19,6 +19,9 @@ describe("pdfWait", () => {
     const unreadable = tryOf("unreadable", "extension")
     expect(pdfWait({ pdfState: { state: "no-pdf", tried: [tryOf("no-copy"), unreadable, tryOf("no-copy")], reason: unreadable } })).toBe("manual")
     expect(pdfWord("manual")).not.toBe(pdfWord("not-found"))
+    // The user looked there and found none: their word, not owlit's
+    expect(pdfWait(noPdf("skipped"))).toBe("skipped")
+    expect(pdfWord("skipped")).toBe("You found none")
   })
 
   it("reads a paper the extension waits with as still finding, under its site's wait", () => {

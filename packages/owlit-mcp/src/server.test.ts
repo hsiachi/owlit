@@ -111,6 +111,7 @@ describe("pdfFact", () => {
     expect(fact(noPdf("no-access", "extension"))).toMatch(/offered access instead/)
     expect(fact(noPdf("not-offered", "extension"))).toMatch(/library proxy doesn't offer/)
     expect(fact(noPdf("unreadable", "extension"))).toMatch(/needs a manual download.*couldn't open the publisher's page.*click its PDF button.*drop the PDF/)
+    expect(fact(noPdf("skipped", "person"))).toMatch(/user looked at the publisher's page.*found none.*Look again.*drop the PDF/)
   })
 
   it("says why for each way a try can end, and what the user can do", () => {

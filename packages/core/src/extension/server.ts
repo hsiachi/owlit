@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WalkAnswer, type WorkAnswer } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -12,6 +12,7 @@ import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send }
 import { HOLD_MS, Pairings } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 import { clean } from "../util.ts"
+import { ManualWalk } from "./walk.ts"
 import { ExtensionWork, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
@@ -92,6 +93,8 @@ export class ExtensionServer {
   readonly pairings: Pairings
   // The papers handed to the extension to fetch
   readonly work: ExtensionWork
+  // The papers the user downloads by hand, one tab at a time
+  readonly walk = new ManualWalk()
   private readonly host: ExtensionHost
   private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs">> & { port: number }
   private server: Server | null = null
@@ -175,6 +178,23 @@ export class ExtensionServer {
     const pairing = seenLast(paired)
     await this.host.openInBrowser(url, clean({ app: pairing?.app, name: pairing?.browser }))
     return { by: "browser", browser: pairing?.browser }
+  }
+
+  // The manual row's Open in <browser>: a walk through its papers, the first one's page opened by the
+  // extension asking for work now, in a tab of its own, and that browser brought to the front. none: no
+  // extension is connected, which the window then stands in for by opening the first page itself, or
+  // none of the papers is left to download.
+  async startWalk(ids: string[]): Promise<ExtensionOpened> {
+    const library = this.host.workspace()?.library
+    const by = this.work.connectedPairings()[0]
+    if (!library || !by) return { by: "none" }
+    const step = await this.walk.start(library, ids)
+    if (!step) return { by: "none" }
+    this.work.openFor(by, { kind: "walk", step })
+    const pairing = (await this.host.settings.get()).extension?.paired.find((p) => p.id === by)
+    // As for a waiting site's page (open): macOS keeps owlit in front unless owlit hands the front over
+    await this.host.showBrowser?.(clean({ app: pairing?.app, name: pairing?.browser })).catch(() => undefined)
+    return { by: "extension", browser: pairing?.browser }
   }
 
   async start() {
@@ -429,6 +449,22 @@ export class ExtensionServer {
           const body = z.object({ host, url: z.string().max(4096).regex(/^https?:\/\//i) }).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           return { body: { blocked: this.work.blocked(body.data.host, body.data.url) } }
+        },
+      },
+      // The walk through the manual downloads: where it stands, asked as each of its pages loads and once
+      // a PDF was saved there, and on from a paper (Next paper, Skip)
+      {
+        method: "GET",
+        path: is("walk"),
+        handle: async () => ({ body: { step: await this.walk.step(this.library()) } satisfies WalkAnswer }),
+      },
+      {
+        method: "POST",
+        path: is("walk", "next"),
+        handle: async ({ raw }) => {
+          const body = z.object({ paperId: z.string().trim().min(1).max(300), skip: z.boolean().optional() }).safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          return { body: { step: await this.walk.next(this.library(), body.data.paperId, !!body.data.skip) } satisfies WalkAnswer }
         },
       },
       // How a fetch ended: the PDF itself, or a word for what came instead

@@ -14,7 +14,8 @@ import { useLibraryStore } from "../store"
 // Atop the No PDF list: one action for the whole list. Every paper with a DOI that the extension in the
 // user's browser could still try goes to it in one go, with their access, instead of Look again on each
 // card; the block atop the Library (PdfBlock) then counts them. Hidden while a batch is being fetched, and
-// a paper already in one, already with the extension or left to download by hand isn't offered again.
+// a paper already in one, already with the extension, left to download by hand or that the user found
+// none for on its page isn't offered again.
 // Shown with no extension paired too: the one click then says what to set up, where a hidden line would
 // leave the list with no way out. Papers with no DOI have no page the extension could go to: their own
 // line says so, and how to add their PDFs.
@@ -25,7 +26,7 @@ export function GetPdfsLine({ papers }: { papers: Paper[] }) {
   const running = !!batch && batchView(batch, all).running
   const inBatch = new Set(batch?.ids)
   const lacking = papers.filter((p) => !p.pdf)
-  const offered = lacking.filter((p) => p.ids.doi && !inBatch.has(p.id) && !p.pdfState?.extension && pdfWait(p) !== "manual")
+  const offered = lacking.filter((p) => p.ids.doi && !inBatch.has(p.id) && !p.pdfState?.extension && pdfWait(p) !== "manual" && pdfWait(p) !== "skipped")
   const noDoi = lacking.filter((p) => !p.ids.doi).length
   const browser = browserName(paired)
   const getPdfs = async () => {

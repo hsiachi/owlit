@@ -87,6 +87,9 @@ export interface Methods {
   // A publisher's page opened in the browser the extension was paired in, the one with the user's access
   // (a paper to download by hand); none when owlit can't open pages there
   "extension.openPage": { params: { url: string }; result: ExtensionOpened }
+  // A walk through these papers to download by hand, one tab at a time, in the browser of the extension
+  // asking for work now (WalkStep); replaces one going on. none when no extension is connected.
+  "extension.walk": { params: { ids: string[] }; result: ExtensionOpened }
   // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
   // itself, and the window having shown "Updated to"
   "updates.get": { params: void; result: UpdatesView }

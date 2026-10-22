@@ -445,6 +445,69 @@ describe("the extension's port", () => {
       await expect(s.call("extension.openPage", { url: "file:///etc/passwd" })).rejects.toThrow()
     })
 
+    describe("walking through the papers to download by hand", () => {
+      const second = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      const third = { id: "doi-10.1177-0000003", doi: "10.1177/0000003" }
+      const triesOf = (root: string, paper: string) => {
+        const file = path.join(root, "library/papers", paper, "acquisition.json")
+        return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")).tried : []
+      }
+
+      async function walking() {
+        const s = await connected()
+        s.putPaper(second.id, { title: "A Second Paper", ids: { doi: second.doi } })
+        s.putPaper(third.id, { title: "A Third Paper", ids: { doi: third.doi } })
+        return s
+      }
+
+      it("opens the first paper's page in the extension's browser, in the row's order", async () => {
+        const { call, request, token, shown } = await walking()
+        expect(await call("extension.walk", { ids: [second.id, id, third.id] })).toEqual({ by: "extension", browser: "Chrome" })
+        const first = { kind: "paper", paperId: second.id, url: `https://doi.org/${second.doi}`, n: 1, total: 3, saved: 0 }
+        expect((await request("/work", { token })).body.open).toEqual([{ kind: "walk", step: first }])
+        expect(shown).toEqual([{ name: "Chrome" }])
+        expect((await request("/walk", { token })).body).toEqual({ step: first })
+      })
+
+      it("goes on once the paper's PDF is saved, and past a skipped one, noting that the user found none", async () => {
+        const { call, request, token, root } = await walking()
+        await call("extension.walk", { ids: [id, second.id, third.id] })
+        expect((await request(`/papers/${id}/pdf`, { method: "PUT", token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })).status).toBe(200)
+        expect((await request("/walk", { token })).body.step).toEqual({ kind: "paper", paperId: second.id, url: `https://doi.org/${second.doi}`, n: 2, total: 3, saved: 1 })
+        // Skip, pressed twice: one paper skipped, one try noted
+        for (let i = 0; i < 2; i++) expect((await request("/walk/next", { token, body: { paperId: second.id, skip: true } })).body.step).toMatchObject({ kind: "paper", paperId: third.id, n: 3 })
+        expect(triesOf(root, second.id)).toEqual([{ by: "person", ended: "skipped", at: expect.any(Number) }])
+        const skipped = (await call("library.list")).papers.find((p: { id: string }) => p.id === second.id)
+        expect(skipped.pdfState).toMatchObject({ state: "no-pdf", reason: { by: "person", ended: "skipped" } })
+        expect(skipped.pdfState.nextLook).toBeUndefined()
+        // Next paper on the last one ends the walk, noting nothing, and owlit forgets it
+        expect((await request("/walk/next", { token, body: { paperId: third.id } })).body.step).toEqual({ kind: "done", saved: 1, total: 3 })
+        expect(triesOf(root, third.id)).toEqual([])
+        expect((await request("/walk", { token })).body).toEqual({ step: null })
+        expect((await request("/walk/next", { token, body: { paperId: third.id, skip: true } })).body).toEqual({ step: null })
+        expect(triesOf(root, third.id)).toEqual([])
+      })
+
+      it("keeps one walk: a new one replaces the one going on", async () => {
+        const { call, request, token } = await walking()
+        await call("extension.walk", { ids: [id, second.id] })
+        await call("extension.walk", { ids: [third.id] })
+        expect((await request("/work", { token })).body.open).toEqual([{ kind: "walk", step: { kind: "paper", paperId: third.id, url: `https://doi.org/${third.doi}`, n: 1, total: 1, saved: 0 } }])
+        expect((await request("/walk/next", { token, body: { paperId: id, skip: true } })).body.step).toMatchObject({ paperId: third.id })
+      })
+
+      it("leaves the page to the window when no extension asks for work, or nothing is left to download", async () => {
+        const { call, request, token, putPaper } = await walking()
+        putPaper("no-doi", { title: "No DOI Here", ids: {} })
+        expect(await call("extension.walk", { ids: ["no-doi", "not-in-the-library"] })).toEqual({ by: "none" })
+        expect((await request("/walk", { token })).body).toEqual({ step: null })
+        const s = await setup({ holdMs: 20 })
+        await s.pair()
+        s.putPaper(id, { title, ids: { doi: SAGE } })
+        expect(await s.call("extension.walk", { ids: [id] })).toEqual({ by: "none" })
+      })
+    })
+
     it("opens a sign-in in the paired browser while no extension asks for work", async () => {
       const opened: Opened[] = []
       const s = await setup({ holdMs: 20, opened })

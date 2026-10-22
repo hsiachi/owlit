@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WorkAnswer, WorkBlocked, WorkResume } from "@owlit/protocol"
+import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WalkAnswer, WalkNext, WalkStep, WorkAnswer, WorkBlocked, WorkResume } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
@@ -10,7 +10,7 @@ import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from 
 import { idsInUrl, namesPdf, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, whyNotTaken, type PdfSaid, type TakeDeps } from "../lib/pdf-tab.ts"
-import { badgeOf, cardOf, sayIn, TAKEN, WAITING, WORKING } from "../lib/say.ts"
+import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
@@ -177,6 +177,7 @@ async function mark(tabId: number, page: { url: string; paper?: PagePaper }) {
   if (result === "saved" || result === "not-this-paper") await answered.add(address)
   if (result !== "saved") return
   await setBadge(tabId, "✓", TAKEN)
+  if ((await walkOn(paper.id)) === tabId) return
   await drawCard(tabId, cardOf({ kind: "saved", paperId: paper.id }))
 }
 
@@ -295,6 +296,9 @@ async function click(tabId: number, windowId: number) {
     const outcome = await act(tabId)
     const badge = badgeOf(outcome)
     await (badge ? setBadge(tabId, badge.text, badge.color) : setBadge(tabId, before))
+    // Saved on the walk's page: the walk goes on, and the next paper's card counts it
+    const saved = savedPaper(outcome)
+    if (saved && (await walkOn(saved)) === tabId) return
     await speak(tabId, windowId, outcome)
   } finally {
     working.delete(tabId)
@@ -385,6 +389,9 @@ async function cardAction(action: CardAction, tab: chrome.tabs.Tab | undefined) 
       await openAllowPage(action.host, tabId !== undefined && !waiting ? { tab: String(tabId) } : { papers: String(waiting?.papers ?? 0) })
       return
     }
+    case "walk":
+      if (tabId !== undefined) await walkNext(action, tabId)
+      return
     // Turned on from a PDF it would have taken: this one is taken now, as the button would
     case "take-pdfs":
       await ext.storage.local.set({ takePdfs: true })
@@ -459,6 +466,8 @@ async function pdfTab(tabId: number, url: string, tab: chrome.tabs.Tab) {
   const outcome: Outcome = { kind: "taken", paperId: taken.taken.id, title: taken.taken.title }
   await keepPdfSaid(tabId, url, outcome)
   await setBadge(tabId, "✓", TAKEN)
+  // The PDF the walk's tab opened: the tab goes on to the next paper, whose card counts this one saved
+  if ((await walkOn(taken.taken.id)) === tabId) return
   // Said in the page where the PDF viewer takes a card. Else in the popup, opened by itself where the
   // browser opens one without a click and only on the tab in front, since it opens on whichever tab that
   // is; it opens once per PDF, as a PDF is taken once a session (takePdf's answered). Else the system says it.
@@ -491,12 +500,17 @@ ext.tabs.onUpdated.addListener((tabId, change, tab) => {
     }
     // A site the extension may not read shows it no response, and only the address says it is a PDF
     if (/^https?:/.test(url) && namesPdf(url) && !(await permitted(url))) return pdfTab(tabId, url, tab)
+    await showWalk(tabId).catch(() => undefined)
     await watchForThrough(tabId, url)
   })()
 })
 
 ext.tabs.onRemoved.addListener((tabId) => {
   void session(() => ext.storage.session.remove([pageKey(tabId), pdfTabKey(tabId), saidKey(tabId), pdfSaidKey(tabId)]))
+  // The walk's tab closed: the walk is put away here; owlit keeps where it stood until another one starts
+  void (async () => {
+    if ((await walkOf())?.tabId === tabId) await ext.storage.session.remove(walkKey)
+  })()
 })
 
 // ---- Fetching for owlit
@@ -573,8 +587,74 @@ const cameAt = (host: string) =>
 // their access, and brought to the front
 async function openPage(page: OpenPage) {
   if (page.kind === "permission") return openAllowPage(page.host, { papers: String(page.papers) })
-  const tab = await ext.tabs.create({ url: page.url, active: true })
+  const tab = await ext.tabs.create({ url: page.kind === "walk" ? page.step.url : page.url, active: true })
+  if (page.kind === "walk" && tab.id !== undefined) await ext.storage.session.set({ [walkKey]: { tabId: tab.id, paperId: page.step.paperId } satisfies Walk })
   if (tab.windowId !== undefined) await ext.windows.update(tab.windowId, { focused: true }).catch(() => undefined)
+}
+
+// ---- Downloading by hand, one paper at a time
+
+// The walk through the papers to download by hand (owlit's WalkStep) goes on in one tab: the one it was
+// opened in, and the paper whose page the tab was sent to. Each next paper's page replaces the last in
+// that tab, so the walk never leaves a pile of tabs, and a PDF the user opened in a tab of its own stays
+// where it is while the walk's tab moves on behind it.
+interface Walk {
+  tabId: number
+  paperId: string
+}
+const walkKey = "walk"
+const walkOf = async () => (await ext.storage.session.get(walkKey))[walkKey] as Walk | undefined
+
+// Goes to owlit's step in the walk's tab: a paper's page, or at the end, how it went, said in the page
+// or, where the tab shows a PDF and takes no card, by the system. No step: owlit has no walk on (another
+// workspace, a restart), and the tab is left as it is.
+async function walkTo(step: WalkStep | null, tabId: number) {
+  if (step?.kind !== "paper") {
+    await ext.storage.session.remove(walkKey)
+    if (!step) return
+    const card = walkCard(step)
+    if (await drawCard(tabId, card)) return
+    void ext.notifications.create(`walk:${Date.now()}`, { type: "basic", iconUrl: ext.runtime.getURL("icons/128.png"), title: "owlit", message: card.text }).catch(() => undefined)
+    return
+  }
+  // The tab closed meanwhile: the walk goes on in a new one
+  const tab = (await ext.tabs.update(tabId, { url: step.url }).catch(() => undefined)) ?? (await ext.tabs.create({ url: step.url, active: true }))
+  if (tab.id !== undefined) await ext.storage.session.set({ [walkKey]: { tabId: tab.id, paperId: step.paperId } satisfies Walk })
+}
+
+// A page loaded in the walk's tab: the card says where the walk stands there. A paper that got its PDF
+// meanwhile some other way (dropped in owlit) is passed over by owlit, and the tab goes on.
+async function showWalk(tabId: number) {
+  const walk = await walkOf()
+  const { token } = await local()
+  if (walk?.tabId !== tabId || !token) return
+  const { step } = await ask<WalkAnswer>("/walk", { token })
+  if (step?.kind === "paper" && step.paperId === walk.paperId) await drawCard(tabId, walkCard(step))
+  else await walkTo(step, tabId)
+}
+
+// A Library paper's PDF saved: when it is the paper the walk is on, the walk goes on in its tab. The
+// walk's tab when it went on, which then says nothing more about the PDF: the next card counts it.
+async function walkOn(paperId: string): Promise<number | undefined> {
+  const walk = await walkOf()
+  const { token } = await local()
+  if (walk?.paperId !== paperId || !token) return undefined
+  try {
+    const { step } = await ask<WalkAnswer>("/walk", { token })
+    await walkTo(step, walk.tabId)
+    return walk.tabId
+  } catch {
+    return undefined
+  }
+}
+
+// The card's Skip or Next paper. A card left in a tab the walk has moved out of (a newer walk took
+// another) moves nothing.
+async function walkNext(action: Extract<CardAction, { kind: "walk" }>, tabId: number) {
+  const { token } = await local()
+  if ((await walkOf())?.tabId !== tabId || !token) return
+  const { step } = await ask<WalkAnswer>("/walk/next", { token, json: { paperId: action.paperId, skip: action.skip } satisfies WalkNext })
+  await walkTo(step, tabId)
 }
 
 // The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab
@@ -785,6 +865,8 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       const outcome = await act(request.tabId)
       const badge = badgeOf(outcome)
       if (badge) await setBadge(request.tabId, badge.text, badge.color)
+      const saved = savedPaper(outcome)
+      if (saved) void walkOn(saved)
       return outcome
     }
     case "takePdfs":
@@ -812,7 +894,8 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       injected.delete(tabId)
       if (drawing === request.url) return null
       await mark(tabId, page)
-      await sayWait(tabId, page.host)
+      // The walk's tab has its own card, which a site's wait would draw over
+      if ((await walkOf())?.tabId !== tabId) await sayWait(tabId, page.host)
       return null
     }
     case "card":

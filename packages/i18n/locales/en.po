@@ -148,6 +148,7 @@ msgstr "Navigate"
 
 #. palette footer, beside the Esc key: closes the palette
 #. the owlit card in a web page: its close button, for screen readers
+#. the owlit card in a web page: its close button, for screen readers
 #. verb: close the Owlit panel
 #. verb: close the find field
 #. verb: close the paper beside the doc
@@ -1284,8 +1285,10 @@ msgstr "Or type your own answer below"
 msgid "Type your answer below"
 msgstr "Type your answer below"
 
+#. the owlit card in a web page: the user found no PDF for this paper on its page; owlit notes it and goes on
 #. verb: skip the agent's question
 #: app/src/features/chat/components/WaitingDock.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Skip"
 msgstr "Skip"
 
@@ -4697,6 +4700,11 @@ msgstr "Blocked"
 msgid "Needs manual download"
 msgstr "Needs manual download"
 
+#. the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found none"
+msgstr "You found none"
+
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF found"
@@ -4755,6 +4763,10 @@ msgstr "Needs your permission for the publisher's site"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Needs you to download it"
 msgstr "Needs you to download it"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found no PDF on its page"
+msgstr "You found no PDF on its page"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No access through your library"
@@ -4913,7 +4925,9 @@ msgstr "{position} of {total}"
 msgid "Previous paper"
 msgstr "Previous paper"
 
+#. the owlit card in a web page: goes on to the next paper to download manually, noting nothing about this one
 #: app/src/features/library/pages/PaperPage.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Next paper"
 msgstr "Next paper"
 
@@ -5160,6 +5174,10 @@ msgstr "owlit couldn't open {host}'s page. Open it in your browser and click its
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
 msgstr "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "You looked on its page in your browser and skipped it · {date}"
+msgstr "You looked on its page in your browser and skipped it · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -7300,6 +7318,7 @@ msgstr "Couldn't save this PDF"
 
 #. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
+#. the owlit card or popup: bring the owlit app to the front
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
 msgid "Open owlit"
@@ -7468,6 +7487,36 @@ msgstr "You're through"
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
 msgstr "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{total, plural, one {Done: saved the PDF} other {Done: saved all # PDFs}}"
+msgstr "{total, plural, one {Done: saved the PDF} other {Done: saved all # PDFs}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "Done: saved {saved} of {total}"
+msgstr "Done: saved {saved} of {total}"
+
+#: apps/extension/src/lib/say.ts
+msgid "One paper to download manually"
+msgstr "One paper to download manually"
+
+#: apps/extension/src/lib/say.ts
+msgid "Paper {n} of {total} to download manually"
+msgstr "Paper {n} of {total} to download manually"
+
+#: apps/extension/src/lib/say.ts
+msgid "Click the PDF button on this page; owlit saves it. No PDF here? Skip it."
+msgstr "Click the PDF button on this page; owlit saves it. No PDF here? Skip it."
+
+#. the owlit card in a web page: ends the walk through the papers to download manually, on its last paper
+#: apps/extension/src/lib/say.ts
+msgid "Finish"
+msgstr "Finish"
+
+#. the owlit card in a web page: how many of the papers to download manually have their PDF so far
+#: apps/extension/src/lib/say.ts
+msgid "{saved} saved"
+msgstr "{saved} saved"
 
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"

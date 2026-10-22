@@ -9,7 +9,7 @@ import { JoinDots } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useExtension, useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, browserName, doneWords, openInBrowser, putAwayBatch, resumeWait, stopBatch, useBatch, useOpenedWaits, waitWords, type OpenedWait } from "@/features/extension/waits"
+import { actOnWait, browserName, doneWords, putAwayBatch, resumeWait, stopBatch, useBatch, useOpenedWaits, waitWords, walkManual, type OpenedWait } from "@/features/extension/waits"
 import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
@@ -136,7 +136,7 @@ function Row({ row, waits, opened, browser, library, papers }: { row: BatchRow; 
     const doi = row.ids.map((id) => papers[id]?.ids.doi).find(Boolean)
     if (doi) {
       action = (
-        <Button variant="text" size="inline" onClick={() => void openInBrowser(`https://doi.org/${doi}`)}>
+        <Button variant="text" size="inline" onClick={() => void walkManual(row.ids, `https://doi.org/${doi}`)}>
           {t({ message: `Open in ${browser}`, comment: "button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia" })}
         </Button>
       )

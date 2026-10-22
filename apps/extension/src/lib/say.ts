@@ -1,4 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
+import type { WalkStep } from "@owlit/protocol"
 import type { CardView, Outcome, SiteWait } from "./messages.ts"
 
 // What the extension says about a click or a site, in one sentence and at most one action, and where it
@@ -34,6 +35,12 @@ export function badgeOf(outcome: Outcome): { text: string; color: string } | und
     default:
       return undefined
   }
+}
+
+// The Library paper a click's work saved the PDF of, if it did
+export function savedPaper(outcome: Outcome): string | undefined {
+  if (outcome.kind === "saved" || outcome.kind === "taken" || (outcome.kind === "added" && outcome.pdf === "saved")) return outcome.paperId
+  return undefined
 }
 
 // Where an outcome is said, in the order tried. Connecting and the workspace are decided in the popup,
@@ -164,6 +171,34 @@ export function cardOf(outcome: Outcome): CardView {
     }
   }
   return fades("")
+}
+
+// The card in the tab of the walk through the manual downloads (owlit's WalkStep): which paper of how
+// many, the one thing to do on its page, and the way on (Skip when there is no PDF, else the next paper);
+// how many are saved so far, quietly, so a PDF saved on the page before is seen to have come. It stays
+// until the walk moves on. At the end, how it went.
+export function walkCard(step: WalkStep): CardView {
+  const close = t({ message: "Close", comment: "the owlit card in a web page: its close button, for screen readers" })
+  if (step.kind === "done") {
+    const { saved, total } = step
+    const text = saved === total ? plural(total, { one: "Done: saved the PDF", other: "Done: saved all # PDFs" }) : t`Done: saved ${saved} of ${total}`
+    return { text, stays: true, close, action: { label: t({ message: "Open owlit", comment: "the owlit card or popup: bring the owlit app to the front" }), do: { kind: "open-owlit" } } }
+  }
+  const { n, total, saved, paperId } = step
+  const last = n === total
+  return {
+    text: total === 1 ? t`One paper to download manually` : t`Paper ${n} of ${total} to download manually`,
+    detail: t`Click the PDF button on this page; owlit saves it. No PDF here? Skip it.`,
+    stays: true,
+    close,
+    steps: [
+      { label: t({ message: "Skip", comment: "the owlit card in a web page: the user found no PDF for this paper on its page; owlit notes it and goes on" }), do: { kind: "walk", paperId, skip: true } },
+      last
+        ? { label: t({ message: "Finish", comment: "the owlit card in a web page: ends the walk through the papers to download manually, on its last paper" }), do: { kind: "walk", paperId, skip: false } }
+        : { label: t({ message: "Next paper", comment: "the owlit card in a web page: goes on to the next paper to download manually, noting nothing about this one" }), do: { kind: "walk", paperId, skip: false } },
+    ],
+    ...(saved > 0 ? { note: t({ message: `${saved} saved`, comment: "the owlit card in a web page: how many of the papers to download manually have their PDF so far" }) } : {}),
+  }
 }
 
 // The popup's quiet line under a Library paper owlit is getting through the browser: how many it is
