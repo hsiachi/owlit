@@ -488,6 +488,23 @@ describe("owlit-mcp", () => {
     expect((await call("memory.list")).lines).toMatchObject([{ id: "m1", text: "Cite as (Author, Year)." }])
   })
 
+  it("keeps a line about the work for the chat's project or the workspace, and reads a project's lines", async () => {
+    const { root, call, tool } = await setup()
+    await call("docs.create", { path: "Study/RAG/project.md", content: "# Retrieval study\n" })
+    expect((await tool("memory_write", { op: "add", kind: "about", text: "No scope." })).text).toMatch(/needs scope/)
+    expect((await tool("memory_write", { op: "add", kind: "about", text: "Bad scope.", scope: "chat" })).text).toBe("scope should be one of project, workspace.")
+    // The chat has touched no doc yet: in no project
+    expect((await tool("memory_write", { op: "add", kind: "about", text: "Granularity is the question.", scope: "project" })).text).toMatch(/^Kept as m1 for the workspace \(this chat is in no project\): "Granularity/)
+    await call("chats.appendMessage", { id: "chat-1", message: { id: "u1", role: "user", createdAt: 2, parts: [], context: [{ id: "Study/RAG/a.md", kind: "doc", title: "a", uri: "owlit://docs/Study/RAG/a.md" }] } })
+    expect((await tool("memory_write", { op: "replace", id: "m1", text: "Granularity is the question.", scope: "project" })).text).toMatch(/^Replaced m1 for Retrieval study \(Study\/RAG\): /)
+    expect((await tool("memory_write", { op: "add", kind: "about", text: "I'm in HCI.", scope: "workspace" })).text).toMatch(/^Kept as m2 for the workspace: /)
+    expect(readFileSync(path.join(root, ".owlit/memory.md"), "utf8")).toMatch(/- Granularity is the question\. <!-- m1 · [\d-]+ · chat chat-1 · project Study\/RAG -->/)
+    expect((await tool("memory_read", { project: "Study/RAG" })).text).toBe("About their work, kept for Retrieval study (Study/RAG):\n- [m1] Granularity is the question.")
+    await call("docs.create", { path: "Other/project.md", content: "# Other\n" })
+    expect((await tool("memory_read", { project: "Other" })).text).toBe("Nothing kept for Other.")
+    expect((await tool("memory_read", { project: "Study" })).text).toBe('"Study" is no project of this workspace (no folder there holds a project.md); the memory note gives each project\'s path.')
+  })
+
   it("answers mistakes in a sentence instead of failing", async () => {
     const { tool } = await setup()
     expect(await tool("library_get")).toEqual({ text: "library_get needs id.", isError: true })

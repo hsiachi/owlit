@@ -8,6 +8,10 @@ export const PROJECT_MARK = "project.md"
 
 export const isProjectMark = (path: string) => baseName(path).toLowerCase() === PROJECT_MARK
 
+// A project's path as two spellings of it compare: without slashes around it and composed, since a path
+// typed on macOS can come decomposed; "" for none
+export const projectKey = (path: string | undefined) => (path ?? "").trim().replace(/^\/+|\/+$/g, "").normalize("NFC")
+
 export type ProjectStatus = "active" | "done"
 
 export interface Project {

@@ -21,6 +21,8 @@ import {
   type FoundPapers,
   type HighlightColor,
   type MemoryKind,
+  type MemoryScope,
+  projectKey,
   type ReadStatus,
   type Paper,
   type Project,
@@ -409,15 +411,35 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "memory_write": {
       const op = str("op") as "add" | "replace" | "remove"
-      const { line, before, changeId } = await owlit.rpc.memory.write({
+      const scope = optStr("scope")
+      const { line, before, changeId, noProject } = await owlit.rpc.memory.write({
         op,
         ...pickArgs(args, { id: "id", text: "text" }),
         ...(optStr("kind") ? { kind: optStr("kind") as MemoryKind } : {}),
+        ...(scope ? { scope: scope as MemoryScope } : {}),
         ...writer,
       })
       if (!changeId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
       if (!line) return `Removed ${before?.id} ("${before?.text}") from the memory. Tell the user in a few words.`
-      return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
+      // Where a line about their work went, so the agent can say it and see a wrong scope
+      const where =
+        line.kind !== "about"
+          ? ""
+          : line.project
+            ? ` for ${projectWords(line.project, (await owlit.rpc.projects.list()).projects)}`
+            : noProject
+              ? " for the workspace (this chat is in no project)"
+              : " for the workspace"
+      return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}${where}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
+    }
+    case "memory_read": {
+      const asked = str("project")
+      const [{ lines }, { projects }] = await Promise.all([owlit.rpc.memory.read({ project: asked }), owlit.rpc.projects.list()])
+      const project = projects.find((p) => projectKey(p.path) === projectKey(asked))
+      const named = project ? projectWords(project.path, projects) : `"${asked.trim()}"`
+      const none = project ? "" : `${named} is no project of this workspace (no folder there holds a project.md); the memory note gives each project's path.`
+      if (!lines.length) return none || `Nothing kept for ${named}.`
+      return [none, `About their work, kept for ${named}:`, ...lines.map((l) => `- [${l.id}] ${l.text}`)].filter(Boolean).join("\n")
     }
     case "activity_read": {
       const query = activityQueryOf(args)

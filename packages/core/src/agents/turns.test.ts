@@ -1,4 +1,4 @@
-import type { RpcNotification, SessionUpdate } from "@owlit/protocol"
+import { docUri, type RpcNotification, type SessionUpdate } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -107,9 +107,29 @@ describe("turns", () => {
     await send("memory?")
     const [none, first, again, changed] = said()
     expect(none).toBe("no memory")
-    expect(first).toMatch(/changed; this is the whole list now\.\nHow they want you to work:\n- \[m1\] Cite as \(Author, Year\)\.\nAbout their work:\n\(nothing yet\)/)
+    expect(first).toMatch(/changed \(its memory of the user, or the projects\); this is all of it now\.\nHow they want you to work:\n- \[m1\] Cite as \(Author, Year\)\.\nAbout their work:\n\(nothing yet\)$/)
     expect(again).toBe("no memory")
     expect(changed).toContain("- [m1] Cite in APA 7.")
+  })
+
+  it("tells a session its projects' lines and the others' index, and again once the chat is in a project", async () => {
+    const { send, updates, call } = await setup()
+    const said = () => updates.filter((u) => u.type === "agent_message_chunk").map((u) => (u as { text: string }).text)
+    await call("docs.create", { path: "Study/project.md", content: "# Retrieval study\n" })
+    await call("docs.create", { path: "Study/draft.md", content: "Draft" })
+    await call("docs.create", { path: "Other/project.md", content: "# Other work\n" })
+    await call("memory.put", { kind: "about", text: "The study is about RAG.", project: "Study" })
+    await send("memory?")
+    await send("memory?")
+    // Asked from beside a doc in the marked folder
+    const beside = { id: "Study/draft.md", kind: "doc", title: "draft", uri: docUri("Study/draft.md") }
+    await send("memory?", { userMessage: { id: "u3", role: "user", createdAt: 30, parts: [{ type: "text", text: "memory?" }], context: [beside] } })
+    const [first, again, moved] = said()
+    expect(first).toMatch(/\nThis chat is in no project\.\nThe workspace's projects, [^\n]*\n- Other work \(Other\): nothing yet\n- Retrieval study \(Study\): last worked on draft, \d{4}-\d{2}-\d{2}$/)
+    expect(first).not.toContain("about RAG")
+    expect(again).toBe("no memory")
+    expect(moved).toMatch(/^\[owlit\] What owlit keeps in mind for this chat changed/)
+    expect(moved).toContain("\nThis chat is in the project Retrieval study (Study).\nAbout their work in Retrieval study (Study):\n- [m1] The study is about RAG.\nThe workspace's other projects, ")
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {

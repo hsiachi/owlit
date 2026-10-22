@@ -15,25 +15,39 @@ export function registerMemory({ router, requireWorkspace }: Deps) {
     const memory = requireWorkspace().memory
     return { lines: await memory.list(), claudeNotes: await memory.claudeNotes() }
   })
+  router.register("memory.read", z.object({ project: z.string() }), "read", async ({ project }) => ({ lines: await requireWorkspace().memory.read(project) }))
   const memoryKind = z.enum(["work", "about"])
   router.register(
     "memory.write",
-    z.object({ op: z.enum(["add", "replace", "remove"]), id: z.string().optional(), kind: memoryKind.optional(), text: z.string().optional(), chatId: z.string().optional() }),
+    z.object({
+      op: z.enum(["add", "replace", "remove"]),
+      id: z.string().optional(),
+      kind: memoryKind.optional(),
+      text: z.string().optional(),
+      scope: z.enum(["project", "workspace"]).optional(),
+      chatId: z.string().optional(),
+    }),
     { touches: "own", target: ({ op, id }) => memoryTarget(op === "add" ? undefined : id) },
-    async ({ op, id, kind, text }, caller) => {
+    async ({ op, id, kind, text, scope }, caller) => {
       // Said to the agent, so plain English
       const need = (what: string) => {
         throw new RpcFailure(RpcErrorCode.InvalidParams, `memory_write with op "${op}" needs ${what}.`)
       }
+      // A work line is the workspace's whatever it says, so only an about line has to say where it goes
+      if (op === "add" && kind === "about" && !scope) need(`scope for a line about their work: "workspace" when it would matter in a chat about a different piece of work, else "project"`)
       return requireWorkspace().memory.agentWrite(
-        op === "add" ? { op, kind: kind ?? need("kind"), text: text ?? need("text") } : op === "replace" ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}) } : { op, id: id ?? need("id") },
+        op === "add"
+          ? { op, kind: kind ?? need("kind"), text: text ?? need("text"), ...(scope ? { scope } : {}) }
+          : op === "replace"
+            ? { op, id: id ?? need("id"), text: text ?? need("text"), ...(kind ? { kind } : {}), ...(scope ? { scope } : {}) }
+            : { op, id: id ?? need("id") },
         caller,
       )
     },
   )
   router.register(
     "memory.put",
-    z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional() }),
+    z.object({ id: z.string().optional(), kind: memoryKind, text: z.string(), at: z.number().optional(), chatId: z.string().optional(), project: z.string().optional() }),
     { touches: "own", target: ({ id }) => memoryTarget(id) },
     (input, caller) => requireWorkspace().memory.put(input, caller),
   )

@@ -27,7 +27,8 @@ export async function loadMemory() {
   useMemory.setState({ lines, claudeNotes, loaded: true })
 }
 
-export async function putLine(line: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }) {
+// A line added, edited, put back, or moved: its project is where it is kept (none: every chat)
+export async function putLine(line: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string; project?: string }) {
   useMemory.setState({ lines: await rpc.memory.put(line) })
 }
 

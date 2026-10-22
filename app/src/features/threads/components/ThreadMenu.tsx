@@ -1,6 +1,7 @@
 import { t } from "@lingui/core/macro"
 import type { Project, ThreadRead } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
+import { projectChoices } from "@/features/projects/store"
 import { shown } from "../lib"
 import { deleteThread, moveThread } from "../store"
 import { useNavigate } from "react-router-dom"
@@ -39,11 +40,4 @@ export function useThreadMenu(c: ThreadRead | undefined, projects: Project[], op
       },
     ],
   ]
-}
-
-// The projects as the menu lists them: by name, a name two projects share given as each one's path instead,
-// so every choice reads differently
-function projectChoices(projects: Project[]) {
-  const shared = new Set(projects.filter((p, i) => projects.findIndex((q) => q.name === p.name) !== i).map((p) => p.name))
-  return projects.map((project) => ({ project, label: shared.has(project.name) ? project.path : project.name })).sort((a, b) => a.label.localeCompare(b.label))
 }

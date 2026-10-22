@@ -260,6 +260,12 @@ export class Core {
       mcpEnded: (servers) => this.mcpEnded(servers),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],
+      projectsOf: async (chatId) => {
+        const ws = this.workspace
+        if (!ws) return { projects: [], chatProjects: [] }
+        const [projects, chatProjects] = await Promise.all([ws.projects.list(), ws.projects.projectsOf({ kind: "chat", id: chatId })])
+        return { projects, chatProjects }
+      },
       readFrom: async (chatId, since, answer) => {
         const ws = this.workspace
         if (!ws) return []

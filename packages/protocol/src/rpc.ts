@@ -10,7 +10,7 @@ import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./sear
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
-import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
+import type { ClaudeNote, MemoryKind, MemoryLine, MemoryScope } from "./memory.ts"
 import type { Project } from "./projects.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
@@ -360,13 +360,16 @@ export interface Methods {
   // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
   "memory.list": { params: void; result: { lines: MemoryLine[]; claudeNotes: ClaudeNote[] } }
   // An agent's change (owlit-mcp's memory_write), absent changeId when nothing changed. Errors are said
-  // to the agent.
+  // to the agent. noProject: the line was to be kept for the chat's project, and the chat is in none.
   "memory.write": {
-    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string; toolCallId?: string }
-    result: { line: MemoryLine | null; before: MemoryLine | null; changeId?: string }
+    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; scope?: MemoryScope; chatId?: string; toolCallId?: string }
+    result: { line: MemoryLine | null; before: MemoryLine | null; changeId?: string; noProject?: true }
   }
-  // The user's change from Settings: a new line (no id), an edit, or a removed line put back (its id)
-  "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }; result: MemoryLine[] }
+  // The lines kept for one project, by its marked folder's path (owlit-mcp's memory_read)
+  "memory.read": { params: { project: string }; result: { lines: MemoryLine[] } }
+  // The user's change from Settings: a new line (no id), an edit, a line moved to a project or to the
+  // workspace (project absent), or a removed line put back (its id)
+  "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string; project?: string }; result: MemoryLine[] }
   "memory.remove": { params: { id: string }; result: MemoryLine[] }
   // Copies the chosen Claude Code notes in (as the user edited them) and drops the rest, so none is
   // offered again

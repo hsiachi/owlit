@@ -1626,6 +1626,16 @@ msgstr "Removed"
 msgid "Added"
 msgstr "Added"
 
+#. a line the agent changed in what it keeps in mind, kept for one project (its name)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Updated, for {project}"
+msgstr "Updated, for {project}"
+
+#. a line the agent now keeps in mind for one project (its name)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered for {project}"
+msgstr "Remembered for {project}"
+
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{docs, plural, one {edited a doc} other {edited # docs}}"
 msgstr "{docs, plural, one {edited a doc} other {edited # docs}}"
@@ -2302,6 +2312,10 @@ msgid "{n, plural, one {kept something in mind} other {changed what it keeps in 
 msgstr "{n, plural, one {kept something in mind} other {changed what it keeps in mind # times}}"
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read what it keeps in mind for another project} other {read what it keeps in mind for other projects # times}}"
+msgstr "{n, plural, one {read what it keeps in mind for another project} other {read what it keeps in mind for other projects # times}}"
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {moved a doc} other {moved # docs}}"
 msgstr "{n, plural, one {moved a doc} other {moved # docs}}"
 
@@ -2592,6 +2606,15 @@ msgstr "Keep something in mind"
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Kept something in mind"
 msgstr "Kept something in mind"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read what it keeps in mind for another project"
+msgstr "Read what it keeps in mind for another project"
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read what it keeps in mind for another project"
+msgstr "Read what it keeps in mind for another project"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your chats"
@@ -5829,6 +5852,23 @@ msgstr "e.g. I'm writing my thesis on proactive agents"
 msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 msgstr "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 
+#. after a thread's title: the folder path the thread was filed under is no project now (its project.md is gone)
+#. over lines Owlit keeps in mind for a folder path that is no project now (its project.md is gone)
+#: app/src/features/settings/sections/Memory.tsx
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "{was} · no project here any more"
+msgstr "{was} · no project here any more"
+
+#. a group of lines Owlit keeps in mind that every chat hears, not only one project's
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Every chat"
+msgstr "Every chat"
+
+#. verb: choose which chats hear a line Owlit keeps in mind: every chat, or one project's
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep for…"
+msgstr "Keep for…"
+
 #: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr "A line Owlit keeps in mind"
@@ -6560,11 +6600,6 @@ msgstr "Ask Owlit to find papers on a question; the thread appears here."
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "Found nothing"
-
-#. after a thread's title: the folder path the thread was filed under is no project now (its project.md is gone)
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "{was} · no project here any more"
-msgstr "{was} · no project here any more"
 
 #: app/src/features/threads/store.ts
 msgid "Moved to {name}"

@@ -12,6 +12,7 @@ import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
 import { paperById, useLibraryStore } from "@/features/library/store"
+import { projectAt, useProjects } from "@/features/projects/store"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { manageMemory } from "@/features/settings/memory"
 import { useThreadsStore } from "@/features/threads/store"
@@ -134,6 +135,7 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   const messages = useChatStore((s) => s.chats[chatId]?.messages) ?? EMPTY_MESSAGES
   const library = useLibraryStore((s) => s.papers)
   const threads = useThreadsStore((s) => s.threads)
+  const projects = useProjects()
   const entries = useMemo(() => replyEntries(all, messages, message.id), [all, messages, message.id])
   const stats = statsCache((s) => s.byKey)
   const byKind = (kind: Change["target"]["kind"]) => {
@@ -261,7 +263,10 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
   for (const c of entries.filter((c) => c.target.kind === "memory")) {
     const removed = c.action === "delete"
-    const name = ((c.after ?? c.before) as MemoryLine | undefined)?.text ?? ""
+    const line = (c.after ?? c.before) as MemoryLine | undefined
+    const name = line?.text ?? ""
+    // A line kept for a project says which, so a wrong scope shows where it can be undone
+    const project = !removed && line?.project ? projectAt(projects, line.project)?.name : undefined
     rows.push({
       key: `memory:${c.id}`,
       kind: "memory",
@@ -270,8 +275,12 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
       detail: removed
         ? t({ message: "Removed", comment: "a line the agent took out of what it keeps in mind" })
         : c.action === "update"
-          ? t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
-          : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
+          ? project
+            ? t({ message: `Updated, for ${project}`, comment: "a line the agent changed in what it keeps in mind, kept for one project (its name)" })
+            : t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
+          : project
+            ? t({ message: `Remembered for ${project}`, comment: "a line the agent now keeps in mind for one project (its name)" })
+            : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
       ...of([c], name),
       view: () => manageMemory(true),
       removed,

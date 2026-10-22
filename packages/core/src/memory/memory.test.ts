@@ -1,4 +1,4 @@
-import { MEMORY_MAX_LINES, type Change, type MemoryLine } from "@owlit/protocol"
+import { MEMORY_MAX_LINES, type Change, type MemoryLine, type Project } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -7,13 +7,15 @@ import { ChangeLog } from "../changes/log.ts"
 import { Recorder } from "../changes/record.ts"
 import { claudeNoteOf, formatMemory, Memory, parseMemory } from "./memory.ts"
 
-function setUp() {
+// chatProjects: the projects each chat is in, by its id, as Projects.projectsOf answers
+function setUp(chatProjects: Record<string, string[]> = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "owlit-memory-"))
   const owlit = path.join(root, ".owlit")
   mkdirSync(owlit)
   const changes = new ChangeLog(owlit)
   const heard: MemoryLine[][] = []
-  const memory = new Memory(owlit, root, new Recorder(changes, { profile: async () => ({ id: "1234abcd" }) }), (lines) => heard.push(lines))
+  const projectsOfChat = async (chatId: string): Promise<Project[]> => (chatProjects[chatId] ?? []).map((p) => ({ path: p, mark: `${p}/project.md`, name: p, parents: [], currentDrafts: [] }))
+  const memory = new Memory(owlit, root, new Recorder(changes, { profile: async () => ({ id: "1234abcd" }) }), (lines) => heard.push(lines), { projectsOfChat })
   return { root, owlit, changes, memory, heard, file: path.join(owlit, "memory.md") }
 }
 
@@ -86,6 +88,56 @@ describe("Memory", () => {
     await expect(memory.agentWrite({ op: "add", kind: "work", text: "x".repeat(400) }, chat("c1"))).rejects.toThrow(/one short sentence/)
     for (let i = 0; i < MEMORY_MAX_LINES; i++) await memory.put({ kind: "about", text: `Fact ${i}` }, window)
     await expect(memory.agentWrite({ op: "add", kind: "about", text: "One more" }, chat("c1"))).rejects.toThrow(/full/)
+  })
+
+  it("keeps a line's project as the comment's last part, and a hand-written bullet as the workspace's", () => {
+    const lines: MemoryLine[] = [
+      { id: "m1", kind: "work", text: "Cite as (Author, Year).", at: Date.parse("2026-10-16T12:00:00") },
+      { id: "m5", kind: "about", text: "Scope is the home-care study only.", at: Date.parse("2026-10-22T12:00:00"), chatId: "8f2c", project: "Work/Proactive · 2026" },
+    ]
+    const text = formatMemory(lines)
+    expect(text).toContain("- Scope is the home-care study only. <!-- m5 · 2026-10-22 · chat 8f2c · project Work/Proactive · 2026 -->")
+    expect(text.match(/^## /gm)).toHaveLength(2)
+    expect(parseMemory(text)).toEqual(lines)
+    expect(parseMemory("## About your work\n- By hand.\n")[0]!.project).toBeUndefined()
+    // A work line is the workspace's, whatever its comment says
+    expect(parseMemory("## How you like Owlit to work\n- Short. <!-- m1 · project P -->\n")[0]!.project).toBeUndefined()
+  })
+
+  it("keeps an agent's line for its chat's first project, the workspace's when asked or when the chat is in none", async () => {
+    const { memory } = setUp({ c1: ["Work/Proactive", "ADHD"] })
+    const kept = await memory.agentWrite({ op: "add", kind: "about", text: "Scope is home care.", scope: "project" }, chat("c1"))
+    expect(kept.line).toMatchObject({ id: "m1", project: "Work/Proactive" })
+    expect(kept.noProject).toBeUndefined()
+    const loose = await memory.agentWrite({ op: "add", kind: "about", text: "Due in May.", scope: "project" }, chat("c2"))
+    expect(loose.line!.project).toBeUndefined()
+    expect(loose.noProject).toBe(true)
+    expect((await memory.agentWrite({ op: "add", kind: "about", text: "I'm in HCI.", scope: "workspace" }, chat("c1"))).line!.project).toBeUndefined()
+    expect((await memory.agentWrite({ op: "add", kind: "work", text: "Be brief.", scope: "project" }, chat("c1"))).line!.project).toBeUndefined()
+    // A replace without a scope stays where it was; with one it moves; made a work line it leaves its project
+    expect((await memory.agentWrite({ op: "replace", id: "m1", text: "Scope is home care, 2025 only." }, chat("c3"))).line!.project).toBe("Work/Proactive")
+    expect((await memory.agentWrite({ op: "replace", id: "m1", text: "Scope is home care.", scope: "workspace" }, chat("c1"))).line!.project).toBeUndefined()
+    expect((await memory.agentWrite({ op: "replace", id: "m1", text: "Scope is home care.", scope: "project" }, chat("c1"))).line!.project).toBe("Work/Proactive")
+    expect((await memory.agentWrite({ op: "replace", id: "m1", text: "Scope is home care.", kind: "work" }, chat("c1"))).line!.project).toBeUndefined()
+    await memory.agentWrite({ op: "replace", id: "m1", text: "Scope is home care.", kind: "about", scope: "project" }, chat("c1"))
+    expect((await memory.read("/Work/Proactive/")).map((l) => l.id)).toEqual(["m1"])
+    expect(await memory.read("Work")).toEqual([])
+  })
+
+  it("moves a line between projects for the person, recorded, the line still its chat's", async () => {
+    const { memory, changes } = setUp({ c1: ["Work/Proactive"] })
+    await memory.agentWrite({ op: "add", kind: "about", text: "Scope is home care.", scope: "project" }, chat("c1"))
+    const [line] = await memory.list()
+    await memory.put({ ...line!, project: "ADHD" }, window)
+    expect((await memory.list())[0]).toMatchObject({ id: "m1", text: "Scope is home care.", chatId: "c1", project: "ADHD" })
+    const { project: _p, ...everywhere } = (await memory.list())[0]!
+    await memory.put(everywhere, window)
+    expect((await memory.list())[0]!.project).toBeUndefined()
+    const moves = (await changes.list({ target: { kind: "memory" } })).reverse().slice(1)
+    expect(moves.map((c) => [c.action, (c.before as MemoryLine).project ?? null, (c.after as MemoryLine).project ?? null])).toEqual([
+      ["update", "Work/Proactive", "ADHD"],
+      ["update", "ADHD", null],
+    ])
   })
 
   it("puts a removed line back where Settings undoes it, under its own id", async () => {

@@ -54,6 +54,8 @@ function owlitToolWords(tool: string): ToolWords | undefined {
       return { now: t`Move a doc`, done: t`Moved a doc` }
     case "memory_write":
       return { now: t`Keep something in mind`, done: t`Kept something in mind` }
+    case "memory_read":
+      return { now: t`Read what it keeps in mind for another project`, done: t({ message: "Read what it keeps in mind for another project", context: "a step that ran" }) }
     case "chats_list":
       return { now: t`List your chats`, done: t`Listed your chats` }
     case "chats_read":

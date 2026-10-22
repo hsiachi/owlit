@@ -180,7 +180,9 @@ export class Workspace {
       await this.recorder.doc(caller, at, null, after, { origin: { writeId } }, { quiet: true })
     }
     this.chats = new Chats(path.join(root, OWLIT_DIR))
-    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged)
+    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged, {
+      projectsOfChat: (chatId) => this.projects.projectsOf({ kind: "chat", id: chatId }),
+    })
     this.library = new Library(root, dataDir, {
       ...(options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) }),
       person: () => this.recorder.actorOf(WINDOW),
