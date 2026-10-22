@@ -16,8 +16,10 @@ function loadSharp() {
 }
 // The feather, in its own units
 export const FEATHER = "M 53 225 C 55 167 85 93 136 58 C 164 39 199 32 211 45 C 228 64 191 96 155 111 C 128 122 107 137 91 154 C 108 140 126 128 146 124 C 171 117 176 128 159 145 C 146 158 124 164 111 169 C 134 163 143 177 125 190 C 114 198 101 201 91 201"
-// Forest tile, warm-white feather, two green bars under the lower curls (a highlighted passage).
-export const OWLIT = { top: "#30684d", bottom: "#264f3d", feather: "#f6f5f0", bars: "#70b388", shadow: 0.4, edgeOp: 0.1, lineOp: 0.06 }
+// Green tile, white feather, two light green bars under the lower curls (a highlighted passage). The tile
+// spans the extension's green (#008b4e in apps/extension/scripts/icons.mjs) a step either way, so the two
+// read as one app; change one with the other.
+export const OWLIT = { top: "#0c9a58", bottom: "#007a43", feather: "#ffffff", bars: "#5fd393", shadow: 0.35, edgeOp: 0.1, lineOp: 0.06 }
 // The same drawing on a graphite tile, for Owlit Dev, so a preview never passes for the Owlit you use.
 export const DEV = { ...OWLIT, top: "#43464b", bottom: "#2a2c30", bars: "#7d8188" }
 const BARS = [[106, 127, 96, 30], [106, 171, 74, 28]]

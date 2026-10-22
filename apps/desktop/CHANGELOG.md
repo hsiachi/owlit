@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The app icon is a brighter green with a white feather, the same green as the browser extension's button.
 - Owlit says it read a paper in full only when it could have: a long paper asked for whole now comes from its start as far as one tool result holds, says which pages are left, and counts as those pages until Owlit reads the rest; a paper read to its end in runs counts as the full text.
 - A digest's Details are written as paragraphs again, each opening with what that part of the paper claims, with lists kept for short items; every paragraph says in words whether a statement is the paper's own measurement, something it cites, something its authors argue, or Owlit's inference; and the note uses its length rather than stopping at half of it. Digests written before this are marked as written another way, and the paper page offers to rewrite them.
 - Owlit's marks in a doc no longer leave gaps in the text: a passage's Undo floats at its end, one at a time, while the pointer is near it (or Tab reaches it). The line above the marks says they clear when you leave the doc, and Clear marks clears them now, keeping the edits; the chat's Undo and Versions still take them back.
