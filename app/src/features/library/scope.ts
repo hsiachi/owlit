@@ -97,15 +97,8 @@ export function useScopePapers() {
   }, [])
   const current = !!scope && answer.path !== null && projectKey(answer.path) === projectKey(scope.project) ? answer.cited : null
   return useMemo(() => {
-    if (!scope) return { scope, ids: null, byId: null, loading: false, all: 0 }
-    const list: CitedPaper[] = current ? (scope.drafts ? current.drafts : current.all) : []
-    return {
-      scope,
-      ids: new Set(list.map((p) => p.id)),
-      byId: new Map(list.map((p) => [p.id, p])),
-      loading: !current,
-      // How many papers the step to everything it cites would show
-      all: current?.all.length ?? 0,
-    }
+    if (!scope) return { scope, ids: null, byId: null, loading: false }
+    const list: CitedPaper[] = current?.papers ?? []
+    return { scope, ids: new Set(list.map((p) => p.id)), byId: new Map(list.map((p) => [p.id, p])), loading: !current }
   }, [scope, current])
 }

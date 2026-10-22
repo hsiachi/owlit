@@ -11,12 +11,11 @@ export type StatusFilter = "all" | "starred" | "unread" | "reading" | "read" | "
 // thread: grouped by the thread a paper came from, newest added first in each
 export type SortKey = "addedAt" | "title" | "authors" | "year" | "venue" | "citations" | "thread"
 
-// A project's papers: those its current drafts cite (drafts), or those any doc under it cites. A filter
-// over the one list, never a place papers are filed: a paper cited under two projects shows in both.
+// A project's papers: those any doc under it cites. A filter over the one list, never a place papers are
+// filed: a paper cited under two projects shows in both.
 export interface Scope {
   // The marked folder's path
   project: string
-  drafts: boolean
 }
 
 export interface Sort {

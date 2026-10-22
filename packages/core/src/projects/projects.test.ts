@@ -8,7 +8,7 @@ import { Http } from "../net/http.ts"
 import type { Caller } from "../rpc/index.ts"
 import { eventually, knownProfile } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
-import { draftKind, parseMark, Projects, type ProjectsServices } from "./projects.ts"
+import { parseMark, Projects, type ProjectsServices } from "./projects.ts"
 
 // A workspace as Projects sees it: paths with their text (marks) and mtime
 type Files = Record<string, { text?: string; at?: number }>
@@ -112,12 +112,7 @@ describe("projects", () => {
 
 describe("parseMark", () => {
   it("reads the name and the lines at the top", () => {
-    expect(parseMark("# Proactive Support\nstatus: Active\ndue: 2026-11-15\ncurrent: drafts/story-v3.md\n\nWhat this is about.\n")).toEqual({
-      name: "Proactive Support",
-      status: "active",
-      due: "2026-11-15",
-      current: "drafts/story-v3.md",
-    })
+    expect(parseMark("# Proactive Support\nstatus: Active\ndue: 2026-11-15\n\nWhat this is about.\n")).toEqual({ name: "Proactive Support", status: "active", due: "2026-11-15" })
   })
 
   it("stops at the first line of prose, so the notes below change nothing", () => {
@@ -126,71 +121,32 @@ describe("parseMark", () => {
   })
 
   it("takes the lines from front matter too, and leaves out values it can't read", () => {
-    expect(parseMark("---\ntitle: x\nstatus: done\n---\n# P\ndue: soon\nstatus: paused\ncurrent: `paper.md`\n")).toEqual({ name: "P", status: "done", current: "paper.md" })
+    expect(parseMark("---\ntitle: x\nstatus: done\n---\n# P\ndue: soon\nstatus: paused\n")).toEqual({ name: "P", status: "done" })
   })
 })
 
-describe("draftKind", () => {
-  it("is the name without its version and what follows it", () => {
-    expect(draftKind("P/研究故事-v2-Dataset.md")).toBe("研究故事")
-    expect(draftKind("P/研究故事-v3-委托提醒.md")).toBe("研究故事")
-    expect(draftKind("Paper v2.md")).toBe("Paper")
-    expect(draftKind("Paper (v3).md")).toBe("Paper")
-    expect(draftKind("Paper（v3）.md")).toBe("Paper")
-    expect(draftKind("notes_V10.md")).toBe("notes")
-    expect(draftKind("Draft v2.1.md")).toBe("Draft")
-    expect(draftKind("Paper.md")).toBe("Paper")
-  })
-
-  it("keeps a v inside a word, and a name that starts with its version", () => {
-    expect(draftKind("Inventory.md")).toBe("Inventory")
-    expect(draftKind("Review v2x.md")).toBe("Review v2x")
-    expect(draftKind("v2 notes.md")).toBe("v2 notes")
-  })
-})
-
-describe("current drafts", () => {
-  it("are the newest doc of each kind, outside Archive and nested projects", async () => {
+describe("a project's newest doc", () => {
+  it("is its newest Markdown doc by mtime, the mark and nested projects' docs left out", async () => {
     const projects = projectsOver({
       "P/project.md": { at: 99 },
       "P/研究故事-v2-Dataset.md": { at: 1 },
-      "P/drafts/研究故事-v3-委托提醒.md": { at: 2 },
       "P/archive/研究故事-v4.md": { at: 9 },
-      "P/Old/Archive/Plan.md": { at: 9 },
       "P/Plan.md": { at: 3 },
-      "P/figure.png": { at: 9 },
+      "P/figure.png": { at: 20 },
       "P/Sub/project.md": { at: 1 },
-      "P/Sub/Plan v2.md": { at: 8 },
+      "P/Sub/Plan v2.md": { at: 10 },
+      "Q/project.md": { at: 5 },
     })
-    const [p, sub] = await projects.list()
-    expect(p.currentDrafts).toEqual([
-      { kind: "Plan", path: "P/Plan.md", modifiedAt: 3 },
-      { kind: "研究故事", path: "P/drafts/研究故事-v3-委托提醒.md", modifiedAt: 2 },
-    ])
-    expect(sub.currentDrafts).toEqual([{ kind: "Plan", path: "P/Sub/Plan v2.md", modifiedAt: 8 }])
+    const [p, sub, q] = await projects.list()
+    // A doc filed in an Archive folder is still the project's
+    expect(p.lastDoc).toEqual({ path: "P/archive/研究故事-v4.md", modifiedAt: 9 })
+    expect(sub.lastDoc).toEqual({ path: "P/Sub/Plan v2.md", modifiedAt: 10 })
+    expect(q).not.toHaveProperty("lastDoc")
   })
 
-  it("take the doc the mark's current: line names, relative to the project's folder, for its kind", async () => {
-    const projects = projectsOver({
-      "P/project.md": { text: "# P\ncurrent: ./研究故事-v2-Dataset.md" },
-      "P/研究故事-v2-Dataset.md": { at: 1 },
-      "P/研究故事-v3.md": { at: 2 },
-      "P/Plan.md": { at: 3 },
-    })
-    const [p] = await projects.list()
-    expect(p.current).toBe("P/研究故事-v2-Dataset.md")
-    expect(p.currentDrafts).toEqual([
-      { kind: "Plan", path: "P/Plan.md", modifiedAt: 3 },
-      { kind: "研究故事", path: "P/研究故事-v2-Dataset.md", modifiedAt: 1, byMark: true },
-    ])
-  })
-
-  it("leave out a current: line that leads out of the folder or to nothing", async () => {
-    const out = projectsOver({ "P/project.md": { text: "current: ../Q/a.md" }, "Q/a.md": {}, "P/a.md": { at: 1 } })
-    expect((await out.list())[0]).not.toHaveProperty("current")
-    expect((await out.list())[0].currentDrafts).toEqual([{ kind: "a", path: "P/a.md", modifiedAt: 1 }])
-    const missing = projectsOver({ "P/project.md": { text: "current: gone.md" }, "P/a.md": { at: 1 } })
-    expect((await missing.list())[0]).toMatchObject({ current: "P/gone.md", currentDrafts: [{ kind: "a", path: "P/a.md", modifiedAt: 1 }] })
+  it("goes by path between two docs of the same mtime, whatever order the files come in", async () => {
+    const projects = projectsOver({ "P/project.md": {}, "P/b.md": { at: 4 }, "P/a.md": { at: 4 } })
+    expect((await projects.list())[0].lastDoc).toEqual({ path: "P/a.md", modifiedAt: 4 })
   })
 })
 
@@ -300,9 +256,9 @@ describe("projects in a workspace", () => {
     await ws.chats.appendMessage("c1", message({ context: [docMention("Paper/draft.md")] }))
     await ws.recorder.doc({ kind: "socket", chatId: "c1" }, "Talk/slides.md", null, "# Slides")
     expect(paths(await ws.projects.projectsOf({ kind: "chat", id: "c1" }))).toEqual(["Paper", "Talk"])
-    expect((await ws.projects.list()).map((p) => [p.path, p.name, p.currentDrafts.map((d) => d.path)])).toEqual([
-      ["Paper", "Paper", ["Paper/draft.md"]],
-      ["Talk", "Talk", []],
+    expect((await ws.projects.list()).map((p) => [p.path, p.name, p.lastDoc?.path])).toEqual([
+      ["Paper", "Paper", "Paper/draft.md"],
+      ["Talk", "Talk", undefined],
     ])
   })
 

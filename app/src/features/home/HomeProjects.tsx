@@ -51,7 +51,7 @@ const useDocTo = () => {
 }
 
 // The doc a group starts with, as Home's places have it; one the person never wrote in through owlit's
-// editor (edits from before the change log, the newest draft by someone else) isn't among them, and is
+// editor (edits from before the change log, the newest doc by someone else) isn't among them, and is
 // drawn the same way from its file
 function lastWorkedPlace(lastWorked: NonNullable<ProjectSummary["lastWorked"]>, places: Place[], file: WorkspaceFile | undefined): Place | undefined {
   const known = places.find((p) => p.kind === "doc" && p.id === lastWorked.path)
@@ -66,7 +66,7 @@ function lastWorkedPlace(lastWorked: NonNullable<ProjectSummary["lastWorked"]>, 
     at: lastWorked.at,
     to: `/docs/${file.id}`,
     words: file.content ? lastParagraph(file.content) : undefined,
-    did: lastWorked.draft ? null : lastWorked.by === "owlit" ? "owlit-edited" : "edited",
+    did: lastWorked.byTime ? null : lastWorked.by === "owlit" ? "owlit-edited" : "edited",
   }
 }
 
@@ -136,26 +136,26 @@ function ProjectGroup({ project, places }: { project: ProjectSummary; places: Pl
 // The question "Where did I stop?" starts a chat with; the person sends it as it is or adds to it
 const whereDidIStop = (name: string) =>
   t({
-    message: `Where did I stop in ${name}? Look at what I did there lately and at its current drafts, and tell me where I left off.`,
+    message: `Where did I stop in ${name}? Look at what I did there lately and at its docs, and tell me where I left off.`,
     comment: "the question Home's “Where did I stop?” puts in a new chat; name is the folder's project name",
   })
 
-// What waits on the person in the group's current drafts, in one sentence whose counts each lead to it
+// What waits on the person in the group's docs, in one sentence whose counts each lead to it
 function WaitsRow({ project, waits, docTo }: { project: string; waits: ProjectSummary["waits"]; docTo: (path: string | undefined) => string | undefined }) {
   const navigate = useNavigate()
   const parts: { key: string; words: string; open: () => void }[] = []
   const commentsTo = docTo(waits.commentsIn)
   const proposalsTo = docTo(waits.proposalsIn)
   const { comments, proposals, noPdf } = waits
-  if (comments && commentsTo) parts.push({ key: "comments", words: plural(comments, { one: "# comment on the current drafts", other: "# comments on the current drafts" }), open: () => navigate(commentsTo) })
+  if (comments && commentsTo) parts.push({ key: "comments", words: plural(comments, { one: "# comment in its docs", other: "# comments in its docs" }), open: () => navigate(commentsTo) })
   if (proposals && proposalsTo) parts.push({ key: "proposals", words: plural(proposals, { one: "# edit by Owlit", other: "# edits by Owlit" }), open: () => navigate(proposalsTo) })
   if (noPdf)
     parts.push({
       key: "pdf",
       words: plural(noPdf, { one: "# paper without a PDF", other: "# papers without a PDF" }),
       open: () => {
-        // The papers the count is of: the Library scoped to what the project's current drafts cite
-        useLibraryUi.getState().setScope({ project, drafts: true })
+        // The papers the count is of: the Library scoped to what the project's docs cite
+        useLibraryUi.getState().setScope({ project })
         useLibraryUi.getState().setFilter("no-pdf")
         navigate("/library")
       },

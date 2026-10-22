@@ -12,7 +12,7 @@ import { BulkBar } from "../components/BulkBar"
 import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
 import { GetAllLine } from "../components/GetAllLine"
 import { ImportBanner } from "../components/ImportBanner"
-import { CountingLine, FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, ScopeControls, SortMenu } from "../components/LibraryHeader"
+import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, ScopeControls, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
 import { RecentlyRemoved } from "../components/RecentlyRemoved"
 import { addPdfFiles } from "../lib/add-pdfs"
@@ -115,7 +115,6 @@ export function LibraryPage() {
             )
           }
         />
-        {!empty && <CountingLine />}
         <ImportBanner />
         <ExtensionWaitLines />
         <LibraryFindField onSubmit={submit} onPickFiles={(files) => addPdfFiles(files, actions.open)} />
@@ -135,7 +134,7 @@ export function LibraryPage() {
               {scoped.loading ? null : noMatch ? (
                 <NoMatch words={words} onAsk={askOwlit} />
               ) : visible.length === 0 && scope && !narrowed ? (
-                <ScopeEmpty scope={scope} everything={scoped.all} />
+                <ScopeEmpty scope={scope} />
               ) : visible.length === 0 ? (
                 <p className="py-16 text-center text-sm text-muted-foreground">{t`No papers match.`}</p>
               ) : table ? (
@@ -155,27 +154,15 @@ export function LibraryPage() {
   )
 }
 
-// A project whose drafts, or whose docs, cite none of the Library's papers. From the drafts, the step to
-// everything it cites, when its other docs cite something.
-function ScopeEmpty({ scope, everything }: { scope: Scope; everything: number }) {
-  const setScope = useLibraryUi((s) => s.setScope)
+// A project none of whose docs cite a paper of the Library
+function ScopeEmpty({ scope }: { scope: Scope }) {
   const name = projectAt(useProjects(), scope.project)?.name ?? scope.project
   return (
     <EmptyPlace
-      title={
-        scope.drafts
-          ? t({ message: `No papers cited by the current drafts of ${name} yet`, comment: "Library scoped to a project whose newest docs cite no paper of the Library" })
-          : t({ message: `No papers cited in ${name} yet`, comment: "Library scoped to a project none of whose docs cite a paper of the Library" })
-      }
+      title={t({ message: `No doc of ${name} cites a paper yet`, comment: "Library scoped to a project none of whose docs cite a paper of the Library" })}
       detail={t`A paper is in a project once one of its docs cites it.`}
       className="py-16"
-    >
-      {scope.drafts && everything > 0 && (
-        <InlineLink className="text-sm" onClick={() => setScope({ ...scope, drafts: false })}>
-          {t({ message: `See everything it cites (${everything})`, comment: "Library, a project's drafts cite nothing: shows the papers any of its docs cite" })}
-        </InlineLink>
-      )}
-    </EmptyPlace>
+    />
   )
 }
 

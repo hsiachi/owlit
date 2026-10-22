@@ -6,13 +6,7 @@ import { Cited, sentenceAround, type CitedServices } from "./cited.ts"
 
 const link = (id: string, quote?: string) => `[${id} 2024](owlit://library/${id}${quote ? ` "${quote}"` : ""})`
 
-const project = (path: string, name: string, drafts: string[] = []): Project => ({
-  path,
-  mark: `${path}/project.md`,
-  name,
-  parents: [],
-  currentDrafts: drafts.map((d) => ({ kind: d, path: d, modifiedAt: 1 })),
-})
+const project = (path: string, name: string): Project => ({ path, mark: `${path}/project.md`, name, parents: [] })
 
 function setup(texts: Record<string, string>, over: Partial<Omit<CitedServices, "projects">> & { projects?: Project[] } = {}) {
   const mtimes: Record<string, number> = Object.fromEntries(Object.keys(texts).map((k) => [k, 1]))
@@ -43,26 +37,26 @@ describe("a project's cited papers", () => {
     "ADHD/draft.md": `Shared ${link("lee")} and ${link("kim")}; ${link("sub")}.`,
     "loose.md": `Outside ${link("kim")}.`,
   }
-  const projects = [project("ADHD", "ADHD Support", ["ADHD/draft.md"]), project("Proactive", "Proactive", ["Proactive/story-v3.md"]), project("Proactive/Study", "Study", ["Proactive/Study/plan.md"])]
+  const projects = [project("ADHD", "ADHD Support"), project("Proactive", "Proactive"), project("Proactive/Study", "Study")]
 
-  it("cites by the current drafts, and by every doc under it with its sub-projects'", async () => {
+  it("cites by every doc under it, its sub-projects' included", async () => {
     const { cited } = setup(texts, { projects })
-    const { drafts, all } = await cited.ofProject("Proactive")
-    expect(drafts.map((p) => p.id)).toEqual(["kim", "lee"])
-    expect(all.map((p) => p.id).sort()).toEqual(["kim", "lee", "old", "sub"])
-    // Under any id it goes by, drafts first
-    expect(all.find((p) => p.id === "kim")!.docs).toEqual(["Proactive/story-v3.md", "Proactive/story-v2.md"])
+    const { papers } = await cited.ofProject("Proactive")
+    expect(papers.map((p) => p.id).sort()).toEqual(["kim", "lee", "old", "sub"])
+    // Under any id it goes by, by path
+    expect(papers.find((p) => p.id === "kim")!.docs).toEqual(["Proactive/story-v2.md", "Proactive/story-v3.md"])
+    expect(papers.find((p) => p.id === "sub")!.docs).toEqual(["Proactive/story-v2.md", "Proactive/Study/plan.md"])
   })
 
   it("names the other projects citing a paper, not its own sub-projects nor a doc in no project", async () => {
     const { cited } = setup(texts, { projects })
-    const { all } = await cited.ofProject("Proactive")
-    const also = Object.fromEntries(all.map((p) => [p.id, p.also.map((a) => a.name)]))
+    const { papers } = await cited.ofProject("Proactive")
+    const also = Object.fromEntries(papers.map((p) => [p.id, p.also.map((a) => a.name)]))
     expect(also).toEqual({ kim: ["ADHD Support"], lee: ["ADHD Support"], old: [], sub: ["ADHD Support"] })
     // From the sub-project, its parent's docs are another project's
     const study = await cited.ofProject("Proactive/Study/")
-    expect(study.all.map((p) => [p.id, p.also.map((a) => a.path)])).toEqual([["sub", ["ADHD", "Proactive"]]])
-    expect(await cited.ofProject("Nowhere")).toEqual({ drafts: [], all: [] })
+    expect(study.papers.map((p) => [p.id, p.also.map((a) => a.path)])).toEqual([["sub", ["ADHD", "Proactive"]]])
+    expect(await cited.ofProject("Nowhere")).toEqual({ papers: [] })
   })
 
   it("gives the deepest Owlit read behind its own citations in the project's docs", async () => {
@@ -73,8 +67,8 @@ describe("a project's cited papers", () => {
       "ADHD/draft.md": new Map([[citationKey({ paperId: "lee" }), "full"]]),
     }
     const { cited } = setup(texts, { projects, owlitDepths: async (rel) => depths[rel] ?? new Map() })
-    const { all } = await cited.ofProject("Proactive")
-    expect(Object.fromEntries(all.map((p) => [p.id, p.depth ?? null]))).toEqual({ kim: "part", lee: null, old: null, sub: null })
+    const { papers } = await cited.ofProject("Proactive")
+    expect(Object.fromEntries(papers.map((p) => [p.id, p.depth ?? null]))).toEqual({ kim: "part", lee: null, old: null, sub: null })
   })
 
   it("reads a doc again only once it changed", async () => {
@@ -84,7 +78,7 @@ describe("a project's cited papers", () => {
     await cited.ofProject("Proactive")
     expect(reads.length).toBe(first)
     touch("Proactive/story-v3.md", `Now ${link("new")}.`)
-    expect((await cited.ofProject("Proactive")).drafts.map((p) => p.id)).toEqual(["new"])
+    expect((await cited.ofProject("Proactive")).papers.map((p) => p.id).sort()).toEqual(["kim", "new", "old", "sub"])
     expect(reads.slice(first)).toEqual(["Proactive/story-v3.md"])
   })
 })

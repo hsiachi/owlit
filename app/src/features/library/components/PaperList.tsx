@@ -92,14 +92,10 @@ function readings(paper: Paper, cited: CitedPaper) {
 }
 
 // "also cited in ADHD Support": the other projects citing a row's paper, each a step to that project's
-// scope, keeping whether its current drafts or everything it cites shows. bare: the names alone, under a
-// column that says the rest.
+// scope. bare: the names alone, under a column that says the rest.
 function AlsoCited({ cited, bare, className }: { cited: CitedPaper; bare?: boolean; className?: string }) {
   if (!cited.also.length) return null
-  const go = (project: string) => {
-    const ui = useLibraryUi.getState()
-    ui.setScope({ project, drafts: ui.scope?.drafts ?? true })
-  }
+  const go = (project: string) => useLibraryUi.getState().setScope({ project })
   const names = cited.also.map((p, i) => (
     <Fragment key={p.path}>
       {i > 0 && ", "}

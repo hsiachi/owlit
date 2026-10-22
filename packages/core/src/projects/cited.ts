@@ -41,31 +41,29 @@ export class Cited {
     this.services = services
   }
 
-  // The papers a marked folder cites; both lists empty for a path that is no project
+  // The papers a marked folder cites; none for a path that is no project
   async ofProject(path: string): Promise<ProjectCited> {
     const projects = await this.services.projects()
     const project = projects.find((p) => projectKey(p.path) === projectKey(path))
-    if (!project) return { drafts: [], all: [] }
+    if (!project) return { papers: [] }
     const marked = new Map(projects.map((p) => [p.path, p]))
     const nearest = (rel: string) => {
       for (let p = parentPath(rel); p; p = parentPath(p)) if (marked.has(p)) return marked.get(p)!
       return undefined
     }
-    const drafts = new Set(project.currentDrafts.map((d) => d.path))
     const canonical = this.canonicalOnce()
 
     const docs = await this.allDocs()
-    const papers = new Map<string, { docs: string[]; drafted: boolean; depth?: ReadFrom["depth"]; also: Map<string, string> }>()
+    const papers = new Map<string, { docs: string[]; depth?: ReadFrom["depth"]; also: Map<string, string> }>()
     for (const [rel, found] of docs) {
       if (!found.length || !isWithin(rel, project.path)) continue
       const depths = await this.services.owlitDepths(rel)
       for (const c of found) {
         const id = await canonical(c.paperId)
         if (!id) continue
-        const entry = papers.get(id) ?? { docs: [], drafted: false, also: new Map<string, string>() }
+        const entry = papers.get(id) ?? { docs: [], also: new Map<string, string>() }
         papers.set(id, entry)
         if (!entry.docs.includes(rel)) entry.docs.push(rel)
-        if (drafts.has(rel)) entry.drafted = true
         const depth = depths.get(c.key)
         if (depth) entry.depth = deeper(entry.depth, depth)
       }
@@ -81,20 +79,16 @@ export class Cited {
       }
     }
 
-    const all: CitedPaper[] = []
-    const fromDrafts: CitedPaper[] = []
+    const out: CitedPaper[] = []
     for (const [id, entry] of papers) {
-      const docs = [...entry.docs].sort((a, b) => Number(drafts.has(b)) - Number(drafts.has(a)) || a.localeCompare(b))
-      const paper: CitedPaper = {
+      out.push({
         id,
-        docs,
+        docs: [...entry.docs].sort((a, b) => a.localeCompare(b)),
         ...(entry.depth ? { depth: entry.depth } : {}),
         also: [...entry.also].map(([path, name]) => ({ path, name })).sort((a, b) => a.name.localeCompare(b.name)),
-      }
-      all.push(paper)
-      if (entry.drafted) fromDrafts.push(paper)
+      })
     }
-    return { drafts: fromDrafts, all }
+    return { papers: out }
   }
 
   // The docs citing a paper under any id it goes by, by path, each with the sentences that cite it

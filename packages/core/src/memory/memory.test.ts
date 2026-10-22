@@ -14,7 +14,7 @@ function setUp(chatProjects: Record<string, string[]> = {}) {
   mkdirSync(owlit)
   const changes = new ChangeLog(owlit)
   const heard: MemoryLine[][] = []
-  const projectsOfChat = async (chatId: string): Promise<Project[]> => (chatProjects[chatId] ?? []).map((p) => ({ path: p, mark: `${p}/project.md`, name: p, parents: [], currentDrafts: [] }))
+  const projectsOfChat = async (chatId: string): Promise<Project[]> => (chatProjects[chatId] ?? []).map((p) => ({ path: p, mark: `${p}/project.md`, name: p, parents: [] }))
   const memory = new Memory(owlit, root, new Recorder(changes, { profile: async () => ({ id: "1234abcd" }) }), (lines) => heard.push(lines), { projectsOfChat })
   return { root, owlit, changes, memory, heard, file: path.join(owlit, "memory.md") }
 }

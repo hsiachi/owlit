@@ -383,7 +383,7 @@ export interface Methods {
   "projects.ofChat": { params: { chatId: string }; result: { projects: Project[] } }
   // Each project as Home shows it, for the person at the window
   "projects.summary": { params: void; result: ProjectsSummary }
-  // The Library's papers a marked folder cites, by its current drafts and by any of its docs
+  // The Library's papers any doc under a marked folder cites
   "projects.cited": { params: { path: string }; result: ProjectCited }
 
   // ---- Library: the workspace's papers
@@ -581,8 +581,8 @@ export interface Notifications {
   "comments.removed": { path: string; id: string }
   // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
   "memory.changed": { lines: MemoryLine[] }
-  // What projects.list answers changed: a mark appeared, moved, went or was edited, or another doc became
-  // a project's current draft; the whole list as it is now
+  // What projects.list answers changed: a mark appeared, moved, went or was edited, or a project's newest
+  // doc changed; the whole list as it is now
   "projects.changed": { projects: Project[] }
   // A change was added to the log. label names what changed (a paper's title, a thread's title, a
   // memory line's text, a doc's name); thread: what an agent's write to a thread did, for its result row

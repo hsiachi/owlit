@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest"
 import { memoryHeard, memoryNote } from "./rules.ts"
 
 const noon = (day: string) => Date.parse(`${day}T12:00:00`)
-const project = (path: string, name: string, parents: string[] = [], draft?: string, day = "2026-10-20"): Project => ({
+const project = (path: string, name: string, parents: string[] = [], doc?: string, day = "2026-10-20"): Project => ({
   path,
   mark: `${path}/project.md`,
   name,
   parents,
-  currentDrafts: draft ? [{ kind: draft, path: `${path}/${draft}.md`, modifiedAt: noon(day) }] : [],
+  ...(doc ? { lastDoc: { path: `${path}/${doc}.md`, modifiedAt: noon(day) } } : {}),
 })
 
 const proactive = project("Work/Proactive", "Proactive Support", [], "研究故事-v3-委托提醒", "2026-10-21")

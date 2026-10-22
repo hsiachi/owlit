@@ -429,7 +429,7 @@ describe("Threads, a close question", () => {
 })
 
 describe("Threads, the project", () => {
-  const marked = (...paths: string[]) => async () => paths.map((p) => ({ path: p, mark: `${p}/project.md`, name: p.split("/").at(-1)!, parents: [], currentDrafts: [] }))
+  const marked = (...paths: string[]) => async () => paths.map((p) => ({ path: p, mark: `${p}/project.md`, name: p.split("/").at(-1)!, parents: [] }))
 
   it("keeps a marked folder's path as the projects spell it, and drops one that is no project, saying so", async () => {
     const { threads } = setup({ projects: marked("Research/主动提醒研究") })

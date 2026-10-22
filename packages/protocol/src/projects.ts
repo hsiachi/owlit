@@ -26,39 +26,24 @@ export interface Project {
   status?: ProjectStatus
   // As the mark writes it, YYYY-MM-DD
   due?: string
-  // The doc the mark's current: line names as the current draft of its kind (written relative to the
-  // project's folder), given here workspace-relative
-  current?: string
   // The marked folders above this one, nearest first: a nested project's lineage
   parents: string[]
-  // The current draft of each kind of doc in it (core's projects/projects.ts says what a kind is), newest
-  // first
-  currentDrafts: CurrentDraft[]
-}
-
-export interface CurrentDraft {
-  // The doc's name without its version: "研究故事" for 研究故事-v3-委托提醒.md
-  kind: string
-  // Workspace-relative
-  path: string
-  modifiedAt: number
-  // Named by the mark's current: line rather than being the newest of its kind
-  byMark?: true
+  // The newest doc in it by mtime (workspace-relative), the mark and docs of nested projects left out;
+  // absent while it has none
+  lastDoc?: { path: string; modifiedAt: number }
 }
 
 // projects.cited: the Library's papers a project cites, the papers being in it by reference only. Found in
 // the docs' text as it is on disk, so it agrees with the doc a link opens.
 export interface ProjectCited {
-  // Cited in the project's current drafts
-  drafts: CitedPaper[]
-  // Cited in any doc under the project, its sub-projects' included; drafts' papers among them
-  all: CitedPaper[]
+  // Cited in any doc under the project, its sub-projects' included
+  papers: CitedPaper[]
 }
 
 export interface CitedPaper {
   // The Library's id
   id: string
-  // The docs under the project citing it, its current drafts first
+  // The docs under the project citing it, by path
   docs: string[]
   // The deepest Owlit had read the paper for any of its citations in those docs that it wrote; absent
   // when none says
@@ -89,13 +74,13 @@ export interface ProjectSummary {
   // they typed: they edited one of its docs, wrote in a chat that is in it, or Owlit edited one of its docs
   // in a chat the person started.
   live: boolean
-  // The doc in it the person last edited or had Owlit edit (by: "owlit"), else its newest current draft
-  // (draft: at is then its mtime, whoever wrote it). A chat makes a project live but names no doc here.
-  lastWorked?: { path: string; at: number; draft?: true; by?: "owlit" }
+  // The doc in it the person last edited or had Owlit edit (by: "owlit"), else its newest doc (byTime: at
+  // is then its mtime, whoever wrote it). A chat makes a project live but names no doc here.
+  lastWorked?: { path: string; at: number; byTime?: true; by?: "owlit" }
   // When the person last worked on it, their chats in their latest sessions included; absent when never
   workedAt?: number
-  // On its current drafts: open comments, Owlit's changes the person hasn't had on screen, and the papers
-  // they cite that owlit tried and failed to get a PDF of; with the draft to open for the first two
+  // In its docs: open comments, Owlit's changes the person hasn't had on screen, and the papers they cite
+  // that owlit tried and failed to get a PDF of; with the newest doc holding each of the first two, to open
   waits: { comments: number; proposals: number; noPdf: number; commentsIn?: string; proposalsIn?: string }
   // How many of its docs someone else changed since the person last had them on screen, and the newest
   changed: number
