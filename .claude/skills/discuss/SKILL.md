@@ -19,6 +19,10 @@ line what each screen the request names shows today.
 2. **The Problem**, four parts, with data from hsiachi's workspace (`~/Desktop/Owlit`, read-only: the
    journal, the change log, the index; counts and dates, never a doc's or a chat's content; "no data"
    where there is none). One line per screen the request names. Not a restatement of the request.
+   **Then stop and check it with hsiachi** before any option exists: in the chat, the four parts in a
+   line or two each, the numbers behind them, and what you take the request to be asking, then wait.
+   Their corrections go into the Problem; repeat until they say it's right. A second opinion, a Proposal
+   or a page built on a misread problem has to be thrown away, and the first reading has been off.
 3. **A second opinion** (every bigger row; a piece when hsiachi asks). One `Agent` (model opus) gets the
    Problem section, `vision.md` and `decisions/`, and nothing of your leanings, and returns three
    directions with what each gives up. Save it as `second-opinion.md` in the folder. Run it before you

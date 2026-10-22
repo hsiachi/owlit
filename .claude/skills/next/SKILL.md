@@ -22,8 +22,10 @@ checkout: `git worktree list`, `git branch --no-merged dev`, `gh run list -b dev
    the brief carries only what the notes don't have (what hsiachi just said, a screenshot's path).
    - A fix: `start_session` (user_asked, fresh, worktree, model claude-opus-5-5) with the row, the
      evidence files it names, the files to touch, and "finish with /ship".
-   - A piece or bigger: `start_session` (user_asked, fresh, no worktree, model claude-opus-5-5, effort
-     medium) with "Run /discuss on <row id>: <row name>" and those one or two sentences.
+   - A piece or bigger: `start_session` (user_asked, fresh, no worktree, model claude-fable-5-1, effort
+     high: a discussion needs the deeper thinking) with "Run /discuss on <row id>: <row name>" and those one or two sentences.
+   - Right after either start: `detach_session` on the new session. This session's work ends here, and
+     a linked session would wake it after every turn it finishes.
    - Already in flight: `SendMessage` to the session that owns it, or continue it here if it has none.
 5. **Update the row's Status** in the Tasks table ("Discussing from <date>", "Building: session
    <name>") and the Open work table where a row exists.
