@@ -47,7 +47,7 @@ describe("the memory note", () => {
         "- [m1] Cite as (Author, Year).",
         "About their work, kept for the workspace:",
         "- [m2] I'm a PhD student in HCI.",
-        "- [m6] The old survey is paused. (kept for Old/Survey, which is no project any more)",
+        "- [m6] The old survey is paused. (kept for Old/Survey, which is not a project)",
         "This chat is in the project Chapter 2 (Work/Proactive/Ch2).",
         "About their work in Chapter 2 (Work/Proactive/Ch2):",
         "- [m4] Chapter 2 uses the 2025 interviews.",

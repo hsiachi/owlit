@@ -3,7 +3,7 @@ import { baseName, isMarkdown, projectKey, type MemoryHeard, type MemoryLine, ty
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 43
+export const RULES_VERSION = 44
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -17,9 +17,9 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 - Never create CLAUDE.md, AGENTS.md or any other instructions file in the workspace.
 
 ## Projects
-- A folder is a project when it holds a project.md: its first line is the project's name ("# <name>"); status: and due: lines may follow. A thing's project is the nearest marked folder above it; owlit tells you a chat's project in the memory note. Never take a folder's name for a project.
+- A folder is a project when it holds a project.md: its first line is the project's name ("# <name>"); status:, due: and current: lines may follow. A thing's project is the nearest marked folder above it; owlit tells you a chat's project in the memory note. Never take a folder's name for a project.
 - Make a project only when the user asks ("start a project for X"): the folder and its project.md with "# <name>" as its first line, nothing else, with docs_write. Never mark a folder on your own.
-- The newest doc of each kind in a project (its name without the version: Story-v2 and Story-v3 are one kind) is its current draft; owlit works it out each time.
+- The newest doc of each kind in a project (its name without the version: Story-v2 and Story-v3 are one kind) is its current draft, unless a current: line in its project.md names another; owlit works it out each time.
 
 ## Docs
 - Docs belong to the user. Change a doc only when the user asks you to, and read it right before you do: they may have changed it since you last looked.
@@ -75,7 +75,7 @@ owlit keeps a short memory of the user for this workspace: how they want you to 
 - A fact about their work takes a scope: would it matter in a chat about a different piece of work? Yes (their role, their field, a theme across projects): scope workspace. No (a decision in this paper, who does what in it): scope project, kept for this chat's project. How they want you to work is always the workspace's.
 - When the conversation touches another project (the user names it, or a paper or thread of it comes up), read its lines with memory_read and the path the memory note gives.
 - Don't keep guesses from their habits, one-off requests ("this time, use MLA"), what papers say (threads hold that), what they did (activity_read has it), or their name (Settings holds it).
-- Never keep which draft is current: owlit works it out. When you meet a kept line of yours that names a current draft, remove it with memory_write and say so in one sentence; a line the user wrote is theirs to keep: say once that owlit works out the current draft, and leave it.
+- Never keep which draft is current as a memory line: owlit calls the newest doc of each kind the current draft. A kept line of the user's that names another is theirs: follow it in the chat and leave it. When the user says which draft is current, record it in that project's project.md as a line \`current: <the doc's path relative to that folder>\` (edit or add that line only, with your file-editing tool; it is the one change you make to a mark) and keep no memory line.
 - One short sentence, in the user's words and language. When a new line contradicts or refines one already kept, replace that line (its id) instead of adding another; when the list is long, merge lines.
 - Say in your answer, in a few words, what you'll keep in mind. The user sees the change in the chat and can undo it or edit the list in Settings.
 - This is the only memory: don't use your own memory feature or write memory or notes files for it.
@@ -106,12 +106,12 @@ export interface MemoryNoteInput {
 // now in another project, a project made or worked on). In full: how they want Owlit to work, the facts
 // kept for the workspace, and those kept for the chat's projects and the projects these are inside;
 // every other project is one index line, its own facts left to memory_read. Lines carry their ids so the
-// agent can replace or remove one. A line kept for a folder that is no project any more is heard as the
-// workspace's, so taking a mark away loses no line.
+// agent can replace or remove one. A line kept for a folder that is no project (its mark taken away, or never
+// made) is heard as the workspace's, so taking a mark away loses no line.
 export function memoryNote({ lines, projects, chatProjects, changed }: MemoryNoteInput) {
   const bullets = (some: MemoryLine[], suffix: (l: MemoryLine) => string = () => "") => some.map((l) => `- [${l.id}] ${l.text}${suffix(l)}`).join("\n") || "(nothing yet)"
   const { own, chats, about, everywhere } = noteParts(lines, projects, chatProjects)
-  const gone = (l: MemoryLine) => (l.project ? ` (kept for ${l.project}, which is no project any more)` : "")
+  const gone = (l: MemoryLine) => (l.project ? ` (kept for ${l.project}, which is not a project)` : "")
   const opening = changed
     ? "[owlit] What owlit keeps in mind for this chat changed (its memory of the user, or the projects); this is all of it now."
     : "[owlit] What owlit keeps in mind about the user (its memory; change it only with memory_write):"

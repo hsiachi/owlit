@@ -532,11 +532,11 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
 }
 
 // A thread's project as the agent reads it: the project's name, with its path when the two differ; a path
-// whose mark has gone (the folder moved, or its project.md deleted) as that path, said to be no project
+// no mark covers as that path, said to be no project (a mark taken away and one never made look the same)
 export function projectWords(path: string, projects: Project[] | undefined): string {
   const project = projects?.find((p) => p.path === path)
   if (!projects || project?.name === path) return path
-  return project ? `${project.name} (${project.path})` : `${path} (no project here any more)`
+  return project ? `${project.name} (${project.path})` : `${path} (not a project)`
 }
 
 // A thread as the agent reads it: the question and later ones, the columns (a comparison with its

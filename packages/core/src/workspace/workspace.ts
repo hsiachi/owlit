@@ -16,7 +16,7 @@ import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings/store.ts"
 import { Memory } from "../memory/memory.ts"
 import { Cited } from "../projects/cited.ts"
-import { Projects } from "../projects/projects.ts"
+import { Projects, touchedBy } from "../projects/projects.ts"
 import { journalOf, summarize } from "../projects/summary.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, WINDOW } from "../rpc/index.ts"
@@ -292,6 +292,17 @@ export class Workspace {
           return here ? this.library.get(here) : undefined
         },
         unseen: async () => (await this.seen.unseen(me, { changes: await this.changes.list({ target: { kind: "doc" } }), chats: [], papers: [] })).changes,
+        changes: () => this.changes.list({ target: { kind: "doc" } }),
+        chatStartedBy: async (id) => {
+          const chat = await this.chats.summary(id)
+          return chat ? (chat.startedBy ? "owlit" : "person") : null
+        },
+        chatWork: async (id) => {
+          const chat = await this.chats.get(id).catch(() => null)
+          if (!chat) return { projects: [], docs: [] }
+          const [projects, changes] = await Promise.all([this.projects.projectsOf({ kind: "chat", id }), this.changes.list({ chatId: id })])
+          return { projects, docs: touchedBy(chat, changes).docs }
+        },
       },
       me,
     )

@@ -42,6 +42,12 @@ describe("docPlaces", () => {
     expect(by["d.md"]).toMatchObject({ did: "edited", at: 8 })
   })
 
+  it("leaves a project's mark out, written in the editor or by its menu", () => {
+    const files = [file("Paper/project.md", "# Paper"), file("Paper/Intro.md"), file("Other/PROJECT.md", "# Other")]
+    const places = docPlaces(files, [{ path: "Paper/project.md", at: 90, head: 0 }], newestFirst([change("Paper/Intro.md", ME, 20), change("Other/PROJECT.md", ME, 95, { action: "create" })]), ME)
+    expect(places.map((p) => p.id)).toEqual(["Paper/Intro.md"])
+  })
+
   it("quotes the paragraph the cursor was in when the trail has it", () => {
     const [place] = docPlaces([file("a.md", "One.\n\nTwo.\n\nThree.")], [{ path: "a.md", at: 5, head: 6 }], [], ME)
     expect(place!.words).toBe("Two.")

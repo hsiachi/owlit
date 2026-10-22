@@ -1,5 +1,7 @@
 import { t } from "@lingui/core/macro"
-import { useMemo, useRef } from "react"
+import { Trans } from "@lingui/react/macro"
+import { Fragment, useMemo, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { CheckIcon, ChevronDownIcon, ListIcon, PaperclipIcon, Table2Icon, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ChoiceMenu } from "@/components/choice-menu"
@@ -21,7 +23,10 @@ import { threadsByPaper } from "@/features/threads/lib"
 import { type Layout, usePrefsStore } from "../prefs-store"
 import { type SortKey, type StatusFilter, useLibraryUi } from "../ui-store"
 import { useScopePapers } from "../scope"
-import { projectChoices, useProjects } from "@/features/projects/store"
+import { projectAt, projectChoices, useProjects } from "@/features/projects/store"
+import { MentionToken } from "@/components/mention/mention-token"
+import { mentionRoute } from "@/features/docs/lib/mentions"
+import { displayName, docUri } from "@/features/docs/types"
 import { TagDot } from "./TagsEditor"
 
 // scope: what narrows the whole Library to a project's papers, beside the title it narrows
@@ -73,6 +78,57 @@ export function ScopeControls() {
         />
       )}
     </>
+  )
+}
+
+// How many drafts the counting line names before "+N more": two names fit beside each other at the
+// Library's narrowest width, Chinese ones too
+const DRAFTS_NAMED = 2
+
+// Under a project's "Current drafts", the drafts whose citations are the ones shown, each opening its doc:
+// the newest doc of each kind is a guess, and the person sees what it guessed
+export function CountingLine() {
+  const project = useLibraryUi((s) => s.scope?.project)
+  // Folded again whenever the scope moves to another project
+  return <Counting key={project ?? ""} />
+}
+
+function Counting() {
+  const navigate = useNavigate()
+  const projects = useProjects()
+  const scope = useLibraryUi((s) => s.scope)
+  const [all, setAll] = useState(false)
+  const drafts = (scope?.drafts && projectAt(projects, scope.project)?.currentDrafts) || []
+  if (!scope || !drafts.length) return null
+  const shown = all ? drafts : drafts.slice(0, DRAFTS_NAMED)
+  const more = drafts.length - shown.length
+  const comma = t({ message: ", ", context: "between things in a list" })
+  const names = (
+    <>
+      {shown.map((d, i) => (
+        <Fragment key={d.path}>
+          {i > 0 && comma}
+          <MentionToken label={displayName(d.path)} title={d.path} className="max-w-56" onClick={() => navigate(mentionRoute(docUri(d.path)) ?? "/docs")} />
+        </Fragment>
+      ))}
+      {more > 0 && (
+        <>
+          {comma}
+          <button
+            type="button"
+            onClick={() => setAll(true)}
+            className="rounded-sm outline-none hover:text-foreground focus-key:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
+          >
+            {t({ message: `+${more} more`, context: "drafts", comment: "Library, a project's current drafts: names the rest of the drafts counted, in place" })}
+          </button>
+        </>
+      )}
+    </>
+  )
+  return (
+    <p className={cn("mt-1.5 min-w-0 px-0.5 text-detail text-muted-foreground", !all && "truncate")}>
+      <Trans comment="Library, a project's current drafts: before the drafts whose citations are shown">Counting {names}</Trans>
+    </p>
   )
 }
 

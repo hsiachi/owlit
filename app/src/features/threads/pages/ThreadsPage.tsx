@@ -79,7 +79,7 @@ export function ThreadsPage() {
   )
 }
 
-// was: the project path the thread names, which is no project any more; projects: the workspace's, for its
+// was: the project path the thread names, which is no project; projects: the workspace's, for its
 // menu
 function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: string; projects: Project[] }) {
   const navigate = useNavigate()
@@ -109,11 +109,12 @@ function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: s
           <span className="flex min-w-0 items-baseline gap-2 leading-5">
             <span className="truncate">{summary.title}</span>
             {was && (
-              // The thread names a folder that is no project any more (its project.md deleted, or the
-              // folder moved): said with the path it names, so the person can find the folder or file it
-              // again from the menu. A long title gives way to it, up to about half the row.
+              // The thread names a folder that is no project: its project.md deleted, the folder moved, or a
+              // path that was never marked. owlit can't tell which, so the words say only what is true now,
+              // with the path, so the person can find the folder or file the thread again from the menu. A
+              // long title gives way to it, up to about half the row.
               <span className="max-w-[55%] shrink-0 truncate text-detail text-muted-foreground" title={was}>
-                {t({ message: `${was} · no project here any more`, comment: "after a thread's title: the folder path the thread was filed under is no project now (its project.md is gone)" })}
+                {t({ message: `${was} · not a project`, comment: "after a thread's title: the folder path the thread was filed under, which holds no project.md now" })}
               </span>
             )}
           </span>

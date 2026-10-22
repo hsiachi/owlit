@@ -78,6 +78,11 @@ export class Chats {
     return (await this.all()).find((c) => c.startedBy && sameAbout(c.about, about))
   }
 
+  // One chat without its messages, yours or owlit's; undefined when there is none
+  async summary(id: string): Promise<ChatSummary | undefined> {
+    return (await this.loadIndex()).get(id)
+  }
+
   private async all() {
     return [...(await this.loadIndex()).values()].sort((a, b) => b.updatedAt - a.updatedAt)
   }

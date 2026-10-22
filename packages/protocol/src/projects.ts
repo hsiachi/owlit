@@ -75,8 +75,8 @@ export interface ProjectsSummary {
   sessions: number
   // Every project, by path
   projects: ProjectSummary[]
-  // Folders at the top of the workspace, in no project, holding a doc the person edited lately: the
-  // newest such doc and when; newest first
+  // Folders at the top of the workspace, in no project, holding a doc the person worked on lately (as
+  // live counts work): the newest such doc and when; newest first
   folders: { path: string; doc: string; lastWorked: number }[]
 }
 
@@ -85,11 +85,15 @@ export interface ProjectSummary {
   name: string
   status?: ProjectStatus
   due?: string
-  // The person edited one of its docs lately, and it isn't done
+  // The person worked on it lately, and it isn't done. Their work is what they asked for, not only what
+  // they typed: they edited one of its docs, wrote in a chat that is in it, or Owlit edited one of its docs
+  // in a chat the person started.
   live: boolean
-  // The doc in it the person last edited, else its newest current draft (draft: at is then its mtime,
-  // whoever wrote it)
-  lastWorked?: { path: string; at: number; draft?: true }
+  // The doc in it the person last edited or had Owlit edit (by: "owlit"), else its newest current draft
+  // (draft: at is then its mtime, whoever wrote it). A chat makes a project live but names no doc here.
+  lastWorked?: { path: string; at: number; draft?: true; by?: "owlit" }
+  // When the person last worked on it, their chats in their latest sessions included; absent when never
+  workedAt?: number
   // On its current drafts: open comments, Owlit's changes the person hasn't had on screen, and the papers
   // they cite that owlit tried and failed to get a PDF of; with the draft to open for the first two
   waits: { comments: number; proposals: number; noPdf: number; commentsIn?: string; proposalsIn?: string }

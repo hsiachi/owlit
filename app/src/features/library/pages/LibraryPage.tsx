@@ -12,7 +12,7 @@ import { BulkBar } from "../components/BulkBar"
 import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
 import { GetAllLine } from "../components/GetAllLine"
 import { ImportBanner } from "../components/ImportBanner"
-import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, ScopeControls, SortMenu } from "../components/LibraryHeader"
+import { CountingLine, FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, ScopeControls, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
 import { RecentlyRemoved } from "../components/RecentlyRemoved"
 import { addPdfFiles } from "../lib/add-pdfs"
@@ -115,6 +115,7 @@ export function LibraryPage() {
             )
           }
         />
+        {!empty && <CountingLine />}
         <ImportBanner />
         <ExtensionWaitLines />
         <LibraryFindField onSubmit={submit} onPickFiles={(files) => addPdfFiles(files, actions.open)} />

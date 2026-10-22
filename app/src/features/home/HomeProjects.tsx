@@ -66,7 +66,7 @@ function lastWorkedPlace(lastWorked: NonNullable<ProjectSummary["lastWorked"]>, 
     at: lastWorked.at,
     to: `/docs/${file.id}`,
     words: file.content ? lastParagraph(file.content) : undefined,
-    did: lastWorked.draft ? null : "edited",
+    did: lastWorked.draft ? null : lastWorked.by === "owlit" ? "owlit-edited" : "edited",
   }
 }
 
@@ -76,12 +76,15 @@ const dueDate = (due: string) => {
   return shortDate(new Date(y!, m! - 1, d!).getTime())
 }
 
+// When a project was last worked on: a chat in it counts though it names no doc
+const workedAt = (p: ProjectSummary) => p.workedAt ?? p.lastWorked?.at ?? 0
+
 // The groups, newest worked first. With none live the desk would be empty, which says less than a quiet
 // one: every project not done gets its group then.
 export function ProjectGroups({ places }: { places: Place[] }) {
   const summary = useProjectsStore((s) => s.summary)
   if (!summary?.projects.length) return null
-  const byWork = [...summary.projects].sort((a, b) => (b.lastWorked?.at ?? 0) - (a.lastWorked?.at ?? 0))
+  const byWork = [...summary.projects].sort((a, b) => workedAt(b) - workedAt(a))
   const live = byWork.filter((p) => p.live)
   const shown = live.length ? live : byWork.filter((p) => p.status !== "done")
   const folded = byWork.filter((p) => !shown.includes(p))
@@ -200,7 +203,7 @@ function FoldedLine({ projects }: { projects: ProjectSummary[] }) {
         <InlineLink onClick={() => open(p)} className="text-muted-foreground hover:text-foreground focus-key:text-foreground">
           {p.name}
         </InlineLink>
-        {since && p.lastWorked && <span className="ms-1">{sinceWords(p.lastWorked.at)}</span>}
+        {since && workedAt(p) > 0 && <span className="ms-1">{sinceWords(workedAt(p))}</span>}
       </Fragment>
     ))
   const quiet = projects.filter((p) => p.status !== "done")

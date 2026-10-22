@@ -410,7 +410,7 @@ describe("owlit-mcp", () => {
     expect((await tool("thread_read", { id: filedId })).text).toMatch(/^Asked: 粒度怎么评估？ · project Retrieval study \(Study\/RAG\)$/m)
     // Its mark gone, the thread still names the path, said to be no project
     await call("docs.delete", { path: "Study/RAG/project.md" })
-    expect((await tool("thread_list")).text).toMatch(/· in Study\/RAG \(no project here any more\) ·/)
+    expect((await tool("thread_list")).text).toMatch(/· in Study\/RAG \(not a project\) ·/)
     expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\nOne paper so far/)
     expect((await tool("thread_read", { id })).text).toMatch(/- arxiv-2005\.11401 · Retrieval-Augmented Generation \(Patrick Lewis, 2020\) · what it is: not said · Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
 

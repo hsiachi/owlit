@@ -40,8 +40,8 @@ export const nameOf = (p: Pick<ThreadPaper, "title" | "year">) => [shortTitle(p.
 
 // The list's groups: one per project, keyed by its path and labelled with its name, the most recently
 // changed project first, then the threads that belong to none. A thread whose project path is no marked
-// folder any more (its project.md deleted, or the folder moved; the thread still names the old path) is in
-// none, and keeps the old path as `was`. projects: the workspace's marked folders, undefined until they are
+// folder (its project.md deleted, the folder moved, or never marked; the thread still names the path) is in
+// none, and keeps the path as `was`. projects: the workspace's marked folders, undefined until they are
 // known, when every project counts and is labelled by its path. A list with no projects at all has one
 // group and no label.
 export function byProject(list: ThreadSummary[], projects?: Pick<Project, "path" | "name">[]): { key: string; label?: string; threads: (ThreadSummary & { was?: string })[] }[] {

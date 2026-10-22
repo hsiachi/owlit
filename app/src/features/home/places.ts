@@ -3,7 +3,7 @@ import { baseName, displayName, isMarkdown, parentPath, type WorkspaceFile } fro
 import { messageText } from "@/features/chat/lib/message-text"
 import type { Kind } from "@/lib/kinds"
 import { markdownPlain } from "@/lib/markdown-plain"
-import { isOwlit, threadDot, type ActorId, type Change, type Chat, type ChatMessage, type PersonId, type Thread, type Unseen } from "@owlit/protocol"
+import { isOwlit, isProjectMark, threadDot, type ActorId, type Change, type Chat, type ChatMessage, type PersonId, type Thread, type Unseen } from "@owlit/protocol"
 
 // "Where was I": everything the user did something in, newest first, across docs, chats, papers and
 // threads. A doc counts once the user wrote in it (the trail has a mark for it, or the change log has a
@@ -58,7 +58,9 @@ export function docPlaces(files: Iterable<WorkspaceFile>, marks: readonly { path
   }
   const out: Place[] = []
   for (const f of files) {
-    if (!isMarkdown(f.path)) continue
+    // A project's mark says what the folder is; writing it is no work on a doc, and the person who just
+    // made one would find it as their place to continue
+    if (!isMarkdown(f.path) || isProjectMark(f.path)) continue
     const mark = markByPath.get(f.path)
     const own = mine.get(f.path)
     // Any Markdown file in the folder isn't a place: a synced vault or a git pull would fill Home with

@@ -191,7 +191,7 @@ function groupsByProject(lines: MemoryLine[], projects: Project[]): { key: strin
   for (const was of lost) {
     groups.push({
       key: was,
-      label: t({ message: `${was} · no project here any more`, comment: "over lines Owlit keeps in mind for a folder path that is no project now (its project.md is gone)" }),
+      label: t({ message: `${was} · not a project`, comment: "over lines Owlit keeps in mind for a folder path that holds no project.md now (removed, moved, or never there)" }),
       lines: lines.filter((l) => projectKey(l.project) === was),
     })
   }
