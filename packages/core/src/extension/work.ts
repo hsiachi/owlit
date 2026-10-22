@@ -326,6 +326,23 @@ export class ExtensionWork implements ExtensionFetcher {
     return any
   }
 
+  // POST /work/blocked: the user's browser met a block at this host where the site waits for a check or
+  // a sign-in (the fetch read the block as one, or the block came after). Matched as resume matches;
+  // the site stays paused, without another try, and its line says what is in the way now.
+  blocked(host: string, url: string): boolean {
+    const wanted = siteOf(host)
+    let any = false
+    for (const site of this.sites.values()) {
+      if (!site.paused || (waitHost(site) !== host && siteOf(waitHost(site)) !== wanted)) continue
+      if (site.paused.kind !== "check" && site.paused.kind !== "sign-in") continue
+      site.paused = { ...site.paused, kind: "blocked", url }
+      any = true
+      if (this.library) this.host.papers(this.library, ids(site))
+    }
+    if (any) this.host.waits()
+    return any
+  }
+
   // A paper that no longer wants fetching (its PDF was placed another way, it went to the trash or was
   // folded into another): out of its queue, and out of the count of the line it waited in. One in flight
   // is left to its answer, which finds the paper gone or with its PDF.

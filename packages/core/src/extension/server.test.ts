@@ -395,6 +395,10 @@ describe("the extension's port", () => {
       expect(shown).toEqual([{ name: "Chrome" }])
       // Handed over once
       expect((await request("/work", { token })).body.open).toEqual([])
+      // The page opened there was the site's block: the line says so, and still goes once the user is through
+      expect((await request("/work/blocked", { token, body: { host: "journals.sagepub.com", url: "file:///etc/passwd" } })).status).toBe(400)
+      expect((await request("/work/blocked", { token, body: { host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })).body).toEqual({ blocked: true })
+      expect((await call("extension.get")).waits).toMatchObject([{ kind: "blocked", host: "sagepub.com", url: "https://journals.sagepub.com/doi/1" }])
       expect((await request("/work/resume", { token, body: { host: "journals.sagepub.com" } })).body).toEqual({ resumed: true })
       expect((await call("extension.get")).waits).toEqual([])
       const again = (await request("/work", { token })).body.work

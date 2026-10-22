@@ -107,6 +107,19 @@ describe("the extension's queue", () => {
     expect(work.holding(library, "b1")).toEqual({ host: "bmj.com", waits: "blocked" })
   })
 
+  it("turns a check into a block the user's browser met there, without another try", async () => {
+    const { work, take, heard } = setup()
+    for (const id of ["q1", "q2"]) work.fetch(library, paper(id, "bmj.com"), false)
+    const first = await take()
+    work.settle(first[0].id, "check", { url: "https://qualitysafety.bmj.com/content/q1" })
+    expect(work.blocked("qualitysafety.bmj.com", "https://qualitysafety.bmj.com/content/q1")).toBe(true)
+    expect(work.waits()).toEqual([{ kind: "blocked", host: "bmj.com", papers: 2, url: "https://qualitysafety.bmj.com/content/q1", askedFor: false, proxied: false }])
+    expect(heard.at(-1)).toEqual(["q1", "q2"])
+    // Nowhere paused there, or paused for something a block doesn't stand in for: nothing changes
+    expect(work.blocked("wiley.com", "https://onlinelibrary.wiley.com/doi/1")).toBe(false)
+    expect(work.blocked("bmj.com", "https://www.bmj.com/content/2")).toBe(false)
+  })
+
   it("backs off at a site that reached nothing, keeping its papers, and goes on once it answers", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)
