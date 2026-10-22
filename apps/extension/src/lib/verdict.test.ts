@@ -24,6 +24,13 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://dl.acm.org/doi/10.5555/2034396.2034432", acm))).toBe("no-copy")
     expect(isThrough({ url: "https://dl.acm.org/doi/10.5555/2034396.2034432", status: 0, html: acm })).toBe(true)
     expect(verdict(page("https://www.sciencedirect.com/science/article/pii/2", article("A Paper", '<script src="https://abc.token.awswaf.com/challenge.js"></script>')))).toBe("no-copy")
+    // An article Cloudflare let through carries its bot script under /h/, in an inline script
+    const passed = article("Efficacy of contextually-tailored suggestions", `<script>(function(){var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/h/b/scripts/jsd/62ec4f065604/main.js'})();</script>`)
+    expect(isThrough({ url: "https://academic.oup.com/abm/article/53/6/573/5134993", status: 0, html: passed })).toBe(true)
+    // Cloudflare's interstitial, by its orchestrate script alone
+    const interstitial = '<html><head><title>academic.oup.com</title></head><body><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1?ray=8e1b"></script></body></html>'
+    expect(verdict(page("https://academic.oup.com/abm/article/53/6/573/5134993", interstitial, { status: 403 }))).toBe("check")
+    expect(isThrough({ url: "https://academic.oup.com/abm/article/53/6/573/5134993", status: 0, html: interstitial })).toBe(false)
   })
 
   it("tells a firewall's block from a check", () => {
