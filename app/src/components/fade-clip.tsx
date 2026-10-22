@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { FoldButton } from "@/components/fold"
 
 const FADE = { background: "from-background", card: "from-card" }
 
@@ -46,11 +46,11 @@ export function FadeClip({
   )
 }
 
-// The text button that opens and closes a FadeClip
+// The fold that opens and closes a FadeClip
 export function ShowAllButton({ open, onClick, className }: { open: boolean; onClick: () => void; className?: string }) {
   return (
-    <Button variant="text" size="inline" onClick={onClick} className={className}>
+    <FoldButton open={open} onClick={onClick} className={className}>
       {open ? t`Show less` : t`Show all`}
-    </Button>
+    </FoldButton>
   )
 }

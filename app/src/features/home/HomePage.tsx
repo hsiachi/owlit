@@ -5,6 +5,7 @@ import { Trans } from "@lingui/react/macro"
 import { keysFor, openShortcuts } from "@/app/shortcuts"
 import { DropOverlay, PdfFileInput } from "@/components/file-drop"
 import { GroupLabel } from "@/components/group-label"
+import { InlineLink } from "@/components/inline-link"
 import { KindIcon } from "@/components/kind-icon"
 import { ListRow } from "@/components/list-row"
 import { NoteDot, WaitingDot } from "@/components/marks"
@@ -175,9 +176,9 @@ function Start() {
       <p className="mt-7 px-2.5 text-detail text-muted-foreground">
         <Trans>
           {palette} find anything · {owlit} ask Owlit ·{" "}
-          <button type="button" className="underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground" onClick={openShortcuts}>
+          <InlineLink onClick={openShortcuts}>
             {shortcuts} all shortcuts
-          </button>
+          </InlineLink>
         </Trans>
       </p>
       <PdfFileInput ref={setFileInput} multiple onFiles={(files) => void addPdfFiles(files, open)} />

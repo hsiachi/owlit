@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom"
 import { ago } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { FoldButton } from "@/components/fold"
+import { inlineLinkClass } from "@/components/inline-link"
 import { PanelResizeHandle } from "@/components/panel-resize-handle"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CopyAllHighlights, HighlightsList } from "../../components/HighlightsList"
@@ -148,7 +149,7 @@ function About({ paper }: { paper: Paper }) {
           <div key={l.href} className="contents">
             <dt className="text-muted-foreground">{linkName(l.kind)}</dt>
             <dd className="min-w-0 truncate">
-              <a href={l.href} target="_blank" rel="noreferrer" className="underline decoration-border underline-offset-4 hover:decoration-foreground">
+              <a href={l.href} target="_blank" rel="noreferrer" className={inlineLinkClass()}>
                 {l.value}
               </a>
             </dd>
@@ -159,7 +160,7 @@ function About({ paper }: { paper: Paper }) {
         <dd className="min-w-0 truncate">
           <button
             type="button"
-            className="font-mono text-[13px] underline decoration-border underline-offset-4 hover:decoration-foreground"
+            className={cn(inlineLinkClass(), "font-mono text-[13px]")}
             title={t`Click to copy`}
             onClick={() => void copyText(paper.citeKey).then((ok) => ok && toast(t`Cite key copied`))}
           >

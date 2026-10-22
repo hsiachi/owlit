@@ -148,7 +148,7 @@ function SignIn() {
       info={t`The owlit extension fetches PDFs through the proxy in your browser, signed in as you. Libraries sign you out after a while; owlit says so when a fetch finds the sign-in page.`}
       control={
         <Button variant="outline" size="sm" onClick={() => void signIn()}>
-          {t`Sign in…`}
+          {t`Sign in`}
         </Button>
       }
     >

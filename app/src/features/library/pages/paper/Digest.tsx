@@ -5,6 +5,7 @@ import { reportPaperEnd } from "@/app/activity"
 import { askOwlitOnRightClick, isPassage } from "@/app/text-menu"
 import { ago } from "@/lib/time"
 import { fileUrl, rpc } from "@/lib/rpc"
+import { inlineLinkClass } from "@/components/inline-link"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { useSelectionMenu } from "@/components/selection-menu"
@@ -283,9 +284,9 @@ function AskAgain({ sentence, label, ask }: { sentence: string; label: string; a
     void ask().then((ok) => ok || setAsked(false))
   }
   return (
-    <p className="mt-1 flex flex-wrap items-center gap-x-2 text-detail text-muted-foreground">
+    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-detail text-muted-foreground">
       {sentence}
-      <Button variant="ghost" size="sm" className="-ml-1 h-6 px-1.5 text-detail font-normal text-foreground" disabled={asked} onClick={run}>
+      <Button variant="text" size="inline" disabled={asked} onClick={run}>
         {label}
       </Button>
     </p>
@@ -377,7 +378,7 @@ function PageRef({ paperId, page, onShow, children }: { paperId: string; page: n
             setOpen(false)
             onShow(page)
           }}
-          className="rounded-sm underline decoration-border underline-offset-4 outline-none hover:decoration-foreground focus-key:ring-2 focus-key:ring-ring/50"
+          className={inlineLinkClass()}
         >
           {children}
         </button>

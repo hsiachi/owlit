@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Text buttons follow one set of rules. Only words that are part of a sentence are underlined, all in one style; a lone verb such as Show or Set up is a plain text button. In the Library's lines every verb sits at the line's end; after a single sentence it follows the words. "Show more", "Show all" and "4 more" are all folds with a chevron. An ellipsis means a picker, dialog or Settings opens next, so buttons that open your browser lose it (Sign in, Allow, Install) and menus end in a chevron. Ways out of a form (Cancel, Skip) are muted.
 - A site whose firewall blocks your browser (Cloudflare's "Sorry, you have been blocked") is no longer taken for a check you could pass: the Library's line says the site blocks your browser, with Try again, and once you're on another network and a page there loads, owlit goes on by itself. A line that asked for a check or a sign-in turns into this one as soon as the page it opened shows the block.
 - A row's ⋯ menu opens from the keyboard: Tab from the row reaches it (in the Docs tree, the chat list, Threads and the Library, where the star is reached the same way) and Enter opens it; Shift+F10 on a row opens its right-click menu; Escape puts you back on the row.
 - The app icon is a brighter green with a white feather, the same green as the browser extension's button.

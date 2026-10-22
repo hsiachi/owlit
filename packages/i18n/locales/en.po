@@ -1141,9 +1141,11 @@ msgstr "Error"
 
 #. button: let the owlit extension read this site, for the papers waiting there
 #. button: let the owlit extension read this site, for the papers waiting there
+#. button: the owlit extension opens a page in the user's browser that asks to let it read this site
 #. the owlit card in a web page: let the owlit extension read this site
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
+#: app/src/features/extension/waits.ts
 #: apps/extension/src/allow/Allow.tsx
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
@@ -3478,8 +3480,11 @@ msgstr "Sign in at {host}"
 msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
 msgstr "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
 
+#. an agent's sign-in, which opens the browser
 #. button: opens the sign-in page (the library's, or the site's) in the user's browser
 #: app/src/features/extension/waits.ts
+#: app/src/features/settings/sections/BrowserSignIn.tsx
+#: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in"
 msgstr "Sign in"
 
@@ -3512,11 +3517,6 @@ msgstr "Try again"
 #: apps/extension/src/allow/Allow.tsx
 msgid "Let the owlit extension read {host}"
 msgstr "Let the owlit extension read {host}"
-
-#. button: the owlit extension opens a page in the user's browser that asks to let it read this site
-#: app/src/features/extension/waits.ts
-msgid "Allow…"
-msgstr "Allow…"
 
 #: app/src/features/extension/waits.ts
 msgid "Press owlit's button in your browser's toolbar, then Allow."
@@ -5137,8 +5137,13 @@ msgid "owlit won't look again"
 msgstr "owlit won't look again"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Use your library's access · <0>Set up</0>"
-msgstr "Use your library's access · <0>Set up</0>"
+msgid "Use your library's access"
+msgstr "Use your library's access"
+
+#. button: opens Settings at the library proxy
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Set up…"
+msgstr "Set up…"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "the library proxy"
@@ -5710,12 +5715,6 @@ msgstr "Finish signing in in your browser…"
 msgid "Open the page again"
 msgstr "Open the page again"
 
-#. an agent's sign-in, which opens the browser
-#: app/src/features/settings/sections/BrowserSignIn.tsx
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Sign in…"
-msgstr "Sign in…"
-
 #: app/src/features/settings/sections/EngineSignIns.tsx
 msgid "Sign out"
 msgstr "Sign out"
@@ -5793,8 +5792,8 @@ msgid "Install the owlit extension in Chrome, Edge, Brave, Arc or Firefox, then 
 msgstr "Install the owlit extension in Chrome, Edge, Brave, Arc or Firefox, then press Connect in it."
 
 #: app/src/features/settings/sections/ExtensionGroup.tsx
-msgid "Install…"
-msgstr "Install…"
+msgid "Install"
+msgstr "Install"
 
 #. placeholder {0}: lines.length
 #: app/src/features/settings/sections/Memory.tsx

@@ -96,7 +96,7 @@ export function VersionsDialog({ file, open: shown, onOpenChange }: { file: Work
                       )}
                       <span className="truncate text-xs text-muted-foreground">{title ? t`${when} · from “${title}”` : chatId ? t`${when} · from a chat` : when}</span>
                     </button>
-                    <Button variant="ghost" size="sm" className={revealOnHover} onClick={() => restore(c)}>
+                    <Button variant="text" size="inline" className={revealOnHover} onClick={() => restore(c)}>
                       {t({ message: "Undo", comment: "verb: take back this change to the doc" })}
                     </Button>
                   </div>

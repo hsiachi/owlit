@@ -123,7 +123,7 @@ export function WelcomePage() {
                       <span className="block truncate text-detail text-muted-foreground">{info ? `${tilde(parent)}/${name}` : " "}</span>
                     </span>
                   </button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={!info} onClick={() => setEditing(true)}>
+                  <Button variant="text" size="inline" disabled={!info} onClick={() => setEditing(true)}>
                     {t`Change…`}
                   </Button>
                 </div>
@@ -156,7 +156,7 @@ export function WelcomePage() {
                         <span className="min-w-0 flex-1 truncate text-detail text-muted-foreground" title={w.path}>
                           {t`isn’t at ${where} anymore`}
                         </span>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => locate(w)}>
+                        <Button variant="text" size="inline" onClick={() => locate(w)}>
                           {t`Locate…`}
                         </Button>
                         <IconButton label={t`Remove from Recent`} size="icon-xs" className={revealOnHover} onClick={() => forget(w)}>
