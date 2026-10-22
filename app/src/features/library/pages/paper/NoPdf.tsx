@@ -13,7 +13,8 @@ import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
-import { noPdfTitle, pdfGone, pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
+import { noPdfTitle, pdfGone, pdfWait, signsInAtLibrary, waitedFor, type PdfWait } from "../../lib/pdf-wait"
+import { proxyHostOf } from "@/features/settings/library-name"
 import { useExtension, useExtensionWaits } from "@/features/extension/store"
 import { actOnWait, waitOf, waitWords } from "@/features/extension/waits"
 
@@ -28,7 +29,8 @@ const hostName = (reason: PdfTry | undefined) => reason?.host?.replace(/^www\./,
 
 // The card's why line, from the try that says where the paper stands; its title is the state's one name
 // as noPdfTitle says it, the paper card's too
-function detailOf(state: CardState, paper: Paper, now: string | undefined): string {
+// library: a sign-in it waits for is the library's (signsInAtLibrary)
+function detailOf(state: CardState, paper: Paper, now: string | undefined, library: boolean): string {
   const s = paper.pdfState
   const reason = s?.reason
   const host = hostName(reason)
@@ -40,6 +42,9 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
       // The extension has it: owlit's routes are done, and the publisher is tried through the user's
       // browser, now or once its turn at the site comes
       const site = s?.extension?.host
+      // Through the library's proxy, in line behind a paper that waits at a publisher for the user
+      const behind = s?.extension?.behind?.host
+      if (!now && behind) return t`In line behind a paper waiting at ${behind}; owlit goes on once that's done.`
       if (!now && site && s?.extension?.fetching) return tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.`
       if (!now && site) return tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.`
       if (state === "finding" && pdfGone(paper)) return t`Its file was deleted or moved outside owlit. If you have it, drop it here.`
@@ -49,16 +54,18 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
     case "for-check":
     case "blocked":
     case "for-permission": {
-      // Its own try's host and date when it met the wait itself, else it is one of the papers in line behind
-      const site = s?.extension?.host ?? host
+      // The title names the wait and its site already: the line says since when, when its own try met it,
+      // and what getting through does
+      const site = s?.extension?.waitsAt ?? s?.extension?.host ?? host
       const own = waitedFor(reason) ? reason : undefined
-      const at = own ? hostName(own) : site
-      if (state === "for-sign-in" && s?.extension?.proxied) return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.`
-      if (state === "for-sign-in") return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.`
-      if (state === "for-check") return own ? t`${at} asked you to verify you're human · ${date}` : t`Verifying once there covers every paper waiting at ${site}.`
+      let next: string
+      if (state === "for-sign-in" && library) next = t`One sign-in to your library covers every paper waiting for it.`
+      else if (state === "for-sign-in") next = t`One sign-in there covers every paper waiting at ${site}.`
+      else if (state === "for-check") next = t`Verifying once there covers every paper waiting at ${site}.`
       // The block is by the browser's network, mostly: another one (or a VPN turned off) gets past it
-      if (state === "blocked") return own ? t`${at} turned your browser away · ${date}. Another network usually gets past it.` : t`Once ${site} lets your browser in, owlit goes on with every paper waiting there.`
-      return own ? t`owlit doesn't have permission for ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.`
+      else if (state === "blocked") next = t`Another network usually gets past it; owlit goes on once a page there loads.`
+      else next = t`Once you allow it, owlit goes on with every paper waiting there.`
+      return own ? t`Since ${date}. ${next}` : next
     }
     case "offline":
       return t`owlit couldn't reach any source of PDFs when it looked. It looks again within the hour.`
@@ -144,8 +151,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   const wait = pdfWait(paper) ?? "finding"
   const state: CardState = looking ? "looking" : wait
-  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper)
-  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note))
+  const proxyHost = useSettings((s) => proxyHostOf(s.view?.library.proxy))
+  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, proxyHost)
+  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), signsInAtLibrary(paper, proxyHost))
   const lost = state === "finding" && pdfGone(paper)
   const working = (state === "looking" || state === "finding") && !lost
   const nextLook = paper.pdfState?.nextLook

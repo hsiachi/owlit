@@ -3592,6 +3592,22 @@ msgid "Couldn't tell owlit to go on."
 msgstr "Couldn't tell owlit to go on."
 
 #: app/src/features/extension/waits.ts
+msgid "{host} still asks you to verify you're human"
+msgstr "{host} still asks you to verify you're human"
+
+#: app/src/features/extension/waits.ts
+msgid "{host} still asks you to sign in"
+msgstr "{host} still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
+msgid "{libraryName} still asks you to sign in"
+msgstr "{libraryName} still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
+msgid "Your library still asks you to sign in"
+msgstr "Your library still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
 msgid "Couldn't stop getting the PDFs."
 msgstr "Couldn't stop getting the PDFs."
 
@@ -3977,6 +3993,17 @@ msgstr "Get PDFs"
 #: app/src/features/library/components/GetPdfsLine.tsx
 msgid "{0, plural, one {Get the PDF for # paper using {browser}} other {Get PDFs for # papers using {browser}}}"
 msgstr "{0, plural, one {Get the PDF for # paper using {browser}} other {Get PDFs for # papers using {browser}}}"
+
+#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
+#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
+#: app/src/features/library/components/GetPdfsLine.tsx
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Open in {browser}"
+msgstr "Open in {browser}"
+
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{manualCount, plural, one {# paper needs a manual download} other {# papers need a manual download}}"
+msgstr "{manualCount, plural, one {# paper needs a manual download} other {# papers need a manual download}}"
 
 #: app/src/features/library/components/GetPdfsLine.tsx
 msgid "{noDoi, plural, one {# paper without a DOI wasn't included · drag its PDF onto it} other {# papers without a DOI weren't included · drag their PDFs onto them}}"
@@ -4475,11 +4502,6 @@ msgstr "owlit couldn't open these sites' pages: {sites}. Open each one and click
 msgid "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
 msgstr "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
 
-#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
-#: app/src/features/library/components/PdfBlock.tsx
-msgid "Open in {browser}"
-msgstr "Open in {browser}"
-
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "{n, plural, one {Has no PDF owlit can get} other {Have no PDF owlit can get}}"
 msgstr "{n, plural, one {Has no PDF owlit can get} other {Have no PDF owlit can get}}"
@@ -4488,13 +4510,33 @@ msgstr "{n, plural, one {Has no PDF owlit can get} other {Have no PDF owlit can 
 msgid "Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper."
 msgstr "Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper."
 
+#. papers the user looked for on the publisher's page and found no PDF (Skip in the browser)
+#. the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found none"
+msgstr "You found none"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper."
+msgstr "You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper."
+
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
 msgstr "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
 
+#. placeholder {0}: first.papers
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{0, plural, one {One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at {host}, through your library's proxy; it goes on once that's done.} other {One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at {host}, through your library's proxy; they go on once that's done.}}"
+msgstr "{0, plural, one {One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at {host}, through your library's proxy; it goes on once that's done.} other {One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at {host}, through your library's proxy; they go on once that's done.}}"
+
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "One paper at a time per site, so no publisher sees a burst of downloads"
 msgstr "One paper at a time per site, so no publisher sees a burst of downloads"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+msgstr "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
 
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
@@ -4699,11 +4741,6 @@ msgstr "Blocked"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Needs manual download"
 msgstr "Needs manual download"
-
-#. the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)
-#: app/src/features/library/lib/pdf-wait.ts
-msgid "You found none"
-msgstr "You found none"
 
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
@@ -5092,6 +5129,10 @@ msgid "Page {number}"
 msgstr "Page {number}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "In line behind a paper waiting at {behind}; owlit goes on once that's done."
+msgstr "In line behind a paper waiting at {behind}; owlit goes on once that's done."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr "{tried}; now trying {site} through your browser."
 
@@ -5128,10 +5169,6 @@ msgid "If you already have it, drop it here."
 msgstr "If you already have it, drop it here."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} wants a sign-in · {date}"
-msgstr "{at} wants a sign-in · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "One sign-in to your library covers every paper waiting for it."
 
@@ -5140,28 +5177,20 @@ msgid "One sign-in there covers every paper waiting at {site}."
 msgstr "One sign-in there covers every paper waiting at {site}."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} asked you to verify you're human · {date}"
-msgstr "{at} asked you to verify you're human · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "Verifying once there covers every paper waiting at {site}."
 msgstr "Verifying once there covers every paper waiting at {site}."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} turned your browser away · {date}. Another network usually gets past it."
-msgstr "{at} turned your browser away · {date}. Another network usually gets past it."
+msgid "Another network usually gets past it; owlit goes on once a page there loads."
+msgstr "Another network usually gets past it; owlit goes on once a page there loads."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Once {site} lets your browser in, owlit goes on with every paper waiting there."
-msgstr "Once {site} lets your browser in, owlit goes on with every paper waiting there."
+msgid "Once you allow it, owlit goes on with every paper waiting there."
+msgstr "Once you allow it, owlit goes on with every paper waiting there."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "owlit doesn't have permission for {site} yet · {date}"
-msgstr "owlit doesn't have permission for {site} yet · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Once it may, owlit goes on with every paper waiting there."
-msgstr "Once it may, owlit goes on with every paper waiting there."
+msgid "Since {date}. {next}"
+msgstr "Since {date}. {next}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."

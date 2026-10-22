@@ -176,7 +176,8 @@ const COLUMNS = [
   { key: "citations", label: msg({ message: "Citations", comment: "how often a paper is cited by other works" }), width: 88, sort: "citations" },
   { key: "thread", label: msg({ message: "Thread", comment: "table column: the thread a paper came from" }), width: 160, sort: "thread" },
   { key: "tags", label: msg`Tags`, width: 144 },
-  { key: "status", label: msg`Status`, width: 104 },
+  // Wide enough for the longest of its words, "Needs manual download"
+  { key: "status", label: msg`Status`, width: 168 },
   { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
 ] as const
 

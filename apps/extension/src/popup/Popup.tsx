@@ -228,7 +228,9 @@ function PagePaper({ state, page, busy, outcome, onAct, onTurnOn }: { state: Pop
   // A word with its own fix (Allow, Turn on) takes the button's place; so does what was just done, unless
   // there is still something to do
   const ownFix = shown?.kind === "not-saved"
-  const button = label && !ownFix && (!outcome || outcome.kind === "failed" || outcome.kind === "needs-site")
+  // A PDF owlit found to be another paper's would be refused the same way again
+  const refused = shown?.kind === "not-this-paper" || (shown?.kind === "added" && shown.pdf === "not-this-paper")
+  const button = label && !ownFix && !refused && (!outcome || outcome.kind === "failed" || outcome.kind === "needs-site")
   return (
     <section className="flex flex-col items-start gap-2">
       {title && (

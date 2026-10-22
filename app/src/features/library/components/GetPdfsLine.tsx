@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import { StatusLine } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { useExtension } from "@/features/extension/store"
-import { browserName, startBatch, useBatch } from "@/features/extension/waits"
+import { browserName, startBatch, useBatch, walkManual } from "@/features/extension/waits"
 import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { pdfWait } from "../lib/pdf-wait"
@@ -28,6 +28,9 @@ export function GetPdfsLine({ papers }: { papers: Paper[] }) {
   const lacking = papers.filter((p) => !p.pdf)
   const offered = lacking.filter((p) => p.ids.doi && !inBatch.has(p.id) && !p.pdfState?.extension && pdfWait(p) !== "manual" && pdfWait(p) !== "skipped")
   const noDoi = lacking.filter((p) => !p.ids.doi).length
+  const manual = lacking.filter((p) => pdfWait(p) === "manual")
+  const manualDoi = manual.map((p) => p.ids.doi).find(Boolean)
+  const manualCount = manual.length
   const browser = browserName(paired)
   const getPdfs = async () => {
     try {
@@ -54,6 +57,19 @@ export function GetPdfsLine({ papers }: { papers: Paper[] }) {
           }
         >
           <span className="truncate">{plural(offered.length, { one: `Get the PDF for # paper using ${browser}`, other: `Get PDFs for # papers using ${browser}` })}</span>
+        </StatusLine>
+      )}
+      {/* Without a batch (the block's manual row gone with it), the papers to download by hand keep their
+          way into the walk through them */}
+      {!batch && manual.length > 0 && manualDoi && (
+        <StatusLine
+          actions={
+            <Button variant="text" size="inline" onClick={() => void walkManual(manual.map((p) => p.id), `https://doi.org/${manualDoi}`)}>
+              {t({ message: `Open in ${browser}`, comment: "button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia" })}
+            </Button>
+          }
+        >
+          <span className="truncate">{plural(manualCount, { one: "# paper needs a manual download", other: "# papers need a manual download" })}</span>
         </StatusLine>
       )}
       {noDoi > 0 && (

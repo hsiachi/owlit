@@ -94,6 +94,7 @@ export function browserName(paired: { browser: string; pairedAt: number; lastSee
 // opens a sign-in or a check in that browser itself; being allowed can only be asked from inside it, so
 // a toast then says where the extension's button is.
 export async function actOnWait(wait: ExtensionWait) {
+  forgetRetried(wait.host)
   const opened = await rpc.extension.open({ kind: wait.kind, host: wait.host }).catch(toastError)
   if (opened && opened.by !== "none") {
     useOpenedWaits.setState((s) => ({ list: [...s.list.filter((o) => o.host !== wait.host), { kind: wait.kind, host: wait.host, ...(opened.browser ? { browser: opened.browser } : {}) }] }))
@@ -109,6 +110,9 @@ export async function actOnWait(wait: ExtensionWait) {
 // I've signed in, I've verified it: owlit tries the site at once. A site that no longer waits went on
 // already, by the extension seeing the user through.
 export async function resumeWait(wait: ExtensionWait) {
+  // Noted before asking: the site's wait can go and come back (the try met the same page) before the
+  // answer does
+  useRetried.setState((s) => ({ list: [...s.list.filter((r) => r.host !== wait.host), { kind: wait.kind, host: wait.host, at: Date.now(), gone: false }] }))
   try {
     await rpc.extension.resume({ host: wait.host })
     forgetOpened(wait.host)
@@ -164,12 +168,46 @@ export const useOpenedWaits = create<{ list: OpenedWait[] }>(() => ({ list: [] }
 
 const forgetOpened = (host: string) => useOpenedWaits.setState((s) => ({ list: s.list.filter((o) => o.host !== host) }))
 
-// The opened sites that no longer wait, or wait for something else now (a check turned into a block), go
+// The opened sites that no longer wait, or wait for something else now (a check turned into a block), go.
+// A site the user said they got through at is followed: its wait going marks it, and the same wait back
+// soon after means owlit's try met the same page (stillWaits).
 export function pruneOpened(waits: ExtensionWait[]) {
   const { list } = useOpenedWaits.getState()
   const kept = list.filter((o) => waits.some((w) => w.host === o.host && w.kind === o.kind))
   if (kept.length !== list.length) useOpenedWaits.setState({ list: kept })
+  const retried = useRetried.getState().list
+  const now = Date.now()
+  const next = retried.filter((r) => now - r.at < RETRIED_MS).map((r) => (r.gone || waits.some((w) => w.host === r.host && w.kind === r.kind) ? r : { ...r, gone: true }))
+  if (next.length !== retried.length || next.some((r, i) => r !== retried[i])) useRetried.setState({ list: next })
 }
+
+// A site where the user pressed I've signed in / I've verified it: at, when; gone, once its wait went
+export interface Retried {
+  kind: ExtensionWait["kind"]
+  host: string
+  at: number
+  gone: boolean
+}
+
+// How long after I've verified it the same wait coming back counts as owlit's try meeting it again: the
+// try goes at once, and an answer takes at most a minute or two (the extension's FETCH_MS per get)
+const RETRIED_MS = 5 * 60_000
+
+export const useRetried = create<{ list: Retried[] }>(() => ({ list: [] }))
+
+const forgetRetried = (host: string) => useRetried.setState((s) => ({ list: s.list.filter((r) => r.host !== host) }))
+
+// The row's sentence then, in place of its usual one
+export function stillWords(wait: Pick<ExtensionWait, "kind" | "host" | "proxied">, libraryName?: string): string {
+  const { host } = wait
+  if (wait.kind === "check") return t`${host} still asks you to verify you're human`
+  if (!wait.proxied) return t`${host} still asks you to sign in`
+  return libraryName ? t`${libraryName} still asks you to sign in` : t`Your library still asks you to sign in`
+}
+
+// The wait is back after the user said they got through: owlit tried at once and met the same page. Said
+// in the row until the user acts on it again.
+export const stillWaits = (list: Retried[], wait: Pick<ExtensionWait, "kind" | "host">, now = Date.now()) => list.some((r) => r.gone && r.host === wait.host && r.kind === wait.kind && now - r.at < RETRIED_MS)
 
 // The papers the user sent to the extension in one go (Get PDFs), from when, until they stop it or put
 // its summary away. Kept in the window: the block atop the Library counts them (lib/pdf-batch.ts).

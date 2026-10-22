@@ -9,11 +9,11 @@ import { JoinDots } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useExtension, useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, browserName, doneWords, putAwayBatch, resumeWait, stopBatch, useBatch, useOpenedWaits, waitWords, walkManual, type OpenedWait } from "@/features/extension/waits"
+import { actOnWait, browserName, doneWords, putAwayBatch, resumeWait, stillWaits, stillWords, stopBatch, useBatch, useOpenedWaits, useRetried, waitWords, walkManual, type OpenedWait, type Retried } from "@/features/extension/waits"
 import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
-import { batchView, siteRows, type BatchRow } from "../lib/pdf-batch"
+import { batchView, outsideRows, siteRows, type BatchRow } from "../lib/pdf-batch"
 import { waitsOnYou } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 
@@ -29,6 +29,7 @@ export function PdfBlock() {
   const papers = useLibraryStore((s) => s.papers)
   const waits = useExtensionWaits()
   const opened = useOpenedWaits((s) => s.list)
+  const retried = useRetried((s) => s.list)
   const paired = useExtension((s) => s.view?.paired)
   const browser = browserName(paired)
   const library = useSettings((s) => libraryNameOf(s.view?.library.proxy))
@@ -37,7 +38,10 @@ export function PdfBlock() {
   if (view && view.total > 0) {
     const { total, saved, things, running } = view
     // "the rest need you" only while there is something of the user's to do
-    const yours = view.rows.some((r) => r.kind !== "none" && r.kind !== "waiting")
+    const yours = view.rows.some((r) => r.kind !== "none" && r.kind !== "skipped" && r.kind !== "waiting")
+    // Sites waiting for papers outside the batch stay in view, under its rows, as they are without one
+    const outside = outsideRows(waits, view.rows)
+    const outsideOnYou = waits.some((w) => waitsOnYou(w) && outside.some((r) => r.kind === w.kind && r.host === w.host))
     const header = running ? (
       <JoinDots
         items={[
@@ -56,7 +60,7 @@ export function PdfBlock() {
     )
     return (
       <Block
-        mark={things > 0 || (!running && yours) ? <WaitingDot /> : running ? <Spinner className="size-3.5" /> : null}
+        mark={things > 0 || (!running && yours) || outsideOnYou ? <WaitingDot /> : running ? <Spinner className="size-3.5" /> : null}
         header={header}
         action={
           running ? (
@@ -71,8 +75,8 @@ export function PdfBlock() {
         }
         bar={running && <Bar total={total} saved={saved} held={view.held} />}
       >
-        {view.rows.map((row) => (
-          <Row key={`${row.kind}:${row.host ?? ""}`} row={row} waits={waits} opened={opened} browser={browser} library={library} papers={papers} />
+        {[...view.rows, ...outside].map((row) => (
+          <Row key={`${row.kind}:${row.host ?? ""}`} row={row} waits={waits} opened={opened} retried={retried} browser={browser} library={library} papers={papers} />
         ))}
       </Block>
     )
@@ -84,7 +88,7 @@ export function PdfBlock() {
   return (
     <Block mark={waits.some(waitsOnYou) ? <WaitingDot /> : null} header={<span className="text-foreground">{plural(n, { one: "# paper needs you", other: "# papers need you" })}</span>}>
       {rows.map((row) => (
-        <Row key={`${row.kind}:${row.host}`} row={row} waits={waits} opened={opened} browser={browser} library={library} papers={papers} />
+        <Row key={`${row.kind}:${row.host}`} row={row} waits={waits} opened={opened} retried={retried} browser={browser} library={library} papers={papers} />
       ))}
     </Block>
   )
@@ -120,7 +124,7 @@ function Bar({ total, saved, held }: { total: number; saved: number; held: numbe
   )
 }
 
-function Row({ row, waits, opened, browser, library, papers }: { row: BatchRow; waits: ExtensionWait[]; opened: OpenedWait[]; browser: string; library: string | undefined; papers: Record<string, Paper> }) {
+function Row({ row, waits, opened, retried, browser, library, papers }: { row: BatchRow; waits: ExtensionWait[]; opened: OpenedWait[]; retried: Retried[]; browser: string; library: string | undefined; papers: Record<string, Paper> }) {
   const { kind, papers: n } = row
   let need: string
   let why: string
@@ -145,10 +149,23 @@ function Row({ row, waits, opened, browser, library, papers }: { row: BatchRow; 
     muted = true
     need = plural(n, { one: "Has no PDF owlit can get", other: "Have no PDF owlit can get" })
     why = t`Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper.`
+  } else if (kind === "skipped") {
+    muted = true
+    need = t({ message: "You found none", comment: "papers the user looked for on the publisher's page and found no PDF (Skip in the browser)" })
+    why = t`You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper.`
   } else if (kind === "waiting") {
     muted = true
     need = plural(n, { one: "Waiting its turn", other: "Waiting their turn" })
-    why = t`One paper at a time per site, so no publisher sees a burst of downloads`
+    // Through the library's proxy every paper is in one line: those behind a paper that waits at a
+    // publisher for the user go on once that's done
+    const first = row.behind?.[0]
+    const host = first?.host
+    why = first
+      ? plural(first.papers, {
+          one: `One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at ${host}, through your library's proxy; it goes on once that's done.`,
+          other: `One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at ${host}, through your library's proxy; they go on once that's done.`,
+        })
+      : t`One paper at a time per site, so no publisher sees a burst of downloads`
   } else {
     const wait = waits.find((w) => w.kind === kind && w.host === row.host)
     const words = waitWords({ kind, host: row.host ?? "", proxied: !!row.proxied }, n, library)
@@ -156,6 +173,12 @@ function Row({ row, waits, opened, browser, library, papers }: { row: BatchRow; 
     why = words.why
     const open = opened.find((o) => o.host === row.host && o.kind === kind)
     const done = open && doneWords(kind)
+    // owlit tried at once after I've verified it and met the same page: said until the user acts again
+    if (!open && wait && stillWaits(retried, wait)) {
+      need = stillWords(wait, library)
+      const again = doneWords(kind) ?? ""
+      why = t`owlit tried again just now and met the same page. Open it, finish there, then press ${again}.`
+    }
     if (done && wait) {
       const where = open.browser ?? browser
       why = kind === "sign-in" ? t`Opened in ${where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here.` : t`Opened in ${where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here.`

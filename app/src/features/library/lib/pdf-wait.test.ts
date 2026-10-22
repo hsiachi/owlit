@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { PdfState, PdfTry } from "@owlit/protocol"
-import { pdfColumnWord, pdfWait, pdfWord, waitsOnYou } from "./pdf-wait"
+import { noPdfTitle, pdfColumnWord, pdfWait, pdfWord, waitsOnYou } from "./pdf-wait"
 
 const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "search"): PdfTry => ({ by, ended, at: 1 })
 const noPdf = (ended: PdfTry["ended"], extra: Partial<PdfState> = {}) => ({ pdfState: { state: "no-pdf" as const, tried: [tryOf(ended)], reason: tryOf(ended), ...extra } })
@@ -53,5 +53,15 @@ describe("pdfWait", () => {
   it("gives the states that read alike one name", () => {
     expect(pdfWord("no-access")).toBe(pdfWord("not-offered"))
     expect(pdfWord("finding")).toBe(pdfWord("offline"))
+  })
+
+  it("names the library for a sign-in at its proxy, from the queue or, without it, from the page the try met", () => {
+    const signIn = { by: "extension" as const, ended: "sign-in" as const, at: 1, host: "tlink.lib.tsinghua.edu.cn" }
+    const fromRecord = { pdfState: { state: "finding" as const, tried: [signIn], reason: signIn } }
+    expect(noPdfTitle(fromRecord, "tlink.lib.tsinghua.edu.cn")).toBe("Needs you to sign in to your library")
+    expect(noPdfTitle(fromRecord, undefined)).toBe("Needs you to sign in at tlink.lib.tsinghua.edu.cn")
+    // A publisher's sign-in met through the proxy is that publisher's
+    const at = { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" as const, waitsAt: "thieme-connect.de", proxied: true }
+    expect(noPdfTitle({ pdfState: { state: "finding", tried: [], extension: at } }, "tlink.lib.tsinghua.edu.cn")).toBe("Needs you to sign in at thieme-connect.de")
   })
 })

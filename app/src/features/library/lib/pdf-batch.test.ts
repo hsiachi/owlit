@@ -1,6 +1,6 @@
 import type { ExtensionWait, Paper, PdfState, PdfTry } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { batchView, siteRows } from "./pdf-batch"
+import { batchView, outsideRows, siteRows } from "./pdf-batch"
 
 const AT = 1_000
 const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({ id, title: id, authors: [], ids: { doi: `10.1/${id}` }, tags: [], starred: false, status: "unread", addedAt: 0, ...extra }) as Paper
@@ -50,7 +50,7 @@ describe("a batch of papers sent to the extension", () => {
     const view = batchView({ ids: [...papers.map((p) => p.id), "gone"], at: AT }, byId(papers))
     expect(view).toMatchObject({ total: 5, saved: 1, held: 1, things: 1, running: true })
     expect(view.rows).toEqual([
-      { kind: "permission", papers: 1, ids: ["apa"], host: "apa.org", proxied: true },
+      { kind: "permission", papers: 1, ids: ["apa"], host: "apa.org", proxied: false },
       { kind: "waiting", papers: 3, ids: ["queued", "fetching", "before"] },
     ])
   })
@@ -62,15 +62,40 @@ describe("a batch of papers sent to the extension", () => {
     expect(view.rows.map((r) => r.kind)).toEqual(["sign-in", "check", "manual", "none"])
   })
 
-  it("moves a paper the user skipped on its page from the downloads by hand to the ones with none", () => {
+  it("moves a paper the user skipped on its page from the downloads by hand to a row of its own", () => {
     const unreadable = tryOf("unreadable", "psycnet.apa.org")
     const skipped = tryOf("skipped", "psycnet.apa.org", AT + 2, "person")
     const papers = [ended("left", "unreadable", "psycnet.apa.org"), paper("skipped", { pdfState: { state: "no-pdf", tried: [unreadable, skipped], reason: skipped } })]
     const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
     expect(view.rows.map((r) => [r.kind, r.ids])).toEqual([
       ["manual", ["left"]],
-      ["none", ["skipped"]],
+      ["skipped", ["skipped"]],
     ])
+  })
+
+  it("counts a wait met at a publisher through the proxy for its own paper, the rest only behind it", () => {
+    const tlink = "tlink.lib.tsinghua.edu.cn"
+    const thieme = paper("thieme", { pdfState: { state: "finding", tried: [], extension: { host: tlink, waits: "permission", waitsAt: "thieme-connect.de", proxied: true } } })
+    const behind = Array.from({ length: 19 }, (_, i) => paper(`held${i}`, { pdfState: { state: "finding", tried: [], extension: { host: tlink, behind: { kind: "permission", host: "thieme-connect.de" }, proxied: true } } }))
+    const papers = [thieme, ...behind]
+    const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
+    expect(view.rows.map((r) => [r.kind, r.host, r.papers, r.proxied])).toEqual([
+      ["permission", "thieme-connect.de", 1, false],
+      ["waiting", undefined, 19, undefined],
+    ])
+    expect(view.rows[1].behind).toEqual([{ kind: "permission", host: "thieme-connect.de", papers: 19 }])
+    // Nothing moves until the user allows Thieme: the summary, not "Getting…"
+    expect(view).toMatchObject({ held: 1, things: 1, running: false })
+    // One more in line at a site of its own keeps the batch running
+    const free = inLine("free")
+    expect(batchView({ ids: [...papers, free].map((p) => p.id), at: AT }, byId([...papers, free])).running).toBe(true)
+  })
+
+  it("keeps the sites that wait for papers outside the batch, under the batch's rows", () => {
+    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ kind, host, papers, url: `https://${host}/`, askedFor: true, proxied: false })
+    const papers = [held("a", "check", "oup.com"), inLine("b")]
+    const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
+    expect(outsideRows([wait("check", "oup.com", 3), wait("permission", "tsinghua.edu.cn", 13)], view.rows).map((r) => [r.kind, r.host, r.papers])).toEqual([["permission", "tsinghua.edu.cn", 13]])
   })
 
   it("shows the sites that wait without a batch, the most papers first", () => {

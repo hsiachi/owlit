@@ -53,10 +53,19 @@ export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">): string | unde
 // The paper had its PDF and the file was deleted outside owlit: nothing looks for it until the daily look
 export const pdfGone = (p: Pick<Paper, "pdfState">) => p.pdfState?.reason?.ended === "pdf" && !p.pdfState.extension
 
+// A paper waiting for a sign-in waits for the library's, through its proxy: as the extension's queue says,
+// or, when the queue doesn't have it (owlit restarted since), by the host of the page its try met
+export function signsInAtLibrary(p: Pick<Paper, "pdfState">, proxyHost: string | undefined): boolean {
+  const s = p.pdfState
+  if (s?.extension) return !!s.extension.proxied && !s.extension.waitsAt
+  return !!proxyHost && s?.reason?.host === proxyHost
+}
+
 // The title of a paper without its PDF, as its No PDF card and the paper card say it: the state in the
 // sentence the Library's PDF block and Home say it in, with the site it is about. The site is the one the
 // extension's wait names, else where the extension has it, else the page the try that says why ended on.
-export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">): string {
+// proxyHost: the library proxy's host (proxyHostOf), which a sign-in there is the library's.
+export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">, proxyHost?: string): string {
   const wait = pdfWait(p) ?? "finding"
   const s = p.pdfState
   const site = s?.extension?.waitsAt ?? s?.extension?.host ?? s?.reason?.host?.replace(/^www\./, "")
@@ -67,7 +76,7 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">): string {
       return t`Waiting for the network`
     case "for-sign-in":
       // The library's sign-in only through its proxy; a publisher's own login page is that site's
-      if (s?.extension?.proxied || !site) return t`Needs you to sign in to your library`
+      if (signsInAtLibrary(p, proxyHost) || !site) return t`Needs you to sign in to your library`
       return t`Needs you to sign in at ${site}`
     case "for-check":
       return site ? t`Needs you to verify you're human on ${site}` : t`Needs you to verify you're human`

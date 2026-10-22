@@ -1,6 +1,6 @@
 import type { ExtensionWait } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { siteWaitItem, siteWaitItems, waitOf, waitWords } from "./waits"
+import { siteWaitItem, siteWaitItems, stillWaits, stillWords, waitOf, waitWords } from "./waits"
 
 const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor, proxied: true })
 const publisher = (papers = 1): ExtensionWait => ({ kind: "sign-in", host: "sagepub.com", papers, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false })
@@ -39,5 +39,16 @@ describe("sites the extension waits at", () => {
     const held = { pdfState: { state: "finding" as const, tried: [], extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "permission" as const, waitsAt: "apa.org", proxied: true } } }
     expect(waitOf(held, [wait("sign-in", true), apa])).toBe(apa)
     expect(waitOf({ pdfState: { state: "finding", tried: [], extension: { host: "tlink.lib.tsinghua.edu.cn" } } }, [wait("sign-in", true)])).toBeUndefined()
+  })
+
+  it("say a check is still there when it came back after I've verified it", () => {
+    const misq = { kind: "check" as const, host: "misq.umn.edu", proxied: false }
+    const now = 10 * 60_000
+    expect(stillWaits([{ ...misq, at: now - 1000, gone: true }], misq, now)).toBe(true)
+    // The wait hadn't gone yet: owlit's try is still out
+    expect(stillWaits([{ ...misq, at: now - 1000, gone: false }], misq, now)).toBe(false)
+    // Long after, it is a new wait
+    expect(stillWaits([{ ...misq, at: 0, gone: true }], misq, now)).toBe(false)
+    expect(stillWords(misq)).toBe("misq.umn.edu still asks you to verify you're human")
   })
 })
