@@ -40,7 +40,8 @@ export interface PaperPdf {
 // blocked: the site's firewall turned the browser away (by its network, mostly).
 // offline: nothing could be reached. no-permission: the browser extension may not read the site until
 // the user allows it there (an optional host permission, asked for from the extension's own button).
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
+// unreadable: the browser extension couldn't open the publisher's page (see WorkEnding).
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission" | "unreadable"
 
 // One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)
 // or the browser extension.

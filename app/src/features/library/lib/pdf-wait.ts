@@ -22,6 +22,8 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
     case "blocked":
     case "for-permission":
       return t({ message: "Finding", comment: "a paper whose PDF owlit is looking for" })
+    case "manual":
+      return t({ message: "Needs manual download", comment: "owlit couldn't open the publisher's page in the user's browser; the user downloads the PDF there by hand" })
     case "not-found":
       return t({ message: "No PDF found", comment: "owlit looked for the paper's PDF and found no copy" })
     case "no-access":
@@ -57,6 +59,8 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">): string {
       return site ? t`${site} blocks your browser` : t`The publisher's site blocks your browser`
     case "for-permission":
       return site ? t`Waits for the extension to be allowed on ${site}` : t`Waits for the extension to be allowed`
+    case "manual":
+      return t`Needs a manual download`
     case "not-found":
       return t`No PDF found`
     case "no-access":

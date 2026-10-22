@@ -199,8 +199,20 @@ export interface ExtensionOpened {
 }
 
 // How a fetch ended without a PDF. The extension reports only this word, the host, the page's title and
-// its final address, never the page's text.
-export type WorkEnding = "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
+// its final address, never the page's text. unreadable: the page wasn't the paper's and said nothing the
+// extension knows (a page built by its scripts, which the extension never runs, or a "Please wait"), so
+// whether the site has a copy is unknown.
+export type WorkEnding =
+  | "no-copy"
+  | "no-access"
+  | "not-offered"
+  | "not-there"
+  | "check"
+  | "blocked"
+  | "sign-in"
+  | "offline"
+  | "no-permission"
+  | "unreadable"
 
 // POST /work/:id, as JSON when no PDF came (a PDF comes as application/pdf)
 export interface WorkEnded {

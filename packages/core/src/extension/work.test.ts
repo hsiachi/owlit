@@ -98,6 +98,18 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["w2"])
   })
 
+  it("goes on at a site whose page the extension couldn't open, the paper out of the queue", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "apa.org"), false)
+    work.fetch(library, paper("a2", "apa.org"), false)
+    const [a1] = await take()
+    work.settle(a1.id, "unreadable", { url: "https://psycnet.apa.org/doiLanding?doi=a1", host: "psycnet.apa.org" })
+    expect(work.waits()).toEqual([])
+    expect(work.holding(library, "a1")).toBeUndefined()
+    vi.advanceTimersByTime(GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+  })
+
   it("pauses a site whose firewall blocks the user's browser, like a check", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("b1", "bmj.com"), false)

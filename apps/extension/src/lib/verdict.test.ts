@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { isThrough, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+import { isThrough, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+
+// Trimmed from the pages of 2026-10-22's run
+const LINKINGHUB = `<html><head><meta HTTP-EQUIV="REFRESH" content="2; url='/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879%3Fvia%253Dihub&amp;key=ae79'"/>
+<title>Redirecting</title><script>function autoRedirectToURL() { window.location = url }</script></head><body onload="autoRedirectToURL();"></body></html>`
+const THIEME = `<html lang="en"><head><title>Please wait</title><script src="/products/assets/challenge-55fc.js"></script></head><body><h1 id="challenge-title">Please wait</h1>
+<p>This process is protecting Thieme-Connect from malicious requests caused by AI crawlers, botnets and other hostile web agents.</p><div id="spinner" class="spinner"></div></body></html>`
 
 const page = (url: string, html: string, extra: Partial<Page> = {}): Page => ({ url, status: 200, html, ...extra })
 const article = (title: string, body = "") => `<html><head><title>${title}</title><meta name="citation_title" content="${title}"></head><body>${body}</body></html>`
@@ -86,9 +92,34 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://journals.sagepub.com/doi/1", "<title>Purchase this article</title>"))).toBe("no-access")
   })
 
-  it("says no copy for anything else", () => {
+  it("says no copy for the paper's own page that names no PDF", () => {
     expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", "<p>Abstract</p>")))).toBe("no-copy")
     expect(verdict(page("not an address", ""))).toBe("no-copy")
+  })
+
+  it("says it couldn't read a page that isn't the paper's and says nothing it knows", () => {
+    // APA PsycNet answers with a shell its scripts fill in
+    const psycnet = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>APA PsycNet</title><base href="/"></head><body><app-root></app-root><script src="main.js"></script></body></html>'
+    expect(verdict(page("https://psycnet.apa.org/doiLanding?doi=10.1037/0022-3514.54.4.569", psycnet))).toBe("unreadable")
+    // Elsevier's linkinghub, when its refresh isn't followed
+    expect(verdict(page("https://linkinghub.elsevier.com/retrieve/pii/S0957417412003879", LINKINGHUB))).toBe("unreadable")
+    // Thieme's own wait while its scripts check the browser
+    expect(verdict(page("https://www.thieme-connect.de/products/ejournals/abstract/10.1055/s-0029-1185335", THIEME))).toBe("unreadable")
+    // A stand-in's title says so even beside a paper's tags
+    expect(verdict(page("https://example.org/article/1", '<title>Loading…</title><meta name="citation_title" content="A Paper">'))).toBe("unreadable")
+    expect(isThrough(page("https://psycnet.apa.org/doiLanding?doi=1", psycnet))).toBe(true)
+  })
+
+  it("reads where a meta refresh goes", () => {
+    expect(refreshOf(page("https://linkinghub.elsevier.com/retrieve/pii/S0957417412003879", LINKINGHUB))).toBe(
+      "https://linkinghub.elsevier.com/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879%3Fvia%253Dihub&key=ae79",
+    )
+    expect(refreshOf(page("https://a.example/x", '<meta http-equiv="refresh" content="0;URL=https://b.example/y">'))).toBe("https://b.example/y")
+    // A refresh of the page itself, a long wait, and the paper's own page going on aren't hops
+    expect(refreshOf(page("https://a.example/x", '<meta http-equiv="refresh" content="5">'))).toBeUndefined()
+    expect(refreshOf(page("https://a.example/x", '<meta http-equiv="refresh" content="600; url=/signout">'))).toBeUndefined()
+    expect(refreshOf(page("https://a.example/x", '<meta name="citation_title" content="A"><meta http-equiv="refresh" content="0; url=/signout">'))).toBeUndefined()
+    expect(refreshOf(page("https://a.example/x", '<meta http-equiv="refresh" content="0; url=javascript:alert(1)">'))).toBeUndefined()
   })
 
   it("tells when the user got through", () => {

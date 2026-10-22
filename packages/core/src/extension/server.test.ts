@@ -481,7 +481,7 @@ describe("the extension's port", () => {
 
     it("notes each word the extension brings back as its try", async () => {
       const { call, request, token, root } = await connected()
-      for (const ended of ["no-access", "not-offered", "not-there", "no-copy"] as const) {
+      for (const ended of ["no-access", "not-offered", "not-there", "no-copy", "unreadable"] as const) {
         await call("library.fetchPdf", { id })
         const [item] = (await request("/work", { token })).body.work
         await request(`/work/${item.id}`, { token, body: { ended, host: "journals.sagepub.com", title: "Get access" } })
@@ -565,6 +565,16 @@ describe("the extension's port", () => {
       const [item] = (await request("/work", { token })).body.work
       expect(item).toMatchObject({ paperId: id, host: "sagepub.com" })
       expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "search", ended: "no-copy" })
+    })
+
+    it("doesn't hand the daily look's miss to the extension where it couldn't open the page", async () => {
+      const { root, request, token, core, call } = await connected()
+      acquired(root, id, "no-pdf", [{ by: "search", ended: "no-copy", at: 1 }, { by: "extension", ended: "unreadable", at: 2, host: "psycnet.apa.org" }])
+      const workspace = (core as unknown as { workspace: { tasks: { enqueue(kind: string, subject: string, priority: string): { id: string }; wait(id: string): Promise<unknown> } } }).workspace
+      await workspace.tasks.wait(workspace.tasks.enqueue("paper.pdf", id, "background").id)
+      expect((await request("/work", { token })).body.work).toEqual([])
+      // Still a manual download, not owlit's own no copy
+      expect((await paperIn(call)).pdfState).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended: "unreadable" } })
     })
 
     it("leaves a paper to owlit's own ways while no extension asks for work", async () => {

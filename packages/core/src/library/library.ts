@@ -1678,10 +1678,11 @@ export class Library {
           if (!tried.length) tried.push({ by: "search", ended: "no-copy", at: Date.now() })
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
-          // extension, or to the user's browser): only the user asking looks again there.
+          // extension, or to the user's browser), nor once the extension couldn't open its page, which it
+          // would fail to open again the same way: only the user asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
-          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there"
+          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
           if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal)
           await this.announce([id])

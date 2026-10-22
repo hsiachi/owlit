@@ -4599,6 +4599,11 @@ msgstr "Pink"
 msgid "Finding"
 msgstr "Finding"
 
+#. owlit couldn't open the publisher's page in the user's browser; the user downloads the PDF there by hand
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs manual download"
+msgstr "Needs manual download"
+
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF found"
@@ -4653,6 +4658,10 @@ msgstr "Waits for the extension to be allowed on {site}"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Waits for the extension to be allowed"
 msgstr "Waits for the extension to be allowed"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs a manual download"
+msgstr "Needs a manual download"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No access through your library"
@@ -5050,6 +5059,14 @@ msgstr "Once it may, owlit goes on with every paper waiting there."
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
 msgstr "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open {host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit couldn't open {host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"

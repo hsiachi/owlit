@@ -62,6 +62,10 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
     }
     case "offline":
       return t`owlit couldn't reach any source of PDFs when it looked. It looks again within the hour.`
+    case "manual":
+      return host
+        ? t`owlit couldn't open ${host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF.`
+        : t`owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF.`
     case "not-found":
       // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
       if (reason?.ended === "check" || reason?.ended === "sign-in") {
@@ -200,8 +204,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
             </>
           ) : state === "looking" || state === "finding" ? (
             chooseFile
-          ) : noExtension ? (
-            // No extension to try with the person's access: the page and the file come first
+          ) : noExtension || (state === "manual" && doi) ? (
+            // No extension to try with the person's access, or one that couldn't open the page: the page
+            // and the file come first, since owlit's own look would end the same way
             <>
               <Button size="sm" onClick={openPage}>
                 {t({ message: "Open the page", comment: "button: opens the paper's page at its publisher in the user's browser" })}
@@ -217,7 +222,8 @@ export function NoPdf({ paper }: { paper: Paper }) {
           )
         }
       >
-        {opened && <p className="max-w-72 text-sm text-foreground">{t`Download it there, then drop it here.`}</p>}
+        {/* A manual download's card says already that the extension saves what is downloaded there */}
+        {opened && state !== "manual" && <p className="max-w-72 text-sm text-foreground">{t`Download it there, then drop it here.`}</p>}
         {NO_PDF.has(state) && (
           <p className="max-w-72 text-sm text-muted-foreground">{nextLook ? t`owlit looks again on ${nextDate}` : t`owlit won't look again`}</p>
         )}

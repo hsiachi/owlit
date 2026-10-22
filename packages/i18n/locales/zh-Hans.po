@@ -4599,6 +4599,11 @@ msgstr "粉色"
 msgid "Finding"
 msgstr "查找中"
 
+#. owlit couldn't open the publisher's page in the user's browser; the user downloads the PDF there by hand
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs manual download"
+msgstr "需手动下载"
+
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF found"
@@ -4653,6 +4658,10 @@ msgstr "等你允许扩展读取 {site}"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Waits for the extension to be allowed"
 msgstr "等你允许扩展读取"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs a manual download"
+msgstr "需要你手动下载"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No access through your library"
@@ -5050,6 +5059,14 @@ msgstr "允许后，owlit 会继续获取那里所有在等的论文。"
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
 msgstr "owlit 查找时连不上任何 PDF 来源，一小时内会再找一次。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open {host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit 打不开 {host} 的页面。在浏览器里打开它，点页面上的 PDF 按钮，owlit 会保存这份 PDF。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit 打不开出版商的页面。在浏览器里打开它，点页面上的 PDF 按钮，owlit 会保存这份 PDF。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"

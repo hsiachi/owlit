@@ -74,8 +74,8 @@ export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === 
 // finding while the extension waits for the user at its site or reached nothing there (its fetch was
 // put back in its queue, which a restart emptied), and one with no PDF for owlit's own reason
 // (no copy, or an older record's check or sign-in) that the extension hasn't tried since its last PDF.
-// Not one the extension already judged (no access, not there, its own no copy): owlit's back-off look
-// hands that one over again when it is due.
+// Not one the extension already judged (no access, not there, its own no copy, a page it couldn't open):
+// only the user asking hands that one over again.
 export function forExtension(acquisition: Pick<Acquisition, "state" | "tried">): PdfTry | undefined {
   const { reason } = standing(acquisition.tried)
   if (!reason) return undefined

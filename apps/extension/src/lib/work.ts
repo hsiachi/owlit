@@ -1,7 +1,7 @@
 import type { PaperAnswer, WorkEnded, WorkItem } from "@owlit/protocol"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
-import { isCheck, isSignInAddress, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+import { isCheck, isSignInAddress, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
 // Fetching a paper owlit asked for (GET /work), with the user's cookies: its PDF, or one word for what
 // came instead (verdict.ts). Nothing else is fetched, and what goes back to owlit is the PDF, or the word,
@@ -84,10 +84,16 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
 // A fetch that goes on by hand where a redirect left for a site the extension may read after all: a
 // followed fetch fails as soon as any hop in the chain is a site it may not read (doi.org on to a
 // publisher's page on to its sign-in), so each readable hop is fetched anew, until one answers or one
-// may not be read
+// may not be read. A page's meta refresh is a hop too (Elsevier's linkinghub on to ScienceDirect), since
+// the extension never runs the page's scripts; one to a site it may not read is a redirect there.
 async function follow(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<Got> {
   let got = await get(url, deps, proxy)
-  for (let hop = 0; hop < MAX_HOPS && got.kind === "redirected" && got.to && (await deps.permitted(got.to)); hop++) got = await get(got.to, deps, proxy)
+  for (let hop = 0; hop < MAX_HOPS; hop++) {
+    const to = got.kind === "redirected" ? got.to : got.kind === "page" ? refreshOf(got.page) : undefined
+    if (!to) break
+    if (!(await deps.permitted(to))) return got.kind === "page" ? { kind: "redirected", to } : got
+    got = await get(to, deps, proxy)
+  }
   return got
 }
 

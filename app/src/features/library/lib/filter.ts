@@ -17,6 +17,7 @@ export function matchesQuery(p: Paper, q: string): boolean {
 // The No PDF view's groups, each one name (pdfWord) for the states in it, in this order: what the tries
 // found, and papers still being looked for last
 const NO_PDF_GROUPS: PdfWait[][] = [
+  ["manual"],
   ["not-found"],
   ["no-access", "not-offered"],
   ["not-there"],
