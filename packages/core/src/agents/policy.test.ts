@@ -195,7 +195,7 @@ describe("the router's policy", () => {
     await expect(call("library.update", { id: "doi-10.9-a", patch: { starred: true } }, command)).rejects.toThrow("Not done: From outside owlit, an agent or program reads the workspace and changes only what it made itself; the user makes other changes in the owlit app.")
     await expect(call("settings.update", { patch: {} }, command)).rejects.toThrow(/the user's alone/)
     expect((await call("library.list", undefined, command)).papers).toHaveLength(1)
-    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies.", scope: "workspace" }, command)
+    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies." }, command)
     expect((await call("memory.list")).lines).toMatchObject([{ text: "Works on replay studies." }])
   })
 
@@ -203,7 +203,7 @@ describe("the router's policy", () => {
     const { call, mcp } = await setup()
     const lines = async () => (await call("memory.list")).lines.map((l: { id: string; text: string }) => [l.id, l.text])
     await call("memory.put", { kind: "work", text: "Cite as (Author, Year)." })
-    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies.", scope: "workspace", chatId: "c1" }, mcp)
+    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies.", chatId: "c1" }, mcp)
     const [mine, owlits] = (await call("memory.list")).lines.map((l: { id: string }) => l.id)
     await expect(call("memory.write", { op: "replace", id: mine, text: "Cite in APA 7." }, mcp)).rejects.toThrow("Not done: That memory line is the user's, not Owlit's to change; name it in your answer and let them decide.")
     await expect(call("memory.write", { op: "remove", id: mine }, mcp)).rejects.toThrow(/^Not done: That memory line is the user's/)
@@ -313,7 +313,7 @@ describe("what a caller can't take over", () => {
 
   it("keeps a memory line the person rewrote theirs after the log forgets, and one Owlit kept its", async () => {
     const { call, mcp, root } = await setup()
-    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies.", scope: "workspace" }, mcp)
+    await call("memory.write", { op: "add", kind: "about", text: "Works on replay studies." }, mcp)
     const [line] = (await call("memory.list")).lines
     expect(line.chatId).toBe("c1")
     await call("memory.put", { id: line.id, kind: "about", text: "Works on replay annotation." })

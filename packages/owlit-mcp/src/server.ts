@@ -21,11 +21,8 @@ import {
   type FoundPapers,
   type HighlightColor,
   type MemoryKind,
-  type MemoryScope,
-  projectKey,
   type ReadStatus,
   type Paper,
-  type Project,
   pdfWait,
   type PdfEnded,
   type ToolSpec,
@@ -376,22 +373,17 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return `Highlighted the passage on p. ${page} of ${title}. The user can remove it from the paper's Highlights.`
     }
     case "thread_list": {
-      const [all, { projects }] = await Promise.all([owlit.rpc.threads.list(), owlit.rpc.projects.list()])
-      // The paths a thread's project is written as, first, so the agent never has to guess one
-      const head = projects.length
-        ? `Projects: ${projects.map((p) => `${p.path} (${p.name})`).join(", ")}`
-        : "Projects: none (no folder of the workspace holds a project.md), so a thread's project stays empty."
-      if (!all.length) return `${head}\nThere are no threads yet.`
-      const lines = all.map((c) => {
-        const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
-        return `- ${c.id} · ${c.title}${c.project ? ` · in ${projectWords(c.project, projects)}` : ""} · ${size}\n  Asked: ${c.question}${c.one ? `\n  ${c.one}` : ""}`
-      })
-      return [head, ...lines].join("\n")
+      const all = await owlit.rpc.threads.list()
+      if (!all.length) return "There are no threads yet."
+      return all
+        .map((c) => {
+          const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
+          return `- ${c.id} · ${c.title} · ${size}\n  Asked: ${c.question}${c.one ? `\n  ${c.one}` : ""}`
+        })
+        .join("\n")
     }
-    case "thread_read": {
-      const [thread, { projects }] = await Promise.all([owlit.rpc.threads.get({ id: str("id") }), owlit.rpc.projects.list()])
-      return threadText(thread, projects)
-    }
+    case "thread_read":
+      return threadText(await owlit.rpc.threads.get({ id: str("id") }))
     case "thread_write": {
       const write = threadWriteOf(args)
       if (typeof write === "string") return write
@@ -411,35 +403,15 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
     }
     case "memory_write": {
       const op = str("op") as "add" | "replace" | "remove"
-      const scope = optStr("scope")
-      const { line, before, changeId, noProject } = await owlit.rpc.memory.write({
+      const { line, before, changeId } = await owlit.rpc.memory.write({
         op,
         ...pickArgs(args, { id: "id", text: "text" }),
         ...(optStr("kind") ? { kind: optStr("kind") as MemoryKind } : {}),
-        ...(scope ? { scope: scope as MemoryScope } : {}),
         ...writer,
       })
       if (!changeId) return `Already kept as ${line?.id}: "${line?.text}". Nothing changed.`
       if (!line) return `Removed ${before?.id} ("${before?.text}") from the memory. Tell the user in a few words.`
-      // Where a line about their work went, so the agent can say it and see a wrong scope
-      const where =
-        line.kind !== "about"
-          ? ""
-          : line.project
-            ? ` for ${projectWords(line.project, (await owlit.rpc.projects.list()).projects)}`
-            : noProject
-              ? " for the workspace (this chat is in no project)"
-              : " for the workspace"
-      return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}${where}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
-    }
-    case "memory_read": {
-      const asked = str("project")
-      const [{ lines }, { projects }] = await Promise.all([owlit.rpc.memory.read({ project: asked }), owlit.rpc.projects.list()])
-      const project = projects.find((p) => projectKey(p.path) === projectKey(asked))
-      const named = project ? projectWords(project.path, projects) : `"${asked.trim()}"`
-      const none = project ? "" : `${named} is no project of this workspace (no folder there holds a project.md); the memory note gives each project's path.`
-      if (!lines.length) return none || `Nothing kept for ${named}.`
-      return [none, `About their work, kept for ${named}:`, ...lines.map((l) => `- [${l.id}] ${l.text}`)].filter(Boolean).join("\n")
+      return `${before ? `Replaced ${line.id}` : `Kept as ${line.id}`}: "${line.text}". Tell the user in a few words what you'll keep in mind${before ? `, and that it replaces "${before.text}"` : ""}.`
     }
     case "activity_read": {
       const query = activityQueryOf(args)
@@ -479,7 +451,7 @@ export function threadWriteOf(args: Record<string, unknown>): ThreadWrite | stri
   const problem = rows?.find((r) => typeof r === "string")
   if (problem) return problem
   return {
-    ...pickArgs(args, { id: "id", asked: "asked", title: "title", project: "project", report: "report", one: "one", note: "note", grouping: "grouping", newGrouping: "new_grouping" }),
+    ...pickArgs(args, { id: "id", asked: "asked", title: "title", report: "report", one: "one", note: "note", grouping: "grouping", newGrouping: "new_grouping" }),
     ...(rows ? { rows: rows as ThreadRowWrite[] } : {}),
     ...(parsed.groups ? { groups: parsed.groups as ThreadGroup[] } : {}),
     ...(Array.isArray(args.columns) ? { columns: (args.columns as string[]).map((question) => ({ question })) } : {}),
@@ -531,18 +503,10 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
   return out
 }
 
-// A thread's project as the agent reads it: the project's name, with its path when the two differ; a path
-// no mark covers as that path, said to be no project (a mark taken away and one never made look the same)
-export function projectWords(path: string, projects: Project[] | undefined): string {
-  const project = projects?.find((p) => p.path === path)
-  if (!projects || project?.name === path) return path
-  return project ? `${project.name} (${project.path})` : `${path} (not a project)`
-}
-
 // A thread as the agent reads it: the question and later ones, the columns (a comparison with its
 // sentences; one out of the user's sight marked so), the groupings with their groups, the report, and each
 // paper as what it is · how it bears on the question · how it was found · its groups, then its other answers
-export function threadText(stored: ThreadRead, projects?: Project[]) {
+export function threadText(stored: ThreadRead) {
   const c = shownThread(stored)
   const asks = c.columns.filter((col) => col.kind !== "grouping")
   const groupings = c.columns.filter((col) => col.kind === "grouping")
@@ -555,7 +519,7 @@ export function threadText(stored: ThreadRead, projects?: Project[]) {
   const answer = (cell: ThreadCell) => `${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`
   const lines = [
     `${c.title} (${threadUri(c.id)})`,
-    `Asked: ${c.asked.text}${c.project ? ` · project ${projectWords(c.project, projects)}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
+    `Asked: ${c.asked.text}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
     ...(c.alsoAsked?.length ? [`Later questions added here: ${c.alsoAsked.map((a) => `«${a.text}»`).join("; ")}`] : []),
     `Columns: ${asks.map(columnLine).join("; ")}`,
     ...groupings.map(

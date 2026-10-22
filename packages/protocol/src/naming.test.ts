@@ -46,12 +46,6 @@ describe("followFirstLine", () => {
     expect(timeName(t)).toBe("2026-10-09 08.05")
     expect(followFirstLine("Plan.md", "", t, none)).toBe("2026-10-09 08.05.md")
   })
-  it("never moves a project mark, nor names a doc as one", () => {
-    expect(followFirstLine("a/project.md", "# Proactive Support\n", 0, none)).toBeNull()
-    expect(followFirstLine("a/Project.md", "", 0, none)).toBeNull()
-    expect(followFirstLine("a/2026-10-09 10.00.md", "# Project\n", 0, none)).toBe("a/Project 2.md")
-    expect(followFirstLine("a/Project 2.md", "# Project", 0, none)).toBeNull()
-  })
   it("cleans typed names", () => {
     expect(cleanName(" a/b: c. ")).toBe("a b c")
   })

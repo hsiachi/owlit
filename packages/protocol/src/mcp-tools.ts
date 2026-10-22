@@ -320,7 +320,7 @@ function TOOLS(): ToolSpec[] {
     inputSchema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Workspace-relative path of a new doc, e.g. 'Weekly · reading.md'" },
+        path: { type: "string", description: "Workspace-relative path of a new doc, e.g. 'Meetings/Weekly · reading.md'" },
         content: { type: "string", description: "The whole doc, Markdown" },
       },
       required: ["path", "content"],
@@ -396,7 +396,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_list",
     touches: "read",
     description:
-      "The threads Owlit keeps for the user: your reports on questions the user asked, with the papers they rest on. First the workspace's projects (each a folder holding a project.md, as path (name)); then a line per thread: id, title, the project it belongs to (by name), how many papers and columns, the question as the user asked it, and your one line on the thread. Look here before any thread work: add to the thread whose question the new one falls inside; for a neighbouring question start a sibling in the same project.",
+      "The threads Owlit keeps for the user: your reports on questions the user asked, with the papers they rest on. Each line: id, title, how many papers and columns, the question as the user asked it, and your one line on the thread. Look here before any thread work: add to the thread whose question the new one falls inside; for a neighbouring question start a sibling.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
   },
@@ -419,7 +419,6 @@ function TOOLS(): ToolSpec[] {
         id: { type: "string", description: "An existing thread's id; leave out to start one" },
         asked: { type: "string", description: "The user's question in their own words: needed to start one, and given too when you add to one for a new question" },
         title: { type: "string", description: "A short neutral title for what it gathers, in the user's language, naming the topic rather than repeating the question: 回放式标注作为研究方法, not 我的研究方法该怎么设计？ (needed to start one)" },
-        project: { type: "string", description: "The project the work belongs to: a marked folder's path from the Projects line thread_list gives you, when the work plainly belongs to it; leave empty when it belongs to none (optional)" },
         report: {
           type: "string",
           description:
@@ -506,35 +505,17 @@ function TOOLS(): ToolSpec[] {
     name: "memory_write",
     touches: "own",
     description:
-      "Change what Owlit keeps in mind about the user: owlit's memory, one short list for this workspace that sessions hear at their start, each fact about their work kept for one project or for the workspace. Keep a line when the user tells you to remember something or says \"from now on\", \"always\" or \"never\"; when they correct how you work in plain words; or when they state a fact about their work that will matter in a later chat. Not for guesses from habits, one-off requests, what papers say, what the user did, or which draft is current. The user sees each change in the chat and can undo it.",
+      "Change what Owlit keeps in mind about the user: owlit's memory, one short list for this workspace that every session hears at its start. Keep a line when the user tells you to remember something or says \"from now on\", \"always\" or \"never\"; when they correct how you work in plain words; or when they state a fact about their work that will matter in a later chat. Not for guesses from habits, one-off requests, what papers say or what the user did. The user sees each change in the chat and can undo it.",
     inputSchema: {
       type: "object",
       properties: {
         op: { type: "string", enum: ["add", "replace", "remove"], description: "add a line; replace one (its id) when the user changed their mind or a line needs merging; remove one they take back" },
         kind: { type: "string", enum: ["work", "about"], description: "add, or to move a line on replace: work = how the user wants Owlit to work; about = a fact about their work" },
         text: { type: "string", description: "add and replace: one short sentence, in the user's words and language" },
-        scope: {
-          type: "string",
-          enum: ["project", "workspace"],
-          description:
-            "Where a line about their work is kept (required to add one; on replace, to move it; a work line is always the workspace's). Would it matter in a chat about a different piece of work? Yes (their role, their field, a theme across projects): workspace, heard in every chat. No (a decision in this paper, who does what in it): project, kept for this chat's project and heard in its chats.",
-        },
         id: { type: "string", description: "replace and remove: the line's id (m1, m2…), as the memory note lists it" },
       },
       required: ["op"],
     },
-  },
-  {
-    name: "memory_read",
-    touches: "read",
-    description:
-      "The lines Owlit keeps about the user's work for one project, which the memory note gives only as an index line outside its own projects. Read them when the conversation touches another project: the user names it, or a paper or thread of it comes up.",
-    inputSchema: {
-      type: "object",
-      properties: { project: { type: "string", description: "The project's path (its marked folder), as the memory note's index gives it" } },
-      required: ["project"],
-    },
-    annotations: { readOnlyHint: true },
   },
   {
     name: "chats_list",

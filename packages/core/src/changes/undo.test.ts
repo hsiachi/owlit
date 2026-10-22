@@ -169,13 +169,10 @@ describe("changes.undo", () => {
     const { core, call, undo } = await setup()
     const ws = (core as any).workspace
     const { id } = await ws.threads.write({ asked: "Do replay ratings hold?", title: "Replay" }, { kind: "socket", chatId: "c1" })
-    // A thread is filed only under a folder marked as a project
-    await call("docs.create", { path: "Thesis/project.md", content: "# Thesis\n" })
-    await call("threads.edit", { id, edit: { op: "project", project: "Thesis" } })
-    expect((await call("threads.get", { id })).project).toBe("Thesis")
-    const [moved] = await call("changes.list", { target: { kind: "thread", path: id, part: "project" } })
-    await undo(moved.id)
-    expect((await call("threads.get", { id })).project).toBe("")
+    await ws.threads.write({ id, title: "Replay ratings" }, { kind: "socket", chatId: "c1" })
+    const [renamed] = await call("changes.list", { target: { kind: "thread", path: id, part: "title" } })
+    await undo(renamed.id)
+    expect((await call("threads.get", { id })).title).toBe("Replay")
   })
 
   it("takes back a comment's reply alone, and a whole comment with its replies", async () => {

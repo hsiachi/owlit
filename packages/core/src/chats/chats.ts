@@ -78,11 +78,6 @@ export class Chats {
     return (await this.all()).find((c) => c.startedBy && sameAbout(c.about, about))
   }
 
-  // One chat without its messages, yours or owlit's; undefined when there is none
-  async summary(id: string): Promise<ChatSummary | undefined> {
-    return (await this.loadIndex()).get(id)
-  }
-
   private async all() {
     return [...(await this.loadIndex()).values()].sort((a, b) => b.updatedAt - a.updatedAt)
   }
@@ -114,11 +109,10 @@ export class Chats {
     return summary
   }
 
-  // Title, pin, the agent and its settings, the time it was last used, or its project ("" for none)
+  // Title, pin, the agent and its settings, or the time it was last used
   async update(id: string, patch: Partial<Omit<ChatSummary, "id" | "createdAt">>) {
     const chat = await this.get(id)
     const next = { ...chat, ...patch }
-    if (!next.project) delete next.project
     this.bodies.set(id, next)
     ;(await this.loadIndex()).set(id, summaryOf(next))
     await this.write(id, true)
@@ -348,7 +342,7 @@ export class Chats {
 }
 
 function summaryOf(chat: Chat | ChatFile): ChatSummary {
-  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, rules, startedBy, about, help, project } = chat
+  const { id, title, createdAt, updatedAt, pinned, connectorId, modelId, role, effortId, sessions, rules, startedBy, about, help } = chat
   return {
     id,
     title,
@@ -363,7 +357,6 @@ function summaryOf(chat: Chat | ChatFile): ChatSummary {
     ...(rules ? { rules } : {}),
     ...(startedBy ? { startedBy, ...(about ? { about } : {}) } : {}),
     ...(help ? { help } : {}),
-    ...(project ? { project } : {}),
   }
 }
 

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { isPerson, RpcErrorCode, type CitationPassage, type JournalEntry, type PersonId, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Project, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { isPerson, RpcErrorCode, type CitationPassage, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import { mkdir, readFile, realpath, rename, stat } from "node:fs/promises"
 import path from "node:path"
@@ -15,9 +15,6 @@ import { docProposals } from "../changes/proposals.ts"
 import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings/store.ts"
 import { Memory } from "../memory/memory.ts"
-import { Cited } from "../projects/cited.ts"
-import { Projects, touchedBy } from "../projects/projects.ts"
-import { journalOf, summarize } from "../projects/summary.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, WINDOW } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
@@ -86,8 +83,6 @@ export interface WorkspaceOptions {
   tasks?: WorkspaceTasks
   // Owlit's memory changed, by anyone
   memoryChanged?: (lines: MemoryLine[]) => void
-  // What projects.list answers changed (Projects.refresh)
-  projectsChanged?: (projects: Project[]) => void
   // The profile of the person using this owlit (with its id); read from the app data's settings when
   // not given
   profile?: () => Promise<ProfileSettings>
@@ -131,10 +126,6 @@ export class Workspace {
   readonly threads: Threads
   readonly memory: Memory
   readonly shares: Shares
-  readonly projects: Projects
-  readonly cited: Cited
-  // The person's journal, read again only once it changed
-  private readonly journal: () => Promise<JournalEntry[]>
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions, profile: () => Promise<ProfileSettings>) {
@@ -185,9 +176,7 @@ export class Workspace {
       await this.recorder.doc(caller, at, null, after, { origin: { writeId } }, { quiet: true })
     }
     this.chats = new Chats(path.join(root, OWLIT_DIR))
-    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged, {
-      projectsOfChat: (chatId) => this.projects.projectsOf({ kind: "chat", id: chatId }),
-    })
+    this.memory = new Memory(path.join(root, OWLIT_DIR), root, this.recorder, options.memoryChanged)
     this.library = new Library(root, dataDir, {
       ...(options.library ?? { http: new Http({ fetch: host.fetch, userAgent: "owlit" }), settings: async () => ({}) }),
       person: () => this.recorder.actorOf(WINDOW),
@@ -198,23 +187,6 @@ export class Workspace {
           .catch((error) => console.error("[core] couldn't record an imported paper", error)),
     })
     this.search = new SearchIndex(root, dataDir, this.library)
-    this.projects = new Projects({
-      files: () => this.docs.files(),
-      read: (rel) => this.docs.readDisk(rel),
-      chat: (id) => this.chats.get(id).catch(() => null),
-      changesOf: (chatId) => this.changes.list({ chatId }),
-      thread: (id) => this.threads.summary(id),
-      docsLinking: async (uri) => (await this.search.linksTo(uri)).flatMap((l) => (l.source === "doc" ? [l.key] : [])),
-      canonical: (id) => this.library.canonical(id),
-      changed: options.projectsChanged,
-    })
-    this.cited = new Cited({
-      projects: () => this.projects.list(),
-      files: () => this.docs.files(),
-      read: (rel) => this.docs.readDisk(rel),
-      canonical: (id) => this.library.canonical(id),
-      owlitDepths: (rel) => this.citations.owlitDepths(rel),
-    })
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder, changes: this.changes }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
@@ -234,7 +206,6 @@ export class Workspace {
       facts: (id) => this.library.threadFacts(id),
       findPassage: (id, quote) => this.findPassage(id, quote),
       searches: (by, since) => this.library.searchesBy(by, since),
-      projects: () => this.projects.list(),
       ...options.threads,
     })
     this.tasks = new Scheduler({
@@ -258,7 +229,10 @@ export class Workspace {
       // As the doc marks them: Owlit's standing changes since the text the person last had on screen
       held: async (rel, markdown) => {
         const me = await this.recorder.actorOf(WINDOW)
-        return isPerson(me) && (await this.proposalsFor(me, rel, markdown)).length > 0
+        if (!isPerson(me)) return false
+        const marks = await this.seen.get(me, ["docs"])
+        const mark = marks.docs[rel]
+        return (await docProposals(this.changes, rel, markdown, mark ? { hash: mark.hash } : { since: marks.since })).length > 0
       },
       paper: async (id) => {
         const paper = await this.library.get(id)
@@ -267,45 +241,6 @@ export class Workspace {
         return { paper, digest, note }
       },
     })
-    this.journal = journalOf(this.owlitPath("journal.jsonl"))
-  }
-
-  // Owlit's standing changes to a doc since the text the person last had on screen, as the doc marks them
-  private async proposalsFor(me: PersonId, rel: string, markdown: string) {
-    const marks = await this.seen.get(me, ["docs"])
-    const mark = marks.docs[rel]
-    return docProposals(this.changes, rel, markdown, mark ? { hash: mark.hash } : { since: marks.since })
-  }
-
-  // Each project as Home shows it to the person (projects/summary.ts)
-  projectsSummary(me: PersonId) {
-    return summarize(
-      {
-        projects: () => this.projects.list(),
-        files: () => this.docs.files(),
-        journal: this.journal,
-        comments: (rel) => this.docs.listComments(rel),
-        read: (rel) => this.docs.readDisk(rel),
-        proposals: async (rel, text) => (await this.proposalsFor(me, rel, text)).length,
-        paper: async (id) => {
-          const here = await this.library.canonical(id)
-          return here ? this.library.get(here) : undefined
-        },
-        unseen: async () => (await this.seen.unseen(me, { changes: await this.changes.list({ target: { kind: "doc" } }), chats: [], papers: [] })).changes,
-        changes: () => this.changes.list({ target: { kind: "doc" } }),
-        chatStartedBy: async (id) => {
-          const chat = await this.chats.summary(id)
-          return chat ? (chat.startedBy ? "owlit" : "person") : null
-        },
-        chatWork: async (id) => {
-          const chat = await this.chats.get(id).catch(() => null)
-          if (!chat) return { projects: [], docs: [] }
-          const [projects, changes] = await Promise.all([this.projects.projectsOf({ kind: "chat", id }), this.changes.list({ chatId: id })])
-          return { projects, docs: touchedBy(chat, changes).docs }
-        },
-      },
-      me,
-    )
   }
 
   // The 1-based page a quote is on in a paper's full text, by any id the paper goes by; null when it

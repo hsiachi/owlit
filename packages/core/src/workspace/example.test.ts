@@ -1,4 +1,4 @@
-import { MENTION_LINK, parseOwlitUri, type Highlight, type Project, type SeenMarks, type Thread, type ThreadSummary, type Paper } from "@owlit/protocol"
+import { MENTION_LINK, parseOwlitUri, type Highlight, type SeenMarks, type Thread, type ThreadSummary, type Paper } from "@owlit/protocol"
 import { existsSync, realpathSync } from "node:fs"
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -81,12 +81,8 @@ describe("the shipped example workspace", () => {
       const highlights = await call<Highlight[]>("library.highlights", { id: "arxiv-2310.11511" })
       expect(highlights.length).toBeGreaterThan(0)
       expect(highlights.every((h) => h.addedBy === ME)).toBe(true)
-      // Its one marked folder is a project, and each thread names a marked folder as its project
-      const { projects } = await call<{ projects: Project[] }>("projects.list")
-      expect(projects.map((p) => [p.path, p.name])).toEqual([["Hallucination in RAG", "Hallucination in RAG"]])
       for (const summary of list) {
         const c = await call<Thread>("threads.get", { id: summary.id })
-        if (c.project) expect(projects.some((p) => p.path === c.project), summary.id).toBe(true)
         expect(c.rows.length).toBeGreaterThan(0)
         // Times moved with the copy: nothing in it is from the future
         expect(c.updatedAt).toBeLessThanOrEqual(Date.now())

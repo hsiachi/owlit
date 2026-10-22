@@ -39,9 +39,7 @@ interface Stored {
 // As long as the change log keeps what an undo needs (changes/log.ts KEEP_MS)
 const GONE_MS = 30 * 24 * 3_600_000
 
-// A citation as the link writes it (paper, page, sentence): what is kept of it is found by this
-export const citationKey = (c: Citation) => `${c.paperId}#${c.page ?? ""}\n${c.quote ?? ""}`
-const keyOf = citationKey
+const keyOf = (c: Citation) => `${c.paperId}#${c.page ?? ""}\n${c.quote ?? ""}`
 
 export interface CitationServices {
   // The library reads core saw a chat make, in memory (agents/read-from.ts ReadLog)
@@ -192,26 +190,6 @@ export class Citations {
         citations.push(stateOf(c, kept.get(keyOf(c)), paper, c.quote ? await place(c.quote) : NOWHERE))
       }
       return { citations, counts: countsOf(citations) }
-    })
-  }
-
-  // How far Owlit had read the paper behind each citation of a doc it wrote, by citationKey, on the one
-  // scale (protocol ReadFrom's depth): what its reads took in, or, when they took in none of the text, the
-  // record it went on (the abstract, else the title). A citation someone else wrote, or whose reads were
-  // lost with the core that saw them, isn't there: what Owlit read for it is unknown.
-  owlitDepths(rel: string): Promise<Map<string, ReadFrom["depth"]>> {
-    return this.turn.run(async () => {
-      const depths = new Map<string, ReadFrom["depth"]>()
-      for (const k of (await this.load()).docs[rel] ?? []) {
-        if (k.by !== "owlit" || k.gone !== undefined) continue
-        if (k.read && Object.keys(k.read).length) depths.set(keyOf(k), readingOf(k.read).depth)
-        else if (!k.readsLost) {
-          const libraryId = await this.services.canonical(k.paperId)
-          const abstract = libraryId ? (await this.services.paper(libraryId)).abstract : undefined
-          depths.set(keyOf(k), abstract ? "abstract" : "title")
-        }
-      }
-      return depths
     })
   }
 

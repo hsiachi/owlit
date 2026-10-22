@@ -56,7 +56,6 @@ describe("owlit's tools", () => {
 const SKILL_WRITE = {
   asked: "帮我了解前瞻记忆的理论",
   title: "前瞻记忆的定义与理论模型",
-  project: "Proactive",
   one: "Two families of models, and a gap where wearable reminders sit.",
   report:
     "Prospective memory is remembering to act later; [Multiprocess framework](owlit://library/doi-10.1037-0096-3445.129.3.347) and [The PAM theory](owlit://library/doi-10.1037-0278-7393.29.3.347) split on whether noticing the cue costs attention.\n\n## Monitoring\n\n…",

@@ -51,7 +51,6 @@ export function registerDocs({ router, notifier, requireWorkspace, answerReply, 
   router.register("docs.citations", z.object({ path: docPath, text: z.string().max(20_000_000).optional() }), "read", async ({ path, text }) =>
     requireWorkspace().citations.of(path, text ?? (await docs().read(path)).content),
   )
-  router.register("docs.citing", z.object({ paperId: z.string().min(1) }), "read", async ({ paperId }) => ({ docs: await requireWorkspace().cited.citing(paperId) }))
   router.register(
     "docs.create",
     z.object({ path: docPath, content: z.string(), id: z.string().min(1).optional(), followsFirstLine: z.boolean().optional() }), "words",
