@@ -1,13 +1,13 @@
-import type { MemoryLine } from "@owlit/protocol"
+import { baseName, isMarkdown, projectKey, type MemoryHeard, type MemoryLine, type Project } from "@owlit/protocol"
 
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 41
+export const RULES_VERSION = 44
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
-You are Owlit, the assistant inside owlit, a research workspace. The user reads papers, writes Markdown docs and talks with you here. owlit's own tools are the MCP server named owlit: the user's library (library_*), docs (docs_*) and the comments on them (comments_*), chats (chats_*), threads (thread_*), Owlit's memory of the user (memory_write), what the user did in owlit (activity_read), their owlit window (ui_*), and how owlit works (owlit_help).
+You are Owlit, the assistant inside owlit, a research workspace. The user reads papers, writes Markdown docs and talks with you here. owlit's own tools are the MCP server named owlit: the user's library (library_*), docs (docs_*) and the comments on them (comments_*), chats (chats_*), threads (thread_*), Owlit's memory of the user (memory_write, memory_read), what the user did in owlit (activity_read), their owlit window (ui_*), and how owlit works (owlit_help).
 
 ## The workspace
 - The workspace is one folder, the user's. Their docs are the Markdown files anywhere in it outside library/ and folders starting with a dot.
@@ -15,6 +15,11 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 - .owlit/ is owlit's own state (threads among it): change it only through owlit's tools.
 - Files the user attaches to a message are copies owlit keeps in .owlit/chats/<chat id>/files/; the message says where. Read them there (a PDF with docs_read, anything else with your own tools), and don't change, move or copy them elsewhere unless the user asks.
 - Never create CLAUDE.md, AGENTS.md or any other instructions file in the workspace.
+
+## Projects
+- A folder is a project when it holds a project.md: its first line is the project's name ("# <name>"); status:, due: and current: lines may follow. A thing's project is the nearest marked folder above it; owlit tells you a chat's project in the memory note. Never take a folder's name for a project.
+- Make a project only when the user asks ("start a project for X"): the folder and its project.md with "# <name>" as its first line, nothing else, with docs_write. Never mark a folder on your own.
+- The newest doc of each kind in a project (its name without the version: Story-v2 and Story-v3 are one kind) is its current draft, unless a current: line in its project.md names another; owlit works it out each time.
 
 ## Docs
 - Docs belong to the user. Change a doc only when the user asks you to, and read it right before you do: they may have changed it since you last looked.
@@ -65,9 +70,12 @@ You are Owlit, the assistant inside owlit, a research workspace. The user reads 
 - When the next message is "Try again.", your last turn there broke; carry on from what you had done.
 
 ## What Owlit keeps in mind
-owlit keeps a short memory of the user for this workspace: how they want you to work, and facts about their work. A session hears it in an [owlit] memory note before the user's first message, and again whenever it changes. Follow it in every answer.
-- Keep a line with memory_write when the user tells you to remember something or says "from now on", "always" or "never"; when they correct how you work in plain words ("don't edit the doc, let's discuss it here"); or when they state a fact about their work that will matter in a later chat (their project, their role, a decision they made).
+owlit keeps a short memory of the user for this workspace: how they want you to work, and facts about their work, each kept for one project or for the workspace. A session hears it in an [owlit] memory note before the user's first message, and again whenever it or the chat's projects change: how they want you to work, the facts kept for the workspace and for this chat's projects in full, and one line for each other project. Follow it in every answer.
+- Keep a line with memory_write when the user tells you to remember something or says "from now on", "always" or "never"; when they correct how you work in plain words ("don't edit the doc, let's discuss it here"); or when they state a fact about their work that will matter in a later chat (their role, a decision they made).
+- A fact about their work takes a scope: would it matter in a chat about a different piece of work? Yes (their role, their field, a theme across projects): scope workspace. No (a decision in this paper, who does what in it): scope project, kept for this chat's project. How they want you to work is always the workspace's.
+- When the conversation touches another project (the user names it, or a paper or thread of it comes up), read its lines with memory_read and the path the memory note gives.
 - Don't keep guesses from their habits, one-off requests ("this time, use MLA"), what papers say (threads hold that), what they did (activity_read has it), or their name (Settings holds it).
+- Never keep which draft is current as a memory line: owlit calls the newest doc of each kind the current draft. A kept line of the user's that names another is theirs: follow it in the chat and leave it. When the user says which draft is current, record it in that project's project.md as a line \`current: <the doc's path relative to that folder>\` (edit or add that line only, with your file-editing tool; it is the one change you make to a mark) and keep no memory line.
 - One short sentence, in the user's words and language. When a new line contradicts or refines one already kept, replace that line (its id) instead of adding another; when the list is long, merge lines.
 - Say in your answer, in a few words, what you'll keep in mind. The user sees the change in the chat and can undo it or edit the list in Settings.
 - This is the only memory: don't use your own memory feature or write memory or notes files for it.
@@ -83,19 +91,86 @@ owlit keeps a short memory of the user for this workspace: how they want you to 
 // Marks where owlit's own words (rules, role, the conversation so far) end and the user's begin
 export const USER_FOLLOWS = "[owlit] The user's message follows."
 
-// What a session hears of owlit's memory (memory.ts): the whole list before the user's first message,
-// and again before the next one whenever it changed since (an agent in another chat, Settings, an edit by
-// hand). Nothing when the list is empty and the session has heard nothing of it. Lines carry their ids
-// so the agent can replace or remove one.
-export function memoryNote(lines: MemoryLine[], changed: boolean) {
-  const list = (kind: MemoryLine["kind"]) =>
-    lines
-      .filter((l) => l.kind === kind)
-      .map((l) => `- [${l.id}] ${l.text}`)
-      .join("\n") || "(nothing yet)"
-  const opening = changed ? "[owlit] owlit's memory of the user changed; this is the whole list now." : "[owlit] What owlit keeps in mind about the user (its memory; change it only with memory_write):"
-  return `${opening}\nHow they want you to work:\n${list("work")}\nAbout their work:\n${list("about")}`
+export interface MemoryNoteInput {
+  lines: MemoryLine[]
+  // The workspace's projects (Projects.list)
+  projects: Project[]
+  // The chat's own, nearest marks (Projects.projectsOf the chat)
+  chatProjects: Project[]
+  // Said again because something in it changed since the session last heard it
+  changed: boolean
 }
+
+// What a session hears of owlit's memory (memory.ts), before the user's first message and again before
+// the next one whenever it changed since (an agent in another chat, Settings, an edit by hand, the chat
+// now in another project, a project made or worked on). In full: how they want Owlit to work, the facts
+// kept for the workspace, and those kept for the chat's projects and the projects these are inside;
+// every other project is one index line, its own facts left to memory_read. Lines carry their ids so the
+// agent can replace or remove one. A line kept for a folder that is no project (its mark taken away, or never
+// made) is heard as the workspace's, so taking a mark away loses no line.
+export function memoryNote({ lines, projects, chatProjects, changed }: MemoryNoteInput) {
+  const bullets = (some: MemoryLine[], suffix: (l: MemoryLine) => string = () => "") => some.map((l) => `- [${l.id}] ${l.text}${suffix(l)}`).join("\n") || "(nothing yet)"
+  const { own, chats, about, everywhere } = noteParts(lines, projects, chatProjects)
+  const gone = (l: MemoryLine) => (l.project ? ` (kept for ${l.project}, which is not a project)` : "")
+  const opening = changed
+    ? "[owlit] What owlit keeps in mind for this chat changed (its memory of the user, or the projects); this is all of it now."
+    : "[owlit] What owlit keeps in mind about the user (its memory; change it only with memory_write):"
+  const parts = [opening, "How they want you to work:", bullets(lines.filter((l) => l.kind === "work")), projects.length ? "About their work, kept for the workspace:" : "About their work:", bullets(everywhere, gone)]
+  if (!projects.length) return parts.join("\n")
+
+  // The path is what memory_read takes, so it is said whenever it isn't the name itself
+  const named = (p: Project) => (p.name === p.path ? p.name : `${p.name} (${p.path})`)
+  parts.push(chats.length ? `This chat is in the project${chats.length > 1 ? "s" : ""} ${andList(chats.map(named))}.` : "This chat is in no project.")
+  for (const p of own) {
+    const inside = chats.includes(p) ? "" : `, which ${andList(chats.filter((c) => c.parents.some((q) => projectKey(q) === projectKey(p.path))).map((c) => c.name))} is part of`
+    parts.push(`About their work in ${named(p)}${inside}:`, bullets(about.filter((l) => projectKey(l.project) === projectKey(p.path))))
+  }
+  const others = projects.filter((p) => !own.includes(p))
+  if (others.length) {
+    parts.push(`${own.length ? "The workspace's other projects" : "The workspace's projects"}, one line each; memory_read(<path>) gives a project's lines when the conversation touches it:`)
+    parts.push(others.map((p) => `- ${named(p)}: ${lastWorked(p)}`).join("\n"))
+  }
+  return parts.join("\n")
+}
+
+// What a reply heard in the note memoryNote writes for the same input: the chat's projects, the lines it
+// says in full, and the other projects it gives one line each
+export function memoryHeard({ lines, projects, chatProjects }: Omit<MemoryNoteInput, "changed">): MemoryHeard {
+  const { own, chats, about, everywhere } = noteParts(lines, projects, chatProjects)
+  const inOwn = about.filter((l) => own.some((p) => projectKey(p.path) === projectKey(l.project)))
+  return {
+    projects: chats.map((p) => ({ path: p.path, name: p.name })),
+    lines: lines.filter((l) => l.kind === "work").length + everywhere.length + inOwn.length,
+    others: projects.length ? projects.filter((p) => !own.includes(p)).length : 0,
+  }
+}
+
+// The note's groups: the chat's projects as the workspace lists them (chats), those with the projects they
+// are inside (own), and the lines about the user's work, those kept for no listed project among them
+function noteParts(lines: MemoryLine[], projects: Project[], chatProjects: Project[]) {
+  const byKey = new Map(projects.map((p) => [projectKey(p.path), p]))
+  const own: Project[] = []
+  for (const p of chatProjects) {
+    for (const key of [p.path, ...p.parents].map(projectKey)) {
+      const project = byKey.get(key)
+      if (project && !own.includes(project)) own.push(project)
+    }
+  }
+  const chats = chatProjects.map((p) => byKey.get(projectKey(p.path))).filter((p): p is Project => !!p)
+  const about = lines.filter((l) => l.kind === "about")
+  const everywhere = about.filter((l) => !byKey.has(projectKey(l.project)))
+  return { own, chats, about, everywhere }
+}
+
+// The doc last worked on in a project, by its current drafts (newest first), and the day
+function lastWorked(p: Project) {
+  const doc = p.currentDrafts[0]
+  if (!doc) return "nothing yet"
+  const name = baseName(doc.path)
+  return `last worked on ${isMarkdown(name) ? name.slice(0, -3) : name}, ${new Date(doc.modifiedAt).toLocaleDateString("sv-SE")}`
+}
+
+const andList = (items: string[]) => (items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`)
 
 // Said before the next prompt of a session that was told an older version of the rules
 export const rulesChangedNote = () => `[owlit] owlit's rules changed since this chat started; follow this version.\n\n${AGENT_RULES}`

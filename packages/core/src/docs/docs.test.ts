@@ -147,6 +147,18 @@ describe("naming", () => {
     expect(created.path).toBe("Draft.md")
   })
 
+  it("keeps a project mark's name whatever its first line, and names no doc as a mark", async () => {
+    const { call, exists, root } = await setup()
+    const mark = await call("docs.create", { path: "Proactive/project.md", content: "# Proactive Support\n", followsFirstLine: true })
+    expect(mark).toMatchObject({ path: "Proactive/project.md", nameLocked: true })
+    const written = await call("docs.write", { path: mark.path, content: "# Another name\n", expectedModifiedAt: mark.modifiedAt })
+    expect(written.path).toBe("Proactive/project.md")
+    const doc = await call("docs.create", { path: "Other/2026-10-22 10.00.md", content: "# Project\n", followsFirstLine: true })
+    expect(doc.path).toBe("Other/Project 2.md")
+    expect(exists("Other/project.md")).toBe(false)
+    expect(JSON.parse(readFileSync(path.join(root, ".owlit/docs/names.json"), "utf8")).followFirstLine).not.toHaveProperty("Proactive/project.md")
+  })
+
   it("never renames existing files on its own", async () => {
     const { call } = await setup({ "Meeting.md": "# Something else" })
     const [file] = (await call("docs.list")).files

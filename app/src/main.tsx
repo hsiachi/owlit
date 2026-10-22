@@ -28,6 +28,7 @@ import { startWorkspace } from "@/lib/workspace"
 // These keep their stores in step with the workspace from the moment they load
 import "@/features/library/disk"
 import "@/features/threads/disk"
+import "@/features/projects/store"
 import "./index.css"
 
 // The platform styles its scrollbars (index.css); in a plain browser, guess from the user agent

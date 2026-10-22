@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { create } from "zustand"
-import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, RpcErrorCode } from "@owlit/protocol"
+import { type Change, type ChatMessage, editStats, type EditStats, type MemoryHeard, type MemoryLine, projectKey, type ReadFrom, RpcErrorCode } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FoldChevron } from "@/components/fold"
@@ -12,11 +12,13 @@ import { useOpenFromChat } from "@/features/agent/hooks"
 import { fileAt } from "@/features/docs/store"
 import { useDigestRows } from "@/features/library/digest-rows"
 import { paperById, useLibraryStore } from "@/features/library/store"
+import { projectAt, useProjects } from "@/features/projects/store"
 import { paperOfNotePath } from "@/features/library/notes/note-actions"
 import { manageMemory } from "@/features/settings/memory"
 import { useThreadsStore } from "@/features/threads/store"
 import { labelOf, undoEntry, useChatChanges } from "../../results"
 import { countParts } from "../../lib/edit-counts"
+import { keptInMindLine } from "../../lib/step-words"
 import { partsUndone, replyEntries, undoneBy } from "../../lib/reply-changes"
 import { useChatStore } from "../../store"
 import { toastLeft } from "@/lib/changes"
@@ -134,6 +136,7 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   const messages = useChatStore((s) => s.chats[chatId]?.messages) ?? EMPTY_MESSAGES
   const library = useLibraryStore((s) => s.papers)
   const threads = useThreadsStore((s) => s.threads)
+  const projects = useProjects()
   const entries = useMemo(() => replyEntries(all, messages, message.id), [all, messages, message.id])
   const stats = statsCache((s) => s.byKey)
   const byKind = (kind: Change["target"]["kind"]) => {
@@ -261,7 +264,10 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
   // Lines Owlit now keeps in mind, in its words; the row opens the list (Settings › Owlit › Manage…)
   for (const c of entries.filter((c) => c.target.kind === "memory")) {
     const removed = c.action === "delete"
-    const name = ((c.after ?? c.before) as MemoryLine | undefined)?.text ?? ""
+    const line = (c.after ?? c.before) as MemoryLine | undefined
+    const name = line?.text ?? ""
+    // A line kept for a project says which, so a wrong scope shows where it can be undone
+    const project = !removed && line?.project ? projectAt(projects, line.project)?.name : undefined
     rows.push({
       key: `memory:${c.id}`,
       kind: "memory",
@@ -270,8 +276,12 @@ function useResultRows(message: ChatMessage, chatId: string): ResultRow[] {
       detail: removed
         ? t({ message: "Removed", comment: "a line the agent took out of what it keeps in mind" })
         : c.action === "update"
-          ? t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
-          : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
+          ? project
+            ? t({ message: `Updated, for ${project}`, comment: "a line the agent changed in what it keeps in mind, kept for one project (its name)" })
+            : t({ message: "Updated", comment: "a line the agent changed in what it keeps in mind" })
+          : project
+            ? t({ message: `Remembered for ${project}`, comment: "a line the agent now keeps in mind for one project (its name)" })
+            : t({ message: "Remembered", comment: "a line the agent now keeps in mind" }),
       ...of([c], name),
       view: () => manageMemory(true),
       removed,
@@ -498,5 +508,24 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
         </div>
       </Unfold>
     </div>
+  )
+}
+
+// A reply's first line when Owlit's memory note went out before it: what the chat heard, in the steps
+// line's look. It opens the list in Settings at the group of the chat's first project, or at every chat's
+// lines for a chat in none, so a wrong project or a stale line is one click from where it is changed.
+export function KeptInMindLine({ heard }: { heard: MemoryHeard }) {
+  const line = keptInMindLine(heard)
+  return (
+    <button
+      type="button"
+      // A narrow panel cuts the line short; the whole of it is on hover
+      title={line}
+      onClick={() => manageMemory(true, projectKey(heard.projects[0]?.path))}
+      className="group/kept flex max-w-full items-center gap-1.5 self-start text-left text-sm text-foreground/80 outline-none hover:text-foreground focus-key:text-foreground"
+    >
+      <span className="truncate">{line}</span>
+      <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover/kept:opacity-100 group-focus-visible/kept:opacity-100" />
+    </button>
   )
 }

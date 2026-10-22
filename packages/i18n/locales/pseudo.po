@@ -1479,6 +1479,33 @@ msgstr ""
 msgid "Skip large files"
 msgstr ""
 
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/chat/lib/step-words.ts
+#: app/src/features/home/HomeProjects.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+#: app/src/lib/words.ts
+msgctxt "between things in a list"
+msgid ", "
+msgstr ""
+
+#. above the composer: the project(s) this chat is in, by name
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+msgid "in: {names}"
+msgstr ""
+
+#. above the composer: this chat is in no project; opens a menu to put it in one
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+msgid "in: —"
+msgstr ""
+
+#. a thread or chat in no project
+#. a thread that belongs to no project
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+#: app/src/features/threads/components/ThreadMenu.tsx
+msgid "No project"
+msgstr ""
+
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
@@ -1624,6 +1651,16 @@ msgstr ""
 #. a paper the agent added to the library
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Added"
+msgstr ""
+
+#. a line the agent changed in what it keeps in mind, kept for one project (its name)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Updated, for {project}"
+msgstr ""
+
+#. a line the agent now keeps in mind for one project (its name)
+#: app/src/features/chat/components/messages/ResultRows.tsx
+msgid "Remembered for {project}"
 msgstr ""
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
@@ -1833,12 +1870,6 @@ msgstr ""
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{stopped} stopped"
-msgstr ""
-
-#: app/src/features/chat/components/messages/parts.tsx
-#: app/src/lib/words.ts
-msgctxt "between things in a list"
-msgid ", "
 msgstr ""
 
 #: app/src/features/chat/components/messages/parts.tsx
@@ -2302,6 +2333,10 @@ msgid "{n, plural, one {kept something in mind} other {changed what it keeps in 
 msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
+msgid "{n, plural, one {read what it keeps in mind for another project} other {read what it keeps in mind for other projects # times}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {moved a doc} other {moved # docs}}"
 msgstr ""
 
@@ -2453,6 +2488,28 @@ msgstr ""
 msgid "Starting"
 msgstr ""
 
+#: app/src/features/chat/lib/step-words.ts
+msgid "{lines, plural, one {# line} other {# lines}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{others, plural, one {# other project} other {# other projects}}"
+msgstr ""
+
+#. what Owlit keeps in mind: the chat is in no project
+#: app/src/features/chat/lib/step-words.ts
+msgid "no project"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{others, plural, one {# project} other {# projects}}"
+msgstr ""
+
+#. a reply's first line: the project(s) its chat is in, how many lines Owlit heard in full, how many other projects
+#: app/src/features/chat/lib/step-words.ts
+msgid "What Owlit keeps in mind: {said}"
+msgstr ""
+
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your Library"
 msgstr ""
@@ -2591,6 +2648,15 @@ msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Kept something in mind"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgid "Read what it keeps in mind for another project"
+msgstr ""
+
+#: app/src/features/chat/lib/tool-title.ts
+msgctxt "a step that ran"
+msgid "Read what it keeps in mind for another project"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
@@ -2791,8 +2857,25 @@ msgstr ""
 msgid "New folder"
 msgstr ""
 
+#. opens the file that makes a folder a project; the file name stays as it is
+#: app/src/features/docs/actions.ts
+msgid "Open {PROJECT_MARK}"
+msgstr ""
+
+#. marks a folder of docs as a project
+#. marks a folder of docs as a project
+#: app/src/features/docs/actions.ts
+#: app/src/features/home/HomeProjects.tsx
+msgid "Make this a project"
+msgstr ""
+
 #: app/src/features/docs/actions.ts
 msgid "Import as papers…"
+msgstr ""
+
+#. toast after a folder was marked as a project
+#: app/src/features/docs/actions.ts
+msgid "Now a project"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
@@ -2998,6 +3081,13 @@ msgstr ""
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
+msgstr ""
+
+#. Library menu: show the papers one project cites, or all papers
+#. a folder of docs marked as a project
+#: app/src/features/docs/components/DocsListPanel.tsx
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Project"
 msgstr ""
 
 #: app/src/features/docs/components/DocsListPanel.tsx
@@ -3248,6 +3338,10 @@ msgstr ""
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Deleted on disk"
+msgstr ""
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "This folder is a project. The first line is its name; status:, due: and current: are optional."
 msgstr ""
 
 #: app/src/features/docs/pages/DocsHome.tsx
@@ -3515,44 +3609,25 @@ msgid "The extension asks to read {host} for the papers waiting there."
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Recent"
-msgstr ""
-
-#: app/src/features/home/HomePage.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Drop PDFs to add them to your Library"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Recent"
+msgstr ""
+
+#. Home: the group of places that belong to no project folder
+#. group of threads that belong to no project folder
+#: app/src/features/home/HomePage.tsx
+#: app/src/features/threads/lib.ts
+msgid "Not in a project"
+msgstr ""
+
+#: app/src/features/home/HomePage.tsx
 msgctxt "Home: what was worked on last"
 msgid "Continue"
-msgstr ""
-
-#: app/src/features/home/HomePage.tsx
-msgid "edited {when}"
-msgstr ""
-
-#: app/src/features/home/HomePage.tsx
-msgid "Owlit wrote {when}"
-msgstr ""
-
-#: app/src/features/home/HomePage.tsx
-msgid "Owlit edited {when}"
-msgstr ""
-
-#. Home: when another program last changed a doc
-#: app/src/features/home/HomePage.tsx
-msgid "changed outside owlit {when}"
-msgstr ""
-
-#. Home: a person's name, then when they last changed a doc
-#: app/src/features/home/HomePage.tsx
-msgid "{who} edited {when}"
-msgstr ""
-
-#: app/src/features/home/HomePage.tsx
-msgid "read {when}"
 msgstr ""
 
 #: app/src/features/home/HomePage.tsx
@@ -3591,6 +3666,62 @@ msgstr ""
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr ""
 
+#. Home: a project's due date, as its project.md gives it
+#: app/src/features/home/HomeProjects.tsx
+msgid "due {date}"
+msgstr ""
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{changed, plural, one {# doc changed since you last looked} other {# docs changed since you last looked}}"
+msgstr ""
+
+#. Home: opens a chat asking Owlit where the person left off in this group's work
+#: app/src/features/home/HomeProjects.tsx
+msgid "Where did I stop?"
+msgstr ""
+
+#. the question Home's “Where did I stop?” puts in a new chat; name is the folder's project name
+#: app/src/features/home/HomeProjects.tsx
+msgid "Where did I stop in {name}? Look at what I did there lately and at its current drafts, and tell me where I left off."
+msgstr ""
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{comments, plural, one {# comment on the current drafts} other {# comments on the current drafts}}"
+msgstr ""
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{proposals, plural, one {# edit by Owlit} other {# edits by Owlit}}"
+msgstr ""
+
+#: app/src/features/home/HomeProjects.tsx
+msgid "{noPdf, plural, one {# paper without a PDF} other {# papers without a PDF}}"
+msgstr ""
+
+#. Home: after a quiet project's name, the day it was last worked on
+#: app/src/features/home/HomeProjects.tsx
+msgid "(since {date})"
+msgstr ""
+
+#. Home: before the projects nobody worked on in the person's last few sessions
+#: app/src/features/home/HomeProjects.tsx
+msgid "Quiet:"
+msgstr ""
+
+#. Home: before the projects whose project.md says status: done
+#: app/src/features/home/HomeProjects.tsx
+msgid "Done:"
+msgstr ""
+
+#. toast after the person turned down making a folder a project on Home
+#: app/src/features/home/HomeProjects.tsx
+msgid "Won't offer that again"
+msgstr ""
+
+#. Home: turns down making a folder a project; it isn't offered again
+#: app/src/features/home/HomeProjects.tsx
+msgid "Not now"
+msgstr ""
+
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
 msgstr ""
@@ -3602,6 +3733,32 @@ msgstr ""
 #. Home's group of sites where the owlit extension waits for the user
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "PDFs through your browser"
+msgstr ""
+
+#: app/src/features/home/did-words.ts
+msgid "edited {when}"
+msgstr ""
+
+#: app/src/features/home/did-words.ts
+msgid "Owlit wrote {when}"
+msgstr ""
+
+#: app/src/features/home/did-words.ts
+msgid "Owlit edited {when}"
+msgstr ""
+
+#. Home: when another program last changed a doc
+#: app/src/features/home/did-words.ts
+msgid "changed outside owlit {when}"
+msgstr ""
+
+#. Home: a person's name, then when they last changed a doc
+#: app/src/features/home/did-words.ts
+msgid "{who} edited {when}"
+msgstr ""
+
+#: app/src/features/home/did-words.ts
+msgid "read {when}"
 msgstr ""
 
 #. Home: a chat whose reply ended since the user looked
@@ -4234,6 +4391,37 @@ msgstr ""
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr ""
 
+#. Library scope menu: every paper, of no one project
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "All papers"
+msgstr ""
+
+#. Library: which of a project's cited papers show
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Papers it cites"
+msgstr ""
+
+#. Library, in a project: the papers its current drafts cite
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Current drafts"
+msgstr ""
+
+#. Library, in a project: the papers any of its docs cite
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Everything it cites"
+msgstr ""
+
+#. Library, a project's current drafts: names the rest of the drafts counted, in place
+#: app/src/features/library/components/LibraryHeader.tsx
+msgctxt "drafts"
+msgid "+{more} more"
+msgstr ""
+
+#. Library, a project's current drafts: before the drafts whose citations are shown
+#: app/src/features/library/components/LibraryHeader.tsx
+msgid "Counting {names}"
+msgstr ""
+
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr ""
@@ -4359,6 +4547,20 @@ msgstr ""
 msgid "More actions"
 msgstr ""
 
+#. Library row in a project: how far Owlit read the paper for the project's citations, e.g. Owlit: Full text
+#: app/src/features/library/components/PaperList.tsx
+msgid "Owlit: {depth}"
+msgstr ""
+
+#: app/src/features/library/components/PaperList.tsx
+msgid "How far Owlit read it for the citations it wrote in this project"
+msgstr ""
+
+#. Library row in a project: the other projects whose docs cite this paper, each a link
+#: app/src/features/library/components/PaperList.tsx
+msgid "also cited in {names}"
+msgstr ""
+
 #: app/src/features/library/components/PaperList.tsx
 msgid "New digest"
 msgstr ""
@@ -4370,6 +4572,17 @@ msgstr ""
 
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"
+msgstr ""
+
+#. Library table in a project: the other projects whose docs cite the paper
+#: app/src/features/library/components/PaperList.tsx
+msgid "Also cited in"
+msgstr ""
+
+#. Library table in a project: the person's reading of a paper beside how far Owlit read it
+#: app/src/features/library/components/PaperList.tsx
+msgctxt "table column"
+msgid "Reading"
 msgstr ""
 
 #: app/src/features/library/components/PaperList.tsx
@@ -4725,6 +4938,25 @@ msgstr ""
 msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr ""
 
+#. Library scoped to a project whose newest docs cite no paper of the Library
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers cited by the current drafts of {name} yet"
+msgstr ""
+
+#. Library scoped to a project none of whose docs cite a paper of the Library
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "No papers cited in {name} yet"
+msgstr ""
+
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "A paper is in a project once one of its docs cites it."
+msgstr ""
+
+#. Library, a project's drafts cite nothing: shows the papers any of its docs cite
+#: app/src/features/library/pages/LibraryPage.tsx
+msgid "See everything it cites ({everything})"
+msgstr ""
+
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for more papers on this outside your library."
 msgstr ""
@@ -4880,6 +5112,11 @@ msgstr ""
 #. label before the docs that cite this paper
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Cited in"
+msgstr ""
+
+#. under a doc that cites this paper: its other citing sentences, opening the doc
+#: app/src/features/library/pages/paper/DetailsPanel.tsx
+msgid "+{more} more"
 msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
@@ -5829,6 +6066,23 @@ msgstr ""
 msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 msgstr ""
 
+#. after a thread's title: the folder path the thread was filed under, which holds no project.md now
+#. over lines Owlit keeps in mind for a folder path that holds no project.md now (removed, moved, or never there)
+#: app/src/features/settings/sections/Memory.tsx
+#: app/src/features/threads/pages/ThreadsPage.tsx
+msgid "{was} · not a project"
+msgstr ""
+
+#. a group of lines Owlit keeps in mind that every chat hears, not only one project's
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Every chat"
+msgstr ""
+
+#. verb: choose which chats hear a line Owlit keeps in mind: every chat, or one project's
+#: app/src/features/settings/sections/Memory.tsx
+msgid "Keep for…"
+msgstr ""
+
 #: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr ""
@@ -6393,11 +6647,6 @@ msgstr ""
 msgid "Move to project"
 msgstr ""
 
-#. a thread that belongs to no project folder
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
-msgstr ""
-
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"
 msgstr ""
@@ -6454,11 +6703,6 @@ msgstr ""
 
 #: app/src/features/threads/export.ts
 msgid "Exported as a doc"
-msgstr ""
-
-#. group of threads that belong to no project folder
-#: app/src/features/threads/lib.ts
-msgid "Not in a project"
 msgstr ""
 
 #. group a thread's papers by Owlit's groups
@@ -6561,16 +6805,11 @@ msgstr ""
 msgid "Found nothing"
 msgstr ""
 
-#. after a thread's title: the project folder it names isn't in the workspace
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "no folder named {was}"
-msgstr ""
-
 #: app/src/features/threads/store.ts
-msgid "Moved to {project}"
+msgid "Moved to {name}"
 msgstr ""
 
-#. toast: a thread now belongs to no project folder
+#. toast: a thread now belongs to no project
 #: app/src/features/threads/store.ts
 msgid "Moved out of its project"
 msgstr ""

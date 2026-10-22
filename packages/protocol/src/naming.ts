@@ -1,3 +1,5 @@
+import { isProjectMark } from "./projects.ts"
+
 // How docs are named and where paths point. Core names files on disk with these rules and the app
 // predicts the same names while it waits for core, so both sides must agree: they live here.
 // Paths are workspace-relative and "/"-separated; "" is the workspace root.
@@ -75,11 +77,16 @@ export function uniquePath(folder: string, stem: string, ext: string, taken: (pa
 // Where a doc whose name follows its first line should be now, or null if it should stay. Its first line
 // names it; an empty one, the time it was created. A doc already numbered because its name was taken
 // ("Notes 2") keeps its number.
+// The project mark's file name is the one fixed name: the mark keeps it whatever its first line says (that
+// line names the project), and no doc takes it by following its own first line ("# Project"), which would
+// make its folder a project unasked.
 export function followFirstLine(path: string, content: string, createdAt: number, taken: (path: string) => boolean) {
+  if (isProjectMark(path)) return null
+  const busy = (p: string) => isProjectMark(p) || taken(p)
   const stem = nameFromFirstLine(content) || timeName(createdAt)
   const folder = parentPath(path)
   const current = baseName(path).slice(0, -extOf(path).length || undefined)
-  const numbered = current.startsWith(stem + " ") && /^\d+$/.test(current.slice(stem.length + 1)) && taken(joinPath(folder, stem + ".md"))
+  const numbered = current.startsWith(stem + " ") && /^\d+$/.test(current.slice(stem.length + 1)) && busy(joinPath(folder, stem + ".md"))
   if (stem === current || numbered) return null
-  return uniquePath(folder, stem, ".md", taken)
+  return uniquePath(folder, stem, ".md", busy)
 }

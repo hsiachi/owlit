@@ -24,6 +24,8 @@ import { ContextChips } from "./ContextChips"
 import { useAgentAllowed } from "./hooks"
 import { askAboutOrAnything, useVisibleContext } from "./page-context"
 import { CommandHint } from "@/features/chat/components/CommandHint"
+import { ProjectChip } from "@/features/chat/components/composer/ProjectChip"
+import { useProjects } from "@/features/projects/store"
 import { useChatsAbout } from "./chats-about"
 import { PAGE_MIN, PANEL_WIDTH, useAgentWindow } from "./store"
 
@@ -53,7 +55,9 @@ export function AgentPanel() {
   const chat = useChatStore((s) => (chatId ? s.chats[chatId] : undefined))
   const streaming = useChatStore((s) => (chatId ? !!s.streaming[chatId] : false))
   const composer = useRef<ComposerHandle>(null)
+  const anyProject = useProjects().length > 0
   useLookAt(chat?.id)
+  const projectChip = chat && anyProject ? <ProjectChip chat={chat} context={context} /> : null
 
   useEffect(() => {
     composer.current?.focus()
@@ -90,7 +94,14 @@ export function AgentPanel() {
         compact={panelWidth < 440}
         onSubmit={(input, id) => send(input, context, id)}
         placeholder={chat?.messages.length ? t`Ask a follow-up…` : t`Ask Owlit…`}
-        header={context.length || selection ? <ContextChips context={context} selection={selection} /> : undefined}
+        header={
+          context.length || selection || projectChip ? (
+            <>
+              {projectChip}
+              <ContextChips context={context} selection={selection} />
+            </>
+          ) : undefined
+        }
       />
     </aside>
   )

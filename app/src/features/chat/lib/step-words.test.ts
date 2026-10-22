@@ -5,7 +5,7 @@ import type { ToolCall } from "../types"
 vi.mock("@/features/library/store", () => ({ useLibraryStore: { getState: () => ({ papers: {} }) } }))
 vi.mock("@/features/library/lib/format", () => ({ citationLabel: () => "" }))
 
-const { askSentence, blockSentence, stepWords, unansweredSentence, agentDone } = await import("./step-words")
+const { askSentence, blockSentence, stepWords, unansweredSentence, agentDone, keptInMindLine } = await import("./step-words")
 
 const call = (partial: Partial<ToolCall>): ToolCall => ({ toolCallId: Math.random().toString(36), title: "", status: "completed", ...partial }) as ToolCall
 const block = (...calls: ToolCall[]) => blockSentence(calls.map((c) => ({ call: c, words: stepWords(c) })))
@@ -41,5 +41,15 @@ describe("step words", () => {
   it("counts what a helper agent did", () => {
     expect(agentDone([call({ kind: "edit", tool: { name: "Edit", path: "a.md" } }), call({ kind: "edit", tool: { name: "Edit", path: "b.md" } })])).toBe("Edited 2 files")
     expect(agentDone([call({ tool: { name: "Read", path: "a.md" } })])).toBe("1 step")
+  })
+})
+
+describe("what Owlit keeps in mind", () => {
+  it("names the chat's projects, the lines heard in full and the other projects", () => {
+    const proactive = { path: "Work/Proactive", name: "Proactive Support" }
+    expect(keptInMindLine({ projects: [proactive], lines: 4, others: 2 })).toBe("What Owlit keeps in mind: Proactive Support · 4 lines · 2 other projects")
+    expect(keptInMindLine({ projects: [proactive, { path: "ADHD", name: "ADHD" }], lines: 1, others: 0 })).toBe("What Owlit keeps in mind: Proactive Support, ADHD · 1 line")
+    expect(keptInMindLine({ projects: [], lines: 3, others: 3 })).toBe("What Owlit keeps in mind: no project · 3 lines · 3 projects")
+    expect(keptInMindLine({ projects: [], lines: 3, others: 0 })).toBe("What Owlit keeps in mind: 3 lines")
   })
 })

@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { useChatStore } from "@/features/chat/store"
 import { useDocsStore } from "@/features/docs/store"
+import { parentPath } from "@/features/docs/types"
+import { projectAt, useProjects } from "@/features/projects/store"
 import { useLibraryStore } from "@/features/library/store"
 import { authorsYear } from "@/features/library/lib/format"
 import { useThreadsStore } from "@/features/threads/store"
 import { markdownPlain } from "@/lib/markdown-plain"
-import { isOwlit, type Change } from "@owlit/protocol"
+import { isOwlit, parseOwlitUri, type Change, type Project } from "@owlit/protocol"
 import { listChanges, useLogVersion, useSeen } from "@/app/seen"
 import { nameOf, useMe } from "@/lib/actors"
 import { useTrail, workspaceKey } from "./trail"
@@ -47,12 +49,14 @@ export function usePlaces(): Place[] {
 
   // One list per kind, so a streamed reply doesn't requote every doc
   const docs = useMemo(() => docPlaces(Object.values(files), marks ?? [], changes, me), [files, marks, changes, me])
+  const projects = useProjects()
   const threadPlaces = useMemo(() => {
     // The person's own newest change to each thread
     const mine = new Map<string, number>()
     for (const c of threadChanges) if (c.actor === me && !mine.has(c.target.path)) mine.set(c.target.path, c.until ?? c.at)
-    return Object.values(threads).map((c) => threadPlace(c, mine.get(c.id)))
-  }, [threads, threadChanges, me])
+    const name = (path: string) => projectAt(projects, path)?.name ?? ""
+    return Object.values(threads).map((c) => threadPlace(c, mine.get(c.id), name))
+  }, [threads, threadChanges, me, projects])
 
   const paperPlaces = useMemo(() => {
     const out: Place[] = []
@@ -76,6 +80,43 @@ export function usePlaces(): Place[] {
   }, [papers, highlights, notes])
 
   return useMemo(() => [...docs, ...chatPlaces, ...paperPlaces, ...threadPlaces].sort((a, b) => b.at - a.at), [docs, chatPlaces, paperPlaces, threadPlaces])
+}
+
+// The marked project a place is in: a doc's by its path (the nearest mark above it), a thread's by its
+// project field, a chat's by the project the person put it in, else by the first doc or thread its
+// messages name (core's projectsOf also reads the change log, too much to ask for every row). A paper is in
+// none here, since only the docs citing it would say which.
+export function useProjectOfPlace(): (place: Place) => Project | undefined {
+  const projects = useProjects()
+  const chats = useChatStore((s) => s.chats)
+  const threads = useThreadsStore((s) => s.threads)
+  return useCallback(
+    (place: Place) => {
+      const ofDoc = (path: string) => {
+        for (let p = parentPath(path); p; p = parentPath(p)) {
+          const project = projectAt(projects, p)
+          if (project) return project
+        }
+        return undefined
+      }
+      const ofThread = (id: string) => projectAt(projects, threads[id]?.project ?? "")
+      if (place.kind === "doc") return ofDoc(place.id)
+      if (place.kind === "thread") return ofThread(place.id)
+      if (place.kind !== "chat") return undefined
+      const chat = chats[place.id]
+      if (!chat) return undefined
+      const chosen = projectAt(projects, chat.project ?? "")
+      if (chosen) return chosen
+      for (const m of chat.messages)
+        for (const x of [...(m.mentions ?? []), ...(m.context ?? []), ...(m.selection ? [m.selection.source] : [])]) {
+          const u = parseOwlitUri(x.uri)
+          const project = u?.kind === "doc" ? ofDoc(u.path) : u?.kind === "thread" ? ofThread(u.id) : undefined
+          if (project) return project
+        }
+      return undefined
+    },
+    [projects, chats, threads],
+  )
 }
 
 // What came to the place since the user last looked, kept current

@@ -215,6 +215,16 @@ export interface ChatMessage {
   // What an answer was built from, set when its turn ends: each paper it read or cited, and how far
   // (core's view of the turn's library_read calls, not the agent's word)
   readFrom?: ReadFrom[]
+  // What Owlit's memory note told the agent before this reply, set when one went out in its turn
+  heard?: MemoryHeard
+}
+
+// The memory note as a reply heard it (core's agents/rules.ts memoryNote): the chat's projects as the note
+// named them, how many kept lines it heard in full, and how many other projects it heard one line about
+export interface MemoryHeard {
+  projects: { path: string; name: string }[]
+  lines: number
+  others: number
 }
 
 // On the one scale (threads.ts ReadDepth): full, the paper's whole text; part, some of it (pages or a
@@ -252,6 +262,9 @@ export interface Chat {
   help?: true
   // What a chat owlit started works on: the status line there reads its running turn by this
   about?: ChatAbout
+  // The marked folder the person put this chat in (the composer's project chip): the first of its projects
+  // while that folder is still marked, whatever it touched
+  project?: string
   messages: ChatMessage[]
 }
 

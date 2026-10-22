@@ -14,6 +14,10 @@ describe("the Go through recipe", () => {
     expect(recipe).toContain("read it whole with docs_read")
     expect(recipe).toContain("docs_list lists the workspace's docs")
     expect(recipe).toContain('" · reading"')
+    // An attached file's reading goes beside the earlier ones, else in the chat's project, never a fixed folder
+    expect(recipe).toContain("beside the earlier readings of the same material")
+    expect(recipe).toContain("in this chat's project folder")
+    expect(recipe).not.toContain("Meetings/")
     expect(recipe).toContain("with docs_add_comment and record set to the record's path")
     expect(recipe.indexOf("docs_write")).toBeLessThan(recipe.indexOf("docs_add_comment"))
     // Kept apart, never guessed

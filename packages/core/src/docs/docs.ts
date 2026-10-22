@@ -5,6 +5,7 @@ import {
   extOf,
   followFirstLine,
   isMarkdown,
+  isProjectMark,
   isWithin,
   joinPath,
   parentPath,
@@ -108,14 +109,7 @@ export class Docs {
   // so an agent's edit can't slip into the listing without its version being kept
   list(): Promise<DocsListing> {
     return this.serial.run(async () => {
-      if (this.timer) {
-        clearTimeout(this.timer)
-        this.timer = undefined
-        const paths = [...this.dirty]
-        this.dirty.clear()
-        const change = await this.reconcile(paths, true)
-        if (change) this.changed?.(change)
-      }
+      await this.readHeard()
       const follow = (await this.loadNames()).followFirstLine
       this.snapshot = await this.scan("")
       this.texts.clear()
@@ -136,6 +130,27 @@ export class Docs {
       for (const p of this.ids.keys()) if (!this.snapshot.has(p)) this.ids.delete(p)
       return { files, folders }
     })
+  }
+
+  // Every docs file with its mtime, as the snapshot has it once what the watcher heard is read: no file's
+  // text is read. Scanned afresh while nothing has been seen (no watcher, nothing listed yet).
+  files(): Promise<{ path: string; modifiedAt: number }[]> {
+    return this.serial.run(async () => {
+      await this.readHeard()
+      const entries = this.snapshot.size ? this.snapshot : await this.scan("")
+      return [...entries].flatMap(([rel, e]) => (e.dir ? [] : [{ path: rel, modifiedAt: e.mtimeMs }]))
+    })
+  }
+
+  // Reads (and tells) a change the watcher heard that is still waiting to settle. Runs in the serial turn.
+  private async readHeard() {
+    if (!this.timer) return
+    clearTimeout(this.timer)
+    this.timer = undefined
+    const paths = [...this.dirty]
+    this.dirty.clear()
+    const change = await this.reconcile(paths, true)
+    if (change) this.changed?.(change)
   }
 
   // Starts hearing about changes made outside core (another editor, Finder, git). Changes come in
@@ -190,12 +205,15 @@ export class Docs {
         throw invalidParams(t`${name} is not a Markdown file.`)
       }
       const now = Date.now()
-      let target = options.followsFirstLine ? followFirstLine(rel, content, now, this.taken()) ?? rel : rel
+      // A project mark asked for by name is never taken as a doc whose name follows its first line, however
+      // the caller asked: the mark's file name is the one fixed name (followFirstLine says why)
+      const follows = options.followsFirstLine === true && !isProjectMark(rel)
+      let target = follows ? followFirstLine(rel, content, now, this.taken()) ?? rel : rel
       if (this.taken()(target)) target = uniquePath(parentPath(target), stemOf(target), ".md", this.taken())
       await mkdir(path.dirname(this.abs(target)), { recursive: true })
       await writeFile(this.abs(target), content, { flag: "wx" })
       if (options.id) this.ids.set(target, options.id)
-      if (options.followsFirstLine) await this.updateNames((f) => ({ ...f, [target]: now }))
+      if (follows) await this.updateNames((f) => ({ ...f, [target]: now }))
       await this.settle([target])
       return this.statAt(target)
     })

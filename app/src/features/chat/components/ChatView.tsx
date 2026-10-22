@@ -8,6 +8,8 @@ import { ChatMessages } from "./ChatMessages"
 import { ComposerDock } from "./ComposerDock"
 import { FRESH_CHAT } from "./ChatEmpty"
 import { useTakeParam } from "@/hooks/use-take-param"
+import { useProjects } from "@/features/projects/store"
+import { ProjectChip } from "./composer/ProjectChip"
 
 // /chat/:chatId — message history with the composer docked at the bottom
 export function ChatView() {
@@ -15,6 +17,7 @@ export function ChatView() {
   const chat = useChatStore((s) => s.chats[chatId])
   const streaming = useChatStore((s) => !!s.streaming[chatId])
   const chatsLoaded = useChatStore((s) => s.chatsLoaded)
+  const anyProject = useProjects().length > 0
   const composer = useRef<ComposerHandle>(null)
   useLookAt(chat ? chatId : null)
   // The chat on screen is the current one, so ⇧⌘J brings it beside another page
@@ -41,7 +44,13 @@ export function ChatView() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <ChatMessages chat={chat} streaming={streaming} onEdit={edit} seek={seek ?? undefined} onSought={sought} />
-      <ComposerDock ref={composer} chat={chat} streaming={streaming} onSubmit={(input) => void useChatStore.getState().send(chat.id, input)} />
+      <ComposerDock
+        ref={composer}
+        chat={chat}
+        streaming={streaming}
+        onSubmit={(input) => void useChatStore.getState().send(chat.id, input)}
+        header={anyProject ? <ProjectChip chat={chat} /> : undefined}
+      />
     </div>
   )
 }

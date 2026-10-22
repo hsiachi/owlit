@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { GROUPING_COLUMN, type Paper, QUESTION_COLUMN, type Relation, shortTitle, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
+import { GROUPING_COLUMN, type Paper, type Project, QUESTION_COLUMN, type Relation, shortTitle, shownThread, summarize, type ThreadRead, type ThreadColumn, type ThreadGroup, type ThreadPaper, type ThreadRowRead, type ThreadSummary } from "@owlit/protocol"
 import { displayName } from "@/features/docs/types"
 import { citationLabel } from "@/features/library/lib/format"
 import { paperById, useLibraryStore } from "@/features/library/store"
@@ -38,13 +38,15 @@ export const citeOf = (p: Pick<ThreadPaper, "authors" | "year">) => citationLabe
 // "CiteSee · 2023", how a row names its paper
 export const nameOf = (p: Pick<ThreadPaper, "title" | "year">) => [shortTitle(p.title), p.year].filter(Boolean).join(" · ")
 
-// The list's groups: one per project, the most recently changed project first, then the threads that
-// belong to none. A thread whose project is no longer a top-level folder (renamed or deleted; the thread
-// still names the old one) is in none, and keeps the old name as `was`. projects: the workspace's folders,
-// undefined until they are known, when every project counts. A list with no projects at all has one group
-// and no label.
-export function byProject(list: ThreadSummary[], projects?: string[]): { key: string; label?: string; threads: (ThreadSummary & { was?: string })[] }[] {
-  const live = (p: string) => !!p && (!projects || projects.includes(p))
+// The list's groups: one per project, keyed by its path and labelled with its name, the most recently
+// changed project first, then the threads that belong to none. A thread whose project path is no marked
+// folder (its project.md deleted, the folder moved, or never marked; the thread still names the path) is in
+// none, and keeps the path as `was`. projects: the workspace's marked folders, undefined until they are
+// known, when every project counts and is labelled by its path. A list with no projects at all has one
+// group and no label.
+export function byProject(list: ThreadSummary[], projects?: Pick<Project, "path" | "name">[]): { key: string; label?: string; threads: (ThreadSummary & { was?: string })[] }[] {
+  const names = new Map(projects?.map((p) => [p.path, p.name]))
+  const live = (p: string) => !!p && (!projects || names.has(p))
   const groups = new Map<string, (ThreadSummary & { was?: string })[]>()
   for (const c of list) {
     const key = live(c.project) ? c.project : ""
@@ -53,7 +55,7 @@ export function byProject(list: ThreadSummary[], projects?: string[]): { key: st
   const named = [...groups.keys()].filter((p) => p)
   if (!named.length) return list.length ? [{ key: "", threads: groups.get("")! }] : []
   return [
-    ...named.map((p) => ({ key: p, label: p, threads: groups.get(p)! })),
+    ...named.map((p) => ({ key: p, label: names.get(p) ?? p, threads: groups.get(p)! })),
     ...(groups.has("") ? [{ key: "", label: t({ message: "Not in a project", comment: "group of threads that belong to no project folder" }), threads: groups.get("")! }] : []),
   ]
 }

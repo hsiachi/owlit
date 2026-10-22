@@ -36,13 +36,14 @@ export async function editThread(id: string, edit: ThreadEdit): Promise<boolean>
   }
 }
 
-// The person files a thread under another project (a top-level folder; "" for none), with Undo
-export async function moveThread(id: string, project: string) {
+// The person files a thread under another project (a marked folder's path, and its name for the toast;
+// "" for none), with Undo
+export async function moveThread(id: string, project: string, name = project) {
   const c = useThreadsStore.getState().threads[id]
   if (!c || c.project === project) return
   const was = c.project
   if (!(await editThread(id, { op: "project", project }))) return
-  toastUndo(project ? t`Moved to ${project}` : t({ message: "Moved out of its project", comment: "toast: a thread now belongs to no project folder" }), () => void editThread(id, { op: "project", project: was }), {
+  toastUndo(project ? t`Moved to ${name}` : t({ message: "Moved out of its project", comment: "toast: a thread now belongs to no project" }), () => void editThread(id, { op: "project", project: was }), {
     description: shown(c).title,
   })
 }

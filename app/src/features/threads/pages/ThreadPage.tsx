@@ -14,7 +14,8 @@ import { Markdown } from "@/features/chat/components/messages/Markdown"
 import { stopChat, tryAgain } from "@/features/chat/started"
 import { About } from "../components/About"
 import { AnswerRows } from "../components/AnswerRows"
-import { useProjects, useThreadMenu } from "../components/ThreadMenu"
+import { projectAt, useProjects } from "@/features/projects/store"
+import { useThreadMenu } from "../components/ThreadMenu"
 import { isTable, paperCounts, shown as shownOf } from "../lib"
 import { useThread, useThreadsStore } from "../store"
 import { SEEN_AFTER_MS, useVisitDots } from "../seen"
@@ -89,6 +90,8 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   }
   const shown = shownOf(thread)
   const table = isTable(shown)
+  // The breadcrumb names the project while its folder is marked; a thread whose mark went has none
+  const project = projectAt(projects, thread.project)
   // A paper the report names that is a row of the thread: the table opens its row; the note rings it where
   // it is (AnswerRows). Others go where they live.
   const onLink = (uri: string) => {
@@ -102,7 +105,7 @@ function ThreadVisit({ threadId }: { threadId: string | undefined }) {
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader trail={[{ label: t`Threads`, to: "/threads" }, ...(thread.project ? [{ label: thread.project, to: `/threads?project=${encodeURIComponent(thread.project)}` }] : [])]} current={shown.title}>
+      <PageHeader trail={[{ label: t`Threads`, to: "/threads" }, ...(project ? [{ label: project.name, to: `/threads?project=${encodeURIComponent(project.path)}` }] : [])]} current={shown.title}>
         <DropdownMenu>
           <MenuButton label={t`Thread actions`} />
           <ActionsDropdownContent groups={groups} align="end" className="w-56" />

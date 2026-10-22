@@ -174,6 +174,14 @@ export interface CitationCounts {
   notReadInPaper: number
 }
 
+// docs.citing: a doc whose text cites a paper (under any id it goes by), with the sentence around each
+// citation as plain words
+export interface CitingDoc {
+  path: string
+  // In the doc's order; from: where the citation's link starts in the doc's text
+  sentences: { from: number; text: string }[]
+}
+
 export interface DocCitations {
   citations: DocCitation[]
   counts: CitationCounts

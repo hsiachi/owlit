@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { ThreadRead } from "@owlit/protocol"
 import { exampleThreads } from "@/test/example-workspace"
-import { threadCsv, threadMarkdown } from "./export"
+import { exportPath, threadCsv, threadMarkdown } from "./export"
 
 describe("a thread exported as a doc", () => {
   const all = Object.values(exampleThreads())
@@ -83,5 +83,20 @@ describe("a thread exported as a CSV", () => {
     const csv = threadCsv(c)
     expect(csv.charCodeAt(0)).toBe(0xfeff)
     expect(csv.slice(1).startsWith("Paper,")).toBe(true)
+  })
+})
+
+describe("where a thread's doc goes", () => {
+  const project = { path: "Thesis/Ch2", mark: "Thesis/Ch2/project.md", name: "Chapter 2", parents: [], currentDrafts: [] }
+  const none = () => false
+
+  it("lands in the thread's project folder while it is marked", () => {
+    expect(exportPath({ project: "Thesis/Ch2", title: "Replay annotation" }, [project], none)).toBe("Thesis/Ch2/Replay annotation.md")
+    expect(exportPath({ project: "Thesis/Ch2", title: "Replay annotation" }, [project], (p) => p === "Thesis/Ch2/Replay annotation.md")).toBe("Thesis/Ch2/Replay annotation 2.md")
+  })
+
+  it("lands at the root for a thread in no project, or one whose folder is no project any more", () => {
+    expect(exportPath({ project: "", title: "Replay annotation" }, [project], none)).toBe("Replay annotation.md")
+    expect(exportPath({ project: "Old", title: "Replay annotation" }, [project], none)).toBe("Replay annotation.md")
   })
 })

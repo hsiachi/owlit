@@ -12,6 +12,7 @@ import {
   commandOf,
   type CutOff,
   type MemoryLine,
+  type Project,
   type ReadFrom,
   type Mentionable,
   type ParamsOf,
@@ -42,7 +43,7 @@ import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questio
 import type { Who } from "./policy.ts"
 import { answerFor, roleNote, takesRules, withUserName, type EngineAnswer } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
-import { memoryNote, preamble, RULES_VERSION, rulesChangedNote, USER_FOLLOWS } from "./rules.ts"
+import { memoryHeard, memoryNote, preamble, RULES_VERSION, rulesChangedNote, USER_FOLLOWS } from "./rules.ts"
 import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
 
 export type TurnRequest = ParamsOf<"agents.prompt">
@@ -64,6 +65,9 @@ interface TurnsOptions {
   userName?: () => Promise<string | undefined>
   // Owlit's memory of the user, read before every prompt (memory.ts)
   memory?: () => Promise<MemoryLine[]>
+  // The workspace's projects and the chat's own (nearest marks), read before every prompt with the memory:
+  // which of its lines a chat hears in full depends on them (memoryNote)
+  projectsOf?: (chatId: string) => Promise<{ projects: Project[]; chatProjects: Project[] }>
   // What an answer was built from: the papers the chat's turn read since it started, and those its text cites
   readFrom?: (chatId: string, since: number, answer: string) => Promise<ReadFrom[]>
 }
@@ -78,7 +82,8 @@ interface Live {
   // The session options the chat's role asked for (Guard.meta, as JSON) and the role the agent was told
   meta: string
   told?: Role
-  // The memory as the agent last heard it (memoryNote), so it is told again only when it changed
+  // The memory note as the agent last heard it (memoryNote, as first told), so it is told again only when
+  // the memory, the chat's projects or the other projects' index changed
   heard?: string
   // The version of owlit's rules the session was told; none when the chat doesn't record it, which is
   // taken as an older one
@@ -263,10 +268,20 @@ export class Turns {
       const pictures = sendsPictures(req.connectorId, await live.proc.initialized(), req.modelId)
       const attached = await attachmentBlocks(req.input.attachments, ws.root, pictures)
       if (req.input.attachments.length || turn.about) this.pictures.set(req.chatId, (this.pictures.get(req.chatId) ?? 0) + attached.filter((b) => b.type === "image").length)
-      // Owlit's memory: in full when the session hasn't heard it, again whenever it changed since
-      const lines = (await this.options.memory?.().catch(() => [])) ?? []
-      const heard = JSON.stringify(lines.map((l) => [l.id, l.kind, l.text]))
-      const memory = live.heard !== heard && (lines.length || live.heard !== undefined) ? memoryNote(lines, live.heard !== undefined) : undefined
+      // Owlit's memory: in full when the session hasn't heard it, again whenever it changed since. The chat
+      // is asked for its projects after its new message is in, so a doc it is beside now counts.
+      const [lines, { projects, chatProjects }] = await Promise.all([
+        this.options.memory?.().catch(() => []) ?? [],
+        this.options.projectsOf?.(req.chatId).catch(() => ({ projects: [], chatProjects: [] })) ?? { projects: [], chatProjects: [] },
+      ])
+      const heard = memoryNote({ lines, projects, chatProjects, changed: false })
+      const memory = live.heard !== heard && (lines.length || projects.length || live.heard !== undefined) ? memoryNote({ lines, projects, chatProjects, changed: live.heard !== undefined }) : undefined
+      // The reply keeps what the note said, for its first line in the chat; every later save of the
+      // reply spreads turn.message, so it stays
+      if (memory) {
+        turn.message = { ...turn.message, heard: memoryHeard({ lines, projects, chatProjects }) }
+        await ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
+      }
       // A session that outlived a change to the rules (a long-lived chat) hears the version in force
       const rulesAgain = !preamble && !fresh.rulesInSystemPrompt && live.rules !== RULES_VERSION ? rulesChangedNote() : undefined
       const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached, memory, rulesAgain)
