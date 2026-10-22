@@ -98,10 +98,11 @@ const said = (page: Page): WorkEnded => {
 }
 
 // The PDF's own address first, when owlit knows it; then the article page, and the PDF it names. A
-// check in the way is tried once more from a tab of that site the user got past it in.
+// check or a block in the way is tried once more from a tab of that site the user got past it in (a
+// firewall rule may refuse the extension's own requests and let the site's pages through).
 export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   const got = await fetchWith(item, deps)
-  if ("pdf" in got || got.ended !== "check" || !deps.inTab) return got
+  if ("pdf" in got || (got.ended !== "check" && got.ended !== "blocked") || !deps.inTab) return got
   const tabFetch = await deps.inTab(got.host)
   return tabFetch ? fetchWith(item, { ...deps, fetch: tabFetch, inTab: undefined }) : got
 }
@@ -128,7 +129,7 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     tried.add(item.pdfUrl)
     const got = await follow(item.pdfUrl, deps, proxy)
     if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
-    // A check or a sign-in in front of the PDF is in front of the page too
+    // A check, a block or a sign-in in front of the PDF is in front of the page too
     if (got.kind === "page" && stops(got.page)) return said(got.page)
     if (got.kind === "redirected") {
       const site = unreadable(got)
@@ -155,7 +156,7 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
 // Only the user can get past it
 const stops = (page: Page) => {
   const word = verdict(page)
-  return word === "check" || word === "sign-in"
+  return word === "check" || word === "blocked" || word === "sign-in"
 }
 
 // The fetch, and its outcome handed to owlit. An answer owlit no longer waits for (it gave up on the

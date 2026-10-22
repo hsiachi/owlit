@@ -130,7 +130,7 @@ function PdfLine({ paper }: { paper: Paper }) {
   )
 }
 
-const WAITS: ReadonlySet<PdfWait> = new Set(["for-sign-in", "for-check", "for-permission"])
+const WAITS: ReadonlySet<PdfWait> = new Set(["for-sign-in", "for-check", "blocked", "for-permission"])
 const ENDED: ReadonlySet<PdfWait> = new Set(["not-found", "no-access", "not-offered", "not-there"])
 
 // The abstract in its first three lines, with Show more only when it runs longer

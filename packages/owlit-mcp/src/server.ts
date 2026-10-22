@@ -636,10 +636,12 @@ const OWN_LOOK: Partial<Record<PdfEnded, string>> = {
 }
 
 // A paper still finding while the owlit extension in the user's browser waits at its site for them: one
-// sign-in, check or permission there covers every paper waiting at that site
+// sign-in, check, way past a block or permission there covers every paper waiting at that site
 const WAITS = {
   "for-sign-in": "no PDF yet: waits for the user's library sign-in in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)",
   "for-check": "no PDF yet: waits for the user to pass a check at the publisher's site in their browser (Home says so; once passed, owlit goes on with every paper waiting there)",
+  blocked:
+    "no PDF yet: the publisher's site blocks the user's browser, usually by its network (another network or turning a VPN off gets past it; once a page there loads, owlit goes on with every paper waiting there)",
   "for-permission": "no PDF yet: waits for the user to let the owlit extension in their browser read the publisher's site, from the extension's button (Home says so)",
 } as const
 
@@ -670,6 +672,7 @@ export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) 
       if (!s?.extension) return SIGN_IN_UNKNOWN
       return s.extension.proxied ? WAITS[wait] : SIGN_IN_AT(s.extension.host)
     case "for-check":
+    case "blocked":
     case "for-permission":
       return WAITS[wait]
     default:
@@ -692,6 +695,8 @@ export function pdfStatus(p: Pick<Paper, "pdf" | "pdfState">) {
       return s?.extension?.proxied || !s?.extension ? "waits for the user's library sign-in in their browser" : `waits for the user to sign in at ${s.extension.host} in their browser`
     case "for-check":
       return "waits for the user to pass a check in their browser"
+    case "blocked":
+      return "waits: the publisher's site blocks the user's browser (another network gets past it)"
     case "for-permission":
       return "waits for the user to let the owlit extension read the publisher's site"
     case "not-found":

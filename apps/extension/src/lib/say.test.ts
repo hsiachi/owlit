@@ -44,6 +44,7 @@ describe("cardOf", () => {
   it("says what a site waits for, counted, and that owlit goes on once through", () => {
     expect(card({ kind: "wait", wait: { kind: "sign-in", host: "sagepub.com", papers: 3 } })).toMatchObject({ text: "3 papers wait for your sign-in here", detail: "Going on once you're through.", stays: true, key: "wait:sagepub.com" })
     expect(card({ kind: "wait", wait: { kind: "check", host: "acm.org", papers: 1 } }).text).toBe("1 paper waits for you to pass the check here")
+    expect(card({ kind: "wait", wait: { kind: "blocked", host: "bmj.com", papers: 2 } })).toMatchObject({ text: "bmj.com blocks this browser", detail: "Another network usually gets past it; owlit goes on with 2 papers then." })
     expect(card({ kind: "wait", wait: { kind: "permission", host: "jstor.org", papers: 2 } })).toMatchObject({ text: "2 papers wait for owlit to read jstor.org", action: { do: { kind: "allow", host: "jstor.org" } } })
     expect(card({ kind: "through", host: "sagepub.com", papers: 3 })).toMatchObject({ text: "You're through", detail: "owlit goes on with 3 papers.", stays: false })
   })

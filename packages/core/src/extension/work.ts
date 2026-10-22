@@ -81,7 +81,7 @@ interface Site {
   offline?: { times: number; until: number }
 }
 
-const PAUSES: Partial<Record<WorkEnding, ExtensionWait["kind"]>> = { check: "check", "sign-in": "sign-in", "no-permission": "permission" }
+const PAUSES: Partial<Record<WorkEnding, ExtensionWait["kind"]>> = { check: "check", blocked: "blocked", "sign-in": "sign-in", "no-permission": "permission" }
 
 export interface WorkHost {
   // These papers' standing changed (queued, paused, left the queue): the window hears them again

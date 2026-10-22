@@ -36,6 +36,12 @@ export function waitWords(wait: ExtensionWait): WaitWords {
         papers: plural(n, { one: "# paper", other: "# papers" }),
         action: t({ message: "Open it", comment: "button: opens the site's page with the check in the user's browser" }),
       }
+    case "blocked":
+      return {
+        what: t`${host} blocks your browser`,
+        papers: plural(n, { one: "# paper", other: "# papers" }),
+        action: t({ message: "Try again", comment: "button: opens the site's page in the user's browser, to see whether it still blocks them" }),
+      }
     case "permission":
       return {
         what: t`Let the owlit extension read ${host}`,

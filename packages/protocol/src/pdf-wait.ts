@@ -9,9 +9,11 @@ import type { Paper, PdfEnded, PdfTry } from "./library.ts"
 // - for-sign-in, for-check, for-permission: still finding; the extension in the user's browser waits at
 //   the paper's site for one sign-in, one passed check, or being allowed to read it (a line per site,
 //   ExtensionView.waits, covers every such paper)
+// - blocked: still finding, the same way; the site's firewall turned the user's browser away, and a page
+//   there that loads (from another network, or once the block lifts) lets owlit go on
 // - not-found, no-access, not-offered, not-there: no PDF, for that reason. A check or a sign-in that
 //   stopped owlit itself (only older records have one) is not-found: it waits on nobody
-export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "for-permission" | "not-found" | "no-access" | "not-offered" | "not-there"
+export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "blocked" | "for-permission" | "not-found" | "no-access" | "not-offered" | "not-there"
 
 const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-copy": "not-found",
@@ -19,6 +21,7 @@ const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "not-offered": "not-offered",
   "not-there": "not-there",
   check: "not-found",
+  blocked: "not-found",
   "sign-in": "not-found",
   // Not reasons for having no PDF; core never gives them as one
   pdf: "not-found",
@@ -26,8 +29,8 @@ const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-permission": "for-permission",
 }
 
-const BY_WAIT: Record<ExtensionWait["kind"], PdfWait> = { "sign-in": "for-sign-in", check: "for-check", permission: "for-permission" }
-const WAITED: Partial<Record<PdfEnded, ExtensionWait["kind"]>> = { "sign-in": "sign-in", check: "check", "no-permission": "permission" }
+const BY_WAIT: Record<ExtensionWait["kind"], PdfWait> = { "sign-in": "for-sign-in", check: "for-check", blocked: "blocked", permission: "for-permission" }
+const WAITED: Partial<Record<PdfEnded, ExtensionWait["kind"]>> = { "sign-in": "sign-in", check: "check", blocked: "blocked", "no-permission": "permission" }
 
 // What the extension's try waited for, when it stopped where only the user gets through
 export const waitedFor = (t: PdfTry | undefined) => (t?.by === "extension" ? WAITED[t.ended] : undefined)

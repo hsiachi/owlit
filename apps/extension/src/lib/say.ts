@@ -123,6 +123,11 @@ export function cardOf(outcome: Outcome): CardView {
       const { host, papers } = outcome.wait
       if (outcome.wait.kind === "permission")
         return stays(plural(papers, { one: `# paper waits for owlit to read ${host}`, other: `# papers wait for owlit to read ${host}` }), { action: allow(host), key: `wait:${host}` })
+      if (outcome.wait.kind === "blocked")
+        return stays(t`${host} blocks this browser`, {
+          detail: plural(papers, { one: "Another network usually gets past it; owlit goes on with # paper then.", other: "Another network usually gets past it; owlit goes on with # papers then." }),
+          key: `wait:${host}`,
+        })
       const text =
         outcome.wait.kind === "check"
           ? plural(papers, { one: "# paper waits for you to pass the check here", other: "# papers wait for you to pass the check here" })

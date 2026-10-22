@@ -3590,6 +3590,18 @@ msgid "Open it"
 msgstr "打开"
 
 #: app/src/features/extension/waits.ts
+msgid "{host} blocks your browser"
+msgstr "{host} 拦截了你的浏览器"
+
+#. button: opens the site's page in the user's browser, to see whether it still blocks them
+#: app/src/features/extension/waits.ts
+#: app/src/features/onboarding/AgentSetup.tsx
+#: app/src/features/settings/sections/AgentsSection.tsx
+#: apps/share-web/src/App.tsx
+msgid "Try again"
+msgstr "重试"
+
+#: app/src/features/extension/waits.ts
 #: apps/extension/src/allow/Allow.tsx
 msgid "Let the owlit extension read {host}"
 msgstr "允许 owlit 扩展读取 {host}"
@@ -4041,6 +4053,11 @@ msgstr "已在{browser}中打开。在那里登录，owlit 会自己继续。"
 #: app/src/features/library/components/ExtensionWaitLines.tsx
 msgid "Opened in {browser}. Pass the check there; owlit goes on by itself."
 msgstr "已在{browser}中打开。在那里完成验证，owlit 会自己继续。"
+
+#. browser: Chrome, Arc, or 'your browser'
+#: app/src/features/library/components/ExtensionWaitLines.tsx
+msgid "Opened in {browser}. Still blocked? Try another network; owlit goes on by itself."
+msgstr "已在{browser}中打开。还被拦截的话，换个网络试试，owlit 会自己继续。"
 
 #. browser: Chrome, Arc, or 'your browser'
 #: app/src/features/library/components/ExtensionWaitLines.tsx
@@ -4808,6 +4825,14 @@ msgid "Waits for a check"
 msgstr "等你完成验证"
 
 #: app/src/features/library/lib/pdf-wait.ts
+msgid "{site} blocks your browser"
+msgstr "{site} 拦截了你的浏览器"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "The publisher's site blocks your browser"
+msgstr "出版方网站拦截了你的浏览器"
+
+#: app/src/features/library/lib/pdf-wait.ts
 msgid "Waits for the extension to be allowed on {site}"
 msgstr "等你允许扩展读取 {site}"
 
@@ -5207,6 +5232,14 @@ msgid "One check passed there covers every paper waiting at {site}."
 msgstr "在那里通过一次验证，{site} 上所有在等的论文都会继续获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{at} turned your browser away · {date}. Another network usually gets past it."
+msgstr "{at} 拦截了你的浏览器 · {date}。换个网络通常就能进去。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "Once {site} lets your browser in, owlit goes on with every paper waiting there."
+msgstr "等 {site} 放行你的浏览器，那里所有在等的论文都会继续获取。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "The owlit extension may not read {site} yet · {date}"
 msgstr "owlit 扩展还不能读取 {site} · {date}"
 
@@ -5438,12 +5471,6 @@ msgstr "这篇论文读过的地方"
 #: app/src/features/onboarding/AgentSetup.tsx
 msgid "Owlit works through Claude Code or Codex, signed in with your Claude or ChatGPT account."
 msgstr "Owlit 通过 Claude Code 或 Codex 工作，用你的 Claude 或 ChatGPT 账号登录。"
-
-#: app/src/features/onboarding/AgentSetup.tsx
-#: app/src/features/settings/sections/AgentsSection.tsx
-#: apps/share-web/src/App.tsx
-msgid "Try again"
-msgstr "重试"
 
 #. fetch owlit's copy of an agent, e.g. Set up Claude Code
 #: app/src/features/onboarding/AgentSetup.tsx
@@ -7526,6 +7553,14 @@ msgstr "按 owlit 按钮再试一次。"
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
 msgstr "{papers, plural, other {# 篇论文在等 owlit 读取 {host}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{host} blocks this browser"
+msgstr "{host} 拦截了这个浏览器"
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
+msgstr "{papers, plural, other {换个网络通常就能进去，然后 owlit 会继续获取这 # 篇论文。}}"
 
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"

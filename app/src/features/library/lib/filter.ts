@@ -20,7 +20,7 @@ const NO_PDF_GROUPS: PdfWait[][] = [
   ["not-found"],
   ["no-access", "not-offered"],
   ["not-there"],
-  ["finding", "offline", "for-sign-in", "for-check", "for-permission"],
+  ["finding", "offline", "for-sign-in", "for-check", "blocked", "for-permission"],
 ]
 
 const lacksPdf = (p: Paper) => !!pdfWait(p)

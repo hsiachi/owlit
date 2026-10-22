@@ -16,7 +16,7 @@ export function registerExtension({ router, extension }: Deps) {
     await extension?.pairings.answer(id, allow)
     return null
   })
-  router.register("extension.open", z.object({ kind: z.enum(["sign-in", "check", "permission"]), host: z.string().min(1).max(253) }), "admin", async ({ kind, host }) => {
+  router.register("extension.open", z.object({ kind: z.enum(["sign-in", "check", "blocked", "permission"]), host: z.string().min(1).max(253) }), "admin", async ({ kind, host }) => {
     if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
     return extension.open(kind, host)
   })
