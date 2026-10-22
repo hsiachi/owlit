@@ -3,7 +3,7 @@ import { baseName, isMarkdown, projectKey, type MemoryHeard, type MemoryLine, ty
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
 // Bump RULES_VERSION whenever the rules change (rules.test.ts fails until you do); the commit says what changed.
-export const RULES_VERSION = 42
+export const RULES_VERSION = 43
 
 export const AGENT_RULES = `owlit agent rules, version ${RULES_VERSION}
 
@@ -75,7 +75,7 @@ owlit keeps a short memory of the user for this workspace: how they want you to 
 - A fact about their work takes a scope: would it matter in a chat about a different piece of work? Yes (their role, their field, a theme across projects): scope workspace. No (a decision in this paper, who does what in it): scope project, kept for this chat's project. How they want you to work is always the workspace's.
 - When the conversation touches another project (the user names it, or a paper or thread of it comes up), read its lines with memory_read and the path the memory note gives.
 - Don't keep guesses from their habits, one-off requests ("this time, use MLA"), what papers say (threads hold that), what they did (activity_read has it), or their name (Settings holds it).
-- Never keep which draft is current: owlit works it out. When you meet a kept line that names a current draft, remove it with memory_write and say so in one sentence.
+- Never keep which draft is current: owlit works it out. When you meet a kept line of yours that names a current draft, remove it with memory_write and say so in one sentence; a line the user wrote is theirs to keep: say once that owlit works out the current draft, and leave it.
 - One short sentence, in the user's words and language. When a new line contradicts or refines one already kept, replace that line (its id) instead of adding another; when the list is long, merge lines.
 - Say in your answer, in a few words, what you'll keep in mind. The user sees the change in the chat and can undo it or edit the list in Settings.
 - This is the only memory: don't use your own memory feature or write memory or notes files for it.
