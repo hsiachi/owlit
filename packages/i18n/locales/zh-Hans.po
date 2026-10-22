@@ -2855,9 +2855,24 @@ msgstr "在访达中显示"
 msgid "New folder"
 msgstr "新建文件夹"
 
+#. opens the file that makes a folder a project; the file name stays as it is
+#: app/src/features/docs/actions.ts
+msgid "Open {PROJECT_MARK}"
+msgstr "打开 {PROJECT_MARK}"
+
+#. marks a folder of docs as a project
+#: app/src/features/docs/actions.ts
+msgid "Make this a project"
+msgstr "设为项目"
+
 #: app/src/features/docs/actions.ts
 msgid "Import as papers…"
 msgstr "作为论文导入…"
+
+#. toast after a folder was marked as a project
+#: app/src/features/docs/actions.ts
+msgid "Now a project"
+msgstr "已设为项目"
 
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
@@ -3063,6 +3078,11 @@ msgstr "已通过链接分享"
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
 msgstr "文件夹操作"
+
+#. a folder of docs marked as a project
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Project"
+msgstr "项目"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "No docs yet."
@@ -3313,6 +3333,10 @@ msgstr "返回文档"
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Deleted on disk"
 msgstr "已从磁盘删除"
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "This folder is a project. The first line is its name; status: and due: are optional."
+msgstr "这个文件夹是一个项目。第一行是项目名；status: 和 due: 可写可不写。"
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "No docs yet"

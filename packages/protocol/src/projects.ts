@@ -1,12 +1,12 @@
-import { baseName } from "./naming.ts"
-
 // Projects: a folder of the workspace is a project when it holds a project.md (any case), at any depth.
 // Nothing about a project is stored outside that file; core computes the rest from the workspace each time.
 
 // The file that marks its folder as a project
 export const PROJECT_MARK = "project.md"
 
-export const isProjectMark = (path: string) => baseName(path).toLowerCase() === PROJECT_MARK
+// The base name is cut here rather than by naming.ts's baseName: naming.ts asks this, and the two importing
+// each other would be a cycle
+export const isProjectMark = (path: string) => path.slice(path.lastIndexOf("/") + 1).toLowerCase() === PROJECT_MARK
 
 // A project's path as two spellings of it compare: without slashes around it and composed, since a path
 // typed on macOS can come decomposed; "" for none

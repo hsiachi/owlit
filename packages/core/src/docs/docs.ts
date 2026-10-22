@@ -5,6 +5,7 @@ import {
   extOf,
   followFirstLine,
   isMarkdown,
+  isProjectMark,
   isWithin,
   joinPath,
   parentPath,
@@ -204,12 +205,15 @@ export class Docs {
         throw invalidParams(t`${name} is not a Markdown file.`)
       }
       const now = Date.now()
-      let target = options.followsFirstLine ? followFirstLine(rel, content, now, this.taken()) ?? rel : rel
+      // A project mark asked for by name is never taken as a doc whose name follows its first line, however
+      // the caller asked: the mark's file name is the one fixed name (followFirstLine says why)
+      const follows = options.followsFirstLine === true && !isProjectMark(rel)
+      let target = follows ? followFirstLine(rel, content, now, this.taken()) ?? rel : rel
       if (this.taken()(target)) target = uniquePath(parentPath(target), stemOf(target), ".md", this.taken())
       await mkdir(path.dirname(this.abs(target)), { recursive: true })
       await writeFile(this.abs(target), content, { flag: "wx" })
       if (options.id) this.ids.set(target, options.id)
-      if (options.followsFirstLine) await this.updateNames((f) => ({ ...f, [target]: now }))
+      if (follows) await this.updateNames((f) => ({ ...f, [target]: now }))
       await this.settle([target])
       return this.statAt(target)
     })

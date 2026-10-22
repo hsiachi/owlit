@@ -1,7 +1,7 @@
 import { t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { FolderPlusIcon, UsersIcon } from "lucide-react"
+import { FolderKanbanIcon, FolderPlusIcon, UsersIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ActionsOnRightClick } from "@/components/action-menu"
 import { NoteDot } from "@/components/marks"
@@ -9,6 +9,7 @@ import { FoldChevron } from "@/components/fold"
 import { NewRow, PanelEmpty, PanelHeader } from "@/components/list-panel"
 import { SidebarContent } from "@/components/ui/sidebar"
 import { Tip } from "@/components/tip"
+import { projectAt, useProjectsStore } from "@/features/projects/store"
 import { useDocActions } from "../actions"
 import { buildTree, type FileNode, type FolderNode, type TreeNode } from "../lib/tree"
 import { openOnDisk } from "../disk"
@@ -89,6 +90,7 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
   const renaming = useDocsUiStore((s) => s.renaming === key)
   const { setExpanded, selectFolder, setRenaming } = useDocsUiStore.getState()
   const activeInside = useDocsStore((s) => (p.activeId ? s.files[p.activeId]?.path.startsWith(node.path + "/") : false))
+  const project = useProjectsStore((s) => !!projectAt(s.projects, node.path))
 
   // A closed folder held under a drag opens, so the drop can go inside it
   const spring = useRef<number | undefined>(undefined)
@@ -128,6 +130,9 @@ function FolderRow({ node, depth, ...p }: { node: FolderNode; depth: number } & 
           dropTo={node.path}
           expanded={open}
           lead={<FoldChevron open={open} className="text-muted-foreground" />}
+          // A marked folder says so with an icon alone, like a doc shared by link: the mark's own doc
+          // says what it means
+          trail={project ? <FolderKanbanIcon className="size-3.5" role="img" aria-hidden={false} aria-label={t({ message: "Project", comment: "a folder of docs marked as a project" })} /> : undefined}
           onOpen={() => {
             setExpanded(node.path, !open)
             selectFolder(node.path)

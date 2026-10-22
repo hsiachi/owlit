@@ -2855,8 +2855,23 @@ msgstr ""
 msgid "New folder"
 msgstr ""
 
+#. opens the file that makes a folder a project; the file name stays as it is
+#: app/src/features/docs/actions.ts
+msgid "Open {PROJECT_MARK}"
+msgstr ""
+
+#. marks a folder of docs as a project
+#: app/src/features/docs/actions.ts
+msgid "Make this a project"
+msgstr ""
+
 #: app/src/features/docs/actions.ts
 msgid "Import as papers…"
+msgstr ""
+
+#. toast after a folder was marked as a project
+#: app/src/features/docs/actions.ts
+msgid "Now a project"
 msgstr ""
 
 #: app/src/features/docs/actions.ts
@@ -3062,6 +3077,11 @@ msgstr ""
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
+msgstr ""
+
+#. a folder of docs marked as a project
+#: app/src/features/docs/components/DocsListPanel.tsx
+msgid "Project"
 msgstr ""
 
 #: app/src/features/docs/components/DocsListPanel.tsx
@@ -3312,6 +3332,10 @@ msgstr ""
 
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Deleted on disk"
+msgstr ""
+
+#: app/src/features/docs/pages/DocPage.tsx
+msgid "This folder is a project. The first line is its name; status: and due: are optional."
 msgstr ""
 
 #: app/src/features/docs/pages/DocsHome.tsx

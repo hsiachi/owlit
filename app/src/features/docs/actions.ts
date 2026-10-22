@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { mentionLink } from "@owlit/protocol"
+import { isProjectMark, mentionLink, PROJECT_MARK } from "@owlit/protocol"
 import type { MenuGroups } from "@/components/action-menu"
 import type { AskParts } from "@/features/chat/components/composer/Composer"
 import type { ChatIndexState } from "@/features/chat/components/ChatEmpty"
@@ -12,7 +12,7 @@ import { canReveal, rpc } from "@/lib/rpc"
 import { openEditor } from "./editors"
 import { citationsSentenceFor } from "./lib/citations"
 import { useDocsStore, type Removed } from "./store"
-import { baseName, displayName, docUri, isMarkdown, isWithin, type WorkspaceFile } from "./types"
+import { baseName, displayName, docUri, isMarkdown, isWithin, joinPath, parentPath, type WorkspaceFile } from "./types"
 import { folderOfKey, rowKey, useDocsUiStore } from "./ui-store"
 import { useNewDoc } from "./use-new-doc"
 import { resolvedViews } from "./comments/model"
@@ -173,6 +173,11 @@ export function useDocActions() {
           },
         },
         { label: t`Rename`, onSelect: () => startRenaming(rowKey.folder(path)) },
+        // There is no Unmark: deleting the mark's file (from its own row, or in Finder) is how a folder
+        // stops being a project, so the file stays the one truth about it
+        markIn(path)
+          ? { label: t({ message: `Open ${PROJECT_MARK}`, comment: "opens the file that makes a folder a project; the file name stays as it is" }), onSelect: () => openMark(path) }
+          : { label: t({ message: "Make this a project", comment: "marks a folder of docs as a project" }), onSelect: () => markAsProject(path) },
       ],
       canReveal ? [{ label: t`Show in Finder`, onSelect: () => reveal(path) }] : [],
       // A folder of nothing but PDFs is papers kept as files: the Library takes them in (moving them
@@ -180,6 +185,18 @@ export function useDocActions() {
       onlyPdfs(path) ? [{ label: t`Import as papers…`, onSelect: () => importAsPapers(path) }] : [],
       [{ label: t`Delete`, destructive: true, onSelect: () => deleteFolder(path) }],
     ]
+  }
+
+  // The mark is written as a new doc of the person's, named by the folder; the person stays where they are
+  const markAsProject = (path: string) => {
+    const mark = useDocsStore.getState().createDocAt(joinPath(path, PROJECT_MARK), `# ${baseName(path)}\n`)
+    if (!mark) return openMark(path)
+    toastUndo(t({ message: "Now a project", comment: "toast after a folder was marked as a project" }), () => leaveIfRemoved(useDocsStore.getState().deleteFile(mark.id)), { description: baseName(path) })
+  }
+
+  const openMark = (path: string) => {
+    const mark = markIn(path)
+    if (mark) navigate(`/docs/${mark.id}`)
   }
 
   const importAsPapers = (path: string) => {
@@ -195,6 +212,12 @@ export function useDocActions() {
   }
 
   return { fileGroups, folderGroups, pickedGroups, deleteKeys, startRenaming }
+}
+
+// The project mark directly in a folder, as the docs store has it: the menu acts on the file at once,
+// before core's projects list has heard of it
+function markIn(folder: string) {
+  return Object.values(useDocsStore.getState().files).find((f) => parentPath(f.path) === folder && isProjectMark(f.path))
 }
 
 // Whether a folder holds files, and every one a PDF (core's import reads it from disk)
