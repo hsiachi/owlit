@@ -29,7 +29,7 @@ function Report({ text }: { text: string }) {
       <FadeClip open={all} long={long} onLong={setLong} max="max-h-56" className="text-sm">
         <Markdown text={text} className="text-sm" />
       </FadeClip>
-      {long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} className="-ml-1.5 mt-0.5" />}
+      {long && <ShowAllButton open={all} onClick={() => setAll((a) => !a)} className="mt-0.5" />}
     </div>
   )
 }

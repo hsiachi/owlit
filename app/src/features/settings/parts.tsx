@@ -354,7 +354,7 @@ export function FoldedForm({
 }) {
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" className="mt-2 -ml-2 font-normal text-muted-foreground" onClick={onOpen}>
+      <Button variant="text" size="inline" className="mt-2 -ml-1.5" onClick={onOpen}>
         <PlusIcon />
         {label}
       </Button>

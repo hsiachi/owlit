@@ -7,6 +7,7 @@ import { ChoiceMenu } from "@/components/choice-menu"
 import { NoteDot } from "@/components/marks"
 import { useSeenOnScreen, type VisitDots } from "../seen"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
+import { FoldButton } from "@/components/fold"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { displayName } from "@/features/docs/types"
@@ -222,10 +223,9 @@ export function ThreadTable({ thread, shown, visit }: { thread: ThreadRead; show
                     <tr>
                       <td colSpan={span} className="border-b p-0">
                         <div className={cn(inView, "py-1.5")} style={{ paddingLeft: 10 + (s.label ? (s.depth + 1) * 20 : 0) }}>
-                          <Button variant="text" size="inline" onClick={() => setAll((a) => new Set(a).add(s.key))}>
-                            <ChevronDownIcon />
-                            {plural(rows.length - SHOWN, { one: "# more", other: "# more" })}
-                          </Button>
+                          <FoldButton open={false} onClick={() => setAll((a) => new Set(a).add(s.key))}>
+{plural(rows.length - SHOWN, { one: "# more", other: "# more" })}
+</FoldButton>
                         </div>
                       </td>
                     </tr>

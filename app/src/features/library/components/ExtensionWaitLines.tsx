@@ -125,9 +125,14 @@ function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; pap
   return (
     <StatusLine
       actions={
-        <IconButton label={t`Dismiss`} onClick={() => putAwayFollowed(host)}>
-          <XIcon />
-        </IconButton>
+        <>
+          <Button variant="text" size="inline" onClick={() => showOnly(here.map((p) => p.id), label)}>
+            {t({ message: "Show", comment: "verb: show these papers in the Library" })}
+          </Button>
+          <IconButton label={t`Dismiss`} onClick={() => putAwayFollowed(host)}>
+            <XIcon />
+          </IconButton>
+        </>
       }
     >
       <span className="truncate">
@@ -140,8 +145,6 @@ function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; pap
             {plural(without.length, { one: "# without", other: "# without" })}
           </>
         )}
-        {" · "}
-        <InlineLink onClick={() => showOnly(here.map((p) => p.id), label)}>{t({ message: "Show", comment: "verb: show these papers in the Library" })}</InlineLink>
       </span>
     </StatusLine>
   )

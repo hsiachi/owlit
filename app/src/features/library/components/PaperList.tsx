@@ -12,6 +12,7 @@ import { revealOnHover } from "@/components/row-list"
 import { NoteDot, ReadingRing, StoppedDot } from "@/components/marks"
 import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
+import { InlineLink } from "@/components/inline-link"
 import { readDepthLabel } from "@/components/read-depth"
 import { useDigestState, type DigestState } from "../digests"
 import { type PaperGroup } from "../lib/filter"
@@ -99,13 +100,9 @@ function AlsoCited({ cited, bare, className }: { cited: CitedPaper; bare?: boole
   const names = cited.also.map((p, i) => (
     <Fragment key={p.path}>
       {i > 0 && ", "}
-      <button
-        type="button"
-        onClick={() => go(p.path)}
-        className="rounded-sm underline decoration-muted-foreground/40 underline-offset-3 outline-none hover:text-foreground hover:decoration-foreground/40 focus-key:text-foreground focus-key:ring-2 focus-key:ring-ring/50"
-      >
+      <InlineLink muted onClick={() => go(p.path)}>
         {p.name}
-      </button>
+      </InlineLink>
     </Fragment>
   ))
   return (

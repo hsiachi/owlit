@@ -46,7 +46,7 @@ export function waitWords(wait: ExtensionWait): WaitWords {
       return {
         what: t`Let the owlit extension read ${host}`,
         papers: plural(n, { one: "# paper", other: "# papers" }),
-        action: t({ message: "Allow…", comment: "button: the owlit extension opens a page in the user's browser that asks to let it read this site" }),
+        action: t({ message: "Allow", comment: "button: the owlit extension opens a page in the user's browser that asks to let it read this site" }),
       }
   }
 }

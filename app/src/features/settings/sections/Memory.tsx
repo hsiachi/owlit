@@ -2,7 +2,7 @@ import { plural, t } from "@lingui/core/macro"
 import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { projectKey, type ClaudeNote, type MemoryKind, type MemoryLine, type Project } from "@owlit/protocol"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon } from "lucide-react"
 import { GroupLabel } from "@/components/group-label"
 import { DialogHeading } from "@/components/info"
 import { revealOnHover } from "@/components/row-list"
@@ -266,7 +266,8 @@ function KeepFor({ line, projects }: { line: MemoryLine; projects: Project[] }) 
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="text" size="inline" className={cn(revealOnHover, "data-[state=open]:opacity-100")}>
-          {t({ message: "Keep for…", comment: "verb: choose which chats hear a line Owlit keeps in mind: every chat, or one project's" })}
+          {t({ message: "Keep for", comment: "verb: choose which chats hear a line Owlit keeps in mind: every chat, or one project's" })}
+          <ChevronDownIcon />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-max min-w-40 max-w-80">
