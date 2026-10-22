@@ -1,6 +1,6 @@
 import type { MemoryLine, Project } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { memoryNote } from "./rules.ts"
+import { memoryHeard, memoryNote } from "./rules.ts"
 
 const noon = (day: string) => Date.parse(`${day}T12:00:00`)
 const project = (path: string, name: string, parents: string[] = [], draft?: string, day = "2026-10-20"): Project => ({
@@ -82,5 +82,14 @@ describe("the memory note", () => {
     expect(note.match(/About their work in Proactive Support/g)).toHaveLength(1)
     expect(note).toContain("About their work in ADHD Support (ADHD):\n(nothing yet)")
     expect(note).toMatch(/one line each; [^\n]*:\n- Thesis: nothing yet$/)
+  })
+})
+
+describe("what a reply heard", () => {
+  it("counts the lines said in full and the other projects given a line, with the chat's projects by name", () => {
+    // m1, m2 and m6 (its folder is no project) for every chat; m3 and m4 for Chapter 2 and the project it is in
+    expect(memoryHeard({ lines, projects, chatProjects: [chapter] })).toEqual({ projects: [{ path: "Work/Proactive/Ch2", name: "Chapter 2" }], lines: 5, others: 2 })
+    expect(memoryHeard({ lines, projects, chatProjects: [] })).toEqual({ projects: [], lines: 3, others: 4 })
+    expect(memoryHeard({ lines: lines.slice(0, 2), projects: [], chatProjects: [] })).toEqual({ projects: [], lines: 2, others: 0 })
   })
 })

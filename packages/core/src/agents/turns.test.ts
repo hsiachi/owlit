@@ -130,6 +130,19 @@ describe("turns", () => {
     expect(again).toBe("no memory")
     expect(moved).toMatch(/^\[owlit\] What owlit keeps in mind for this chat changed/)
     expect(moved).toContain("\nThis chat is in the project Retrieval study (Study).\nAbout their work in Retrieval study (Study):\n- [m1] The study is about RAG.\nThe workspace's other projects, ")
+    // Each reply keeps what its note said; one without a note keeps nothing
+    const heardOf = async () => (await call("chats.get", { id: "c1" })).messages.filter((m: { role: string }) => m.role === "assistant").map((m: { heard?: unknown }) => m.heard ?? null)
+    expect(await heardOf()).toEqual([{ projects: [], lines: 0, others: 2 }, null, { projects: [{ path: "Study", name: "Retrieval study" }], lines: 1, others: 1 }])
+
+    // The project the person put the chat in comes first, and taking it out leaves what it touched
+    await call("chats.update", { id: "c1", patch: { project: "Other/" } })
+    expect((await call("projects.ofChat", { chatId: "c1" })).projects.map((p: { path: string }) => p.path)).toEqual(["Other", "Study"])
+    await send("memory?")
+    expect(said().at(-1)).toContain("\nThis chat is in the projects Other work (Other) and Retrieval study (Study).\n")
+    expect((await heardOf()).at(-1)).toMatchObject({ projects: [{ path: "Other" }, { path: "Study" }], others: 0 })
+    await call("chats.update", { id: "c1", patch: { project: "" } })
+    expect((await call("chats.get", { id: "c1" })).project).toBeUndefined()
+    expect((await call("projects.ofChat", { chatId: "c1" })).projects.map((p: { path: string }) => p.path)).toEqual(["Study"])
   })
 
   it("puts owlit's words before the user's: rules, role, the conversation so far, then a line, then the message", () => {

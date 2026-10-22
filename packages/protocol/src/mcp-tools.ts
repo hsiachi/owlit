@@ -320,7 +320,7 @@ function TOOLS(): ToolSpec[] {
     inputSchema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Workspace-relative path of a new doc, e.g. 'Meetings/Weekly · reading.md'" },
+        path: { type: "string", description: "Workspace-relative path of a new doc, e.g. 'Weekly · reading.md'" },
         content: { type: "string", description: "The whole doc, Markdown" },
       },
       required: ["path", "content"],

@@ -228,7 +228,7 @@ export interface Methods {
   // Retry: another turn in a chat owlit started, which broke or was cut off
   "chats.tryAgain": { params: { chatId: string }; result: { chatId: string } }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
-  // Title, pin, agent settings, last use
+  // Title, pin, agent settings, last use, its project ("" takes it out of the one it was put in)
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
   // Moves the chat, with the copies of its attached files, to .owlit/trash/
   "chats.delete": { params: { id: string }; result: null }
@@ -377,6 +377,8 @@ export interface Methods {
 
   // ---- Projects: the workspace's folders marked by a project.md, by path
   "projects.list": { params: void; result: { projects: Project[] } }
+  // A chat's projects (the one the person put it in, then those of what it touched), nearest marks only
+  "projects.ofChat": { params: { chatId: string }; result: { projects: Project[] } }
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library

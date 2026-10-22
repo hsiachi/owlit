@@ -43,7 +43,7 @@ import { contentFrom, isSessionForm, questionsFrom, toolInfoOf } from "./questio
 import type { Who } from "./policy.ts"
 import { answerFor, roleNote, takesRules, withUserName, type EngineAnswer } from "./roles.ts"
 import type { Guard } from "./profiles.ts"
-import { memoryNote, preamble, RULES_VERSION, rulesChangedNote, USER_FOLLOWS } from "./rules.ts"
+import { memoryHeard, memoryNote, preamble, RULES_VERSION, rulesChangedNote, USER_FOLLOWS } from "./rules.ts"
 import { agentNotice, agentWork, toKind, toolContent, toUpdate } from "./updates.ts"
 
 export type TurnRequest = ParamsOf<"agents.prompt">
@@ -276,6 +276,12 @@ export class Turns {
       ])
       const heard = memoryNote({ lines, projects, chatProjects, changed: false })
       const memory = live.heard !== heard && (lines.length || projects.length || live.heard !== undefined) ? memoryNote({ lines, projects, chatProjects, changed: live.heard !== undefined }) : undefined
+      // The reply keeps what the note said, for its first line in the chat; every later save of the
+      // reply spreads turn.message, so it stays
+      if (memory) {
+        turn.message = { ...turn.message, heard: memoryHeard({ lines, projects, chatProjects }) }
+        await ws.chats.patchMessage(req.chatId, turn.message).catch(() => undefined)
+      }
       // A session that outlived a change to the rules (a long-lived chat) hears the version in force
       const rulesAgain = !preamble && !fresh.rulesInSystemPrompt && live.rules !== RULES_VERSION ? rulesChangedNote() : undefined
       const prompt = promptBlocks(req.input, ws.root, fresh.history, preamble, userName, role, attached, memory, rulesAgain)

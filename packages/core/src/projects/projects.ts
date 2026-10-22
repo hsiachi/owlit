@@ -1,4 +1,4 @@
-import { baseName, frontmatterEnd, isMarkdown, isProjectMark, isWithin, paperUri, parentPath, parseOwlitUri, threadUri, type Change, type Chat, type CurrentDraft, type MemoryLine, type Project, type ProjectStatus } from "@owlit/protocol"
+import { baseName, frontmatterEnd, isMarkdown, isProjectMark, isWithin, paperUri, parentPath, parseOwlitUri, projectKey, threadUri, type Change, type Chat, type CurrentDraft, type MemoryLine, type Project, type ProjectStatus } from "@owlit/protocol"
 import path from "node:path"
 import { Serial } from "../util.ts"
 
@@ -122,10 +122,11 @@ export class Projects {
   // The projects a thing belongs to, nearest marks only (each one's lineage is in its parents), each once,
   // in the order found:
   // - a doc: its project.
-  // - a chat: the projects of the docs it touched (named in its messages' mentions, context and quoted
-  //   selections, the doc or comment a chat owlit started is about, the docs and comments its turns
-  //   changed by the change log) and of the threads it touched (named the same ways, or written by its
-  //   turns). A chat that isn't there is in none.
+  // - a chat: first the project the person put it in, while that folder is still marked; then the
+  //   projects of the docs it touched (named in its messages' mentions, context and quoted selections,
+  //   the doc or comment a chat owlit started is about, the docs and comments its turns changed by the
+  //   change log, written ones among them) and of the threads it touched (named the same ways, or written
+  //   by its turns). A chat that isn't there is in none.
   // - a thread: the marked folder its project field names (a value that is no marked folder's path counts
   //   for nothing), and the projects of the docs that link to it.
   // - a paper: the projects of the docs that link to it, under any id it goes by.
@@ -137,14 +138,18 @@ export class Projects {
       if (project) found.set(project.path, project)
     }
     const addDoc = (rel: string) => add(nearestProject(byPath, rel))
+    const addMarked = (field: string | undefined) => {
+      const key = projectKey(field)
+      if (key) add([...byPath.values()].find((p) => projectKey(p.path) === key))
+    }
     const addThread = async (id: string) => {
-      const field = (await this.services.thread(id))?.project.trim().replace(/^\/+|\/+$/g, "").normalize("NFC")
-      if (field) add([...byPath.values()].find((p) => p.path.normalize("NFC") === field))
+      addMarked((await this.services.thread(id))?.project)
       for (const rel of await this.services.docsLinking(threadUri(id))) addDoc(rel)
     }
     const addChat = async (id: string) => {
       const chat = await this.services.chat(id)
       if (!chat) return
+      addMarked(chat.project)
       const { docs, threads } = touchedBy(chat, await this.services.changesOf(id))
       for (const rel of docs) addDoc(rel)
       for (const thread of threads) await addThread(thread)

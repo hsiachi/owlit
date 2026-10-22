@@ -1479,6 +1479,31 @@ msgstr "取消"
 msgid "Skip large files"
 msgstr "跳过大文件"
 
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/chat/lib/step-words.ts
+#: app/src/lib/words.ts
+msgctxt "between things in a list"
+msgid ", "
+msgstr "、"
+
+#. above the composer: the project(s) this chat is in, by name
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+msgid "in: {names}"
+msgstr "项目：{names}"
+
+#. above the composer: this chat is in no project; opens a menu to put it in one
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+msgid "in: —"
+msgstr "项目：—"
+
+#. a thread or chat in no project
+#. a thread that belongs to no project
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+#: app/src/features/threads/components/ThreadMenu.tsx
+msgid "No project"
+msgstr "不属于项目"
+
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
@@ -1844,12 +1869,6 @@ msgstr "{refused} 个未获允许"
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{stopped} stopped"
 msgstr "{stopped} 个已停止"
-
-#: app/src/features/chat/components/messages/parts.tsx
-#: app/src/lib/words.ts
-msgctxt "between things in a list"
-msgid ", "
-msgstr "、"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "({counts})"
@@ -2466,6 +2485,28 @@ msgstr "{shown, plural, other {# 个步骤}}"
 #: app/src/features/chat/lib/step-words.ts
 msgid "Starting"
 msgstr "正在启动"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{lines, plural, one {# line} other {# lines}}"
+msgstr "{lines, plural, other {# 条}}"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{others, plural, one {# other project} other {# other projects}}"
+msgstr "{others, plural, other {另外 # 个项目}}"
+
+#. what Owlit keeps in mind: the chat is in no project
+#: app/src/features/chat/lib/step-words.ts
+msgid "no project"
+msgstr "不在项目中"
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{others, plural, one {# project} other {# projects}}"
+msgstr "{others, plural, other {# 个项目}}"
+
+#. a reply's first line: the project(s) its chat is in, how many lines Owlit heard in full, how many other projects
+#: app/src/features/chat/lib/step-words.ts
+msgid "What Owlit keeps in mind: {said}"
+msgstr "Owlit 记着的事：{said}"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your Library"
@@ -6432,11 +6473,6 @@ msgstr "打开到第 {page} 页"
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
 msgstr "移到项目"
-
-#. a thread that belongs to no project
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
-msgstr "不属于项目"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"

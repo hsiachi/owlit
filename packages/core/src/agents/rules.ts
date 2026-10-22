@@ -1,4 +1,4 @@
-import { baseName, isMarkdown, projectKey, type MemoryLine, type Project } from "@owlit/protocol"
+import { baseName, isMarkdown, projectKey, type MemoryHeard, type MemoryLine, type Project } from "@owlit/protocol"
 
 // What every agent owlit runs is told about owlit: through owlit-mcp's instructions, and before the
 // first prompt of each new session. owlit writes no CLAUDE.md or AGENTS.md into the user's folder.
@@ -110,16 +110,7 @@ export interface MemoryNoteInput {
 // workspace's, so taking a mark away loses no line.
 export function memoryNote({ lines, projects, chatProjects, changed }: MemoryNoteInput) {
   const bullets = (some: MemoryLine[], suffix: (l: MemoryLine) => string = () => "") => some.map((l) => `- [${l.id}] ${l.text}${suffix(l)}`).join("\n") || "(nothing yet)"
-  const byKey = new Map(projects.map((p) => [projectKey(p.path), p]))
-  const own: Project[] = []
-  for (const p of chatProjects) {
-    for (const key of [p.path, ...p.parents].map(projectKey)) {
-      const project = byKey.get(key)
-      if (project && !own.includes(project)) own.push(project)
-    }
-  }
-  const about = lines.filter((l) => l.kind === "about")
-  const everywhere = about.filter((l) => !byKey.has(projectKey(l.project)))
+  const { own, chats, about, everywhere } = noteParts(lines, projects, chatProjects)
   const gone = (l: MemoryLine) => (l.project ? ` (kept for ${l.project}, which is no project any more)` : "")
   const opening = changed
     ? "[owlit] What owlit keeps in mind for this chat changed (its memory of the user, or the projects); this is all of it now."
@@ -129,7 +120,6 @@ export function memoryNote({ lines, projects, chatProjects, changed }: MemoryNot
 
   // The path is what memory_read takes, so it is said whenever it isn't the name itself
   const named = (p: Project) => (p.name === p.path ? p.name : `${p.name} (${p.path})`)
-  const chats = chatProjects.map((p) => byKey.get(projectKey(p.path))).filter((p): p is Project => !!p)
   parts.push(chats.length ? `This chat is in the project${chats.length > 1 ? "s" : ""} ${andList(chats.map(named))}.` : "This chat is in no project.")
   for (const p of own) {
     const inside = chats.includes(p) ? "" : `, which ${andList(chats.filter((c) => c.parents.some((q) => projectKey(q) === projectKey(p.path))).map((c) => c.name))} is part of`
@@ -141,6 +131,35 @@ export function memoryNote({ lines, projects, chatProjects, changed }: MemoryNot
     parts.push(others.map((p) => `- ${named(p)}: ${lastWorked(p)}`).join("\n"))
   }
   return parts.join("\n")
+}
+
+// What a reply heard in the note memoryNote writes for the same input: the chat's projects, the lines it
+// says in full, and the other projects it gives one line each
+export function memoryHeard({ lines, projects, chatProjects }: Omit<MemoryNoteInput, "changed">): MemoryHeard {
+  const { own, chats, about, everywhere } = noteParts(lines, projects, chatProjects)
+  const inOwn = about.filter((l) => own.some((p) => projectKey(p.path) === projectKey(l.project)))
+  return {
+    projects: chats.map((p) => ({ path: p.path, name: p.name })),
+    lines: lines.filter((l) => l.kind === "work").length + everywhere.length + inOwn.length,
+    others: projects.length ? projects.filter((p) => !own.includes(p)).length : 0,
+  }
+}
+
+// The note's groups: the chat's projects as the workspace lists them (chats), those with the projects they
+// are inside (own), and the lines about the user's work, those kept for no listed project among them
+function noteParts(lines: MemoryLine[], projects: Project[], chatProjects: Project[]) {
+  const byKey = new Map(projects.map((p) => [projectKey(p.path), p]))
+  const own: Project[] = []
+  for (const p of chatProjects) {
+    for (const key of [p.path, ...p.parents].map(projectKey)) {
+      const project = byKey.get(key)
+      if (project && !own.includes(project)) own.push(project)
+    }
+  }
+  const chats = chatProjects.map((p) => byKey.get(projectKey(p.path))).filter((p): p is Project => !!p)
+  const about = lines.filter((l) => l.kind === "about")
+  const everywhere = about.filter((l) => !byKey.has(projectKey(l.project)))
+  return { own, chats, about, everywhere }
 }
 
 // The doc last worked on in a project, by its current drafts (newest first), and the day

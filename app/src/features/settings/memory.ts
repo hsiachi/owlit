@@ -12,14 +12,17 @@ interface MemoryState {
   loaded: boolean
   // The list's dialog is open, above Settings
   managing: boolean
+  // The group the dialog brings into view once its lines are there: a project's key, "" for every chat's
+  focus?: string
 }
 
 export const useMemory = create<MemoryState>()(() => ({ lines: [], claudeNotes: [], loaded: false, managing: false }))
 
-// Opens the list above Settings › Owlit (a result row's line goes straight to it)
-export function manageMemory(open: boolean) {
+// Opens the list above Settings › Owlit (a result row's line goes straight to it), at the group of lines
+// kept for one project when `focus` names its key ("" for every chat's)
+export function manageMemory(open: boolean, focus?: string) {
   if (open) openSettings("memory")
-  useMemory.setState({ managing: open })
+  useMemory.setState({ managing: open, focus: open ? focus : undefined })
 }
 
 export async function loadMemory() {

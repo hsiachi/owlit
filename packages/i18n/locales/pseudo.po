@@ -1479,6 +1479,31 @@ msgstr ""
 msgid "Skip large files"
 msgstr ""
 
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/features/chat/lib/step-words.ts
+#: app/src/lib/words.ts
+msgctxt "between things in a list"
+msgid ", "
+msgstr ""
+
+#. above the composer: the project(s) this chat is in, by name
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+msgid "in: {names}"
+msgstr ""
+
+#. above the composer: this chat is in no project; opens a menu to put it in one
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+msgid "in: —"
+msgstr ""
+
+#. a thread or chat in no project
+#. a thread that belongs to no project
+#: app/src/features/chat/components/composer/ProjectChip.tsx
+#: app/src/features/threads/components/ThreadMenu.tsx
+msgid "No project"
+msgstr ""
+
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
@@ -1843,12 +1868,6 @@ msgstr ""
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{stopped} stopped"
-msgstr ""
-
-#: app/src/features/chat/components/messages/parts.tsx
-#: app/src/lib/words.ts
-msgctxt "between things in a list"
-msgid ", "
 msgstr ""
 
 #: app/src/features/chat/components/messages/parts.tsx
@@ -2465,6 +2484,28 @@ msgstr ""
 
 #: app/src/features/chat/lib/step-words.ts
 msgid "Starting"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{lines, plural, one {# line} other {# lines}}"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{others, plural, one {# other project} other {# other projects}}"
+msgstr ""
+
+#. what Owlit keeps in mind: the chat is in no project
+#: app/src/features/chat/lib/step-words.ts
+msgid "no project"
+msgstr ""
+
+#: app/src/features/chat/lib/step-words.ts
+msgid "{others, plural, one {# project} other {# projects}}"
+msgstr ""
+
+#. a reply's first line: the project(s) its chat is in, how many lines Owlit heard in full, how many other projects
+#: app/src/features/chat/lib/step-words.ts
+msgid "What Owlit keeps in mind: {said}"
 msgstr ""
 
 #: app/src/features/chat/lib/tool-title.ts
@@ -6431,11 +6472,6 @@ msgstr ""
 
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Move to project"
-msgstr ""
-
-#. a thread that belongs to no project
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
 msgstr ""
 
 #: app/src/features/threads/components/ThreadMenu.tsx

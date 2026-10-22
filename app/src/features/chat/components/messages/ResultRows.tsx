@@ -1,7 +1,7 @@
 import { plural, t } from "@lingui/core/macro"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { create } from "zustand"
-import { type Change, type ChatMessage, editStats, type EditStats, type MemoryLine, type ReadFrom, RpcErrorCode } from "@owlit/protocol"
+import { type Change, type ChatMessage, editStats, type EditStats, type MemoryHeard, type MemoryLine, projectKey, type ReadFrom, RpcErrorCode } from "@owlit/protocol"
 import { ArrowUpRightIcon, BookmarkIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FoldChevron } from "@/components/fold"
@@ -18,6 +18,7 @@ import { manageMemory } from "@/features/settings/memory"
 import { useThreadsStore } from "@/features/threads/store"
 import { labelOf, undoEntry, useChatChanges } from "../../results"
 import { countParts } from "../../lib/edit-counts"
+import { keptInMindLine } from "../../lib/step-words"
 import { partsUndone, replyEntries, undoneBy } from "../../lib/reply-changes"
 import { useChatStore } from "../../store"
 import { toastLeft } from "@/lib/changes"
@@ -507,5 +508,24 @@ function BuiltFrom({ readFrom }: { readFrom: ReadFrom[] }) {
         </div>
       </Unfold>
     </div>
+  )
+}
+
+// A reply's first line when Owlit's memory note went out before it: what the chat heard, in the steps
+// line's look. It opens the list in Settings at the group of the chat's first project, or at every chat's
+// lines for a chat in none, so a wrong project or a stale line is one click from where it is changed.
+export function KeptInMindLine({ heard }: { heard: MemoryHeard }) {
+  const line = keptInMindLine(heard)
+  return (
+    <button
+      type="button"
+      // A narrow panel cuts the line short; the whole of it is on hover
+      title={line}
+      onClick={() => manageMemory(true, projectKey(heard.projects[0]?.path))}
+      className="group/kept flex max-w-full items-center gap-1.5 self-start text-left text-sm text-foreground/80 outline-none hover:text-foreground focus-key:text-foreground"
+    >
+      <span className="truncate">{line}</span>
+      <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover/kept:opacity-100 group-focus-visible/kept:opacity-100" />
+    </button>
   )
 }

@@ -47,6 +47,7 @@ export function registerChats({ router, turns, requireWorkspace, host, workAgent
     role: roleSchema.optional(),
     effortId: z.string().optional(),
     help: z.literal(true).optional(),
+    project: z.string().optional(),
   })
   router.register("chats.list", noParams, "read", () => chats().list())
   router.register("chats.startedFor", z.object({ kind: z.enum(["paper", "thread", "doc", "comment"]).optional() }), "read", ({ kind }) => chats().startedFor(kind))

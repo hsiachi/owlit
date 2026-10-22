@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import { i18n } from "@owlit/i18n"
-import type { MessagePart } from "@owlit/protocol"
+import type { MemoryHeard, MessagePart } from "@owlit/protocol"
 import type { ToolCall } from "../types"
 import { owlitStepWords, owlitToolOf, quote, toolTitle } from "./tool-title"
 import { useLibraryStore } from "@/features/library/store"
@@ -495,4 +495,18 @@ export function agentNow(calls: ToolCall[], started: boolean) {
     .map((call) => ({ call, words: stepWords(call) }))
     .findLast((s) => !s.words.hidden && (s.call.status === "in_progress" || s.call.status === "pending"))
   return running ? running.words.now : started ? t`Thinking` : t`Starting`
+}
+
+// The reply's first line when Owlit's memory note went out before it: "What Owlit keeps in mind: Proactive
+// Support · 4 lines · 2 other projects". A workspace with no projects says the lines alone; a chat in none
+// says so, and counts every project as one it heard a line about.
+export function keptInMindLine({ projects, lines, others }: MemoryHeard) {
+  const count = plural(lines, { one: "# line", other: "# lines" })
+  const facts = projects.length
+    ? [projects.map((p) => p.name).join(t({ message: ", ", context: "between things in a list" })), count, ...(others ? [plural(others, { one: "# other project", other: "# other projects" })] : [])]
+    : others
+      ? [t({ message: "no project", comment: "what Owlit keeps in mind: the chat is in no project" }), count, plural(others, { one: "# project", other: "# projects" })]
+      : [count]
+  const said = facts.join(" · ")
+  return t({ message: `What Owlit keeps in mind: ${said}`, comment: "a reply's first line: the project(s) its chat is in, how many lines Owlit heard in full, how many other projects" })
 }

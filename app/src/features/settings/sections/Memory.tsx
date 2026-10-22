@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { projectKey, type ClaudeNote, type MemoryKind, type MemoryLine, type Project } from "@owlit/protocol"
 import { CheckIcon } from "lucide-react"
@@ -62,6 +62,26 @@ function MemoryDialog() {
   const lines = useMemory((s) => s.lines)
   const projects = useProjects()
   const claudeNotes = useMemory((s) => s.claudeNotes)
+  const loaded = useMemory((s) => s.loaded)
+  const focus = useMemory((s) => s.focus)
+  const scroller = useRef<HTMLDivElement>(null)
+  // Opened at a project's group (a reply's "What Owlit keeps in mind" line). The dialog mounts inside
+  // Settings, both through portals, and its groups can reach the page some frames after it opens: one
+  // frame was not enough, so the group is looked for frame by frame. A project with no lines kept has no
+  // group, and the list stays at its top.
+  useEffect(() => {
+    if (!open || focus === undefined || !loaded) return
+    let frame = 0
+    let tries = 0
+    const look = () => {
+      const group = scroller.current?.querySelector(`[data-memory-project="${CSS.escape(focus)}"]`)
+      if (group) group.scrollIntoView({ block: "start" })
+      if (group || ++tries > 30) useMemory.setState({ focus: undefined })
+      else frame = requestAnimationFrame(look)
+    }
+    frame = requestAnimationFrame(look)
+    return () => cancelAnimationFrame(frame)
+  }, [open, focus, loaded])
   // Lines removed here, kept to put back while the dialog is open
   const [gone, setGone] = useState<MemoryLine[]>([])
   const [adding, setAdding] = useState<MemoryKind | null>(null)
@@ -101,7 +121,7 @@ function MemoryDialog() {
           title={t`What Owlit keeps in mind`}
           about={t`Every chat in this workspace starts with this list, whichever agent runs it. Kept in .owlit/memory.md in this folder.`}
         />
-        <div className="-mx-6 max-h-[60vh] overflow-y-auto px-6">
+        <div ref={scroller} className="-mx-6 max-h-[60vh] overflow-y-auto px-6">
           {claudeNotes.length > 0 && <ClaudeNotes notes={claudeNotes} />}
           {kinds.map(({ kind, label }) => {
             const mine = [...lines.filter((l) => l.kind === kind), ...gone.filter((l) => l.kind === kind)]

@@ -5,7 +5,8 @@ import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { Http } from "../net/http.ts"
-import { eventually } from "../test-util.ts"
+import type { Caller } from "../rpc/index.ts"
+import { eventually, knownProfile } from "../test-util.ts"
 import { Workspace } from "../workspace/workspace.ts"
 import { draftKind, parseMark, Projects, type ProjectsServices } from "./projects.ts"
 
@@ -218,6 +219,16 @@ describe("projectsOf", () => {
     expect(await projects.projectsOf({ kind: "chat", id: "gone" })).toEqual([])
   })
 
+  it("puts a chat in the project the person put it in first, while that folder is marked", async () => {
+    const chats: Record<string, Chat> = {
+      put: { ...chatOf("put", [message({ context: [docMention("A/y.md")] })]), project: "/C/" },
+      unmarked: { ...chatOf("unmarked", [message({ context: [docMention("A/y.md")] })]), project: "Somewhere" },
+    }
+    const projects = projectsOver(files, { chat: async (id) => chats[id] ?? null })
+    expect(paths(await projects.projectsOf({ kind: "chat", id: "put" }))).toEqual(["C", "A"])
+    expect(paths(await projects.projectsOf({ kind: "chat", id: "unmarked" }))).toEqual(["A"])
+  })
+
   it("puts a chat owlit started in the project of what it is about", async () => {
     const chats: Record<string, Chat> = {
       doc: chatOf("doc", [], { kind: "doc", id: "C/a.md" }),
@@ -293,6 +304,24 @@ describe("projects in a workspace", () => {
       ["Paper", "Paper", ["Paper/draft.md"]],
       ["Talk", "Talk", []],
     ])
+  })
+
+  it("puts a chat in the project of a doc its agent wrote with docs_write, with nothing else linking them", async () => {
+    const { base, root } = folderWith({ "Talk/project.md": "# Talk", "Talk/Meetings/Weekly · reading.md": "# Earlier" })
+    const core = new Core({ userDataDir: knownProfile(path.join(base, "userData")) })
+    opened.push(core)
+    const call = async (method: string, params?: unknown, caller?: Caller): Promise<any> => {
+      const response = await core.handle({ jsonrpc: "2.0", id: 1, method, params }, caller)
+      if ("error" in response) throw Object.assign(new Error(response.error.message), response.error)
+      return response.result
+    }
+    await call("workspace.open", { path: root })
+    await call("chats.create", { chat: { id: "c1", title: "t", createdAt: 1, updatedAt: 1, pinned: false } })
+    expect((await call("projects.ofChat", { chatId: "c1" })).projects).toEqual([])
+    // As owlit-mcp's docs_write asks for the chat's agent
+    await call("agents.writeDoc", { path: "Talk/Meetings/Weekly 2 · reading.md", content: "# Reading\n" }, { kind: "socket", chatId: "c1" })
+    expect((await call("projects.ofChat", { chatId: "c1" })).projects.map((p: Project) => p.path)).toEqual(["Talk"])
+    expect((await call("chats.get", { id: "c1" })).messages).toEqual([])
   })
 
   it("tells projects.changed when a mark is moved, edited, made or deleted, in the app or outside it", async () => {
