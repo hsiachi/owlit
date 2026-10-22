@@ -5,8 +5,8 @@
 // it soft).
 //
 // One tile everywhere, so the extension looks the same wherever the browser shows it. The app icon wears
-// badly there: at a toolbar's size its gradient, highlight and bars only blur, and on a dark extensions
-// page its finish and deep forest green sit dim beside other extensions' saturated icons. The feather's
+// badly there: at a toolbar's size its gradient, highlight and bars only blur, and among other extensions'
+// flat icons its finish reads as a shrunk Dock icon. The feather's
 // box is centred and three quarters of the tile's side, the corners a quarter of it. As in the app icon,
 // the line is heavier at the small sizes, about a pixel and a half at 16 px, and thins as the tile grows.
 // sharp comes from apps/desktop/scripts/icon-draw.mjs, which says where.
@@ -17,8 +17,8 @@ const out = path.resolve(import.meta.dirname, "../public/icons")
 
 // The feather's own box with room for the widest line, square
 const VIEW = "28 22 216 216"
-// oklch(0.56 0.14 155), as sRGB (sharp's SVG renderer takes no oklch): one step livelier than the app
-// icon's forest green, which beside other extensions' saturated icons reads as the dark one
+// oklch(0.56 0.14 155), as sRGB (sharp's SVG renderer takes no oklch): the middle of the app icon's
+// gradient (OWLIT in icon-draw.mjs), drawn flat; change one with the other
 const GREEN = "#008b4e"
 const WHITE = "#ffffff"
 // Line weight in the feather's units by the pixel size; a unit is px / 288 pixels, the box being three

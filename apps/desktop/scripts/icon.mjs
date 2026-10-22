@@ -1,6 +1,6 @@
 // node scripts/icon.mjs: Owlit's app icon, written into resources/. icon.svg is the vector source; icon.png is
 // the 1024px icon the dev Dock shows; icon.icns is what the packaged app carries, rendered per size with
-// iconutil. There is one icon for both appearances: a deep green tile holds up in a light Dock and a dark one.
+// iconutil. There is one icon for both appearances: a mid green tile holds up in a light Dock and a dark one.
 // icon-dev.png and icon-dev.icns are the same drawing on a graphite tile, for Owlit Dev (pnpm dev, pnpm try).
 // The drawing itself is icon-draw.mjs, shared with the extension's icons.
 import fs from "node:fs"

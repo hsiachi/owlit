@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <title>Owlit</title>
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#30684d"/><stop offset="1" stop-color="#264f3d"/></linearGradient>
-    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.4"/></filter>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c9a58"/><stop offset="1" stop-color="#007a43"/></linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.35"/></filter>
     <filter id="relief" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="2.2" stdDeviation="2.4" flood-color="#000" flood-opacity="0.35"/></filter>
     <clipPath id="outside"><path d="M0 0H1024V1024H0Z M100 285 A185 185 0 0 1 285 100 H739 A185 185 0 0 1 924 285 V739 A185 185 0 0 1 739 924 H285 A185 185 0 0 1 100 739 Z" clip-rule="evenodd"/></clipPath>
   </defs>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)" filter="url(#shadow)"/>
   <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="3"/>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="2"/>
-  <g transform="translate(136.38 143.24) scale(2.8)"><rect x="106" y="127" width="96" height="30" rx="4" fill="#70b388"/><rect x="106" y="171" width="74" height="28" rx="4" fill="#70b388"/><path d="M 53 225 C 55 167 85 93 136 58 C 164 39 199 32 211 45 C 228 64 191 96 155 111 C 128 122 107 137 91 154 C 108 140 126 128 146 124 C 171 117 176 128 159 145 C 146 158 124 164 111 169 C 134 163 143 177 125 190 C 114 198 101 201 91 201" fill="none" stroke="#f6f5f0" stroke-width="14.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#relief)"/></g>
+  <g transform="translate(136.38 143.24) scale(2.8)"><path d="M 122 127 H 198 A 4 4 0 0 1 202 131 V 153 A 4 4 0 0 1 198 157 H 110 A 4 4 0 0 1 106 153 V 140 Z" fill="#5fd393"/><path d="M 110 171 H 176 A 4 4 0 0 1 180 175 V 195 A 4 4 0 0 1 176 199 H 110 A 4 4 0 0 1 106 195 V 175 A 4 4 0 0 1 110 171 Z" fill="#5fd393"/><path d="M 53 225 C 55 167 85 93 136 58 C 164 39 199 32 211 45 C 228 64 191 96 155 111 C 128 122 107 137 91 154 C 108 140 126 128 146 124 C 171 117 176 128 159 145 C 146 158 124 164 111 169 C 134 163 143 177 125 190 C 114 198 101 201 91 201" fill="none" stroke="#ffffff" stroke-width="14.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#relief)"/></g>
 </svg>
