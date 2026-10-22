@@ -11,6 +11,7 @@ import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
 import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
+import type { Project } from "./projects.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
@@ -371,6 +372,9 @@ export interface Methods {
   // offered again
   "memory.decideClaudeNotes": { params: { keep: { file: string; kind: MemoryKind; text: string }[]; drop: string[] }; result: MemoryLine[] }
 
+  // ---- Projects: the workspace's folders marked by a project.md, by path
+  "projects.list": { params: void; result: { projects: Project[] } }
+
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
   // already has for it. Asks OpenAlex, Semantic Scholar and arXiv. Writes only the ids the lookup found
@@ -566,6 +570,9 @@ export interface Notifications {
   "comments.removed": { path: string; id: string }
   // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
   "memory.changed": { lines: MemoryLine[] }
+  // What projects.list answers changed: a mark appeared, moved, went or was edited, or another doc became
+  // a project's current draft; the whole list as it is now
+  "projects.changed": { projects: Project[] }
   // A change was added to the log. label names what changed (a paper's title, a thread's title, a
   // memory line's text, a doc's name); thread: what an agent's write to a thread did, for its result row
   "changes.added": { change: Change; label?: string; thread?: { rows: string[]; updated: number; asked?: string } }

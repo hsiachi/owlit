@@ -154,6 +154,12 @@ export class Threads {
       .sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
+  // One thread as the list shows it, without reading its papers; undefined when it isn't there
+  async summary(id: string): Promise<ThreadSummary | undefined> {
+    const c = await this.load(id).catch(() => undefined)
+    return c && summarize(c)
+  }
+
   // The thread as it is read: each row's paper as the Library has it
   async get(id: string): Promise<ThreadRead> {
     const c = await this.load(id)

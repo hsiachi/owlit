@@ -108,14 +108,7 @@ export class Docs {
   // so an agent's edit can't slip into the listing without its version being kept
   list(): Promise<DocsListing> {
     return this.serial.run(async () => {
-      if (this.timer) {
-        clearTimeout(this.timer)
-        this.timer = undefined
-        const paths = [...this.dirty]
-        this.dirty.clear()
-        const change = await this.reconcile(paths, true)
-        if (change) this.changed?.(change)
-      }
+      await this.readHeard()
       const follow = (await this.loadNames()).followFirstLine
       this.snapshot = await this.scan("")
       this.texts.clear()
@@ -136,6 +129,27 @@ export class Docs {
       for (const p of this.ids.keys()) if (!this.snapshot.has(p)) this.ids.delete(p)
       return { files, folders }
     })
+  }
+
+  // Every docs file with its mtime, as the snapshot has it once what the watcher heard is read: no file's
+  // text is read. Scanned afresh while nothing has been seen (no watcher, nothing listed yet).
+  files(): Promise<{ path: string; modifiedAt: number }[]> {
+    return this.serial.run(async () => {
+      await this.readHeard()
+      const entries = this.snapshot.size ? this.snapshot : await this.scan("")
+      return [...entries].flatMap(([rel, e]) => (e.dir ? [] : [{ path: rel, modifiedAt: e.mtimeMs }]))
+    })
+  }
+
+  // Reads (and tells) a change the watcher heard that is still waiting to settle. Runs in the serial turn.
+  private async readHeard() {
+    if (!this.timer) return
+    clearTimeout(this.timer)
+    this.timer = undefined
+    const paths = [...this.dirty]
+    this.dirty.clear()
+    const change = await this.reconcile(paths, true)
+    if (change) this.changed?.(change)
   }
 
   // Starts hearing about changes made outside core (another editor, Finder, git). Changes come in

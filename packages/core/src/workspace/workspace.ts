@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { isPerson, RpcErrorCode, type CitationPassage, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
+import { isPerson, RpcErrorCode, type CitationPassage, type CitedWork, type MemoryLine, type Notifications, type PaperIds, type ProfileSettings, type Project, type Task, type WorkspaceInfo, type WorkspaceSettings } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
 import { mkdir, readFile, realpath, rename, stat } from "node:fs/promises"
 import path from "node:path"
@@ -15,6 +15,7 @@ import { docProposals } from "../changes/proposals.ts"
 import { Seen } from "../changes/seen.ts"
 import { SettingsStore } from "../settings/store.ts"
 import { Memory } from "../memory/memory.ts"
+import { Projects } from "../projects/projects.ts"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { RpcFailure, WINDOW } from "../rpc/index.ts"
 import { Library, type LibraryServices } from "../library/library.ts"
@@ -83,6 +84,8 @@ export interface WorkspaceOptions {
   tasks?: WorkspaceTasks
   // Owlit's memory changed, by anyone
   memoryChanged?: (lines: MemoryLine[]) => void
+  // What projects.list answers changed (Projects.refresh)
+  projectsChanged?: (projects: Project[]) => void
   // The profile of the person using this owlit (with its id); read from the app data's settings when
   // not given
   profile?: () => Promise<ProfileSettings>
@@ -126,6 +129,7 @@ export class Workspace {
   readonly threads: Threads
   readonly memory: Memory
   readonly shares: Shares
+  readonly projects: Projects
   private release: () => Promise<void>
 
   private constructor(root: string, dataDir: string, release: () => Promise<void>, options: WorkspaceOptions, profile: () => Promise<ProfileSettings>) {
@@ -187,6 +191,16 @@ export class Workspace {
           .catch((error) => console.error("[core] couldn't record an imported paper", error)),
     })
     this.search = new SearchIndex(root, dataDir, this.library)
+    this.projects = new Projects({
+      files: () => this.docs.files(),
+      read: (rel) => this.docs.readDisk(rel),
+      chat: (id) => this.chats.get(id).catch(() => null),
+      changesOf: (chatId) => this.changes.list({ chatId }),
+      thread: (id) => this.threads.summary(id),
+      docsLinking: async (uri) => (await this.search.linksTo(uri)).flatMap((l) => (l.source === "doc" ? [l.key] : [])),
+      canonical: (id) => this.library.canonical(id),
+      changed: options.projectsChanged,
+    })
     this.threads = new Threads(path.join(root, OWLIT_DIR), { recorder: this.recorder, changes: this.changes }, {
       // A paper in the Library is what the Library says; one Owlit only found is what the search said
       paper: (id) => this.library.snapshot(id),
