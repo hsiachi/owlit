@@ -10,7 +10,7 @@ import { ChangeLog } from "../changes/log.ts"
 import { newWriteId, Recorder } from "../changes/record.ts"
 import { WINDOW, type Caller } from "../rpc/index.ts"
 import type { Workspace } from "../workspace/workspace.ts"
-import { citationKey, Citations, type CitationServices } from "./citations.ts"
+import { Citations, type CitationServices } from "./citations.ts"
 
 const TEXT = [
   "<!-- page 1 -->",
@@ -164,28 +164,6 @@ describe("a citation's state", () => {
     const doc = link("kim")
     await recorder.doc({ kind: "socket" }, "a.md", null, doc)
     expect(await states("a.md", doc)).toEqual([["other", "bare"]])
-  })
-})
-
-describe("how far Owlit read behind its citations", () => {
-  it("gives its reads, else the record it went on, and nothing for another's or lost reads", async () => {
-    const { recorder, owlitCaller, citations } = setup({ reads: [{ asker: "chat:c1", paperId: "kim", part: "text", pages: "4", at: 0 }] })
-    const mine = link("lee", "Lee studies typing.")
-    await recorder.saved(WINDOW, "a.md", "", mine)
-    const doc = [mine, link("kim", "Completion rose from 62% to 86% with the agent."), link("lee"), link("gone")].join("\n")
-    await recorder.doc(owlitCaller, "a.md", mine, doc)
-    await citations.idle
-    const depths = await citations.owlitDepths("a.md")
-    expect([...depths]).toEqual([
-      [citationKey({ paperId: "kim", quote: "Completion rose from 62% to 86% with the agent." }), "part"],
-      [citationKey({ paperId: "lee" }), "abstract"],
-      [citationKey({ paperId: "gone" }), "title"],
-    ])
-
-    const lost = setup({ answering: false })
-    await lost.recorder.doc(lost.owlitCaller, "a.md", null, link("kim"))
-    await lost.citations.idle
-    expect((await lost.citations.owlitDepths("a.md")).size).toBe(0)
   })
 })
 

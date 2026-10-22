@@ -12,17 +12,14 @@ interface MemoryState {
   loaded: boolean
   // The list's dialog is open, above Settings
   managing: boolean
-  // The group the dialog brings into view once its lines are there: a project's key, "" for every chat's
-  focus?: string
 }
 
 export const useMemory = create<MemoryState>()(() => ({ lines: [], claudeNotes: [], loaded: false, managing: false }))
 
-// Opens the list above Settings › Owlit (a result row's line goes straight to it), at the group of lines
-// kept for one project when `focus` names its key ("" for every chat's)
-export function manageMemory(open: boolean, focus?: string) {
+// Opens the list above Settings › Owlit (a result row's line goes straight to it)
+export function manageMemory(open: boolean) {
   if (open) openSettings("memory")
-  useMemory.setState({ managing: open, focus: open ? focus : undefined })
+  useMemory.setState({ managing: open })
 }
 
 export async function loadMemory() {
@@ -30,8 +27,7 @@ export async function loadMemory() {
   useMemory.setState({ lines, claudeNotes, loaded: true })
 }
 
-// A line added, edited, put back, or moved: its project is where it is kept (none: every chat)
-export async function putLine(line: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string; project?: string }) {
+export async function putLine(line: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }) {
   useMemory.setState({ lines: await rpc.memory.put(line) })
 }
 

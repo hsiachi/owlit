@@ -3,10 +3,9 @@ import type { Recipe } from "./index.ts"
 // Go through: Owlit reads what people said about the work (a meeting's transcript or minutes, reviews,
 // someone's comments on a draft, an email of points, the user's own notes) against the user's docs, and
 // writes down only what changes the work. It writes the reading as a record of its own beside the
-// material or its earlier readings, the material itself untouched below a link, then lands the points as
-// comments on the words of the docs they are about, each pointing back to the record. A summary says what
-// the material contains; going through it says what the material changes. The paper-side twin is the
-// digest.
+// material, the material itself untouched below a link, then lands the points as comments on the words
+// of the docs they are about, each pointing back to the record. A summary says what the material
+// contains; going through it says what the material changes. The paper-side twin is the digest.
 
 // Asked for in a chat: the agent reads this through owlit_help and does the work in that chat
 export function goThroughRecipe() {
@@ -24,7 +23,7 @@ export function goThroughRecipe() {
 The test: would a reader come away thinking something was settled that was not? AI-written minutes fail it most often, writing every suggestion as decided (确定, 明确) and settling what was reopened later in the same meeting; where a transcript and minutes differ, the transcript wins.
 Name a person only when the material names them; never guess a name from context (a minutes line "(来自 X)" is not evidence of who said it). Keep the speaker's key words and paraphrase the rest. Don't restate the doc, the material's own summary, or what matched; don't grade or count. Near the doc is not the same as the doc: near is a point, the same is dropped. When the speaker is the user (their own notes, or what they said in a meeting), say "you" (你).
 Reviews are answered point by point, so for reviews nothing is dropped: every point is listed in the reviewer's own numbering, and one the doc already handles says where.`,
-    `Write the reading first, as a new doc of your own with docs_write, named after the material with " · reading" (" · 解读" for material in Chinese), e.g. "Weekly · reading.md". When the material is a doc of the workspace, the reading goes in its folder. For a file attached to the chat, it goes beside the earlier readings of the same material: look with docs_list for " · reading" and " · 解读" docs and for transcripts with a matching name, and use the folder that already holds them; with none, in this chat's project folder (the memory note says which project this chat is in); with no project either, at the workspace's root. It is plain Markdown in the material's language:
+    `Write the reading first, as a new doc of your own with docs_write in the material's folder, named after it with " · reading" (" · 解读" for material in Chinese), e.g. "Meetings/Weekly · reading.md"; a file attached to the chat gets its record in Meetings/. It is plain Markdown in the material's language:
 
 # <the material's title, e.g. "P5 小组周会 · 2026-10-15">
 

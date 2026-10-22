@@ -14,14 +14,7 @@ export interface MemoryLine {
   at: number
   // The chat it came from
   chatId?: string
-  // The project it is kept for, as its marked folder's path (Project.path): heard in full in the chats
-  // of that project and of the projects inside it. Absent: the workspace's, heard in every chat. A work
-  // line never has one.
-  project?: string
 }
-
-// Where an agent keeps an about line (memory_write's scope): for the chat's project, or the workspace
-export type MemoryScope = "project" | "workspace"
 
 // A note Claude Code kept for this folder before owlit had a memory of its own, offered once to copy in
 export interface ClaudeNote {

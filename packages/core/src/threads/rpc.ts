@@ -26,7 +26,6 @@ export function registerThreads({ router, requireWorkspace }: Deps) {
       id: z.string().optional(),
       asked: z.string().optional(),
       title: z.string().optional(),
-      project: z.string().optional(),
       sources: z.array(z.string()).optional(),
       report: z.string().optional(),
       one: z.string().optional(),
@@ -46,11 +45,11 @@ export function registerThreads({ router, requireWorkspace }: Deps) {
     "threads.edit",
     z.object({
       id: z.string().min(1),
-      edit: z.discriminatedUnion("op", [z.object({ op: z.literal("project"), project: z.string() }), z.object({ op: z.literal("view"), groupBy: z.string().min(1) })]),
+      edit: z.object({ op: z.literal("view"), groupBy: z.string().min(1) }),
     }),
-    // Which project it is in, and how the user looks at it, are its marks
+    // How the user looks at it is its mark
     "meta",
-    ({ id, edit }, caller) => threads().edit(id, edit, caller),
+    ({ id, edit }) => threads().edit(id, edit),
   )
   router.register("threads.about", z.object({ id: z.string().min(1) }), "read", ({ id }) => threads().about(id))
   router.register("threads.delete", z.object({ id: z.string().min(1) }), "structure", ({ id }, caller) => threads().delete(id, caller))

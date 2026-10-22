@@ -42,7 +42,6 @@ describe("how a report's link names a paper", () => {
       id: "t",
       title: "Prospective memory",
       asked: { text: "What is prospective memory?", at: 1 },
-      project: "",
       sources: [],
       memo: [{ id: "m1", text: "[Prospective memory or the realization of delayed intentions](owlit://library/e) names the phases." }],
       columns: [],

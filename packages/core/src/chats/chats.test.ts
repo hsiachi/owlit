@@ -101,6 +101,21 @@ describe("chats", () => {
     expect((await call("chats.list")).map((c: any) => c.id)).toEqual(["old"])
   })
 
+  it("loads a chat saved with a project and a reply's heard note, and lists it without the project", async () => {
+    const { open, chatsDir } = await setup()
+    const { mkdirSync } = await import("node:fs")
+    mkdirSync(chatsDir, { recursive: true })
+    const heard = { heard: { projects: [{ path: "Study", name: "Retrieval study" }], lines: 1, others: 0 } }
+    writeFileSync(path.join(chatsDir, "old.json"), JSON.stringify({ version: 1, ...summary("old", 1), project: "Study", messages: [msg("u1", "user", 2), msg("r1", "assistant", 3, heard)] }))
+    const { call } = await open()
+    const [listed] = await call("chats.list")
+    expect(listed).toMatchObject({ id: "old", title: "New chat" })
+    expect(listed).not.toHaveProperty("project")
+    expect((await call("chats.get", { id: "old" })).messages.map((m: any) => m.id)).toEqual(["u1", "r1"])
+    await call("chats.appendMessage", { id: "old", message: msg("u2", "user", 4) })
+    expect((await call("chats.get", { id: "old" })).messages).toHaveLength(3)
+  })
+
   it("rebuilds the index from the chat files", async () => {
     const { open, chatsDir } = await setup()
     const first = await open()

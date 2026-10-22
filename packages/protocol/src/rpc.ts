@@ -2,7 +2,7 @@ import type { ActivityAnswer, ActivityEvent, ActivityQuery, ReadTrace } from "./
 import type { EditStats } from "./edit-stats.ts"
 import type { AttachmentFile, Chat, ChatAbout, StartedChat, ChatMessage, ChatSummary, Connector, PromptInput, QuestionAnswer, SessionUpdate, StopReason } from "./chat.ts"
 import type { Role } from "./roles.ts"
-import type { CitationPassage, CitedWork, CitingDoc, CommentAnchor, CommentInput, DocCitations, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
+import type { CitationPassage, CitedWork, CommentAnchor, CommentInput, DocCitations, DocComment, DocsChange, DocsListing, DocStat } from "./docs.ts"
 import type { Change, ChangedPassage, ChangeFilter, Proposal, ProposalHunk, Roster, SeenKind, SeenMark, SeenMarks, Unseen } from "./changes.ts"
 import type { DigestSource, FoundPapers, Highlight, ImportPreview, ImportSource, ImportSummary, LibraryChange, OnlineFilters, OnlineSource, Paper, PaperFigure, PaperNote, PaperWear, PaperPatch, PaperText, ReadStatus, ResolvedPaper, TrashedPaper } from "./library.ts"
 import type { ThreadBatch, ThreadEdit, ThreadPaper, ThreadRead, ThreadSummary, ThreadWrite } from "./threads.ts"
@@ -10,8 +10,7 @@ import type { LinkSource, PaletteResults, SearchHit, SearchStatus } from "./sear
 import type { Task, TaskLane, TaskPriority } from "./tasks.ts"
 import type { AppearanceSettings, UiActions, UiRequest, WelcomeInfo, WorkspaceInfo, WorkspaceState } from "./workspace.ts"
 import type { Locale } from "./languages.ts"
-import type { ClaudeNote, MemoryKind, MemoryLine, MemoryScope } from "./memory.ts"
-import type { Project, ProjectCited, ProjectsSummary } from "./projects.ts"
+import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
@@ -145,8 +144,6 @@ export interface Methods {
   // Every citation in a doc with what it rests on (DocCitation), and the counts a line over the doc says.
   // text: the doc as the window has it (its editor may be ahead of the disk); the file's text otherwise
   "docs.citations": { params: { path: string; text?: string }; result: DocCitations }
-  // The docs whose text cites a paper, by path, each with its citing sentences
-  "docs.citing": { params: { paperId: string }; result: { docs: CitingDoc[] } }
   // Writes a new file. id carries over one the client already uses; followsFirstLine names the file
   // after its first line now and on later writes, until it is renamed by hand.
   "docs.create": { params: { path: string; content: string; id?: string; followsFirstLine?: boolean }; result: DocStat }
@@ -230,7 +227,7 @@ export interface Methods {
   // Retry: another turn in a chat owlit started, which broke or was cut off
   "chats.tryAgain": { params: { chatId: string }; result: { chatId: string } }
   "chats.create": { params: { chat: ChatSummary }; result: ChatSummary }
-  // Title, pin, agent settings, last use, its project ("" takes it out of the one it was put in)
+  // Title, pin, agent settings, last use
   "chats.update": { params: { id: string; patch: Partial<Omit<ChatSummary, "id" | "createdAt">> }; result: ChatSummary }
   // Moves the chat, with the copies of its attached files, to .owlit/trash/
   "chats.delete": { params: { id: string }; result: null }
@@ -362,29 +359,17 @@ export interface Methods {
   // The list, and the notes Claude Code kept for this folder that the user hasn't kept or dropped
   "memory.list": { params: void; result: { lines: MemoryLine[]; claudeNotes: ClaudeNote[] } }
   // An agent's change (owlit-mcp's memory_write), absent changeId when nothing changed. Errors are said
-  // to the agent. noProject: the line was to be kept for the chat's project, and the chat is in none.
+  // to the agent.
   "memory.write": {
-    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; scope?: MemoryScope; chatId?: string; toolCallId?: string }
-    result: { line: MemoryLine | null; before: MemoryLine | null; changeId?: string; noProject?: true }
+    params: { op: "add" | "replace" | "remove"; id?: string; kind?: MemoryKind; text?: string; chatId?: string; toolCallId?: string }
+    result: { line: MemoryLine | null; before: MemoryLine | null; changeId?: string }
   }
-  // The lines kept for one project, by its marked folder's path (owlit-mcp's memory_read)
-  "memory.read": { params: { project: string }; result: { lines: MemoryLine[] } }
-  // The user's change from Settings: a new line (no id), an edit, a line moved to a project or to the
-  // workspace (project absent), or a removed line put back (its id)
-  "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string; project?: string }; result: MemoryLine[] }
+  // The user's change from Settings: a new line (no id), an edit, or a removed line put back (its id)
+  "memory.put": { params: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }; result: MemoryLine[] }
   "memory.remove": { params: { id: string }; result: MemoryLine[] }
   // Copies the chosen Claude Code notes in (as the user edited them) and drops the rest, so none is
   // offered again
   "memory.decideClaudeNotes": { params: { keep: { file: string; kind: MemoryKind; text: string }[]; drop: string[] }; result: MemoryLine[] }
-
-  // ---- Projects: the workspace's folders marked by a project.md, by path
-  "projects.list": { params: void; result: { projects: Project[] } }
-  // A chat's projects (the one the person put it in, then those of what it touched), nearest marks only
-  "projects.ofChat": { params: { chatId: string }; result: { projects: Project[] } }
-  // Each project as Home shows it, for the person at the window
-  "projects.summary": { params: void; result: ProjectsSummary }
-  // The Library's papers any doc under a marked folder cites
-  "projects.cited": { params: { path: string }; result: ProjectCited }
 
   // ---- Library: the workspace's papers
   // What a pasted reference (DOI, arXiv id, a link to a paper) means, and the paper the library
@@ -581,9 +566,6 @@ export interface Notifications {
   "comments.removed": { path: string; id: string }
   // Owlit's memory changed (an agent, Settings, an undo); the whole list as it is now
   "memory.changed": { lines: MemoryLine[] }
-  // What projects.list answers changed: a mark appeared, moved, went or was edited, or a project's newest
-  // doc changed; the whole list as it is now
-  "projects.changed": { projects: Project[] }
   // A change was added to the log. label names what changed (a paper's title, a thread's title, a
   // memory line's text, a doc's name); thread: what an agent's write to a thread did, for its result row
   "changes.added": { change: Change; label?: string; thread?: { rows: string[]; updated: number; asked?: string } }

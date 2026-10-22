@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { MEMORY_MAX_CHARS, MEMORY_MAX_LINES, projectKey, RpcErrorCode, type ClaudeNote, type MemoryKind, type MemoryLine, type MemoryScope, type Project } from "@owlit/protocol"
+import { MEMORY_MAX_CHARS, MEMORY_MAX_LINES, RpcErrorCode, type ClaudeNote, type MemoryKind, type MemoryLine } from "@owlit/protocol"
 import { readdir, readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
@@ -19,12 +19,9 @@ import { Serial } from "../util.ts"
 //   - Cite as (Author, Year). <!-- m3 · 2026-10-16 · chat 8f2c… -->
 //   ## About your work
 //   - I own P5 in the Infera project. <!-- m4 · 2026-10-15 -->
-//   - Scope is the home-care study only. <!-- m5 · 2026-10-22 · chat 8f2c… · project Work/Proactive -->
 //
 // Only the bullets are kept: owlit writes the file whole, in this shape, on every change. A bullet
-// written by hand has no comment yet and gets its id on the next write. A line's project (the marked
-// folder it is kept for) is the comment's last part, so the file has no section per project and reads as
-// it always did; a bullet without one is the workspace's.
+// written by hand has no comment yet and gets its id on the next write.
 
 const FILE = "memory.md"
 // Which Claude Code notes the user kept or dropped (the offer to copy them in)
@@ -37,6 +34,7 @@ Owlit reads this list at the start of every chat in this workspace, whichever ag
 `
 
 const COMMENT = /\s*<!--(.*?)-->\s*$/
+const PROJECT_PART = /(?:^|·)\s*project .*$/
 
 export function parseMemory(text: string): MemoryLine[] {
   const lines: MemoryLine[] = []
@@ -54,13 +52,12 @@ export function parseMemory(text: string): MemoryLine[] {
     let id: string | undefined
     let at = 0
     let chatId: string | undefined
-    let project: string | undefined
     const comment = body.match(COMMENT)
     if (comment) {
       body = body.slice(0, comment.index)
-      const [rest, folder] = splitProject(comment[1])
-      if (kind === "about") project = folder
-      for (const part of rest.split("·").map((p) => p.trim())) {
+      // A line kept by an earlier owlit can end its comment with "project <folder>", a folder's name
+      // that may hold "·" or look like an id or a date: cut off whole and not kept
+      for (const part of comment[1].replace(PROJECT_PART, "").split("·").map((p) => p.trim())) {
         if (/^m\d+$/.test(part)) id = part
         else if (/^\d{4}-\d{2}-\d{2}$/.test(part)) at = Date.parse(`${part}T12:00:00`)
         else if (part.startsWith("chat ")) chatId = part.slice(5).trim() || undefined
@@ -69,7 +66,7 @@ export function parseMemory(text: string): MemoryLine[] {
     const text = body.trim()
     if (!text) continue
     if (!id || lines.some((l) => l.id === id)) loose.push(lines.length)
-    lines.push({ id: id ?? "", kind, text, at, ...(chatId ? { chatId } : {}), ...(project ? { project } : {}) })
+    lines.push({ id: id ?? "", kind, text, at, ...(chatId ? { chatId } : {}) })
   }
   // Bullets written by hand, or a copied id: numbered after the highest id there is
   for (const i of loose) lines[i] = { ...lines[i], id: nextId(lines) }
@@ -81,23 +78,12 @@ function nextId(lines: MemoryLine[]) {
   return `m${top + 1}`
 }
 
-// The project part comes last and is read to the comment's end, since a folder's name may hold a "·"
-const PROJECT_PART = /(?:^|·)\s*project (.+)$/
-
-function splitProject(comment: string): [rest: string, project: string | undefined] {
-  const m = PROJECT_PART.exec(comment)
-  return m ? [comment.slice(0, m.index), projectPath(m[1])] : [comment, undefined]
-}
-
-// A project's path as a line keeps it, without slashes around it; undefined for none
-const projectPath = (value: string | undefined) => value?.trim().replace(/^\/+|\/+$/g, "") || undefined
-
 const day = (at: number) => new Date(at).toLocaleDateString("sv-SE")
 
 export function formatMemory(lines: MemoryLine[]) {
   const section = (kind: MemoryKind) => {
     const mine = lines.filter((l) => l.kind === kind)
-    const bullets = mine.map((l) => `- ${oneLine(l.text)} <!-- ${[l.id, ...(l.at ? [day(l.at)] : []), ...(l.chatId ? [`chat ${l.chatId}`] : []), ...(l.project ? [`project ${oneLine(l.project)}`] : [])].join(" · ")} -->`)
+    const bullets = mine.map((l) => `- ${oneLine(l.text)} <!-- ${[l.id, ...(l.at ? [day(l.at)] : []), ...(l.chatId ? [`chat ${l.chatId}`] : [])].join(" · ")} -->`)
     return `## ${HEADINGS[kind]}\n\n${bullets.length ? bullets.join("\n") + "\n" : ""}`
   }
   return `${HEADER}\n${section("work")}\n${section("about")}`
@@ -105,12 +91,7 @@ export function formatMemory(lines: MemoryLine[]) {
 
 const oneLine = (text: string) => text.replace(/\s+/g, " ").replace(/<!--|-->/g, "").trim()
 
-// scope: where an about line is kept; a work line is always the workspace's. A replace without one keeps
-// the line where it was.
-export type MemoryOp =
-  | { op: "add"; kind: MemoryKind; text: string; scope?: MemoryScope }
-  | { op: "replace"; id: string; text: string; kind?: MemoryKind; scope?: MemoryScope }
-  | { op: "remove"; id: string }
+export type MemoryOp = { op: "add"; kind: MemoryKind; text: string } | { op: "replace"; id: string; text: string; kind?: MemoryKind } | { op: "remove"; id: string }
 
 export interface MemoryChange {
   // The line as it is now; null when it was removed
@@ -118,14 +99,6 @@ export interface MemoryChange {
   before: MemoryLine | null
   // The change log's entry; absent when nothing changed
   changeId?: string
-  // Asked to be kept for the chat's project, the line is the workspace's: the chat is in none
-  noProject?: true
-}
-
-export interface MemoryServices {
-  // The projects a chat is in, nearest marks (Projects.projectsOf): a line an agent keeps for its chat's
-  // project goes to the first
-  projectsOfChat?: (chatId: string) => Promise<Project[]>
 }
 
 export class Memory {
@@ -134,16 +107,14 @@ export class Memory {
   private readonly root: string
   private readonly recorder: Recorder
   private readonly changed: (lines: MemoryLine[]) => void
-  private readonly services: MemoryServices
   private readonly serial = new Serial()
 
-  constructor(owlitDir: string, root: string, recorder: Recorder, changed: (lines: MemoryLine[]) => void = () => undefined, services: MemoryServices = {}) {
+  constructor(owlitDir: string, root: string, recorder: Recorder, changed: (lines: MemoryLine[]) => void = () => undefined) {
     this.file = path.join(owlitDir, FILE)
     this.sidecar = path.join(owlitDir, SIDECAR)
     this.root = root
     this.recorder = recorder
     this.changed = changed
-    this.services = services
   }
 
   async list(): Promise<MemoryLine[]> {
@@ -152,21 +123,6 @@ export class Memory {
       return ""
     })
     return parseMemory(text)
-  }
-
-  // The lines kept for one project, by its marked folder's path exactly: a project inside it keeps its own
-  async read(project: string): Promise<MemoryLine[]> {
-    const want = projectKey(project)
-    return want ? (await this.list()).filter((l) => projectKey(l.project) === want) : []
-  }
-
-  // Where an agent's line is kept: a work line is the workspace's; an about line replaced without a scope
-  // stays where it was; "project" is the chat's first project, the workspace when the chat is in none
-  private async placed(kind: MemoryKind, scope: MemoryScope | undefined, was: string | undefined, chatId: string | undefined): Promise<{ project?: string; noProject?: true }> {
-    if (kind === "work" || scope === "workspace") return {}
-    if (scope === undefined) return was ? { project: was } : {}
-    const first = chatId ? (await this.services.projectsOfChat?.(chatId).catch(() => []))?.[0] : undefined
-    return first ? { project: first.path } : { noProject: true }
   }
 
   // An agent's change (owlit-mcp's memory_write). What it sends back is said to the agent, so it is plain
@@ -185,10 +141,9 @@ export class Memory {
         if (lines.length >= MEMORY_MAX_LINES) {
           throw new RpcFailure(RpcErrorCode.InvalidParams, `The memory is full (${MEMORY_MAX_LINES} lines). Replace or merge lines instead of adding one.`)
         }
-        const { project, noProject } = await this.placed(op.kind, op.scope, undefined, chatId)
-        const line: MemoryLine = { id: nextId(lines), kind: op.kind, text, at: now, ...(chatId ? { chatId } : {}), ...(project ? { project } : {}) }
+        const line: MemoryLine = { id: nextId(lines), kind: op.kind, text, at: now, ...(chatId ? { chatId } : {}) }
         lines.push(line)
-        change = { line, before: null, ...(noProject ? { noProject } : {}) }
+        change = { line, before: null }
       } else {
         const i = lines.findIndex((l) => l.id === op.id)
         if (i < 0) throw new RpcFailure(RpcErrorCode.NotFound, `There is no line ${op.id} in the memory; it may have been removed. The list as it is now is in this session's last [owlit] memory note.`)
@@ -197,12 +152,9 @@ export class Memory {
           lines.splice(i, 1)
           change = { line: null, before }
         } else {
-          const kind = op.kind ?? before.kind
-          const { project: _was, ...rest } = before
-          const { project, noProject } = await this.placed(kind, op.scope, before.project, chatId)
-          const line: MemoryLine = { ...rest, kind, text: checked(op.text), at: now, ...(chatId ? { chatId } : {}), ...(project ? { project } : {}) }
+          const line: MemoryLine = { ...before, kind: op.kind ?? before.kind, text: checked(op.text), at: now, ...(chatId ? { chatId } : {}) }
           lines[i] = line
-          change = { line, before, ...(noProject ? { noProject } : {}) }
+          change = { line, before }
         }
       }
       const entry = await this.record(caller, change.before, change.line)
@@ -211,9 +163,8 @@ export class Memory {
     })
   }
 
-  // The user's own change, from Settings: a new line (no id), a line edited or moved to a project (or to
-  // the workspace, no project), or a removed one put back
-  put(input: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string; project?: string }, caller: Caller): Promise<MemoryLine[]> {
+  // The user's own change, from Settings: a new line (no id), a line edited, or a removed one put back
+  put(input: { id?: string; kind: MemoryKind; text: string; at?: number; chatId?: string }, caller: Caller): Promise<MemoryLine[]> {
     return this.serial.run(async () => {
       const lines = await this.list()
       const text = oneLine(input.text)
@@ -222,23 +173,14 @@ export class Memory {
       const before = i >= 0 ? lines[i]! : null
       // A line the person rewrites is theirs: it no longer names the chat it came from, which would make it
       // Owlit's again once the log has dropped this change (memory/rpc.ts memoryTarget)
-      const { chatId: _from, project: _was, ...kept } = before ?? {}
+      const { chatId: _from, ...kept } = before ?? {}
       const rewritten = !!before && (before.text !== text || before.kind !== input.kind)
-      // A work line is the workspace's wherever it is put
-      const project = input.kind === "about" ? projectPath(input.project) : undefined
-      const placed = project ? { project } : {}
-      // A line only moved keeps its words, and so stays the line of the chat it came from
-      const moved = !!before && !rewritten && projectKey(before.project) !== projectKey(project)
       // A line removed a moment ago comes back as it was, under its own id, naming its chat again; only the
       // window says what that was
       const chatId = caller.kind === "window" ? input.chatId : undefined
       const line: MemoryLine = before
-        ? rewritten
-          ? { ...(kept as MemoryLine), kind: input.kind, text, at: before.text === text ? before.at : Date.now(), ...placed }
-          : moved
-            ? { ...(kept as MemoryLine), ...(before.chatId ? { chatId: before.chatId } : {}), ...placed }
-            : before
-        : { id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(chatId ? { chatId } : {}), ...placed }
+        ? rewritten ? { ...(kept as MemoryLine), kind: input.kind, text, at: before.text === text ? before.at : Date.now() } : before
+        : { id: input.id ?? nextId(lines), kind: input.kind, text, at: input.at ?? Date.now(), ...(chatId ? { chatId } : {}) }
       if (before) lines[i] = line
       else lines.push(line)
       if (JSON.stringify(before) !== JSON.stringify(line)) await this.record(caller, before, line)

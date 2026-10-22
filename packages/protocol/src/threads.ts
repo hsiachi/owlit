@@ -147,9 +147,6 @@ export interface Thread {
   asked: ThreadAsked
   // Later questions Owlit answered by adding to this thread rather than starting another
   alsoAsked?: ThreadAsked[]
-  // The project the work belongs to: the path of a folder marked by a project.md (projects.ts); "" for
-  // none. A path whose mark has gone counts for none.
-  project: string
   // Where Owlit looked ("Semantic Scholar", "OpenAlex", "ACM DL proceedings")
   sources: string[]
   // Owlit's report: Markdown, papers named as owlit://library/<id> links to rows
@@ -168,7 +165,7 @@ export interface Thread {
 // A thread as core gives it out (threads.get, threads.changed): each row with its paper's facts
 export type ThreadRead = Omit<Thread, "rows"> & { rows: ThreadRowRead[] }
 
-// Items of a thread, as the change log names them (with column:<id>, alsoAsked and project)
+// Items of a thread, as the change log names them (with column:<id> and alsoAsked)
 export const itemId = {
   title: () => "title",
   report: () => "report",
@@ -228,7 +225,6 @@ export interface ThreadSummary {
   question: string
   // Owlit's one line on it
   one: string
-  project: string
   papers: number
   // Columns beyond the question's own
   columns: number
@@ -242,7 +238,6 @@ export function summarize(c: Thread): ThreadSummary {
     title: c.title,
     question: c.asked.text,
     one: c.one,
-    project: c.project,
     papers: c.rows.length,
     columns: c.columns.filter((col) => col.id !== QUESTION_COLUMN && !col.hidden).length,
     createdAt: c.createdAt,
@@ -258,7 +253,6 @@ export interface ThreadWrite {
   // thread Owlit's neutral title for it
   asked?: string
   title?: string
-  project?: string
   sources?: string[]
   // The whole report as Owlit means it now (Markdown)
   report?: string
@@ -329,17 +323,12 @@ export interface ThreadRowWrite {
   foundBy?: string
 }
 
-// What the user changes of a thread from a window: which project it belongs to (a marked folder's path,
-// "" for none), and what the table is grouped by. Everything else in a thread is Owlit's, changed by
-// asking in a chat.
-export type ThreadEdit =
-  | { op: "project"; project: string }
-  // What the table is grouped by, remembered for the thread
-  | { op: "view"; groupBy: string }
+// What the user changes of a thread from a window: what its table is grouped by, remembered for the
+// thread. Everything else in a thread is Owlit's, changed by asking in a chat.
+export type ThreadEdit = { op: "view"; groupBy: string }
 
 // Applies one of the user's changes to a thread in place, the same in core and in a window that has no
 // core (the browser preview)
 export function applyThreadEdit(c: Thread, edit: ThreadEdit): void {
-  if (edit.op === "project") c.project = edit.project
-  else c.view = { ...c.view, groupBy: edit.groupBy }
+  c.view = { ...c.view, groupBy: edit.groupBy }
 }

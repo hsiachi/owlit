@@ -1481,32 +1481,6 @@ msgstr "取消"
 msgid "Skip large files"
 msgstr "跳过大文件"
 
-#: app/src/features/chat/components/composer/ProjectChip.tsx
-#: app/src/features/chat/components/messages/parts.tsx
-#: app/src/features/chat/lib/step-words.ts
-#: app/src/features/home/HomeProjects.tsx
-#: app/src/lib/words.ts
-msgctxt "between things in a list"
-msgid ", "
-msgstr "、"
-
-#. above the composer: the project(s) this chat is in, by name
-#: app/src/features/chat/components/composer/ProjectChip.tsx
-msgid "in: {names}"
-msgstr "项目：{names}"
-
-#. above the composer: this chat is in no project; opens a menu to put it in one
-#: app/src/features/chat/components/composer/ProjectChip.tsx
-msgid "in: —"
-msgstr "项目：—"
-
-#. a thread or chat in no project
-#. a thread that belongs to no project
-#: app/src/features/chat/components/composer/ProjectChip.tsx
-#: app/src/features/threads/components/ThreadMenu.tsx
-msgid "No project"
-msgstr "不属于项目"
-
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Details"
@@ -1653,16 +1627,6 @@ msgstr "已移除"
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "Added"
 msgstr "已添加"
-
-#. a line the agent changed in what it keeps in mind, kept for one project (its name)
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Updated, for {project}"
-msgstr "已更新，用于 {project}"
-
-#. a line the agent now keeps in mind for one project (its name)
-#: app/src/features/chat/components/messages/ResultRows.tsx
-msgid "Remembered for {project}"
-msgstr "已为 {project} 记下"
 
 #: app/src/features/chat/components/messages/ResultRows.tsx
 msgid "{docs, plural, one {edited a doc} other {edited # docs}}"
@@ -1872,6 +1836,12 @@ msgstr "{refused} 个未获允许"
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "{stopped} stopped"
 msgstr "{stopped} 个已停止"
+
+#: app/src/features/chat/components/messages/parts.tsx
+#: app/src/lib/words.ts
+msgctxt "between things in a list"
+msgid ", "
+msgstr "、"
 
 #: app/src/features/chat/components/messages/parts.tsx
 msgid "({counts})"
@@ -2334,10 +2304,6 @@ msgid "{n, plural, one {kept something in mind} other {changed what it keeps in 
 msgstr "{n, plural, one {记下了一件事} other {改了 # 次记着的事}}"
 
 #: app/src/features/chat/lib/step-words.ts
-msgid "{n, plural, one {read what it keeps in mind for another project} other {read what it keeps in mind for other projects # times}}"
-msgstr "{n, plural, other {看了 # 次别的项目记着的事}}"
-
-#: app/src/features/chat/lib/step-words.ts
 msgid "{n, plural, one {moved a doc} other {moved # docs}}"
 msgstr "{n, plural, other {移动了 # 个文档}}"
 
@@ -2489,28 +2455,6 @@ msgstr "{shown, plural, other {# 个步骤}}"
 msgid "Starting"
 msgstr "正在启动"
 
-#: app/src/features/chat/lib/step-words.ts
-msgid "{lines, plural, one {# line} other {# lines}}"
-msgstr "{lines, plural, other {# 条}}"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "{others, plural, one {# other project} other {# other projects}}"
-msgstr "{others, plural, other {另外 # 个项目}}"
-
-#. what Owlit keeps in mind: the chat is in no project
-#: app/src/features/chat/lib/step-words.ts
-msgid "no project"
-msgstr "不在项目中"
-
-#: app/src/features/chat/lib/step-words.ts
-msgid "{others, plural, one {# project} other {# projects}}"
-msgstr "{others, plural, other {# 个项目}}"
-
-#. a reply's first line: the project(s) its chat is in, how many lines Owlit heard in full, how many other projects
-#: app/src/features/chat/lib/step-words.ts
-msgid "What Owlit keeps in mind: {said}"
-msgstr "Owlit 记着的事：{said}"
-
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your Library"
 msgstr "列出你的文献库"
@@ -2650,15 +2594,6 @@ msgstr "记下一件事"
 #: app/src/features/chat/lib/tool-title.ts
 msgid "Kept something in mind"
 msgstr "记下了一件事"
-
-#: app/src/features/chat/lib/tool-title.ts
-msgid "Read what it keeps in mind for another project"
-msgstr "查看别的项目记着的事"
-
-#: app/src/features/chat/lib/tool-title.ts
-msgctxt "a step that ran"
-msgid "Read what it keeps in mind for another project"
-msgstr "查看了别的项目记着的事"
 
 #: app/src/features/chat/lib/tool-title.ts
 msgid "List your chats"
@@ -2858,26 +2793,9 @@ msgstr "在访达中显示"
 msgid "New folder"
 msgstr "新建文件夹"
 
-#. opens the file that makes a folder a project; the file name stays as it is
-#: app/src/features/docs/actions.ts
-msgid "Open {PROJECT_MARK}"
-msgstr "打开 {PROJECT_MARK}"
-
-#. marks a folder of docs as a project
-#. marks a folder of docs as a project
-#: app/src/features/docs/actions.ts
-#: app/src/features/home/HomeProjects.tsx
-msgid "Make this a project"
-msgstr "设为项目"
-
 #: app/src/features/docs/actions.ts
 msgid "Import as papers…"
 msgstr "作为论文导入…"
-
-#. toast after a folder was marked as a project
-#: app/src/features/docs/actions.ts
-msgid "Now a project"
-msgstr "已设为项目"
 
 #: app/src/features/docs/actions.ts
 msgid "{count, plural, one {Delete # item} other {Delete # items}}"
@@ -3083,13 +3001,6 @@ msgstr "已通过链接分享"
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "Folder actions"
 msgstr "文件夹操作"
-
-#. Library menu: show the papers one project cites, or all papers
-#. a folder of docs marked as a project
-#: app/src/features/docs/components/DocsListPanel.tsx
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "Project"
-msgstr "项目"
 
 #: app/src/features/docs/components/DocsListPanel.tsx
 msgid "No docs yet."
@@ -3340,10 +3251,6 @@ msgstr "返回文档"
 #: app/src/features/docs/pages/DocPage.tsx
 msgid "Deleted on disk"
 msgstr "已从磁盘删除"
-
-#: app/src/features/docs/pages/DocPage.tsx
-msgid "This folder is a project. The first line is its name; status: and due: are optional."
-msgstr "这个文件夹是一个项目。第一行是项目名；status: 和 due: 可写可不写。"
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "No docs yet"
@@ -3620,26 +3527,45 @@ msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "扩展需要读取 {host}，才能取回在那里等着的论文。"
 
 #: app/src/features/home/HomePage.tsx
+#: app/src/features/welcome/WelcomePage.tsx
+msgid "Recent"
+msgstr "最近"
+
+#: app/src/features/home/HomePage.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Drop PDFs to add them to your Library"
 msgstr "拖入 PDF，添加到文献库"
 
 #: app/src/features/home/HomePage.tsx
-#: app/src/features/welcome/WelcomePage.tsx
-msgid "Recent"
-msgstr "最近"
-
-#. Home: the group of places that belong to no project folder
-#. group of threads that belong to no project folder
-#: app/src/features/home/HomePage.tsx
-#: app/src/features/threads/lib.ts
-msgid "Not in a project"
-msgstr "不属于任何项目"
-
-#: app/src/features/home/HomePage.tsx
 msgctxt "Home: what was worked on last"
 msgid "Continue"
 msgstr "继续"
+
+#: app/src/features/home/HomePage.tsx
+msgid "edited {when}"
+msgstr "{when}编辑过"
+
+#: app/src/features/home/HomePage.tsx
+msgid "Owlit wrote {when}"
+msgstr "Owlit {when}写过"
+
+#: app/src/features/home/HomePage.tsx
+msgid "Owlit edited {when}"
+msgstr "Owlit {when}编辑过"
+
+#. Home: when another program last changed a doc
+#: app/src/features/home/HomePage.tsx
+msgid "changed outside owlit {when}"
+msgstr "{when}在 owlit 之外改过"
+
+#. Home: a person's name, then when they last changed a doc
+#: app/src/features/home/HomePage.tsx
+msgid "{who} edited {when}"
+msgstr "{who} {when}编辑过"
+
+#: app/src/features/home/HomePage.tsx
+msgid "read {when}"
+msgstr "{when}读过"
 
 #: app/src/features/home/HomePage.tsx
 msgid "Add papers"
@@ -3677,62 +3603,6 @@ msgstr "这个文件夹就是你的工作区。你添加的论文、笔记和对
 msgid "{palette} find anything · {owlit} ask Owlit · <0>{shortcuts} all shortcuts</0>"
 msgstr "{palette} 查找任何内容 · {owlit} 问 Owlit · <0>{shortcuts} 全部快捷键</0>"
 
-#. Home: a project's due date, as its project.md gives it
-#: app/src/features/home/HomeProjects.tsx
-msgid "due {date}"
-msgstr "{date} 截止"
-
-#: app/src/features/home/HomeProjects.tsx
-msgid "{changed, plural, one {# doc changed since you last looked} other {# docs changed since you last looked}}"
-msgstr "{changed, plural, other {你上次看过后，有 # 篇文档改动了}}"
-
-#. Home: opens a chat asking Owlit where the person left off in this group's work
-#: app/src/features/home/HomeProjects.tsx
-msgid "Where did I stop?"
-msgstr "我做到哪儿了？"
-
-#. the question Home's “Where did I stop?” puts in a new chat; name is the folder's project name
-#: app/src/features/home/HomeProjects.tsx
-msgid "Where did I stop in {name}? Look at what I did there lately and at its docs, and tell me where I left off."
-msgstr "我在 {name} 做到哪儿了？看看我最近在这里做了什么，再看看它的文档，告诉我停在了哪里。"
-
-#: app/src/features/home/HomeProjects.tsx
-msgid "{comments, plural, one {# comment in its docs} other {# comments in its docs}}"
-msgstr "{comments, plural, other {文档里有 # 条评论}}"
-
-#: app/src/features/home/HomeProjects.tsx
-msgid "{proposals, plural, one {# edit by Owlit} other {# edits by Owlit}}"
-msgstr "{proposals, plural, other {Owlit 的 # 处修改}}"
-
-#: app/src/features/home/HomeProjects.tsx
-msgid "{noPdf, plural, one {# paper without a PDF} other {# papers without a PDF}}"
-msgstr "{noPdf, plural, other {# 篇论文没有 PDF}}"
-
-#. Home: after a quiet project's name, the day it was last worked on
-#: app/src/features/home/HomeProjects.tsx
-msgid "(since {date})"
-msgstr "（{date} 以来）"
-
-#. Home: before the projects nobody worked on in the person's last few sessions
-#: app/src/features/home/HomeProjects.tsx
-msgid "Quiet:"
-msgstr "最近没动："
-
-#. Home: before the projects whose project.md says status: done
-#: app/src/features/home/HomeProjects.tsx
-msgid "Done:"
-msgstr "已完成："
-
-#. toast after the person turned down making a folder a project on Home
-#: app/src/features/home/HomeProjects.tsx
-msgid "Won't offer that again"
-msgstr "不再提示这个文件夹"
-
-#. Home: turns down making a folder a project; it isn't offered again
-#: app/src/features/home/HomeProjects.tsx
-msgid "Not now"
-msgstr "暂不"
-
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "{what} {where}: {label}"
 msgstr "{what} {where}：{label}"
@@ -3745,32 +3615,6 @@ msgstr "{what}：{label}"
 #: app/src/features/home/WaitingOnYou.tsx
 msgid "PDFs through your browser"
 msgstr "经浏览器获取 PDF"
-
-#: app/src/features/home/did-words.ts
-msgid "edited {when}"
-msgstr "{when}编辑过"
-
-#: app/src/features/home/did-words.ts
-msgid "Owlit wrote {when}"
-msgstr "Owlit {when}写过"
-
-#: app/src/features/home/did-words.ts
-msgid "Owlit edited {when}"
-msgstr "Owlit {when}编辑过"
-
-#. Home: when another program last changed a doc
-#: app/src/features/home/did-words.ts
-msgid "changed outside owlit {when}"
-msgstr "{when}在 owlit 之外改过"
-
-#. Home: a person's name, then when they last changed a doc
-#: app/src/features/home/did-words.ts
-msgid "{who} edited {when}"
-msgstr "{who} {when}编辑过"
-
-#: app/src/features/home/did-words.ts
-msgid "read {when}"
-msgstr "{when}读过"
 
 #. Home: a chat whose reply ended since the user looked
 #: app/src/features/home/places.ts
@@ -4407,11 +4251,6 @@ msgstr "{0, plural, one {# 篇论文，{1} 篇有 PDF} other {# 篇论文，{2} 
 msgid "{0, plural, one {# is in your library already.} other {# are in your library already.}}"
 msgstr "{0, plural, other {其中 # 篇已在库中。}}"
 
-#. Library scope menu: every paper, of no one project
-#: app/src/features/library/components/LibraryHeader.tsx
-msgid "All papers"
-msgstr "全部论文"
-
 #: app/src/features/library/components/LibraryHeader.tsx
 msgid "Recently added"
 msgstr "最近添加"
@@ -4537,20 +4376,6 @@ msgstr "还没有标签。"
 msgid "More actions"
 msgstr "更多操作"
 
-#. Library row in a project: how far Owlit read the paper for the project's citations, e.g. Owlit: Full text
-#: app/src/features/library/components/PaperList.tsx
-msgid "Owlit: {depth}"
-msgstr "Owlit：{depth}"
-
-#: app/src/features/library/components/PaperList.tsx
-msgid "How far Owlit read it for the citations it wrote in this project"
-msgstr "Owlit 为它在这个项目里写下的引用读到了哪一步"
-
-#. Library row in a project: the other projects whose docs cite this paper, each a link
-#: app/src/features/library/components/PaperList.tsx
-msgid "also cited in {names}"
-msgstr "也被 {names} 引用"
-
 #: app/src/features/library/components/PaperList.tsx
 msgid "New digest"
 msgstr "新导读"
@@ -4563,17 +4388,6 @@ msgstr "导读已停止"
 #: app/src/features/library/components/PaperList.tsx
 msgid "Status"
 msgstr "状态"
-
-#. Library table in a project: the other projects whose docs cite the paper
-#: app/src/features/library/components/PaperList.tsx
-msgid "Also cited in"
-msgstr "也被引用于"
-
-#. Library table in a project: the person's reading of a paper beside how far Owlit read it
-#: app/src/features/library/components/PaperList.tsx
-msgctxt "table column"
-msgid "Reading"
-msgstr "阅读"
 
 #: app/src/features/library/components/PaperList.tsx
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
@@ -4936,15 +4750,6 @@ msgstr "没有匹配的论文。"
 msgid "Drop PDFs to add, or a BibTeX file or a folder to import"
 msgstr "拖入 PDF 来添加，或拖入 BibTeX 文件、文件夹来导入"
 
-#. Library scoped to a project none of whose docs cite a paper of the Library
-#: app/src/features/library/pages/LibraryPage.tsx
-msgid "No doc of {name} cites a paper yet"
-msgstr "{name} 的文档还没有引用论文"
-
-#: app/src/features/library/pages/LibraryPage.tsx
-msgid "A paper is in a project once one of its docs cites it."
-msgstr "项目里有文档引用一篇论文，这篇论文就在这个项目里。"
-
 #: app/src/features/library/pages/LibraryPage.tsx
 msgid "Owlit can look for more papers on this outside your library."
 msgstr "Owlit 可以在文库之外再找找这方面的论文。"
@@ -5101,11 +4906,6 @@ msgstr "基础"
 #: app/src/features/library/pages/paper/DetailsPanel.tsx
 msgid "Cited in"
 msgstr "引用于"
-
-#. under a doc that cites this paper: its other citing sentences, opening the doc
-#: app/src/features/library/pages/paper/DetailsPanel.tsx
-msgid "+{more} more"
-msgstr "还有 {more} 句"
 
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
@@ -6055,23 +5855,6 @@ msgstr "例如：我的毕业论文写主动式 agent"
 msgid "Nothing yet. Tell Owlit something to keep in any chat (“from now on, cite in APA”), or add a line here."
 msgstr "还没有。在任何对话里告诉 Owlit 要记住的事（“以后都用 APA 引用”），或在这里添加一条。"
 
-#. after a thread's title: the folder path the thread was filed under, which holds no project.md now
-#. over lines Owlit keeps in mind for a folder path that holds no project.md now (removed, moved, or never there)
-#: app/src/features/settings/sections/Memory.tsx
-#: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "{was} · not a project"
-msgstr "{was} · 不是项目"
-
-#. a group of lines Owlit keeps in mind that every chat hears, not only one project's
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Every chat"
-msgstr "所有对话"
-
-#. verb: choose which chats hear a line Owlit keeps in mind: every chat, or one project's
-#: app/src/features/settings/sections/Memory.tsx
-msgid "Keep for"
-msgstr "用于"
-
 #: app/src/features/settings/sections/Memory.tsx
 msgid "A line Owlit keeps in mind"
 msgstr "Owlit 记着的一条"
@@ -6633,10 +6416,6 @@ msgid "Open at p. {page}"
 msgstr "打开到第 {page} 页"
 
 #: app/src/features/threads/components/ThreadMenu.tsx
-msgid "Move to project"
-msgstr "移到项目"
-
-#: app/src/features/threads/components/ThreadMenu.tsx
 msgid "Export as a doc"
 msgstr "导出为文档"
 
@@ -6793,15 +6572,6 @@ msgstr "让 Owlit 就一个问题找论文，脉络会出现在这里。"
 #: app/src/features/threads/pages/ThreadsPage.tsx
 msgid "Found nothing"
 msgstr "什么也没找到"
-
-#: app/src/features/threads/store.ts
-msgid "Moved to {name}"
-msgstr "已移到 {name}"
-
-#. toast: a thread now belongs to no project
-#: app/src/features/threads/store.ts
-msgid "Moved out of its project"
-msgstr "已移出项目"
 
 #: app/src/features/threads/store.ts
 msgid "Thread deleted"

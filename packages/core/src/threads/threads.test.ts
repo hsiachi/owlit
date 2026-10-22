@@ -54,7 +54,6 @@ const start = (threads: Threads, extra: object = {}) =>
   threads.write({
     asked: "我的研究方法该怎么设计？",
     title: "回放式标注作为研究方法",
-    project: "主动提醒研究",
     sources: ["Semantic Scholar"],
     report: "Two precedents had wearers replay their own footage. Replay ratings run lower than live ones.",
     rows: [
@@ -208,8 +207,7 @@ describe("Threads.write", () => {
   it("never saves the Library's facts into the thread, whatever it reads", async () => {
     const { threads, owlit } = setup()
     const { id } = await start(threads)
-    await threads.edit(id, { op: "project", project: "Thesis" }, window)
-    await threads.edit(id, { op: "view", groupBy: "none" }, window)
+    await threads.edit(id, { op: "view", groupBy: "none" })
     const kept = JSON.parse(readFileSync(path.join(owlit, "threads", id, "thread.json"), "utf8"))
     expect(kept.version).toBe(3)
     expect(kept.rows.map((r: object) => "paper" in r)).toEqual([false, false])
@@ -295,7 +293,7 @@ describe("Threads, several groupings", () => {
     const { threads } = setup()
     const { id } = await start(threads)
     const before = await threads.get(id)
-    await threads.edit(id, { op: "view", groupBy: "grouping:topic" }, window)
+    await threads.edit(id, { op: "view", groupBy: "grouping:topic" })
     const c = await threads.get(id)
     expect(c.view).toEqual({ groupBy: "grouping:topic" })
     expect(c.updatedAt).toBe(before.updatedAt)
@@ -362,6 +360,7 @@ describe("Threads kept by an older version", () => {
     writeFileSync(path.join(owlit, "threads", "old", "thread.json"), JSON.stringify(v2))
     const c = await threads.get("old")
     expect(c).toMatchObject({ version: 3, title: "Replay as a method", sources: ["OpenAlex"], view: { groupBy: "grouping:topic" } })
+    expect(c).not.toHaveProperty("project")
     expect(c.report).toBe("[Kelly et al. 2015](owlit://library/doi-10.1145-2) had wearers replay footage. Replay ratings run lower, by 0.6.")
     expect(c.one).toBe("Kelly et al. 2015 had wearers replay footage.")
     // a went into b, so c (under a) sits under b now; d was ungrouped; b took the user's name
@@ -375,7 +374,7 @@ describe("Threads kept by an older version", () => {
     // The removed row's paper isn't added; the third is, as Owlit's
     expect(added).toEqual([`doi-10.1145-3 ${papers["doi-10.1145-3"]!.title} owlit`])
     // On disk once nothing else is writing, without the snapshots and without what has gone
-    await threads.edit("old", { op: "view", groupBy: "none" }, window)
+    await threads.edit("old", { op: "view", groupBy: "none" })
     const kept = JSON.parse(readFileSync(path.join(owlit, "threads", "old", "thread.json"), "utf8"))
     expect(kept.version).toBe(3)
     expect(Object.keys(kept).filter((k) => ["memo", "overrides", "size", "splitFrom"].includes(k))).toEqual([])
@@ -428,42 +427,11 @@ describe("Threads, a close question", () => {
 
 })
 
-describe("Threads, the project", () => {
-  const marked = (...paths: string[]) => async () => paths.map((p) => ({ path: p, mark: `${p}/project.md`, name: p.split("/").at(-1)!, parents: [] }))
-
-  it("keeps a marked folder's path as the projects spell it, and drops one that is no project, saying so", async () => {
-    const { threads } = setup({ projects: marked("Research/主动提醒研究") })
-    // Decomposed, with slashes around it, as a path typed on macOS can come
-    const kept = await start(threads, { project: "/Research/主动提醒研究/".normalize("NFD") })
-    expect(kept.left).toBeUndefined()
-    expect((await threads.get(kept.id)).project).toBe("Research/主动提醒研究")
-
-    const dropped = await start(threads, { title: "Another", project: "主动提醒研究" })
-    expect((await threads.get(dropped.id)).project).toBe("")
-    expect(dropped.left).toEqual([expect.stringMatching(/^"主动提醒研究" is no project of this workspace .* thread_list's Projects line\.$/)])
-  })
-
-  it("starts a thread with no papers in no project rather than refusing it", async () => {
-    const { threads } = setup({ projects: marked() })
-    const done = await threads.write({ asked: "q?", title: "Nothing found", project: "Thesis" }, agent)
-    expect(done.left).toHaveLength(1)
-    expect((await threads.get(done.id)).project).toBe("")
-  })
-
-  it("files a thread under a project from the window only while it is marked", async () => {
-    const { threads } = setup({ projects: marked("Thesis") })
-    const { id } = await start(threads, { project: "" })
-    expect((await threads.edit(id, { op: "project", project: "Thesis" }, window)).project).toBe("Thesis")
-    expect((await threads.edit(id, { op: "project", project: "Gone" }, window)).project).toBe("")
-  })
-})
-
 describe("Threads, the user's side", () => {
-  it("gives a row Owlit added a dot, and none to the user's own changes", async () => {
+  it("gives a row Owlit added a dot", async () => {
     const { threads, seen, dots } = setup()
     const { id } = await start(threads)
     await seen.mark(ME, { kind: "thread", id, items: [] })
-    await threads.edit(id, { op: "project", project: "Thesis" }, window)
     await threads.write({ id, rows: [{ id: "doi-10.1145-3" }] }, agent)
     expect(await dots(id)).toEqual([itemId.row("doi-10.1145-3")])
     // A later look at the thread as a whole doesn't cover a row that was never on screen
@@ -657,18 +625,27 @@ describe("uniqueId", () => {
 })
 
 describe("Threads, the user's changes in the log", () => {
-  it("records the project the user moved it to, with both sides, and no line in the history", async () => {
-    const { threads, changes, owlit } = setup()
+  it("logs nothing for how the user looks at a thread, and writes no line in the history", async () => {
+    const { threads, changes } = setup()
     const { id } = await start(threads)
     const lines = (await threads.history(id)).length
-    await threads.edit(id, { op: "project", project: "Thesis" }, window)
-    // How the user looks changes nothing worth an entry
-    await threads.edit(id, { op: "view", groupBy: "none" }, window)
-    const mine = (await changes.list({ path: id, actor: "p_1234abcd" })).reverse()
-    expect(mine.map((c) => [c.action, c.target.part, c.origin.via])).toEqual([["update", "project", "editor"]])
-    expect(mine[0]).toMatchObject({ before: { value: "主动提醒研究" }, after: { value: "Thesis" } })
+    await threads.edit(id, { op: "view", groupBy: "none" })
+    expect(await changes.list({ path: id, actor: "p_1234abcd" })).toEqual([])
     expect(await threads.history(id)).toHaveLength(lines)
-    const kept = JSON.parse(readFileSync(path.join(owlit, "threads", id, "thread.json"), "utf8"))
-    expect(kept.project).toBe("Thesis")
+  })
+})
+
+describe("Threads saved with a project", () => {
+  it("loads a thread.json that names a project, gives it out without one and saves it without one", async () => {
+    const { threads, owlit } = setup()
+    const { id } = await start(threads)
+    const file = path.join(owlit, "threads", id, "thread.json")
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), project: "主动提醒研究" }))
+    const c = await threads.get(id)
+    expect(c.title).toBe("回放式标注作为研究方法")
+    expect(c).not.toHaveProperty("project")
+    expect((await threads.list())[0]).not.toHaveProperty("project")
+    await threads.edit(id, { op: "view", groupBy: "none" })
+    expect(JSON.parse(readFileSync(file, "utf8"))).not.toHaveProperty("project")
   })
 })

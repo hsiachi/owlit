@@ -25,7 +25,6 @@ import {
   type ThreadSummary,
   type ThreadWrite,
   type PaperIds,
-  type Project,
   upgradeThread,
 } from "@owlit/protocol"
 import { randomBytes } from "node:crypto"
@@ -43,12 +42,11 @@ import { sameJson, Serial } from "../util.ts"
 //   history.jsonl     what a write rests on that the change log doesn't keep: the searches, Owlit's
 //                     note, the later question it was for (About)
 //
-// A thread is Owlit's: the user changes it by asking in a chat, and from a window only moves it to a
-// project (a folder marked by a project.md, by its path) or chooses what its table is grouped by. It is
-// given out with each row's paper as the Library has it (read()); what is saved is only what changed,
-// never those facts. Every change goes in the change log one item at a time (a row, a cell, a group, the
-// report, the title), with the item on each side, the entries of one write sharing its writeId, so the
-// chat's card undoes a write whole and an item that changed since stays.
+// A thread is Owlit's: the user changes it by asking in a chat, and from a window only chooses what its
+// table is grouped by. It is given out with each row's paper as the Library has it (read()); what is saved
+// is only what changed, never those facts. Every change goes in the change log one item at a time (a row,
+// a cell, a group, the report, the title), with the item on each side, the entries of one write sharing
+// its writeId, so the chat's card undoes a write whole and an item that changed since stays.
 
 // What owlit itself does (an upgrade adding a thread's papers to the Library) is Owlit's
 const OWLIT: Caller = { kind: "owlit" }
@@ -77,9 +75,6 @@ export interface ThreadsServices {
   // How far a chat read a paper's text, from what core saw it read: the whole text, part of it, or
   // none so far (undefined)
   readDepth?: (chatId: string, paperId: string) => "full" | "part" | undefined
-  // The workspace's projects (Projects.list): a thread's project is one of their paths. Without it any
-  // value is taken as given.
-  projects?: () => Promise<Project[]>
 }
 
 // A line of history.jsonl: what a write rests on that neither the thread nor the change log keeps (the
@@ -158,12 +153,6 @@ export class Threads {
       .sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
-  // One thread as the list shows it, without reading its papers; undefined when it isn't there
-  async summary(id: string): Promise<ThreadSummary | undefined> {
-    const c = await this.load(id).catch(() => undefined)
-    return c && summarize(c)
-  }
-
   // The thread as it is read: each row's paper as the Library has it
   async get(id: string): Promise<ThreadRead> {
     const c = await this.load(id)
@@ -222,14 +211,6 @@ export class Threads {
       if (existing && input.title?.trim() && input.title.trim() !== c.title) {
         c.title = input.title.trim()
         mark(itemId.title())
-      }
-      // A project that is no marked folder's path is dropped, said in the answer but never a reason to
-      // refuse the write
-      const projectLeft: string[] = []
-      if (input.project !== undefined && !existing) {
-        const { project, dropped } = await this.markedProject(input.project)
-        c.project = project
-        if (dropped) projectLeft.push(`"${input.project.trim()}" is no project of this workspace (no folder there holds a project.md), so the thread is in none: give project only as a path from thread_list's Projects line.`)
       }
       const asked = input.asked?.trim()
       if (existing && asked && !sameWords(asked, c.asked.text) && !c.alsoAsked?.some((a) => sameWords(a.text, asked))) {
@@ -452,8 +433,7 @@ export class Threads {
 
       // Nothing could go in: a new thread whose papers all had problems is no thread either, and a Topic
       // grouping started for rows that were left out is nothing either
-      if (left.length && (fresh ? !c.rows.length : ![...changed].some((item) => item !== topic))) throw refusal([...left, ...projectLeft])
-      left.push(...projectLeft)
+      if (left.length && (fresh ? !c.rows.length : ![...changed].some((item) => item !== topic))) throw refusal(left)
       if (!fresh && !changed.size) return { id: c.id, title: c.title, added: 0, updated: 0 }
 
       // The papers new to the Library, added as the writer's; a row then goes by the Library's id
@@ -499,36 +479,17 @@ export class Threads {
 
   // ---- The user's changes ----
 
-  // The thread's project, or what its table is grouped by: read from disk and saved, so the facts a window
-  // was shown are never saved (read()). The project is logged; how the user looks changes nothing worth an
-  // entry in the log, nor the order of the list.
-  edit(id: string, edit: ThreadEdit, caller: Caller) {
+  // What its table is grouped by: read from disk and saved, so the facts a window was shown are never saved
+  // (read()). How the user looks changes nothing worth an entry in the log, nor the order of the list.
+  edit(id: string, edit: ThreadEdit) {
     return this.serial.run(async () => {
       const c = await this.mustLoad(id)
-      const before = structuredClone(c)
-      // The menu offers marked folders only, but a mark can go while it is open: that files it under none
-      applyThreadEdit(c, edit.op === "project" ? { op: "project", project: (await this.markedProject(edit.project)).project } : edit)
-      if (edit.op === "project") {
-        c.updatedAt = Date.now()
-        await this.recordItems(caller, before, c, ["project"])
-      }
+      applyThreadEdit(c, edit)
       await this.save(c)
       const read = await this.read(c)
       this.services.changed?.(c.id, read)
       return read
     })
-  }
-
-  // A project as a thread keeps it: the marked folder's path as Projects spells it, or "" for none and
-  // dropped when the value named a folder that is no project. Written with or without slashes around it,
-  // and in either Unicode form, since a path typed on macOS can come decomposed.
-  private async markedProject(given: string): Promise<{ project: string; dropped: boolean }> {
-    const value = given.trim().replace(/^\/+|\/+$/g, "")
-    if (!value) return { project: "", dropped: false }
-    if (!this.services.projects) return { project: value, dropped: false }
-    const nfc = value.normalize("NFC")
-    const found = (await this.services.projects()).find((p) => p.path.normalize("NFC") === nfc)
-    return found ? { project: found.path, dropped: false } : { project: "", dropped: true }
   }
 
   // To .owlit/trash/<stamp>-thread-<id>/, whole, so undelete() can put it back
@@ -615,7 +576,7 @@ export class Threads {
     const writes: Write[] = []
     const logged = new Map<string, Write>()
     for (const e of entries) {
-      // The person's own changes (the thread's project) and undos are no work of Owlit's
+      // The person's own changes and undos are no work of Owlit's
       if (e.undoes || e.actor.startsWith("p_") || !e.origin.writeId) continue
       let w = logged.get(e.origin.writeId)
       if (!w) {
@@ -721,7 +682,6 @@ export class Threads {
       id: uniqueId(title, taken),
       title,
       asked: { text: input.asked!.trim(), at: now, ...(input.chatId ? { chatId: input.chatId } : {}), ...(input.docPath ? { docPath: input.docPath } : {}) },
-      project: "",
       sources: [],
       report: "",
       one: "",
@@ -741,7 +701,11 @@ export class Threads {
   private async load(id: string): Promise<Thread | undefined> {
     if (!/^[\w-]+$/.test(id)) return undefined
     const raw = await readJson<StoredThread>(path.join(this.dir, id, FILE))
-    if (!raw || raw.version === 3) return raw
+    if (!raw) return undefined
+    // thread.json written by an earlier owlit can hold a project, which nothing reads: dropped here, so
+    // it is given out with none and gone from the next save
+    if ("project" in raw) delete (raw as { project?: unknown }).project
+    if (raw.version === 3) return raw
     // A thread of an older version: upgraded once on disk too, after whatever is writing now. A write
     // already in progress saves the same upgrade, and then this finds nothing left to do.
     void this.serial.run(async () => {
@@ -800,8 +764,8 @@ export class Threads {
 }
 
 // One item of a thread as the change log keeps it. Items are named as itemId() names them, plus
-// column:<id>, alsoAsked and the thread's project. A row is kept without its cells and a column without its
-// groups: those are items of their own. undefined when the thread has nothing of it.
+// column:<id> and alsoAsked. A row is kept without its cells and a column without its groups: those are
+// items of their own. undefined when the thread has nothing of it.
 function itemOf(c: Thread, item: string): unknown {
   const [kind, a, b] = item.split(":")
   let value: unknown
@@ -810,7 +774,6 @@ function itemOf(c: Thread, item: string): unknown {
   else if (item === itemId.one()) value = c.one
   else if (item === "asked") value = c.asked
   else if (item === "alsoAsked") value = c.alsoAsked
-  else if (item === "project") value = c.project
   else if (kind === "cell") value = c.rows.find((r) => r.id === a)?.cells[b!]
   else if (kind === "column") {
     const col = c.columns.find((col) => col.id === a)
@@ -855,8 +818,7 @@ function putItem(c: Thread, item: string, to: unknown): boolean {
   else if (item === "alsoAsked") {
     if (value) c.alsoAsked = value
     else delete c.alsoAsked
-  } else if (item === "project") c.project = value ?? ""
-  else if (kind === "column") {
+  } else if (kind === "column") {
     const was = c.columns.find((col) => col.id === a)
     c.columns = put(c.columns, a, value && { ...value, ...(was?.groups ? { groups: was.groups } : value.kind === "grouping" ? { groups: [] } : {}) })
   } else if (kind === "row") {

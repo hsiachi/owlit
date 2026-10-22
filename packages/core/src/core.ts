@@ -42,7 +42,6 @@ import { registerDocs } from "./docs/rpc.ts"
 import { registerExtension } from "./extension/rpc.ts"
 import { registerLibrary } from "./library/rpc.ts"
 import { registerMemory } from "./memory/rpc.ts"
-import { registerProjects } from "./projects/rpc.ts"
 import { registerSearch } from "./search/rpc.ts"
 import { registerShare } from "./share/rpc.ts"
 import { registerTasks } from "./tasks/rpc.ts"
@@ -59,10 +58,6 @@ export const CORE_VERSION = "0.0.0"
 const WINDOW_LOADS_WITHIN_MS = 15_000
 
 const SHARED_CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|library\.(add|update|remove|restore|setNote|refresh|requestDigest|importPdf|attachPdf))$/
-
-// The docs methods that can change what projects.list answers. The watcher never echoes core's own changes
-// made for a window, so these are looked at after they answer.
-const PROJECT_CHANGES = /^docs\.(create|write|rename|move|delete|restore)$/
 
 // Methods that change what the search index covers
 const CHANGES = /^(docs\.(create|write|rename|move|delete|restore)|chats\.(create|update|delete|restore|appendMessage|patchMessage)|library\.(add|update|remove|restore|setNote|importPdf|attachPdf))$/
@@ -260,12 +255,6 @@ export class Core {
       mcpEnded: (servers) => this.mcpEnded(servers),
       userName: async () => (await this.settings.get()).profile.name,
       memory: async () => (await this.workspace?.memory.list()) ?? [],
-      projectsOf: async (chatId) => {
-        const ws = this.workspace
-        if (!ws) return { projects: [], chatProjects: [] }
-        const [projects, chatProjects] = await Promise.all([ws.projects.list(), ws.projects.projectsOf({ kind: "chat", id: chatId })])
-        return { projects, chatProjects }
-      },
       readFrom: async (chatId, since, answer) => {
         const ws = this.workspace
         if (!ws) return []
@@ -340,7 +329,6 @@ export class Core {
     registerAgents({ router, agents: this.agents, turns, fs: this.fs, requireWorkspace })
     registerUi({ router, ui: this.ui })
     registerMemory({ router, requireWorkspace })
-    registerProjects({ router, requireWorkspace, personAt: (caller) => this.personAt(caller) })
     registerChanges({ router, notifier, undo: this.undo, requireWorkspace, personAt: (caller) => this.personAt(caller) })
     registerLibrary({ router, turns, reads: this.reads, journal, requireWorkspace, updatePaper: (id, patch, caller, origin) => this.updatePaper(id, patch, caller, origin), requestDigest: (id, rewrite) => this.requestDigest(id, rewrite) })
     registerSearch({ router, requireWorkspace })
@@ -361,7 +349,6 @@ export class Core {
     const response = await this.router.handle(request, caller)
     // What a client changed is searched for soon after (the index waits for things to settle)
     if (this.workspace && "result" in response && CHANGES.test(request?.method ?? "")) this.workspace.search.touch()
-    if (this.workspace && "result" in response && PROJECT_CHANGES.test(request?.method ?? "")) void this.workspace.projects.refresh().catch((error) => console.error("[core] couldn't look at the workspace's projects again", error))
     if (this.workspace && "result" in response && SHARED_CHANGES.test(request?.method ?? "")) {
       // A doc renamed or moved, or renamed after its first line, takes its link along
       const from = (request.params as { path?: string } | undefined)?.path
@@ -445,9 +432,6 @@ export class Core {
               memoryChanged: (lines) => {
                 if (this.workspace?.root === root) this.notifier.notify("memory.changed", { lines })
               },
-              projectsChanged: (projects) => {
-                if (this.workspace?.root === root) this.notifier.notify("projects.changed", { projects })
-              },
               shares: {
                 server: () => this.options.shareServer ?? null,
                 author: async () => (await this.settings.get()).profile.name,
@@ -480,7 +464,6 @@ export class Core {
           await next.docs.watch((change) => {
             if (current()) this.notifier.notify("docs.changed", change)
             next.search.touch()
-            void next.projects.refresh().catch((error) => console.error("[core] couldn't look at the workspace's projects again", error))
             // A doc renamed outside owlit keeps its id: its link goes with it
             for (const gone of change.deleted) {
               const now = gone.id && change.changed.find((f) => f.id === gone.id)
@@ -491,8 +474,6 @@ export class Core {
               change.reload || change.folders.deleted.length ? undefined : { docs: [...change.changed.map((f) => f.path), ...change.deleted.map((f) => f.path)] },
             )
           })
-          // What projects.changed compares with, taken before any change the watcher hears is looked at
-          void next.projects.refresh().catch((error) => console.error("[core] couldn't read the workspace's projects", error))
           await next.library.watch(
             (change) => {
               if (current()) this.notifier.notify("library.changed", change)

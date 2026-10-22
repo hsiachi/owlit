@@ -30,7 +30,6 @@ export interface ThreadV2 {
   title: string
   asked: ThreadAsked
   alsoAsked?: ThreadAsked[]
-  project: string
   sources: string[]
   memo: { id: string; text: string }[]
   columns: ThreadColumn[]
@@ -125,7 +124,6 @@ function fromV2(c: ThreadV2): Thread {
     title: text("title", c.title),
     asked: c.asked,
     ...(c.alsoAsked?.length ? { alsoAsked: c.alsoAsked } : {}),
-    project: c.project,
     sources: c.sources,
     report: joinSentences(memo),
     one: memo[0] ? plainLine(memo[0]) : "",
