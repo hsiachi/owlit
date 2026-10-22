@@ -215,3 +215,10 @@ export interface WorkEnded {
 export interface WorkResume {
   host: string
 }
+
+// POST /work/blocked: a page the user opened at a site paused for a check or a sign-in shows the site's
+// firewall blocking them; the site waits for a way past the block instead, with that page to open
+export interface WorkBlocked {
+  host: string
+  url: string
+}

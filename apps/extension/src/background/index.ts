@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionPaper, ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, WorkAnswer, WorkResume } from "@owlit/protocol"
+import type { ExtensionPaper, ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, WorkAnswer, WorkBlocked, WorkResume } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
@@ -12,7 +12,7 @@ import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, sayIn, TAKEN, WAITING, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
-import { isThrough } from "../lib/verdict.ts"
+import { isBlocked, isThrough } from "../lib/verdict.ts"
 import { doWork } from "../lib/work.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
@@ -564,9 +564,23 @@ async function resume(host: string, tabId?: number) {
   if (tabId !== undefined) await drawCard(tabId, cardOf({ kind: "through", host, papers: wait.papers }))
 }
 
+// The page the user opened at a site paused for a check or a sign-in is the site's block instead: owlit
+// hears it, so its line asks for another network rather than a check no one can pass, and the card here
+// says the same
+async function blocked(host: string, url: string, tabId: number) {
+  const { token } = await local()
+  if (!token) return
+  await ask("/work/blocked", { token, json: { host, url } satisfies WorkBlocked })
+  const all = (await waits()).map((w) => (w.host === host ? { ...w, kind: "blocked" as const } : w))
+  await ext.storage.session.set({ [waitsKey]: all })
+  const wait = all.find((w) => w.host === host)
+  if (wait) await drawCard(tabId, cardOf({ kind: "wait", wait: { kind: wait.kind, host: wait.host, papers: wait.papers } }))
+}
+
 // A page that finished loading at a site paused for a check or a sign-in: once it is neither, the user
 // got through, and owlit goes on there. A check often finishes in the page it stands in (Cloudflare's
-// swaps the article in without loading a new page), so the tab is looked at again for a while.
+// swaps the article in without loading a new page), so the tab is looked at again for a while; a block
+// stays as it is, so it is told once and the looking ends.
 const THROUGH_LOOKS = 20
 const THROUGH_EVERY_MS = 3000
 const watching = new Set<number>()
@@ -587,6 +601,10 @@ async function watchForThrough(tabId: number, url: string) {
       const proxy = wait.proxied ? { host: wait.host } : undefined
       if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy })) {
         await resume(wait.host, tabId).catch(() => undefined)
+        return
+      }
+      if (isBlocked(seen)) {
+        if (wait.kind !== "blocked") await blocked(wait.host, seen.url, tabId).catch(() => undefined)
         return
       }
     }

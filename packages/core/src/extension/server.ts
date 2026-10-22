@@ -408,6 +408,16 @@ export class ExtensionServer {
           return { body: { resumed: this.work.resume(body.data.host) } }
         },
       },
+      {
+        method: "POST",
+        path: is("work", "blocked"),
+        handle: async ({ raw }) => {
+          // Only a web page, as a fetch's ending: the window opens it in a browser
+          const body = z.object({ host, url: z.string().max(4096).regex(/^https?:\/\//i) }).safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          return { body: { blocked: this.work.blocked(body.data.host, body.data.url) } }
+        },
+      },
       // How a fetch ended: the PDF itself, or a word for what came instead
       {
         method: "POST",
