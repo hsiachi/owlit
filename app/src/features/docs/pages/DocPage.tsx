@@ -101,7 +101,7 @@ function DeletedOnDisk({ docId }: { docId: string }) {
 // Above a project mark's text: the one place that says what the file does, since nothing else in the app
 // explains it. A muted line, like the doc's other lines about itself, so the text stays the doc's own.
 function ProjectMarkLine() {
-  return <p className="pb-2 text-detail text-muted-foreground">{t`This folder is a project. The first line is its name; status: and due: are optional.`}</p>
+  return <p className="pb-2 text-detail text-muted-foreground">{t`This folder is a project. The first line is its name; status:, due: and current: are optional.`}</p>
 }
 
 function DocMenuItems({ groups }: { groups: () => MenuGroups }) {

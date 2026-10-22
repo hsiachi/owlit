@@ -3341,8 +3341,8 @@ msgid "Deleted on disk"
 msgstr "Deleted on disk"
 
 #: app/src/features/docs/pages/DocPage.tsx
-msgid "This folder is a project. The first line is its name; status: and due: are optional."
-msgstr "This folder is a project. The first line is its name; status: and due: are optional."
+msgid "This folder is a project. The first line is its name; status:, due: and current: are optional."
+msgstr "This folder is a project. The first line is its name; status:, due: and current: are optional."
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "No docs yet"

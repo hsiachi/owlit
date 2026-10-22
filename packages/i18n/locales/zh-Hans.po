@@ -3341,8 +3341,8 @@ msgid "Deleted on disk"
 msgstr "已从磁盘删除"
 
 #: app/src/features/docs/pages/DocPage.tsx
-msgid "This folder is a project. The first line is its name; status: and due: are optional."
-msgstr "这个文件夹是一个项目。第一行是项目名；status: 和 due: 可写可不写。"
+msgid "This folder is a project. The first line is its name; status:, due: and current: are optional."
+msgstr "这个文件夹是一个项目。第一行是项目名；status:、due: 和 current: 可写可不写。"
 
 #: app/src/features/docs/pages/DocsHome.tsx
 msgid "No docs yet"
