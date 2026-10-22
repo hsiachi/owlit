@@ -301,7 +301,7 @@ export class ExtensionServer {
     const pair = z.object({ browser: z.string().trim().min(1).max(60), extensionVersion: z.string().max(40).optional() })
     const host = z.string().trim().min(1).max(253)
     const ended = z.object({
-      ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "sign-in", "offline", "no-permission"]),
+      ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission"]),
       host,
       title: z.string().max(500).optional(),
       // Only a web page: the url may be opened in a browser later, and `open` would run a file: or app link

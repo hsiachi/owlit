@@ -37,7 +37,7 @@ describe("where a paper's PDF stands", () => {
 
 describe("a paper the extension tried", () => {
   it("is still finding while the extension waits for the user at its site", () => {
-    for (const ended of ["check", "sign-in", "no-permission"] as const) {
+    for (const ended of ["check", "blocked", "sign-in", "no-permission"] as const) {
       expect(standing([owlit("no-copy", 1), extension(ended, 2, { host: "journals.sagepub.com" })])).toMatchObject({ state: "finding", reason: { by: "extension", ended } })
     }
     // A later look of owlit's own finding no copy doesn't hide that the site waits for the user

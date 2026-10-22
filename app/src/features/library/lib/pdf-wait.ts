@@ -19,6 +19,7 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
     case "offline":
     case "for-sign-in":
     case "for-check":
+    case "blocked":
     case "for-permission":
       return t({ message: "Finding", comment: "a paper whose PDF owlit is looking for" })
     case "not-found":
@@ -52,6 +53,8 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">): string {
       return t`Waits for a sign-in at ${site}`
     case "for-check":
       return site ? t`Waits for a check at ${site}` : t`Waits for a check`
+    case "blocked":
+      return site ? t`${site} blocks your browser` : t`The publisher's site blocks your browser`
     case "for-permission":
       return site ? t`Waits for the extension to be allowed on ${site}` : t`Waits for the extension to be allowed`
     case "not-found":

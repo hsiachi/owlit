@@ -22,6 +22,9 @@ describe("pdfWait", () => {
     // In the queue at a site that waits for the user
     expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-copy")], reason: tryOf("no-copy"), extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" } } })).toBe("for-sign-in")
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tandfonline.com", waits: "check" } } })).toBe("for-check")
+    const blocked = tryOf("blocked", "extension")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [blocked], reason: blocked, extension: { host: "bmj.com", waits: "blocked" } } })).toBe("blocked")
+    expect(pdfWord("blocked")).toBe(pdfWord("finding"))
     // Fetched again once the user got through: finding, whatever its last try met
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tlink.lib.tsinghua.edu.cn" } } })).toBe("finding")
     // After a restart, before the queue has it again, its last try says what it waits for

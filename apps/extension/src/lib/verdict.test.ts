@@ -20,6 +20,21 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://www.sciencedirect.com/science/article/pii/2", article("A Paper", '<script src="https://abc.token.awswaf.com/challenge.js"></script>')))).toBe("no-copy")
   })
 
+  it("tells a firewall's block from a check", () => {
+    // Cloudflare's block page carries the title its older checks had
+    const cloudflare =
+      '<title>Attention Required! | Cloudflare</title><div id="cf-error-details"><h1 data-translate="block_headline">Sorry, you have been blocked</h1><h2>You are unable to access bmj.com</h2></div>'
+    expect(verdict(page("https://www.bmj.com/content/1", cloudflare, { status: 403 }))).toBe("blocked")
+    expect(isThrough({ url: "https://www.bmj.com/content/1", status: 0, html: cloudflare })).toBe(false)
+    const denied = '<title>Access denied | www.bmj.com used Cloudflare to restrict access</title><span>Error</span> <span class="cf-error-code">1020</span>'
+    expect(verdict(page("https://www.bmj.com/content/1", denied, { status: 403 }))).toBe("blocked")
+    const akamai = `<title>Access Denied</title><h1>Access Denied</h1>You don't have permission to access "http://www.example.com/doi/pdf/1" on this server.<p>Reference&#32;&#35;18&#46;abc</p>`
+    expect(verdict(page("https://www.example.com/doi/pdf/1", akamai, { status: 403 }))).toBe("blocked")
+    // Cloudflare's 5xx pages share the block page's markup, and a paper may write about being blocked
+    expect(verdict(page("https://www.bmj.com/content/1", '<title>bmj.com | 522: Connection timed out</title><div id="cf-error-details">Error 522</div>', { status: 522 }))).not.toBe("blocked")
+    expect(verdict(page("https://www.bmj.com/content/2", article("When You Have Been Blocked on Twitter")))).toBe("no-copy")
+  })
+
   it("knows the library proxy's sign-in, the school's and a publisher's", () => {
     // tlink signed out answers its entry with a gateway of sign-in buttons, no password field
     expect(verdict(page(tlink.entry, "<title>清华大学图书馆</title><a href='/login'>校内登录</a>", { proxy: tlink }))).toBe("sign-in")

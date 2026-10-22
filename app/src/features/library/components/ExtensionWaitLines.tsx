@@ -80,7 +80,9 @@ function OpenedLine({ wait, followed }: { wait: ExtensionWait; followed: Followe
       ? t({ message: `Opened in ${browser}. Sign in there; owlit goes on by itself.`, comment: "browser: Chrome, Arc, or 'your browser'" })
       : wait.kind === "check"
         ? t({ message: `Opened in ${browser}. Pass the check there; owlit goes on by itself.`, comment: "browser: Chrome, Arc, or 'your browser'" })
-        : t({ message: `Opened in ${browser}. Allow the extension there; owlit goes on by itself.`, comment: "browser: Chrome, Arc, or 'your browser'" })
+        : wait.kind === "blocked"
+          ? t({ message: `Opened in ${browser}. Still blocked? Try another network; owlit goes on by itself.`, comment: "browser: Chrome, Arc, or 'your browser'" })
+          : t({ message: `Opened in ${browser}. Allow the extension there; owlit goes on by itself.`, comment: "browser: Chrome, Arc, or 'your browser'" })
   return (
     <StatusLine
       mark={<Spinner className="size-3.5" />}
@@ -148,7 +150,7 @@ function AfterLine({ followed, papers, showOnly }: { followed: FollowedWait; pap
 // Still being looked for: owlit or the extension at work, or waiting again at a site
 const isFinding = (p: Paper) => {
   const wait = pdfWait(p)
-  return wait === "finding" || wait === "offline" || wait === "for-sign-in" || wait === "for-check" || wait === "for-permission"
+  return wait === "finding" || wait === "offline" || wait === "for-sign-in" || wait === "for-check" || wait === "blocked" || wait === "for-permission"
 }
 
 // Being fetched, or in line at a site that goes on by itself

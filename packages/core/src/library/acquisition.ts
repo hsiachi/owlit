@@ -46,8 +46,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // page that stopped owlit itself with a check or a sign-in doesn't hide what the user's browser, which
 // gets past those, was told.
 //
-// A reason that is the extension waiting for the user (a check or a sign-in in their browser, or the
-// extension not allowed on the site) leaves the paper finding: the user gets through once for the whole
+// A reason that is the extension waiting for the user (a check, a block or a sign-in in their browser,
+// or the extension not allowed on the site) leaves the paper finding: the user gets through once for the whole
 // site and owlit goes on by itself. A check or a sign-in that owlit itself met (only older records have
 // one) waits on nobody: it is a reason for no PDF like any other, until the extension tries the paper.
 export function standing(tried: readonly PdfTry[]): { state: PdfStanding; reason?: PdfTry } {
@@ -66,7 +66,7 @@ export function standing(tried: readonly PdfTry[]): { state: PdfStanding; reason
 }
 
 // The extension's fetch stopped where only the user can get through, for every paper of that site
-export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === "check" || t.ended === "sign-in" || t.ended === "no-permission")
+export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === "check" || t.ended === "blocked" || t.ended === "sign-in" || t.ended === "no-permission")
 
 // Whether a paper goes to the extension's queue when the extension connects, and the try that says why
 // (whose time orders the queue, oldest first). The queue lives in memory, so after a restart, or before

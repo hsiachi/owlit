@@ -60,10 +60,11 @@ export interface ExtensionView {
 }
 
 // A site paused for the user: a sign-in (the library's, through its proxy, or the publisher's), a check,
-// or the extension not yet allowed to read it. One covers every paper waiting there; it goes by itself
-// once the user is through and owlit goes on.
+// the site's firewall blocking their browser (another network gets past it), or the extension not yet
+// allowed to read it. One covers every paper waiting there; it goes by itself once the user is through
+// and owlit goes on.
 export interface ExtensionWait {
-  kind: "sign-in" | "check" | "permission"
+  kind: "sign-in" | "check" | "blocked" | "permission"
   // The site, as the queue paces it: the publisher's registrable domain, or the library proxy's host.
   // For a permission, the site to allow, which through the proxy is the publisher's, not the proxy's
   host: string
@@ -187,7 +188,7 @@ export interface WorkAnswer {
 
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
 // extension's own page with one Allow button, for the papers waiting there.
-export type OpenPage = { kind: "sign-in" | "check"; host: string; url: string } | { kind: "permission"; host: string; papers: number }
+export type OpenPage = { kind: "sign-in" | "check" | "blocked"; host: string; url: string } | { kind: "permission"; host: string; papers: number }
 
 // extension.open: who opened the page for a site that waits on the user. extension: the extension, in
 // its browser; browser: owlit, in the browser the extension was paired in, since none is connected now;
@@ -199,7 +200,7 @@ export interface ExtensionOpened {
 
 // How a fetch ended without a PDF. The extension reports only this word, the host, the page's title and
 // its final address, never the page's text.
-export type WorkEnding = "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "no-permission"
+export type WorkEnding = "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
 
 // POST /work/:id, as JSON when no PDF came (a PDF comes as application/pdf)
 export interface WorkEnded {

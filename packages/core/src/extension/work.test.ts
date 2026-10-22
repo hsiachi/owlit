@@ -98,6 +98,15 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["w2"])
   })
 
+  it("pauses a site whose firewall blocks the user's browser, like a check", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("b1", "bmj.com"), false)
+    const [b1] = await take()
+    work.settle(b1.id, "blocked", { url: "https://www.bmj.com/content/b1" })
+    expect(work.waits()).toEqual([{ kind: "blocked", host: "bmj.com", papers: 1, url: "https://www.bmj.com/content/b1", askedFor: false, proxied: false }])
+    expect(work.holding(library, "b1")).toEqual({ host: "bmj.com", waits: "blocked" })
+  })
+
   it("backs off at a site that reached nothing, keeping its papers, and goes on once it answers", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)

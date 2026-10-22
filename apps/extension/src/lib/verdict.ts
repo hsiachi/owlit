@@ -1,7 +1,7 @@
 import type { WorkEnding } from "@owlit/protocol"
 
 // What a page that came instead of a PDF says, in owlit's one word for it: a check in front of the page,
-// a sign-in (the library proxy's, a school's, a publisher's), the library's proxy saying it hasn't got the
+// the site's firewall turning this browser away (blocked), a sign-in (the library proxy's, a school's, a publisher's), the library's proxy saying it hasn't got the
 // paper, a page that isn't there, an offer to buy or get access, or none of these (no copy). Read from
 // where the fetch ended, its status, and its HTML as text, so it runs the same in the background, on a
 // tab's document and in a test.
@@ -31,6 +31,14 @@ const CHECK_MARKUP = /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|
 // AWS WAF's script is on the pages of sites that use it whether or not they challenge; it is a check
 // only on the 202 (or a refusal) WAF answers a challenge with
 const WAF_MARKUP = /awswaf|AwsWafIntegration/i
+// The firewall turning the browser away with nothing to pass, which only another network (or time) gets
+// past: Cloudflare's block page ("Sorry, you have been blocked", its Access denied 10xx errors) and
+// Akamai's Access Denied with its reference number. Read before the check: Cloudflare's block page has
+// the title its older checks had, "Attention Required!". Its 5xx error pages share the block page's
+// markup (cf-error-details), so only the block's words and codes count.
+const BLOCK_MARKUP = /data-translate=["']?block_headline/i
+const BLOCK_WORDS = /you have been blocked|used cloudflare to restrict access|\berror (1005|1006|1007|1008|1009|1012|1020)\b/i
+const AKAMAI_BLOCK = /you don't have permission to access .* on this server\.? reference #\d/i
 // A captcha counts as a check only on a page that refused the request: an article page may carry one
 // for its comment form
 const CAPTCHA_MARKUP = /class=["'][^"']*\b(g-recaptcha|h-captcha)\b|challenges\.cloudflare\.com\/turnstile|id=["']?captcha\b/i
@@ -91,6 +99,14 @@ function offersAccess(html: string) {
   return false
 }
 
+export function isBlocked(page: Pick<Page, "html">) {
+  if (BLOCK_MARKUP.test(page.html)) return true
+  // A paper's page may say these words in its own text
+  if (isArticle(page.html)) return false
+  const text = words(page.html)
+  return BLOCK_WORDS.test(text) || AKAMAI_BLOCK.test(text)
+}
+
 export function isCheck(page: Pick<Page, "status" | "html">) {
   const refused = page.status === 403 || page.status === 429 || page.status === 503
   return (
@@ -125,6 +141,7 @@ export function verdict(page: Page): WorkEnding {
     return "no-copy"
   }
   const title = titleOf(page.html)
+  if (isBlocked(page)) return "blocked"
   if (isCheck(page)) return "check"
   if (page.status === 404 || page.status === 410) return "not-there"
   // The proxy asks for fewer requests: nothing was decided about the paper, so it is a try that reached
@@ -152,10 +169,10 @@ export function verdict(page: Page): WorkEnding {
   return "no-copy"
 }
 
-// Whether the user got through at this page: it is neither a check nor a sign-in
+// Whether the user got through at this page: it is neither a check, a block nor a sign-in
 export const isThrough = (page: Page) => {
   const said = verdict(page)
-  return said !== "check" && said !== "sign-in"
+  return said !== "check" && said !== "blocked" && said !== "sign-in"
 }
 
 function safeUrl(text: string) {

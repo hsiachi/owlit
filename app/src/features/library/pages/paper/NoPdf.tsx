@@ -48,6 +48,7 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
     }
     case "for-sign-in":
     case "for-check":
+    case "blocked":
     case "for-permission": {
       // Its own try's host and date when it met the wait itself, else it is one of the papers in line behind
       const site = s?.extension?.host ?? host
@@ -56,6 +57,8 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
       if (state === "for-sign-in" && s?.extension?.proxied) return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.`
       if (state === "for-sign-in") return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.`
       if (state === "for-check") return own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.`
+      // The block is by the browser's network, mostly: another one (or a VPN turned off) gets past it
+      if (state === "blocked") return own ? t`${at} turned your browser away · ${date}. Another network usually gets past it.` : t`Once ${site} lets your browser in, owlit goes on with every paper waiting there.`
       return own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.`
     }
     case "offline":
@@ -180,7 +183,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
         }
         detail={detail}
         actions={
-          state === "for-sign-in" || state === "for-check" || state === "for-permission" ? (
+          state === "for-sign-in" || state === "for-check" || state === "blocked" || state === "for-permission" ? (
             <>
               {siteWait ? (
                 <Button size="sm" onClick={() => void actOnWait(siteWait)}>

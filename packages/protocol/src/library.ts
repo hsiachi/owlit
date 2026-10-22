@@ -1,5 +1,6 @@
 import type { ActorId } from "./changes.ts"
 import type { PaperView } from "./activity.ts"
+import type { ExtensionWait } from "./extension.ts"
 
 // Library domain types. A paper is one record: facts about it plus the user's judgement
 // (star, status, tags). Highlights and notes are separate records keyed by paper.
@@ -36,9 +37,10 @@ export interface PaperPdf {
 // How one try at a paper's PDF ended. pdf: it came. no-copy: owlit's routes found no copy. no-access: the
 // publisher offered access instead of the PDF. not-offered: the library's proxy hasn't got the paper.
 // not-there: the publisher has no PDF at that address (a 404). check, sign-in: a page wanted a person.
+// blocked: the site's firewall turned the browser away (by its network, mostly).
 // offline: nothing could be reached. no-permission: the browser extension may not read the site until
 // the user allows it there (an optional host permission, asked for from the extension's own button).
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "sign-in" | "offline" | "no-permission"
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
 
 // One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)
 // or the browser extension.
@@ -65,9 +67,9 @@ export interface PdfState {
   // When owlit's back-off look runs next; absent when it won't
   nextLook?: number
   // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
-  // held while the site waits for the user (waits: a sign-in, a check, the extension being allowed
-  // there). Kept in memory only, with the extension's queue.
-  extension?: { host: string; fetching?: boolean; waits?: "sign-in" | "check" | "permission"; proxied?: boolean }
+  // held while the site waits for the user (waits: a sign-in, a check, a way past its block, the
+  // extension being allowed there). Kept in memory only, with the extension's queue.
+  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; proxied?: boolean }
 }
 
 export interface Paper {
