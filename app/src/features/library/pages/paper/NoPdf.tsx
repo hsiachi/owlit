@@ -15,7 +15,7 @@ import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
 import { noPdfTitle, pdfGone, pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
 import { useExtension, useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, waitWords } from "@/features/extension/waits"
+import { actOnWait, waitOf, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
 type CardState = PdfWait | "looking"
@@ -55,10 +55,10 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
       const at = own ? hostName(own) : site
       if (state === "for-sign-in" && s?.extension?.proxied) return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.`
       if (state === "for-sign-in") return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.`
-      if (state === "for-check") return own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.`
+      if (state === "for-check") return own ? t`${at} asked you to verify you're human · ${date}` : t`Verifying once there covers every paper waiting at ${site}.`
       // The block is by the browser's network, mostly: another one (or a VPN turned off) gets past it
       if (state === "blocked") return own ? t`${at} turned your browser away · ${date}. Another network usually gets past it.` : t`Once ${site} lets your browser in, owlit goes on with every paper waiting there.`
-      return own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.`
+      return own ? t`owlit doesn't have permission for ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.`
     }
     case "offline":
       return t`owlit couldn't reach any source of PDFs when it looked. It looks again within the hour.`
@@ -132,7 +132,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   // The line for the site the extension waits at, with its one thing to do
   const waits = useExtensionWaits()
-  const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
+  const siteWait = waitOf(paper, waits)
 
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   // A browser whose extension may connect; until owlit says, as if there were one, so the offer below
@@ -189,7 +189,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
             <>
               {siteWait ? (
                 <Button size="sm" onClick={() => void actOnWait(siteWait)}>
-                  {waitWords(siteWait).action}
+                  {waitWords(siteWait, siteWait.papers).action}
                 </Button>
               ) : (
                 // No line for it (owlit restarted since): looking again hands it to the extension again

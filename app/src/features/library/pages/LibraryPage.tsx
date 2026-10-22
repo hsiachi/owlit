@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { useFileDrop } from "@/hooks/use-file-drop"
 import { AddCandidate } from "../components/AddCandidate"
 import { BulkBar } from "../components/BulkBar"
-import { ExtensionWaitLines } from "../components/ExtensionWaitLines"
-import { GetAllLine } from "../components/GetAllLine"
+import { PdfBlock } from "../components/PdfBlock"
+import { GetPdfsLine } from "../components/GetPdfsLine"
 import { ImportBanner } from "../components/ImportBanner"
 import { FilterBar, LayoutToggle, LibraryFindField, LibraryHeader, SortMenu } from "../components/LibraryHeader"
 import { PaperList, PaperTable } from "../components/PaperList"
@@ -110,7 +110,7 @@ export function LibraryPage() {
           }
         />
         <ImportBanner />
-        <ExtensionWaitLines />
+        <PdfBlock />
         <LibraryFindField onSubmit={submit} onPickFiles={(files) => addPdfFiles(files, actions.open)} />
         {offered && offered === words && !noMatch && <FindMore onAsk={askOwlit} />}
         {refInput ? (
@@ -122,7 +122,7 @@ export function LibraryPage() {
         ) : (
           <>
             <FilterBar />
-            {byReason && <GetAllLine papers={visible} />}
+            {byReason && <GetPdfsLine papers={visible} />}
             <div className="mt-6">
               {noMatch ? (
                 <NoMatch words={words} onAsk={askOwlit} />

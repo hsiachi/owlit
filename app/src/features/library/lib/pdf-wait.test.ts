@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { PdfState, PdfTry } from "@owlit/protocol"
-import { pdfWait, pdfWord, waitsOnYou } from "./pdf-wait"
+import { pdfColumnWord, pdfWait, pdfWord, waitsOnYou } from "./pdf-wait"
 
 const tryOf = (ended: PdfTry["ended"], by: PdfTry["by"] = "search"): PdfTry => ({ by, ended, at: 1 })
 const noPdf = (ended: PdfTry["ended"], extra: Partial<PdfState> = {}) => ({ pdfState: { state: "no-pdf" as const, tried: [tryOf(ended)], reason: tryOf(ended), ...extra } })
@@ -28,13 +28,17 @@ describe("pdfWait", () => {
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tandfonline.com", waits: "check" } } })).toBe("for-check")
     const blocked = tryOf("blocked", "extension")
     expect(pdfWait({ pdfState: { state: "finding", tried: [blocked], reason: blocked, extension: { host: "bmj.com", waits: "blocked" } } })).toBe("blocked")
-    expect(pdfWord("blocked")).toBe(pdfWord("finding"))
+    expect(pdfWord("blocked")).toBe("Blocked")
     // Fetched again once the user got through: finding, whatever its last try met
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tlink.lib.tsinghua.edu.cn" } } })).toBe("finding")
     // After a restart, before the queue has it again, its last try says what it waits for
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn } })).toBe("for-sign-in")
     expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-permission", "extension")], reason: tryOf("no-permission", "extension") } })).toBe("for-permission")
-    expect(pdfWord("for-sign-in")).toBe(pdfWord("finding"))
+    expect(pdfWord("for-sign-in")).toBe("Needs sign-in")
+    // In line at the extension, not held: Waiting, which owlit's own looking is not
+    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com" } } })).toBe("Waiting")
+    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com", fetching: true } } })).toBe("Finding")
+    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [] } })).toBe("Finding")
   })
 
   it("waits on the user at a site only once they asked for one of its papers", () => {
