@@ -220,6 +220,7 @@ export class Workspace {
       facts: (id) => this.library.threadFacts(id),
       findPassage: (id, quote) => this.findPassage(id, quote),
       searches: (by, since) => this.library.searchesBy(by, since),
+      projects: () => this.projects.list(),
       ...options.threads,
     })
     this.tasks = new Scheduler({

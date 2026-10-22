@@ -428,6 +428,36 @@ describe("Threads, a close question", () => {
 
 })
 
+describe("Threads, the project", () => {
+  const marked = (...paths: string[]) => async () => paths.map((p) => ({ path: p, mark: `${p}/project.md`, name: p.split("/").at(-1)!, parents: [], currentDrafts: [] }))
+
+  it("keeps a marked folder's path as the projects spell it, and drops one that is no project, saying so", async () => {
+    const { threads } = setup({ projects: marked("Research/主动提醒研究") })
+    // Decomposed, with slashes around it, as a path typed on macOS can come
+    const kept = await start(threads, { project: "/Research/主动提醒研究/".normalize("NFD") })
+    expect(kept.left).toBeUndefined()
+    expect((await threads.get(kept.id)).project).toBe("Research/主动提醒研究")
+
+    const dropped = await start(threads, { title: "Another", project: "主动提醒研究" })
+    expect((await threads.get(dropped.id)).project).toBe("")
+    expect(dropped.left).toEqual([expect.stringMatching(/^"主动提醒研究" is no project of this workspace .* thread_list's Projects line\.$/)])
+  })
+
+  it("starts a thread with no papers in no project rather than refusing it", async () => {
+    const { threads } = setup({ projects: marked() })
+    const done = await threads.write({ asked: "q?", title: "Nothing found", project: "Thesis" }, agent)
+    expect(done.left).toHaveLength(1)
+    expect((await threads.get(done.id)).project).toBe("")
+  })
+
+  it("files a thread under a project from the window only while it is marked", async () => {
+    const { threads } = setup({ projects: marked("Thesis") })
+    const { id } = await start(threads, { project: "" })
+    expect((await threads.edit(id, { op: "project", project: "Thesis" }, window)).project).toBe("Thesis")
+    expect((await threads.edit(id, { op: "project", project: "Gone" }, window)).project).toBe("")
+  })
+})
+
 describe("Threads, the user's side", () => {
   it("gives a row Owlit added a dot, and none to the user's own changes", async () => {
     const { threads, seen, dots } = setup()

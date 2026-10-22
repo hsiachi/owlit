@@ -6393,7 +6393,7 @@ msgstr "打开到第 {page} 页"
 msgid "Move to project"
 msgstr "移到项目"
 
-#. a thread that belongs to no project folder
+#. a thread that belongs to no project
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "No project"
 msgstr "不属于项目"
@@ -6561,16 +6561,16 @@ msgstr "让 Owlit 就一个问题找论文，脉络会出现在这里。"
 msgid "Found nothing"
 msgstr "什么也没找到"
 
-#. after a thread's title: the project folder it names isn't in the workspace
+#. after a thread's title: the folder path the thread was filed under is no project now (its project.md is gone)
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "no folder named {was}"
-msgstr "没有名为 {was} 的文件夹"
+msgid "{was} · no project here any more"
+msgstr "{was} · 已不再是项目"
 
 #: app/src/features/threads/store.ts
-msgid "Moved to {project}"
-msgstr "已移到 {project}"
+msgid "Moved to {name}"
+msgstr "已移到 {name}"
 
-#. toast: a thread now belongs to no project folder
+#. toast: a thread now belongs to no project
 #: app/src/features/threads/store.ts
 msgid "Moved out of its project"
 msgstr "已移出项目"

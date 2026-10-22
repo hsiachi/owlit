@@ -23,6 +23,7 @@ import {
   type MemoryKind,
   type ReadStatus,
   type Paper,
+  type Project,
   pdfWait,
   type PdfEnded,
   type ToolSpec,
@@ -373,17 +374,22 @@ async function run(tool: string, args: Record<string, unknown>, owlit: OwlitClie
       return `Highlighted the passage on p. ${page} of ${title}. The user can remove it from the paper's Highlights.`
     }
     case "thread_list": {
-      const all = await owlit.rpc.threads.list()
-      if (!all.length) return "There are no threads yet."
-      return all
-        .map((c) => {
-          const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
-          return `- ${c.id} · ${c.title}${c.project ? ` · in ${c.project}` : ""} · ${size}\n  Asked: ${c.question}${c.one ? `\n  ${c.one}` : ""}`
-        })
-        .join("\n")
+      const [all, { projects }] = await Promise.all([owlit.rpc.threads.list(), owlit.rpc.projects.list()])
+      // The paths a thread's project is written as, first, so the agent never has to guess one
+      const head = projects.length
+        ? `Projects: ${projects.map((p) => `${p.path} (${p.name})`).join(", ")}`
+        : "Projects: none (no folder of the workspace holds a project.md), so a thread's project stays empty."
+      if (!all.length) return `${head}\nThere are no threads yet.`
+      const lines = all.map((c) => {
+        const size = `${c.papers} paper${c.papers === 1 ? "" : "s"}${c.columns ? `, ${c.columns} column${c.columns === 1 ? "" : "s"}` : ""}`
+        return `- ${c.id} · ${c.title}${c.project ? ` · in ${projectWords(c.project, projects)}` : ""} · ${size}\n  Asked: ${c.question}${c.one ? `\n  ${c.one}` : ""}`
+      })
+      return [head, ...lines].join("\n")
     }
-    case "thread_read":
-      return threadText(await owlit.rpc.threads.get({ id: str("id") }))
+    case "thread_read": {
+      const [thread, { projects }] = await Promise.all([owlit.rpc.threads.get({ id: str("id") }), owlit.rpc.projects.list()])
+      return threadText(thread, projects)
+    }
     case "thread_write": {
       const write = threadWriteOf(args)
       if (typeof write === "string") return write
@@ -503,10 +509,18 @@ function parseJsonArgs(args: Record<string, unknown>, keys: string[]): Record<st
   return out
 }
 
+// A thread's project as the agent reads it: the project's name, with its path when the two differ; a path
+// whose mark has gone (the folder moved, or its project.md deleted) as that path, said to be no project
+export function projectWords(path: string, projects: Project[] | undefined): string {
+  const project = projects?.find((p) => p.path === path)
+  if (!projects || project?.name === path) return path
+  return project ? `${project.name} (${project.path})` : `${path} (no project here any more)`
+}
+
 // A thread as the agent reads it: the question and later ones, the columns (a comparison with its
 // sentences; one out of the user's sight marked so), the groupings with their groups, the report, and each
 // paper as what it is · how it bears on the question · how it was found · its groups, then its other answers
-export function threadText(stored: ThreadRead) {
+export function threadText(stored: ThreadRead, projects?: Project[]) {
   const c = shownThread(stored)
   const asks = c.columns.filter((col) => col.kind !== "grouping")
   const groupings = c.columns.filter((col) => col.kind === "grouping")
@@ -519,7 +533,7 @@ export function threadText(stored: ThreadRead) {
   const answer = (cell: ThreadCell) => `${cell.text} [${cell.depth}${cell.passage ? `, p. ${cell.passage.page}` : ""}]`
   const lines = [
     `${c.title} (${threadUri(c.id)})`,
-    `Asked: ${c.asked.text}${c.project ? ` · project ${c.project}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
+    `Asked: ${c.asked.text}${c.project ? ` · project ${projectWords(c.project, projects)}` : ""}${c.sources.length ? ` · looked in ${c.sources.join(", ")}` : ""}`,
     ...(c.alsoAsked?.length ? [`Later questions added here: ${c.alsoAsked.map((a) => `«${a.text}»`).join("; ")}`] : []),
     `Columns: ${asks.map(columnLine).join("; ")}`,
     ...groupings.map(

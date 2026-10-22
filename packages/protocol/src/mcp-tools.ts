@@ -396,7 +396,7 @@ function TOOLS(): ToolSpec[] {
     name: "thread_list",
     touches: "read",
     description:
-      "The threads Owlit keeps for the user: your reports on questions the user asked, with the papers they rest on. Each line: id, title, the project it belongs to, how many papers and columns, the question as the user asked it, and your one line on the thread. Look here before any thread work: add to the thread whose question the new one falls inside; for a neighbouring question start a sibling in the same project.",
+      "The threads Owlit keeps for the user: your reports on questions the user asked, with the papers they rest on. First the workspace's projects (each a folder holding a project.md, as path (name)); then a line per thread: id, title, the project it belongs to (by name), how many papers and columns, the question as the user asked it, and your one line on the thread. Look here before any thread work: add to the thread whose question the new one falls inside; for a neighbouring question start a sibling in the same project.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
   },
@@ -419,7 +419,7 @@ function TOOLS(): ToolSpec[] {
         id: { type: "string", description: "An existing thread's id; leave out to start one" },
         asked: { type: "string", description: "The user's question in their own words: needed to start one, and given too when you add to one for a new question" },
         title: { type: "string", description: "A short neutral title for what it gathers, in the user's language, naming the topic rather than repeating the question: 回放式标注作为研究方法, not 我的研究方法该怎么设计？ (needed to start one)" },
-        project: { type: "string", description: "The workspace's top-level folder the work belongs to, when it plainly belongs to one (optional)" },
+        project: { type: "string", description: "The project the work belongs to: a marked folder's path from the Projects line thread_list gives you, when the work plainly belongs to it; leave empty when it belongs to none (optional)" },
         report: {
           type: "string",
           description:

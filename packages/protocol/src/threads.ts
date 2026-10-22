@@ -147,7 +147,8 @@ export interface Thread {
   asked: ThreadAsked
   // Later questions Owlit answered by adding to this thread rather than starting another
   alsoAsked?: ThreadAsked[]
-  // The workspace's top-level folder the work belongs to; "" for none
+  // The project the work belongs to: the path of a folder marked by a project.md (projects.ts); "" for
+  // none. A path whose mark has gone counts for none.
   project: string
   // Where Owlit looked ("Semantic Scholar", "OpenAlex", "ACM DL proceedings")
   sources: string[]
@@ -328,8 +329,9 @@ export interface ThreadRowWrite {
   foundBy?: string
 }
 
-// What the user changes of a thread from a window: which project it belongs to, and what the table is
-// grouped by. Everything else in a thread is Owlit's, changed by asking in a chat.
+// What the user changes of a thread from a window: which project it belongs to (a marked folder's path,
+// "" for none), and what the table is grouped by. Everything else in a thread is Owlit's, changed by
+// asking in a chat.
 export type ThreadEdit =
   | { op: "project"; project: string }
   // What the table is grouped by, remembered for the thread

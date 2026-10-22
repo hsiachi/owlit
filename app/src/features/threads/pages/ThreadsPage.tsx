@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import type { ThreadSummary } from "@owlit/protocol"
+import type { Project, ThreadSummary } from "@owlit/protocol"
 import { useState } from "react"
 import { FindField } from "@/components/find-field"
 import { hasAllWords, queryWords } from "@/lib/words"
@@ -13,8 +13,8 @@ import { PageShell, PageTitle } from "@/components/page"
 import { NoteDot, StoppedDot } from "@/components/marks"
 import { useTakeParam } from "@/hooks/use-take-param"
 import { shortDate } from "@/lib/time"
-import { useDocsStore } from "@/features/docs/store"
-import { useThreadMenu, useProjects } from "../components/ThreadMenu"
+import { useProjects, useProjectsStore } from "@/features/projects/store"
+import { useThreadMenu } from "../components/ThreadMenu"
 import { useThreadWork, workWords } from "../work"
 import { byProject } from "../lib"
 import { useThread, useThreadsStore, useSummaries } from "../store"
@@ -28,15 +28,15 @@ export function ThreadsPage() {
   const all = useSummaries()
   const loaded = useThreadsStore((s) => s.loaded)
   const projects = useProjects()
-  const docsLoaded = useDocsStore((s) => s.loaded)
+  const projectsLoaded = useProjectsStore((s) => s.loaded)
   const [query, setQuery] = useState("")
   const navigate = useNavigate()
   // What is typed finds threads by title and one line. Enter opens the first one found, the way a find
   // field does.
   const words = queryWords(query)
   const summaries = words.length ? all.filter((c) => hasAllWords(`${c.title} ${c.one}`, words)) : all
-  // Until the workspace's folders are known, a thread's project isn't taken for gone
-  const groups = byProject(summaries, docsLoaded ? projects : undefined)
+  // Until the workspace's projects are known, a thread's project isn't taken for gone
+  const groups = byProject(summaries, projectsLoaded ? projects : undefined)
   const enter = () => {
     const first = words.length ? groups[0]?.threads[0] : undefined
     if (first) navigate(`/threads/${first.id}`)
@@ -79,8 +79,9 @@ export function ThreadsPage() {
   )
 }
 
-// was: the project folder the thread names, which is gone; projects: the workspace's, for its menu
-function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: string; projects: string[] }) {
+// was: the project path the thread names, which is no project any more; projects: the workspace's, for its
+// menu
+function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: string; projects: Project[] }) {
   const navigate = useNavigate()
   const thread = useThread(summary.id)
   const groups = useThreadMenu(thread, projects)
@@ -105,13 +106,14 @@ function ThreadRow({ summary, was, projects }: { summary: ThreadSummary; was?: s
           {running ? null : work.failed ? <StoppedDot label={t`Owlit stopped.`} /> : fresh && <NoteDot />}
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate leading-5">
-            {summary.title}
+          <span className="flex min-w-0 items-baseline gap-2 leading-5">
+            <span className="truncate">{summary.title}</span>
             {was && (
-              // The thread names a project folder the workspace hasn't got (renamed, deleted, or never
-              // there): said as that, so the row doesn't read as a history the person can't place
-              <span className="ml-2 text-detail text-muted-foreground">
-                {t({ message: `no folder named ${was}`, comment: "after a thread's title: the project folder it names isn't in the workspace" })}
+              // The thread names a folder that is no project any more (its project.md deleted, or the
+              // folder moved): said with the path it names, so the person can find the folder or file it
+              // again from the menu. A long title gives way to it, up to about half the row.
+              <span className="max-w-[55%] shrink-0 truncate text-detail text-muted-foreground" title={was}>
+                {t({ message: `${was} · no project here any more`, comment: "after a thread's title: the folder path the thread was filed under is no project now (its project.md is gone)" })}
               </span>
             )}
           </span>

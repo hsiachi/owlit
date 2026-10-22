@@ -6393,7 +6393,7 @@ msgstr "Open at p. {page}"
 msgid "Move to project"
 msgstr "Move to project"
 
-#. a thread that belongs to no project folder
+#. a thread that belongs to no project
 #: app/src/features/threads/components/ThreadMenu.tsx
 msgid "No project"
 msgstr "No project"
@@ -6561,16 +6561,16 @@ msgstr "Ask Owlit to find papers on a question; the thread appears here."
 msgid "Found nothing"
 msgstr "Found nothing"
 
-#. after a thread's title: the project folder it names isn't in the workspace
+#. after a thread's title: the folder path the thread was filed under is no project now (its project.md is gone)
 #: app/src/features/threads/pages/ThreadsPage.tsx
-msgid "no folder named {was}"
-msgstr "no folder named {was}"
+msgid "{was} · no project here any more"
+msgstr "{was} · no project here any more"
 
 #: app/src/features/threads/store.ts
-msgid "Moved to {project}"
-msgstr "Moved to {project}"
+msgid "Moved to {name}"
+msgstr "Moved to {name}"
 
-#. toast: a thread now belongs to no project folder
+#. toast: a thread now belongs to no project
 #: app/src/features/threads/store.ts
 msgid "Moved out of its project"
 msgstr "Moved out of its project"

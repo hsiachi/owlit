@@ -371,7 +371,7 @@ describe("owlit-mcp", () => {
     core.onNotify((n) => {
       if (n.method === "changes.added") changed.push(n.params as Notifications["changes.added"])
     })
-    expect((await tool("thread_list")).text).toBe("There are no threads yet.")
+    expect((await tool("thread_list")).text).toBe("Projects: none (no folder of the workspace holds a project.md), so a thread's project stays empty.\nThere are no threads yet.")
     await call("library.add", { paper: { id: "arxiv-2005.11401", title: "Retrieval-Augmented Generation", authors: ["Patrick Lewis"], ids: { arxiv: "2005.11401" }, year: 2020 } })
     writeFileSync(path.join(root, "library/papers/arxiv-2005.11401/text.md"), "<!-- page 2 -->\n\nIntro.\n\n<!-- page 3 -->\n\nWe can draw a different latent document for each target token.\n")
 
@@ -393,7 +393,24 @@ describe("owlit-mcp", () => {
     expect((await call("threads.get", { id })).rows[0].cells.q).toMatchObject({ depth: "full", passage: { page: 3 } })
 
     await tool("thread_edit", { id, title: "Retrieval granularity" })
-    expect((await tool("thread_list")).text).toBe(`- ${id} · Retrieval granularity · 1 paper\n  Asked: 检索粒度有什么研究？\n  One paper so far: Retrieval-Augmented Generation retrieves per token.`)
+    const asked = "  Asked: 检索粒度有什么研究？\n  One paper so far: Retrieval-Augmented Generation retrieves per token."
+    expect((await tool("thread_list")).text).toBe(`Projects: none (no folder of the workspace holds a project.md), so a thread's project stays empty.\n- ${id} · Retrieval granularity · 1 paper\n${asked}`)
+
+    // A project is a folder holding a project.md: listed first, a thread in it named by the project's name
+    await call("docs.create", { path: "Study/RAG/project.md", content: "# Retrieval study\n" })
+    const filed = await tool("thread_write", { asked: "粒度怎么评估？", title: "粒度评估", project: "Study/RAG" })
+    expect(filed.text).not.toMatch(/Left out/)
+    const stray = await tool("thread_write", { asked: "别的？", title: "别的", project: "Study" })
+    expect(stray.text).toMatch(/Left out[\s\S]*"Study" is no project of this workspace/)
+    const listed = (await tool("thread_list")).text
+    expect(listed.split("\n")[0]).toBe("Projects: Study/RAG (Retrieval study)")
+    expect(listed).toMatch(/· 粒度评估 · in Retrieval study \(Study\/RAG\) · 0 papers/)
+    expect(listed).toMatch(/· 别的 · 0 papers/)
+    const filedId = /owlit:\/\/threads\/([\w-]+)/.exec(filed.text)![1]!
+    expect((await tool("thread_read", { id: filedId })).text).toMatch(/^Asked: 粒度怎么评估？ · project Retrieval study \(Study\/RAG\)$/m)
+    // Its mark gone, the thread still names the path, said to be no project
+    await call("docs.delete", { path: "Study/RAG/project.md" })
+    expect((await tool("thread_list")).text).toMatch(/· in Study\/RAG \(no project here any more\) ·/)
     expect((await tool("thread_read", { id })).text).toMatch(/^Retrieval granularity \(owlit:\/\/threads\/.+\)\nAsked: 检索粒度有什么研究？\nColumns: q = 检索粒度有什么研究？\n\nReport:\nOne paper so far/)
     expect((await tool("thread_read", { id })).text).toMatch(/- arxiv-2005\.11401 · Retrieval-Augmented Generation \(Patrick Lewis, 2020\) · what it is: not said · Each token may draw on its own retrieved document\. \[full, p\. 3\]/)
 
@@ -411,7 +428,7 @@ describe("owlit-mcp", () => {
     // Another way to group them is a new grouping of the same thread
     await tool("thread_write", { id, new_grouping: "by method", groups: JSON.stringify([{ id: "abl", name: "Ablations" }]), rows: JSON.stringify([{ id: "arxiv-2005.11401", group: "abl" }]) })
     expect((await tool("thread_read", { id })).text).toMatch(/Grouping g\d+ \(by method\): abl = Ablations/)
-    expect((await tool("thread_list")).text.match(/^- /gm)).toHaveLength(1)
+    expect((await tool("thread_list")).text.match(/^- /gm)).toHaveLength(3)
   })
 
   it("names the tool call Claude Code says a request is for in the change it makes", async () => {

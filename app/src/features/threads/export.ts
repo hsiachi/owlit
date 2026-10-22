@@ -1,9 +1,10 @@
 import { t } from "@lingui/core/macro"
-import { citationLink, cleanName, fromText, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
+import { citationLink, cleanName, fromText, threadUri, mentionLink, paperUri, QUESTION_COLUMN, uniquePath, type Project, type ThreadRead, type ThreadColumn, type ThreadRowRead } from "@owlit/protocol"
 import type { NavigateFunction } from "react-router-dom"
 import { toast } from "sonner"
 import { pathTaken, useDocsStore } from "@/features/docs/store"
 import { displayName } from "@/features/docs/types"
+import { projectAt, useProjectsStore } from "@/features/projects/store"
 import { citeOf, columnLabel, groupByOf, relWord, sectionsOf, shown } from "./lib"
 
 const cell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
@@ -98,10 +99,16 @@ export function threadMarkdown(c: ThreadRead, now = new Date()) {
   return out.join("\n\n") + "\n"
 }
 
+// Where the doc goes: in the thread's project folder while it is marked, else at the workspace's root (a
+// path that is no project may not be a folder at all any more), named after the thread
+export function exportPath(c: Pick<ThreadRead, "project" | "title">, projects: Project[], taken: (path: string) => boolean) {
+  return uniquePath(projectAt(projects, c.project)?.path ?? "", cleanName(c.title).slice(0, 80) || t`Thread`, ".md", taken)
+}
+
 // Writes it as a new doc in the thread's project, named after the thread
 export function exportAsDoc(c: ThreadRead, navigate: NavigateFunction) {
   const { files, folders, createDocAt } = useDocsStore.getState()
-  const path = uniquePath(c.project, cleanName(c.title).slice(0, 80) || t`Thread`, ".md", pathTaken(files, folders))
+  const path = exportPath(c, useProjectsStore.getState().projects, pathTaken(files, folders))
   const doc = createDocAt(path, threadMarkdown(c))
   if (!doc) return void toast.error(t`owlit couldn't make the doc.`)
   toast(t`Exported as a doc`, {
