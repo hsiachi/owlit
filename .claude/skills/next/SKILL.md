@@ -17,16 +17,19 @@ checkout: `git worktree list`, `git branch --no-merged dev`, `gh run list -b dev
    (what it unblocks, what hsiachi said, what the data showed), and what it would start with. One
    recommendation, first.
 3. **Ask** hsiachi which one (AskUserQuestion, the candidates as options). Don't start anything before
-   the answer.
+   the answer. One discussion at a time: when the answer or one message holds several things, write each
+   one's two-line Problem here for hsiachi to confirm, start the first, and mark the others in Open work
+   "after <slug>", so the next `/next` offers them once that one is Agreed.
 4. **Start it.** The brief stays short on purpose: the skill in the new session says what to read, so
    the brief carries only what the notes don't have (what hsiachi just said, a screenshot's path).
    - A fix: `start_session` (user_asked, fresh, worktree, model claude-opus-5-5) with the row, the
      evidence files it names, the files to touch, and "finish with /ship".
    - A piece or bigger: `start_session` (user_asked, fresh, no worktree, model claude-fable-5-1, effort
      high: a discussion needs the deeper thinking) with "Run /discuss on <row id>: <row name>" and those one or two sentences.
-   - Right after either start: `detach_session` on the new session. This session's work ends here, and
+   - Right after any start: `detach_session` on the new session. This session's work ends here, and
      a linked session would wake it after every turn it finishes.
    - Already in flight: `SendMessage` to the session that owns it, or continue it here if it has none.
+     Never to tell a session that dev moved or something merged: `/ship` rebases when it runs.
 5. **Update the row's Status** in the Tasks table ("Discussing from <date>", "Building: session
    <name>") and the Open work table where a row exists.
 
