@@ -1,58 +1,50 @@
 ---
 name: discuss
-description: Take a question, idea or backlog row from a problem to Agreed: the work folder, the Problem in four parts with real data, a second opinion, the Proposal with options and a mockup, the examiner, rounds with hsiachi, Settled and the Work checklist. Use when a piece or bigger task starts, in the session that will own it.
+description: Take a question, idea or backlog row to Agreed with only what it needs: sorted by kind and size, the Problem checked with hsiachi, then one plan for a clear one, drawn directions for a visual one, and options, a second opinion, a page and the examiner only for an open whether / what piece. Use when a piece or bigger task starts, in the session that will own it.
 ---
 
 The argument is a Tasks row (`T13`), an `ideas.md` entry, or a sentence. A discussion writes only under
-`local/` (ignored by git, shared by every worktree), so it needs no worktree and no branch. If this session
-was given a worktree anyway, `git reset --hard dev` there first: the app cuts worktrees from `main`, far
-behind `dev`, and the code you read must be current.
+`local/`, so it needs no worktree; if this session has one anyway, `git reset --hard dev` there first (the
+app cuts worktrees from `main`).
 
 Read first: `AGENTS.md`, `CLAUDE.local.md`, `local/README.md` (A work README; Firm and provisional),
-`local/product/vision.md`, `local/product/decisions/README.md`, the latest review's Positioning and Tasks
-(`local/reviews/<date>/README.md`) and the evidence the row names. Then enough of the code to say in one
-line what each screen the request names shows today.
+`local/product/vision.md`, `local/product/decisions/README.md`, the latest review's Positioning and Tasks,
+the evidence the row names, and enough code to say what each screen it names shows today.
 
-1. **The folder.** `local/work/<today>-<slug>/README.md` with the template's sections and
-   `Status: Discussing`. Remove the entry from `ideas.md`; add the row to `local/README.md` › Open work;
-   set the Tasks row to "Discussing in work/…".
-2. **The Problem**, four parts, with data from hsiachi's workspace (`~/Desktop/Owlit`, read-only: the
-   journal, the change log, the index; counts and dates, never a doc's or a chat's content; "no data"
-   where there is none). One line per screen the request names. Not a restatement of the request.
-   **Then stop and check it with hsiachi** before any option exists: in the chat, the four parts in a
-   line or two each, the numbers behind them, and what you take the request to be asking, then wait.
-   Their corrections go into the Problem; repeat until they say it's right. A second opinion, a Proposal
-   or a page built on a misread problem has to be thrown away, and the first reading has been off.
-3. **A second opinion** (every bigger row; a piece when hsiachi asks). One `Agent` (model opus) gets the
-   Problem section, `vision.md` and `decisions/`, and nothing of your leanings, and returns three
-   directions with what each gives up. Save it as `second-opinion.md` in the folder. Run it before you
-   write your own Proposal, so it can't anchor on yours.
-4. **The Proposal.** The options, yours and the second opinion's merged (A, B, C…), one recommendation
-   with reasons, and the questions only hsiachi can answer. Literature when the question has research
-   behind it: one `Agent` (opus) per thread, verified sources into `reading.md`, the conclusions into
-   the Proposal.
-5. **The page.** Every discussion has one, `<slug>.html` beside the README, served by the `owlit-local`
-   preview. It opens on the problem, before any option: what hsiachi does today (the numbers that
-   matter, no more than five), what they asked in their words, what is behind it, the smallest change
-   that would relieve it. Only then the options, each with its trade-offs; drawn on the same real data
-   from the workspace (names withheld) when the question is visual, a toolbar to switch option and
-   screen; a short card each when it isn't. The recommendation and the open questions close the page.
-   Options without this top are a menu with no question, and hsiachi has said so.
-6. **`/examine`** (proposal pass). Answer each graded finding in the Proposal or in Settled; a wrong
-   number it caught is corrected in the Problem, its Note kept.
-7. **Open the page beside the chat** before reporting: `preview_start` with `owlit-local`, then
-   `navigate` to `http://localhost:5181/work/<date>-<slug>/<slug>.html`. Then **report** in the chat in
-   the same order as the page: the problem in three lines first, then what the data showed, each option
-   in three lines, the recommendation, the open questions, and the page's URL. Stop and wait.
-8. **A round.** hsiachi's reply changes the Proposal and the page in place (no "round 2" section; a new
-   round of drawings is `<slug>-r2.html`, with the problem at its top again, since the examiner and
-   hsiachi read each page on its own). Reopen the page in the side pane each round. Run the examiner
-   again when the direction changed, not for wording. "你定吧" means decide, and write each decision as
-   Provisional with when to look again.
-9. **Settled, Touches, Work.** Each decision dated and marked Firm or Provisional; a Touches line for
-   each item that applies; Work steps sized so one build subagent does one in a sitting, each with its
-   files and how to check it; Verification lists the Electron-only items as "Not tried". `Status: Agreed`.
-   Update the Open work row and the Tasks row.
-10. **Say what's next**: `/build` in this session, when hsiachi says so.
+The work README is a hand-off to the next session, not something hsiachi reads: they read the chat and
+the page. Keep it short and current, with no history.
+
+1. **Sort the question** and say which it is in the chat. Kind: *whether / what* (should owlit do this,
+   what should it be), *how it looks* (the visual design of something decided), *how to build it*. Size:
+   *clear* once hsiachi confirms the Problem and says so, or *open*. One message with several things:
+   write each one's two-line Problem here for hsiachi to confirm, then take them one at a time.
+2. **The folder.** `local/work/<today>-<slug>/README.md` from the template, `Status: Discussing`. Move
+   the `ideas.md` entry out; add the Open work row; set the Tasks row to "Discussing in work/…".
+3. **The Problem**, at most 150 words, with data from `~/Desktop/Owlit` (read-only: journal, change log,
+   index; counts and dates, never a doc's or chat's content). **Stop and check it with hsiachi** before
+   any option exists, and correct it until they say it's right. Clear: cut it to two or three lines.
+4. **By kind and size:**
+   - **Clear, or how to build it:** one plan in the Proposal (what changes, where, what it gives up), then
+     step 7. No second opinion, examiner, page or rounds.
+   - **How it looks:** a page with two or three full directions at real size, real copy from the
+     workspace (names withheld), each naming what it draws on. No second opinion, no A/B/C prose.
+     `/design:design-critique` reviews the page instead of the examiner; fix what it finds.
+   - **Open whether / what:** a second opinion first, from one `Agent` (opus) given the Problem,
+     `vision.md` and `decisions/` and none of your leanings: three directions, what each gives up, saved
+     as `second-opinion.md`. Then the Proposal: options merged, one recommendation, the questions only
+     hsiachi can answer (literature: one `Agent` per thread, sources into `reading.md`). A page, and
+     `/examine` (proposal pass) on it.
+5. **The page**, `<slug>.html`, opens on the problem (today in at most five numbers, the ask in
+   hsiachi's words, what's behind it, the smallest change), then the options drawn on real data with a
+   toolbar, then the recommendation and the open questions.
+6. **Report and rounds.** Open the page beside the chat (`preview_start` `owlit-local`, `navigate` to
+   `http://localhost:5181/work/<date>-<slug>/<slug>.html`), then report in its order, three lines per
+   option. Wait. Each reply changes the Proposal and page in place (new drawings: `<slug>-r2.html`, the
+   problem at its top again). A rejected option shrinks to one line with why. The examiner runs again
+   only when the direction changed. "你定吧" means decide, as Provisional with when to look again.
+7. **Settled, Touches, Work.** The Proposal keeps only the chosen option. Decisions dated, Firm or
+   Provisional; a Touches line for each item that applies; Work steps with their files and how to check
+   them, small ones marked `small`; Verification lists the Electron-only items as "Not tried".
+   `Status: Agreed`; update the Open work and Tasks rows. Then `/build` here, when hsiachi says so.
 
 No code during a discussion. Plain English in the folder; the chat in hsiachi's language.
