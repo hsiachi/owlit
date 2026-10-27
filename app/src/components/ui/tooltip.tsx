@@ -4,8 +4,10 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
+// A tooltip waits for the pointer to rest: at 0 every button the pointer crossed on its way flashed its
+// label. Once one is showing, Radix shows its neighbours at once (skipDelayDuration).
 function TooltipProvider({
-  delayDuration = 0,
+  delayDuration = 500,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (
