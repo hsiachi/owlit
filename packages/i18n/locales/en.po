@@ -3988,6 +3988,7 @@ msgid "Copy all as Markdown"
 msgstr "Copy all as Markdown"
 
 #: app/src/features/library/components/HighlightsList.tsx
+#: app/src/features/library/reader/LinkLayer.tsx
 #: app/src/features/onboarding/demos/ReadDemo.tsx
 msgid "Page {page}"
 msgstr "Page {page}"

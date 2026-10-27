@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react"
 import { CheckIcon, CopyIcon, MessageSquareTextIcon, Trash2Icon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
 import { OwlitMark } from "@/components/owlit-mark"
-import { Tip } from "@/components/tip"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { isTyping } from "@/lib/keys"
@@ -82,25 +81,25 @@ export function HighlightToolbar({
     >
       <div className="flex items-center gap-0.5">
         <div className="flex items-center gap-1 px-1">
+          {/* A swatch is its own label: no tooltip, the colour's name only for a screen reader */}
           {HIGHLIGHT_COLORS.map((c) => (
-            <Tip key={c} label={highlightLabel(c)}>
-              <button
-                type="button"
-                aria-label={highlightLabel(c)}
-                aria-pressed={color === c}
-                onClick={() => onColor(c)}
-                className="flex size-6 items-center justify-center rounded-full"
+            <button
+              key={c}
+              type="button"
+              aria-label={highlightLabel(c)}
+              aria-pressed={color === c}
+              onClick={() => onColor(c)}
+              className="flex size-6 items-center justify-center rounded-full"
+            >
+              {/* The current colour carries a check, as a menu's selected item does. The page under a
+                  highlight is white in both themes, so the dot and its check are too. */}
+              <span
+                style={{ background: HIGHLIGHT_VAR[c] }}
+                className="grid size-4.5 place-items-center rounded-full ring-1 ring-(--pdf-page-edge) ring-inset transition-transform hover:scale-110"
               >
-                {/* The current colour carries a check, as a menu's selected item does. The page under a
-                    highlight is white in both themes, so the dot and its check are too. */}
-                <span
-                  style={{ background: HIGHLIGHT_VAR[c] }}
-                  className="grid size-4.5 place-items-center rounded-full ring-1 ring-(--pdf-page-edge) ring-inset transition-transform hover:scale-110"
-                >
-                  {color === c && <CheckIcon className="size-3 text-(--pdf-ink)" strokeWidth={3} />}
-                </span>
-              </button>
-            </Tip>
+                {color === c && <CheckIcon className="size-3 text-(--pdf-ink)" strokeWidth={3} />}
+              </span>
+            </button>
           ))}
         </div>
         <Separator orientation="vertical" className="mx-1 h-4" />
