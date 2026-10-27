@@ -14,7 +14,7 @@ import { useScroll } from "@embedpdf/plugin-scroll/react"
 import { CARD_CLOSE_DELAY, CARD_OPEN_DELAY } from "@/components/citation"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { appearanceOf, useSettings } from "@/features/settings/store"
-import { linkPreview, type PageLink, type Preview as LinkPreview } from "./link-preview"
+import { linkPreview, type PageLink, type PreviewPart } from "./link-preview"
 
 // The links a PDF already carries, made clickable. Only internal jumps (a citation marker to its
 // reference, "Section 3" to section 3): external links would leave the app, and that is a
@@ -225,23 +225,26 @@ function Preview({ documentId, doc, link, onFollow }: { documentId: string; doc:
   const zoom = useDocumentState(documentId)?.scale ?? 1
   const dim = useSettings((s) => appearanceOf(s.view).dimPdf !== false)
   // undefined while it is made
-  const [shown, setShown] = useState<LinkPreview | null>()
+  const [parts, setParts] = useState<PreviewPart[]>()
 
   useEffect(() => {
     if (!registry) return
     let live = true
-    void linkPreview(registry.getEngine(), doc, link, zoom).then((p) => live && setShown(p))
+    void linkPreview(registry.getEngine(), doc, link, zoom).then((p) => live && setParts(p))
     return () => {
       live = false
     }
   }, [registry, doc, link, zoom])
 
   const page = link.destination.pageIndex + 1
-  if (shown === undefined) return null
-  if (shown === null) return <p className="px-1.5 py-0.5 text-detail text-muted-foreground">{t`Page ${page}`}</p>
+  if (parts === undefined) return null
+  if (!parts.length) return <p className="px-1.5 py-0.5 text-detail text-muted-foreground">{t`Page ${page}`}</p>
   return (
-    <button type="button" aria-label={goToPage(page)} onClick={onFollow} className="relative block cursor-pointer overflow-hidden rounded-md">
-      <img src={shown.url} alt="" draggable={false} style={{ width: shown.width, height: shown.height }} className="block" />
+    // Text that a column's foot cuts comes in two parts, its continuation under it past a hairline
+    <button type="button" aria-label={goToPage(page)} onClick={onFollow} className="relative block cursor-pointer divide-y divide-(--pdf-page-edge) overflow-hidden rounded-md bg-white">
+      {parts.map((p) => (
+        <img key={`${p.box.pageIndex}:${p.box.y}`} src={p.url} alt="" draggable={false} style={{ width: p.width, height: p.height }} className="block" />
+      ))}
       {/* The page's own shade in the dark theme, so the cut matches the page it came from */}
       {dim && <div className="pointer-events-none absolute inset-0 hidden bg-black/12 dark:block" />}
     </button>
