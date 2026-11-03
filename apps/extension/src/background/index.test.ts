@@ -199,6 +199,37 @@ describe("the fetch ladder", () => {
     await until(b, "a1#1")
     expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
   })
+
+  it("hands a tab it brought to the front to the user once its paper is fetched: never loaded again, never closed", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { front: true })
+    const b = await boot({ "dl.acm.org": acm.site })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(b.activated).toHaveLength(1)
+    const [shown] = [...b.tabs.keys()]
+    await vi.waitFor(() => expect(b.kept.session.workTabs).toEqual({}), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/2", userStarted: true })] })
+    await until(b, "a2#1")
+    // Fetched from inside it, as from any tab the user has open past the check; never navigated
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.tabs.get(shown)?.url).toBe(ACM)
+    expect(b.removed).not.toContain(shown)
+  })
+
+  it("leaves a kept tab the user took to another site, and opens another for the gate's next paper", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site, "example.org": () => ({ html: "<title>Elsewhere</title>" }) })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    const [kept] = [...b.tabs.keys()]
+    await b.chrome.tabs.update(kept, { url: "https://example.org/" })
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/2", userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(2)
+    expect(b.tabs.get(kept)?.url).toBe("https://example.org/")
+    expect(b.removed).not.toContain(kept)
+  })
 })
 
 describe("waits", () => {
