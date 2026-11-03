@@ -492,8 +492,8 @@ export class ExtensionWork implements ExtensionFetcher {
     this.kick()
   }
 
-  // POST /work/resume: the user got through at this host. Every wait it names (its at, a host it
-  // watches, or under the same registrable domain) goes, its papers on at once, the asked for first.
+  // POST /work/resume: the user got through at this host. Every wait it names (its at, or a host it
+  // watches) goes, its papers on at once, the asked for first.
   resume(host: string): boolean {
     return this.goOn([...this.waitsAt.values()].filter((w) => names(w, host)))
   }
@@ -817,8 +817,10 @@ const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue]
 // A paper's standing under a wait, as PdfState.extension says it
 const underWait = (wait: Wait) => ({ wait: wait.gate, kind: wait.kind, at: wait.at })
 
-// The wait is named by this host: shown there, watching it, or under the same registrable domain
-const names = (wait: Wait, host: string) => wait.at === host || siteOf(wait.at) === siteOf(host) || wait.watch.some((h) => host === h || host.endsWith(`.${h}`))
+// The wait is named by this host: shown there, or watching it. Not by registrable domain alone: a proxy
+// and the identity provider beside it (tlink and id.tsinghua.edu.cn) share one, and a sign-in page
+// loading there is not the user through at the proxy.
+const names = (wait: Wait, host: string) => wait.at === host || wait.watch.some((h) => host === h || host.endsWith(`.${h}`))
 
 // The gate an answer met: the page it ended on, else the host it names. The extension names the paper's
 // own site when it may not read the paper's page, which is the predicted gate's. A page a fetch ended on

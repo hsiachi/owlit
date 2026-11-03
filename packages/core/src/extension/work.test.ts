@@ -297,6 +297,9 @@ describe("the extension's queue", () => {
     work.settle(next.id, "sign-in", { host: "id.tsinghua.edu.cn", url: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form" })
     expect(work.waits()).toMatchObject([{ id: `proxy:${TLINK}`, kind: "sign-in", at: TLINK, papers: 3, url: `https://${TLINK}/`, proxied: true, watch: [TLINK] }])
     expect(work.holding(library, "misq")).toMatchObject({ wait: `proxy:${TLINK}`, kind: "sign-in", at: TLINK })
+    // The school's sign-in page loading, under the same registrable domain, is not the user through
+    expect(work.resume("id.tsinghua.edu.cn")).toBe(false)
+    expect(work.waits()).toMatchObject([{ id: `proxy:${TLINK}` }])
     // Signed in: the publisher's check still holds its own two
     work.resume(TLINK)
     expect(work.waits()).toMatchObject([{ id: "pub:misq", papers: 2 }])
