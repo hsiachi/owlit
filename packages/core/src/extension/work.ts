@@ -668,7 +668,7 @@ export class ExtensionWork implements ExtensionFetcher {
       this.waitsAt.delete(w.gate)
       this.notes.resumed(w.gate)
       this.notes.of(w)
-      this.notes.down(w.gate, w.since, under[i])
+      this.notes.down(w.gate, w.since, under[i], (id) => this.goingOn(w.gate, id))
     })
     for (const lane of this.lanes.values()) {
       if (lane.queue.some((q) => freed.includes(q.paper.paperId))) lane.endedAt = undefined
@@ -806,6 +806,20 @@ export class ExtensionWork implements ExtensionFetcher {
       const t = this.notes.tallies().get(gate)
       console.warn(`[core] ${gate} was handed ${t?.recent.length} papers in a day and gave no PDF, with no wait for the user to say why: its pages may be misread. Endings so far: ${JSON.stringify(t?.endings ?? {})}`)
     }
+  }
+
+  // A paper of a line going on at this gate hasn't ended there yet: the extension still has it (in a
+  // queue, or known from its record and waiting for the browser) and no other gate's wait holds it. As
+  // Library.goingCounts counts it, without reading the papers' records.
+  private goingOn(gate: GateKey, id: string): boolean {
+    if (this.pending.has(id) || this.startedIds.has(id)) return true
+    for (const lane of this.lanes.values())
+      for (const q of all(lane)) {
+        if (q.paper.paperId !== id) continue
+        const wait = this.waitOver(lane, q)
+        return !wait || wait.gate === gate
+      }
+    return false
   }
 
   private holds(id: string) {

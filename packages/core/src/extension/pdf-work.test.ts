@@ -49,6 +49,21 @@ describe("pdf-work.json", () => {
     vi.restoreAllMocks()
   })
 
+  it("starts a new line going on at a gate whose earlier line has ended, and keeps one line per gate", async () => {
+    const notes = new PdfWorkNotes(undefined)
+    await notes.loaded
+    vi.spyOn(Date, "now").mockReturnValue(5_000)
+    notes.of(wait)
+    notes.down(wait.gate, wait.since, ["a", "b"])
+    // A later wait at the same gate, got through once a and b had both ended
+    const later = { ...wait, since: 6_000, at: "www.science.org" }
+    vi.spyOn(Date, "now").mockReturnValue(7_000)
+    notes.of(later)
+    notes.down(later.gate, later.since, ["c", "d"], (id) => id === "c" || id === "d")
+    expect(notes.gone()).toEqual([expect.objectContaining({ gate: "pub:science", since: 6_000, going: { at: 7_000, ids: ["c", "d"] } })])
+    vi.restoreAllMocks()
+  })
+
   it("forgets a wait that went a day ago, and what is older than a day in the tally's window", async () => {
     const dir = dataDir()
     const now = Date.now()

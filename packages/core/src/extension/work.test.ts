@@ -801,6 +801,28 @@ describe("the extension's queue", () => {
     expect(work.tallies().get("pub:acm")).toMatchObject({ handed: 7, pdfs: 1, lastPdfAt: expect.any(Number) })
   })
 
+  it("starts a new line going on when the user gets through at a gate whose last line has ended", async () => {
+    const { work, take } = setup()
+    for (const id of ["a", "b"]) work.fetch(library, paper(id, "tandfonline.com"), false)
+    const [a] = await take()
+    work.settle(a.id, "check", { triedAt: 500 })
+    work.resume("tandfonline.com")
+    // Both of the first line end with their PDFs
+    const [one] = await take()
+    work.settle(one.id, "pdf")
+    vi.advanceTimersByTime(GAP_MS)
+    const [two] = await take()
+    work.settle(two.id, "pdf")
+    expect(work.goneWaits()).toMatchObject([{ going: { ids: ["a", "b"] } }])
+    // Later, two more papers meet the gate's check, and the user gets through again
+    for (const id of ["c", "d"]) work.fetch(library, paper(id, "tandfonline.com"), false)
+    vi.advanceTimersByTime(GAP_MS)
+    const [c] = await take()
+    work.settle(c.id, "check", { triedAt: 9_000 })
+    work.resume("tandfonline.com")
+    expect(work.goneWaits()).toMatchObject([{ since: 9_000, going: { ids: ["c", "d"] } }])
+  })
+
   it("follows a wait by its id, and knows the same wait when it comes back after the user got through", async () => {
     const { work, take } = setup()
     for (const id of ["a", "b"]) work.fetch(library, paper(id, "tandfonline.com"), false)

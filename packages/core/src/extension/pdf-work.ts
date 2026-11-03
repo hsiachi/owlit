@@ -130,14 +130,18 @@ export class PdfWorkNotes {
 
   // The wait went. Its follow-ups stay only while its papers going on are still to be shown: one line per
   // gate, so a gate the user got through at again while its last papers still went on adds to that line.
-  down(gate: GateKey, since: number, going?: string[]) {
+  // A line whose papers have all ended (stillGoing: none of them is) is over: a new one replaces it, and
+  // never counts its papers as its own.
+  down(gate: GateKey, since: number, going?: string[], stillGoing: (paperId: string) => boolean = () => true) {
     const follow = this.get(gate, since)
     if (!follow) return
     follow.up = false
     follow.opened = undefined
     if (going) {
       const at = Date.now()
-      const earlier = this.followUps.find((f) => f !== follow && f.gate === gate && !f.up && f.going)
+      const lines = this.followUps.filter((f) => f !== follow && f.gate === gate && !f.up && f.going)
+      for (const over of lines.filter((f) => !f.going!.ids.some(stillGoing))) over.going = undefined
+      const earlier = lines.find((f) => f.going)
       const into = earlier ?? follow
       into.going = into.going ? goOnWith(into.going, going, at) : { at, ids: going }
       if (earlier) {
@@ -146,7 +150,7 @@ export class PdfWorkNotes {
         follow.going = undefined
       }
     }
-    if (!follow.going) this.followUps = this.followUps.filter((f) => f !== follow)
+    this.followUps = this.followUps.filter((f) => f.up || f.going)
     this.changed()
   }
 
