@@ -62,6 +62,8 @@ export interface Block {
   byYou: number
   things: number
   running: boolean
+  // The batch says when it ended (PdfRunView.endedAt)
+  ended: boolean
   rows: Row[]
   // While a batch is up, the sites that wait for papers outside it
   outside: Row[]
@@ -214,6 +216,31 @@ export class Bench {
       if (!queued.every((id: string) => now.has(id))) throw new Error("core is still handing the batch to the extension")
     }, PATIENCE)
     return this.step(`get PDFs for ${queued.length} papers`)
+  }
+
+  // Get PDFs on these papers whatever they wait for (as library.fetchPdfs takes them from any caller),
+  // looked at once core has handed them over, before the extension asks for any
+  async getPdfsNow(ids: string[]) {
+    const from = this.handed.length
+    const { queued } = await this.call("library.fetchPdfs", { ids })
+    await vi.waitFor(() => {
+      const now = new Set(this.handed.slice(from))
+      if (!queued.every((id: string) => now.has(id))) throw new Error("core is still handing the batch to the extension")
+    }, PATIENCE)
+    return this.glance()
+  }
+
+  // The extension asks for work once and does what it got; looked at before anything else moves
+  async askOnce() {
+    await this.ext.step()
+    await this.ext.drain()
+    return this.glance()
+  }
+
+  // What the user sees now, in the middle of things: the bench's checks, which hold once everything
+  // that moves by itself has moved, aren't run
+  async glance(): Promise<Screen> {
+    return this.screen()
   }
 
   // Stop on the batch's block: the run stops, and its block is put away
@@ -623,9 +650,9 @@ class Renderer {
       for (const u of run.unreachable) rows.push({ kind: "unreachable", papers: u.papers, host: u.at, ids: [...u.ids] })
       for (const [kind, papers] of [["getting", run.getting], ["waiting", run.going], ["closed", run.closed], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
       const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers).map((w) => waitRow(w, w.papers))
-      block = { batch: true, total: run.total, saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, rows, outside }
+      block = { batch: true, total: run.total, saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, ended: run.endedAt !== undefined, rows, outside }
     } else if (waits.length) {
-      block = { batch: false, total: waits.reduce((n, w) => n + w.papers, 0), saved: 0, byYou: 0, things: waits.length, running: false, rows: [...waits].sort(byPapers).map((w) => waitRow(w, w.papers)), outside: [] }
+      block = { batch: false, total: waits.reduce((n, w) => n + w.papers, 0), saved: 0, byYou: 0, things: waits.length, running: false, ended: false, rows: [...waits].sort(byPapers).map((w) => waitRow(w, w.papers)), outside: [] }
     }
     const papers: Record<string, PaperView> = {}
     for (const p of Object.values(this.papers)) {

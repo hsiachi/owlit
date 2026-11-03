@@ -387,7 +387,7 @@ export class ExtensionWork implements ExtensionFetcher {
       const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, at: item.paper.host }
       if (lane.inFlight?.item === item) return { ...base, fetching: true }
       const wait = this.waitOver(lane, item)
-      if (wait) return { ...base, ...underWait(wait) }
+      if (wait) return { ...base, ...underWait(wait), ...(this.tryComing(wait) ? { trying: true as const } : {}) }
       const off = offlineOf(lane, item.gate)
       const turnAt = lane.proxied ? this.turns(lane).get(id) : undefined
       return { ...base, ...(off ? { unreachable: { at: off.at, until: off.until } } : {}), ...(turnAt !== undefined ? { turnAt } : {}) }
@@ -788,6 +788,12 @@ export class ExtensionWork implements ExtensionFetcher {
   // its gate's
   private waitOver(lane: Lane, item: Queued): Wait | undefined {
     return this.waitsAt.get(lane.key) ?? this.waitsAt.get(item.gate)
+  }
+
+  // The wait's one try is due now, for a paper the user started: it goes out at the lane's next turn (no
+  // paper of the wait is out yet), in a tab of the extension's when the wait is a check
+  private tryComing(wait: Wait, now = Date.now()) {
+    return wait.tryAt !== undefined && wait.tryAt <= now && this.itemsUnder(wait).some((q) => q.started)
   }
 
   private itemsUnder(wait: Wait): Queued[] {

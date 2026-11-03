@@ -586,6 +586,36 @@ describe("the extension's queue", () => {
     expect(work.waits()[0]).toMatchObject({ kind: "check", papers: 2, askedFor: true })
   })
 
+  it("says a paper under a wait is still going while the try the user started there is to come, until it ends", async () => {
+    const { work, take, never } = setup()
+    for (const [id, doi] of [["tandf", "10.1080/1"], ["wiley", "10.1111/1"]]) work.fetch(library, tlinkPaper(id, doi), false)
+    const [first] = await take()
+    work.settle(first.id, "check", { url: "https://www.tandfonline.com/doi/10.1080/1" })
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [second] = await take()
+    work.settle(second.id, "check", { url: "https://onlinelibrary.wiley.com/doi/10.1111/1" })
+    // owlit's own later try isn't the user's
+    expect(work.holding(library, "tandf")).not.toHaveProperty("trying")
+    // Get PDFs on both: each wait's one try is due, the proxy's lane taking one at a time
+    work.fetch(library, tlinkPaper("tandf", "10.1080/1"), true)
+    work.fetch(library, tlinkPaper("wiley", "10.1111/1"), true)
+    expect(["tandf", "wiley"].map((id) => work.holding(library, id))).toMatchObject([
+      { wait: "pub:tandf", trying: true },
+      { wait: "pub:wiley", trying: true },
+    ])
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [tandf] = await work.take(library, 0, never, "chrome")
+    expect(tandf).toMatchObject({ paperId: "tandf", userStarted: true })
+    work.settle(tandf.id, "pdf")
+    expect(work.holding(library, "wiley")).toMatchObject({ wait: "pub:wiley", trying: true })
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [wiley] = await take()
+    // Its try met the check again: the wait is the user's once more
+    work.settle(wiley.id, "check", { url: "https://onlinelibrary.wiley.com/doi/10.1111/1" })
+    expect(work.holding(library, "wiley")).toMatchObject({ wait: "pub:wiley" })
+    expect(work.holding(library, "wiley")).not.toHaveProperty("trying")
+  })
+
   it("keeps a wait the user opened when they ask again for a paper under it, and what they did there", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("s1", "sagepub.com"), true)

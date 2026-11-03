@@ -46,6 +46,19 @@ describe("a Get PDFs, counted from its papers", () => {
     expect(view).not.toHaveProperty("endedAt")
   })
 
+  it("goes on while a wait's papers have its try the user started still to come, and not without the browser", () => {
+    const trying = (wait: GateKey): RunPaper => ({ paper: { pdfState: { state: "finding", tried: [], extension: { ...lane, wait, kind: "check", at: "x", trying: true } } } })
+    // Through the proxy one paper at a time: T&F's try is out, Wiley's comes next
+    const papers = { tandf: inLine(true), wiley: trying("pub:wiley"), oup: held("pub:oup") }
+    const view = viewOf(papers)
+    expect(view).toMatchObject({ getting: 1, running: true, waits: [{ wait: "pub:wiley", papers: 1 }, { wait: "pub:oup", papers: 1 }] })
+    // T&F's came; Wiley's try is still to come
+    const next = viewOf({ ...papers, tandf: saved("extension") })
+    expect(next).toMatchObject({ saved: 1, running: true })
+    expect(next).not.toHaveProperty("endedAt")
+    expect(viewOf({ ...papers, tandf: saved("extension") }, {}, false)).toMatchObject({ running: false })
+  })
+
   it("says which papers have no PDF to be had, which the user found none for, and which they stopped", () => {
     const skipped = tryOf("skipped", "psycnet.apa.org", AT + 2, "person")
     const papers = {

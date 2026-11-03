@@ -97,6 +97,10 @@ export interface PdfState {
     // In line through the library's proxy, which takes one paper at a time: when its turn comes, as near
     // as core can tell from the papers ahead of it and the proxy's pace
     turnAt?: number
+    // Under its wait, whose one try is due as part of something the user started (Get PDFs, Look again):
+    // the extension goes on to fetch it, in a tab of its own past a check, so it is still going until
+    // that try ends
+    trying?: true
   }
 }
 

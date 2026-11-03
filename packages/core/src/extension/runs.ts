@@ -25,7 +25,8 @@ export interface PdfRun {
 // Where one of a run's papers stands
 export type RunPlace =
   | { kind: "saved" | "byYou" | "none" | "skipped" | "stopped" | "getting" | "going" | "closed" | "away" }
-  | { kind: "wait"; wait: WaitId }
+  // trying: its wait's one try, part of something the user started, is still to come (connected only)
+  | { kind: "wait"; wait: WaitId; trying?: true }
   | { kind: "manual"; host?: string }
   // In line, held back while the host that didn't answer its last fetch is backed off from
   | { kind: "unreachable"; at: string; until: number }
@@ -41,7 +42,7 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
   if (paper.pdf) return { kind: placedBy === "person" ? "byYou" : "saved" }
   const s = paper.pdfState
   const ext = s?.extension
-  if (ext?.wait) return { kind: "wait", wait: ext.wait }
+  if (ext?.wait) return { kind: "wait", wait: ext.wait, ...(ext.trying && connected ? { trying: true as const } : {}) }
   if (ext && !connected) return { kind: "closed" }
   if (ext?.fetching) return { kind: "getting" }
   if (ext?.unreachable) return { kind: "unreachable", ...ext.unreachable }
@@ -71,6 +72,7 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
   const waits = new Map<WaitId, { wait: WaitId; papers: number; ids: string[] }>()
   const unreachable = new Map<string, PdfRunView["unreachable"][number]>()
   const sites = new Map<string, number>()
+  let trying = false
   for (const id of run.ids) {
     const paper = papers.get(id)
     if (!paper) continue
@@ -78,6 +80,7 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
     view.total++
     const place = classify(id, paper, run, connected)
     if (place.kind === "wait") {
+      trying ||= !!place.trying
       const row = waits.get(place.wait) ?? { wait: place.wait, papers: 0, ids: [] }
       row.papers++
       row.ids.push(id)
@@ -96,8 +99,9 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
   view.waits = [...waits.values()].sort((a, b) => b.papers - a.papers)
   view.unreachable = [...unreachable.values()].sort((a, b) => b.papers - a.papers)
   view.manual.sites = [...sites].map(([host, papers]) => ({ host, papers })).sort((a, b) => b.papers - a.papers)
-  // Papers held by a back-off go by themselves once it ends: still going
-  view.running = view.getting + view.going + view.unreachable.length > 0 || (run.handing ?? 0) > 0
+  // Papers held by a back-off go by themselves once it ends, and those under a wait whose try the user
+  // started is still to come go on to it (through the proxy one paper at a time, a gap apart): still going
+  view.running = view.getting + view.going + view.unreachable.length > 0 || (run.handing ?? 0) > 0 || trying
   // Written once, the first time nothing is going. A run that goes on again after (the user got through
   // at a wait, and its papers went on) shows none while it does.
   if (!view.running && run.endedAt === undefined) run.endedAt = now

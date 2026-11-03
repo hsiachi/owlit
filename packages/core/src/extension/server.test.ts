@@ -518,15 +518,19 @@ describe("the extension's port", () => {
     })
 
     it("counts a Get PDFs from its papers, and ends it once nothing is going", async () => {
-      const { call, request, token, putPaper } = await connected()
+      const { call, request, token, putPaper, server } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
       putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
+      const handed = vi.spyOn(server.work, "fetch")
       const { queued, run } = await call("library.fetchPdfs", { ids: [id, other.id] })
       expect(queued).toEqual([id, other.id])
       await eventually(async () => expect((await call("extension.get")).runs).toMatchObject([{ id: run, total: 2, going: 2, running: true }]))
       // A second Get PDFs while it goes on is the same run
       expect((await call("library.fetchPdfs", { ids: [other.id] })).run).toBe(run)
       await eventually(async () => expect((await call("library.list")).papers.filter((p: { pdfState?: { extension?: unknown } }) => p.pdfState?.extension)).toHaveLength(2))
+      // Every hand-over done, the second Get PDFs' too: asked for after the check, its paper's try at the
+      // check would still be to come
+      await eventually(async () => expect(handed).toHaveBeenCalledTimes(3))
       const [first] = (await request("/work", { token })).body.work
       await request(`/work/${encodeURIComponent(first.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
       // Both are Sage's: one check holds them both, and nothing moves until the user acts

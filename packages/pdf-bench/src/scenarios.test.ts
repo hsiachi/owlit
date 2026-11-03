@@ -236,6 +236,33 @@ describe("the library's proxy", () => {
     expect(screen.block).toMatchObject({ total: 3, saved: 3, running: false, rows: [] })
   })
 
+  it("tlink, Get PDFs on papers under publishers' checks: going until each one's try in the browser has ended", async () => {
+    const web = tlink(new FakeWeb())
+    web.signIn(TLINK)
+    const papers = [
+      { ...science(30), at: "www.science.org" },
+      { doi: "10.1080/0000530", title: "A Taylor And Francis Paper Behind A Check", at: "www.tandfonline.com" },
+    ]
+    for (const p of papers) atypon(web, p.at, p.doi, p.title, { check: true, subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    expect(rowsOf(await b.getPdfs()).sort()).toEqual([
+      ["check", 1, "science.org"],
+      ["check", 1, "tandfonline.com"],
+    ])
+    // The user got past both checks in their browser, somewhere the extension didn't see, and asks again
+    for (const p of papers) web.clear(p.at)
+    let screen = await b.getPdfsNow(ids)
+    // Each one's try goes in the browser, one at a time through the proxy: the batch is going, and says
+    // it hasn't ended
+    expect(screen.block).toMatchObject({ total: 2, saved: 0, running: true, ended: false })
+    screen = await b.askOnce()
+    expect(screen.block).toMatchObject({ total: 2, saved: 1, running: true, ended: false })
+    screen = await b.step("the second try")
+    expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true])
+    expect(screen.block).toMatchObject({ total: 2, saved: 2, running: false, ended: true, rows: [] })
+  })
+
   it("EZproxy signed out: its sign-in, then the PDF at the rewritten host", async () => {
     const web = ezproxy(new FakeWeb())
     const { doi, title } = science(9)

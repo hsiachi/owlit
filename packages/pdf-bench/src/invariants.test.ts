@@ -10,7 +10,7 @@ const science = { id: "pub:science", kind: "check", host: "science.org", papers:
 describe("the bench's invariants", () => {
   it("hold on a screen that agrees with itself", () => {
     const screen: Screen = {
-      block: { batch: true, total: 2, saved: 1, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "pub:science", host: "science.org", ids: ["a"] }] },
+      block: { batch: true, total: 2, saved: 1, byYou: 0, things: 1, running: false, ended: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "pub:science", host: "science.org", ids: ["a"] }] },
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: "pub:science", foundUnder: "pub:science" }, b: { hasPdf: true, title: "" } },
       silent: [],
@@ -22,7 +22,7 @@ describe("the bench's invariants", () => {
 
   it("catch a paper core holds under a wait the window doesn't list, and a row for it", () => {
     const screen: Screen = {
-      block: { batch: true, total: 1, saved: 0, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "proxy:tlink.lib.tsinghua.edu.cn", ids: ["a"] }] },
+      block: { batch: true, total: 1, saved: 0, byYou: 0, things: 1, running: false, ended: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "proxy:tlink.lib.tsinghua.edu.cn", ids: ["a"] }] },
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: "proxy:tlink.lib.tsinghua.edu.cn" } },
       silent: [],
@@ -39,7 +39,7 @@ describe("the bench's invariants", () => {
 
   it("catch a batch whose rows don't add up, and a saved paper still waiting", () => {
     const screen: Screen = {
-      block: { batch: true, total: 3, saved: 1, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "pub:science", host: "science.org", ids: ["a"] }] },
+      block: { batch: true, total: 3, saved: 1, byYou: 0, things: 1, running: false, ended: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "pub:science", host: "science.org", ids: ["a"] }] },
       waits: [science],
       papers: { a: { hasPdf: true, title: "", heldAt: "pub:science", foundUnder: "pub:science" } },
       silent: [],
@@ -51,7 +51,7 @@ describe("the bench's invariants", () => {
 
   it("catch a batch that spins with nothing in line, and a gate that gives nothing without a wait", () => {
     const screen: Screen = {
-      block: { batch: true, total: 1, saved: 0, byYou: 0, things: 0, running: true, outside: [], rows: [{ kind: "none", papers: 1 }] },
+      block: { batch: true, total: 1, saved: 0, byYou: 0, things: 0, running: true, ended: false, outside: [], rows: [{ kind: "none", papers: 1 }] },
       waits: [],
       papers: { a: { hasPdf: false, title: "" } },
       silent: ["pub:acm"],
