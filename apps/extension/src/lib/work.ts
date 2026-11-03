@@ -128,10 +128,11 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (!host || (proxy && siteOf(host) === siteOf(proxy.host)) || isSignInAddress(got.to)) return undefined
     return { ended: "no-permission", host }
   }
-  // The same when the browser didn't say where: through the proxy, its sign-in. Otherwise no copy: the
-  // site asked is one the extension reads already, so a site to allow would name one already allowed,
-  // which resumes at once and pauses again on the same redirect.
-  const away: WorkEnded = item.proxied ? { ended: "sign-in", host: hostOf(item.url) } : { ended: "no-copy", host: item.host }
+  // The same when the browser didn't say where: through the proxy, its sign-in. Otherwise unreadable:
+  // where the paper is, and whether there is a copy, is unknown. Never a site to allow: the site asked
+  // is one the extension reads already, so it would name one already allowed, which resumes at once
+  // and pauses again on the same redirect.
+  const away: WorkEnded = item.proxied ? { ended: "sign-in", host: hostOf(item.url) } : { ended: "unreadable", host: item.host }
   const tried = new Set<string>()
   if (item.pdfUrl && (await deps.permitted(item.pdfUrl))) {
     tried.add(item.pdfUrl)

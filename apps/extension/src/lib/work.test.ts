@@ -114,15 +114,16 @@ describe("fetching a paper for owlit", () => {
     expect(asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1"])
   })
 
-  it("says sign-in through the proxy, and no copy elsewhere, where a redirect leads to a site it may not read", async () => {
+  it("says sign-in through the proxy, and unreadable elsewhere, where a redirect leads to a site it may not read", async () => {
     // Signed out at the proxy: it sends the fetch on to the school's sign-in
     const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
     const proxied = await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), web({ [entry]: "away" }).deps)
     expect(proxied).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
-    // Without a proxy, the redirect's target is unknown: no copy there, never a site to allow, since the
-    // site it asked is one the extension already reads (allowing it again would change nothing)
+    // Without a proxy, the redirect's target is unknown: whether there is a copy is too, and it is never
+    // a site to allow, since the site it asked is one the extension already reads (allowing it again
+    // would change nothing)
     const { deps, asked } = web({ "https://journals.sagepub.com/doi/10.1177/1": "away" })
-    expect(await fetchFor(item(), deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
+    expect(await fetchFor(item(), deps)).toEqual({ ended: "unreadable", host: "sagepub.com" })
     expect(asked).toEqual(["https://journals.sagepub.com/doi/10.1177/1", "https://journals.sagepub.com/doi/10.1177/1"])
     // The PDF's own address leading away: the page is tried, and its word stands
     const pdfAway = web({ "https://journals.sagepub.com/doi/pdf/10.1177/1": "away", "https://journals.sagepub.com/doi/10.1177/1": { body: "<title>Get access</title>" } })
@@ -170,9 +171,9 @@ describe("fetching a paper for owlit", () => {
     // Elsewhere, at an address that says sign in
     const sso = web({ [entry]: { awayTo: "https://login.microsoftonline.com/common/saml2?RelayState=x" } }, (url) => !url.includes("microsoftonline"))
     expect(await fetchFor(tlink, sso.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
-    // Without a proxy, such a redirect is no copy, as one the browser didn't place
+    // Without a proxy, such a redirect is unreadable, as one the browser didn't place
     const direct = web({ "https://journals.sagepub.com/doi/10.1177/1": { awayTo: "https://sso.sagepub.com/login?next=x" } }, (url) => !url.includes("sso."))
-    expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
+    expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "unreadable", host: "sagepub.com" })
   })
 
   it("follows a page's meta refresh, and says it couldn't read a page that is none of the paper's", async () => {
