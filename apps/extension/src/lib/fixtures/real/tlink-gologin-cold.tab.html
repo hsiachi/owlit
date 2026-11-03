@@ -1,0 +1,68 @@
+<html><head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <title>清华大学用户电子身份服务系统</title> <meta> <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/res/ui/jquery.min.js"></script>
+<script src="/common/public/all-messages.js"></script>
+<script src="/res/ui/noty/packaged/jquery.noty.packaged.min.js"></script>
+<script src="/res/selfservice/noty.common.js"></script>
+<script src="/res/common/js/common.js"></script>
+<script src="/res/common/js/session.js"></script>
+<script src="/res/bootstrap/js/bootstrap.js"></script>
+<script src="/res/bootstrap/js/jquery.browser.js"></script>
+<script src="/res/ui/momentjs/moment.min.js"></script>
+<script src="/res/ui/loading/jquery.showLoading.min.js"></script>
+<script src="/res/ui/react/classnames.js"></script>
+<script src="/res/ui/react/react.js"></script>
+<script src="/res/ui/react/react-dom.js"></script>
+<script src="/res/ui/react-bootstrap/react-bootstrap.js"></script>
+<script src="/res/react/components.js"></script>
+<script src="/res/selfservice/browser-alert.js"></script>
+<script> $.extend(uidm, {"availableLocales":[{"locale":"zh_CN","display":"中文"},{"locale":"en_US","display":"English"}],"baseUrl":"","requestUrl":"/do/off/ui/auth/login/form/REDACTED/1","locale":"zh_CN","authenticated":false,"accountMenu":null}); </script>
+	<script type="text/javascript" src="/v2/dist/doubleauth/localstorageUtil.js?v=20261025065118"></script>
+	<script type="text/javascript" src="/ui/auth/js/fingerprintUtil.js?v=20261025065118"></script>
+	<link type="text/css" href="/res/bootstrap/css/signin.css?ver=&amp;v=6" rel="stylesheet">
+	<script type="text/javascript" src="/ui/auth/js/QrCode/qrcode.js"></script>
+	<script type="text/javascript" src="/v2/dist/doubleauth/sm2Util.js?v=20261025065118"></script>
+	<script type="text/javascript" src="/v2/dist/doubleauth/userAgentUtil.js?v=20261025065118"></script>
+	<script type="text/javascript"></script>
+	<link type="text/css" href="/ui/activation/css/reset.css" rel="stylesheet"> <link type="text/css" href="/ui/activation/css/index.css?v=6" rel="stylesheet"> <link type="text/css" href="/res/bootstrap/css/bootstrap.css" rel="stylesheet"> <link type="text/css" href="/res/common/css/bootstrap-custom.css?ver=" rel="stylesheet"> <link type="text/css" href="/res/common/fonts/iconfont.css" rel="stylesheet"> <link type="text/css" href="/res/ui/loading/showLoading.css" rel="stylesheet"> <link type="text/css" href="/res/bootstrap/css/signin.css?ver=&amp;v=6" rel="stylesheet"> </head> <body> <a>中文</a> <a>English</a> <form action="/f/common/public/locale/change" method="POST"> <input type="hidden" name="target"> <input type="hidden" name="locale"> </form> <input type="hidden"> <h2>清华大学用户电子身份服务系统</h2> <h3>您即将登录&nbsp;&nbsp; &nbsp;&nbsp;清华大学联邦认证系统</h3> 您的用户名或密码不正确，请重试！ <h3>用户密码登录 </h3> <h3>实名认证登录 </h3> <h3>无密码登录 </h3> <form> <fieldset> 生成二维码 <input type="hidden"> <input type="hidden"> <input type="checkbox" name="singleLogin"> 本次登录使用信任浏览器访问校内其他系统时不必再输入账号密码（统一登录）， 为了您的账号安全，使用完请关闭本浏览器。 请<a href="/res/pdf/SMRZ_guide_cn.pdf">使用说明</a>。 </fieldset> </form> <form method="post"> 用户名 <input type="text" name="username"> <input type="checkbox" name="singleLogin"> 本次登录使用信任浏览器访问校内其他系统时不必再输入账号密码（统一登录），为了您的账号安全，使用完请关闭本浏览器。 具体<a href="/res/pdf/webauthn-guide-cn.pdf">使用说明</a> 。 <button type="button"> 无密码登录 </button> </form> <form method="post" action="/do/off/ui/auth/login/check"> 用户名 <input type="text" name="i_user"> 密码 <input type="password"> <input type="hidden" name="i_pass"> 04d0c9e1ae89279fe05b435d63e3eba437bf510e09da5f71558974a19dc<a href="/f/recovery/password/reset">忘记密码 </a> <input type="checkbox" name="singleLogin"> 本次登录使用信任浏览器访问校内其他系统时不必再输入账号密码（统一登录），为了您的账号安全，使用完请关闭本浏览器。 <input type="hidden" name="fingerPrint"> <input type="hidden" name="fingerGenPrint"> <input type="hidden" name="fingerGenPrint3"> <input type="hidden" name="deviceName"> <input type="text" name="i_captcha"> <a type="button">登录</a> </form> &nbsp;<a href="tel:01062784859">010-62784859</a> 
+ &nbsp; user@example.org 
+<script type="text/javascript">
+	var smrzSysm = "请使用“国家网络身份认证”APP扫码。具体操作请参考"
+	var smrzUserGuide = "使用说明"
+	var smrzQrcodeExpired = "二维码已过期"
+	var clickToFlash = "点击刷新"
+	var smrzjuhao = "。"
+	var mianmitishi_tydl = "本次登录使用信任浏览器访问校内其他系统时不必再输入账号密码（统一登录），"
+	var mianmitishi_zhaq = "为了您的账号安全，使用完请关闭本浏览器。"
+	var smrz_login_not_found_info = "实名认证扫描登录失败。请先用账号+密码登录,并绑定实名认证信息以启用扫码登录。"
+	var smrzSysmPdf = "/res/pdf/SMRZ_guide_cn.pdf"
+
+	if($('#eng_cnlanguage').val() == 'zh_CN'){$('#locale_english').show()}
+	if($('#eng_cnlanguage').val() == 'en_US'){$('#locale_zhongwen').show()}
+	function changeLanguage(id){
+ if(id === "locale_english"){
+ var locale_url = window.location.href;
+ $('#locale-url').val(locale_url)
+ $('#locale-locale').val('en_US');
+ $('#locale-form').submit();
+ }
+ if(id === "locale_zhongwen"){
+ var locale_url = window.location.href;
+ $('#locale-url').val(locale_url)
+ $('#locale-locale').val('zh_CN');
+ $('#locale-form').submit();
+ }
+	}
+</script>
+<script type="text/javascript" src="/res/selfservice/tabshowclick.js?v=20261025065118"></script>
+<script type="text/javascript" src="/res/selfservice/finger3.js?v=20261025065118"></script>
+	<script src="/ui/auth/js/smrzQ.js?v=20261025065118"></script>
+<script>
+	var fingerStr = fingerprintUtil.getFingers();
+	$("#fingerPrint").val(fingerStr);
+	$("#deviceName").val(userAgentUtil.getUserAgentName());
+</script>
+<script type="text/javascript" src="/ui/auth/js/saveTabchooseAndInit.js?v=20261025065118"></script>
+	<script src="/v2/dist/webauthn/webauthn.bundle.js?v=20261025065118" type="text/javascript"></script>
+	<script type="text/javascript" src="/res/selfservice/webAuthnLogin.js?v=20261025065118"></script>
+	<script>setWebAuthnUserName("i_userWebAuthn")</script>
+</body></html>
