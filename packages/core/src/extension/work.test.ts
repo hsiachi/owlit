@@ -430,11 +430,34 @@ describe("the extension's queue", () => {
     expect(work.waits()[0].askedFor).toBe(false)
     vi.advanceTimersByTime(GAP_MS)
     work.fetch(library, paper("s2", "sagepub.com"), true)
-    expect(work.waits()).toEqual([])
+    expect(work.waits()).toMatchObject([{ kind: "check", papers: 2, askedFor: true }])
     const [again] = await take()
     expect(again.paperId).toBe("s2")
     work.settle(again.id, "check")
     expect(work.waits()[0]).toMatchObject({ kind: "check", papers: 2, askedFor: true })
+  })
+
+  it("keeps a wait the user opened when they ask again for a paper under it, and what they did there", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("s1", "sagepub.com"), true)
+    work.fetch(library, paper("s2", "sagepub.com"), false)
+    const [s1] = await take()
+    work.settle(s1.id, "check", { url: "https://journals.sagepub.com/doi/s1" })
+    const { since } = work.waits()[0]
+    work.opened("pub:sage", "Chrome")
+    vi.advanceTimersByTime(GAP_MS)
+    // Get PDFs, or Look again, while the check is in front of the user
+    work.fetch(library, paper("s2", "sagepub.com"), true)
+    work.fetch(library, paper("s1", "sagepub.com"), true)
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", since, opened: { browser: "Chrome" }, papers: 2 }])
+    expect(work.holding(library, "s1")).toMatchObject({ wait: "pub:sage" })
+    // Its one try goes now, and meets the check again: the same wait, still opened
+    const [again] = await take()
+    expect(again).toMatchObject({ userStarted: true })
+    work.settle(again.id, "check", { url: "https://journals.sagepub.com/doi/s2" })
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", since, opened: { browser: "Chrome" }, papers: 2 }])
+    vi.advanceTimersByTime(GAP_MS)
+    expect(await take()).toEqual([])
   })
 
   it("opens the proxy's sign-in for a sign-in through it", async () => {

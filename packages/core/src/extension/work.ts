@@ -272,7 +272,7 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
   // when the user asked now; asked for, it goes before the ones that weren't, and the wait it is under is
-  // lifted, since the user may have got through already.
+  // tried at once, since the user may have got through already.
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean) {
     this.own(library)
     const proxy = paper.proxied ? paper.proxy : undefined
@@ -317,10 +317,12 @@ export class ExtensionWork implements ExtensionFetcher {
       sortQueue(lane)
     }
     this.startedIds.delete(paper.paperId)
+    // Asked for under a wait: the wait stays, with what the user did about it (its page opened, "I've
+    // verified it"), since they may be in front of its page now; its one try goes now, with this paper.
+    // A try that gets through lifts it; one that meets it again leaves it as it was.
     const over = askedFor ? this.waitOver(lane, item) : undefined
-    const lifted = over ? this.papersUnder(over) : []
-    if (over) this.lift(over)
-    this.host.papers(library, [...new Set([paper.paperId, ...lifted])])
+    if (over) over.tryAt = Date.now()
+    this.host.papers(library, [paper.paperId])
     this.host.waits()
     this.kick()
   }
