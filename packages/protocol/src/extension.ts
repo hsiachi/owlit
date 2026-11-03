@@ -1,4 +1,4 @@
-import type { WaitId } from "./pdf-keys.ts"
+import type { GateKey, LaneKey, WaitId } from "./pdf-keys.ts"
 // What owlit's browser extension and owlit say to each other over the local port, and what the window
 // shows of it. The extension runs in the user's own browser with their sign-ins; core serves it on
 // 127.0.0.1 only, to browser extensions only, and only after the user allowed one in the window.
@@ -245,23 +245,42 @@ export interface WorkItem {
   // `<paperId>#<attempt>`, posted back with the answer (POST /work/:id); opaque to the extension
   id: string
   paperId: string
+  // Rises with each hand-out of the paper; the one id names
+  attempt: number
   // The publisher's article page, through the library's proxy when one is set
   url: string
   // The publisher's PDF itself, when owlit knows its address; tried first
   pdfUrl?: string
-  // The site it is paced and paused by: the publisher's registrable domain, or the proxy's host
+  // Whose pace it follows (the proxy's, or its gate), and who can stop it (pdf-keys.ts): the extension
+  // keeps one tab per gate for the papers it fetches in a tab
+  lane: LaneKey
+  gate: GateKey
+  // The lane's host, for an extension that keys by host
   host: string
   proxied: boolean
+  // The gate's publisher always turns away the extension's own fetch: only a tab of the site fetches it
+  inTab?: true
+  // The user started what this fetch is part of (Get PDFs, Find PDF, Look again, getting through at a
+  // wait): only then may the extension open a tab of its own for it
+  userStarted?: true
 }
+
+// A wait as the extension needs it: where to watch for the user getting through (watch), and, for a
+// site it may not read, the sites to ask the browser for (allow: the gate's hosts and the hosts its PDFs
+// come from, as registrable domains)
+export type WorkWait = Pick<ExtensionWait, "id" | "kind" | "at" | "host" | "watch" | "papers" | "proxied"> & { allow: string[] }
 
 // GET /work, held open a while: the papers due now (none when the hold ran out), and the sites paused
 // for the user, so the extension knows where to watch for them getting through
 export interface WorkAnswer {
   work: WorkItem[]
-  waits: Pick<ExtensionWait, "id" | "kind" | "at" | "host" | "watch" | "papers" | "proxied">[]
+  waits: WorkWait[]
   // Pages the user asked owlit to open for a site that waits on them: the extension opens each in its
   // own browser, the one with the user's access. The answer comes at once when there is one.
   open: OpenPage[]
+  // The waits the user got through, with their papers going on, counted by core (ExtensionView.going);
+  // absent from an owlit that kept no such count
+  going?: GoingOn[]
 }
 
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
@@ -304,18 +323,15 @@ export interface WorkEnded {
   url?: string
 }
 
-// POST /work/resume: the user got through at this site (a page there loaded that is neither a check nor
-// a sign-in, or the extension was allowed there)
-export interface WorkResume {
-  host: string
-}
+// POST /work/resume: the user got through at this wait (a page it watches loaded that is neither a
+// check nor a sign-in, or the extension was allowed there). { host } is what an extension that keys
+// waits by host sends, which core still matches through the waits' watch while such extensions are out.
+export type WorkResume = { wait: WaitId } | { host: string }
 
-// POST /work/blocked: a page the user opened at a site paused for a check or a sign-in shows the site's
-// firewall blocking them; the site waits for a way past the block instead, with that page to open
-export interface WorkBlocked {
-  host: string
-  url: string
-}
+// POST /work/blocked: a page the user opened at a wait for a check or a sign-in shows the site's firewall
+// blocking them; the wait is for a way past the block instead, with that page to open. { host, url } as
+// WorkResume's { host }.
+export type WorkBlocked = { wait: WaitId; url: string } | { host: string; url: string }
 
 // ---- Downloading by hand, one paper at a time
 

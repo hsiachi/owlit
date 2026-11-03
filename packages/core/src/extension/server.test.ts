@@ -360,7 +360,7 @@ describe("the extension's port", () => {
       const token = await s.pair()
       s.putPaper(id, { title, ids: { doi: SAGE } })
       // Asking for work is what makes the extension connected
-      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [] })
+      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [], going: [] })
       return { ...s, token, shown }
     }
 
@@ -372,7 +372,8 @@ describe("the extension's port", () => {
       expect(looked.pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } })
       expect((await request(`/papers?doi=${SAGE}`, { token })).body).toEqual({ paper: { id, title, hasPdf: false }, getting: 1 })
       const { body } = await request("/work", { token })
-      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, host: "sagepub.com", proxied: false }])
+      // Find PDF is the user's: the extension may open a tab for it
+      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, attempt: 1, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, userStarted: true }])
       const [item] = body.work
       const put = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
       expect(put).toMatchObject({ status: 200, body: { paper: { id, hasPdf: true } } })
@@ -392,7 +393,7 @@ describe("the extension's port", () => {
       const paper = await paperIn(call)
       expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { host: "sagepub.com", waits: "sign-in" } })
       // The extension knows where to watch for the user getting through
-      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false }], open: [] })
+      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [] })
       // The line's Sign in: the extension that met it opens the page, in its own browser
       expect(await call("extension.open", { kind: "sign-in", host: "journals.sagepub.com" })).toEqual({ by: "extension", browser: "Chrome" })
       expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" }])
@@ -404,10 +405,15 @@ describe("the extension's port", () => {
       expect((await request("/work/blocked", { token, body: { host: "journals.sagepub.com", url: "file:///etc/passwd" } })).status).toBe(400)
       expect((await request("/work/blocked", { token, body: { host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })).body).toEqual({ blocked: true })
       expect((await call("extension.get")).waits).toMatchObject([{ kind: "blocked", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" }])
-      expect((await request("/work/resume", { token, body: { host: "journals.sagepub.com" } })).body).toEqual({ resumed: true })
+      // By the wait's id; an extension that keys waits by host names the host, as above
+      expect((await request("/work/resume", { token, body: { wait: "pub:nowhere" } })).body).toEqual({ resumed: false })
+      expect((await request("/work/resume", { token, body: { wait: "sagepub.com" } })).status).toBe(400)
+      expect((await request("/work/resume", { token, body: { wait: "pub:sage" } })).body).toEqual({ resumed: true })
       expect((await call("extension.get")).waits).toEqual([])
-      const again = (await request("/work", { token })).body.work
-      expect(again).toMatchObject([{ paperId: id }])
+      const answer = (await request("/work", { token })).body
+      // Going on after the user got through is theirs too, and core counts it for the extension's popup
+      expect(answer.work).toMatchObject([{ paperId: id, attempt: 2, userStarted: true }])
+      expect(answer.going).toMatchObject([{ wait: "pub:sage", going: { ids: [id], saved: 0, ended: 0 } }])
     })
 
     it("tries a waiting site at once when the user says they got through there", async () => {

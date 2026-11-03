@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type GoingOn, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -138,8 +138,14 @@ export class ExtensionServer {
         return going ? { ...wait, going: await counted(going) } : wait
       }),
     )
-    const going = await Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
-    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits, going, runs: library ? await library.pdfRunViews() : [] }
+    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits, going: await this.going(), runs: library ? await library.pdfRunViews() : [] }
+  }
+
+  // The waits the user got through, with their papers going on, counted from the open workspace's papers
+  private async going(): Promise<GoingOn[]> {
+    const library = this.host.workspace()?.library
+    const counted = async (going: { at: number; ids: string[] }): Promise<WaitGoing> => ({ at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) })
+    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
   }
 
   // The id the user's extensions pair with: made once, kept in settings.json
@@ -361,6 +367,8 @@ export class ExtensionServer {
     const is = (...want: (string | null)[]) => (parts: string[]) => parts.length === want.length && want.every((w, i) => w === null || w === parts[i])
     const pair = z.object({ browser: z.string().trim().min(1).max(60), extensionVersion: z.string().max(40).optional() })
     const host = z.string().trim().min(1).max(253)
+    // A gate key, as core made it (pdf-keys.ts)
+    const wait = z.string().regex(/^(pub|site|proxy):\S{1,300}$/)
     const ended = z.object({
       ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission", "unreadable"]),
       host,
@@ -459,16 +467,16 @@ export class ExtensionServer {
         path: is("work"),
         handle: async ({ closed, pairing }) => {
           const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
-          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id) } satisfies WorkAnswer }
+          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going() } satisfies WorkAnswer }
         },
       },
       {
         method: "POST",
         path: is("work", "resume"),
         handle: async ({ raw }) => {
-          const body = z.object({ host }).safeParse(await readJson(raw))
+          const body = z.union([z.object({ wait }), z.object({ host })]).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
-          return { body: { resumed: this.work.resume(body.data.host) } }
+          return { body: { resumed: "wait" in body.data ? this.work.resumeAt(body.data.wait as WaitId) : this.work.resume(body.data.host) } }
         },
       },
       {
@@ -476,9 +484,10 @@ export class ExtensionServer {
         path: is("work", "blocked"),
         handle: async ({ raw }) => {
           // Only a web page, as a fetch's ending: the window opens it in a browser
-          const body = z.object({ host, url: z.string().max(4096).regex(/^https?:\/\//i) }).safeParse(await readJson(raw))
+          const url = z.string().max(4096).regex(/^https?:\/\//i)
+          const body = z.union([z.object({ wait, url }), z.object({ host, url })]).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
-          return { body: { blocked: this.work.blocked(body.data.host, body.data.url) } }
+          return { body: { blocked: "wait" in body.data ? this.work.blockedAt(body.data.wait as WaitId, body.data.url) : this.work.blocked(body.data.host, body.data.url) } }
         },
       },
       // The walk through the manual downloads: where it stands, asked as each of its pages loads and once
