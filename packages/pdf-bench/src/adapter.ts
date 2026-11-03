@@ -1,4 +1,4 @@
-import type { ExtensionView, ExtensionWait, OpenPage, Paper, ProxySettings, WorkAnswer, WorkItem } from "@owlit/protocol"
+import type { ExtensionView, ExtensionWait, OpenPage, Paper, ProxySettings, Task, WorkAnswer, WorkItem } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -65,6 +65,8 @@ export interface PaperView {
   // The paper's card title (noPdfTitle) and its list column's word
   title: string
   word?: string
+  // Its state's one name (pdfWait): for-check, manual, finding…
+  state?: string
   // Where core says the paper is held for the user (its pdfState), and the wait the renderer finds for
   // it in the waits list (waitOf)
   heldAt?: { kind: string; host: string }
@@ -306,10 +308,24 @@ export class Bench {
     let quiet = 0
     for (let round = 0; round < MAX_ROUNDS && quiet < QUIET_ROUNDS; round++) {
       await Promise.all(this.busy)
+      await this.lookups()
       const did = await this.ext.step()
       await this.ext.drain()
-      quiet = did || this.busy.size ? 0 : quiet + 1
+      quiet = did || this.busy.size || this.lookingUp() ? 0 : quiet + 1
     }
+  }
+
+  // Core's own looks at papers (a new paper's metadata and PDF lookups), which hand a miss to the
+  // extension when they end; one due later (a back-off) isn't waited for
+  private lookingUp() {
+    const tasks = (this.core as unknown as { workspace?: { tasks: { list(): Task[] } } }).workspace?.tasks.list() ?? []
+    return tasks.some((t) => t.kind.startsWith("paper.") && (t.state === "queued" || t.state === "running") && !(t.notBefore && t.notBefore > Date.now()))
+  }
+
+  private lookups() {
+    return vi.waitFor(() => {
+      if (this.lookingUp()) throw new Error("core is still looking papers up")
+    }, PATIENCE)
   }
 
   async screen(): Promise<Screen> {
@@ -519,10 +535,19 @@ class Renderer {
   batch: { ids: string[]; at: number } | null = null
   opened: { kind: string; host: string }[] = []
 
+  // The window's papers and waits come by two notifications; read here by two calls, again until the
+  // waits are the same on both sides of the papers, so a paper handed over between them isn't read as a
+  // disagreement the window would only show for a moment
   async refresh(bench: Bench) {
-    const listed = (await bench.call("library.list")) as { papers: Paper[] }
-    this.papers = Object.fromEntries(listed.papers.map((p) => [p.id, p]))
-    this.view = (await bench.call("extension.get")) as ExtensionView
+    let before = JSON.stringify((await bench.call("extension.get")).waits)
+    for (let tries = 0; tries < 20; tries++) {
+      const listed = (await bench.call("library.list")) as { papers: Paper[] }
+      this.papers = Object.fromEntries(listed.papers.map((p) => [p.id, p]))
+      this.view = (await bench.call("extension.get")) as ExtensionView
+      const after = JSON.stringify(this.view.waits)
+      if (after === before) break
+      before = after
+    }
     this.proxy = (await bench.call("settings.get")).library.proxy
     // pruneOpened: an opened site that no longer waits for that goes
     this.opened = this.opened.filter((o) => this.view!.waits.some((w) => w.host === o.host && w.kind === o.kind))
@@ -555,10 +580,12 @@ class Renderer {
       const ext = p.pdfState?.extension
       const found = waitOf(p, waits)
       const word = pdfColumnWord(p)
+      const state = pdfWait(p)
       papers[p.id] = {
         hasPdf: !!p.pdf,
         title: p.pdf ? "" : noPdfTitle(p, proxyHost),
         ...(word ? { word } : {}),
+        ...(state ? { state } : {}),
         ...(ext?.waits ? { heldAt: { kind: ext.waits, host: ext.waitsAt ?? ext.host } } : {}),
         ...(found ? { foundUnder: { kind: found.kind, host: found.host } } : {}),
       }

@@ -5,6 +5,7 @@ import type { Row, Screen } from "./adapter.ts"
 // see wrong; checkInvariants throws them all at once, naming the step.
 
 const waitKinds = new Set(["sign-in", "check", "blocked", "permission"])
+const userStates = new Set(["for-sign-in", "for-check", "for-permission", "blocked"])
 const key = (w: { kind: string; host?: string }) => `${w.kind}:${w.host ?? ""}`
 
 export function invariantErrors(screen: Screen): string[] {
@@ -15,6 +16,8 @@ export function invariantErrors(screen: Screen): string[] {
   for (const [id, p] of Object.entries(papers)) {
     // Core holds the paper for the user: the window finds the wait it is held under
     if (p.heldAt && (!p.foundUnder || key(p.foundUnder) !== key(p.heldAt))) errors.push(`${id} is held at ${key(p.heldAt)}, but the window finds it under ${p.foundUnder ? key(p.foundUnder) : "no wait"}`)
+    // Its card says it needs the user at a site: a wait in the Library holds it, for the user to act on
+    if (p.state && userStates.has(p.state) && !p.foundUnder) errors.push(`${id} says "${p.title}", and no wait holds it`)
     if (p.hasPdf && (p.heldAt || p.foundUnder)) errors.push(`${id} has its PDF and still waits at ${key(p.heldAt ?? p.foundUnder!)}`)
   }
 
