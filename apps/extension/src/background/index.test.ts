@@ -49,9 +49,9 @@ const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idl
 const PATIENCE = { timeout: 5_000, interval: 5 }
 
 let running: FakeBrowser[] = []
-async function boot(sites: Record<string, Site>, kept?: ReturnType<typeof fakeBrowser>["kept"], owlit = new FakeOwlit()) {
+async function boot(sites: Record<string, Site>, kept?: ReturnType<typeof fakeBrowser>["kept"], owlit = new FakeOwlit(), denied: string[] = []) {
   vi.resetModules()
-  const browser = fakeBrowser(sites, kept, owlit)
+  const browser = fakeBrowser(sites, kept, owlit, denied)
   browser.kept.local.token ??= "token"
   vi.stubGlobal("chrome", browser.chrome)
   vi.stubGlobal("fetch", browser.fetch)
@@ -162,6 +162,42 @@ describe("the fetch ladder", () => {
     expect(b.created).toHaveLength(1)
     expect(answered(b, "a2#1")[0].json).toMatchObject({ ended: "check" })
     expect(b.removed).toContain(tab)
+  })
+
+  it("opens no tab on a page it may not read, and names the site to allow", async () => {
+    const THIEME = "https://www.thieme-connect.de/products/ejournals/abstract/10.1055/1"
+    const b = await boot({ "www.thieme-connect.de": () => article("Thieme", `${THIEME}.pdf`) }, undefined, new FakeOwlit(), ["www.thieme-connect.de"])
+    b.owlit.give({ work: [item("h1", "pub:thieme", THIEME, { host: "thieme-connect.de", inTab: true, userStarted: true })] })
+    await until(b, "h1#1")
+    expect(answered(b, "h1#1")[0].json).toEqual({ ended: "no-permission", host: "thieme-connect.de" })
+    expect(b.created).toEqual([])
+  })
+
+  it("names the gate's site when the proxy sends the tab on to a site it may not read, never the proxy", async () => {
+    const TLINK = "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.cell.com/cell/fulltext/S0092-1"
+    const b = await boot(
+      { "tlink.lib.tsinghua.edu.cn": ({ url }) => ({ status: 302, redirect: url.searchParams.get("url")! }), "www.cell.com": () => article("Cell", "https://www.cell.com/cell/pdf/S0092-1.pdf") },
+      undefined,
+      new FakeOwlit(),
+      ["www.cell.com"],
+    )
+    b.owlit.give({ work: [item("c1", "pub:cell", TLINK, { lane: "proxy:tlink.lib.tsinghua.edu.cn", host: "tlink.lib.tsinghua.edu.cn", proxied: true, inTab: true, userStarted: true, sites: ["cell.com"] })] })
+    await until(b, "c1#1")
+    expect(answered(b, "c1#1")[0].json).toEqual({ ended: "no-permission", host: "cell.com" })
+    await vi.waitFor(() => expect(b.tabs.size).toBe(0), PATIENCE)
+  })
+
+  it("asks for a paper again when the user closes its tab during the check, rather than making up a check", async () => {
+    let b: FakeBrowser | undefined
+    // The user closes the tab as soon as its check shows
+    const closing: Site = ({ look, tab }) => {
+      if (look && tab) void b!.chrome.tabs.remove(tab.id)
+      return check()
+    }
+    b = await boot({ "dl.acm.org": closing })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { inTab: true, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
   })
 })
 

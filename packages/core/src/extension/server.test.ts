@@ -374,7 +374,7 @@ describe("the extension's port", () => {
       expect((await request(`/papers?doi=${SAGE}`, { token })).body).toEqual({ paper: { id, title, hasPdf: false }, getting: 1 })
       const { body } = await request("/work", { token })
       // Find PDF is the user's: the extension may open a tab for it
-      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, attempt: 1, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, userStarted: true }])
+      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, attempt: 1, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, userStarted: true, sites: ["sagepub.com"] }])
       const [item] = body.work
       const put = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
       expect(put).toMatchObject({ status: 200, body: { paper: { id, hasPdf: true } } })

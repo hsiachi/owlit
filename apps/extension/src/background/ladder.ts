@@ -125,15 +125,21 @@ const hostOf = (url: string) => {
 export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   // Without a tab of its own to fetch in, a tab-only publisher's paper is fetched as any other: through
   // the library's proxy its first answer may be the proxy's sign-in, and either way the ending names
-  // the gate whose wait the paper goes under
-  const worker = item.inTab && item.userStarted ? undefined : await fetchFor(item, deps)
+  // the gate whose wait the paper goes under. A page the extension may not read is never opened in a
+  // tab, which it couldn't read either: the background's fetch says so (no-permission).
+  const skip = item.inTab && item.userStarted && (await deps.permitted(item.url))
+  const worker = skip ? undefined : await fetchFor(item, deps)
   if (worker && !("ended" in worker && worker.ended === "check")) return worker
   if (!item.userStarted) return worker!
   await tabsLoaded
   return inLine(item.gate)(async () => {
     running.add(item.gate)
     try {
-      return (await inOwnTab(item, deps)) ?? worker ?? { ended: "check", host: hostOf(item.url), url: item.url }
+      // A tab that went away under it (the user closed it), or whose page couldn't be read, says nothing
+      // of the paper: the check the background met, when it met one; else offline, which owlit asks for
+      // again. Never a check made up at the paper's address, which through a proxy is the proxy's and
+      // would hold every paper through it.
+      return (await inOwnTab(item, deps)) ?? worker ?? { ended: "offline", host: hostOf(item.url) }
     } finally {
       running.delete(item.gate)
       setTimeout(() => void closeIdleTabs(), TAB_TIMES.idleMs + 1)
@@ -150,28 +156,37 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
     await keepTab(gate, undefined)
     tab = undefined
   }
+  const reused = !!tab
   if (tab) {
     // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
     // again is the site's word that this is enough for now
     await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
     await loaded(tab.tabId)
-    const passed = await pass(tab, item, { once: true })
-    if (passed !== "through") {
-      await letGo(gate, tab)
-      return passed
-    }
   } else {
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
     tab = { tabId: opened.id, shown: false, lastAt: 0 }
     await keepTab(gate, tab)
     await loaded(tab.tabId)
-    const passed = await pass(tab, item)
-    if (passed !== "through") {
-      await letGo(gate, tab)
-      return passed
-    }
+  }
+  const landed = await ext.tabs.get(tab.tabId).catch(() => undefined)
+  if (!landed) {
+    await keepTab(gate, undefined)
+    return undefined
+  }
+  // Landed where the extension may not read (a proxy sends the browser on to a publisher the user
+  // hasn't allowed): that site, to allow. The browser tells a tab's address only on a site the
+  // extension may read, so one it doesn't tell is named by the gate's own site, never by the proxy's.
+  if (!landed.url || !(await deps.permitted(landed.url))) {
+    await letGo(gate, tab)
+    const host = landed.url ? hostOf(landed.url) : item.sites?.[0]
+    return host ? { ended: "no-permission", host } : undefined
+  }
+  const passed = await pass(tab, item, { once: reused })
+  if (passed !== "through") {
+    await letGo(gate, tab)
+    return passed
   }
   // Fetched from where the paper's page landed: through a library proxy that sends the browser on to
   // the publisher (tlink), the proxy's address is another origin than the tab's, and only the tab's own

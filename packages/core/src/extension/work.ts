@@ -759,6 +759,7 @@ export class ExtensionWork implements ExtensionFetcher {
         proxied,
         ...(tabOnly(next.item.gate) ? { inTab: true as const } : {}),
         ...(next.item.started ? { userStarted: true as const } : {}),
+        sites: allowOf(next.item.gate, atOf(next.item.gate, "check", undefined)),
       })
     }
     return out

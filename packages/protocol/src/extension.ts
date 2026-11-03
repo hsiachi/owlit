@@ -264,6 +264,9 @@ export interface WorkItem {
   // The user started what this fetch is part of (Get PDFs, Find PDF, Look again, getting through at a
   // wait): only then may the extension open a tab of its own for it
   userStarted?: true
+  // The gate's sites (registrable domains), the one to allow first: where its tab may stand, and the
+  // site to name when that tab lands where the extension may not read
+  sites?: string[]
 }
 
 // A wait as the extension needs it: where to watch for the user getting through (watch), and, for a
