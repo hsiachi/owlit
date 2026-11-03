@@ -35,8 +35,9 @@ export interface SiteWait {
   proxied: boolean
 }
 
-// owlit going on at a site once the person got through there: how many of the papers that waited came
-export interface GoingOn {
+// owlit going on at a site once the person got through there, as core counts it: how many of the papers
+// that waited came with their PDF (done) of all that went on
+export interface SiteGoing {
   host: string
   done: number
   total: number
@@ -48,11 +49,12 @@ export interface PopupState {
   takePdfs: boolean
   // The extension may read every publisher site the manifest lists (permissions.ts)
   knownSites: boolean
-  // Sites owlit has papers waiting at that the extension may not read yet
-  needs: { host: string; papers: number }[]
+  // Sites owlit has papers waiting at that the extension may not read yet, and the sites Allow asks
+  // the browser for there (the publisher's hosts and those its PDFs come from)
+  needs: { host: string; papers: number; allow: string[] }[]
   // The sign-in or check this tab's site waits for, and owlit going on there once through
   wait?: SiteWait
-  going?: GoingOn
+  going?: SiteGoing
   // What the toolbar click on this tab came to, when it opened the popup to say it
   said?: Outcome
   // What became of the PDF this tab shows, when it is a Library paper's: taken, or why not

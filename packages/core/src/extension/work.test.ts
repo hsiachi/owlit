@@ -46,6 +46,37 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
   })
 
+  it("marks a fetch the user started, and a tab-only publisher's, and no other", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), true)
+    work.fetch(library, paper("b1", "dl.acm.org"), false)
+    const [a1, b1] = await take()
+    expect(a1).toMatchObject({ paperId: "a1", attempt: 1, lane: "pub:sage", gate: "pub:sage", userStarted: true })
+    expect(a1).not.toHaveProperty("inTab")
+    expect(b1).toMatchObject({ paperId: "b1", gate: "pub:acm", inTab: true })
+    expect(b1).not.toHaveProperty("userStarted")
+  })
+
+  it("lets a fetch open a tab after the user got through at its wait, not at the wait's own later try", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), true)
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    const [a1] = await take()
+    work.settle(a1.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
+    // The wait's one try on owlit's own, a while later, is nobody's run
+    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    const [tried] = await take()
+    expect(tried).toMatchObject({ paperId: "a1", attempt: 2 })
+    expect(tried).not.toHaveProperty("userStarted")
+    work.settle(tried.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
+    expect(work.resumeAt("pub:sage")).toBe(true)
+    const [again] = await take()
+    expect(again).toMatchObject({ paperId: "a1", attempt: 3, userStarted: true })
+    work.settle(again.id, "pdf")
+    vi.advanceTimersByTime(GAP_MS)
+    expect(await take()).toMatchObject([{ paperId: "a2", userStarted: true }])
+  })
+
   it("keeps the gap at a site when its papers come one at a time", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)

@@ -160,9 +160,8 @@ describe("a check at a publisher", () => {
     expect(screen.block).toMatchObject({ total: 2, saved: 2, running: false })
   })
 
-  // The extension's card counts PDFs by the work item's host (the proxy's), while the site it went on at
-  // is the publisher's: through tlink it says "0 PDFs came from science.org" after they all came
-  it.fails("through tlink: the browser's card counts the PDFs that came after the user got through", async () => {
+  // Counted by core from the papers, whatever host the fetch went through
+  it("through tlink: the browser's card counts the PDFs that came after the user got through", async () => {
     const web = tlink(new FakeWeb())
     web.signIn(TLINK)
     const { doi, title } = science(5)

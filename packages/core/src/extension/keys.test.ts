@@ -1,6 +1,6 @@
 import { PROXY_PRESETS, type ProxySettings } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { gateOf, laneOf, proxyGate, watchOf } from "./keys.ts"
+import { allowOf, gateOf, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
 import { extensionRoute, realHost, siteOf, throughProxy } from "./route.ts"
 
 const TLINK: ProxySettings = PROXY_PRESETS.tsinghua.proxy
@@ -151,5 +151,19 @@ describe("a host's registrable domain", () => {
     expect(siteOf("Watermark02.Silverchair.com")).toBe("silverchair.com")
     expect(siteOf("localhost")).toBe("localhost")
     expect(siteOf("127.0.0.1")).toBe("127.0.0.1")
+  })
+})
+
+describe("what the extension asks the browser for at a gate", () => {
+  it("is the publisher's sites and the hosts its PDFs come from", () => {
+    expect(allowOf("pub:oup", "academic.oup.com")).toEqual(["oup.com", "silverchair.com"])
+    expect(allowOf("pub:elsevier", "sciencedirect.com")).toEqual(["sciencedirect.com", "elsevier.com", "sciencedirectassets.com", "cell.com"])
+    expect(allowOf("site:example.org", "example.org")).toEqual(["example.org"])
+  })
+
+  it("fetches in a tab only for the publishers the table marks", () => {
+    expect(tabOnly("pub:acm")).toBe(true)
+    expect(tabOnly("pub:sage")).toBe(false)
+    expect(tabOnly("site:example.org")).toBe(false)
   })
 })

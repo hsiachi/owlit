@@ -9,13 +9,14 @@ import { askForOrigins, type Asked } from "../lib/permissions.ts"
 // The page the extension opens for a site it may not read yet: from Allow… on a waiting line in owlit's
 // window (papers wait there), or from Allow on the card in a page whose PDF is at that site (tabId: the
 // button's work is done again in that tab once allowed). The browser asks for a site's permission only
-// from a click inside the extension, so the click is here.
-export function Allow({ host, papers, tabId }: { host: string; papers: number; tabId?: number }) {
+// from a click inside the extension, so the click is here. allow: the sites asked for with it, the hosts
+// the publisher's PDFs come from among them (WorkWait.allow); host alone when absent.
+export function Allow({ host, allow: sites, papers, tabId }: { host: string; allow?: string[]; papers: number; tabId?: number }) {
   const [asked, setAsked] = useState<Asked | null>(null)
 
   // Nothing awaited before the request: Firefox refuses one that isn't straight from the click
   const allow = async () => {
-    const answer = await askForOrigins(ext.permissions, originsOf(host))
+    const answer = await askForOrigins(ext.permissions, (sites?.length ? sites : [host]).flatMap(originsOf))
     setAsked(answer)
     if (answer === "granted") await send({ kind: "allowed", host, tabId })
   }

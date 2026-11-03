@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { isThrough, verdict, type Page } from "./verdict.ts"
+import { isInteractive, isThrough, verdict, type Page } from "./verdict.ts"
 
 // Real publishers' pages as the extension met them, trimmed by scripts/trim-pages.mjs: from a worker
 // fetch (its status and headers) or a tab's document (neither). verdict is the ending a try reports,
@@ -29,5 +29,15 @@ describe("recorded publishers' pages", () => {
         ? { url: page.url, status: page.status, html, headers: new Headers(page.headers), proxy: page.proxy }
         : { url: page.url, status: 0, html, proxy: page.proxy }
     expect({ verdict: verdict(seen), isThrough: isThrough(seen) }, page.really).toEqual({ verdict: page.verdict, isThrough: page.isThrough })
+  })
+})
+
+// The checks a tab can't pass by waiting, which the fetch ladder leaves to the user at once
+describe("recorded checks only a person passes", () => {
+  const checks = recorded.filter((page) => page.verdict === "check")
+  it.each(checks.map((page) => [page.name, page] as const))("%s", (_, page) => {
+    const html = readFileSync(path.join(folder, `${page.name}.html`), "utf8")
+    const seen = page.from === "worker" ? { status: page.status, html, headers: new Headers(page.headers) } : { status: 0, html }
+    expect(isInteractive(seen), page.really).toBe(/sciencedirect|interactive/i.test(page.name + page.really))
   })
 })

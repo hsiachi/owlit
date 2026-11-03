@@ -125,6 +125,23 @@ export function watchOf(gate: GateKey, lane: LaneKey, proxy?: ProxySettings): st
   return [...watch]
 }
 
+// Hosts a publisher's PDFs come from that its own hosts don't name: OUP's article-pdf links send on to
+// Silverchair's watermark hosts
+const PDF_SITES: Record<string, string[]> = { oup: ["silverchair.com"] }
+
+// The sites the extension asks the browser for so it may read a gate's pages and PDFs (WorkWait.allow),
+// as registrable domains: at, where the user acts, and for a publisher its hosts' and its PDF hosts'.
+// The proxy's own gate is its host alone.
+export function allowOf(gate: GateKey, at: string): string[] {
+  if (!gate.startsWith("pub:")) return [siteOf(at)]
+  const name = gate.slice("pub:".length)
+  const hosts = PUBLISHERS.find((p) => p.name === name)?.hosts ?? []
+  return [...new Set([siteOf(at), ...hosts.map(siteOf), ...(PDF_SITES[name] ?? [])])]
+}
+
+// The gate's publisher always turns away the extension's own fetch (publisher-table's browser.tab)
+export const tabOnly = (gate: GateKey) => gate.startsWith("pub:") && !!PUBLISHERS.find((p) => `pub:${p.name}` === gate)?.browser?.tab
+
 // The gate of the library proxy's own sign-in
 export const proxyGate = (proxy: ProxySettings): GateKey => `proxy:${hostOf(proxy.base).toLowerCase()}`
 
