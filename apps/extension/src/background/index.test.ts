@@ -406,6 +406,52 @@ describe("a page whose load never ends", () => {
   })
 })
 
+describe("a tab already past the gate's check", () => {
+  it("is where the gate's next paper is fetched, user-started or not, without the background's fetch first", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: A2_PDF })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.fetches.filter((f) => f.url === A2_PDF).map((f) => f.from)).toEqual(["tab"])
+    expect(b.created).toHaveLength(1)
+  })
+
+  it("in the user's own tab, once the background met the gate's check: fetched there at once", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    // owlit's own look meets the check: no tab of the extension's, the paper waits
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toMatchObject({ ended: "check" })
+    // The user passes it in a tab of their own
+    await b.openTab("https://dl.acm.org/doi/10.1145/9")
+    const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: A2_PDF, userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.fetches.filter((f) => f.url === A2_PDF).map((f) => f.from)).toEqual(["tab"])
+    expect(b.created).toHaveLength(1)
+  })
+})
+
+describe("a PDF the user opens at a waiting site", () => {
+  it("is taken before owlit goes on at the wait, so its paper isn't fetched again", async () => {
+    const RSS = "rss.onlinelibrary.wiley.com"
+    const wiley: WorkWait = { id: "pub:wiley", kind: "check", at: "onlinelibrary.wiley.com", host: "onlinelibrary.wiley.com", watch: ["wiley.com"], papers: 1, proxied: false, allow: ["wiley.com"] }
+    const b = await boot({ [RSS]: ({ from }) => (from === "tab" ? { pdf: true } : check()) })
+    b.owlit.give({ waits: [wiley] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([wiley]), PATIENCE)
+    await b.openTab(`https://${RSS}/doi/pdfdirect/10.1111/4`)
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toHaveLength(1), PATIENCE)
+    const order = b.owlit.asked.filter((a) => (a.method === "PUT" && a.pdf) || a.route === "/work/resume").map((a) => a.route)
+    expect(order).toEqual(["/pdfs", "/work/resume"])
+  })
+})
+
 describe("waits", () => {
   const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 2, proxied: false, allow: ["science.org"] }
   const sites = { "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }

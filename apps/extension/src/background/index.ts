@@ -514,10 +514,12 @@ ext.tabs.onUpdated.addListener((tabId, change, tab) => {
   void (async () => {
     const pdfUrl = await pdfTabOf(tabId)
     if (pdfUrl && pdfUrl === url) {
+      // Taken first: owlit then has its PDF, and the wait's papers going on now leave it out
+      await pdfTab(tabId, url, tab)
       // A PDF that came at a site waiting for a check or a sign-in: the user is past it
       const wait = waitAt(await waits(), new URL(url).hostname)
       if (wait) await resume(wait, tabId).catch(() => undefined)
-      return pdfTab(tabId, url, tab)
+      return
     }
     // A site the extension may not read shows it no response, and only the address says it is a PDF
     if (/^https?:/.test(url) && namesPdf(url) && !(await permitted(url))) return pdfTab(tabId, url, tab)
@@ -535,7 +537,8 @@ const PARSED_EVERY_MS = 250
 
 // A page of the user's, looked at for the walk and the waits once its document is parsed. Never once it
 // has loaded: a page whose third-party scripts never answer (blocked on the network) stays loading for
-// minutes with its article there. The tab's PDF is the PDF branch's above.
+// minutes with its article there. The tab's PDF is the PDF branch's above, which takes it before the
+// wait goes on.
 async function pageReady(tabId: number) {
   const until = Date.now() + TAB_TIMES.loadMs
   for (;;) {
@@ -754,10 +757,14 @@ const pastIn = (seen: { url: string; html: string }, wait: Waits[number]) => isT
 // ended before the user got to it.
 async function pastAt(tabId: number, wait: Waits[number]): Promise<boolean> {
   const seen = await htmlOf(tabId)
-  if (!seen?.parsed || !pastIn(seen, wait)) return false
+  if (!seen?.parsed || !pastIn(seen, wait) || (await showsItsPdf(tabId, seen.url))) return false
   await resume(wait, tabId).catch(() => undefined)
   return true
 }
+
+// The tab shows a PDF the browser loaded there (onHeadersReceived): owlit takes it before the wait it came
+// at goes on, so the paper isn't handed out again and fetched a second time
+const showsItsPdf = async (tabId: number, url: string) => (await pdfTabOf(tabId)) === url
 
 async function watchForThrough(tabId: number, url: string) {
   if (!/^https?:/.test(url) || watching.has(tabId)) return
@@ -774,6 +781,8 @@ async function watchForThrough(tabId: number, url: string) {
       if (!seen) return
       // Still being read: looked at again
       if (!seen.parsed) continue
+      // The tab went on to a PDF: the PDF branch takes it, then goes on at the wait
+      if (await showsItsPdf(tabId, seen.url)) return
       if (pastIn(seen, wait)) {
         await resume(wait, tabId).catch(() => undefined)
         return

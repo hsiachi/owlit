@@ -6,8 +6,9 @@ import { isCheck, isInteractive, isStandIn, isThrough, siteOf } from "../lib/ver
 import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 
 // How the extension fetches one of owlit's papers, step by step:
-// 1. The background's own fetch, with the user's cookies. Skipped for a publisher whose check always
-//    turns it away (WorkItem.inTab), when a tab will fetch instead.
+// 1. The background's own fetch, with the user's cookies. Skipped where a tab is past the gate's check
+//    already (the gate's own, or one of the user's), which fetches instead whoever started it; and for a
+//    publisher whose check always turns it away (WorkItem.inTab), when a tab will fetch instead.
 // 2. On a check, and only inside something the user started (WorkItem.userStarted): a tab of the
 //    extension's own, one per gate, opened in the background on the paper's page. A managed check
 //    (Cloudflare's "Just a moment") passes by itself in a tab that runs it; the tab is brought to the
@@ -134,6 +135,16 @@ export const tabsLoaded = tabsKept().then((all) => {
   for (const kept of Object.values(all)) workTabIds.add(kept!.tabId)
 })
 
+// Gates whose check the background's own fetch met in this browser session: a tab past it is where
+// their papers are fetched (fetchLadder)
+const CHECKED_KEY = "checkedGates"
+const checkedGates = async () => ((await ext.storage.session.get(CHECKED_KEY))[CHECKED_KEY] ?? []) as GateKey[]
+const noteChecked = (gate: GateKey) =>
+  keeping(async () => {
+    const all = await checkedGates()
+    if (!all.includes(gate)) await ext.storage.session.set({ [CHECKED_KEY]: [...all, gate] })
+  })
+
 // One paper at a time per gate: its tab is the one place they are fetched from
 const gates = new Map<GateKey, ReturnType<typeof serial>>()
 const running = new Set<GateKey>()
@@ -155,23 +166,51 @@ const hostOf = (url: string) => {
 // The fetch ladder for one of owlit's papers. deps: the background's own fetching (FetchDeps), whose
 // inTab is a tab the user has open at the site, past its check.
 export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
+  await tabsLoaded
+  // A gate whose check turns the background's fetch away, with a tab already past it (the gate's own,
+  // kept from its last paper, or one of the user's): the paper is fetched there at once, user-started or
+  // not, since no tab is opened for it
+  if (item.inTab || (await checkedGates()).includes(item.gate)) {
+    if ((await tabsKept())[item.gate]) {
+      const got = await inGateLine(item, deps, { open: false })
+      if (got) return got
+    }
+    const theirs = await usersTab(item, deps)
+    if (theirs) return fetchFor(inTabItem(item, theirs.url), { ...deps, fetch: theirs.fetch, inTab: undefined })
+  }
   // Without a tab of its own to fetch in, a tab-only publisher's paper is fetched as any other: through
   // the library's proxy its first answer may be the proxy's sign-in, and either way the ending names
   // the gate whose wait the paper goes under. A page the extension may not read is never opened in a
   // tab, which it couldn't read either: the background's fetch says so (no-permission).
   const skip = item.inTab && item.userStarted && (await deps.permitted(item.url))
   const worker = skip ? undefined : await fetchFor(item, deps)
+  if (worker && "ended" in worker && worker.ended === "check") await noteChecked(item.gate)
   if (worker && !("ended" in worker && worker.ended === "check")) return worker
   if (!item.userStarted) return worker!
-  await tabsLoaded
+  // A tab that went away under it (the user closed it), or whose page couldn't be read, says nothing
+  // of the paper: the check the background met, when it met one; else offline, which owlit asks for
+  // again. Never a check made up at the paper's address, which through a proxy is the proxy's and
+  // would hold every paper through it.
+  return (await inGateLine(item, deps, { open: true })) ?? worker ?? { ended: "offline", host: hostOf(item.url) }
+}
+
+// A tab the user has open at one of the gate's sites, past its check, to fetch in (FetchDeps.inTab)
+async function usersTab(item: WorkItem, deps: FetchDeps) {
+  if (!deps.inTab) return undefined
+  for (const site of item.sites?.length ? item.sites : [siteOf(hostOf(item.url))]) {
+    const tab = await deps.inTab(site)
+    if (tab) return tab
+  }
+  return undefined
+}
+
+// The paper fetched in its gate's tab, in the gate's line. open: a tab may be opened for it when none
+// is kept; without, undefined when none is
+async function inGateLine(item: WorkItem, deps: FetchDeps, { open }: { open: boolean }): Promise<Fetched | undefined> {
   return inLine(item.gate)(async () => {
     running.add(item.gate)
     try {
-      // A tab that went away under it (the user closed it), or whose page couldn't be read, says nothing
-      // of the paper: the check the background met, when it met one; else offline, which owlit asks for
-      // again. Never a check made up at the paper's address, which through a proxy is the proxy's and
-      // would hold every paper through it.
-      return (await inOwnTab(item, deps)) ?? worker ?? { ended: "offline", host: hostOf(item.url) }
+      return await inOwnTab(item, deps, { open })
     } finally {
       running.delete(item.gate)
       setTimeout(() => void closeIdleTabs(), TAB_TIMES.idleMs + 1)
@@ -180,8 +219,8 @@ export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetc
 }
 
 // The paper fetched from inside its gate's tab, opened for it or kept from the gate's last paper;
-// undefined when the tab went away under it (the user closed it)
-async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | undefined> {
+// undefined when the tab went away under it (the user closed it), or none was kept and open is false
+async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boolean }): Promise<Fetched | undefined> {
   const gate = item.gate
   let tab = await reusable(item)
   const reused = !!tab
@@ -193,6 +232,7 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
     await loaded(tab.tabId, before)
   } else {
+    if (!open) return undefined
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
     tab = { tabId: opened.id, shown: false, lastAt: 0 }
