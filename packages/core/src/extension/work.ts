@@ -51,8 +51,9 @@ interface Queued {
 
 interface Paused {
   kind: ExtensionWait["kind"]
-  // For a permission: the site to allow, when it isn't the site's own key. Through the proxy the fetch
-  // is sent on to the publisher's site, which the extension may not read: that one, not the proxy's
+  // For a permission, a check or a block: the publisher's site it was met at, when it isn't the site's own
+  // key. Through the proxy the fetch is sent on to the publisher's site, where the extension may not read
+  // or the user gets past the check: that one, not the proxy's
   host?: string
   // What the user's browser opens for it
   url: string
@@ -282,8 +283,12 @@ export class ExtensionWork implements ExtensionFetcher {
       sortQueue(site)
       const url = (pause === "sign-in" && item.paper.signIn) || page.url || item.paper.url
       // The site named is the whole publisher's (siteOf), so one Allow covers its other hosts too
-      // (doi.apa.org, then psycnet.apa.org)
-      const host = pause === "permission" && page.host && siteOf(page.host) !== site.key ? siteOf(page.host) : undefined
+      // (doi.apa.org, then psycnet.apa.org). A check or a block met where the proxy sent the fetch is the
+      // publisher's as well: the user gets past it on the publisher's pages (a login-url proxy such as
+      // tlink sends them to academic.oup.com itself), and the extension and resume match the wait's host.
+      // A sign-in stays the proxy's: its page is the proxy's sign-in.
+      const metAt = pause !== "sign-in" && page.host ? siteOf(page.host) : undefined
+      const host = metAt && metAt !== site.key && metAt !== siteOf(site.key) ? metAt : undefined
       // Met again by the one try on owlit's own: no more until the user acts
       const tryAt = site.paused ? undefined : site.endedAt + PAUSED_RETRY_MS
       site.paused = { kind: pause, url, by, ...(tryAt !== undefined ? { tryAt } : {}), ...(host ? { host } : {}) }
