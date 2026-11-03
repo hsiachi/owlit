@@ -231,10 +231,7 @@ export class Library {
           },
         ),
       resolve: (title) => this.byTitle(title),
-      parsingOn: async () => {
-        const settings = (await this.services.parsing?.()) ?? {}
-        return !!settings.service && !(settings.service === "cloud" && !settings.token) && settings.auto !== false
-      },
+      parsingOn: () => this.parsingOn(),
     })
   }
 
@@ -1315,19 +1312,44 @@ export class Library {
   // Steps a paper is owed but never got (a PDF put in by hand or by another program, a run that failed
   // in an older build): its text, read now, in the background; its first look for a PDF, when nobody
   // ever looked (a thread's paper from before every add sought one, or a look owlit quit before running);
-  // and its details looked up again when they predate the current round of checks (METADATA_CHECKS)
+  // MinerU's reading (parseOwed); and its details looked up again when they predate the current round of
+  // checks (METADATA_CHECKS)
   private async catchUp() {
     const ids = await this.ids()
     const now = Date.now()
+    const parsing = await this.parsingOn()
     for (const id of ids) {
       await this.removePartials(id, now)
       if ((await hasPdfFile(this.root, id)) && !(await hasText(this.root, id))) this.queue("paper.text", id, "background")
       else if (await this.unsought(id)) for (const kind of ["paper.pdf", "paper.text", "index.paper"]) this.queue(kind, id, "background")
+      else if (parsing && (await this.owesParse(id))) this.queue("paper.parse", id, "background")
       // Only details the services gave: a record written some other way (by hand, by another program)
       // is left as its author wrote it
       const record = await readRecord(this.root, id)
       if (record?.fetchedAt && (record.checked ?? 0) < METADATA_CHECKS && refOfIds(record.ids)) this.queue("paper.metadata", id, "background")
     }
+  }
+
+  // MinerU's reading for every paper read while no parsing service was set up (or its token was lost):
+  // paper.parse returns at once without one and leaves no parse.json, so nothing else asks again. For
+  // when a service is set up, and at the start.
+  async parseOwed() {
+    if (!(await this.parsingOn())) return
+    for (const id of await this.ids()) if (await this.owesParse(id)) this.queue("paper.parse", id, "background")
+  }
+
+  // Read by pdfium alone and never tried with MinerU. A failed try leaves parse.json and isn't owed
+  // again: it may have spent quota.
+  private async owesParse(id: string) {
+    if (this.imports.imported(id)?.parse === false) return false
+    if (!(await hasPdfFile(this.root, id)) || (await exists(path.join(paperDir(this.root, id), "parse.json")))) return false
+    return (await readText(this.root, id))?.source === "pdfium"
+  }
+
+  // Whether background reading by MinerU may run: a service set up, and not turned off for background
+  private async parsingOn() {
+    const settings = (await this.services.parsing?.()) ?? {}
+    return !!settings.service && !(settings.service === "cloud" && !settings.token) && settings.auto !== false
   }
 
   // The steps owlit takes once a day, each skipped when it ran today already

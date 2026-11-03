@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- Papers read while no MinerU token was set (or after one was lost) are read by MinerU once a token is put back, and at the next start, so their digests can show figures. Before, they kept their built-in text for good.
 - Resting the pointer on a link in a PDF shows where it goes, cut from the page itself: a citation's reference entry, a footnote, an equation, a section's heading and first lines, or a figure, table or algorithm with its caption; an entry or a section that the foot of a column breaks goes on with the rest from the next column or page. A click on the preview follows the link, as the link does.
 - Tooltips wait half a second for the pointer to rest, so moving across a toolbar no longer flashes a label at every button. The colour dots over selected PDF text have none: the colour is the label.
 - Text buttons follow one set of rules. Only words that are part of a sentence are underlined, all in one style; a lone verb such as Show or Set up is a plain text button. In the Library's lines every verb sits at the line's end; after a single sentence it follows the words. "Show more", "Show all" and "4 more" are all folds with a chevron. An ellipsis means a picker, dialog or Settings opens next, so buttons that open your browser lose it (Sign in, Allow, Install) and menus end in a chevron. Ways out of a form (Cancel, Skip) are muted.

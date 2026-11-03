@@ -272,4 +272,27 @@ describe("paper.parse", () => {
     expect(cloud.asked.filter((a) => a.includes("mineru"))).toEqual([])
     expect(existsSync(path.join(root, "library/papers/doi-10.9-p/parse.json"))).toBe(false)
   })
+
+  it("reads the papers that went without a service once a token is put in", async () => {
+    const cloud = mineruCloud({ polls: 0 })
+    const { base, root, call, workspace } = await setup(cloud.fetch, { service: "cloud" })
+    await addWithPdf(call, base)
+    await settled(workspace, "paper.parse")
+    await call("settings.setSecret", { name: "mineruToken", value: "t" })
+    await until(() => workspace.tasks.list().find((t) => t.kind === "paper.parse" && t.external && t.state === "done"), { what: "paper.parse to read with MinerU" })
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers/doi-10.9-p/text.json"), "utf8")).source).toBe("mineru")
+  }, 30_000)
+
+  it("reads them at the start too, and only once", async () => {
+    const first = await setup(mineruCloud().fetch, {})
+    await addWithPdf(first.call, first.base)
+    await settled(first.workspace, "paper.parse")
+    await first.core.dispose()
+
+    const second = await setup(mineruCloud({ polls: 0 }).fetch, { service: "cloud", token: "t" }, { base: first.base, root: first.root })
+    expect((await settled(second.workspace, "paper.parse")).state).toBe("done")
+    expect(JSON.parse(readFileSync(path.join(first.root, "library/papers/doi-10.9-p/parse.json"), "utf8"))).toMatchObject({ status: "done" })
+    await second.workspace.library.parseOwed()
+    expect(second.workspace.tasks.list().filter((t) => t.kind === "paper.parse")).toHaveLength(1)
+  }, 30_000)
 })
