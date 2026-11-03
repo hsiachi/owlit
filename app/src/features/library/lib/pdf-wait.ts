@@ -31,6 +31,8 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
       return t({ message: "Needs manual download", comment: "owlit couldn't open the publisher's page in the user's browser; the user downloads the PDF there by hand" })
     case "skipped":
       return t({ message: "You found none", comment: "the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)" })
+    case "stopped":
+      return t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site" })
     case "not-found":
       return t({ message: "No PDF found", comment: "owlit looked for the paper's PDF and found no copy" })
     case "no-access":
@@ -88,6 +90,8 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">, proxyHost?: strin
       return t`Needs you to download it`
     case "skipped":
       return t`You found no PDF on its page`
+    case "stopped":
+      return t`You stopped getting its PDF`
     case "not-found":
       return t`No PDF found`
     case "no-access":

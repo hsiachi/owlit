@@ -47,7 +47,7 @@ export class Pairings {
     this.questionMs = options.questionMs ?? QUESTION_MS
   }
 
-  async view(serving: boolean, portTaken: boolean): Promise<Omit<ExtensionView, "waits">> {
+  async view(serving: boolean, portTaken: boolean): Promise<Omit<ExtensionView, "waits" | "going" | "runs">> {
     const paired = await this.paired()
     const asking = [...this.questions.values()].filter((q) => !q.answer && !q.expired).map(({ id, browser, origin, at }) => clean({ id, browser, origin, at }))
     return { serving, portTaken, paired: paired.map(({ id, browser, origin, pairedAt, lastSeenAt }): ExtensionPairing => clean({ id, browser, origin, pairedAt, lastSeenAt })), asking }

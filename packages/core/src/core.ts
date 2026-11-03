@@ -118,6 +118,9 @@ export interface CoreOptions {
   changelog?: string
 }
 
+// pnpm dev and pnpm try say in the log when a publisher quietly gives no PDFs (ExtensionWork)
+const withSilentZeros = (options: ExtensionServerOptions, dev: boolean): ExtensionServerOptions => ({ ...options, work: { warnSilentZeros: dev, ...options.work } })
+
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
 // notifications. Constructing it touches nothing outside; start() is when it begins to talk.
 
@@ -225,7 +228,7 @@ export class Core {
             },
             browserApp: options.host?.browserApp,
           },
-          options.extension === true ? {} : options.extension,
+          withSilentZeros(options.extension === true ? {} : options.extension, (options.build?.channel ?? "dev") === "dev"),
         )
       : null
     this.fs = new AgentFs({

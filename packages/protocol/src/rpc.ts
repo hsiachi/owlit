@@ -15,6 +15,7 @@ import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
 import type { ExtensionOpened, ExtensionView, ExtensionWait } from "./extension.ts"
+import type { WaitId } from "./pdf-keys.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC for the window, a Unix socket for agents and the owlit
@@ -79,11 +80,14 @@ export interface Methods {
   "extension.forget": { params: { id: string }; result: ExtensionView }
   // A waiting line's one thing to do: the extension opens the sign-in, the check or its Allow page in its
   // own browser; with no extension connected, owlit opens a sign-in or a check in the browser it was
-  // paired in
-  "extension.open": { params: { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
+  // paired in. By the wait's id; { kind, host } (its at) is still taken from a window that sends it.
+  "extension.open": { params: { wait: WaitId } | { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
   // The user says they got through at a site that waits on them (I've signed in, I've verified it): owlit
-  // tries it at once, as when the extension sees them through. false when no site waits there now.
-  "extension.resume": { params: { host: string }; result: { resumed: boolean } }
+  // tries it at once, as when the extension sees them through. false when no site waits there now. By
+  // the wait's id; { host } is still taken.
+  "extension.resume": { params: { wait: WaitId } | { host: string }; result: { resumed: boolean } }
+  // Puts away the line of a wait the user got through (ExtensionView.going, ExtensionWait.going)
+  "extension.dismissGoing": { params: { wait: WaitId }; result: null }
   // A publisher's page opened in the browser the extension was paired in, the one with the user's access
   // (a paper to download by hand); none when owlit can't open pages there
   "extension.openPage": { params: { url: string }; result: ExtensionOpened }
@@ -502,8 +506,14 @@ export interface Methods {
   // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
   // Get them all: every one of these papers without its PDF goes to the extension in the user's browser,
-  // asked for; which went, which have no DOI to go by, or that no extension is connected
-  "library.fetchPdfs": { params: { ids: string[] }; result: { queued: string[]; noDoi: string[]; noExtension?: true } }
+  // asked for; which went, which have no DOI to go by, or that no extension is connected. run: the Get
+  // PDFs they went in (ExtensionView.runs), a new one or the one going on, when any went.
+  "library.fetchPdfs": { params: { ids: string[] }; result: { queued: string[]; noDoi: string[]; noExtension?: true; run?: string } }
+  // Stop on Get PDFs: its papers leave the extension's queue, the ones not handed over yet never are;
+  // their records stay as they were, and one being fetched now still has its answer noted
+  "pdfRuns.stop": { params: { run: string }; result: null }
+  // Puts away a Get PDFs that ended, or was stopped
+  "pdfRuns.dismiss": { params: { run: string }; result: null }
   // Stop on Get PDFs: these papers leave the extension's queue, their records as they were; one being
   // fetched now still has its answer noted
   "library.stopFetchPdfs": { params: { ids: string[] }; result: null }

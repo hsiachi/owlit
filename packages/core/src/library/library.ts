@@ -32,13 +32,14 @@ import {
   type TaskPriority,
 } from "@owlit/protocol"
 import { watch, type FSWatcher } from "node:fs"
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
 import type { KnownWait } from "../extension/work.ts"
+import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
 import { gateOf, gateOfTry } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
@@ -145,13 +146,15 @@ export interface ExtensionFetcher {
   // askedFor: the user waits on this paper (Look again, Get them all)
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
   // The waits the workspace's papers' records say they met, as it opens
-  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined): void
+  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined): Promise<void>
   // Where the paper stands with the extension, while it has it or a wait holds it from its record
   holding(library: Library, id: string): PdfState["extension"] | undefined
   // The paper is in one of the extension's queues (not only held from its record)
   inQueue(library: Library, id: string): boolean
   // The paper no longer wants fetching: it has its PDF, or it left the library
   drop(library: Library, id: string): void
+  // Papers of a Get PDFs changed, or the run did: the window hears the runs again
+  runsChanged(library: Library): void
 }
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
@@ -218,6 +221,8 @@ export class Library {
   private readonly acquisitions: Acquisitions
   // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
   private readonly batchStopped = new Set<string>()
+  // Get PDFs in this workspace since it opened, the newest last; in memory only (extension/runs.ts)
+  private pdfRuns: PdfRun[] = []
   // Every paper's cite key by id, and the keys in use: what a new key is checked against (cite-key.ts)
   private citeKeyOf = new Map<string, string>()
   private keysTaken = new Set<string>()
@@ -694,7 +699,7 @@ export class Library {
   // site paused for a sign-in is tried once more. Which went, and which have no DOI to go by; nothing
   // when no extension is connected. The queueing goes on after the answer: each paper's page is looked
   // up first, and the window follows the papers themselves.
-  async fetchPdfs(ids: string[]): Promise<{ queued: string[]; noDoi: string[]; noExtension?: true }> {
+  async fetchPdfs(ids: string[]): Promise<{ queued: string[]; noDoi: string[]; noExtension?: true; run?: string }> {
     if (!this.services.extension?.connected()) return { queued: [], noDoi: [], noExtension: true }
     const queued: string[] = []
     const noDoi: string[] = []
@@ -709,19 +714,97 @@ export class Library {
       }
     }
     for (const id of queued) this.batchStopped.delete(id)
+    if (!queued.length) return { queued, noDoi }
+    const run = await this.runFor(queued)
     void (async () => {
-      for (const { id, doi } of toQueue) {
+      for (const [i, { id, doi }] of toQueue.entries()) {
         // Stopped while the papers before it were being looked up
         if (this.batchStopped.delete(id)) continue
-        if (!(await this.toExtension(id, doi, "waiting"))) return
+        if (!(await this.toExtension(id, doi, "waiting"))) {
+          // The extension went: the rest stay out until the user asks again, and the run says so rather
+          // than going on for ever
+          for (const rest of toQueue.slice(i)) if (!run.handed.has(rest.id)) run.away.add(rest.id)
+          break
+        }
+        run.handed.add(id)
+        run.away.delete(id)
       }
+      this.services.extension?.runsChanged(this)
     })().catch((error) => console.error("[core] couldn't hand papers to the extension", error))
-    return { queued, noDoi }
+    return { queued, noDoi, run: run.id }
+  }
+
+  // The run these papers go in: the one going on, which keeps its start, or a new one
+  private async runFor(ids: string[]): Promise<PdfRun> {
+    await this.pdfRunViews()
+    let run = this.pdfRuns.findLast((r) => r.endedAt === undefined && r.stoppedAt === undefined && r.dismissedAt === undefined)
+    if (!run) {
+      run = { id: randomUUID(), started: Date.now(), ids: [], handed: new Set(), away: new Set() }
+      this.pdfRuns.push(run)
+    }
+    run.ids = [...new Set([...run.ids, ...ids])]
+    // Asked for again: in line once more, whatever the last hand-over met
+    for (const id of ids) run.away.delete(id)
+    this.services.extension?.runsChanged(this)
+    return run
+  }
+
+  // Stop on a run: its papers leave the extension's queue, and the ones not handed over yet never are
+  async stopRun(id: string) {
+    const run = this.pdfRuns.find((r) => r.id === id)
+    if (!run) throw new RpcFailure(RpcErrorCode.NotFound, t`That Get PDFs is over.`, { id })
+    run.stoppedAt ??= Date.now()
+    await this.stopFetchPdfs(run.ids)
+  }
+
+  // A run the window puts away: it is no longer shown
+  dismissRun(id: string) {
+    const run = this.pdfRuns.find((r) => r.id === id)
+    if (!run) return
+    run.dismissedAt = Date.now()
+    this.pdfRuns = this.pdfRuns.filter((r) => r.dismissedAt === undefined)
+    this.services.extension?.runsChanged(this)
+  }
+
+  // The runs not put away, the newest first, counted from their papers now
+  async pdfRunViews() {
+    const connected = !!this.services.extension?.connected()
+    const views = []
+    for (const run of [...this.pdfRuns].reverse()) {
+      const papers = new Map<string, RunPaper | undefined>()
+      for (const id of run.ids) papers.set(id, await this.runPaper(id))
+      views.push(runView(run, papers, connected))
+    }
+    return views
+  }
+
+  private async runPaper(id: string): Promise<RunPaper | undefined> {
+    const paper = await this.get(id)
+    if (!paper) return undefined
+    if (!paper.pdf) return { paper }
+    const placed = (await this.acquisitions.read(id))?.tried.findLast((t) => t.ended === "pdf")
+    return { paper, ...(placed ? { placedBy: placed.by } : {}) }
+  }
+
+  // The papers that went on after the user got through at a wait (ExtensionWait.going): how many came
+  // back with their PDF, and how many ended either way, since at. A paper still with the extension, or
+  // not tried since, is still going.
+  async goingCounts(going: { at: number; ids: string[] }): Promise<{ saved: number; ended: number }> {
+    let saved = 0
+    let ended = 0
+    for (const id of going.ids) {
+      const paper = await this.get(id)
+      if (paper?.pdf) saved++
+      if (!paper || paper.pdf || (!paper.pdfState?.extension && paper.pdfState?.tried.some((t) => t.by !== "search" && t.at >= going.at))) ended++
+    }
+    return { saved, ended }
   }
 
   // Stop on a batch (fetchPdfs): its papers leave the extension's queue, and the ones not handed over yet
   // never are. Their records stay as they were; one being fetched now still has its answer noted.
   async stopFetchPdfs(ids: string[]) {
+    // A window that stops by the papers stops the run they went in
+    for (const run of this.pdfRuns) if (run.stoppedAt === undefined && run.endedAt === undefined && ids.some((id) => run.ids.includes(id))) run.stoppedAt = Date.now()
     for (const id of ids) {
       const held = this.services.extension?.holding(this, id)
       // Its record would say it waits for the user at a wait that is going: the user stopped it instead
@@ -1317,6 +1400,7 @@ export class Library {
     await removeFigures(this.root, id)
     await this.acquisitions.notePlaced(id, { by: route.startsWith("extension") ? "extension" : "person", route, sha256: sha }, { held: true })
     this.services.extension?.drop(this, id)
+    this.touchRuns([id])
     this.pdfHashes?.set(sha, id)
     this.queueText(id, priority)
   }
@@ -1987,9 +2071,9 @@ export class Library {
       // the same either way
       const gate = gateOfTry(reason, proxy, gateOf(`https://doi.org/${doi}`))
       if (!gate) continue
-      known.push({ paperId: id, kind, gate, url: reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length })
+      known.push({ paperId: id, kind, gate, url: reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
     }
-    extension.restore(this, known, proxy)
+    await extension.restore(this, known, proxy)
   }
 
   // A try the extension made, noted without telling the window: its queue says when the paper's
@@ -2008,6 +2092,11 @@ export class Library {
   // The window hears these papers again: their standing with the extension changed
   pdfChanged(ids: string[]) {
     return this.announce(ids)
+  }
+
+  // A run shown has one of these papers: it is counted again
+  private touchRuns(ids: string[]) {
+    if (this.pdfRuns.some((run) => ids.some((id) => run.ids.includes(id)))) this.services.extension?.runsChanged(this)
   }
 
   // Queues a step for a paper when there is a scheduler that can run its kind; otherwise the step is skipped
@@ -2038,6 +2127,7 @@ export class Library {
       else removed.push(id)
     }
     if (papers.length || removed.length) this.onChange({ papers, removed })
+    this.touchRuns(ids)
   }
 
   private async settle() {

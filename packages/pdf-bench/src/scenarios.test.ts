@@ -272,10 +272,10 @@ describe("a batch of papers (Get PDFs)", () => {
     expect(screen.block).toBeNull()
     expect(screen.waits).toEqual([])
     // Their cards no longer ask the user to verify anything
-    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, state: "not-found" })
+    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, state: "stopped" })
   })
 
-  it("survives the window reloading: the sites waiting stay in view, as rows without the batch", async () => {
+  it("survives the window reloading: the batch is core's, and stays in view", async () => {
     const web = new FakeWeb()
     const papers = [science(14), science(15)]
     for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { check: true })
@@ -285,7 +285,7 @@ describe("a batch of papers (Get PDFs)", () => {
     const direct = b.addPaper("10.1177/0956797699", "Direct Paper About Habits")
     expect((await b.getPdfs()).block).toMatchObject({ batch: true, total: 3, saved: 1 })
     let screen = await b.reloadRenderer()
-    expect(screen.block).toMatchObject({ batch: false })
+    expect(screen.block).toMatchObject({ batch: true, total: 3, saved: 1 })
     expect(rowsOf(screen)).toEqual([["check", 2, "science.org"]])
     expect(screen.papers[direct].hasPdf).toBe(true)
     await b.clickWait("check", "science.org")

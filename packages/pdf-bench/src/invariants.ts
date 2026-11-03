@@ -31,22 +31,22 @@ export function invariantErrors(screen: Screen): string[] {
     const rows: Row[] = [...block.rows, ...block.outside]
     const seen = new Map<string, string>()
     for (const r of block.rows) {
-      for (const id of r.ids) {
+      for (const id of r.ids ?? []) {
         if (seen.has(id)) errors.push(`${id} is counted twice, in ${seen.get(id)} and ${key(r)}`)
         seen.set(id, key(r))
       }
-      if (block.batch && r.ids.length !== r.papers) errors.push(`the row ${key(r)} says ${r.papers} papers and holds ${r.ids.length}`)
+      if (block.batch && r.ids && r.ids.length !== r.papers) errors.push(`the row ${key(r)} says ${r.papers} papers and holds ${r.ids.length}`)
       if (waitKinds.has(r.kind)) {
         // A site wait's row names a wait the user can act on
         const w = waitByKey.get(key(r))
         if (!w) errors.push(`the row ${key(r)} has no wait to act on`)
         else if (r.papers > w.papers) errors.push(`the row ${key(r)} counts ${r.papers} papers, more than its wait's ${w.papers}`)
-        for (const id of r.ids) {
+        for (const id of r.ids ?? []) {
           const p = papers[id]
           if (p && (!p.foundUnder || key(p.foundUnder) !== key(r))) errors.push(`${id} is in the row ${key(r)}, but its own card is under ${p.foundUnder ? key(p.foundUnder) : "no wait"}`)
         }
       }
-      for (const id of r.ids) if (papers[id]?.hasPdf) errors.push(`${id} has its PDF and is in the row ${key(r)}`)
+      for (const id of r.ids ?? []) if (papers[id]?.hasPdf) errors.push(`${id} has its PDF and is in the row ${key(r)}`)
     }
     if (block.batch) {
       // got + waiting + manual + none + still waiting = the batch's papers
@@ -56,7 +56,7 @@ export function invariantErrors(screen: Screen): string[] {
         const p = papers[id]
         if (p?.foundUnder && waitKinds.has(p.foundUnder.kind) && seen.get(id) !== key(p.foundUnder)) errors.push(`${id} waits at ${key(p.foundUnder)} and is in the row ${seen.get(id)}`)
       }
-      if (!block.running && block.rows.some((r) => r.kind === "waiting" && !waits.length)) errors.push("the batch says it is done, with papers still waiting their turn and nothing to wait for")
+      if (block.running !== block.rows.some((r) => r.kind === "waiting")) errors.push(block.running ? "the batch says it is getting PDFs, with nothing in line" : "the batch says it is done, with papers still in line")
     } else {
       // Without a batch, the rows are the waits
       const want = waits.map(key).sort()
@@ -67,6 +67,10 @@ export function invariantErrors(screen: Screen): string[] {
     const keys = rows.map(key)
     if (new Set(keys).size !== keys.length) errors.push(`a site has two rows: ${keys.join(", ")}`)
   } else if (waits.length) errors.push(`${waits.length} waits and no block to show them`)
+
+  // A gate handed papers again and again that gives nothing, and no wait says why: the user sees papers
+  // go and come back with nothing, and no one to ask
+  for (const gate of screen.silent) errors.push(`${gate} was handed papers all day and gave no PDF, with no wait to say why`)
 
   return errors
 }

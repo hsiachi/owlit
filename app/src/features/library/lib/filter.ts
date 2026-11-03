@@ -18,7 +18,7 @@ export function matchesQuery(p: Paper, q: string): boolean {
 // in line at the extension and those owlit looks for itself. Each group is named by the word its rows say
 // (pdfColumnWord), so a paper in line is under Waiting, not Finding, and one at a site waiting on the user
 // under that wait's word (Needs verification).
-const NO_PDF_ORDER: PdfWait[] = ["manual", "for-sign-in", "for-check", "for-permission", "blocked", "not-found", "no-access", "not-offered", "not-there", "skipped", "finding", "offline"]
+const NO_PDF_ORDER: PdfWait[] = ["manual", "for-sign-in", "for-check", "for-permission", "blocked", "not-found", "no-access", "not-offered", "not-there", "skipped", "stopped", "finding", "offline"]
 
 const lacksPdf = (p: Paper) => !!pdfWait(p)
 

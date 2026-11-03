@@ -1,7 +1,8 @@
-import type { ExtensionWait, GateKey, LaneKey, OpenPage, PdfState, ProxySettings, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
+import type { ExtensionWait, GateKey, LaneKey, OpenPage, PdfState, ProxySettings, WaitId, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
 import { hostOf } from "../net/http.ts"
 import { gateOf, laneOf, watchOf } from "./keys.ts"
+import { FOLLOW_UP_MS, PdfWorkNotes, type FollowUp } from "./pdf-work.ts"
 import { siteOf } from "./route.ts"
 
 // The papers owlit hands to its browser extension once its own routes found no copy, and the pace it
@@ -25,6 +26,10 @@ import { siteOf } from "./route.ts"
 // A work item's id is `<paperId>#<attempt>`: the attempt is one more than the extension tries the
 // paper's record holds, so it is the same before and after a restart, and an answer is matched by the
 // paper and that number, never by anything kept only in memory.
+//
+// What the records can't say is kept per workspace on this machine (pdf-work.ts): each wait's
+// follow-ups (its page opened, the user saying they got through, the papers that went on then), by gate
+// and since, and a tally per gate of what was handed out and how it ended.
 
 // Between two fetches at one site, from the end of the last. Through the proxy, longer: a campus shares
 // one proxy, and it limits how often a reader may ask (Tsinghua's tlink's minute-limit page).
@@ -55,6 +60,9 @@ export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 export interface WorkOptions {
   gapMs?: number
   proxyGapMs?: number
+  // Say in the log when a gate gives nothing without a wait to explain it (silentZeros): a build run
+  // from a checkout, where someone reads the log
+  warnSilentZeros?: boolean
 }
 
 interface Queued {
@@ -82,6 +90,9 @@ interface Lane {
 
 interface Wait {
   gate: GateKey
+  // When it began, kept while it is met again; a wait that came back after the user got through (a
+  // paper that went on met the same gate) keeps the first one's
+  since: number
   kind: ExtensionWait["kind"]
   // ExtensionWait.at, .url, .watch
   at: string
@@ -105,6 +116,8 @@ export interface KnownWait {
   url: string
   host?: string
   tries: number
+  // When that try was
+  triedAt: number
 }
 
 const PAUSES: Partial<Record<WorkEnding, ExtensionWait["kind"]>> = { check: "check", blocked: "blocked", "sign-in": "sign-in", "no-permission": "permission" }
@@ -142,10 +155,14 @@ export class ExtensionWork implements ExtensionFetcher {
   // Pages to open, per pairing, until its next GET /work collects them
   private readonly opens = new Map<string, OpenPage[]>()
   private readonly waiters = new Set<() => void>()
+  // The owned library's notes on this machine (pdf-work.json)
+  private notes = new PdfWorkNotes(undefined)
+  // When each gate was last said to give nothing, so the log says it once a day
+  private readonly warned = new Map<GateKey, number>()
 
   constructor(host: WorkHost, options: WorkOptions = {}) {
     this.host = host
-    this.options = { gapMs: options.gapMs ?? GAP_MS, proxyGapMs: options.proxyGapMs ?? PROXY_GAP_MS }
+    this.options = { gapMs: options.gapMs ?? GAP_MS, proxyGapMs: options.proxyGapMs ?? PROXY_GAP_MS, warnSilentZeros: options.warnSilentZeros ?? false }
   }
 
   connected() {
@@ -159,18 +176,36 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   // The user asked to open what a wait needs: handed to the extension whose fetch met it, or, when that
-  // one isn't asking now, to the one that asked last. The pairing it went to; undefined when no wait
-  // there is of that kind or no extension is connected.
-  open(kind: ExtensionWait["kind"], host: string): string | undefined {
-    const wait = this.waitNamed(host)
-    if (!wait || wait.kind !== kind || !this.count(wait)) return undefined
+  // one isn't asking now, to the one that asked last. The pairing it went to; undefined when no such
+  // wait is up or no extension is connected.
+  open(id: WaitId): string | undefined {
+    const wait = this.waitsAt.get(id)
+    if (!wait || !this.count(wait)) return undefined
     const connected = this.connectedPairings()
     const by = wait.by && connected.includes(wait.by) ? wait.by : connected[0]
     if (!by) return undefined
+    const { kind, at: host } = wait
     const page: OpenPage = kind === "permission" ? { kind, host, papers: this.count(wait) } : { kind, host, url: wait.url }
     // Pressed twice before the extension collected it: opened once
     this.openFor(by, page, (o) => "host" in o && o.host === host)
     return by
+  }
+
+  // The wait's page was opened in the user's browser (by its extension, or by owlit there): its button
+  // now says what they did there, and an earlier "still asks you" is over
+  opened(id: WaitId, browser: string | undefined) {
+    const wait = this.waitsAt.get(id)
+    if (!wait) return
+    const follow = this.notes.of(wait)
+    follow.opened = { at: Date.now(), ...(browser ? { browser } : {}) }
+    follow.retried = undefined
+    this.notes.changed()
+    this.host.waits()
+  }
+
+  // The wait shown at this host with this kind, for a window that names waits the old way
+  waitIdOf(kind: ExtensionWait["kind"], host: string): WaitId | undefined {
+    return [...this.waitsAt.values()].find((w) => w.at === host && w.kind === kind)?.gate
   }
 
   // A page for this pairing's extension to open, collected by its next GET /work, which it ends at once.
@@ -180,9 +215,9 @@ export class ExtensionWork implements ExtensionFetcher {
     this.kick()
   }
 
-  // The pairing whose fetch met the wait shown at this host
-  pausedBy(host: string): string | undefined {
-    return this.waitNamed(host)?.by
+  // The pairing whose fetch met the wait
+  pausedBy(id: WaitId): string | undefined {
+    return this.waitsAt.get(id)?.by
   }
 
   // The pages waiting for this pairing, handed over once
@@ -195,21 +230,38 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // The waits a workspace's papers' records say they met (Library.restoreWaits), up as it opens, before
   // any extension connects; their papers join the queues once one does. Each wait's one try goes as
-  // soon as a paper of it is queued: the user may have got through since owlit last ran.
-  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined) {
+  // soon as a paper of it is queued: the user may have got through since owlit last ran. A wait that was
+  // up when owlit last ran takes its since back, and with it its follow-ups.
+  async restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined) {
     this.own(library)
+    const notes = this.notes
+    await notes.loaded
+    // Another workspace opened meanwhile
+    if (notes !== this.notes) return
     const now = Date.now()
+    const made = new Set<Wait>()
     for (const k of known) {
       if (this.holds(k.paperId)) continue
       let wait = this.waitsAt.get(k.gate)
       if (!wait) {
         const at = atOf(k.gate, k.kind, k.host)
         const lane: LaneKey = k.gate.startsWith("proxy:") ? k.gate : proxy ? `proxy:${hostOf(proxy.base).toLowerCase()}` : k.gate
-        wait = { gate: k.gate, kind: k.kind, at, url: k.url, watch: watchOf(k.gate, lane, proxy), tryAt: now, known: new Map() }
+        wait = { gate: k.gate, since: k.triedAt, kind: k.kind, at, url: k.url, watch: watchOf(k.gate, lane, proxy), tryAt: now, known: new Map() }
         this.waitsAt.set(k.gate, wait)
+        made.add(wait)
       }
+      // Begun by the earliest try that met it
+      if (made.has(wait)) wait.since = Math.min(wait.since, k.triedAt)
       wait.known.set(k.paperId, k.tries)
     }
+    for (const wait of made) {
+      const was = notes.upAt(wait.gate)
+      // The same wait when it began no later than its papers' tries say; one up at the gate since is a
+      // later wait's, and the tries an earlier one's
+      if (was && was.since <= wait.since) wait.since = was.since
+      notes.of(wait)
+    }
+    notes.keepUp((f) => this.waitsAt.get(f.gate)?.since === f.since)
     this.host.waits()
   }
 
@@ -259,7 +311,7 @@ export class ExtensionWork implements ExtensionFetcher {
     }
     const over = askedFor ? this.waitOver(lane, item) : undefined
     const lifted = over ? this.papersUnder(over) : []
-    if (over) this.waitsAt.delete(over.gate)
+    if (over) this.lift(over)
     this.host.papers(library, [...new Set([paper.paperId, ...lifted])])
     this.host.waits()
     this.kick()
@@ -282,6 +334,10 @@ export class ExtensionWork implements ExtensionFetcher {
       return { lane: wait.gate, gate: wait.gate, attempt: tries + 1, host: wait.at, ...(wait.gate.startsWith("proxy:") ? { proxied: true } : {}), ...underWait(wait) }
     }
     return undefined
+  }
+
+  runsChanged(library: Library) {
+    if (library === this.library) this.host.waits()
   }
 
   inQueue(library: Library, id: string): boolean {
@@ -354,10 +410,13 @@ export class ExtensionWork implements ExtensionFetcher {
     return lane?.inFlight ? answerGate(lane.inFlight.item, page) : undefined
   }
 
-  // The extension's answer, once core has noted it: a PDF (ended undefined) or a word. A word that only
-  // the user can get past makes, or adds to, the wait at the gate the page belongs to, its paper first in
-  // line for when they have. Not the attempt in flight: nothing changes.
-  settle(id: string, ended: WorkEnding | undefined, page: { url?: string; host?: string } = {}) {
+  // The extension's answer, once core has noted it: "pdf" when its PDF was placed, a word, or undefined
+  // when there is nothing to fetch any more (the paper went, or has its PDF). A word that only the user
+  // can get past makes, or adds to, the wait at the gate the page belongs to, its paper first in line
+  // for when they have. Not the attempt in flight: nothing changes.
+  // triedAt: when the try was noted, which a wait it makes begins at, so a restart that rebuilds the
+  // wait from the try finds its follow-ups (restore).
+  settle(id: string, ended: WorkEnding | "pdf" | undefined, page: { url?: string; host?: string; triedAt?: number } = {}) {
     const lane = this.flying(id)
     if (!lane?.inFlight || !this.library) return
     const { item, by } = lane.inFlight
@@ -367,7 +426,8 @@ export class ExtensionWork implements ExtensionFetcher {
     const now = Date.now()
     lane.endedAt = now
     const was = this.waitOver(lane, item)
-    const pause = ended && PAUSES[ended]
+    const pause = ended && ended !== "pdf" ? PAUSES[ended] : undefined
+    if (ended === "pdf") this.notes.pdf(item.gate, now)
     if (ended === "offline") {
       // Its try reached nothing: a wait it was under keeps waiting, its one try still to come
       if (was) was.tryAt = now + PAUSED_RETRY_MS
@@ -381,6 +441,7 @@ export class ExtensionWork implements ExtensionFetcher {
     } else if (pause) {
       lane.offline = undefined
       item.gate = answerGate(item, page)
+      this.notes.ended(item.gate, ended as WorkEnding)
       lane.queue.unshift(item)
       sortQueue(lane)
       const pageHost = page.url ? hostOf(page.url) : page.host
@@ -389,35 +450,98 @@ export class ExtensionWork implements ExtensionFetcher {
       const url = (pause === "sign-in" && item.gate.startsWith("proxy:") && item.paper.signIn) || page.url || item.paper.url
       const before = this.waitsAt.get(item.gate)
       const proxy = item.paper.proxied ? item.paper.proxy : undefined
+      // A paper that went on when the user got through met the same gate again: that wait is back
+      const back = before ? undefined : this.notes.goingWith(item.gate, item.paper.paperId)
+      const since = before?.since ?? back?.since ?? page.triedAt ?? now
       // Met again (by its one try on owlit's own, or another paper of it): no more tries until the user
       // acts. A wait it was under elsewhere had its try too.
-      const wait: Wait = { gate: item.gate, kind: pause, at, url, watch: watchOf(item.gate, lane.key, proxy), by, known: before?.known ?? new Map(), ...(before ? {} : { tryAt: now + PAUSED_RETRY_MS }) }
+      const wait: Wait = { gate: item.gate, since, kind: pause, at, url, watch: watchOf(item.gate, lane.key, proxy), by, known: before?.known ?? new Map(), ...(before ? {} : { tryAt: now + PAUSED_RETRY_MS }) }
       this.waitsAt.set(item.gate, wait)
+      const follow = this.notes.of(wait)
+      if (back?.retried) follow.retried = { ...back.retried, again: true }
+      // The page the user had opened was for what it waited for before
+      if (before && before.kind !== pause) follow.opened = undefined
+      this.notes.changed()
       if (was && was !== before) was.tryAt = undefined
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...(was ? this.papersUnder(was) : [])])])
       this.host.waits()
     } else {
       lane.offline = undefined
+      if (ended && ended !== "pdf") this.notes.ended(answerGate(item, page), ended)
       const freed = was ? this.papersUnder(was) : []
       // A try under a wait got through: the user did, somewhere the extension didn't see
       if (was) {
-        this.waitsAt.delete(was.gate)
+        this.lift(was)
         this.host.waits()
       }
       this.leaveIfEmpty(lane)
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }
+    if (ended === "offline") this.notes.ended(item.gate, ended)
+    this.warnIfSilent(now)
     this.kick()
   }
 
   // POST /work/resume: the user got through at this host. Every wait it names (its at, a host it
   // watches, or under the same registrable domain) goes, its papers on at once, the asked for first.
   resume(host: string): boolean {
-    const gone = [...this.waitsAt.values()].filter((w) => names(w, host))
+    return this.goOn([...this.waitsAt.values()].filter((w) => names(w, host)))
+  }
+
+  // The user said they got through at this wait (I've signed in, I've verified it): it goes as resume
+  // has it, and is followed, so the same wait coming back says it still asks them (retried.again)
+  resumeWait(id: WaitId): boolean {
+    const wait = this.waitsAt.get(id)
+    if (!wait) return false
+    const follow = this.notes.of(wait)
+    follow.retried = { at: Date.now(), again: false }
+    return this.goOn([wait])
+  }
+
+  // The line of papers that went on after the user got through at this wait, put away
+  dismissGoing(id: WaitId): boolean {
+    const had = this.notes.dismissGoing(id)
+    if (had) this.host.waits()
+    return had
+  }
+
+  // The waits that went after the user got through, while their papers going on are to be shown: the
+  // ids that went on and since when, for the caller to count from the papers
+  goneWaits(): FollowUp[] {
+    return this.notes.gone().filter((f) => !this.waitsAt.has(f.gate))
+  }
+
+  // The follow-ups of a wait that is up
+  followUpOf(id: WaitId): FollowUp | undefined {
+    const wait = this.waitsAt.get(id)
+    return wait && this.notes.get(wait.gate, wait.since)
+  }
+
+  // Gates handed papers often lately with no PDF from them and no wait up to say why
+  silentZeros(now = Date.now()): GateKey[] {
+    return this.notes.quiet(now).filter((gate) => !this.waitsAt.has(gate))
+  }
+
+  // How the gates did, as pdf-work.json keeps it
+  tallies() {
+    return this.notes.tallies()
+  }
+
+  // What is still to be written down, now
+  flush() {
+    return this.notes.flush()
+  }
+
+  private goOn(gone: Wait[]): boolean {
     if (!gone.length) return false
-    const freed = gone.flatMap((w) => this.papersUnder(w))
+    const under = gone.map((w) => this.papersUnder(w))
+    const freed = under.flat()
     const known = gone.some((w) => w.known.size)
-    for (const w of gone) this.waitsAt.delete(w.gate)
+    gone.forEach((w, i) => {
+      this.waitsAt.delete(w.gate)
+      this.notes.of(w)
+      this.notes.down(w.gate, w.since, under[i])
+    })
     for (const lane of this.lanes.values()) {
       if (lane.queue.some((q) => freed.includes(q.paper.paperId))) lane.endedAt = undefined
     }
@@ -465,17 +589,19 @@ export class ExtensionWork implements ExtensionFetcher {
       this.leaveIfEmpty(lane)
     }
     if (!waitsChanged) return
-    for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.waitsAt.delete(wait.gate)
+    for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.lift(wait)
     this.host.waits()
   }
 
-  // The waits, as the window shows them; a paper out for a try still waits there
+  // The waits, as the window shows them; a paper out for a try still waits there. Without going, which
+  // is counted from the papers (followUpOf).
   waits(): ExtensionWait[] {
     return [...this.waitsAt.values()].flatMap((wait) => {
       const papers = this.count(wait)
       if (!papers) return []
       const askedFor = this.itemsUnder(wait).some((q) => q.askedFor)
-      return [{ id: wait.gate, kind: wait.kind, at: wait.at, host: wait.at, watch: wait.watch, papers, url: wait.url, askedFor, proxied: wait.gate.startsWith("proxy:") }]
+      const follow = this.notes.get(wait.gate, wait.since)
+      return [{ id: wait.gate, kind: wait.kind, at: wait.at, host: wait.at, watch: wait.watch, papers, url: wait.url, askedFor, proxied: wait.gate.startsWith("proxy:"), since: wait.since, ...(follow?.opened ? { opened: follow.opened } : {}), ...(follow?.retried ? { retried: follow.retried } : {}) }]
     })
   }
 
@@ -495,7 +621,28 @@ export class ExtensionWork implements ExtensionFetcher {
     this.waitsAt.clear()
     this.lastEnded.clear()
     this.opens.clear()
+    void this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
+    this.notes = new PdfWorkNotes(library?.dataDir)
+    this.warned.clear()
     this.host.waits()
+  }
+
+  // A wait goes without the user getting through there (a paper of it got through by itself, the user
+  // asked for one, none of its papers is left): nothing goes on to follow
+  private lift(wait: Wait) {
+    this.waitsAt.delete(wait.gate)
+    this.notes.down(wait.gate, wait.since)
+  }
+
+  // The log says it, once a day per gate, where someone reads it
+  private warnIfSilent(now: number) {
+    if (!this.options.warnSilentZeros) return
+    for (const gate of this.silentZeros(now)) {
+      if (now - (this.warned.get(gate) ?? Number.NEGATIVE_INFINITY) < FOLLOW_UP_MS) continue
+      this.warned.set(gate, now)
+      const t = this.notes.tallies().get(gate)
+      console.warn(`[core] ${gate} was handed ${t?.recent.length} papers in a day and gave no PDF, with no wait for the user to say why: its pages may be misread. Endings so far: ${JSON.stringify(t?.endings ?? {})}`)
+    }
   }
 
   private holds(id: string) {
@@ -518,11 +665,6 @@ export class ExtensionWork implements ExtensionFetcher {
 
   private count(wait: Wait) {
     return this.papersUnder(wait).length
-  }
-
-  // The wait shown at this host (ExtensionWait.at)
-  private waitNamed(host: string): Wait | undefined {
-    return [...this.waitsAt.values()].find((w) => w.at === host)
   }
 
   private leaveIfEmpty(lane: Lane) {
@@ -566,6 +708,7 @@ export class ExtensionWork implements ExtensionFetcher {
       lane.queue.splice(lane.queue.indexOf(next.item), 1)
       const id = workItemId(next.item.paper.paperId, next.item.tries + 1)
       lane.inFlight = { id, item: next.item, at: now, by }
+      this.notes.handed(next.item.gate, now)
       const { paperId, url, pdfUrl, host, proxied } = next.item.paper
       out.push({ id, paperId, url, ...(pdfUrl ? { pdfUrl } : {}), host, proxied })
     }

@@ -75,6 +75,8 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, libra
         : t`owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF.`
     case "skipped":
       return t`You looked on its page in your browser and skipped it · ${date}`
+    case "stopped":
+      return t`You stopped it while it waited for you at its site · ${date}`
     case "not-found":
       // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
       if (reason?.ended === "check" || reason?.ended === "sign-in") {
@@ -95,7 +97,7 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, libra
 }
 
 // What owlit does next on its own, for a card that waits on nobody
-const NO_PDF: ReadonlySet<CardState> = new Set(["skipped", "not-found", "no-access", "not-offered", "not-there"])
+const NO_PDF: ReadonlySet<CardState> = new Set(["skipped", "stopped", "not-found", "no-access", "not-offered", "not-there"])
 
 export function NoPdf({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)

@@ -58,6 +58,12 @@ export interface ExtensionView {
   asking: { id: string; browser: string; origin?: string; at: number }[]
   // Sites whose papers the extension can't fetch until the user does something there, one per site
   waits: ExtensionWait[]
+  // Waits the user got through, while their papers go on (and until the window puts the line away,
+  // extension.dismissGoing); a wait that is up again carries its own going instead
+  going: GoingOn[]
+  // Get PDFs in the open workspace: at most one going on, then those that ended and weren't put away,
+  // the newest first (PdfRunView)
+  runs: PdfRunView[]
 }
 
 // A site paused for the user: a sign-in (the library's, through its proxy, or the publisher's), a check,
@@ -86,6 +92,61 @@ export interface ExtensionWait {
   askedFor: boolean
   // The wait is the library proxy's own: a sign-in there is the library's, else the site's own
   proxied: boolean
+  // When it began; with id, what its follow-ups below are kept by, so an earlier wait's never attach to it
+  since: number
+  // The user had its page opened in their browser (extension.open), and which browser: the button then
+  // says what they did there. Gone once they say they got through, or the wait's kind changes.
+  opened?: { at: number; browser?: string }
+  // The user said they got through (extension.resume); again: the same wait came back after it, since a
+  // paper owlit went on with met the same page
+  retried?: { at: number; again: boolean }
+  going?: WaitGoing
+}
+
+// After the user got through at a wait (they said so, or the extension saw it): the papers that went on,
+// and how many of them came back with their PDF and have ended either way, counted from the papers
+// themselves
+export interface WaitGoing {
+  at: number
+  ids: string[]
+  saved: number
+  ended: number
+}
+
+// A wait that went, with its papers going on
+export interface GoingOn extends Pick<ExtensionWait, "kind" | "at" | "proxied" | "since"> {
+  wait: WaitId
+  going: WaitGoing
+}
+
+// One Get PDFs (library.fetchPdfs), as core counts it from its papers every time it is shown: never a
+// count kept on the side. A second Get PDFs while one goes on adds to it.
+export interface PdfRunView {
+  id: string
+  started: number
+  // Its papers still in the library
+  total: number
+  // PDFs placed since it started by owlit's own search or the extension; byYou: by the user (dropped,
+  // chosen, opened by hand)
+  saved: number
+  byYou: number
+  // Papers under a wait for the user, by the wait (ExtensionWait.id), the most papers first
+  waits: { wait: WaitId; papers: number; ids: string[] }[]
+  // Papers to download by hand, and at which sites, the most papers first
+  manual: { ids: string[]; sites: { host: string; papers: number }[] }
+  // No PDF to be had (the tries ended so); the user found none on its page; the user stopped it
+  none: number
+  skipped: number
+  stopped: number
+  // In line or being fetched, or not handed over yet; away: not handed over, or in line, with no
+  // extension connected, so nothing moves until one is
+  going: number
+  away: number
+  // Something is going
+  running: boolean
+  stoppedAt?: number
+  // When nothing was going any more, the first time
+  endedAt?: number
 }
 
 // ---- Over the port. Errors are JSON too: { reason, message } with message one sentence for the user.

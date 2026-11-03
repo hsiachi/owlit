@@ -1,4 +1,4 @@
-import type { ExtensionView, ExtensionWait, OpenPage, Paper, ProxySettings, Task, WorkAnswer, WorkItem } from "@owlit/protocol"
+import type { ExtensionView, ExtensionWait, OpenPage, Paper, PdfRunView, ProxySettings, Task, WorkAnswer, WorkItem } from "@owlit/protocol"
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -13,7 +13,6 @@ import { mayRead } from "../../../apps/extension/src/lib/permissions.ts"
 import { isBlocked, isThrough, siteOf } from "../../../apps/extension/src/lib/verdict.ts"
 import { doWork } from "../../../apps/extension/src/lib/work.ts"
 import { waitOf, waitWords } from "@/features/extension/wait-words"
-import { batchView, outsideRows, siteRows, type BatchRow } from "@/features/library/lib/pdf-batch"
 import { noPdfTitle, pdfColumnWord, pdfWait } from "@/features/library/lib/pdf-wait"
 import { libraryNameOf, proxyHostOf } from "@/features/settings/library-name"
 
@@ -24,8 +23,8 @@ import { libraryNameOf, proxyHostOf } from "@/features/settings/library-name"
 // Three layers, as they run in the app: a real Core on a fresh userData and workspace, its own fetch on
 // the fake web; an "extension" running apps/extension's real doWork against core's real HTTP server, its
 // fetches on the fake web as the user's browser (their cookies, their permissions); and a "renderer"
-// that keeps what the window keeps (the batch, the pages opened) and draws the Library's PDF block and
-// the waits with the window's own functions, from core's RPC answers.
+// that draws the Library's PDF block from core's run (ExtensionView.runs) and the waits with the window's
+// own functions, from core's RPC answers.
 
 const ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop"
 // Short holds of GET /work, so a settle sees quickly that nothing more is due
@@ -40,19 +39,23 @@ const PATIENCE = { timeout: 10_000, interval: 10 }
 // ---- What the user sees
 
 export interface Row {
+  // A wait's kind, or manual, none, skipped, stopped, waiting (in line or not handed over yet), away
   kind: string
   papers: number
   host?: string
   // A wait's sentence after its count (waitWords.need)
   words?: string
-  ids: string[]
+  // The papers of a wait's row and of the manual row; the other rows are counts
+  ids?: string[]
 }
 
 export interface Block {
   // A batch the user started (Get PDFs) is up; otherwise the rows are the sites waiting
   batch: boolean
   total: number
+  // PDFs placed since the batch started, the user's own among them (byYou)
   saved: number
+  byYou: number
   things: number
   running: boolean
   rows: Row[]
@@ -86,6 +89,8 @@ export interface WaitView {
 
 export interface Screen {
   block: Block | null
+  // Gates core's tally says gave nothing lately, with no wait to say why (ExtensionWork.silentZeros)
+  silent: string[]
   waits: WaitView[]
   papers: Record<string, PaperView>
   // The user's browser: its tabs, the sites the extension's card counts PDFs coming from after the user
@@ -191,11 +196,10 @@ export class Bench {
   // Get PDFs: the papers the Library offers it for (GetPdfsLine's), handed to the extension in one batch
   async getPdfs(only?: string[]) {
     await this.ui.refresh(this)
-    const offered = Object.values(this.ui.papers).filter((p) => !p.pdf && p.ids.doi && !this.ui.batch?.ids.includes(p.id) && !p.pdfState?.extension && pdfWait(p) !== "manual" && pdfWait(p) !== "skipped")
+    const offered = Object.values(this.ui.papers).filter((p) => !p.pdf && p.ids.doi && !p.pdfState?.extension && pdfWait(p) !== "manual" && pdfWait(p) !== "skipped")
     const ids = offered.map((p) => p.id).filter((id) => !only || only.includes(id))
     const from = this.handed.length
     const { queued } = await this.call("library.fetchPdfs", { ids })
-    if (queued.length) this.ui.startBatch(queued)
     // Core looks each one up before it hands it over
     await vi.waitFor(() => {
       const now = new Set(this.handed.slice(from))
@@ -204,18 +208,26 @@ export class Bench {
     return this.step(`get PDFs for ${queued.length} papers`)
   }
 
-  // Stop on the batch's block
+  // Stop on the batch's block: the run stops, and its block is put away
   async stop() {
-    const ids = this.ui.batch?.ids ?? []
-    this.ui.batch = null
-    await this.call("library.stopFetchPdfs", { ids })
+    const run = await this.run()
+    if (run) {
+      await this.call("pdfRuns.stop", { run: run.id })
+      await this.call("pdfRuns.dismiss", { run: run.id })
+    }
     return this.step("stop the batch")
   }
 
   // Dismiss the batch's summary
   async dismiss() {
-    this.ui.batch = null
+    const run = await this.run()
+    if (run) await this.call("pdfRuns.dismiss", { run: run.id })
     return this.step("dismiss the batch")
+  }
+
+  // The run the block shows (PdfBlock reads the newest)
+  private async run(): Promise<PdfRunView | undefined> {
+    return ((await this.call("extension.get")) as ExtensionView).runs[0]
   }
 
   // The button on a wait's row (actOnWait): the extension opens its page in the browser
@@ -275,7 +287,7 @@ export class Bench {
     return this.step("restart owlit")
   }
 
-  // The window reloads: what it kept (the batch, the pages opened) is gone
+  // The window reloads: what it kept (the pages opened) is gone; the batch is core's
   async reloadRenderer() {
     this.ui = new Renderer()
     return this.step("reload the window")
@@ -332,7 +344,7 @@ export class Bench {
 
   async screen(): Promise<Screen> {
     await this.ui.refresh(this)
-    return { ...this.ui.draw(), browser: this.ext.browser() }
+    return { ...this.ui.draw(), silent: this.server.work.silentZeros(), browser: this.ext.browser() }
   }
 
   // The papers the extension fetched, in the order it fetched them
@@ -534,7 +546,6 @@ class Renderer {
   papers: Record<string, Paper> = {}
   view: ExtensionView | null = null
   proxy: ProxySettings | undefined
-  batch: { ids: string[]; at: number } | null = null
   opened: { kind: string; host: string }[] = []
 
   // The window's papers and waits come by two notifications; read here by two calls, again until the
@@ -555,26 +566,27 @@ class Renderer {
     this.opened = this.opened.filter((o) => this.view!.waits.some((w) => w.host === o.host && w.kind === o.kind))
   }
 
-  // startBatch: a second Get PDFs adds to the first, keeping its start
-  startBatch(ids: string[]) {
-    this.batch = { ids: [...new Set([...(this.batch?.ids ?? []), ...ids])], at: this.batch?.at ?? Date.now() }
-  }
-
-  draw(): Omit<Screen, "browser"> {
+  draw(): Omit<Screen, "browser" | "silent"> {
     const waits = this.view?.waits ?? []
     const library = libraryNameOf(this.proxy)
-    const row = (r: BatchRow): Row => {
-      const words = r.kind === "sign-in" || r.kind === "check" || r.kind === "blocked" || r.kind === "permission" ? waitWords({ kind: r.kind, host: r.host ?? "", proxied: !!r.proxied }, r.papers, library).need : undefined
-      return { kind: r.kind, papers: r.papers, ids: [...r.ids], ...(r.host !== undefined ? { host: r.host } : {}), ...(words ? { words } : {}) }
-    }
+    const waitRow = (wait: ExtensionWait, papers: number, ids?: string[]): Row => ({ kind: wait.kind, papers, host: wait.at, words: waitWords(wait, papers, library).need, ...(ids ? { ids: [...ids] } : {}) })
+    const byPapers = (a: ExtensionWait, b: ExtensionWait) => b.papers - a.papers
     let block: Block | null = null
-    const view = this.batch ? batchView(this.batch, this.papers) : null
-    // PdfBlock: the batch's block while any of its papers is still in the library, else the sites waiting
-    if (view && view.total > 0) {
-      block = { batch: true, total: view.total, saved: view.saved, things: view.things, running: view.running, rows: view.rows.map(row), outside: outsideRows(waits, view.rows).map(row) }
-    } else {
-      const rows = siteRows(waits)
-      if (rows.length) block = { batch: false, total: rows.reduce((n, r) => n + r.papers, 0), saved: 0, things: rows.length, running: false, rows: rows.map(row), outside: [] }
+    const run = this.view?.runs[0]
+    // PdfBlock: the run's block while any of its papers is still in the library, else the sites waiting
+    if (run && run.total > 0) {
+      const rows: Row[] = []
+      for (const w of run.waits) {
+        const wait = waits.find((one) => one.id === w.wait)
+        // A run's wait row the waits list doesn't have: drawn as such, which the invariants then name
+        rows.push(wait ? waitRow(wait, w.papers, w.ids) : { kind: "check", papers: w.papers, host: `(no wait ${w.wait})`, ids: [...w.ids] })
+      }
+      if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: [...run.manual.ids] })
+      for (const [kind, papers] of [["none", run.none], ["skipped", run.skipped], ["stopped", run.stopped], ["waiting", run.going], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
+      const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers).map((w) => waitRow(w, w.papers))
+      block = { batch: true, total: run.total, saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, rows, outside }
+    } else if (waits.length) {
+      block = { batch: false, total: waits.reduce((n, w) => n + w.papers, 0), saved: 0, byYou: 0, things: waits.length, running: false, rows: [...waits].sort(byPapers).map((w) => waitRow(w, w.papers)), outside: [] }
     }
     const proxyHost = proxyHostOf(this.proxy)
     const papers: Record<string, PaperView> = {}

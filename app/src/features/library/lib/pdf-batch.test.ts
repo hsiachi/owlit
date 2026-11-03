@@ -92,14 +92,14 @@ describe("a batch of papers sent to the extension", () => {
   })
 
   it("keeps the sites that wait for papers outside the batch, under the batch's rows", () => {
-    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ id: `site:${host}`, at: host, watch: [], kind, host, papers, url: `https://${host}/`, askedFor: true, proxied: false })
+    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ id: `site:${host}`, at: host, watch: [], kind, host, papers, url: `https://${host}/`, askedFor: true, proxied: false, since: 0 })
     const papers = [held("a", "check", "oup.com"), inLine("b")]
     const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
     expect(outsideRows([wait("check", "oup.com", 3), wait("permission", "tsinghua.edu.cn", 13)], view.rows).map((r) => [r.kind, r.host, r.papers])).toEqual([["permission", "tsinghua.edu.cn", 13]])
   })
 
   it("shows the sites that wait without a batch, the most papers first", () => {
-    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ id: `site:${host}`, at: host, watch: [], kind, host, papers, url: `https://${host}/`, askedFor: false, proxied: false })
+    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ id: `site:${host}`, at: host, watch: [], kind, host, papers, url: `https://${host}/`, askedFor: false, proxied: false, since: 0 })
     expect(siteRows([wait("check", "oup.com", 1), wait("sign-in", "sagepub.com", 4)]).map((r) => [r.kind, r.host, r.papers])).toEqual([
       ["sign-in", "sagepub.com", 4],
       ["check", "oup.com", 1],

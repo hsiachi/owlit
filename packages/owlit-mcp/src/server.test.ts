@@ -97,15 +97,22 @@ describe("pdfFact", () => {
 
   it("says what the extension in the user's browser waits for, and that one step covers every such paper", () => {
     const tried = (ended: PdfTry["ended"]) => ({ by: "extension" as const, ended, at: 1 })
-    expect(fact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in", proxied: true } } })).toMatch(
+    expect(fact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { lane: "proxy:tlink.lib.tsinghua.edu.cn" as const, gate: "proxy:tlink.lib.tsinghua.edu.cn" as const, attempt: 1, wait: "proxy:tlink.lib.tsinghua.edu.cn" as const, kind: "sign-in" as const, at: "tlink.lib.tsinghua.edu.cn", host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in", proxied: true } } })).toMatch(
       /waits for the user's library sign-in.*Home says so; one sign-in covers every such paper/,
     )
     // A publisher's own sign-in, with no library proxy in between
-    const publisher = fact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com", waits: "sign-in" } } })
+    const publisher = fact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { lane: "pub:sage" as const, gate: "pub:sage" as const, attempt: 1, wait: "pub:sage" as const, kind: "sign-in" as const, at: "sagepub.com", host: "sagepub.com", waits: "sign-in" } } })
     expect(publisher).toMatch(/waits for the user to sign in at sagepub.com/)
     expect(publisher).not.toMatch(/library/)
-    expect(fact({ pdfState: { state: "finding", tried: [tried("check")], reason: tried("check") } })).toMatch(/pass a check/)
-    expect(fact({ pdfState: { state: "finding", tried: [tried("no-permission")], reason: tried("no-permission") } })).toMatch(/let the owlit extension.*read/)
+    // A publisher's sign-in met through the library's proxy is the publisher's
+    const through = fact({ pdfState: { state: "finding", tried: [tried("sign-in")], reason: tried("sign-in"), extension: { lane: "proxy:tlink.lib.tsinghua.edu.cn" as const, gate: "pub:thieme" as const, attempt: 1, wait: "pub:thieme" as const, kind: "sign-in" as const, at: "thieme-connect.de", host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in", proxied: true } } })
+    expect(through).toMatch(/sign in at thieme-connect.de/)
+    const under = (kind: "check" | "permission") => ({ lane: "pub:oup" as const, gate: "pub:oup" as const, attempt: 1, wait: "pub:oup" as const, kind, at: "academic.oup.com", host: "oup.com" })
+    expect(fact({ pdfState: { state: "finding", tried: [tried("check")], reason: tried("check"), extension: under("check") } })).toMatch(/pass a check/)
+    expect(fact({ pdfState: { state: "finding", tried: [tried("no-permission")], reason: tried("no-permission"), extension: under("permission") } })).toMatch(/let the owlit extension.*read/)
+    // Its record alone, with no wait up (the user got through): it waits for the browser, not for them
+    expect(fact({ pdfState: { state: "finding", tried: [tried("check")], reason: tried("check") } })).toBe("no PDF yet (owlit is looking)")
+    expect(fact(noPdf("stopped", "person"))).toMatch(/user stopped getting it.*Look again/)
     expect(fact({ pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com" } } })).toBe("no PDF yet (owlit is getting it through the user's browser)")
     // What the extension saw is a reason like any other
     expect(fact(noPdf("no-access", "extension"))).toMatch(/offered access instead/)

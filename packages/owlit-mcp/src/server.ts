@@ -588,9 +588,10 @@ function paperLine(p: Paper, extension: boolean) {
 const DROP = "the user can drop the PDF on the paper"
 // A paper with no PDF, by its state's reason; a not-found that an older record's check or sign-in gave
 // says so, since an agent may be asked why
-const NO_PDF: Record<"manual" | "skipped" | "not-found" | "no-access" | "not-offered" | "not-there", string> = {
+const NO_PDF: Record<"manual" | "skipped" | "stopped" | "not-found" | "no-access" | "not-offered" | "not-there", string> = {
   manual: `no PDF: needs a manual download, since owlit couldn't open the publisher's page in the user's browser; the user can open that page there and click its PDF button (the owlit extension saves the PDF), or drop the PDF on the paper`,
   skipped: `no PDF: the user looked at the publisher's page in their browser and found none there, so owlit doesn't look for it on its own any more (Look again on the paper asks once more); ${DROP}`,
+  stopped: `no PDF: the user stopped getting it while owlit waited for them at the publisher's site (Look again on the paper tries once more); ${DROP}`,
   "not-found": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
   "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
   "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
@@ -621,6 +622,9 @@ const SIGN_IN_AT = (host: string) =>
   `no PDF yet: waits for the user to sign in at ${host} in their browser (Home says so; one sign-in covers every paper waiting there, and owlit goes on by itself)`
 const SIGN_IN_UNKNOWN = "no PDF yet: waits for the user's sign-in (the library's or the publisher's) in their browser (Home says so; one sign-in covers every such paper, and owlit goes on by itself)"
 
+// The wait the paper is under is the library proxy's own sign-in, not a publisher's met through it
+const atLibrary = (s: Paper["pdfState"]) => !!s?.extension?.wait?.startsWith("proxy:")
+
 // Why a paper has no PDF, in words an agent can pass on, from the window's own reading (pdfWait): with
 // only "no PDF", an agent suggests a library proxy the user already has, and can't say which sign-in a
 // paper waits for
@@ -635,8 +639,8 @@ export function pdfFact(p: Pick<Paper, "pdf" | "pdfState">, extension: boolean) 
     case "offline":
       return "no PDF yet (waiting for the network)"
     case "for-sign-in":
-      if (!s?.extension) return SIGN_IN_UNKNOWN
-      return s.extension.proxied ? WAITS[wait] : SIGN_IN_AT(s.extension.host)
+      if (!s?.extension?.at) return SIGN_IN_UNKNOWN
+      return atLibrary(s) ? WAITS[wait] : SIGN_IN_AT(s.extension.at)
     case "for-check":
     case "blocked":
     case "for-permission":
@@ -654,11 +658,11 @@ export function pdfStatus(p: Pick<Paper, "pdf" | "pdfState">) {
     case undefined:
       return "has PDF"
     case "finding":
-      return s?.extension ? `finding (through the user's browser, at ${s.extension.host})` : "finding"
+      return s?.extension ? `finding (through the user's browser, at ${s.extension.at ?? s.extension.host})` : "finding"
     case "offline":
       return "finding (waiting for the network)"
     case "for-sign-in":
-      return s?.extension?.proxied || !s?.extension ? "waits for the user's library sign-in in their browser" : `waits for the user to sign in at ${s.extension.host} in their browser`
+      return atLibrary(s) || !s?.extension?.at ? "waits for the user's library sign-in in their browser" : `waits for the user to sign in at ${s.extension.at} in their browser`
     case "for-check":
       return "waits for the user to pass a check in their browser"
     case "blocked":
@@ -669,6 +673,8 @@ export function pdfStatus(p: Pick<Paper, "pdf" | "pdfState">) {
       return "no PDF: needs a manual download (owlit couldn't open the publisher's page)"
     case "skipped":
       return "no PDF: the user found none on the publisher's page"
+    case "stopped":
+      return "no PDF: the user stopped getting it"
     case "not-found":
       return "no PDF: owlit found no copy"
     case "no-access":

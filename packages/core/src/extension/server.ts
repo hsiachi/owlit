@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -128,8 +128,18 @@ export class ExtensionServer {
     return address && typeof address === "object" ? address.port : undefined
   }
 
+  // The waits' papers going on and the runs are counted from the papers of the open workspace, every time
   async view(): Promise<ExtensionView> {
-    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits: this.work.waits() }
+    const library = this.host.workspace()?.library
+    const counted = async (going: { at: number; ids: string[] }): Promise<WaitGoing> => ({ at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) })
+    const waits = await Promise.all(
+      this.work.waits().map(async (wait) => {
+        const going = this.work.followUpOf(wait.id)?.going
+        return going ? { ...wait, going: await counted(going) } : wait
+      }),
+    )
+    const going = await Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
+    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits, going, runs: library ? await library.pdfRunViews() : [] }
   }
 
   // The id the user's extensions pair with: made once, kept in settings.json
@@ -150,23 +160,25 @@ export class ExtensionServer {
   // A waiting line's button (extension.open): the extension opens the page in its own browser, where the
   // user's access is. With none connected, owlit opens a sign-in or a check itself, in the browser of the
   // pairing that met it; being allowed to read a site can only be asked from inside the browser.
-  async open(kind: ExtensionWait["kind"], host: string): Promise<ExtensionOpened> {
-    const wait = this.work.waits().find((w) => w.kind === kind && w.host === host)
+  async open(id: WaitId): Promise<ExtensionOpened> {
+    const wait = this.work.waits().find((w) => w.id === id)
     if (!wait) return { by: "none" }
     const paired = (await this.host.settings.get()).extension?.paired ?? []
-    const pairingOf = (id: string | undefined) => paired.find((p) => p.id === id)
-    const to = this.work.open(kind, host)
+    const pairingOf = (pairing: string | undefined) => paired.find((p) => p.id === pairing)
+    const to = this.work.open(id)
     if (to) {
       // The extension's tab and window focus stay inside the browser: macOS keeps owlit in front unless
       // owlit itself hands the front over
       const pairing = pairingOf(to)
+      this.work.opened(id, pairing?.browser)
       await this.host.showBrowser?.(clean({ app: pairing?.app, name: pairing?.browser })).catch(() => undefined)
       return { by: "extension", browser: pairing?.browser }
     }
-    if (kind === "permission" || !this.host.openInBrowser) return { by: "none" }
+    if (wait.kind === "permission" || !this.host.openInBrowser) return { by: "none" }
     // The browser that met it, else the one seen last
-    const pairing = pairingOf(this.work.pausedBy(host)) ?? seenLast(paired)
+    const pairing = pairingOf(this.work.pausedBy(id)) ?? seenLast(paired)
     await this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser }))
+    this.work.opened(id, pairing?.browser)
     return { by: "browser", browser: pairing?.browser }
   }
 
@@ -208,6 +220,7 @@ export class ExtensionServer {
     clearTimeout(this.retry)
     this.pairings.dispose()
     this.work.dispose()
+    await this.work.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
     const server = this.server
     this.server = null
     if (!server) return
@@ -243,8 +256,24 @@ export class ExtensionServer {
     void this.announce()
   }
 
+  // One view at a time, and one more after it when something changed meanwhile: the view reads every
+  // paper of the runs, and a resume or a run's hand-over changes many papers in a row
+  private announcing = false
+  private again = false
   private async announce() {
-    this.host.changed(await this.view())
+    if (this.announcing) {
+      this.again = true
+      return
+    }
+    this.announcing = true
+    try {
+      do {
+        this.again = false
+        this.host.changed(await this.view())
+      } while (this.again)
+    } finally {
+      this.announcing = false
+    }
   }
 
   private async receive(raw: IncomingMessage, response: ServerResponse) {
@@ -500,7 +529,7 @@ export class ExtensionServer {
                 // Another paper's PDF (a publisher's page can link the wrong one)
                 if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
                 const placed = await this.attachIfMissing(library, before.id, file, at ? `extension:${at}` : "extension")
-                this.work.settle(id, undefined)
+                this.work.settle(id, "pdf")
                 return { body: { paper: shown(placed) } satisfies PaperAnswer }
               })
             } catch (error) {
@@ -514,8 +543,9 @@ export class ExtensionServer {
               if (current) {
                 const word = whyNotPlaced(failure.status)
                 const gate = this.work.gateFor(id, { host: at })
-                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
-                this.work.settle(id, word)
+                const triedAt = Date.now()
+                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+                this.work.settle(id, word, { triedAt })
               }
               throw error
             }
@@ -525,8 +555,9 @@ export class ExtensionServer {
           if (!current) return { body: { ignored: true } }
           const { ended: word, host: at, title, url } = body.data
           const gate = this.work.gateFor(id, { url, host: at })
-          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
-          this.work.settle(id, word, { url, host: at })
+          const triedAt = Date.now()
+          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
+          this.work.settle(id, word, { url, host: at, triedAt })
           return { body: { noted: true } }
         },
       },

@@ -206,10 +206,11 @@ describe("the extension's queue", () => {
     // Both are APA's, so both are under it, though only one met it; the proxy's lane holds them both
     for (const id of ["a", "b"]) expect(work.holding(library, id)).toMatchObject({ lane: `proxy:${TLINK}`, gate: "pub:apa", wait: "pub:apa", kind: "permission", at: "apa.org", host: TLINK, waits: "permission", waitsAt: "apa.org", proxied: true })
     expect(work.holding(library, "b")).not.toHaveProperty("behind")
-    // Opened and resumed by the site the wait names, not the proxy's
-    expect(work.open("permission", TLINK)).toBeUndefined()
-    expect(work.open("permission", "apa.org")).toBe("chrome")
-    expect(work.pausedBy("apa.org")).toBe("chrome")
+    // Named by the site it shows, not the proxy's; opened by its id
+    expect(work.waitIdOf("permission", TLINK)).toBeUndefined()
+    expect(work.waitIdOf("permission", "apa.org")).toBe("pub:apa")
+    expect(work.open("pub:apa")).toBe("chrome")
+    expect(work.pausedBy("pub:apa")).toBe("chrome")
     expect(work.resume(TLINK)).toBe(false)
     expect(work.resume("psycnet.apa.org")).toBe(true)
     expect(work.waits()).toEqual([])
@@ -298,7 +299,7 @@ describe("the extension's queue", () => {
   it("puts up the waits the papers' records say, before any extension connects, with one try to come", async () => {
     const { work, take, waitsChanged } = setup()
     const before = waitsChanged()
-    work.restore(library, [{ paperId: "p1", kind: "sign-in", gate: "pub:sage", url: "https://journals.sagepub.com/action/showLogin", host: "journals.sagepub.com", tries: 1 }], undefined)
+    await work.restore(library, [{ paperId: "p1", kind: "sign-in", gate: "pub:sage", url: "https://journals.sagepub.com/action/showLogin", host: "journals.sagepub.com", tries: 1, triedAt: 1 }], undefined)
     expect(work.waits()).toMatchObject([{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", papers: 1, url: "https://journals.sagepub.com/action/showLogin" }])
     expect(waitsChanged()).toBeGreaterThan(before)
     expect(work.holding(library, "p1")).toMatchObject({ gate: "pub:sage", attempt: 2, wait: "pub:sage", waits: "sign-in", waitsAt: "journals.sagepub.com" })
@@ -472,5 +473,69 @@ describe("the extension's queue", () => {
     const other = {} as Library
     expect(await work.take(other, 0, new AbortController().signal)).toEqual([])
     expect(work.holding(library, "a1")).toBeUndefined()
+  })
+
+  it("tallies each gate, and names one handed papers all day that gives nothing with no wait to say why", async () => {
+    const { work, take } = setup()
+    // The next one there, after the gap
+    const out = async () => {
+      vi.advanceTimersByTime(GAP_MS)
+      const [item] = await take()
+      return item
+    }
+    for (let i = 0; i < 4; i++) {
+      work.fetch(library, paper(`u${i}`, "dl.acm.org"), false)
+      work.settle((await out()).id, "unreadable")
+    }
+    // Four is bad luck
+    expect(work.silentZeros()).toEqual([])
+    work.fetch(library, paper("u4", "dl.acm.org"), false)
+    work.settle((await out()).id, "unreadable")
+    expect(work.silentZeros()).toEqual(["pub:acm"])
+    expect(work.tallies().get("pub:acm")).toMatchObject({ handed: 5, pdfs: 0, endings: { unreadable: 5 } })
+    // A wait there says why: not silent
+    work.fetch(library, paper("c1", "dl.acm.org"), false)
+    work.settle((await out()).id, "check")
+    expect(work.silentZeros()).toEqual([])
+    work.resume("dl.acm.org")
+    // A PDF that came is not a zero
+    const [c1] = await take()
+    work.settle(c1.id, "pdf")
+    expect(work.silentZeros()).toEqual([])
+    expect(work.tallies().get("pub:acm")).toMatchObject({ handed: 7, pdfs: 1, lastPdfAt: expect.any(Number) })
+  })
+
+  it("follows a wait by its id, and knows the same wait when it comes back after the user got through", async () => {
+    const { work, take } = setup()
+    for (const id of ["a", "b"]) work.fetch(library, paper(id, "tandfonline.com"), false)
+    const [a] = await take()
+    work.settle(a.id, "check", { triedAt: 500 })
+    const [wait] = work.waits()
+    expect(wait).toMatchObject({ id: "pub:tandf", since: 500, papers: 2 })
+    work.opened("pub:tandf", "Dia")
+    expect(work.waits()[0].opened).toEqual({ at: expect.any(Number), browser: "Dia" })
+    expect(work.resumeWait("pub:tandf")).toBe(true)
+    expect(work.goneWaits()).toMatchObject([{ gate: "pub:tandf", since: 500, going: { ids: ["a", "b"] } }])
+    // The first try after it meets the same check: the same wait, which still asks the user
+    const [again] = await take()
+    work.settle(again.id, "check", { triedAt: 900 })
+    expect(work.waits()).toMatchObject([{ id: "pub:tandf", since: 500, retried: { again: true } }])
+    expect(work.waits()[0]).not.toHaveProperty("opened")
+    expect(work.goneWaits()).toEqual([])
+    expect(work.followUpOf("pub:tandf")?.going?.ids).toEqual(["a", "b"])
+    // A check that turns into a block forgets the page opened for the check
+    work.opened("pub:tandf", undefined)
+    work.blocked("www.tandfonline.com", "https://www.tandfonline.com/blocked")
+    expect(work.waits()[0]).toMatchObject({ kind: "blocked" })
+    // Through again, its line put away: a later wait at the same gate is a new one
+    work.resume("tandfonline.com")
+    expect(work.goneWaits()).toHaveLength(1)
+    expect(work.dismissGoing("pub:tandf")).toBe(true)
+    expect(work.goneWaits()).toEqual([])
+    vi.advanceTimersByTime(GAP_MS)
+    const [later] = await take()
+    work.settle(later.id, "check", { triedAt: 2000 })
+    expect(work.waits()).toMatchObject([{ since: 2000 }])
+    expect(work.waits()[0]).not.toHaveProperty("retried")
   })
 })
