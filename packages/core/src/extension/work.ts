@@ -664,8 +664,8 @@ export class ExtensionWork implements ExtensionFetcher {
     this.lastEnded.clear()
     this.opens.clear()
     this.startedIds.clear()
-    void this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
-    this.notes = new PdfWorkNotes(library?.dataDir)
+    const flushed = this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
+    this.notes = new PdfWorkNotes(library?.dataDir, { after: flushed })
     this.warned.clear()
     this.host.waits()
   }

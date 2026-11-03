@@ -1,4 +1,7 @@
 import { PROXY_PRESETS } from "@owlit/protocol"
+import { mkdtempSync, realpathSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
 import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
@@ -612,3 +615,25 @@ describe("the extension's queue", () => {
     expect(work.waits()[0]).not.toHaveProperty("retried")
   })
 })
+
+describe("pdf-work.json across workspaces", () => {
+  it("reads a workspace's notes again only once what it still had to write is written (A, then B, then A)", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-work-")))
+    try {
+      const a = { dataDir: path.join(base, "a") } as Library
+      const b = { dataDir: path.join(base, "b") } as Library
+      const { work } = setup()
+      const never = new AbortController().signal
+      work.fetch(a, paper("a1", "sagepub.com"), false)
+      // Handed out: the tally's to write, in a while
+      expect(await work.take(a, 0, never)).toHaveLength(1)
+      work.fetch(b, paper("b1", "wiley.com"), false)
+      work.fetch(a, paper("a2", "sagepub.com"), false)
+      await work.flush()
+      expect(work.tallies().get("pub:sage")).toMatchObject({ handed: 1 })
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+})
+

@@ -67,11 +67,13 @@ export class PdfWorkNotes {
   private timer: ReturnType<typeof setTimeout> | undefined
   private readonly writes = new Serial()
 
-  // dataDir: none for a library that keeps nothing on this machine (tests)
-  constructor(dataDir: string | undefined, { delayMs = WRITE_DELAY_MS } = {}) {
+  // dataDir: none for a library that keeps nothing on this machine (tests). after: the write of the
+  // notes this replaces (another workspace opened, and this one again), read only once it is done: read
+  // before, the file would lack what was still to be written
+  constructor(dataDir: string | undefined, { delayMs = WRITE_DELAY_MS, after }: { delayMs?: number; after?: Promise<unknown> } = {}) {
     this.file = dataDir && path.join(dataDir, "pdf-work.json")
     this.delayMs = delayMs
-    this.loaded = this.load()
+    this.loaded = (after ?? Promise.resolve()).catch(() => undefined).then(() => this.load())
   }
 
   // ---- Follow-ups
