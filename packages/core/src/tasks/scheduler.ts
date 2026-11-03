@@ -10,7 +10,8 @@ export const LANE_LIMITS: Record<TaskLane, number> = { network: 3, cpu: 2, parse
 const KEEP_FINISHED = 200
 
 export interface TaskContext {
-  // The task as it was when this run started
+  // The task as it is now: a request that joined it while it runs (enqueue) has raised its priority, and
+  // what the run does from then on is that request's
   readonly task: Readonly<Task>
   // Aborted when the task is cancelled or owlit stops; hand it to fetch, child processes, sessions
   readonly signal: AbortSignal
@@ -375,7 +376,9 @@ export class Scheduler {
 
   private context(entry: Entry, signal: AbortSignal): TaskContext {
     return {
-      task: entry.task,
+      get task() {
+        return entry.task
+      },
       signal,
       external: entry.task.external,
       progress: (done, total, note) => {
