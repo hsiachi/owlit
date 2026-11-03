@@ -125,6 +125,8 @@ export interface LibraryServices {
 // A paper for the extension to fetch, and where
 export interface ExtensionPaper extends ExtensionRoute {
   paperId: string
+  // The extension's tries its record holds, which numbers the next one (ExtensionWork's work item ids)
+  tries?: number
 }
 
 export interface ExtensionFetcher {
@@ -1915,7 +1917,8 @@ export class Library {
     if (!extension?.connected()) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const route = extensionRoute(doi, (await this.services.settings()).proxy, registered)
-    extension.fetch(this, { paperId: id, ...route }, priority === "waiting", paused)
+    const tries = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension").length ?? 0
+    extension.fetch(this, { paperId: id, ...route, tries }, priority === "waiting", paused)
     return true
   }
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { CONNECTED_MS, ExtensionWork, GAP_MS, IN_FLIGHT_MS, PAUSED_RETRY_MS, PROXY_GAP_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS } from "./work.ts"
 
 const library = {} as Library
 const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {}): ExtensionPaper => ({ paperId, url: `https://${host}/doi/${paperId}`, host, proxied: false, ...extra })
@@ -358,21 +358,74 @@ describe("the extension's queue", () => {
     expect(work.waitsForExtension()).toEqual([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 1, proxied: true }])
   })
 
-  it("asks again for a fetch the extension never answered, not for one still going", async () => {
+  it("numbers each hand-out of a paper by the extension's tries its record holds", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "sagepub.com", { tries: 2 }), false)
+    const [first] = await take()
+    expect(first.id).toBe("a1#3")
+    expect(parseWorkItemId(first.id)).toEqual({ paperId: "a1", attempt: 3 })
+    expect(work.current(library, first.id)).toMatchObject({ paperId: "a1" })
+    work.settle(first.id, "offline")
+    vi.advanceTimersByTime(60 * 60_000)
+    const [second] = await take()
+    expect(second.id).toBe("a1#4")
+    // The first attempt's answer, late: nothing changes
+    work.settle(first.id, "no-copy")
+    expect(work.current(library, second.id)).toBeDefined()
+    expect(work.current(library, first.id)).toBeUndefined()
+    // Handed over again by the library meanwhile, with a record that lags: the number never goes back
+    work.fetch(library, paper("a1", "sagepub.com", { tries: 1 }), true)
+    work.settle(second.id, "offline")
+    vi.advanceTimersByTime(60 * 60_000)
+    expect((await take())[0].id).toBe("a1#5")
+    expect(parseWorkItemId("3f2a9c1e-uuid")).toBeUndefined()
+    expect(parseWorkItemId("a1#0")).toBeUndefined()
+  })
+
+  it("never asks again for a fetch while the extension it went to keeps asking, however long it takes", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), false)
+    const [out] = await take()
+    for (let i = 0; i < 20; i++) {
+      vi.advanceTimersByTime(CONNECTED_MS / 2)
+      expect(await take()).toEqual([])
+    }
+    expect(work.current(library, out.id)).toBeDefined()
+  })
+
+  it("asks again under the same attempt once the extension comes back from being away", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)
     const [lost] = await take()
-    // The extension's slowest fetch: three gets of a minute each, then the upload
-    vi.advanceTimersByTime(4 * 60_000)
-    expect(await take()).toEqual([])
-    expect(work.paperOf(lost.id)).toBeDefined()
-    vi.advanceTimersByTime(IN_FLIGHT_MS - 4 * 60_000)
+    // The machine slept: no ask for a while
+    vi.advanceTimersByTime(CONNECTED_MS)
     expect(await take()).toEqual([])
     vi.advanceTimersByTime(GAP_MS)
     const [again] = await take()
-    expect(again.paperId).toBe("a1")
-    expect(again.id).not.toBe(lost.id)
-    expect(work.paperOf(lost.id)).toBeUndefined()
+    expect(again).toMatchObject({ paperId: "a1", id: lost.id })
+    // Both hand-outs' answers are the same attempt's: the first to come settles it
+    work.settle(lost.id, "no-copy")
+    expect(work.current(library, again.id)).toBeUndefined()
+  })
+
+  it("asks again for the fetches of an extension that closed its ask while it was held", async () => {
+    const { work } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), false)
+    work.fetch(library, paper("b1", "wiley.com"), false)
+    const [a1, b1] = await work.take(library, 0, new AbortController().signal, "chrome")
+    expect([a1.paperId, b1.paperId]).toEqual(["a1", "b1"])
+    // Another browser asking meanwhile takes nothing of Chrome's while Chrome is still asking
+    const held = new AbortController()
+    const holding = work.take(library, 30_000, held.signal, "chrome")
+    expect(await work.take(library, 0, new AbortController().signal, "arc")).toEqual([])
+    // Chrome's service worker stopped mid-hold
+    held.abort()
+    expect(await holding).toEqual([])
+    // Back in their queues, at the sites' pace from now
+    expect(await work.take(library, 0, new AbortController().signal, "arc")).toEqual([])
+    vi.advanceTimersByTime(GAP_MS)
+    const again = await work.take(library, 0, new AbortController().signal, "arc")
+    expect(again.map((w) => w.id)).toEqual([a1.id, b1.id])
   })
 
   it("has the library hand over what waits when the extension connects, after being away, or for another workspace", async () => {

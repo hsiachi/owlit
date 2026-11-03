@@ -11,7 +11,7 @@ import { isCheck, isSignInAddress, refreshOf, siteOf, titleOf, verdict, type Pag
 // Each fetch gives up after this, reading the body included, and counts as offline: a slow network, which
 // owlit backs off from and tries again, not a finding that the site has no copy. Chrome stops a service worker whose fetch takes
 // longer than 30 s to start answering, so a fetch that slow ends when the worker does; owlit asks for it
-// again once its own wait for the answer runs out.
+// again once the restarted worker asks for work.
 export const FETCH_MS = 60_000
 // A page larger than this isn't read further: what the words are judged by is near its top
 const PAGE_MAX_CHARS = 2_000_000
@@ -165,8 +165,8 @@ const stops = (page: Page) => {
   return word === "check" || word === "blocked" || word === "sign-in"
 }
 
-// The fetch, and its outcome handed to owlit. An answer owlit no longer waits for (it gave up on the
-// fetch, the paper got its PDF another way, or the PDF was another paper's) needs nothing more.
+// The fetch, and its outcome handed to owlit. An answer owlit no longer waits for (it names no paper
+// owlit knows, the paper got its PDF another way, or the PDF was another paper's) needs nothing more.
 export async function doWork(item: WorkItem, deps: FetchDeps & { ask: typeof askOwlit; token: string }): Promise<Fetched> {
   const result = await fetchFor(item, deps)
   const route = `/work/${encodeURIComponent(item.id)}`

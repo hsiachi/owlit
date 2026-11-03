@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WalkAnswer, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -13,7 +13,7 @@ import { HOLD_MS, Pairings } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 import { clean } from "../util.ts"
 import { ManualWalk } from "./walk.ts"
-import { ExtensionWork, type WorkOptions } from "./work.ts"
+import { ExtensionWork, parseWorkItemId, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
 // way Zotero's connector reaches Zotero). A browser asks only for what an extension may: every request
@@ -467,19 +467,24 @@ export class ExtensionServer {
           return { body: { step: await this.walk.next(this.library(), body.data.paperId, !!body.data.skip) } satisfies WalkAnswer }
         },
       },
-      // How a fetch ended: the PDF itself, or a word for what came instead
+      // How a fetch ended: the PDF itself, or a word for what came instead. Matched by the paper and the
+      // attempt its id names (ExtensionWork's work item ids): a PDF of any attempt is the paper's while it
+      // has none (a fetch asked for again after a sleep or a restart can still bring it, and a second
+      // copy finds the first in place); a word only of the attempt in flight, since an older one's word
+      // says nothing about where the paper stands now.
       {
         method: "POST",
         path: is("work", null),
         handle: async ({ raw, parts, query }) => {
           const id = parts[1]
-          const found = this.work.paperOf(id)
-          if (!found) {
+          const asked = parseWorkItemId(id)
+          if (!asked) {
             raw.resume()
             throw new HttpFailure(404, "not-found", t`owlit isn't waiting for that.`)
           }
-          const { library, paper } = found
-          const before = await library.get(paper.paperId)
+          const library = this.library()
+          const current = this.work.current(library, id)
+          const before = await library.get(asked.paperId)
           // Gone from the Library, or given its PDF another way meanwhile: nothing more to fetch
           if (!before || before.pdf) {
             raw.resume()
@@ -488,28 +493,36 @@ export class ExtensionServer {
             throw new HttpFailure(409, "has-pdf", t`This paper has its PDF already.`, { paper: shown(before) })
           }
           if (/^application\/pdf\b/i.test(raw.headers["content-type"] ?? "")) {
-            const at = query.get("host")?.trim() || paper.host
+            const at = query.get("host")?.trim() || current?.host
             try {
               return await this.withPdf(raw, async (file) => {
-                // Another paper's PDF (a publisher's page can link the wrong one): no copy there
-                if ((await library.isPdfOf(paper.paperId, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
-                const placed = await this.attachIfMissing(library, paper.paperId, file, `extension:${at}`)
+                // Another paper's PDF (a publisher's page can link the wrong one)
+                if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
+                const placed = await this.attachIfMissing(library, before.id, file, at ? `extension:${at}` : "extension")
                 this.work.settle(id, undefined)
                 return { body: { paper: shown(placed) } satisfies PaperAnswer }
               })
             } catch (error) {
-              // A body owlit couldn't take (not a PDF to owlit, too large, another paper's, a failure
-              // placing it) is no copy there. The item is settled whatever failed: the extension doesn't
-              // answer again, and an item left in flight holds back every other paper of its site.
-              await library.noteExtensionTry(paper.paperId, { by: "extension", ended: "no-copy", at: Date.now(), host: at }).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
-              this.work.settle(id, "no-copy")
+              const failure = asHttpFailure(error)
+              if (failure.status === 409) {
+                this.work.settle(id, undefined)
+                throw error
+              }
+              // The item is settled whatever failed, when it is the one in flight: the extension doesn't
+              // answer again, and an item left in flight holds back every other paper of its site
+              if (current) {
+                const word = whyNotPlaced(failure.status)
+                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+                this.work.settle(id, word)
+              }
               throw error
             }
           }
           const body = ended.safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          if (!current) return { body: { ignored: true } }
           const { ended: word, host: at, title, url } = body.data
-          await library.noteExtensionTry(paper.paperId, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined }))
+          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined }))
           this.work.settle(id, word, { url, host: at })
           return { body: { noted: true } }
         },
@@ -557,6 +570,12 @@ export class ExtensionServer {
     }
   }
 }
+
+// Why a PDF the extension brought wasn't placed, as its try's ending. What the extension sent (too
+// large, not a PDF, another paper's) is unreadable: the user can still get the file by hand. A failure of
+// owlit's own (the disk, a bug) is offline: nothing was learnt about the paper, so it is asked for again
+// after the site's back-off.
+const whyNotPlaced = (status: number): WorkEnding => (status === 413 || status === 415 || status === 422 ? "unreadable" : "offline")
 
 // The pairing whose extension was heard from last
 const seenLast = (paired: StoredPairing[]) => [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]

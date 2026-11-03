@@ -174,6 +174,7 @@ export interface OpenAnswer {
 
 // A paper owlit's own routes couldn't get, for the extension to fetch with the user's cookies
 export interface WorkItem {
+  // `<paperId>#<attempt>`, posted back with the answer (POST /work/:id); opaque to the extension
   id: string
   paperId: string
   // The publisher's article page, through the library's proxy when one is set

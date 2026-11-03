@@ -338,23 +338,26 @@ describe("owlit and the machine", () => {
     expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true, true])
   })
 
-  it("asleep mid-fetch: the fetch is asked for again on waking, and the late answer of the first is let go", async () => {
+  it("asleep mid-fetch: the fetch is asked for again on waking, and the first one's PDF, coming late, is kept", async () => {
     const web = new FakeWeb()
     const doi = "10.1177/0956797642"
     const title = "A Paper Fetched Across A Sleep"
     atypon(web, "journals.sagepub.com", doi, title)
-    // The PDF's answer doesn't come until the machine wakes
-    web.on(`journals.sagepub.com/doi/pdf/${doi}`, (visit) => (visit.client === "browser" ? hang(pdf(doi))(visit) : page("Access denied", "", 403)))
+    // The first fetch's PDF doesn't come until the machine wakes; by then the site turns the browser away
+    let visits = 0
+    web.on(`journals.sagepub.com/doi/pdf/${doi}`, (visit) => (visit.client === "browser" && visits++ === 0 ? hang(pdf(doi))(visit) : page("Access denied", "", 403)))
     const b = await start(web)
     const id = b.addPaper(doi, title)
     let screen = await b.findPdf(id)
     expect(web.hanging()).toBe(1)
     expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Finding a PDF…" })
-    // Past core's IN_FLIGHT_MS: the paper is handed out again, and that fetch hangs too
-    await b.sleep(6 * 60_000)
+    // Away longer than core counts the extension connected: on waking the paper is handed out again,
+    // and that fetch finds no copy
+    screen = await b.sleep(6 * 60_000)
     expect(b.fetched()).toEqual([id, id])
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "No PDF found" })
     web.release()
-    screen = await b.step("the answers come")
+    screen = await b.step("the first answer comes")
     expect(screen.papers[id].hasPdf).toBe(true)
     expect(screen.waits).toEqual([])
   })

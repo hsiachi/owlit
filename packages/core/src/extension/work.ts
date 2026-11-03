@@ -1,5 +1,4 @@
 import type { ExtensionWait, OpenPage, PdfState, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
-import { randomUUID } from "node:crypto"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
 import { siteOf } from "./route.ts"
 
@@ -12,19 +11,21 @@ import { siteOf } from "./route.ts"
 //
 // In memory only: when the extension connects (its first GET /work since owlit started, since it was
 // last away, or since another workspace opened), the library hands over every paper waiting for it again
-// (WorkHost.connected), and a fetch that was in flight then is simply asked for again.
+// (WorkHost.connected). A fetch handed to an extension that went away is asked for again when an
+// extension asks for work next; while the one it went to keeps asking, it is still going.
+//
+// A work item's id is `<paperId>#<attempt>`: the attempt is one more than the extension tries the
+// paper's record holds, so it is the same before and after a restart, and an answer is matched by the
+// paper and that number, never by anything kept only in memory.
 
 // Between two fetches at one site, from the end of the last. Through the proxy, longer: a campus shares
 // one proxy, and it limits how often a reader may ask (Tsinghua's tlink's minute-limit page).
 export const GAP_MS = 15_000
 export const PROXY_GAP_MS = 30_000
-// A fetch the extension never answered (the browser closed, the service worker was stopped mid-fetch) is
-// asked for again after this. It must exceed the extension's slowest answer, or a fetch still going is
-// handed out twice: up to three gets (the PDF's address, the page, the PDF it names) of FETCH_MS (60 s)
-// each in apps/extension/src/lib/work.ts, then the upload of the PDF
-export const IN_FLIGHT_MS = 5 * 60_000
 // The extension counts as connected while it asked for work this recently; it asks again as soon as a
-// hold of GET /work ends
+// hold of GET /work ends, and keeps asking while its fetches go on beside the hold. One that hasn't
+// asked for this long is away, and so are its fetches still out (the browser closed, the machine slept,
+// the service worker was stopped mid-fetch).
 export const CONNECTED_MS = 60_000
 // After a fetch at a site reached nothing (the network dropped, the proxy's minute-limit page), the site
 // waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
@@ -40,13 +41,14 @@ export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 export interface WorkOptions {
   gapMs?: number
   proxyGapMs?: number
-  inFlightMs?: number
 }
 
 interface Queued {
   paper: ExtensionPaper
   // The user pressed Find PDF or Look again on it in this session
   askedFor: boolean
+  // The extension's tries the paper's record holds: its next hand-out is attempt tries + 1
+  tries: number
 }
 
 interface Paused {
@@ -78,7 +80,7 @@ interface Site {
   proxied: boolean
   queue: Queued[]
   // by: the pairing it was handed to
-  inFlight?: { id: string; item: Queued; at: number; by?: string }
+  inFlight?: { id: string; item: Queued; by?: string }
   // When its last fetch ended, for the gap before the next
   endedAt?: number
   paused?: Paused
@@ -108,8 +110,9 @@ export class ExtensionWork implements ExtensionFetcher {
   // still waits for the gap, so papers that come one at a time (an import's lookups finishing seconds
   // apart) aren't fetched in a burst
   private readonly lastEnded = new Map<string, number>()
-  // A work item's id → its site
-  private readonly items = new Map<string, string>()
+  // Each pairing's GET /work (by its id; "" for a caller that names none): how many are being held now,
+  // when the last ended, and whether the extension closed it while held (its service worker stopped)
+  private readonly asks = new Map<string, { open: number; at: number; dropped: boolean }>()
   private polledAt = Number.NEGATIVE_INFINITY
   // When each pairing last asked for work
   private readonly polled = new Map<string, number>()
@@ -119,7 +122,7 @@ export class ExtensionWork implements ExtensionFetcher {
 
   constructor(host: WorkHost, options: WorkOptions = {}) {
     this.host = host
-    this.options = { gapMs: options.gapMs ?? GAP_MS, proxyGapMs: options.proxyGapMs ?? PROXY_GAP_MS, inFlightMs: options.inFlightMs ?? IN_FLIGHT_MS }
+    this.options = { gapMs: options.gapMs ?? GAP_MS, proxyGapMs: options.proxyGapMs ?? PROXY_GAP_MS }
   }
 
   connected() {
@@ -197,7 +200,9 @@ export class ExtensionWork implements ExtensionFetcher {
       if (queued) {
         queued.paper = paper
         queued.askedFor ||= askedFor
-      } else site.queue.push({ paper, askedFor })
+        // The record may lag a try settled in memory whose note is still being written
+        queued.tries = Math.max(queued.tries, paper.tries ?? 0)
+      } else site.queue.push({ paper, askedFor, tries: paper.tries ?? 0 })
       sortQueue(site)
     }
     const unpaused = askedFor && !!site.paused
@@ -232,12 +237,17 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
-  // answer comes (settle) or IN_FLIGHT_MS pass.
+  // answer comes (settle), or until an extension asks for work while the one it went to is away.
   async take(library: Library | null, holdMs: number, closed: AbortSignal, by?: string): Promise<WorkItem[]> {
     // Away for longer than counts as connected, or never here: papers the plain routes missed meanwhile
     // went to no queue, and after a restart this one is empty, so the library fills it before anything
     // is due. Marked connected first, so what the library hands over is queued, not left with no PDF.
     const arrived = !this.connected() || library !== this.library
+    // Before this ask is counted: the asker's own fetches from before it was away go out again too
+    this.reissue()
+    const ask = this.asks.get(by ?? "") ?? { open: 0, at: 0, dropped: false }
+    ask.open++
+    this.asks.set(by ?? "", ask)
     this.polledAt = Date.now()
     if (by) this.polled.set(by, this.polledAt)
     if (library !== this.library) this.own(library)
@@ -250,6 +260,9 @@ export class ExtensionWork implements ExtensionFetcher {
       if (due.length || left <= 0 || closed.aborted || (by && this.opens.get(by)?.length)) {
         this.polledAt = Date.now()
         if (by) this.polled.set(by, this.polledAt)
+        ask.open--
+        ask.at = this.polledAt
+        ask.dropped = closed.aborted
         return due
       }
       await new Promise<void>((resolve) => {
@@ -266,22 +279,24 @@ export class ExtensionWork implements ExtensionFetcher {
     }
   }
 
-  // The work item an answer is for: its paper, or undefined when owlit doesn't know it (an answer from
-  // before a restart or a workspace switch, or one that came too late)
-  paperOf(id: string): { library: Library; paper: ExtensionPaper } | undefined {
-    const site = this.sites.get(this.items.get(id) ?? "")
-    return site?.inFlight?.id === id && this.library ? { library: this.library, paper: site.inFlight.item.paper } : undefined
+  // The paper a work item's id is out for, while that attempt is the one in flight in this library:
+  // undefined for an attempt that ended or was handed out again under a newer one, and for one from
+  // another workspace's queue
+  current(library: Library, id: string): ExtensionPaper | undefined {
+    if (library !== this.library) return undefined
+    return this.flying(id)?.inFlight?.item.paper
   }
 
   // The extension's answer, once core has noted it: a PDF (ended undefined) or a word. A word that only
   // the user can get past pauses the site, its paper first in line for when they have.
+  // Not the attempt in flight: nothing changes.
   settle(id: string, ended: WorkEnding | undefined, page: { url?: string; host?: string } = {}) {
-    const key = this.items.get(id)
-    const site = key ? this.sites.get(key) : undefined
-    if (!site?.inFlight || site.inFlight.id !== id || !this.library) return
-    this.items.delete(id)
+    const site = this.flying(id)
+    if (!site?.inFlight || !this.library) return
     const { item, by } = site.inFlight
     site.inFlight = undefined
+    // The answer was noted as one more try in the paper's record
+    item.tries++
     site.endedAt = Date.now()
     const pause = ended && PAUSES[ended]
     if (ended === "offline" && site.paused) {
@@ -417,7 +432,6 @@ export class ExtensionWork implements ExtensionFetcher {
     this.library = library
     this.sites.clear()
     this.lastEnded.clear()
-    this.items.clear()
     this.opens.clear()
     this.host.waits()
   }
@@ -437,31 +451,46 @@ export class ExtensionWork implements ExtensionFetcher {
     const now = Date.now()
     const out: WorkItem[] = []
     for (const site of this.sites.values()) {
-      if (site.inFlight && now - site.inFlight.at >= this.options.inFlightMs) {
-        this.items.delete(site.inFlight.id)
-        site.queue.unshift(site.inFlight.item)
-        site.inFlight = undefined
-        site.endedAt = now
-      }
       if (site.inFlight || !site.queue.length) continue
       if (now < this.dueAt(site)) continue
       const item = site.queue.shift()!
-      const id = randomUUID()
-      site.inFlight = { id, item, at: now, by }
-      this.items.set(id, site.key)
+      const id = workItemId(item.paper.paperId, item.tries + 1)
+      site.inFlight = { id, item, by }
       const { paperId, url, pdfUrl, host, proxied } = item.paper
       out.push({ id, paperId, url, ...(pdfUrl ? { pdfUrl } : {}), host, proxied })
     }
     return out
   }
 
-  // How long until the next site is due, or an unanswered fetch is given up on
+  // The site whose fetch in flight is this attempt
+  private flying(id: string): Site | undefined {
+    return [...this.sites.values()].find((site) => site.inFlight?.id === id)
+  }
+
+  // Fetches out with an extension that is away go back to the head of their queue, under the same
+  // attempt: nothing was noted for them, and the late answer of the first hand-out still counts. An
+  // extension is away when it hasn't asked for work for CONNECTED_MS, or closed its last ask while it was
+  // held, and none of its asks is being held now; while one is, its fetches are going on beside it, so a
+  // proxy never has two requests of the user's out at once.
+  private reissue() {
+    const now = Date.now()
+    for (const site of this.sites.values()) {
+      if (!site.inFlight) continue
+      const ask = this.asks.get(site.inFlight.by ?? "")
+      if (ask && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))) continue
+      site.queue.unshift(site.inFlight.item)
+      site.inFlight = undefined
+      sortQueue(site)
+      site.endedAt = now
+    }
+  }
+
+  // How long until the next site is due
   private nextDueIn() {
     const now = Date.now()
     let next = Number.POSITIVE_INFINITY
     for (const site of this.sites.values()) {
-      if (site.inFlight) next = Math.min(next, site.inFlight.at + this.options.inFlightMs - now)
-      else if (site.queue.length) next = Math.min(next, this.dueAt(site) - now)
+      if (!site.inFlight && site.queue.length) next = Math.min(next, this.dueAt(site) - now)
     }
     return Math.max(0, next)
   }
@@ -472,6 +501,16 @@ export class ExtensionWork implements ExtensionFetcher {
 }
 
 const ids = (site: Site) => site.queue.map((q) => q.paper.paperId)
+
+// A work item's id, and back: the paper and its attempt (WorkItem.id). An id of another shape (from an
+// owlit that handed out random ids) names no attempt, so its answer is owlit's no longer.
+export const workItemId = (paperId: string, attempt: number) => `${paperId}#${attempt}`
+export function parseWorkItemId(id: string): { paperId: string; attempt: number } | undefined {
+  const at = id.lastIndexOf("#")
+  const attempt = Number(id.slice(at + 1))
+  if (at <= 0 || !Number.isInteger(attempt) || attempt < 1) return undefined
+  return { paperId: id.slice(0, at), attempt }
+}
 
 // The host a paused site's wait names: the site to allow, or the site itself
 const waitHost = (site: Site) => site.paused?.host ?? site.key

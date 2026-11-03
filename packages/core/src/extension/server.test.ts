@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { Core } from "../core.ts"
 import { makePdf, paragraph } from "../library/text/make-pdf.ts"
 import { eventually } from "../test-util.ts"
+import type { Library } from "../library/library.ts"
 import type { BrowserApp } from "./browser-app.ts"
 import type { ExtensionServer } from "./server.ts"
 
@@ -88,6 +89,8 @@ async function setup(options: { routes?: Record<string, string | number>; worksp
   }
   return { core, call, request, pair, putPaper, root, userDataDir, server, views }
 }
+
+const libraryOf = (core: Core) => (core as unknown as { workspace: { library: Library } }).workspace.library
 
 const pdfOf = (lines: string[]) => Buffer.from(makePdf([[...lines.map((text, i) => ({ x: 72, y: 60 + i * 30, size: 12, text })), ...paragraph(72, 300, ["Body text of the paper."])]]))
 
@@ -369,20 +372,20 @@ describe("the extension's port", () => {
       expect(looked.pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } })
       expect((await request(`/papers?doi=${SAGE}`, { token })).body).toEqual({ paper: { id, title, hasPdf: false }, getting: 1 })
       const { body } = await request("/work", { token })
-      expect(body.work).toEqual([{ id: expect.any(String), paperId: id, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, host: "sagepub.com", proxied: false }])
+      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, host: "sagepub.com", proxied: false }])
       const [item] = body.work
-      const put = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
+      const put = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
       expect(put).toMatchObject({ status: 200, body: { paper: { id, hasPdf: true } } })
       expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "pdf", route: "extension:journals.sagepub.com" })
-      // Answered once
-      expect((await request(`/work/${item.id}`, { token, body: { ended: "no-copy", host: "x" } })).status).toBe(404)
+      // Answered once: the paper has its PDF now
+      expect((await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-copy", host: "x" } })).status).toBe(409)
     })
 
     it("waits for one sign-in at a site, then goes on there", async () => {
       const { call, request, token, shown } = await connected()
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
-      const noted = await request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", title: "Sign in", url: "https://journals.sagepub.com/action/showLogin" } })
+      const noted = await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", title: "Sign in", url: "https://journals.sagepub.com/action/showLogin" } })
       expect(noted.status).toBe(200)
       const view = await call("extension.get")
       expect(view.waits).toEqual([{ kind: "sign-in", host: "sagepub.com", papers: 1, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false }])
@@ -411,7 +414,7 @@ describe("the extension's port", () => {
       const { call, request, token } = await connected()
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
-      await request(`/work/${item.id}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
       expect((await call("extension.get")).waits).toMatchObject([{ kind: "check", host: "sagepub.com" }])
       expect(await call("extension.resume", { host: "elsevier.com" })).toEqual({ resumed: false })
       expect(await call("extension.resume", { host: "sagepub.com" })).toEqual({ resumed: true })
@@ -432,7 +435,7 @@ describe("the extension's port", () => {
       const papers = (await call("library.list")).papers
       expect(papers.find((p: { id: string }) => p.id === other.id).pdfState?.extension).toBeUndefined()
       // The one out for a try still has its answer taken
-      expect((await request(`/work/${item.id}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })).status).toBe(200)
+      expect((await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })).status).toBe(200)
       expect((await request("/work", { token })).body.work).toEqual([])
     })
 
@@ -516,7 +519,7 @@ describe("the extension's port", () => {
       await s.request("/work", { token })
       await s.call("library.fetchPdf", { id })
       const [item] = (await s.request("/work", { token })).body.work
-      await s.request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" } })
+      await s.request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" } })
       // The browser was closed a while ago: its extension asks for nothing
       const now = Date.now()
       vi.spyOn(Date, "now").mockReturnValue(now + 2 * 60_000)
@@ -535,7 +538,7 @@ describe("the extension's port", () => {
       await s.request("/work", { token })
       await s.call("library.fetchPdf", { id })
       const [item] = (await s.request("/work", { token })).body.work
-      await s.request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "file:///Users/x/Results.terminal" } })
+      await s.request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com", url: "file:///Users/x/Results.terminal" } })
       const now = Date.now()
       vi.spyOn(Date, "now").mockReturnValue(now + 2 * 60_000)
       await s.call("extension.open", { kind: "sign-in", host: "sagepub.com" })
@@ -550,7 +553,7 @@ describe("the extension's port", () => {
       for (const paperId of [id, other.id]) {
         await call("library.fetchPdf", { id: paperId })
         const [item] = (await request("/work", { token })).body.work
-        await request(`/work/${item.id}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com" } })
+        await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com" } })
       }
       expect((await call("extension.get")).waits).toMatchObject([{ host: "sagepub.com", papers: 2 }])
       // The user drops the PDF they found
@@ -575,11 +578,11 @@ describe("the extension's port", () => {
         return isPdfOf(...args)
       })
       writeFileSync(path.join(root, "found.pdf"), theirs)
-      const sent = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
+      const sent = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
       expect(sent).toMatchObject({ status: 409, body: { reason: "has-pdf", paper: { id, hasPdf: true } } })
       expect(readFileSync(path.join(root, "library/papers", id, "paper.pdf"))).toEqual(theirs)
       expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "person", ended: "pdf" })
-      expect(server.work.paperOf(item.id)).toBeUndefined()
+      expect(server.work.current(library as never, item.id)).toBeUndefined()
     })
 
     it("notes each word the extension brings back as its try", async () => {
@@ -587,7 +590,7 @@ describe("the extension's port", () => {
       for (const ended of ["no-access", "not-offered", "not-there", "no-copy", "unreadable"] as const) {
         await call("library.fetchPdf", { id })
         const [item] = (await request("/work", { token })).body.work
-        await request(`/work/${item.id}`, { token, body: { ended, host: "journals.sagepub.com", title: "Get access" } })
+        await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended, host: "journals.sagepub.com", title: "Get access" } })
         expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended, host: "journals.sagepub.com" })
         const paper = await paperIn(call)
         // Its word outranks owlit's own no copy, which came before it
@@ -597,27 +600,65 @@ describe("the extension's port", () => {
       expect((await request("/work/nothing-like-it", { token, body: { ended: "no-copy", host: "x" } })).status).toBe(404)
     })
 
-    it("counts another paper's PDF as no copy there", async () => {
+    it("counts another paper's PDF as a page owlit couldn't read there", async () => {
       const { call, request, token, root } = await connected()
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
-      const wrong = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: pdfOf(["https://doi.org/10.1000/other.paper", "Something Else Entirely, A Study of Other Things"]) })
+      const wrong = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf(["https://doi.org/10.1000/other.paper", "Something Else Entirely, A Study of Other Things"]) })
       expect(wrong).toMatchObject({ status: 422, body: { reason: "not-this-paper" } })
-      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "no-copy", host: "journals.sagepub.com" })
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "unreadable", host: "journals.sagepub.com" })
     })
 
     it("lets go of a fetch whose PDF owlit couldn't take, so the site goes on", async () => {
-      const { call, request, token, root, server } = await connected()
+      const { call, request, token, root, server, core } = await connected()
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
       // A server that sent a line before the PDF's mark
-      const sent = await request(`/work/${item.id}?host=journals.sagepub.com`, { token, bytes: Buffer.concat([Buffer.from("\n"), pdfOf([`https://doi.org/${SAGE}`, title])]) })
+      const sent = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: Buffer.concat([Buffer.from("\n"), pdfOf([`https://doi.org/${SAGE}`, title])]) })
       expect(sent).toMatchObject({ status: 415, body: { reason: "not-a-pdf" } })
-      expect(server.work.paperOf(item.id)).toBeUndefined()
-      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "no-copy", host: "journals.sagepub.com" })
-      // The next paper there is handed out now, not after the extension's answer is given up on
+      expect(server.work.current(libraryOf(core), item.id)).toBeUndefined()
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "unreadable", host: "journals.sagepub.com" })
+      // The next fetch there is handed out now: the one that failed isn't left in flight
       await call("library.fetchPdf", { id })
-      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id }])
+      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id, id: `${id}#2` }])
+    })
+
+    it("asks again for a PDF owlit itself failed to place, as it does after a network failure", async () => {
+      const { call, request, token, root, core, server } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const library = libraryOf(core)
+      vi.spyOn(library, "attachPdf").mockRejectedValueOnce(Object.assign(new Error("ENOSPC: no space left on device"), { code: "ENOSPC" }))
+      vi.spyOn(console, "error").mockImplementation(() => undefined)
+      const sent = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
+      expect(sent.status).toBe(500)
+      expect(acquisitionOf(root).tried.at(-1)).toMatchObject({ by: "extension", ended: "offline", host: "journals.sagepub.com" })
+      // Still the extension's, back in its site's queue for the back-off, not a manual download
+      expect(server.work.current(library, item.id)).toBeUndefined()
+      expect((await paperIn(call)).pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } })
+    })
+
+    it("places the PDF of an attempt that came after the paper was handed out again, and lets an old attempt's word go", async () => {
+      const { call, request, token, root } = await connected()
+      await call("library.fetchPdf", { id })
+      const [first] = (await request("/work", { token })).body.work
+      // Its answer is no copy; Look again hands the paper out again, which waits behind a sign-in
+      const second = `${id}#2`
+      await request(`/work/${encodeURIComponent(first.id)}`, { token, body: { ended: "no-copy", host: "journals.sagepub.com" } })
+      await call("library.fetchPdf", { id })
+      expect((await request("/work", { token })).body.work).toMatchObject([{ id: second }])
+      await request(`/work/${encodeURIComponent(second)}`, { token, body: { ended: "sign-in", host: "journals.sagepub.com" } })
+      const tries = acquisitionOf(root).tried.length
+      // The first attempt's word, late: nothing noted, the wait stays
+      expect((await request(`/work/${encodeURIComponent(first.id)}`, { token, body: { ended: "no-copy", host: "journals.sagepub.com" } })).body).toEqual({ ignored: true })
+      expect(acquisitionOf(root).tried).toHaveLength(tries)
+      expect((await call("extension.get")).waits).toMatchObject([{ kind: "sign-in", papers: 1 }])
+      // Its PDF, late: the paper's, and the wait goes with it
+      const late = await request(`/work/${encodeURIComponent(first.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
+      expect(late).toMatchObject({ status: 200, body: { paper: { id, hasPdf: true } } })
+      expect((await call("extension.get")).waits).toEqual([])
+      // A copy of it again finds the first in place
+      expect((await request(`/work/${encodeURIComponent(second)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })).status).toBe(409)
     })
 
     // A paper's acquisition.json as an earlier run of owlit left it
@@ -650,9 +691,11 @@ describe("the extension's port", () => {
           return next
         })
         order.push(item.paperId)
+        // Numbered on from the extension's tries its record kept from before the restart
+        expect(item.id).toBe(`${item.paperId}#${item.paperId === signIn.id ? 2 : 1}`)
         // Each is finding again while the extension has it, not "No PDF"
         if (i === 0) await eventually(async () => expect((await s.call("library.list")).papers.find((p: { id: string }) => p.id === newer.id).pdfState).toMatchObject({ state: "finding", extension: { host: "sagepub.com" } }))
-        await s.request(`/work/${item.id}`, { token, body: { ended: "no-copy", host: "journals.sagepub.com" } })
+        await s.request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-copy", host: "journals.sagepub.com" } })
       }
       expect(order).toEqual([older.id, newer.id, signIn.id])
       expect((await s.request("/work", { token })).body.work).toEqual([])
