@@ -270,6 +270,20 @@ describe("waits", () => {
   })
 })
 
+describe("allowing a site", () => {
+  const apa: WorkWait = { id: "pub:apa", kind: "permission", at: "apa.org", host: "apa.org", watch: ["apa.org"], papers: 1, proxied: false, allow: ["apa.org"] }
+  const emit = (b: FakeBrowser, message: unknown) => new Promise<unknown>((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit(message, { id: "fake" }, resolve))
+
+  it("goes on at the wait once owlit names it, when the site was allowed before the restarted browser heard of any wait", async () => {
+    // Chrome restarted: session storage is empty, and owlit holds the first ask for work
+    const b = await boot({})
+    await emit(b, { kind: "allowed" })
+    expect(b.owlit.posted("/work/resume")).toEqual([])
+    b.owlit.give({ waits: [apa] })
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toEqual([{ route: "/work/resume", method: "POST", json: { wait: "pub:apa" } }]), PATIENCE)
+  })
+})
+
 describe("the popup", () => {
   // What the popup is told of this tab
   const stateOf = (b: FakeBrowser, tabId: number) =>

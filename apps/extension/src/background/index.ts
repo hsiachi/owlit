@@ -533,6 +533,12 @@ const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?
 const WORK = "work"
 
 let asking: Promise<void> | null = null
+// This worker has had a GET /work answer, so the waits in session storage are owlit's now. Before the
+// first, they may be none at all: Chrome empties session storage when it restarts, and owlit holds the
+// first ask while nothing is due, so a site allowed meanwhile (the Allow page, permissions.onAdded)
+// finds no wait to go on at. Such an allow is gone through again once the answer comes.
+let waitsHeard = false
+let allowedEarly = false
 
 // One GET /work at a time, held open by owlit until something is due; each paper it hands over is
 // fetched beside it, at owlit's pace (owlit gives one per site at a time). Ends when owlit can't be
@@ -547,6 +553,11 @@ function keepAsking() {
         // An extension call between holds also keeps Chrome from taking the worker for idle. Firefox may
         // still unload its event page between holds; the WORK alarm loads it and asks again
         await ext.storage.session.set({ [waitsKey]: answer.waits.map(asWait), [goingKey]: answer.going ?? [] })
+        waitsHeard = true
+        if (allowedEarly) {
+          allowedEarly = false
+          void resumePermitted()
+        }
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
         for (const item of answer.work) {
           void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo })
@@ -758,6 +769,7 @@ const registered = () => void registerGranted().catch((error) => console.error("
 // the Allow page, since Firefox may close a page while its permission question is open, and then the
 // page never sends its own "allowed".
 async function resumePermitted() {
+  if (!waitsHeard) allowedEarly = true
   for (const wait of (await waits()).filter((w) => w.kind === "permission")) {
     if (await mayReadAll(wait)) await resume(wait).catch(() => undefined)
   }
