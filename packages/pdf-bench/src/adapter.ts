@@ -89,6 +89,8 @@ export interface WaitView {
 
 export interface Screen {
   block: Block | null
+  // Papers the extension has in line or out for a try, under no wait: what can still move by itself
+  inLine: number
   // Gates core's tally says gave nothing lately, with no wait to say why (ExtensionWork.silentZeros)
   silent: string[]
   waits: WaitView[]
@@ -567,6 +569,7 @@ class Renderer {
   }
 
   draw(): Omit<Screen, "browser" | "silent"> {
+    const inLine = Object.values(this.papers).filter((p) => p.pdfState?.extension && !p.pdfState.extension.wait).length
     const waits = this.view?.waits ?? []
     const library = libraryNameOf(this.proxy)
     const waitRow = (wait: ExtensionWait, papers: number, ids?: string[]): Row => ({ kind: wait.kind, papers, host: wait.at, words: waitWords(wait, papers, library).need, ...(ids ? { ids: [...ids] } : {}) })
@@ -604,6 +607,6 @@ class Renderer {
         ...(found ? { foundUnder: { kind: found.kind, host: found.host } } : {}),
       }
     }
-    return { block, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.host, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
+    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.host, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
   }
 }

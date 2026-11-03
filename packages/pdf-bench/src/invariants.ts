@@ -56,6 +56,9 @@ export function invariantErrors(screen: Screen): string[] {
         const p = papers[id]
         if (p?.foundUnder && waitKinds.has(p.foundUnder.kind) && seen.get(id) !== key(p.foundUnder)) errors.push(`${id} waits at ${key(p.foundUnder)} and is in the row ${seen.get(id)}`)
       }
+      // The bench looks once everything that moves by itself has moved: a batch still going then has a
+      // paper the extension holds in line (an offline back-off, a gap still to run), or it spins for ever
+      if (block.running && !screen.inLine) errors.push("the batch says it is getting PDFs, and nothing is in line at the extension")
       if (block.running !== block.rows.some((r) => r.kind === "waiting")) errors.push(block.running ? "the batch says it is getting PDFs, with nothing in line" : "the batch says it is done, with papers still in line")
     } else {
       // Without a batch, the rows are the waits

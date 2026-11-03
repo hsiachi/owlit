@@ -40,7 +40,8 @@ describe("a Get PDFs, counted from its papers", () => {
 
   it("goes on while a paper is in line or not handed over yet, and counts what came, and by whom", () => {
     const papers = { queued: inLine(), fetching: inLine(true), came: saved("extension"), found: saved("search"), dropped: saved("person"), before: ended("no-copy", "doi.org", AT - 1), apa: held("pub:apa", "permission"), gone: undefined }
-    const view = viewOf(papers)
+    // Its record is from before the run, and it is still being looked up: not handed over yet
+    const view = viewOf(papers, { handed: new Set(Object.keys(papers).filter((id) => id !== "before")) })
     expect(view).toMatchObject({ total: 7, saved: 2, byYou: 1, going: 3, running: true, waits: [{ wait: "pub:apa", papers: 1, ids: ["apa"] }] })
     expect(view).not.toHaveProperty("endedAt")
   })
@@ -63,10 +64,11 @@ describe("a Get PDFs, counted from its papers", () => {
     expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"], { handed: new Set() }), true)).toEqual({ kind: "going" })
     // Stopped before its hand-over, or dropped from the queue by Stop with nothing noted
     expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"], { stoppedAt: AT + 5 }), true)).toEqual({ kind: "stopped" })
-    // The user got through at a wait with no extension connected: the paper waits for the browser
+    // Handed over, and since with the extension nowhere (the user got through at a wait with no
+    // extension connected): nothing moves it, so it isn't going, connected or not
     const check = tryOf("check", "www.science.org")
-    expect(classify("a", { paper: { pdfState: { state: "finding", tried: [check], reason: check } } }, run(["a"]), true)).toEqual({ kind: "going" })
-    expect(classify("a", { paper: { pdfState: { state: "finding", tried: [check], reason: check } } }, run(["a"]), false)).toEqual({ kind: "away" })
+    for (const connected of [true, false]) expect(classify("a", { paper: { pdfState: { state: "finding", tried: [check], reason: check } } }, run(["a"]), connected)).toEqual({ kind: "away" })
+    expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"]), true)).toEqual({ kind: "away" })
   })
 
   it("writes when it ended once, and keeps it", () => {

@@ -14,6 +14,7 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: { kind: "check", host: "science.org" }, foundUnder: { kind: "check", host: "science.org" } }, b: { hasPdf: true, title: "" } },
       silent: [],
+      inLine: 0,
       browser,
     }
     expect(invariantErrors(screen)).toEqual([])
@@ -25,6 +26,7 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: { kind: "check", host: "science.org" } } },
       silent: [],
+      inLine: 0,
       browser,
     }
     expect(invariantErrors(screen)).toEqual([
@@ -41,6 +43,7 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: true, title: "", heldAt: { kind: "check", host: "science.org" }, foundUnder: { kind: "check", host: "science.org" } } },
       silent: [],
+      inLine: 0,
       browser,
     }
     expect(invariantErrors(screen)).toEqual(["a has its PDF and still waits at check:science.org", "a has its PDF and is in the row check:science.org", "the batch counts 2 papers in its rows and saved, of 3"])
@@ -52,8 +55,9 @@ describe("the bench's invariants", () => {
       waits: [],
       papers: { a: { hasPdf: false, title: "" } },
       silent: ["pub:acm"],
+      inLine: 0,
       browser,
     }
-    expect(invariantErrors(screen)).toEqual(["the batch says it is getting PDFs, with nothing in line", "pub:acm was handed papers all day and gave no PDF, with no wait to say why"])
+    expect(invariantErrors(screen)).toEqual(["the batch says it is getting PDFs, and nothing is in line at the extension", "the batch says it is getting PDFs, with nothing in line", "pub:acm was handed papers all day and gave no PDF, with no wait to say why"])
   })
 })

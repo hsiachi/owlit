@@ -49,7 +49,11 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
     if (wait && wait !== "finding" && wait !== "offline") return { kind: "none" }
   }
   if (run.stoppedAt !== undefined) return { kind: "stopped" }
-  if (run.away.has(id)) return { kind: "away" }
+  // Handed over, and since in no queue, not out for a try, under no wait, with no try of the run's: it
+  // left the extension without an answer (the user got through with no extension to go on, a queue
+  // dropped it), and nothing moves it until it is asked for again
+  if (run.away.has(id) || run.handed.has(id)) return { kind: "away" }
+  // Being looked up before its hand-over
   return { kind: connected ? "going" : "away" }
 }
 
