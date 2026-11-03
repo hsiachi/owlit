@@ -13,8 +13,8 @@ import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
-import { noPdfTitle, pdfGone, pdfWait, unreachable, waitedFor, type PdfWait } from "../../lib/pdf-wait"
-import { useExtension, usePaperWait } from "@/features/extension/store"
+import { noPdfTitle, pdfGone, pdfWait, unreachable, waitedFor, withExtension, type PdfWait } from "../../lib/pdf-wait"
+import { useBrowserAway, useExtension, usePaperWait } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
@@ -27,13 +27,15 @@ const LOOKING = new Set(["paper.pdf"])
 const hostName = (reason: PdfTry | undefined) => reason?.host?.replace(/^www\./, "") ?? ""
 
 // The card's why line, from the try that says where the paper stands; its title is the state's one name
-// as noPdfTitle says it, the paper card's too. wait: the one it is under (usePaperWait).
-function detailOf(state: CardState, paper: Paper, now: string | undefined, wait: ExtensionWait | undefined): string {
+// as noPdfTitle says it, the paper card's too. wait: the one it is under (usePaperWait); away: the
+// extension's browser while it isn't open (useBrowserAway).
+function detailOf(state: CardState, paper: Paper, now: string | undefined, wait: ExtensionWait | undefined, away: string | undefined): string {
   const s = paper.pdfState
   const reason = s?.reason
   const host = hostName(reason)
   const date = reason ? shortDate(reason.at) : ""
   const tried = triedSentence(s?.tried ?? [])
+  if (away && !now && withExtension(paper)) return t`owlit gets it through the owlit extension in ${away}. Open ${away} and it goes on by itself.`
   // The extension has it in line, held back by a site that didn't answer it
   const off = unreachable(paper)
   if (off && !now && (state === "finding" || state === "offline")) {
@@ -144,6 +146,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   // The line for the site the extension waits at, with its one thing to do
   const siteWait = usePaperWait(paper)
+  const away = useBrowserAway()
 
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   // A browser whose extension may connect; until owlit says, as if there were one, so the offer below
@@ -153,11 +156,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   const wait = pdfWait(paper) ?? "finding"
   const state: CardState = looking ? "looking" : wait
-  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, siteWait)
-  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), siteWait)
+  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, siteWait, away)
+  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), siteWait, away)
   const lost = state === "finding" && pdfGone(paper)
-  // Nothing spins while the paper only waits for a site that didn't answer
-  const working = (state === "looking" || (state === "finding" && !unreachable(paper))) && !lost
+  // Nothing spins while the paper only waits for a site that didn't answer, or for the browser to open
+  const working = (state === "looking" || (state === "finding" && !unreachable(paper) && !(away && withExtension(paper)))) && !lost
   const nextLook = paper.pdfState?.nextLook
   const nextDate = nextLook ? shortDate(nextLook) : ""
   const chooseFile = (

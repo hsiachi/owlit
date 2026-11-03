@@ -177,6 +177,8 @@ export class ExtensionWork implements ExtensionFetcher {
   // Papers freed by the user getting through at a wait that weren't in a queue then (known only from
   // their records): they go out as part of what the user started once the library hands them over
   private readonly startedIds = new Set<string>()
+  // Fires once the extension has gone CONNECTED_MS without asking: the window hears it went
+  private awayTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(host: WorkHost, options: WorkOptions = {}) {
     this.host = host
@@ -380,7 +382,8 @@ export class ExtensionWork implements ExtensionFetcher {
     // missed meanwhile went to no queue, and after a restart the queues are empty, so the library fills
     // them before anything is due. Marked connected first, so what the library hands over is queued, not
     // left with no PDF.
-    const arrived = !this.connected() || library !== this.connectedTo
+    const wasAway = !this.connected()
+    const arrived = wasAway || library !== this.connectedTo
     // Before this ask is counted: the asker's own fetches from before it was away go out again too
     this.reissue()
     const ask = this.asks.get(by ?? "") ?? { open: 0, at: 0, dropped: false }
@@ -391,6 +394,9 @@ export class ExtensionWork implements ExtensionFetcher {
     if (library !== this.library) this.own(library)
     this.connectedTo = library
     if (arrived && library) this.host.connected(library)
+    // The window says the browser is back (ExtensionView.connected)
+    if (wasAway) this.host.waits()
+    this.watchAway()
     const until = Date.now() + holdMs
     for (;;) {
       const due = this.due(by)
@@ -402,6 +408,7 @@ export class ExtensionWork implements ExtensionFetcher {
         ask.open--
         ask.at = this.polledAt
         ask.dropped = closed.aborted
+        this.watchAway()
         return due
       }
       await new Promise<void>((resolve) => {
@@ -675,7 +682,18 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   dispose() {
+    clearTimeout(this.awayTimer)
     for (const waiter of [...this.waiters]) waiter()
+  }
+
+  // Once nothing has asked for work for CONNECTED_MS, the window hears the browser went: the papers with
+  // the extension then say they wait for it, and a run's papers in line stop counting as going
+  private watchAway() {
+    clearTimeout(this.awayTimer)
+    this.awayTimer = setTimeout(() => {
+      if (!this.connected()) this.host.waits()
+    }, CONNECTED_MS + 1)
+    this.awayTimer.unref?.()
   }
 
   private own(library: Library | null) {

@@ -18,7 +18,7 @@ interface Deps {
 }
 
 export function registerExtension({ router, extension }: Deps) {
-  router.register("extension.get", noParams, "read", async () => (await extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], waits: [], going: [], runs: [] })
+  router.register("extension.get", noParams, "read", async () => (await extension?.view()) ?? { serving: false, portTaken: false, paired: [], asking: [], connected: false, waits: [], going: [], runs: [] })
   router.register("extension.answer", z.object({ id: z.string().min(1), allow: z.boolean() }), "admin", async ({ id, allow }) => {
     await extension?.pairings.answer(id, allow)
     return null

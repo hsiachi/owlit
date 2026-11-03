@@ -5,14 +5,14 @@ import path from "node:path"
 import { vi } from "vitest"
 import { Core } from "../../core/src/core.ts"
 import type { ExtensionServer } from "../../core/src/extension/server.ts"
-import { ExtensionWork } from "../../core/src/extension/work.ts"
+import { CONNECTED_MS, ExtensionWork } from "../../core/src/extension/work.ts"
 import type { FakeWeb } from "../../core/src/extension/test/fake-web.ts"
 import { Library } from "../../core/src/library/library.ts"
 import { OwlitError, type ask as askOwlit } from "../../../apps/extension/src/lib/owlit.ts"
 import { mayRead } from "../../../apps/extension/src/lib/permissions.ts"
 import { isBlocked, isThrough, siteOf } from "../../../apps/extension/src/lib/verdict.ts"
 import { doWork } from "../../../apps/extension/src/lib/work.ts"
-import { waitWords } from "@/features/extension/wait-words"
+import { browserName, waitWords } from "@/features/extension/wait-words"
 import { noPdfTitle, pdfColumnWord, pdfWait } from "@/features/library/lib/pdf-wait"
 import { libraryNameOf } from "@/features/settings/library-name"
 
@@ -40,7 +40,8 @@ const PATIENCE = { timeout: 10_000, interval: 10 }
 
 export interface Row {
   // A wait's kind, or manual, none, skipped, stopped, unreachable (held back by a host that didn't
-  // answer), getting (being fetched), waiting (in line or not handed over yet), away
+  // answer), getting (being fetched), waiting (in line or not handed over yet), closed (in line with the
+  // browser closed), away
   kind: string
   papers: number
   // A wait's row: the wait (ExtensionWait.id) and where it is shown (at); an unreachable row's host
@@ -278,6 +279,20 @@ export class Bench {
     return this.step(`change network for ${host}`)
   }
 
+  // The user quits the browser the extension is in: it asks for no work, and once it hasn't for longer
+  // than core counts it connected, the window says the papers with it wait for the browser
+  async closeBrowser() {
+    this.ext.closed = true
+    this.offset += CONNECTED_MS + 1
+    return this.step("close the browser")
+  }
+
+  // The browser opens again, and the extension asks for work
+  async openBrowser() {
+    this.ext.closed = false
+    return this.step("open the browser")
+  }
+
   // The user's network can reach the host again (a VPN turned on)
   async reach(host: string) {
     this.web.up(host)
@@ -407,6 +422,8 @@ type Waits = WorkAnswer["waits"]
 
 class Extension {
   token = ""
+  // The browser is closed: nothing asks owlit for work
+  closed = false
   readonly fetched: string[] = []
   private readonly web: FakeWeb
   private readonly port: () => number
@@ -469,6 +486,7 @@ class Extension {
   // One GET /work: the pages owlit asks to open, and the papers due, fetched beside it (keepAsking).
   // Whether it brought anything.
   async step(): Promise<boolean> {
+    if (this.closed) return false
     const answer = await this.ask<WorkAnswer>("/work", { token: this.token })
     this.waits = answer.waits
     this.going = answer.going ?? []
@@ -583,6 +601,8 @@ class Renderer {
     const inLine = Object.values(this.papers).filter((p) => p.pdfState?.extension && !p.pdfState.extension.wait).length
     const waits = this.view?.waits ?? []
     const library = libraryNameOf(this.proxy)
+    // useBrowserAway
+    const away = this.view && !this.view.connected && this.view.paired.length ? browserName(this.view.paired) : undefined
     const waitRow = (wait: ExtensionWait, papers: number, ids?: string[]): Row => ({ kind: wait.kind, papers, wait: wait.id, host: wait.at, words: waitWords(wait, papers, library).need, ...(ids ? { ids: [...ids] } : {}) })
     const byPapers = (a: ExtensionWait, b: ExtensionWait) => b.papers - a.papers
     let block: Block | null = null
@@ -598,7 +618,7 @@ class Renderer {
       if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: [...run.manual.ids] })
       for (const [kind, papers] of [["none", run.none], ["skipped", run.skipped], ["stopped", run.stopped]] as const) if (papers) rows.push({ kind, papers })
       for (const u of run.unreachable) rows.push({ kind: "unreachable", papers: u.papers, host: u.at, ids: [...u.ids] })
-      for (const [kind, papers] of [["getting", run.getting], ["waiting", run.going], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
+      for (const [kind, papers] of [["getting", run.getting], ["waiting", run.going], ["closed", run.closed], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
       const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers).map((w) => waitRow(w, w.papers))
       block = { batch: true, total: run.total, saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, rows, outside }
     } else if (waits.length) {
@@ -609,11 +629,11 @@ class Renderer {
       const ext = p.pdfState?.extension
       // usePaperWait: by the id core gives the paper
       const found = ext?.wait ? waits.find((w) => w.id === ext.wait) : undefined
-      const word = pdfColumnWord(p)
+      const word = pdfColumnWord(p, away)
       const state = pdfWait(p)
       papers[p.id] = {
         hasPdf: !!p.pdf,
-        title: p.pdf ? "" : noPdfTitle(p, found),
+        title: p.pdf ? "" : noPdfTitle(p, found, away),
         ...(word ? { word } : {}),
         ...(state ? { state } : {}),
         ...(ext?.wait ? { heldAt: ext.wait } : {}),

@@ -3568,6 +3568,11 @@ msgstr ""
 msgid "The owlit extension asks before it reads a site. Allow it on {host} once; owlit goes on by itself."
 msgstr ""
 
+#. in: Getting PDFs for 3 papers using your browser…, Open in your browser
+#: app/src/features/extension/wait-words.ts
+msgid "your browser"
+msgstr ""
+
 #. button: the user signed in in their browser; owlit tries the site again now
 #: app/src/features/extension/waits.ts
 msgid "I've signed in"
@@ -3576,11 +3581,6 @@ msgstr ""
 #. button: the user passed the site's 'verify you are human' check; owlit tries the site again now
 #: app/src/features/extension/waits.ts
 msgid "I've verified it"
-msgstr ""
-
-#. in: Getting PDFs for 3 papers using your browser…, Open in your browser
-#: app/src/features/extension/waits.ts
-msgid "your browser"
 msgstr ""
 
 #: app/src/features/extension/waits.ts
@@ -4519,6 +4519,15 @@ msgstr ""
 msgid "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
 msgstr ""
 
+#. papers of Get PDFs in line at the owlit extension in the browser (e.g. Dia), which isn't open
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Waiting for {browser} to open"
+msgstr ""
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} isn't connected. Open {browser} and these go on by themselves."
+msgstr ""
+
 #. papers of Get PDFs the owlit extension in the browser (e.g. Dia) never got, because it wasn't connected
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "Didn't reach {browser}"
@@ -4790,9 +4799,19 @@ msgstr ""
 msgid "No PDF there"
 msgstr ""
 
+#. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for {away}"
+msgstr ""
+
 #. the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Can't reach site"
+msgstr ""
+
+#. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for {away} to open"
 msgstr ""
 
 #: app/src/features/library/lib/pdf-wait.ts
@@ -5168,6 +5187,10 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
+msgstr ""
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets it through the owlit extension in {away}. Open {away} and it goes on by itself."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

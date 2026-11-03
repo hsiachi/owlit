@@ -11,7 +11,7 @@ import { toastError } from "@/lib/toast"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
 import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
-import { waitWords } from "./waits"
+import { browserName, waitWords } from "./wait-words"
 
 interface ExtensionState {
   view: ExtensionView | null
@@ -28,6 +28,10 @@ export const usePaperWait = (paper: Pick<Paper, "pdfState">) => {
   const id = paper.pdfState?.extension?.wait
   return useExtension((s) => (id ? s.view?.waits.find((w) => w.id === id) : undefined))
 }
+
+// The browser the extension lives in (browserName), while no extension in it asks owlit for work: the
+// papers with the extension wait for it to open. undefined while one is connected, or before owlit says.
+export const useBrowserAway = () => useExtension((s) => (s.view && !s.view.connected && s.view.paired.length ? browserName(s.view.paired) : undefined))
 
 // Get PDFs as the block atop the Library shows it: the newest run not put away
 export const usePdfRun = () => useExtension((s) => s.view?.runs[0])

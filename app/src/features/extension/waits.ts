@@ -8,7 +8,7 @@ import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { waitWords } from "./wait-words"
 
-export { waitWords, type WaitWords } from "./wait-words"
+export { browserName, waitWords, type WaitWords } from "./wait-words"
 
 // The sites where the extension in the user's browser waits for them: one row each, with one thing to
 // do, said the same atop the Library, on Home, on a paper's card and in a notification
@@ -20,12 +20,6 @@ export function doneWords(kind: ExtensionWait["kind"]): string | undefined {
   if (kind === "sign-in") return t({ message: "I've signed in", comment: "button: the user signed in in their browser; owlit tries the site again now" })
   if (kind === "check") return t({ message: "I've verified it", comment: "button: the user passed the site's 'verify you are human' check; owlit tries the site again now" })
   return undefined
-}
-
-// The browser the extension lives in, as it named itself (Dia, Chrome): the one heard from last
-export function browserName(paired: { browser: string; pairedAt: number; lastSeenAt?: number }[] | undefined): string {
-  const last = [...(paired ?? [])].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]
-  return last?.browser ?? t({ message: "your browser", comment: "in: Getting PDFs for 3 papers using your browser…, Open in your browser" })
 }
 
 // The row's one thing to do, done in the browser the extension lives in, where the user's access is: the

@@ -552,14 +552,14 @@ describe("the extension's port", () => {
       await expect(call("pdfRuns.stop", { run: first })).rejects.toThrow()
     })
 
-    it("says a Get PDFs isn't going when the extension went before its papers were handed over", async () => {
+    it("says a Get PDFs isn't going when the extension went before its papers were handed over, nor the one in line", async () => {
       const { call, putPaper, server } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
       putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
       const { run } = await call("library.fetchPdfs", { ids: [id, other.id] })
       // The first was handed over as the answer went; the browser closes before the second's turn
       vi.spyOn(server.work, "connected").mockReturnValue(false)
-      await eventually(async () => expect((await call("extension.get")).runs).toMatchObject([{ id: run, total: 2, going: 0, away: 2, running: false }]))
+      await eventually(async () => expect((await call("extension.get")).runs).toMatchObject([{ id: run, total: 2, going: 0, closed: 1, away: 1, running: false }]))
     })
 
     it("takes a stopped batch's papers out of the extension's queue, leaving their records", async () => {

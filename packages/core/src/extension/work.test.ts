@@ -264,6 +264,21 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["sage"])
   })
 
+  it("tells the window when the extension went, and when it is back", async () => {
+    const { work, take, waitsChanged } = setup()
+    await take()
+    expect(work.connected()).toBe(true)
+    const before = waitsChanged()
+    vi.advanceTimersByTime(CONNECTED_MS - 1)
+    expect(waitsChanged()).toBe(before)
+    vi.advanceTimersByTime(2)
+    expect(work.connected()).toBe(false)
+    expect(waitsChanged()).toBe(before + 1)
+    await take()
+    expect(work.connected()).toBe(true)
+    expect(waitsChanged()).toBe(before + 2)
+  })
+
   it("holds a long poll through an offline back-off and hands the paper out when it ends", async () => {
     const { work, take, never } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)

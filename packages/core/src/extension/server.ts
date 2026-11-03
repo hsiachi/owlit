@@ -138,7 +138,7 @@ export class ExtensionServer {
         return going ? { ...wait, going: await counted(going) } : wait
       }),
     )
-    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits, going: await this.going(), runs: library ? await library.pdfRunViews() : [] }
+    return { ...(await this.pairings.view(!!this.server, this.portTaken)), connected: this.work.connected(), waits, going: await this.going(), runs: library ? await library.pdfRunViews() : [] }
   }
 
   // The waits the user got through, with their papers going on, counted from the open workspace's papers

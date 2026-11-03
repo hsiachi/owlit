@@ -39,7 +39,7 @@ export function PdfBlock() {
     const things = rows.filter((r) => r.kind === "wait").length
     const held = rows.reduce((n, r) => (r.kind === "wait" ? n + r.papers : n), 0)
     // "the rest need you" only while there is something of the user's to do
-    const yours = things > 0 || run.manual.ids.length > 0 || run.away > 0
+    const yours = things > 0 || run.manual.ids.length > 0 || run.away > 0 || run.closed > 0
     // Sites waiting for papers outside the run stay in view, under its rows, as they are without one
     const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers)
     const header = running ? (
@@ -98,10 +98,11 @@ type RowModel =
   | { kind: "wait"; wait: ExtensionWait; papers: number }
   | { kind: "manual"; papers: number; ids: string[]; sites: { host: string; papers: number }[] }
   | { kind: "unreachable"; at: string; until: number; papers: number }
-  | { kind: "away" | "none" | "skipped" | "stopped" | "getting" | "going"; papers: number }
+  | { kind: "closed" | "away" | "none" | "skipped" | "stopped" | "getting" | "going"; papers: number }
 
 // A run's rows in the order the user can do something about them: its waits (the most papers first, as
-// core sorts them), the downloads by hand, the papers that didn't reach the browser; then those with no
+// core sorts them), the downloads by hand, the papers waiting for the browser to open and those that
+// didn't reach it; then those with no
 // PDF, those the user found none for or stopped, those held back by a site that didn't answer, those
 // being fetched now and those waiting their turn. A wait the run counts
 // that the waits list doesn't have yet (the two come by one notification, but a paper can be read
@@ -113,7 +114,7 @@ function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
     if (wait) rows.push({ kind: "wait", wait, papers: w.papers })
   }
   if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: run.manual.ids, sites: run.manual.sites })
-  for (const kind of ["away", "none", "skipped", "stopped"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
+  for (const kind of ["closed", "away", "none", "skipped", "stopped"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
   for (const { at, until, papers } of run.unreachable) rows.push({ kind: "unreachable", at, until, papers })
   for (const kind of ["getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
   return rows
@@ -197,6 +198,9 @@ function Row({ row, browser, library, papers }: { row: RowModel; browser: string
         </Button>
       )
     }
+  } else if (row.kind === "closed") {
+    need = t({ message: `Waiting for ${browser} to open`, comment: "papers of Get PDFs in line at the owlit extension in the browser (e.g. Dia), which isn't open" })
+    why = t`The owlit extension in ${browser} isn't connected. Open ${browser} and these go on by themselves.`
   } else if (row.kind === "away") {
     need = t({ message: `Didn't reach ${browser}`, comment: "papers of Get PDFs the owlit extension in the browser (e.g. Dia) never got, because it wasn't connected" })
     why = t`The owlit extension in ${browser} wasn't connected when their turn came. Open ${browser}, then press Get PDFs again.`

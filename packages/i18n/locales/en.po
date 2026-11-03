@@ -3568,6 +3568,11 @@ msgstr "{n, plural, one {# paper needs your permission for {host}} other {# pape
 msgid "The owlit extension asks before it reads a site. Allow it on {host} once; owlit goes on by itself."
 msgstr "The owlit extension asks before it reads a site. Allow it on {host} once; owlit goes on by itself."
 
+#. in: Getting PDFs for 3 papers using your browser…, Open in your browser
+#: app/src/features/extension/wait-words.ts
+msgid "your browser"
+msgstr "your browser"
+
 #. button: the user signed in in their browser; owlit tries the site again now
 #: app/src/features/extension/waits.ts
 msgid "I've signed in"
@@ -3577,11 +3582,6 @@ msgstr "I've signed in"
 #: app/src/features/extension/waits.ts
 msgid "I've verified it"
 msgstr "I've verified it"
-
-#. in: Getting PDFs for 3 papers using your browser…, Open in your browser
-#: app/src/features/extension/waits.ts
-msgid "your browser"
-msgstr "your browser"
 
 #: app/src/features/extension/waits.ts
 msgid "Press owlit's button in your browser's toolbar, then Allow."
@@ -4519,6 +4519,15 @@ msgstr "owlit couldn't open these sites' pages: {sites}. Open each one and click
 msgid "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
 msgstr "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
 
+#. papers of Get PDFs in line at the owlit extension in the browser (e.g. Dia), which isn't open
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Waiting for {browser} to open"
+msgstr "Waiting for {browser} to open"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} isn't connected. Open {browser} and these go on by themselves."
+msgstr "The owlit extension in {browser} isn't connected. Open {browser} and these go on by themselves."
+
 #. papers of Get PDFs the owlit extension in the browser (e.g. Dia) never got, because it wasn't connected
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "Didn't reach {browser}"
@@ -4790,10 +4799,20 @@ msgstr "No access"
 msgid "No PDF there"
 msgstr "No PDF there"
 
+#. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for {away}"
+msgstr "Waiting for {away}"
+
 #. the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Can't reach site"
 msgstr "Can't reach site"
+
+#. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for {away} to open"
+msgstr "Waiting for {away} to open"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"
@@ -5169,6 +5188,10 @@ msgstr "{label} · p. {page}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
 msgstr "Page {number}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets it through the owlit extension in {away}. Open {away} and it goes on by itself."
+msgstr "owlit gets it through the owlit extension in {away}. Open {away} and it goes on by itself."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through."

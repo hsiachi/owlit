@@ -58,7 +58,8 @@ describe("a Get PDFs, counted from its papers", () => {
   })
 
   it("isn't going with no extension connected, nor once stopped, nor for papers never handed over", () => {
-    expect(classify("a", inLine(), run(["a"]), false)).toEqual({ kind: "away" })
+    // In line with the browser closed: it goes on once the browser opens
+    expect(classify("a", inLine(), run(["a"]), false)).toEqual({ kind: "closed" })
     expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"], { handed: new Set(), away: new Set(["a"]) }), true)).toEqual({ kind: "away" })
     // Being looked up before its hand-over: going
     expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"], { handed: new Set() }), true)).toEqual({ kind: "going" })

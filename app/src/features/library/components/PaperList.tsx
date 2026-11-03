@@ -14,6 +14,7 @@ import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
 import { type PaperGroup } from "../lib/filter"
 import { pdfColumnWord } from "../lib/pdf-wait"
+import { useBrowserAway } from "@/features/extension/store"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue, venueOf } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { useTraceTitle } from "../lib/trace"
@@ -123,6 +124,7 @@ function PaperStatusMark({ paper, digest }: { paper: Paper; digest: DigestState 
 const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Paper; peeked: boolean; snippet?: string }) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
+  const away = useBrowserAway()
   return (
     <div
       className={cn(
@@ -139,7 +141,7 @@ const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Pap
           title={paper.title}
           // A publisher waiting on the user (or one that turned them away), or a digest that stopped, says
           // so in words, first among the row's details
-          meta={[pdfColumnWord(paper), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
+          meta={[pdfColumnWord(paper, away), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
           slot={<RowSlot paper={paper} open={peeked} />}
           below={snippet && <TextSnippet text={snippet} className={cn("pr-14", peeked ? "pb-1.5" : "pl-7")} />}
         />
@@ -243,6 +245,7 @@ const TableRow = memo(TableRowView, (a, b) => {
 function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holding }: TableRowProps) {
   const selected = useSelected(paper.id)
   const digest = useDigestState(paper)
+  const away = useBrowserAway()
   // How far the person got, on hover of the Status cell
   const trace = useTraceTitle(paper)
   const tags = tagsFirst(paper.tags, tagFilter)
@@ -311,7 +314,7 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
           <td className={td} title={trace.title} onPointerEnter={trace.ask}>
             {/* A publisher waiting on the user (or one that turned them away) says so before the reading
                 status, as the list row does */}
-            {pdfColumnWord(paper) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}
+            {pdfColumnWord(paper, away) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}
           </td>
         )}
         <td className={cn(td, "relative tabular-nums")}>

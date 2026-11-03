@@ -350,6 +350,26 @@ describe("owlit and the machine", () => {
     expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true, true])
   })
 
+  it("the browser closed mid-batch: its papers say they wait for it, and go on once it opens", async () => {
+    const web = new FakeWeb()
+    const papers = [1, 2].map((n) => ({ doi: `10.1177/095679766${n}`, title: `A Paper Fetched Across A Quit ${n}` }))
+    for (const p of papers) atypon(web, "journals.sagepub.com", p.doi, p.title)
+    // The first PDF doesn't come until the browser is back; the second waits its turn behind it
+    let visits = 0
+    web.on(`journals.sagepub.com/doi/pdf/${papers[0].doi}`, (visit) => (visit.client === "browser" && visits++ === 0 ? hang(pdf(papers[0].doi))(visit) : pdf(papers[0].doi)(visit)))
+    const b = await start(web)
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    await b.getPdfs()
+    let screen = await b.closeBrowser()
+    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open", word: "Waiting for Chrome" })
+    expect(rowsOf(screen)).toEqual([["closed", 2]])
+    expect(screen.block).toMatchObject({ running: false })
+    web.release()
+    screen = await b.openBrowser()
+    expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true])
+    expect(screen.block).toMatchObject({ total: 2, saved: 2, rows: [] })
+  })
+
   it("asleep mid-fetch: the fetch is asked for again on waking, and the first one's PDF, coming late, is kept", async () => {
     const web = new FakeWeb()
     const doi = "10.1177/0956797642"

@@ -54,6 +54,9 @@ export interface ExtensionView {
   // Another program (another owlit, say) has the port; owlit tries again every 30 s
   portTaken: boolean
   paired: ExtensionPairing[]
+  // An extension asks for work now (ExtensionWork.connected): without one, what is with the extension
+  // waits for the browser to open
+  connected: boolean
   // Extensions waiting for the user to say whether they may connect, oldest first
   asking: { id: string; browser: string; origin?: string; at: number }[]
   // Sites whose papers the extension can't fetch until the user does something there, one per site
@@ -141,10 +144,12 @@ export interface PdfRunView {
   none: number
   skipped: number
   stopped: number
-  // Being fetched now (getting); in line, or not handed over yet (going); away: not handed over, or in
-  // line, with no extension connected, so nothing moves until one is
+  // Being fetched now (getting); in line, or not handed over yet (going); closed: in line with no
+  // extension connected, so nothing moves until the browser opens again; away: never handed over, since
+  // no extension was connected by their turn, until asked for again
   getting: number
   going: number
+  closed: number
   // In line, held back by a host that didn't answer their last fetch (PdfState.extension.unreachable),
   // by that host; until: when the last of them may go
   unreachable: { at: string; until: number; papers: number; ids: string[] }[]

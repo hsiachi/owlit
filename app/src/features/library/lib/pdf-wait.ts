@@ -46,14 +46,19 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
 
 // What a list row says of a paper without its PDF: its state's word, and Waiting while it is in line at
 // the extension, which owlit's own looking (Finding) isn't; Can't reach site while the site its last
-// fetch went to didn't answer, until owlit tries it again
-export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">): string | undefined {
+// fetch went to didn't answer, until owlit tries it again; Waiting for Dia while the browser the
+// extension is in (away, useBrowserAway) isn't open
+export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">, away?: string): string | undefined {
   const wait = pdfWait(p)
   const at = p.pdfState?.extension
+  if (away && withExtension(p)) return t({ message: `Waiting for ${away}`, comment: "the paper is with the owlit extension in this browser (e.g. Dia), which isn't open" })
   if (unreachable(p) && (wait === "finding" || wait === "offline")) return t({ message: "Can't reach site", comment: "the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself" })
   if (wait === "finding" && at && !at.fetching) return t({ message: "Waiting", comment: "a paper in line for the owlit browser extension, which fetches one paper at a time per site" })
   return pdfWord(wait)
 }
+
+// The extension has the paper in line or out for a try, under no wait
+export const withExtension = (p: Pick<Paper, "pdf" | "pdfState">) => !p.pdf && !!p.pdfState?.extension && !p.pdfState.extension.wait
 
 // The site that didn't answer the paper's last fetch through the extension, and when owlit tries it
 // again: while the extension has the paper in line, held back for it
@@ -66,11 +71,12 @@ export const pdfGone = (p: Pick<Paper, "pdfState">) => p.pdfState?.reason?.ended
 // sentence the Library's PDF block and Home say it in, with the site it is about. The site is where the
 // wait it is under has the user act, else where the extension has it, else the page the try that says
 // why ended on. wait: the paper's wait (by PdfState.extension.wait); a sign-in at the library proxy's own
-// is the library's.
-export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">, wait?: Pick<ExtensionWait, "at" | "proxied">): string {
+// is the library's. away: the extension's browser, while it isn't open (useBrowserAway).
+export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">, wait?: Pick<ExtensionWait, "at" | "proxied">, away?: string): string {
   const state = pdfWait(p) ?? "finding"
   const s = p.pdfState
   const site = wait?.at ?? s?.extension?.at ?? s?.reason?.host?.replace(/^www\./, "")
+  if (away && withExtension(p)) return t({ message: `Waiting for ${away} to open`, comment: "the paper is with the owlit extension in this browser (e.g. Dia), which isn't open" })
   const off = unreachable(p)
   if (off && (state === "finding" || state === "offline")) {
     const { at } = off

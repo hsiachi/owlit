@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { ReadingRing } from "@/components/marks"
 import { Button } from "@/components/ui/button"
-import { usePaperWait } from "@/features/extension/store"
+import { useBrowserAway, usePaperWait } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 import { citationsSource, citationsText } from "@/features/library/lib/format"
 import { stripLatex } from "@/features/library/lib/latex"
@@ -100,6 +100,7 @@ function PdfLine({ paper }: { paper: Paper }) {
   const [looking, setLooking] = useState(false)
   const wait = pdfWait(paper) ?? "finding"
   const siteWait = usePaperWait(paper)
+  const away = useBrowserAway()
   const lookAgain = async () => {
     setLooking(true)
     try {
@@ -123,7 +124,7 @@ function PdfLine({ paper }: { paper: Paper }) {
     ) : null
   return (
     <>
-      {looking ? t`Finding a PDF…` : noPdfTitle(paper, siteWait)}
+      {looking ? t`Finding a PDF…` : noPdfTitle(paper, siteWait, away)}
       {action && !looking && <span className="ml-1.5">{action}</span>}
     </>
   )

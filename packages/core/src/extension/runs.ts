@@ -24,7 +24,7 @@ export interface PdfRun {
 
 // Where one of a run's papers stands
 export type RunPlace =
-  | { kind: "saved" | "byYou" | "none" | "skipped" | "stopped" | "getting" | "going" | "away" }
+  | { kind: "saved" | "byYou" | "none" | "skipped" | "stopped" | "getting" | "going" | "closed" | "away" }
   | { kind: "wait"; wait: WaitId }
   | { kind: "manual"; host?: string }
   // In line, held back while the host that didn't answer its last fetch is backed off from
@@ -42,7 +42,7 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
   const s = paper.pdfState
   const ext = s?.extension
   if (ext?.wait) return { kind: "wait", wait: ext.wait }
-  if (ext && !connected) return { kind: "away" }
+  if (ext && !connected) return { kind: "closed" }
   if (ext?.fetching) return { kind: "getting" }
   if (ext?.unreachable) return { kind: "unreachable", ...ext.unreachable }
   if (ext) return { kind: "going" }
@@ -67,7 +67,7 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
 
 // The run as the window shows it, from its papers (undefined: gone from the library) as they are now
 export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, connected: boolean, now = Date.now()): PdfRunView {
-  const view: PdfRunView = { id: run.id, started: run.started, ids: [], total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, getting: 0, going: 0, unreachable: [], away: 0, running: false }
+  const view: PdfRunView = { id: run.id, started: run.started, ids: [], total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, getting: 0, going: 0, closed: 0, unreachable: [], away: 0, running: false }
   const waits = new Map<WaitId, { wait: WaitId; papers: number; ids: string[] }>()
   const unreachable = new Map<string, PdfRunView["unreachable"][number]>()
   const sites = new Map<string, number>()

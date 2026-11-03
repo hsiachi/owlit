@@ -59,3 +59,9 @@ export function waitWords(wait: Pick<ExtensionWait, "kind" | "at" | "proxied">, 
       }
   }
 }
+
+// The browser the extension lives in, as it named itself (Dia, Chrome): the one heard from last
+export function browserName(paired: { browser: string; pairedAt: number; lastSeenAt?: number }[] | undefined): string {
+  const last = [...(paired ?? [])].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]
+  return last?.browser ?? t({ message: "your browser", comment: "in: Getting PDFs for 3 papers using your browser…, Open in your browser" })
+}
