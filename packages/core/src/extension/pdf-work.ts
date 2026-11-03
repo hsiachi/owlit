@@ -1,4 +1,4 @@
-import type { ExtensionWait, GateKey, WorkEnding } from "@owlit/protocol"
+import type { ExtensionWait, GateKey, LaneKey, WorkEnding } from "@owlit/protocol"
 import path from "node:path"
 import { readJson, writeJsonAtomic } from "../fs-util.ts"
 import { Serial } from "../util.ts"
@@ -10,7 +10,10 @@ import { Serial } from "../util.ts"
 // - each wait's follow-ups (the user opened its page, said they got through, the papers that went on
 //   then), by gate and since, so an earlier wait's never attach to a later one at the same gate;
 // - a tally per gate of what was handed to the extension and how it ended, which tells a gate that
-//   quietly gives nothing (silentZeros) from one that waits on the user.
+//   quietly gives nothing (silentZeros) from one that waits on the user;
+// - the papers in the extension's queues, so after a restart they read as with the browser from the
+//   moment the workspace opens, not as their records alone say (no copy found by owlit's own routes),
+//   until the extension asks again and they are queued anew.
 
 // How long a follow-up outlives its wait, and how far back the tally looks for a silent zero
 export const FOLLOW_UP_MS = 24 * 60 * 60_000
@@ -56,12 +59,21 @@ export interface GateTally {
   recent: number[]
 }
 
+// A paper in the extension's queues, as PdfState.extension says where it is
+export interface QueuedNote {
+  lane: LaneKey
+  gate: GateKey
+  at: string
+}
+
 interface File {
   version: 1
   followUps: FollowUp[]
   tally: Record<string, GateTally>
   // When the user last got through at each gate (resume)
   resumed?: Record<string, number>
+  // By paper id
+  queued?: Record<string, QueuedNote>
 }
 
 export class PdfWorkNotes {
@@ -70,6 +82,9 @@ export class PdfWorkNotes {
   private followUps: FollowUp[] = []
   private readonly tally = new Map<GateKey, GateTally>()
   private readonly resumes = new Map<GateKey, number>()
+  private queue = new Map<string, QueuedNote>()
+  // The queue was set before the file was read: what the file held is added to it, not replaced by it
+  private queueSet = false
   private readonly file: string | undefined
   private readonly delayMs: number
   private timer: ReturnType<typeof setTimeout> | undefined
@@ -176,6 +191,25 @@ export class PdfWorkNotes {
     return this.resumes.get(gate)
   }
 
+  // ---- The queues
+
+  // The papers in the extension's queues now, written down when they change
+  setQueued(queued: Map<string, QueuedNote>) {
+    const same = queued.size === this.queue.size && [...queued].every(([id, q]) => JSON.stringify(this.queue.get(id)) === JSON.stringify(q))
+    this.queue = new Map(queued)
+    this.queueSet = true
+    if (!same) this.save()
+  }
+
+  queuedIds(): ReadonlySet<string> {
+    return new Set(this.queue.keys())
+  }
+
+  // Where the paper was in the extension's queues when they were last written down
+  queuedOf(paperId: string): QueuedNote | undefined {
+    return this.queue.get(paperId)
+  }
+
   // ---- The tally
 
   handed(gate: GateKey, at = Date.now()) {
@@ -240,7 +274,7 @@ export class PdfWorkNotes {
   private write() {
     const file = this.file
     if (!file) return Promise.resolve()
-    return this.writes.run(() => writeJsonAtomic(file, { version: 1, followUps: this.followUps, tally: Object.fromEntries(this.tally), resumed: Object.fromEntries(this.resumes) } satisfies File))
+    return this.writes.run(() => writeJsonAtomic(file, { version: 1, followUps: this.followUps, tally: Object.fromEntries(this.tally), resumed: Object.fromEntries(this.resumes), queued: Object.fromEntries(this.queue) } satisfies File))
   }
 
   private async load() {
@@ -258,6 +292,7 @@ export class PdfWorkNotes {
       this.followUps.push(f)
     }
     for (const [gate, at] of Object.entries(kept.resumed ?? {})) this.resumes.set(gate as GateKey, Math.max(at, this.resumes.get(gate as GateKey) ?? 0))
+    for (const [id, q] of Object.entries(kept.queued ?? {})) if (!this.queueSet || !this.queue.has(id)) this.queue.set(id, q)
     for (const [gate, t] of Object.entries(kept.tally ?? {})) {
       const now = this.tally.get(gate as GateKey)
       if (!now) this.tally.set(gate as GateKey, { ...t, recent: t.recent.filter((r) => r > old) })

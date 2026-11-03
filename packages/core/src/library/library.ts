@@ -38,7 +38,7 @@ import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
-import type { KnownWait } from "../extension/work.ts"
+import type { KnownPending, KnownWait } from "../extension/work.ts"
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
 import { gateOf, gateOfTry } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
@@ -145,8 +145,11 @@ export interface ExtensionFetcher {
   connected(): boolean
   // askedFor: the user waits on this paper (Look again, Get them all)
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
-  // The waits the workspace's papers' records say they met, as it opens
-  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined): Promise<void>
+  // The waits the workspace's papers' records say they met, as it opens, and the papers it would hand
+  // over once the extension asks
+  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined, pending?: KnownPending[]): Promise<void>
+  // The papers that were in its queues for this library when owlit last ran on this machine
+  queuedBefore(library: Library): Promise<ReadonlySet<string>>
   // Where the paper stands with the extension, while it has it or a wait holds it from its record
   holding(library: Library, id: string): PdfState["extension"] | undefined
   // The paper is in one of the extension's queues (not only held from its record)
@@ -2052,9 +2055,12 @@ export class Library {
       if (extension.inQueue(this, id) || (await hasPdfFile(this.root, id))) continue
       const acquisition = await this.acquisitions.read(id)
       const reason = acquisition && forExtension(acquisition)
-      const doi = reason && (await readRecord(this.root, id))?.ids.doi
+      // Or one that was with the extension before owlit restarted, which a batch handed over before any
+      // try of it was noted (restoreWaits)
+      const held = !reason && !!extension.holding(this, id)
+      const doi = (reason || held) && (await readRecord(this.root, id))?.ids.doi
       if (!doi) continue
-      waiting.push({ id, doi, at: reason.at })
+      waiting.push({ id, doi, at: reason?.at ?? 0 })
     }
     waiting.sort((a, b) => a.at - b.at)
     // One at a time, so each lane's queue keeps this order
@@ -2064,21 +2070,34 @@ export class Library {
   }
 
   // The waits the papers' records say they met, put up as the workspace opens, before any extension
-  // connects: a paper whose newest try stopped where only the user gets through, at the gate it met
+  // connects: a paper whose newest try stopped where only the user gets through, at the gate it met.
+  // The papers that were with the extension when owlit last ran say so again from then on, not what
+  // owlit's own routes found, until the extension asks and they are handed over (handToExtension).
   async restoreWaits() {
     const extension = this.services.extension
     if (!extension) return
     const proxy = (await this.services.settings()).proxy
     const known: KnownWait[] = []
+    const pending: KnownPending[] = []
+    // In the extension's queues when owlit last ran on this machine
+    const queuedBefore = await extension.queuedBefore(this)
     for (const id of await this.ids()) {
       if (await hasPdfFile(this.root, id)) continue
       const acquisition = await this.acquisitions.read(id)
       const reason = acquisition && forExtension(acquisition)
       const kind = reason && waitsForUser(reason) ? waitedFor(reason) : undefined
-      if (!reason || !kind) continue
+      const own = acquisition?.tried.filter((t) => t.by === "extension") ?? []
+      // Not waiting for the user: with the browser, waiting for it to ask, when it was in the
+      // extension's queue or its newest try there reached nothing (the gate it reached nothing at)
+      if (!kind || !reason) {
+        const reached = reason?.by === "extension" ? reason : undefined
+        if (!reached && !queuedBefore.has(id)) continue
+        const gate = reached && gateOfTry(reached, proxy)
+        pending.push({ paperId: id, tries: own.length, ...(gate ? { gate } : {}), ...(reached?.host ? { host: reached.host } : {}) })
+        continue
+      }
       const doi = (await readRecord(this.root, id))?.ids.doi
       if (!doi) continue
-      const own = acquisition!.tried.filter((t) => t.by === "extension")
       // Through the proxy when one is set: the try's host alone doesn't say, and its pages read back
       // the same either way
       const gate = gateOfTry(reason, proxy, gateOf(`https://doi.org/${doi}`))
@@ -2088,7 +2107,7 @@ export class Library {
       const signIn = kind === "sign-in" && gate.startsWith("proxy:") && proxy ? proxySignIn(proxy) : undefined
       known.push({ paperId: id, kind, gate, url: signIn ?? reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
     }
-    await extension.restore(this, known, proxy)
+    await extension.restore(this, known, proxy, pending)
   }
 
   // A try the extension made, noted without telling the window: its queue says when the paper's

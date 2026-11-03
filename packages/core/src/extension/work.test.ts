@@ -495,6 +495,42 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["p1"])
   })
 
+  it("after a restart, holds the papers that were in its queues with the browser, under the wait at their gate", async () => {
+    vi.useRealTimers()
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-work-")))
+    try {
+      const lib = { dataDir: base } as Library
+      const before = setup().work
+      const never = new AbortController().signal
+      before.fetch(lib, paper("p1", "sagepub.com"), false)
+      before.fetch(lib, paper("p2", "sagepub.com"), false)
+      before.fetch(lib, paper("w1", "wiley.com"), false)
+      const out = await before.take(lib, 0, never)
+      before.settle(out.find((w) => w.paperId === "p1")!.id, "check", { url: "https://journals.sagepub.com/doi/p1" })
+      await before.flush()
+      // owlit starts again; the extension hasn't asked yet
+      const { work } = setup()
+      expect(await work.queuedBefore(lib)).toEqual(new Set(["p1", "p2", "w1"]))
+      await work.restore(lib, [{ paperId: "p1", kind: "check", gate: "pub:sage", url: "https://journals.sagepub.com/doi/p1", host: "journals.sagepub.com", tries: 1, triedAt: Date.now() }], undefined, [
+        { paperId: "p2", tries: 0 },
+        { paperId: "w1", tries: 0 },
+      ])
+      expect(work.waits()).toMatchObject([{ id: "pub:sage", papers: 2 }])
+      expect(work.holding(lib, "p2")).toMatchObject({ gate: "pub:sage", attempt: 1, wait: "pub:sage", kind: "check" })
+      expect(work.holding(lib, "w1")).toEqual({ lane: "pub:wiley", gate: "pub:wiley", attempt: 1, at: "wiley.com" })
+      expect(work.inQueue(lib, "w1")).toBe(false)
+      // Queued again once the extension asks: in line as any other, numbered on from its record
+      work.fetch(lib, paper("w1", "wiley.com"), false)
+      expect(work.holding(lib, "w1")).toMatchObject({ lane: "pub:wiley", attempt: 1 })
+      expect(work.inQueue(lib, "w1")).toBe(true)
+      // Stopped before it asks: out of the wait's count
+      work.drop(lib, "p2")
+      expect(work.waits()).toMatchObject([{ id: "pub:sage", papers: 1 }])
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
   it("lets go of a paper that got its PDF another way or left the library", async () => {
     const { work, take, waitsChanged } = setup()
     for (const id of ["t1", "t2"]) work.fetch(library, paper(id, "tandfonline.com"), false)

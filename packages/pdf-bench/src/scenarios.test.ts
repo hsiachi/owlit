@@ -370,6 +370,39 @@ describe("owlit and the machine", () => {
     expect(screen.block).toMatchObject({ total: 2, saved: 2, rows: [] })
   })
 
+  it("restarted while papers wait behind a check: every one of them is under it at once, not only the one that met it", async () => {
+    const web = new FakeWeb()
+    const papers = [science(20), science(21), science(22)]
+    for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { check: true })
+    const b = await start(web)
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    expect(rowsOf(await b.getPdfs())).toEqual([["check", 3, "science.org"]])
+    // The browser stays closed: nothing asks for work, so only what owlit kept says where they are
+    await b.closeBrowser()
+    const screen = await b.restartCore()
+    expect(screen.waits).toMatchObject([{ kind: "check", host: "science.org", papers: 3 }])
+    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Needs you to verify you're human on science.org" })
+  })
+
+  it("restarted with the browser closed mid-batch: the papers it had say they wait for it, and go on once it opens", async () => {
+    const web = new FakeWeb()
+    const papers = [3, 4].map((n) => ({ doi: `10.1177/095679766${n}`, title: `A Paper Fetched Across A Restart ${n}` }))
+    for (const p of papers) atypon(web, "journals.sagepub.com", p.doi, p.title)
+    // The first PDF doesn't come while the browser is closed; owlit's own look after the restart is
+    // turned away, as from any reader without the user's access
+    let visits = 0
+    web.on(`journals.sagepub.com/doi/pdf/${papers[0].doi}`, inBrowser((visit) => (visits++ === 0 ? hang(pdf(papers[0].doi))(visit) : pdf(papers[0].doi)(visit))))
+    const b = await start(web)
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    await b.getPdfs()
+    await b.closeBrowser()
+    let screen = await b.restartCore()
+    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open", word: "Waiting for Chrome" })
+    web.release()
+    screen = await b.openBrowser()
+    expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true])
+  })
+
   it("asleep mid-fetch: the fetch is asked for again on waking, and the first one's PDF, coming late, is kept", async () => {
     const web = new FakeWeb()
     const doi = "10.1177/0956797642"

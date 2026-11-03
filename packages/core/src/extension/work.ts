@@ -1,8 +1,8 @@
 import type { ExtensionWait, GateKey, LaneKey, OpenPage, PdfState, ProxySettings, WaitId, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
 import { hostOf } from "../net/http.ts"
-import { allowOf, gateOf, laneOf, tabOnly, watchOf } from "./keys.ts"
-import { FOLLOW_UP_MS, PdfWorkNotes, type FollowUp } from "./pdf-work.ts"
+import { allowOf, gateOf, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
+import { FOLLOW_UP_MS, PdfWorkNotes, type FollowUp, type QueuedNote } from "./pdf-work.ts"
 import { siteOf } from "./route.ts"
 
 // The papers owlit hands to its browser extension once its own routes found no copy, and the pace it
@@ -122,6 +122,15 @@ interface Wait {
   known: Map<string, number>
 }
 
+// A paper the library would hand to the extension once it asks (forExtension), as it reads it when a
+// workspace opens. gate, host: where its newest extension try reached nothing, when that is why.
+export interface KnownPending {
+  paperId: string
+  tries: number
+  gate?: GateKey
+  host?: string
+}
+
 // A wait a paper's record says it met, as the library reads it when a workspace opens
 export interface KnownWait {
   paperId: string
@@ -177,6 +186,10 @@ export class ExtensionWork implements ExtensionFetcher {
   // Papers freed by the user getting through at a wait that weren't in a queue then (known only from
   // their records): they go out as part of what the user started once the library hands them over
   private readonly startedIds = new Set<string>()
+  // Papers that were in the extension's queues when owlit last ran (pdf-work.json), or whose newest
+  // extension try reached nothing, not in a queue yet: with the browser, waiting for it to ask, under
+  // the wait at their lane or gate if one is up. The library hands them over when the extension asks.
+  private readonly pending = new Map<string, QueuedNote & { tries: number }>()
   // Pairings whose extension's popup counts a line going on that changed since their last GET /work:
   // their held one ends now, so the next answer carries the counts (WorkAnswer.going)
   private readonly goingNews = new Set<string>()
@@ -246,11 +259,21 @@ export class ExtensionWork implements ExtensionFetcher {
     return pages
   }
 
+  // The papers in the queues for this library when owlit last ran here (pdf-work.json), once read
+  async queuedBefore(library: Library): Promise<ReadonlySet<string>> {
+    this.own(library)
+    const notes = this.notes
+    await notes.loaded
+    return notes.queuedIds()
+  }
+
   // The waits a workspace's papers' records say they met (Library.restoreWaits), up as it opens, before
   // any extension connects; their papers join the queues once one does. Each wait's one try goes as
   // soon as a paper of it is queued: the user may have got through since owlit last ran. A wait that was
   // up when owlit last ran takes its since back, and with it its follow-ups.
-  async restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined) {
+  // pending: the papers that were with the extension before (queuedBefore, or a try there that reached
+  // nothing), with it again at once, under the wait at their lane or gate if one is up.
+  async restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined, pending: KnownPending[] = []) {
     this.own(library)
     const notes = this.notes
     await notes.loaded
@@ -283,7 +306,16 @@ export class ExtensionWork implements ExtensionFetcher {
       notes.of(wait)
     }
     notes.keepUp((f) => this.waitsAt.get(f.gate)?.since === f.since)
+    const proxyLane = proxy ? proxyGate(proxy) : undefined
+    for (const p of pending) {
+      if (this.holds(p.paperId) || [...this.waitsAt.values()].some((w) => w.known.has(p.paperId))) continue
+      const kept = notes.queuedOf(p.paperId)
+      const where = kept ?? (p.gate ? { lane: proxyLane ?? p.gate, gate: p.gate, at: p.host?.replace(/^www\./, "") ?? atOf(p.gate, "check", undefined) } : undefined)
+      if (where) this.pending.set(p.paperId, { ...where, tries: p.tries })
+    }
+    this.keepQueue()
     this.host.waits()
+    if (this.pending.size) this.host.papers(library, [...this.pending.keys()])
   }
 
   // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
@@ -301,7 +333,8 @@ export class ExtensionWork implements ExtensionFetcher {
       const at = lane.queue.findIndex((q) => q.paper.paperId === paper.paperId)
       if (at >= 0) lane.queue.splice(at, 1)
     }
-    let known = 0
+    let known = this.pending.get(paper.paperId)?.tries ?? 0
+    this.pending.delete(paper.paperId)
     for (const wait of this.waitsAt.values()) {
       known = Math.max(known, wait.known.get(paper.paperId) ?? 0)
       wait.known.delete(paper.paperId)
@@ -341,6 +374,7 @@ export class ExtensionWork implements ExtensionFetcher {
     // Through the proxy the papers behind it in line say when their turn comes, which this one moved
     this.host.papers(library, lane.proxied ? all(lane).map((q) => q.paper.paperId) : [paper.paperId])
     this.host.waits()
+    this.keepQueue()
     this.kick()
   }
 
@@ -363,7 +397,10 @@ export class ExtensionWork implements ExtensionFetcher {
       if (tries === undefined) continue
       return { lane: wait.gate, gate: wait.gate, attempt: tries + 1, ...underWait(wait) }
     }
-    return undefined
+    const kept = this.pending.get(id)
+    if (!kept) return undefined
+    const wait = this.waitsAt.get(kept.lane) ?? this.waitsAt.get(kept.gate)
+    return { lane: kept.lane, gate: kept.gate, attempt: kept.tries + 1, at: kept.at, ...(wait ? underWait(wait) : {}) }
   }
 
   runsChanged(library: Library) {
@@ -529,6 +566,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (lane.proxied && lane.queue.length) this.host.papers(this.library, lane.queue.map((q) => q.paper.paperId))
     if (this.notes.inGoing(item.paper.paperId)) for (const pairing of this.polled.keys()) this.goingNews.add(pairing)
     this.warnIfSilent(now)
+    this.keepQueue()
     this.kick()
   }
 
@@ -595,7 +633,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (!gone.length) return false
     const under = gone.map((w) => this.papersUnder(w))
     const freed = under.flat()
-    const known = gone.some((w) => w.known.size)
+    const known = gone.some((w) => w.known.size) || freed.some((id) => this.pending.has(id))
     // Read before the waits go down, which forgets their opened
     const theirs = new Set(gone.flatMap((w, i) => (byUser || this.notes.get(w.gate, w.since)?.opened ? under[i] : [])))
     gone.forEach((w, i) => {
@@ -662,6 +700,8 @@ export class ExtensionWork implements ExtensionFetcher {
     if (library !== this.library) return
     let waitsChanged = false
     for (const wait of this.waitsAt.values()) if (wait.known.delete(id)) waitsChanged = true
+    const kept = this.pending.get(id)
+    if (kept && this.pending.delete(id) && (this.waitsAt.has(kept.lane) || this.waitsAt.has(kept.gate))) waitsChanged = true
     for (const lane of [...this.lanes.values()]) {
       const at = lane.queue.findIndex((q) => q.paper.paperId === id)
       if (at < 0) continue
@@ -669,6 +709,7 @@ export class ExtensionWork implements ExtensionFetcher {
       if (this.waitOver(lane, item)) waitsChanged = true
       this.leaveIfEmpty(lane)
     }
+    this.keepQueue()
     if (!waitsChanged) return
     for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.lift(wait)
     this.host.waits()
@@ -714,6 +755,7 @@ export class ExtensionWork implements ExtensionFetcher {
     this.lastEnded.clear()
     this.opens.clear()
     this.startedIds.clear()
+    this.pending.clear()
     const flushed = this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
     this.notes = new PdfWorkNotes(library?.dataDir, { after: flushed })
     this.warned.clear()
@@ -753,7 +795,17 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   private papersUnder(wait: Wait): string[] {
-    return [...this.itemsUnder(wait).map((q) => q.paper.paperId), ...wait.known.keys()]
+    const pending = [...this.pending].filter(([, p]) => (this.waitsAt.get(p.lane) ?? this.waitsAt.get(p.gate)) === wait).map(([id]) => id)
+    return [...this.itemsUnder(wait).map((q) => q.paper.paperId), ...wait.known.keys(), ...pending]
+  }
+
+  // What is in the queues, written down for the next start (pdf-work.json); the papers not queued
+  // again yet since then too, so a second restart before the extension asks keeps them
+  private keepQueue() {
+    const queued = new Map<string, QueuedNote>()
+    for (const [id, p] of this.pending) queued.set(id, { lane: p.lane, gate: p.gate, at: p.at })
+    for (const lane of this.lanes.values()) for (const q of all(lane)) queued.set(q.paper.paperId, { lane: lane.key, gate: q.gate, at: q.paper.host })
+    this.notes.setQueued(queued)
   }
 
   private count(wait: Wait) {
