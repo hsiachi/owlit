@@ -264,6 +264,27 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["sage"])
   })
 
+  it("ends a held ask once a paper going on after the user got through has its answer, so the popup's count is current", async () => {
+    const { work, never } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), true)
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    const [a1] = await work.take(library, 0, never, "pairing-1")
+    work.settle(a1.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
+    expect(work.resumeWait("pub:sage")).toBe(true)
+    const [again] = await work.take(library, 0, never, "pairing-1")
+    // The extension holds its next ask while it fetches
+    const held = work.take(library, 20_000, never, "pairing-1")
+    work.settle(again.id, "pdf")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(await held).toEqual([])
+    // Once: the next ask is held again
+    const next = work.take(library, 20_000, never, "pairing-1")
+    let ended = false
+    void next.then(() => (ended = true))
+    await vi.advanceTimersByTimeAsync(GAP_MS - 1)
+    expect(ended).toBe(false)
+  })
+
   it("tells the window when the extension went, and when it is back", async () => {
     const { work, take, waitsChanged } = setup()
     await take()

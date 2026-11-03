@@ -14,6 +14,7 @@ import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 import { clean } from "../util.ts"
 import { ManualWalk } from "./walk.ts"
 import { withoutQuery } from "./keys.ts"
+import type { Going } from "./pdf-work.ts"
 import { ExtensionWork, parseWorkItemId, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
@@ -131,11 +132,10 @@ export class ExtensionServer {
   // The waits' papers going on and the runs are counted from the papers of the open workspace, every time
   async view(): Promise<ExtensionView> {
     const library = this.host.workspace()?.library
-    const counted = async (going: { at: number; ids: string[] }): Promise<WaitGoing> => ({ at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) })
     const waits = await Promise.all(
       this.work.waits().map(async (wait) => {
         const going = this.work.followUpOf(wait.id)?.going
-        return going ? { ...wait, going: await counted(going) } : wait
+        return going ? { ...wait, going: await this.counted(going) } : wait
       }),
     )
     return { ...(await this.pairings.view(!!this.server, this.portTaken)), connected: this.work.connected(), waits, going: await this.going(), runs: library ? await library.pdfRunViews() : [] }
@@ -143,9 +143,13 @@ export class ExtensionServer {
 
   // The waits the user got through, with their papers going on, counted from the open workspace's papers
   private async going(): Promise<GoingOn[]> {
+    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, watch: f.watch ?? [f.host], proxied: f.proxied, since: f.since, going: await this.counted(f.going!) })))
+  }
+
+  // A line of papers going on, counted from the open workspace's papers
+  private async counted(going: Going): Promise<WaitGoing> {
     const library = this.host.workspace()?.library
-    const counted = async (going: { at: number; ids: string[] }): Promise<WaitGoing> => ({ at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) })
-    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, watch: f.watch ?? [f.host], proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
+    return { at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) }
   }
 
   // The id the user's extensions pair with: made once, kept in settings.json

@@ -34,6 +34,21 @@ describe("pdf-work.json", () => {
     expect(again.tallies().get("pub:science")).toMatchObject({ handed: 1, pdfs: 0 })
   })
 
+  it("keeps one line going on per gate: getting through there again adds to it, each paper counted from when it went", async () => {
+    const notes = new PdfWorkNotes(undefined)
+    await notes.loaded
+    vi.spyOn(Date, "now").mockReturnValue(5_000)
+    notes.of(wait)
+    notes.down(wait.gate, wait.since, ["a", "b"])
+    // A later wait at the same gate, got through while a and b still go on
+    const later = { ...wait, since: 6_000, at: "www.science.org" }
+    vi.spyOn(Date, "now").mockReturnValue(7_000)
+    notes.of(later)
+    notes.down(later.gate, later.since, ["b", "c"])
+    expect(notes.gone()).toEqual([expect.objectContaining({ gate: "pub:science", host: "www.science.org", going: { at: 5_000, ids: ["a", "b", "c"], from: { b: 7_000, c: 7_000 } } })])
+    vi.restoreAllMocks()
+  })
+
   it("forgets a wait that went a day ago, and what is older than a day in the tally's window", async () => {
     const dir = dataDir()
     const now = Date.now()

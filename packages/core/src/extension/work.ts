@@ -177,6 +177,9 @@ export class ExtensionWork implements ExtensionFetcher {
   // Papers freed by the user getting through at a wait that weren't in a queue then (known only from
   // their records): they go out as part of what the user started once the library hands them over
   private readonly startedIds = new Set<string>()
+  // Pairings whose extension's popup counts a line going on that changed since their last GET /work:
+  // their held one ends now, so the next answer carries the counts (WorkAnswer.going)
+  private readonly goingNews = new Set<string>()
   // Fires once the extension has gone CONNECTED_MS without asking: the window hears it went
   private awayTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -401,8 +404,10 @@ export class ExtensionWork implements ExtensionFetcher {
     for (;;) {
       const due = this.due(by)
       const left = until - Date.now()
-      // A page to open ends the hold too: the user is waiting for it
-      if (due.length || left <= 0 || closed.aborted || (by && this.opens.get(by)?.length)) {
+      // A page to open ends the hold too: the user is waiting for it; and so does a line going on that
+      // changed, which the popup counts
+      if (due.length || left <= 0 || closed.aborted || (by && this.opens.get(by)?.length) || (by && this.goingNews.has(by))) {
+        if (by) this.goingNews.delete(by)
         this.polledAt = Date.now()
         if (by) this.polled.set(by, this.polledAt)
         ask.open--
@@ -518,6 +523,7 @@ export class ExtensionWork implements ExtensionFetcher {
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }
     if (ended === "offline") this.notes.ended(item.gate, ended)
+    if (this.notes.inGoing(item.paper.paperId)) for (const pairing of this.polled.keys()) this.goingNews.add(pairing)
     this.warnIfSilent(now)
     this.kick()
   }

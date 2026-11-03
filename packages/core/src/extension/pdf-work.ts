@@ -35,8 +35,16 @@ export interface FollowUp {
   proxied: boolean
   opened?: { at: number; browser?: string }
   retried?: { at: number; again: boolean }
-  // The papers that went on when the user got through
-  going?: { at: number; ids: string[] }
+  // The papers that went on when the user got through (Going)
+  going?: Going
+}
+
+// The papers that went on after the user got through at a gate: since at, and since from[id] for each
+// that went on at a later time (the user got through there again), which its ending is counted from
+export interface Going {
+  at: number
+  ids: string[]
+  from?: Record<string, number>
 }
 
 export interface GateTally {
@@ -105,15 +113,31 @@ export class PdfWorkNotes {
     return this.followUps.find((f) => f.gate === gate && !f.up && f.going?.ids.includes(paperId))
   }
 
-  // The wait went. Its follow-ups stay only while its papers going on are still to be shown.
+  // The wait went. Its follow-ups stay only while its papers going on are still to be shown: one line per
+  // gate, so a gate the user got through at again while its last papers still went on adds to that line.
   down(gate: GateKey, since: number, going?: string[]) {
     const follow = this.get(gate, since)
     if (!follow) return
     follow.up = false
     follow.opened = undefined
-    if (going) follow.going = { at: Date.now(), ids: going }
+    if (going) {
+      const at = Date.now()
+      const earlier = this.followUps.find((f) => f !== follow && f.gate === gate && !f.up && f.going)
+      const into = earlier ?? follow
+      into.going = into.going ? goOnWith(into.going, going, at) : { at, ids: going }
+      if (earlier) {
+        // Said as the newest wait was
+        Object.assign(earlier, { kind: follow.kind, host: follow.host, proxied: follow.proxied, ...(follow.watch ? { watch: follow.watch } : {}) })
+        follow.going = undefined
+      }
+    }
     if (!follow.going) this.followUps = this.followUps.filter((f) => f !== follow)
     this.changed()
+  }
+
+  // The paper is one of a line going on, whose counts the extension's popup shows
+  inGoing(paperId: string): boolean {
+    return this.followUps.some((f) => f.going?.ids.includes(paperId))
   }
 
   // The waits that went, with papers that went on
@@ -247,4 +271,11 @@ export class PdfWorkNotes {
         })
     }
   }
+}
+
+// A line of papers going on, with more that went on at this time: one going on again counts from now
+function goOnWith(going: Going, ids: string[], at: number): Going {
+  const from = { ...going.from }
+  for (const id of ids) from[id] = at
+  return { at: going.at, ids: [...new Set([...going.ids, ...ids])], from }
 }

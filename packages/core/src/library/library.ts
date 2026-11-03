@@ -798,15 +798,16 @@ export class Library {
   }
 
   // The papers that went on after the user got through at a wait (ExtensionWait.going): how many came
-  // back with their PDF, and how many ended either way, since at. A paper still with the extension, or
-  // not tried since, is still going.
-  async goingCounts(going: { at: number; ids: string[] }): Promise<{ saved: number; ended: number }> {
+  // back with their PDF, and how many ended either way, since at (or since it went on, from). A paper
+  // still with the extension, or not tried since, is still going.
+  async goingCounts(going: { at: number; ids: string[]; from?: Record<string, number> }): Promise<{ saved: number; ended: number }> {
     let saved = 0
     let ended = 0
     for (const id of going.ids) {
       const paper = await this.get(id)
+      const since = going.from?.[id] ?? going.at
       if (paper?.pdf) saved++
-      if (!paper || paper.pdf || (!paper.pdfState?.extension && paper.pdfState?.tried.some((t) => t.by !== "search" && t.at >= going.at))) ended++
+      if (!paper || paper.pdf || (!paper.pdfState?.extension && paper.pdfState?.tried.some((t) => t.by !== "search" && t.at >= since))) ended++
     }
     return { saved, ended }
   }
