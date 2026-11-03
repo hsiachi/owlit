@@ -478,12 +478,13 @@ export class ExtensionWork implements ExtensionFetcher {
     } else {
       lane.offline = undefined
       if (ended && ended !== "pdf") this.notes.ended(answerGate(item, page), ended)
-      const freed = was ? this.papersUnder(was) : []
-      // A try under a wait got through: the user did, somewhere the extension didn't see
-      if (was) {
-        this.lift(was)
-        this.host.waits()
-      }
+      // A try under a wait got through: the user did, somewhere the extension didn't see. One with
+      // nothing to fetch any more (the paper went, or has its PDF by another way) says nothing of the
+      // wait, which stays for its other papers and goes with the last of them.
+      const through = was && (ended !== undefined || !this.count(was)) ? was : undefined
+      const freed = through ? this.papersUnder(through) : []
+      if (through) this.lift(through)
+      if (was) this.host.waits()
       this.leaveIfEmpty(lane)
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }

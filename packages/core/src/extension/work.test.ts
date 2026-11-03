@@ -309,6 +309,23 @@ describe("the extension's queue", () => {
     expect(work.holding(library, "sage")).toEqual({ lane: `proxy:${TLINK}`, gate: `proxy:${TLINK}`, attempt: 2, at: TLINK })
   })
 
+  it("keeps a wait for its other papers when the one out for its try has its PDF by another way", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("s1", "sagepub.com"), false)
+    work.fetch(library, paper("s2", "sagepub.com"), false)
+    const [s1] = await take()
+    work.settle(s1.id, "check", { url: "https://journals.sagepub.com/doi/s1" })
+    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    const [tried] = await take()
+    expect(tried.paperId).toBe("s1")
+    // The user dropped s1's PDF meanwhile: its answer finds nothing to fetch (server.ts's 409)
+    work.settle(tried.id, undefined)
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", kind: "check", papers: 1 }])
+    expect(work.holding(library, "s2")).toMatchObject({ wait: "pub:sage" })
+    work.drop(library, "s2")
+    expect(work.waits()).toEqual([])
+  })
+
   it("tries one paper of a paused site once more, then waits for the user", async () => {
     const { work, take, never } = setup()
     work.fetch(library, paper("t1", "tandfonline.com"), false)
