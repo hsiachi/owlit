@@ -3,7 +3,7 @@ import { DAY } from "@/lib/time"
 import { hasAllWords, queryWords } from "@/lib/words"
 import type { Paper } from "@owlit/protocol"
 import { surname } from "./format"
-import { pdfWait, pdfWord, type PdfWait } from "./pdf-wait"
+import { pdfColumnWord, pdfWait, pdfWord, type PdfWait } from "./pdf-wait"
 import type { Sort, StatusFilter } from "../ui-store"
 
 const firstSurname = (p: Paper) => (p.authors[0] ? surname(p.authors[0]) : "")
@@ -14,14 +14,11 @@ export function matchesQuery(p: Paper, q: string): boolean {
   return hasAllWords([p.title, ...p.authors, p.venue ?? "", String(p.year ?? ""), ...p.tags].join(" "), queryWords(q))
 }
 
-// The No PDF view's groups, each one name (pdfWord) for the states in it, in this order: what the tries
-// found, and papers still being looked for last
-const NO_PDF_GROUPS: PdfWait[][] = [
-  ["not-found"],
-  ["no-access", "not-offered"],
-  ["not-there"],
-  ["finding", "offline", "for-sign-in", "for-check", "blocked", "for-permission"],
-]
+// The No PDF view's groups, in this order: what the user can do now, what the tries found, then papers
+// in line at the extension and those owlit looks for itself. Each group is named by the word its rows say
+// (pdfColumnWord), so a paper in line is under Waiting, not Finding, and one at a site waiting on the user
+// under that wait's word (Needs verification).
+const NO_PDF_ORDER: PdfWait[] = ["manual", "for-sign-in", "for-check", "for-permission", "blocked", "not-found", "no-access", "not-offered", "not-there", "skipped", "finding", "offline"]
 
 const lacksPdf = (p: Paper) => !!pdfWait(p)
 
@@ -125,7 +122,18 @@ export function groupPapers(
 ): PaperGroup[] {
   if (searching) return [{ label: plural(papers.length, { one: "# paper", other: "# papers" }), papers }]
   if (byReason) {
-    return NO_PDF_GROUPS.map((states) => ({ label: pdfWord(states[0]) ?? null, papers: papers.filter((p) => states.includes(pdfWait(p)!)) })).filter((g) => g.papers.length > 0)
+    const groups = new Map<string, { rank: number; papers: Paper[] }>()
+    for (const p of papers) {
+      const label = pdfColumnWord(p)
+      if (!label) continue
+      // A paper in line (Waiting) goes just before owlit's own looking (Finding)
+      const rank = NO_PDF_ORDER.indexOf(pdfWait(p)!) - (label !== pdfWord("finding") && pdfWait(p) === "finding" ? 0.5 : 0)
+      const group = groups.get(label) ?? { rank, papers: [] }
+      group.rank = Math.min(group.rank, rank)
+      group.papers.push(p)
+      groups.set(label, group)
+    }
+    return [...groups].sort((a, b) => a[1].rank - b[1].rank).map(([label, g]) => ({ label, papers: g.papers }))
   }
   // By the thread that holds a paper (the most recently changed one, when several do); papers that
   // came some other way last

@@ -2,7 +2,8 @@ import type { WorkEnding } from "@owlit/protocol"
 
 // What a page that came instead of a PDF says, in owlit's one word for it: a check in front of the page,
 // the site's firewall turning this browser away (blocked), a sign-in (the library proxy's, a school's, a publisher's), the library's proxy saying it hasn't got the
-// paper, a page that isn't there, an offer to buy or get access, or none of these (no copy). Read from
+// paper, a page that isn't there, an offer to buy or get access, the paper's own page naming no PDF (no
+// copy), or a page that is none of these and not the paper's (unreadable). Read from
 // where the fetch ended, its status, and its HTML as text, so it runs the same in the background, on a
 // tab's document and in a test.
 //
@@ -10,7 +11,9 @@ import type { WorkEnding } from "@owlit/protocol"
 // journal with its abstract page; T&F with "Get Access"; tlink with /ui/unauthorized for a resource the
 // library hasn't got, /ui/minute-limit when asked too often, and its gateway of sign-in buttons at
 // /go?url= while signed out; the school's sign-in on id.tsinghua.edu.cn; Cloudflare's "Just a moment..."
-// in front of a download; the ACM's "ACM Error: 404".
+// in front of a download; the ACM's "ACM Error: 404". And pages that only scripts make anything of, which
+// the extension never runs: APA PsycNet's shell of a page, Elsevier's linkinghub "Redirecting" (a meta
+// refresh, which work.ts follows), Thieme's "Please wait".
 
 export interface Page {
   // Where the fetch ended, after redirects
@@ -24,10 +27,12 @@ export interface Page {
 
 // Cloudflare's and the like's interstitials, by their title
 const CHECK_TITLE = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|请稍候|正在验证|安全检查/i
-// By the page's own markup: Cloudflare's challenge, DataDome's and PerimeterX's. Cloudflare also puts
-// /cdn-cgi/challenge-platform/scripts/… on ordinary pages (ACM's articles carry it), so only its
-// interstitial's /h/ path counts.
-const CHECK_MARKUP = /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|\/cdn-cgi\/challenge-platform\/h\/|captcha-delivery\.com|px-captcha/i
+// By the page's own markup: Cloudflare's challenge, DataDome's and PerimeterX's. Cloudflare also puts its
+// bot scripts on ordinary pages, at /cdn-cgi/challenge-platform/scripts/… (ACM's articles) and
+// /cdn-cgi/challenge-platform/h/b/scripts/jsd/… (the page it lets through once its check is passed), so
+// only the interstitial's orchestrate script counts; and a paper's own page is never the interstitial,
+// whatever scripts it carries.
+const CHECK_MARKUP = /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|\/cdn-cgi\/challenge-platform\/(h\/[a-z]\/)?orchestrate\/|captcha-delivery\.com|px-captcha/i
 // AWS WAF's script is on the pages of sites that use it whether or not they challenge; it is a check
 // only on the 202 (or a refusal) WAF answers a challenge with
 const WAF_MARKUP = /awswaf|AwsWafIntegration/i
@@ -58,6 +63,8 @@ const PAYWALL = /get access|access options|purchase|buy article|\brent\b|subscri
 // "Access through your institution"
 const ACCESS_OFFER = /^(get (full )?access|buy|purchase|rent)\b|access through your institution|institutional (login|access)|access options|^subscribe\b|购买|订阅/i
 const MISSING = /\b(404|410)\b|not found|page (doesn't|does not) exist|找不到|不存在/i
+// A page that stands in while its scripts go on somewhere: never the paper's page, whatever its tags
+const INTERSTITIAL_TITLE = /^(please wait|redirecting|loading)\b|^(请稍等|正在跳转|加载中)/i
 const REFUSED = /unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限/i
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " }
@@ -111,7 +118,7 @@ export function isCheck(page: Pick<Page, "status" | "html">) {
   const refused = page.status === 403 || page.status === 429 || page.status === 503
   return (
     CHECK_TITLE.test(titleOf(page.html)) ||
-    CHECK_MARKUP.test(page.html) ||
+    (CHECK_MARKUP.test(page.html) && !isArticle(page.html)) ||
     (refused && CAPTCHA_MARKUP.test(page.html)) ||
     ((refused || page.status === 202 || page.status === 405) && WAF_MARKUP.test(page.html))
   )
@@ -164,9 +171,31 @@ export function verdict(page: Page): WorkEnding {
   if (!isArticle(page.html)) {
     if (PASSWORD.test(page.html) || signIn(`${at.hostname}${path}`) || signIn(title)) return "sign-in"
   }
+  if (INTERSTITIAL_TITLE.test(title)) return "unreadable"
   if (MISSING.test(title)) return "not-there"
   if (PAYWALL.test(title) || offersAccess(page.html)) return "no-access"
-  return "no-copy"
+  // Only the paper's own page can say the site has no copy; any other page says nothing about the paper
+  return isArticle(page.html) ? "no-copy" : "unreadable"
+}
+
+// A wait longer than this is a page meant to be read, not a hop
+const REFRESH_MAX_S = 10
+
+// Where a page that sends the browser on by a meta refresh goes. Not from the paper's own page: one may
+// refresh to a sign-out once its session is old.
+export function refreshOf(page: Pick<Page, "url" | "html">): string | undefined {
+  if (isArticle(page.html)) return undefined
+  for (const [tag] of page.html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (!/\bhttp-equiv\s*=\s*["']?refresh\b/i.test(tag)) continue
+    const quoted = /\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag)
+    const said = /^\s*(\d+(?:\.\d+)?)?\s*[;,]?\s*url\s*=\s*(.+)$/i.exec(decode(quoted?.[1] ?? quoted?.[2] ?? quoted?.[3] ?? ""))
+    if (!said || Number(said[1] ?? 0) > REFRESH_MAX_S) continue
+    // The address may be quoted inside the content (linkinghub's url='/retrieve/…')
+    const to = said[2].trim().replace(/^(["'])(.*)\1$/, "$2").trim()
+    const at = to ? safeUrl(to, page.url) : undefined
+    if (at && /^https?:$/.test(at.protocol) && at.href !== page.url) return at.href
+  }
+  return undefined
 }
 
 // Whether the user got through at this page: it is neither a check, a block nor a sign-in
@@ -175,9 +204,9 @@ export const isThrough = (page: Page) => {
   return said !== "check" && said !== "blocked" && said !== "sign-in"
 }
 
-function safeUrl(text: string) {
+function safeUrl(text: string, base?: string) {
   try {
-    return new URL(text)
+    return new URL(text, base)
   } catch {
     return undefined
   }

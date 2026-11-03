@@ -5,11 +5,13 @@ import { FoldButton } from "@/components/fold"
 import { ReadingRing } from "@/components/marks"
 import { Button } from "@/components/ui/button"
 import { useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, waitWords } from "@/features/extension/waits"
+import { actOnWait, waitOf, waitWords } from "@/features/extension/waits"
 import { citationsSource, citationsText } from "@/features/library/lib/format"
 import { stripLatex } from "@/features/library/lib/latex"
 import { noPdfTitle, pdfWait, type PdfWait } from "@/features/library/lib/pdf-wait"
 import { statusLabel } from "@/features/library/lib/status"
+import { proxyHostOf } from "@/features/settings/library-name"
+import { useSettings } from "@/features/settings/store"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
@@ -100,7 +102,8 @@ function PdfLine({ paper }: { paper: Paper }) {
   const [looking, setLooking] = useState(false)
   const waits = useExtensionWaits()
   const wait = pdfWait(paper) ?? "finding"
-  const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
+  const siteWait = waitOf(paper, waits)
+  const proxyHost = useSettings((s) => proxyHostOf(s.view?.library.proxy))
   const lookAgain = async () => {
     setLooking(true)
     try {
@@ -115,7 +118,7 @@ function PdfLine({ paper }: { paper: Paper }) {
   const action =
     WAITS.has(wait) && siteWait ? (
       <Button variant="text" size="inline" onClick={() => void actOnWait(siteWait)}>
-        {waitWords(siteWait).action}
+        {waitWords(siteWait, siteWait.papers).action}
       </Button>
     ) : ENDED.has(wait) ? (
       <Button variant="text" size="inline" disabled={looking} onClick={() => void lookAgain()}>
@@ -124,7 +127,7 @@ function PdfLine({ paper }: { paper: Paper }) {
     ) : null
   return (
     <>
-      {looking ? t`Finding a PDF…` : noPdfTitle(paper)}
+      {looking ? t`Finding a PDF…` : noPdfTitle(paper, proxyHost)}
       {action && !looking && <span className="ml-1.5">{action}</span>}
     </>
   )

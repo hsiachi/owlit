@@ -31,6 +31,8 @@ export interface SiteWait {
   kind: ExtensionWait["kind"]
   host: string
   papers: number
+  // Through the library's proxy: a sign-in there is the library's
+  proxied: boolean
 }
 
 // owlit going on at a site once the person got through there: how many of the papers that waited came
@@ -53,6 +55,11 @@ export interface PopupState {
   going?: GoingOn
   // What the toolbar click on this tab came to, when it opened the popup to say it
   said?: Outcome
+  // What became of the PDF this tab shows, when it is a Library paper's: taken, or why not
+  pdfTab?: Outcome
+  // The page's paper is one of the papers owlit's queue for the extension holds (papers), and the site
+  // that holds up the most of them, if any
+  getting?: { papers: number; wait?: SiteWait }
 }
 
 // How the button's work ended, or why it couldn't start: said in one sentence (say.ts), in the page's
@@ -72,6 +79,10 @@ export type Outcome =
   | { kind: "unknown-pdf" }
   // The PDF's site isn't one the extension may read; Allow asks on the extension's own page
   | { kind: "needs-site"; host: string }
+  // A Library paper's PDF the user opened, not saved: the extension may not read its site (permission),
+  // or "Take PDFs I open" is off
+  | { kind: "not-saved"; why: "permission"; host: string; paperId: string }
+  | { kind: "not-saved"; why: "off"; paperId: string }
   | { kind: "no-workspace" }
   | { kind: "offline" }
   | { kind: "unpaired" }
@@ -89,6 +100,10 @@ export type CardAction =
   | { kind: "open-owlit" }
   | { kind: "allow"; host: string }
   | { kind: "connect" }
+  // "Take PDFs I open" on
+  | { kind: "take-pdfs" }
+  // On from this paper of the walk through the manual downloads: Next paper, or Skip (no PDF here)
+  | { kind: "walk"; paperId: string; skip: boolean }
 
 // The card the content script draws in the page (content/card.ts): all its words come from the
 // background, which has the catalogs
@@ -97,6 +112,10 @@ export interface CardView {
   detail?: string
   // A button, which asks the background
   action?: { label: string; do: CardAction }
+  // Steps to choose between, as text buttons in a row under the words (the walk's Skip and Next paper),
+  // with a quiet note at the row's end
+  steps?: { label: string; do: CardAction }[]
+  note?: string
   // Stays until closed: there is something to decide or to do. Otherwise it fades after a moment.
   stays: boolean
   // The close button's name for screen readers

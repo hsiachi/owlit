@@ -74,8 +74,8 @@ export const waitsForUser = (t: PdfTry) => t.by === "extension" && (t.ended === 
 // finding while the extension waits for the user at its site or reached nothing there (its fetch was
 // put back in its queue, which a restart emptied), and one with no PDF for owlit's own reason
 // (no copy, or an older record's check or sign-in) that the extension hasn't tried since its last PDF.
-// Not one the extension already judged (no access, not there, its own no copy): owlit's back-off look
-// hands that one over again when it is due.
+// Not one the extension already judged (no access, not there, its own no copy, a page it couldn't open):
+// only the user asking hands that one over again.
 export function forExtension(acquisition: Pick<Acquisition, "state" | "tried">): PdfTry | undefined {
   const { reason } = standing(acquisition.tried)
   if (!reason) return undefined
@@ -92,11 +92,12 @@ const saysLess = (later: PdfTry, earlier: PdfTry) =>
 
 // When owlit's back-off look is next due for a paper without its PDF: from its newest look, after
 // LOOK_AGAIN_DAYS by how many found nothing; undefined once every step was taken (owlit won't look again
-// on its own) and while it isn't spaced out (finding). A record that had the PDF is asked only when its
-// file is gone (deleted outside owlit): due since then, since nothing else looks for it.
+// on its own), while it isn't spaced out (finding), and once the user looked at its page and found none
+// (skipped): their word stands until they ask again (Look again). A record that had the PDF is asked
+// only when its file is gone (deleted outside owlit): due since then, since nothing else looks for it.
 export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "looks">) {
   if (acquisition.state === "have-it") return acquisition.tried.at(-1)?.at ?? 0
-  if (acquisition.state !== "no-pdf") return undefined
+  if (acquisition.state !== "no-pdf" || standing(acquisition.tried).reason?.ended === "skipped") return undefined
   const looks = Math.max(acquisition.looks ?? 1, 1)
   if (looks > LOOK_AGAIN_DAYS.length) return undefined
   const last = acquisition.tried.findLast((t) => t.by === "search")?.at ?? acquisition.tried.at(-1)?.at ?? 0

@@ -13,7 +13,7 @@ import { HeadCell, TablePeekRow, tablePeekCard } from "@/components/ruled-table"
 import { Unfold } from "@/components/unfold"
 import { useDigestState, type DigestState } from "../digests"
 import { type PaperGroup } from "../lib/filter"
-import { pdfWait, pdfWord } from "../lib/pdf-wait"
+import { pdfColumnWord } from "../lib/pdf-wait"
 import { citationsShort, citationsSource, citationsText, paperMeta, shortAuthors, shortVenue, venueOf } from "../lib/format"
 import { statusLabel } from "../lib/status"
 import { useTraceTitle } from "../lib/trace"
@@ -93,9 +93,6 @@ function DigestMark({ state }: { state: DigestState }) {
   return null
 }
 
-// A paper without its PDF says where it stands in its row, in the word its No PDF group and its card use
-const noPdfWord = (p: Paper) => pdfWord(pdfWait(p))
-
 // The slot before a title in the list, as in the chat list: empty for an unread paper, a half-filled ring
 // while it is being read, the digest's mark while it has one. Every row has the slot, so titles start at
 // one place and the ring comes or goes without moving the row.
@@ -142,7 +139,7 @@ const ListItem = memo(function ListItem({ paper, peeked, snippet }: { paper: Pap
           title={paper.title}
           // A publisher waiting on the user (or one that turned them away), or a digest that stopped, says
           // so in words, first among the row's details
-          meta={[noPdfWord(paper), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
+          meta={[pdfColumnWord(paper), digest === "failed" && t`Digest stopped`, paperMeta(paper)].filter(Boolean).join(" · ")}
           slot={<RowSlot paper={paper} open={peeked} />}
           below={snippet && <TextSnippet text={snippet} className={cn("pr-14", peeked ? "pb-1.5" : "pl-7")} />}
         />
@@ -179,7 +176,8 @@ const COLUMNS = [
   { key: "citations", label: msg({ message: "Citations", comment: "how often a paper is cited by other works" }), width: 88, sort: "citations" },
   { key: "thread", label: msg({ message: "Thread", comment: "table column: the thread a paper came from" }), width: 160, sort: "thread" },
   { key: "tags", label: msg`Tags`, width: 144 },
-  { key: "status", label: msg`Status`, width: 104 },
+  // Wide enough for the longest of its words, "Needs manual download"
+  { key: "status", label: msg`Status`, width: 168 },
   { key: "added", label: msg({ message: "Added", context: "when the paper was added to the library" }), width: 96, sort: "addedAt" },
 ] as const
 
@@ -200,7 +198,7 @@ const FILLED: Partial<Record<ColumnKey, (p: Paper) => boolean>> = {
   venue: (p) => !!venueOf(p),
   citations: (p) => !!p.citations,
   tags: (p) => p.tags.length > 0,
-  status: (p) => p.status !== "unread" || !!noPdfWord(p),
+  status: (p) => p.status !== "unread" || !!pdfColumnWord(p),
 }
 
 function useColumns(table: React.RefObject<HTMLTableElement | null>, papers: Paper[], byThread: ByThread | undefined): Column[] {
@@ -313,7 +311,7 @@ function TableRowView({ paper, peeked, last, columns, snippet, tagFilter, holdin
           <td className={td} title={trace.title} onPointerEnter={trace.ask}>
             {/* A publisher waiting on the user (or one that turned them away) says so before the reading
                 status, as the list row does */}
-            {noPdfWord(paper) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}
+            {pdfColumnWord(paper) ?? (digest === "failed" ? t`Digest stopped` : paper.status === "unread" ? "" : statusLabel(paper.status))}
           </td>
         )}
         <td className={cn(td, "relative tabular-nums")}>

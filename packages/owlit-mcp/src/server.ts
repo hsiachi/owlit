@@ -588,7 +588,9 @@ function paperLine(p: Paper, extension: boolean) {
 const DROP = "the user can drop the PDF on the paper"
 // A paper with no PDF, by its state's reason; a not-found that an older record's check or sign-in gave
 // says so, since an agent may be asked why
-const NO_PDF: Record<"not-found" | "no-access" | "not-offered" | "not-there", string> = {
+const NO_PDF: Record<"manual" | "skipped" | "not-found" | "no-access" | "not-offered" | "not-there", string> = {
+  manual: `no PDF: needs a manual download, since owlit couldn't open the publisher's page in the user's browser; the user can open that page there and click its PDF button (the owlit extension saves the PDF), or drop the PDF on the paper`,
+  skipped: `no PDF: the user looked at the publisher's page in their browser and found none there, so owlit doesn't look for it on its own any more (Look again on the paper asks once more); ${DROP}`,
   "not-found": `no PDF: owlit found no copy it can download (it looks again on its own every few days); ${DROP}`,
   "no-access": `no PDF: the publisher offered access instead of the PDF, so the user's library doesn't seem to subscribe; ${DROP}`,
   "not-offered": `no PDF: the user's library proxy doesn't offer this paper; ${DROP}`,
@@ -663,6 +665,10 @@ export function pdfStatus(p: Pick<Paper, "pdf" | "pdfState">) {
       return "waits: the publisher's site blocks the user's browser (another network gets past it)"
     case "for-permission":
       return "waits for the user to let the owlit extension read the publisher's site"
+    case "manual":
+      return "no PDF: needs a manual download (owlit couldn't open the publisher's page)"
+    case "skipped":
+      return "no PDF: the user found none on the publisher's page"
     case "not-found":
       return "no PDF: owlit found no copy"
     case "no-access":

@@ -7,6 +7,8 @@ import { useWaitingOnYou, type WaitingItem } from "@/app/waiting-on-you"
 import { useExtensionWaits } from "@/features/extension/store"
 import { siteWaitItem } from "@/features/extension/waits"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
+import { libraryNameOf } from "@/features/settings/library-name"
+import { useSettings } from "@/features/settings/store"
 
 // Everything stuck on the user, in one list (app/waiting-on-you.ts works it out): a permission a chat
 // waits for, a site where the extension waits for the user's sign-in, handed-off work that broke, an
@@ -41,7 +43,8 @@ export function WaitingOnYou() {
 export function SiteWaits() {
   const navigate = useNavigate()
   const waits = useExtensionWaits()
-  const grey = waits.filter((w) => !waitsOnYou(w)).map((w) => siteWaitItem(w, () => navigate("/library")))
+  const library = useSettings((s) => libraryNameOf(s.view?.library.proxy))
+  const grey = waits.filter((w) => !waitsOnYou(w)).map((w) => siteWaitItem(w, () => navigate("/library"), library))
   if (!grey.length) return null
   return (
     <section aria-labelledby="site-waits-label">

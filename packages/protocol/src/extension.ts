@@ -65,16 +65,19 @@ export interface ExtensionView {
 // and owlit goes on.
 export interface ExtensionWait {
   kind: "sign-in" | "check" | "blocked" | "permission"
-  // The site, as the queue paces it: the publisher's registrable domain, or the library proxy's host.
-  // For a permission, the site to allow, which through the proxy is the publisher's, not the proxy's
+  // Where the user acts: the publisher's registrable domain, or the library proxy's host for the proxy's
+  // own sign-in. Through the proxy, a wait met at a publisher names that publisher (misq.umn.edu; for a
+  // permission the whole site to allow, apa.org), never the proxy.
   host: string
-  // Papers waiting there
+  // Papers whose fetch it is in the way of. Through the proxy, papers only in line behind the one that met
+  // a publisher's wait aren't counted (PdfState.extension.behind).
   papers: number
   // What to open in the user's browser for it: the proxy's sign-in page, or the page that asked
   url: string
-  // The user pressed Find PDF or Look again on one of those papers since owlit started: it waits on them
+  // The user pressed Find PDF or Look again on one of the papers there, or behind it, since owlit
+  // started: it waits on them
   askedFor: boolean
-  // Fetched through the library's proxy: a sign-in there is the library's, else the site's own
+  // The wait is the library proxy's own: a sign-in there is the library's, else the site's own
   proxied: boolean
 }
 
@@ -133,7 +136,13 @@ export interface ExtensionPaper {
   hasPdf: boolean
 }
 
-// GET /papers?doi=&arxiv=&url= → { paper: ExtensionPaper | null }
+// GET /papers?doi=&arxiv=&url=. getting: the papers owlit's queue for the extension holds, when this paper
+// is one of them
+export interface PaperFound {
+  paper: ExtensionPaper | null
+  getting?: number
+}
+
 // POST /papers: what the page says about its paper. The DOI or arXiv id is looked up as the app's Add
 // does; the rest stands in when nothing resolves.
 export interface AddPaperBody {
@@ -187,8 +196,12 @@ export interface WorkAnswer {
 }
 
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
-// extension's own page with one Allow button, for the papers waiting there.
-export type OpenPage = { kind: "sign-in" | "check" | "blocked"; host: string; url: string } | { kind: "permission"; host: string; papers: number }
+// extension's own page with one Allow button, for the papers waiting there. A walk: the first paper's
+// page of a walk through the manual downloads (WalkStep), in a tab of its own.
+export type OpenPage =
+  | { kind: "sign-in" | "check" | "blocked"; host: string; url: string }
+  | { kind: "permission"; host: string; papers: number }
+  | { kind: "walk"; step: Extract<WalkStep, { kind: "paper" }> }
 
 // extension.open: who opened the page for a site that waits on the user. extension: the extension, in
 // its browser; browser: owlit, in the browser the extension was paired in, since none is connected now;
@@ -199,8 +212,20 @@ export interface ExtensionOpened {
 }
 
 // How a fetch ended without a PDF. The extension reports only this word, the host, the page's title and
-// its final address, never the page's text.
-export type WorkEnding = "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
+// its final address, never the page's text. unreadable: the page wasn't the paper's and said nothing the
+// extension knows (a page built by its scripts, which the extension never runs, or a "Please wait"), so
+// whether the site has a copy is unknown.
+export type WorkEnding =
+  | "no-copy"
+  | "no-access"
+  | "not-offered"
+  | "not-there"
+  | "check"
+  | "blocked"
+  | "sign-in"
+  | "offline"
+  | "no-permission"
+  | "unreadable"
 
 // POST /work/:id, as JSON when no PDF came (a PDF comes as application/pdf)
 export interface WorkEnded {
@@ -221,4 +246,25 @@ export interface WorkResume {
 export interface WorkBlocked {
   host: string
   url: string
+}
+
+// ---- Downloading by hand, one paper at a time
+
+// Where the walk through the papers to download by hand stands (extension.walk): owlit holds it, one at
+// a time, and the extension shows it in the tab it opened for it. paper: the one to download now, at its
+// page; n of total, counting from 1; saved: how many of the walk's papers have their PDF now. done: the
+// walk ended, with how many were saved; owlit forgets it then.
+export type WalkStep = { kind: "paper"; paperId: string; url: string; n: number; total: number; saved: number } | { kind: "done"; saved: number; total: number }
+
+// GET /walk: the step now, or null when no walk is on. A paper that got its PDF meanwhile (in the walk's
+// tab, or any other way) is passed over.
+export interface WalkAnswer {
+  step: WalkStep | null
+}
+
+// POST /walk/next: on from this paper (Next paper), or, with skip, after noting that the user found no
+// PDF on its page. A paper that isn't the walk's now (a press that came twice) moves nothing.
+export interface WalkNext {
+  paperId: string
+  skip?: boolean
 }

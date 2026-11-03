@@ -50,7 +50,7 @@ describe("a paper the extension tried", () => {
   })
 
   it("has no PDF for what the extension saw, over owlit's own no copy", () => {
-    for (const ended of ["no-access", "not-offered", "not-there"] as const) {
+    for (const ended of ["no-access", "not-offered", "not-there", "unreadable"] as const) {
       expect(standing([owlit("no-copy", 1), extension(ended, 2), owlit("no-copy", 3)])).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended } })
     }
   })
@@ -71,6 +71,7 @@ describe("a paper the extension tried", () => {
     expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), owlit("check", 2)] })).toMatchObject({ ended: "check", at: 2 })
     // The extension judged it: its back-off look hands it over again, not a connect
     expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), extension("no-access", 2)] })).toBeUndefined()
+    expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), extension("unreadable", 2), owlit("no-copy", 3)] })).toBeUndefined()
     expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), extension("no-copy", 2), owlit("no-copy", 3)] })).toBeUndefined()
     // The user's browser said no
     expect(forExtension({ state: "no-pdf", tried: [owlit("no-copy", 1), you("no-access", 2)] })).toBeUndefined()
@@ -102,5 +103,15 @@ describe("owlit's back-off look", () => {
     expect(lookDue(noPdf(5), 1000 * day)).toBe(false)
     // The user's own Look again counts as one more look, and still ends nowhere
     expect(nextLookAt(noPdf(6))).toBeUndefined()
+  })
+
+  it("leaves a paper alone once the user looked at its page and found none, until they ask again", () => {
+    const skipped = { state: "no-pdf" as const, tried: [owlit("no-copy", 1), extension("unreadable", 2), you("skipped", 3), owlit("no-copy", 4)], looks: 1 }
+    expect(standing(skipped.tried)).toMatchObject({ state: "no-pdf", reason: { by: "person", ended: "skipped" } })
+    expect(nextLookAt(skipped)).toBeUndefined()
+    expect(lookDue(skipped, 1000 * day)).toBe(false)
+    expect(forExtension(skipped)).toBeUndefined()
+    // The extension tried again (the user asked): its word is the paper's from then on
+    expect(standing([...skipped.tried, extension("no-access", 5)]).reason).toMatchObject({ by: "extension", ended: "no-access" })
   })
 })

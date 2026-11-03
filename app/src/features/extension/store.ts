@@ -9,7 +9,9 @@ import { useShallow } from "zustand/react/shallow"
 import { bridge, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
-import { waitWords } from "./waits"
+import { libraryNameOf } from "@/features/settings/library-name"
+import { useSettings } from "@/features/settings/store"
+import { pruneOpened, waitWords } from "./waits"
 
 interface ExtensionState {
   view: ExtensionView | null
@@ -39,6 +41,7 @@ const toldWaits = new Set<string>()
 
 function receive(view: ExtensionView) {
   useExtension.setState({ view })
+  pruneOpened(view.waits)
   // The extension waits in another app: the system says so while no owlit window is in front (the
   // desktop app shows it only then), so the user comes here to answer
   for (const asking of view.asking) {
@@ -58,8 +61,8 @@ function receive(view: ExtensionView) {
     if (toldWaits.has(key)) continue
     toldWaits.add(key)
     if (!document.hasFocus()) {
-      const { what, papers } = waitWords(wait)
-      bridge?.notify({ title: what, body: papers })
+      const { what, why } = waitWords(wait, wait.papers, libraryNameOf(useSettings.getState().view?.library.proxy))
+      bridge?.notify({ title: what, body: why })
     }
   }
   for (const key of toldWaits) if (!now.has(key)) toldWaits.delete(key)

@@ -173,6 +173,34 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
   })
 
+  it("follows a page's meta refresh, and says it couldn't read a page that is none of the paper's", async () => {
+    // Elsevier's linkinghub sends the browser on by a refresh and a script; the refresh's address
+    // redirects on to ScienceDirect's article, which names its PDF
+    const hub = "https://linkinghub.elsevier.com/retrieve/pii/S0957417412003879"
+    const next = "https://linkinghub.elsevier.com/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879&key=ae79"
+    const refresh = `<html><head><meta HTTP-EQUIV="REFRESH" content="2; url='/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879&amp;key=ae79'"/><title>Redirecting</title></head><body onload="autoRedirectToURL();"></body></html>`
+    const article = `<title>A context-aware reminder system</title><meta name="citation_title" content="A context-aware reminder system"><meta name="citation_pdf_url" content="https://www.sciencedirect.com/science/article/pii/S0957417412003879/pdfft">`
+    const elsevier = item({ url: hub, host: "elsevier.com" })
+    const { deps, asked } = web({
+      [hub]: { body: refresh },
+      [next]: { body: article, endsAt: "https://www.sciencedirect.com/science/article/pii/S0957417412003879" },
+      "https://www.sciencedirect.com/science/article/pii/S0957417412003879/pdfft": { body: PDF },
+    })
+    const got = await fetchFor(elsevier, deps)
+    expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
+    expect(asked.slice(0, 2)).toEqual([hub, next])
+    // The refresh leading where the extension may not read: that site, to allow
+    const away = web({ [hub]: { body: refresh } }, (url) => url === hub)
+    expect(await fetchFor(elsevier, away.deps)).toEqual({ ended: "no-permission", host: "linkinghub.elsevier.com" })
+    // A page that keeps refreshing is given up on, as one it couldn't read
+    const loop = web({ [hub]: { body: refresh }, [next]: { body: '<meta http-equiv="refresh" content="0; url=/retrieve/pii/S0957417412003879"><title>Redirecting</title>' } })
+    expect(await fetchFor(elsevier, loop.deps)).toMatchObject({ ended: "unreadable", title: "Redirecting" })
+    // APA PsycNet's shell: no PDF named, no copy said
+    const psycnet = "https://psycnet.apa.org/doiLanding?doi=10.1037/0022-3514.54.4.569"
+    const shell = web({ [psycnet]: { body: "<html><head><title>APA PsycNet</title></head><body><app-root></app-root><script src='main.js'></script></body></html>" } })
+    expect(await fetchFor(item({ url: psycnet, host: "apa.org" }), shell.deps)).toEqual({ ended: "unreadable", host: "psycnet.apa.org", title: "APA PsycNet", url: psycnet })
+  })
+
   it("hands the PDF or the word to owlit, and lets go of an answer owlit no longer waits for", async () => {
     const ask = vi.fn(async () => ({}))
     const pdfWeb = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: PDF } })

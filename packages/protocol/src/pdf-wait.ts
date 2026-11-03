@@ -11,9 +11,13 @@ import type { Paper, PdfEnded, PdfTry } from "./library.ts"
 //   ExtensionView.waits, covers every such paper)
 // - blocked: still finding, the same way; the site's firewall turned the user's browser away, and a page
 //   there that loads (from another network, or once the block lifts) lets owlit go on
+// - manual: no PDF; the extension couldn't open the publisher's page, so the user downloads it there
+//   by hand (the extension saves a PDF they open)
+// - skipped: no PDF; the user looked at the publisher's page and found none (Skip on the extension's
+//   walk through the manual downloads). Their word stands: nothing offers or looks for it again on its own
 // - not-found, no-access, not-offered, not-there: no PDF, for that reason. A check or a sign-in that
 //   stopped owlit itself (only older records have one) is not-found: it waits on nobody
-export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "blocked" | "for-permission" | "not-found" | "no-access" | "not-offered" | "not-there"
+export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "blocked" | "for-permission" | "manual" | "skipped" | "not-found" | "no-access" | "not-offered" | "not-there"
 
 const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-copy": "not-found",
@@ -27,6 +31,8 @@ const BY_ENDED: Record<PdfEnded, PdfWait> = {
   pdf: "not-found",
   offline: "offline",
   "no-permission": "for-permission",
+  unreadable: "manual",
+  skipped: "skipped",
 }
 
 const BY_WAIT: Record<ExtensionWait["kind"], PdfWait> = { "sign-in": "for-sign-in", check: "for-check", blocked: "blocked", permission: "for-permission" }

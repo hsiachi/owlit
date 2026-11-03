@@ -113,6 +113,7 @@ msgstr "Nothing found."
 #. button: open a paper to read
 #. button: open a paper to read
 #. button: open a paper to read
+#. button: opens the site's page with its 'verify you are human' check in the user's browser
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
 #. the owlit card in a web page: shows the paper in owlit
@@ -125,6 +126,7 @@ msgstr "Nothing found."
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
+#: app/src/features/extension/waits.ts
 #: app/src/features/library/actions.ts
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
@@ -145,6 +147,7 @@ msgid "Navigate"
 msgstr "Navigate"
 
 #. palette footer, beside the Esc key: closes the palette
+#. the owlit card in a web page: its close button, for screen readers
 #. the owlit card in a web page: its close button, for screen readers
 #. verb: close the Owlit panel
 #. verb: close the find field
@@ -1085,6 +1088,13 @@ msgstr "Pin"
 msgid "Rename chat"
 msgstr "Rename chat"
 
+#. a chat's status: waiting on the user
+#. a paper in line for the owlit browser extension, which fetches one paper at a time per site
+#: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting"
+msgstr "Waiting"
+
 #. a chat's status: the agent stopped with an error
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
@@ -1095,11 +1105,6 @@ msgstr "Rename chat"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "Stopped"
 msgstr "Stopped"
-
-#. a chat's status: waiting on the user
-#: app/src/features/chat/components/ChatListPanel.tsx
-msgid "Waiting"
-msgstr "Waiting"
 
 #: app/src/features/chat/components/ChatListPanel.tsx
 msgid "Chat actions"
@@ -1254,12 +1259,10 @@ msgstr "Next question"
 #. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: show the Library, where the papers wait
-#. verb: show these papers in the Library
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/extension/waits.ts
-#: app/src/features/library/components/ExtensionWaitLines.tsx
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/features/library/pages/paper/PaperBeside.tsx
 msgid "Show"
@@ -1282,8 +1285,10 @@ msgstr "Or type your own answer below"
 msgid "Type your answer below"
 msgstr "Type your answer below"
 
+#. the owlit card in a web page: the user found no PDF for this paper on its page; owlit notes it and goes on
 #. verb: skip the agent's question
 #: app/src/features/chat/components/WaitingDock.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Skip"
 msgstr "Skip"
 
@@ -1365,7 +1370,6 @@ msgid "Adding…"
 msgstr "Adding…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
-#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "In your Library"
 
@@ -1422,6 +1426,7 @@ msgstr "Attach files"
 msgid "Add from {place}"
 msgstr "Add from {place}"
 
+#. button: stop getting PDFs through the browser; the papers still in line are left
 #. stop Owlit answering a reply on its comment
 #. stop Owlit writing a paper's digest
 #. stop Owlit's work on a thread
@@ -1430,6 +1435,7 @@ msgstr "Add from {place}"
 #: app/src/features/chat/components/composer/Composer.tsx
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/components/PdfBlock.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Stop"
@@ -3468,19 +3474,29 @@ msgstr "It can add the papers you open in {0} to your Library and give owlit the
 msgid "Open owlit to allow it or not."
 msgstr "Open owlit to allow it or not."
 
+#. in: Need you to sign in to your library
+#. in: Need you to sign in to your library
+#. in: Need you to sign in to your library
 #: app/src/features/extension/waits.ts
-msgid "Sign in to your library"
-msgstr "Sign in to your library"
+#: apps/extension/src/lib/say.ts
+msgid "your library"
+msgstr "your library"
 
 #: app/src/features/extension/waits.ts
-msgid "Sign in at {host}"
-msgstr "Sign in at {host}"
+msgid "{n, plural, one {Needs you to sign in to {library}} other {Need you to sign in to {library}}}"
+msgstr "{n, plural, one {Needs you to sign in to {library}} other {Need you to sign in to {library}}}"
 
 #: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
-msgstr "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs you to sign in to {library}} other {# papers need you to sign in to {library}}}"
+msgstr "{n, plural, one {# paper needs you to sign in to {library}} other {# papers need you to sign in to {library}}}"
+
+#: app/src/features/extension/waits.ts
+msgid "These papers come through your library's proxy, {host}. owlit goes on by itself once you're signed in."
+msgstr "These papers come through your library's proxy, {host}. owlit goes on by itself once you're signed in."
 
 #. an agent's sign-in, which opens the browser
+#. button: opens the sign-in page (the library's, or the site's) in the user's browser
 #. button: opens the sign-in page (the library's, or the site's) in the user's browser
 #: app/src/features/extension/waits.ts
 #: app/src/features/settings/sections/BrowserSignIn.tsx
@@ -3489,21 +3505,43 @@ msgid "Sign in"
 msgstr "Sign in"
 
 #: app/src/features/extension/waits.ts
-msgid "Pass a check at {host}"
-msgstr "Pass a check at {host}"
+msgid "{n, plural, one {Needs you to sign in at {host}} other {Need you to sign in at {host}}}"
+msgstr "{n, plural, one {Needs you to sign in at {host}} other {Need you to sign in at {host}}}"
 
 #: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# paper} other {# papers}}"
-msgstr "{n, plural, one {# paper} other {# papers}}"
-
-#. button: opens the site's page with the check in the user's browser
-#: app/src/features/extension/waits.ts
-msgid "Open it"
-msgstr "Open it"
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs you to sign in at {host}} other {# papers need you to sign in at {host}}}"
+msgstr "{n, plural, one {# paper needs you to sign in at {host}} other {# papers need you to sign in at {host}}}"
 
 #: app/src/features/extension/waits.ts
+msgid "{host} wants you signed in before it gives the PDFs. owlit goes on by itself once you're signed in."
+msgstr "{host} wants you signed in before it gives the PDFs. owlit goes on by itself once you're signed in."
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {Needs you to verify you're human on {host}} other {Need you to verify you're human on {host}}}"
+msgstr "{n, plural, one {Needs you to verify you're human on {host}} other {Need you to verify you're human on {host}}}"
+
+#: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs you to verify you're human on {host}} other {# papers need you to verify you're human on {host}}}"
+msgstr "{n, plural, one {# paper needs you to verify you're human on {host}} other {# papers need you to verify you're human on {host}}}"
+
+#: app/src/features/extension/waits.ts
+msgid "Open the page and verify there. owlit usually notices by itself; if it doesn't, press I've verified it."
+msgstr "Open the page and verify there. owlit usually notices by itself; if it doesn't, press I've verified it."
+
+#: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
 msgid "{host} blocks your browser"
 msgstr "{host} blocks your browser"
+
+#: app/src/features/extension/waits.ts
+msgid "{n, plural, one {{host} blocks your browser · # paper} other {{host} blocks your browser · # papers}}"
+msgstr "{n, plural, one {{host} blocks your browser · # paper} other {{host} blocks your browser · # papers}}"
+
+#: app/src/features/extension/waits.ts
+msgid "The site's firewall turned your browser away. Another network usually gets past it; owlit goes on once a page there loads."
+msgstr "The site's firewall turned your browser away. Another network usually gets past it; owlit goes on once a page there loads."
 
 #. button: opens the site's page in the user's browser, to see whether it still blocks them
 #: app/src/features/extension/waits.ts
@@ -3514,9 +3552,32 @@ msgid "Try again"
 msgstr "Try again"
 
 #: app/src/features/extension/waits.ts
-#: apps/extension/src/allow/Allow.tsx
-msgid "Let the owlit extension read {host}"
-msgstr "Let the owlit extension read {host}"
+msgid "{n, plural, one {Needs your permission for {host}} other {Need your permission for {host}}}"
+msgstr "{n, plural, one {Needs your permission for {host}} other {Need your permission for {host}}}"
+
+#: app/src/features/extension/waits.ts
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs your permission for {host}} other {# papers need your permission for {host}}}"
+msgstr "{n, plural, one {# paper needs your permission for {host}} other {# papers need your permission for {host}}}"
+
+#: app/src/features/extension/waits.ts
+msgid "The owlit extension asks before it reads a site. Allow it on {host} once; owlit goes on by itself."
+msgstr "The owlit extension asks before it reads a site. Allow it on {host} once; owlit goes on by itself."
+
+#. button: the user signed in in their browser; owlit tries the site again now
+#: app/src/features/extension/waits.ts
+msgid "I've signed in"
+msgstr "I've signed in"
+
+#. button: the user passed the site's 'verify you are human' check; owlit tries the site again now
+#: app/src/features/extension/waits.ts
+msgid "I've verified it"
+msgstr "I've verified it"
+
+#. in: Getting PDFs for 3 papers using your browser…, Open in your browser
+#: app/src/features/extension/waits.ts
+msgid "your browser"
+msgstr "your browser"
 
 #: app/src/features/extension/waits.ts
 msgid "Press owlit's button in your browser's toolbar, then Allow."
@@ -3525,6 +3586,30 @@ msgstr "Press owlit's button in your browser's toolbar, then Allow."
 #: app/src/features/extension/waits.ts
 msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "The extension asks to read {host} for the papers waiting there."
+
+#: app/src/features/extension/waits.ts
+msgid "Couldn't tell owlit to go on."
+msgstr "Couldn't tell owlit to go on."
+
+#: app/src/features/extension/waits.ts
+msgid "{host} still asks you to verify you're human"
+msgstr "{host} still asks you to verify you're human"
+
+#: app/src/features/extension/waits.ts
+msgid "{host} still asks you to sign in"
+msgstr "{host} still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
+msgid "{libraryName} still asks you to sign in"
+msgstr "{libraryName} still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
+msgid "Your library still asks you to sign in"
+msgstr "Your library still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
+msgid "Couldn't stop getting the PDFs."
+msgstr "Couldn't stop getting the PDFs."
 
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
@@ -3883,105 +3968,46 @@ msgstr "Year"
 msgid "Venue"
 msgstr "Venue"
 
-#. in: Opened in your browser
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "your browser"
-msgstr "your browser"
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Sign in there; owlit goes on by itself."
-msgstr "Opened in {browser}. Sign in there; owlit goes on by itself."
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Pass the check there; owlit goes on by itself."
-msgstr "Opened in {browser}. Pass the check there; owlit goes on by itself."
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Still blocked? Try another network; owlit goes on by itself."
-msgstr "Opened in {browser}. Still blocked? Try another network; owlit goes on by itself."
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Allow the extension there; owlit goes on by itself."
-msgstr "Opened in {browser}. Allow the extension there; owlit goes on by itself."
-
-#. button: opens the sign-in or check page in the user's browser once more
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Open again"
-msgstr "Open again"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{total, plural, one {Getting # PDF through your browser} other {Getting # PDFs through your browser}}"
-msgstr "{total, plural, one {Getting # PDF through your browser} other {Getting # PDFs through your browser}}"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
-msgstr "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
-
-#. how many PDFs have come so far
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{got} so far"
-msgstr "{got} so far"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Through your browser"
-msgstr "Through your browser"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "From {host}"
-msgstr "From {host}"
-
-#. verb: put a stopped import away
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Dismiss"
-msgstr "Dismiss"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{got, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-msgstr "{got, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
-msgstr "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
-
-#. placeholder {0}: without.length
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{0, plural, one {# without} other {# without}}"
-msgstr "{0, plural, one {# without} other {# without}}"
-
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "The owlit extension isn't connected."
 msgstr "The owlit extension isn't connected."
 
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "Open the browser it is in, then try again."
 msgstr "Open the browser it is in, then try again."
 
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "Set it up in your browser from Settings › Papers, then try again."
 msgstr "Set it up in your browser from Settings › Papers, then try again."
 
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "Couldn't hand the papers to the extension."
 msgstr "Couldn't hand the papers to the extension."
 
-#. button: every paper without a PDF goes to the browser extension, with the user's library access
-#: app/src/features/library/components/GetAllLine.tsx
-msgid "Get them all with my access"
-msgstr "Get them all with my access"
+#. button: every paper without a PDF goes to the browser extension, which gets them with the user's library access
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "Get PDFs"
+msgstr "Get PDFs"
 
-#. placeholder {0}: withDoi.length
-#: app/src/features/library/components/GetAllLine.tsx
-msgid "{0, plural, one {# paper your browser can try} other {# papers your browser can try}}"
-msgstr "{0, plural, one {# paper your browser can try} other {# papers your browser can try}}"
+#. placeholder {0}: offered.length
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{0, plural, one {Get the PDF for # paper using {browser}} other {Get PDFs for # papers using {browser}}}"
+msgstr "{0, plural, one {Get the PDF for # paper using {browser}} other {Get PDFs for # papers using {browser}}}"
 
-#: app/src/features/library/components/GetAllLine.tsx
-msgid "{without, plural, one {# without a DOI} other {# without a DOI}}"
-msgstr "{without, plural, one {# without a DOI} other {# without a DOI}}"
+#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
+#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
+#: app/src/features/library/components/GetPdfsLine.tsx
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Open in {browser}"
+msgstr "Open in {browser}"
+
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{manualCount, plural, one {# paper needs a manual download} other {# papers need a manual download}}"
+msgstr "{manualCount, plural, one {# paper needs a manual download} other {# papers need a manual download}}"
+
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{noDoi, plural, one {# paper without a DOI wasn't included · drag its PDF onto it} other {# papers without a DOI weren't included · drag their PDFs onto them}}"
+msgstr "{noDoi, plural, one {# paper without a DOI wasn't included · drag its PDF onto it} other {# papers without a DOI weren't included · drag their PDFs onto them}}"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
@@ -4043,6 +4069,12 @@ msgstr "from {name}"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "from the {name} folder"
 msgstr "from the {name} folder"
+
+#. verb: put a stopped import away
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Dismiss"
+msgstr "Dismiss"
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgctxt "carry on with a stopped import"
@@ -4429,6 +4461,92 @@ msgstr "{0, plural, one {Remove # paper} other {Remove # papers}}"
 msgid "Continue"
 msgstr "Continue"
 
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{total, plural, one {Getting a PDF for # paper using {browser}…} other {Getting PDFs for # papers using {browser}…}}"
+msgstr "{total, plural, one {Getting a PDF for # paper using {browser}…} other {Getting PDFs for # papers using {browser}…}}"
+
+#. PDFs saved so far, of the papers in the batch
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{saved} of {total} saved"
+msgstr "{saved} of {total} saved"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{things, plural, one {# thing needs you} other {# things need you}}"
+msgstr "{things, plural, one {# thing needs you} other {# things need you}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{total, plural, one {Saved the PDF} other {Saved all # PDFs}}"
+msgstr "{total, plural, one {Saved the PDF} other {Saved all # PDFs}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Saved {saved} of {total} PDFs"
+msgstr "Saved {saved} of {total} PDFs"
+
+#. after: Saved 0 of 34 PDFs
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "the rest need you"
+msgstr "the rest need you"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {# paper needs you} other {# papers need you}}"
+msgstr "{n, plural, one {# paper needs you} other {# papers need you}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {Needs you to download it} other {Need you to download them}}"
+msgstr "{n, plural, one {Needs you to download it} other {Need you to download them}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit couldn't open these sites' pages: {sites}. Open each one and click its PDF button; owlit saves it."
+msgstr "owlit couldn't open these sites' pages: {sites}. Open each one and click its PDF button; owlit saves it."
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
+msgstr "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {Has no PDF owlit can get} other {Have no PDF owlit can get}}"
+msgstr "{n, plural, one {Has no PDF owlit can get} other {Have no PDF owlit can get}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper."
+msgstr "Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper."
+
+#. papers the user looked for on the publisher's page and found no PDF (Skip in the browser)
+#. the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found none"
+msgstr "You found none"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper."
+msgstr "You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper."
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
+msgstr "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
+
+#. placeholder {0}: first.papers
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{0, plural, one {One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at {host}, through your library's proxy; it goes on once that's done.} other {One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at {host}, through your library's proxy; they go on once that's done.}}"
+msgstr "{0, plural, one {One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at {host}, through your library's proxy; it goes on once that's done.} other {One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at {host}, through your library's proxy; they go on once that's done.}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "One paper at a time per site, so no publisher sees a burst of downloads"
+msgstr "One paper at a time per site, so no publisher sees a burst of downloads"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+msgstr "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
+msgstr "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Opened in {where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here."
+msgstr "Opened in {where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here."
+
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
 msgstr "A paper removed recently"
@@ -4600,6 +4718,31 @@ msgstr "Pink"
 msgid "Finding"
 msgstr "Finding"
 
+#. the PDF waits for the user to sign in (to their library, or at the publisher) in their browser
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs sign-in"
+msgstr "Needs sign-in"
+
+#. the PDF waits for the user to pass the site's 'verify you are human' check in their browser
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs verification"
+msgstr "Needs verification"
+
+#. the PDF waits for the user to allow the owlit browser extension on the publisher's site
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs permission"
+msgstr "Needs permission"
+
+#. the publisher's site turned the user's browser away
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Blocked"
+msgstr "Blocked"
+
+#. owlit couldn't open the publisher's page in the user's browser; the user downloads the PDF there by hand
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs manual download"
+msgstr "Needs manual download"
+
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF found"
@@ -4624,20 +4767,20 @@ msgid "Waiting for the network"
 msgstr "Waiting for the network"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for your library sign-in"
-msgstr "Waits for your library sign-in"
+msgid "Needs you to sign in to your library"
+msgstr "Needs you to sign in to your library"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for a sign-in at {site}"
-msgstr "Waits for a sign-in at {site}"
+msgid "Needs you to sign in at {site}"
+msgstr "Needs you to sign in at {site}"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for a check at {site}"
-msgstr "Waits for a check at {site}"
+msgid "Needs you to verify you're human on {site}"
+msgstr "Needs you to verify you're human on {site}"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for a check"
-msgstr "Waits for a check"
+msgid "Needs you to verify you're human"
+msgstr "Needs you to verify you're human"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "{site} blocks your browser"
@@ -4648,12 +4791,20 @@ msgid "The publisher's site blocks your browser"
 msgstr "The publisher's site blocks your browser"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for the extension to be allowed on {site}"
-msgstr "Waits for the extension to be allowed on {site}"
+msgid "Needs your permission for {site}"
+msgstr "Needs your permission for {site}"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for the extension to be allowed"
-msgstr "Waits for the extension to be allowed"
+msgid "Needs your permission for the publisher's site"
+msgstr "Needs your permission for the publisher's site"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs you to download it"
+msgstr "Needs you to download it"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found no PDF on its page"
+msgstr "You found no PDF on its page"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No access through your library"
@@ -4812,7 +4963,9 @@ msgstr "{position} of {total}"
 msgid "Previous paper"
 msgstr "Previous paper"
 
+#. the owlit card in a web page: goes on to the next paper to download manually, noting nothing about this one
 #: app/src/features/library/pages/PaperPage.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Next paper"
 msgstr "Next paper"
 
@@ -4977,6 +5130,10 @@ msgid "Page {number}"
 msgstr "Page {number}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "In line behind a paper waiting at {behind}; owlit goes on once that's done."
+msgstr "In line behind a paper waiting at {behind}; owlit goes on once that's done."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr "{tried}; now trying {site} through your browser."
 
@@ -5013,10 +5170,6 @@ msgid "If you already have it, drop it here."
 msgstr "If you already have it, drop it here."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} wants a sign-in · {date}"
-msgstr "{at} wants a sign-in · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "One sign-in to your library covers every paper waiting for it."
 
@@ -5025,32 +5178,36 @@ msgid "One sign-in there covers every paper waiting at {site}."
 msgstr "One sign-in there covers every paper waiting at {site}."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} asked for a check · {date}"
-msgstr "{at} asked for a check · {date}"
+msgid "Verifying once there covers every paper waiting at {site}."
+msgstr "Verifying once there covers every paper waiting at {site}."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "One check passed there covers every paper waiting at {site}."
-msgstr "One check passed there covers every paper waiting at {site}."
+msgid "Another network usually gets past it; owlit goes on once a page there loads."
+msgstr "Another network usually gets past it; owlit goes on once a page there loads."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} turned your browser away · {date}. Another network usually gets past it."
-msgstr "{at} turned your browser away · {date}. Another network usually gets past it."
+msgid "Once you allow it, owlit goes on with every paper waiting there."
+msgstr "Once you allow it, owlit goes on with every paper waiting there."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Once {site} lets your browser in, owlit goes on with every paper waiting there."
-msgstr "Once {site} lets your browser in, owlit goes on with every paper waiting there."
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The owlit extension may not read {site} yet · {date}"
-msgstr "The owlit extension may not read {site} yet · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Once it may, owlit goes on with every paper waiting there."
-msgstr "Once it may, owlit goes on with every paper waiting there."
+msgid "Since {date}. {next}"
+msgstr "Since {date}. {next}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
 msgstr "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open {host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit couldn't open {host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "You looked on its page in your browser and skipped it · {date}"
+msgstr "You looked on its page in your browser and skipped it · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -5552,6 +5709,10 @@ msgstr "About {sectionLabel}"
 msgid "Couldn't check it just now."
 msgstr "Couldn't check it just now."
 
+#: app/src/features/settings/library-name.ts
+msgid "Tsinghua University"
+msgstr "Tsinghua University"
+
 #: app/src/features/settings/parts.tsx
 msgid "{service} accepted it"
 msgstr "{service} accepted it"
@@ -6037,10 +6198,6 @@ msgstr "Remember what I do in owlit"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. This file goes wherever the folder goes. Off: nothing is noted, and papers you finish stay as you left them."
 msgstr "What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. This file goes wherever the folder goes. Off: nothing is noted, and papers you finish stay as you left them."
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Tsinghua University"
-msgstr "Tsinghua University"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
@@ -7161,6 +7318,10 @@ msgid "Your browser didn't ask. Allow {host} for owlit in the browser's extensio
 msgstr "Your browser didn't ask. Allow {host} for owlit in the browser's extension settings."
 
 #: apps/extension/src/allow/Allow.tsx
+msgid "Let the owlit extension read {host}"
+msgstr "Let the owlit extension read {host}"
+
+#: apps/extension/src/allow/Allow.tsx
 msgid "The paper's PDF is there. The extension fetches it with your access, and reads only what owlit asks for."
 msgstr "The paper's PDF is there. The extension fetches it with your access, and reads only what owlit asks for."
 
@@ -7181,6 +7342,11 @@ msgstr "Take PDFs I open for papers in my Library"
 msgid "Something went wrong in the owlit extension."
 msgstr "Something went wrong in the owlit extension."
 
+#: apps/extension/src/lib/say.ts
+msgid "Couldn't save this PDF"
+msgstr "Couldn't save this PDF"
+
+#. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
 #: apps/extension/src/lib/say.ts
@@ -7213,8 +7379,8 @@ msgid "The PDF on this page is another paper's. owlit keeps looking."
 msgstr "The PDF on this page is another paper's. owlit keeps looking."
 
 #: apps/extension/src/lib/say.ts
-msgid "Let owlit read {host} to get its PDF with your access."
-msgstr "Let owlit read {host} to get its PDF with your access."
+msgid "owlit doesn't have permission for {host} yet. Allow it, and owlit saves the PDF."
+msgstr "owlit doesn't have permission for {host} yet. Allow it, and owlit saves the PDF."
 
 #: apps/extension/src/lib/say.ts
 msgid "PDF saved to owlit"
@@ -7233,13 +7399,12 @@ msgid "In your Library, with its PDF"
 msgstr "In your Library, with its PDF"
 
 #: apps/extension/src/lib/say.ts
-#: apps/extension/src/popup/Popup.tsx
-msgid "In your Library, without its PDF"
-msgstr "In your Library, without its PDF"
+msgid "owlit needs this PDF"
+msgstr "owlit needs this PDF"
 
 #: apps/extension/src/lib/say.ts
-msgid "This page names none. owlit keeps looking."
-msgstr "This page names none. owlit keeps looking."
+msgid "Click the PDF button on this page. owlit saves the PDF when it opens."
+msgstr "Click the PDF button on this page. owlit saves the PDF when it opens."
 
 #: apps/extension/src/lib/say.ts
 msgid "{listing} lists papers"
@@ -7262,12 +7427,25 @@ msgid "Add the paper from its page."
 msgstr "Add the paper from its page."
 
 #: apps/extension/src/lib/say.ts
-msgid "Let owlit read {host}"
-msgstr "Let owlit read {host}"
+msgid "owlit needs your permission for {host}"
+msgstr "owlit needs your permission for {host}"
 
 #: apps/extension/src/lib/say.ts
-msgid "It gets the PDF there with your access."
-msgstr "It gets the PDF there with your access."
+msgid "Allow it, and owlit gets the PDF there with your access."
+msgstr "Allow it, and owlit gets the PDF there with your access."
+
+#: apps/extension/src/lib/say.ts
+msgid "Saving PDFs you open is turned off."
+msgstr "Saving PDFs you open is turned off."
+
+#. button: turns on taking the PDFs the user opens for papers in their Library
+#: apps/extension/src/lib/say.ts
+msgid "Turn on"
+msgstr "Turn on"
+
+#: apps/extension/src/lib/say.ts
+msgid "owlit doesn't have permission for {host} yet. Allow it, and owlit saves this PDF."
+msgstr "owlit doesn't have permission for {host} yet. Allow it, and owlit saves this PDF."
 
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
@@ -7321,28 +7499,16 @@ msgid "Press owlit's button to try again."
 msgstr "Press owlit's button to try again."
 
 #: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
-msgstr "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
+msgid "{n, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
+msgstr "{n, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
 
 #: apps/extension/src/lib/say.ts
-msgid "{host} blocks this browser"
-msgstr "{host} blocks this browser"
+msgid "Verify on this page; owlit goes on by itself once you have."
+msgstr "Verify on this page; owlit goes on by itself once you have."
 
 #: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
-msgstr "{papers, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"
-msgstr "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for your sign-in here} other {# papers wait for your sign-in here}}"
-msgstr "{papers, plural, one {# paper waits for your sign-in here} other {# papers wait for your sign-in here}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "Going on once you're through."
-msgstr "Going on once you're through."
+msgid "owlit goes on by itself once you're signed in."
+msgstr "owlit goes on by itself once you're signed in."
 
 #: apps/extension/src/lib/say.ts
 msgid "You're through"
@@ -7351,6 +7517,56 @@ msgstr "You're through"
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
 msgstr "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{total, plural, one {Done: saved the PDF} other {Done: saved all # PDFs}}"
+msgstr "{total, plural, one {Done: saved the PDF} other {Done: saved all # PDFs}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "Done: saved {saved} of {total}"
+msgstr "Done: saved {saved} of {total}"
+
+#: apps/extension/src/lib/say.ts
+msgid "One paper to download manually"
+msgstr "One paper to download manually"
+
+#: apps/extension/src/lib/say.ts
+msgid "Paper {n} of {total} to download manually"
+msgstr "Paper {n} of {total} to download manually"
+
+#: apps/extension/src/lib/say.ts
+msgid "Click the PDF button on this page; owlit saves it. No PDF here? Skip it."
+msgstr "Click the PDF button on this page; owlit saves it. No PDF here? Skip it."
+
+#. the owlit card in a web page: ends the walk through the papers to download manually, on its last paper
+#: apps/extension/src/lib/say.ts
+msgid "Finish"
+msgstr "Finish"
+
+#. the owlit card in a web page: how many of the papers to download manually have their PDF so far
+#: apps/extension/src/lib/say.ts
+msgid "{saved} saved"
+msgstr "{saved} saved"
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
+msgstr "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to sign in at {host}} other {# still need you to sign in at {host}}}"
+msgstr "{n, plural, one {# still needs you to sign in at {host}} other {# still need you to sign in at {host}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to sign in to {library}} other {# still need you to sign in to {library}}}"
+msgstr "{n, plural, one {# still needs you to sign in to {library}} other {# still need you to sign in to {library}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to verify you're human on {host}} other {# still need you to verify you're human on {host}}}"
+msgstr "{n, plural, one {# still needs you to verify you're human on {host}} other {# still need you to verify you're human on {host}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs your permission for {host}} other {# still need your permission for {host}}}"
+msgstr "{n, plural, one {# still needs your permission for {host}} other {# still need your permission for {host}}}"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "owlit needs to read {site} to get the PDF with your access."

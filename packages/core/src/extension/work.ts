@@ -51,10 +51,14 @@ interface Queued {
 
 interface Paused {
   kind: ExtensionWait["kind"]
-  // For a permission, a check or a block: the publisher's site it was met at, when it isn't the site's own
-  // key. Through the proxy the fetch is sent on to the publisher's site, where the extension may not read
-  // or the user gets past the check: that one, not the proxy's
+  // Where the user acts, when it isn't the site's own key: through the library's proxy the fetch is sent
+  // on to a publisher, and a check, a block, a publisher's sign-in or a permission met there is that
+  // publisher's (misq.umn.edu, thieme-connect.de), not the proxy's. For a permission, the whole
+  // publisher's site, so one Allow covers its other hosts.
   host?: string
+  // The papers whose own try met it. Through the proxy every paper shares one queue, so a wait at one
+  // publisher holds papers bound for others: those are only behind it (held), not under it.
+  met: Set<string>
   // What the user's browser opens for it
   url: string
   // When the one try on owlit's own goes (PAUSED_RETRY_MS after the pause began); absent once it ran
@@ -133,16 +137,21 @@ export class ExtensionWork implements ExtensionFetcher {
   // the site doesn't wait for that or no extension is connected.
   open(kind: ExtensionWait["kind"], host: string): string | undefined {
     const site = this.waitingAt(host)
-    if (!site?.paused || site.paused.kind !== kind || !paused(site).length) return undefined
+    if (!site?.paused || site.paused.kind !== kind || !under(site).length) return undefined
     const connected = this.connectedPairings()
     const by = site.paused.by && connected.includes(site.paused.by) ? site.paused.by : connected[0]
     if (!by) return undefined
-    const page: OpenPage = kind === "permission" ? { kind, host, papers: paused(site).length } : { kind, host, url: site.paused.url }
+    const page: OpenPage = kind === "permission" ? { kind, host, papers: under(site).length } : { kind, host, url: site.paused.url }
     // Pressed twice before the extension collected it: opened once
-    const pending = (this.opens.get(by) ?? []).filter((o) => o.host !== host)
-    this.opens.set(by, [...pending, page])
-    this.kick()
+    this.openFor(by, page, (o) => "host" in o && o.host === host)
     return by
+  }
+
+  // A page for this pairing's extension to open, collected by its next GET /work, which it ends at once.
+  // replaces: the pages not collected yet that this one stands in for; a walk replaces any walk.
+  openFor(by: string, page: OpenPage, replaces: (pending: OpenPage) => boolean = (o) => o.kind === "walk" && page.kind === "walk") {
+    this.opens.set(by, [...(this.opens.get(by) ?? []).filter((o) => !replaces(o)), page])
+    this.kick()
   }
 
   // The pairing whose fetch met what this site waits for
@@ -195,8 +204,8 @@ export class ExtensionWork implements ExtensionFetcher {
     if (unpaused) site.paused = undefined
     else if (paused && !askedFor && !site.paused && !site.inFlight && site.queue.length === 1) {
       // Its one try goes at once: the user may have got through since owlit last ran
-      site.paused = { kind: paused.kind, url: (paused.kind === "sign-in" && paper.signIn) || paper.url, tryAt: Date.now() }
-    }
+      site.paused = { kind: paused.kind, url: (paused.kind === "sign-in" && paper.signIn) || paper.url, tryAt: Date.now(), met: new Set([paper.paperId]) }
+    } else if (paused && !askedFor && site.paused?.kind === paused.kind) site.paused.met.add(paper.paperId)
     this.host.papers(library, unpaused ? ids(site) : [paper.paperId])
     this.host.waits()
     this.kick()
@@ -208,9 +217,18 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const site of this.sites.values()) {
       const proxied = site.proxied ? { proxied: true } : {}
       if (site.inFlight?.item.paper.paperId === id) return { host: site.key, fetching: true, ...proxied }
-      if (site.queue.some((q) => q.paper.paperId === id)) return site.paused ? { host: site.key, waits: site.paused.kind, ...proxied } : { host: site.key, ...proxied }
+      if (!site.queue.some((q) => q.paper.paperId === id)) continue
+      if (!site.paused) return { host: site.key, ...proxied }
+      if (!isUnder(site, id)) return { host: site.key, behind: { kind: site.paused.kind, host: waitHost(site) }, ...proxied }
+      return { host: site.key, waits: site.paused.kind, ...(site.paused.host ? { waitsAt: site.paused.host } : {}), ...proxied }
     }
     return undefined
+  }
+
+  // How many papers the queue holds, the ones out for a try included
+  queued(library: Library): number {
+    if (library !== this.library) return 0
+    return [...this.sites.values()].reduce((n, site) => n + paused(site).length, 0)
   }
 
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
@@ -281,17 +299,16 @@ export class ExtensionWork implements ExtensionFetcher {
       site.offline = undefined
       site.queue.unshift(item)
       sortQueue(site)
-      const url = (pause === "sign-in" && item.paper.signIn) || page.url || item.paper.url
-      // The site named is the whole publisher's (siteOf), so one Allow covers its other hosts too
-      // (doi.apa.org, then psycnet.apa.org). A check or a block met where the proxy sent the fetch is the
-      // publisher's as well: the user gets past it on the publisher's pages (a login-url proxy such as
-      // tlink sends them to academic.oup.com itself), and the extension and resume match the wait's host.
-      // A sign-in stays the proxy's: its page is the proxy's sign-in.
-      const metAt = pause !== "sign-in" && page.host ? siteOf(page.host) : undefined
-      const host = metAt && metAt !== site.key && metAt !== siteOf(site.key) ? metAt : undefined
+      const host = pauseHost(site, pause, page.host)
+      // The library's sign-in page for the proxy's own sign-in; the publisher's page for one met there
+      const url = (pause === "sign-in" && !host && item.paper.signIn) || page.url || item.paper.url
       // Met again by the one try on owlit's own: no more until the user acts
       const tryAt = site.paused ? undefined : site.endedAt + PAUSED_RETRY_MS
-      site.paused = { kind: pause, url, by, ...(tryAt !== undefined ? { tryAt } : {}), ...(host ? { host } : {}) }
+      // The same wait met again adds its paper; another one (the next publisher through the proxy, after
+      // the user got past the first) starts its own count
+      const same = site.paused && site.paused.kind === pause && site.paused.host === host
+      const met = same ? site.paused!.met.add(item.paper.paperId) : new Set([item.paper.paperId])
+      site.paused = { kind: pause, url, by, met, ...(tryAt !== undefined ? { tryAt } : {}), ...(host ? { host } : {}) }
       this.host.papers(this.library, ids(site))
       this.host.waits()
     } else if (site.paused) {
@@ -340,7 +357,8 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const site of this.sites.values()) {
       if (!site.paused || (waitHost(site) !== host && siteOf(waitHost(site)) !== wanted)) continue
       if (site.paused.kind !== "check" && site.paused.kind !== "sign-in") continue
-      site.paused = { ...site.paused, kind: "blocked", url }
+      const at = pauseHost(site, "blocked", hostOf(url))
+      site.paused = { ...site.paused, kind: "blocked", url, ...(at ? { host: at } : {}) }
       any = true
       if (this.library) this.host.papers(this.library, ids(site))
     }
@@ -358,7 +376,16 @@ export class ExtensionWork implements ExtensionFetcher {
       const at = site.queue.findIndex((q) => q.paper.paperId === id)
       if (at < 0) continue
       site.queue.splice(at, 1)
-      if (site.paused) waitsChanged = true
+      if (site.paused) {
+        waitsChanged = true
+        site.paused.met.delete(id)
+        // The paper that met a publisher's wait through the proxy left: the ones held behind it go on
+        if (!under(site).length && site.queue.length) {
+          site.paused = undefined
+          this.host.papers(library, ids(site))
+          this.kick()
+        }
+      }
       if (!site.queue.length && !site.inFlight) {
         this.sites.delete(site.key)
         if (site.endedAt !== undefined) this.lastEnded.set(site.key, site.endedAt)
@@ -370,14 +397,15 @@ export class ExtensionWork implements ExtensionFetcher {
   // The sites paused for the user, as the window shows them; a paper out for a try still waits there
   waits(): ExtensionWait[] {
     return [...this.sites.values()].flatMap((site) => {
-      const waiting = paused(site)
-      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: waitHost(site), papers: waiting.length, url: site.paused.url, askedFor: waiting.some((q) => q.askedFor), proxied: site.proxied }] : []
+      const waiting = under(site)
+      // Asked for: the user asked for a paper under it, or for one held behind it
+      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: waitHost(site), papers: waiting.length, url: site.paused.url, askedFor: paused(site).some((q) => q.askedFor), proxied: atProxy(site) }] : []
     })
   }
 
   // The same for the extension, which watches those sites for the user getting through
   waitsForExtension(): WorkAnswer["waits"] {
-    return [...this.sites.values()].flatMap((site) => (site.paused && paused(site).length ? [{ kind: site.paused.kind, host: waitHost(site), papers: paused(site).length, proxied: site.proxied }] : []))
+    return [...this.sites.values()].flatMap((site) => (site.paused && under(site).length ? [{ kind: site.paused.kind, host: waitHost(site), papers: under(site).length, proxied: atProxy(site) }] : []))
   }
 
   dispose() {
@@ -450,6 +478,33 @@ const waitHost = (site: Site) => site.paused?.host ?? site.key
 
 // What waits at a site, the paper out for a try included
 const paused = (site: Site) => (site.inFlight ? [site.inFlight.item, ...site.queue] : site.queue)
+
+// The papers a paused site's wait is about. A wait that is the site's own (a publisher's, or the library
+// proxy's sign-in) is in the way of every paper there; one at a publisher behind the proxy only of those
+// that met it there, the rest being only behind it in the proxy's queue.
+const under = (site: Site) => (!site.paused?.host || !site.proxied ? paused(site) : paused(site).filter((q) => site.paused!.met.has(q.paper.paperId)))
+const isUnder = (site: Site, id: string) => under(site).some((q) => q.paper.paperId === id)
+
+// The wait is the library proxy's own (its sign-in), not one met at a publisher behind it
+const atProxy = (site: Site) => site.proxied && !site.paused?.host
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return undefined
+  }
+}
+
+// Where the user acts on a wait, when it isn't the site's own key: a permission names the whole
+// publisher's site (one Allow covers doi.apa.org and psycnet.apa.org); through the proxy a check, a block
+// or a sign-in met at a publisher names that page's host. The proxy's own sign-in page is the site's.
+function pauseHost(site: Site, kind: ExtensionWait["kind"], pageHost: string | undefined): string | undefined {
+  if (!pageHost) return undefined
+  if (kind === "permission") return siteOf(pageHost) !== site.key ? siteOf(pageHost) : undefined
+  if (!site.proxied || pageHost === site.key || siteOf(pageHost) === siteOf(site.key)) return undefined
+  return pageHost.replace(/^www\./, "")
+}
 
 // The papers the user asked for first, each group in the order it came
 const sortQueue = (site: Site) => {

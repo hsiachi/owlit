@@ -202,6 +202,8 @@ export class Library {
   private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
+  // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
+  private readonly batchStopped = new Set<string>()
   // Every paper's cite key by id, and the keys in use: what a new key is checked against (cite-key.ts)
   private citeKeyOf = new Map<string, string>()
   private keysTaken = new Set<string>()
@@ -692,12 +694,25 @@ export class Library {
         toQueue.push({ id, doi: record.ids.doi })
       }
     }
+    for (const id of queued) this.batchStopped.delete(id)
     void (async () => {
       for (const { id, doi } of toQueue) {
+        // Stopped while the papers before it were being looked up
+        if (this.batchStopped.delete(id)) continue
         if (!(await this.toExtension(id, doi, "waiting"))) return
       }
     })().catch((error) => console.error("[core] couldn't hand papers to the extension", error))
     return { queued, noDoi }
+  }
+
+  // Stop on a batch (fetchPdfs): its papers leave the extension's queue, and the ones not handed over yet
+  // never are. Their records stay as they were; one being fetched now still has its answer noted.
+  async stopFetchPdfs(ids: string[]) {
+    for (const id of ids) {
+      if (this.services.extension?.holding(this, id)) this.services.extension.drop(this, id)
+      else this.batchStopped.add(id)
+    }
+    await this.announce(ids)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -1700,10 +1715,12 @@ export class Library {
           if (!tried.length) tried.push({ by: "search", ended: "no-copy", at: Date.now() })
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
-          // extension, or to the user's browser): only the user asking looks again there.
+          // extension, or to the user's browser), nor once the extension couldn't open its page, which it
+          // would fail to open again the same way, nor once the user found none there: only the user
+          // asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
-          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there"
+          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
           if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal)
           await this.announce([id])
@@ -1933,6 +1950,13 @@ export class Library {
   // standing changed (pdfChanged), once it has moved on. false when the paper has its PDF already.
   noteExtensionTry(id: string, tried: PdfTry) {
     return this.acquisitions.noteTried(id, tried)
+  }
+
+  // The user looked at the paper's page in their browser and found no PDF there (Skip, walking through the
+  // manual downloads): their try, which stands as the paper's reason, so neither the Library nor owlit's
+  // daily look offers it again (nextLookAt)
+  async noteSkipped(id: string) {
+    if (await this.acquisitions.noteTried(id, { by: "person", ended: "skipped", at: Date.now() })) await this.announce([id])
   }
 
   // The window hears these papers again: their standing with the extension changed

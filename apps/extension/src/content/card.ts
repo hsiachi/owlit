@@ -1,7 +1,7 @@
 import type { CardAction, CardView } from "../lib/messages.ts"
 
 // The card the extension draws in the page, at its top right: what the button's click came to, in one
-// sentence and at most one action. Plain DOM in a closed shadow root, so the page's CSS can't reach it
+// sentence and at most one action, or where the walk through the manual downloads stands, with its ways on. Plain DOM in a closed shadow root, so the page's CSS can't reach it
 // and its own can't reach the page. The colours are the app's tokens (app/src/index.css), copied, since a
 // page loads none of owlit's CSS: the floating material (popover, a faint ring of the foreground, the
 // large shadow), light or dark as the browser is. The page's own fonts aren't owlit's, so it takes the
@@ -42,7 +42,10 @@ svg.mark { flex: none; width: 16px; height: 16px; margin-top: 2px; }
 button { font: inherit; color: inherit; cursor: default; margin: 0; }
 .action { flex: none; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border);
   background: transparent; font-size: 13px; font-weight: 500; }
-.action:hover, .close:hover { background: var(--accent); }
+.steps { display: flex; align-items: center; gap: 4px; margin: 6px 0 -4px -8px; }
+.step { height: 26px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; font-size: 13px; font-weight: 500; }
+.note { margin-left: auto; padding-left: 8px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.action:hover, .close:hover, .step:hover { background: var(--accent); }
 .close { flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-left: -2px; border: 0;
   border-radius: 6px; background: transparent; color: var(--muted-foreground); }
 button:focus-visible { outline: 2px solid var(--muted-foreground); outline-offset: 1px; }
@@ -104,18 +107,30 @@ export function drawCard(doc: Document, view: CardView | null, handlers: CardHan
     card.classList.add("leaving")
     fade = timers.set(remove, 150)
   }
-  if (view.action) {
-    const { label, do: action } = view.action
+  const button = (className: string, { label, do: action }: { label: string; do: CardAction }) => {
     const button = doc.createElement("button")
-    button.className = "action"
+    button.className = className
     button.type = "button"
     button.textContent = label
     button.addEventListener("click", () => {
       remove()
       handlers.act(action)
     })
-    card.append(button)
+    return button
   }
+  if (view.steps?.length || view.note) {
+    const steps = doc.createElement("div")
+    steps.className = "steps"
+    for (const step of view.steps ?? []) steps.append(button("step", step))
+    if (view.note) {
+      const note = doc.createElement("span")
+      note.className = "note"
+      note.textContent = view.note
+      steps.append(note)
+    }
+    words.append(steps)
+  }
+  if (view.action) card.append(button("action", view.action))
   const close = doc.createElement("button")
   close.className = "close"
   close.type = "button"

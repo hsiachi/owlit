@@ -40,7 +40,10 @@ export interface PaperPdf {
 // blocked: the site's firewall turned the browser away (by its network, mostly).
 // offline: nothing could be reached. no-permission: the browser extension may not read the site until
 // the user allows it there (an optional host permission, asked for from the extension's own button).
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
+// unreadable: the browser extension couldn't open the publisher's page (see WorkEnding). skipped: the
+// person looked at the publisher's page in their browser, walked through the manual downloads, and
+// found no PDF there (by "person").
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission" | "unreadable" | "skipped"
 
 // One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)
 // or the browser extension.
@@ -68,8 +71,12 @@ export interface PdfState {
   nextLook?: number
   // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
   // held while the site waits for the user (waits: a sign-in, a check, a way past its block, the
-  // extension being allowed there). Kept in memory only, with the extension's queue.
-  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; proxied?: boolean }
+  // extension being allowed there). waitsAt: the host that wait names (ExtensionWait.host) where it isn't
+  // the site's own: through the library's proxy, a wait met at a publisher is that publisher's. behind:
+  // the paper didn't meet its site's wait but is in line behind the paper that did (through the proxy,
+  // every paper shares one line), so it goes on once that wait is over. Kept in memory only, with the
+  // extension's queue.
+  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; waitsAt?: string; behind?: { kind: ExtensionWait["kind"]; host: string }; proxied?: boolean }
 }
 
 export interface Paper {
