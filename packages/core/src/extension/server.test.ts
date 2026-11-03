@@ -464,10 +464,15 @@ describe("the extension's port", () => {
       await call("extension.open", { wait: "pub:sage" })
       const [wait] = (await call("extension.get")).waits
       await core.dispose()
-      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20, work: { gapMs: 0, proxyGapMs: 0 } } })
-      cleanups.push(() => again.dispose())
-      const response = await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
-      expect(response).not.toHaveProperty("error")
+      // owlit started again on the same workspace, with no extension asking yet
+      let again!: Core
+      const restart = async () => {
+        again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20, work: { gapMs: 0, proxyGapMs: 0 } } })
+        const started = again
+        cleanups.push(() => started.dispose())
+        expect(await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })).not.toHaveProperty("error")
+      }
+      await restart()
       const ask = async (method: string, params?: unknown): Promise<any> => {
         const answer = await again.handle({ jsonrpc: "2.0", id: 2, method, params })
         if ("error" in answer) throw new Error(answer.error.message)
@@ -478,6 +483,11 @@ describe("the extension's port", () => {
       // Through, with no extension connected yet: nothing waits on the user, and the paper waits for the
       // browser, whatever its last try met
       expect(await ask("extension.resume", { wait: "pub:sage" })).toEqual({ resumed: true })
+      expect((await ask("extension.get")).waits).toEqual([])
+      expect(pdfWait((await ask("library.list")).papers.find((p: { id: string }) => p.id === id))).toBe("finding")
+      // and that holds after another restart: the record's check is older than the user getting through
+      await again.dispose()
+      await restart()
       expect((await ask("extension.get")).waits).toEqual([])
       expect(pdfWait((await ask("library.list")).papers.find((p: { id: string }) => p.id === id))).toBe("finding")
     })

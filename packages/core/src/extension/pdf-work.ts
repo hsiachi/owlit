@@ -50,6 +50,8 @@ interface File {
   version: 1
   followUps: FollowUp[]
   tally: Record<string, GateTally>
+  // When the user last got through at each gate (resume)
+  resumed?: Record<string, number>
 }
 
 export class PdfWorkNotes {
@@ -57,6 +59,7 @@ export class PdfWorkNotes {
   readonly loaded: Promise<void>
   private followUps: FollowUp[] = []
   private readonly tally = new Map<GateKey, GateTally>()
+  private readonly resumes = new Map<GateKey, number>()
   private readonly file: string | undefined
   private readonly delayMs: number
   private timer: ReturnType<typeof setTimeout> | undefined
@@ -134,6 +137,17 @@ export class PdfWorkNotes {
     this.save()
   }
 
+  // The user got through at this gate (they said so, or the extension saw it). A try that met a wait
+  // there earlier says nothing any more: restore puts no wait up from it.
+  resumed(gate: GateKey, at = Date.now()) {
+    this.resumes.set(gate, Math.max(at, this.resumes.get(gate) ?? 0))
+    this.save()
+  }
+
+  resumedAt(gate: GateKey): number | undefined {
+    return this.resumes.get(gate)
+  }
+
   // ---- The tally
 
   handed(gate: GateKey, at = Date.now()) {
@@ -198,7 +212,7 @@ export class PdfWorkNotes {
   private write() {
     const file = this.file
     if (!file) return Promise.resolve()
-    return this.writes.run(() => writeJsonAtomic(file, { version: 1, followUps: this.followUps, tally: Object.fromEntries(this.tally) } satisfies File))
+    return this.writes.run(() => writeJsonAtomic(file, { version: 1, followUps: this.followUps, tally: Object.fromEntries(this.tally), resumed: Object.fromEntries(this.resumes) } satisfies File))
   }
 
   private async load() {
@@ -215,6 +229,7 @@ export class PdfWorkNotes {
       if (!f.up && !(f.going && f.going.at > old)) continue
       this.followUps.push(f)
     }
+    for (const [gate, at] of Object.entries(kept.resumed ?? {})) this.resumes.set(gate as GateKey, Math.max(at, this.resumes.get(gate as GateKey) ?? 0))
     for (const [gate, t] of Object.entries(kept.tally ?? {})) {
       const now = this.tally.get(gate as GateKey)
       if (!now) this.tally.set(gate as GateKey, { ...t, recent: t.recent.filter((r) => r > old) })

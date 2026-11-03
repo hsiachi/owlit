@@ -242,6 +242,9 @@ export class ExtensionWork implements ExtensionFetcher {
     const made = new Set<Wait>()
     for (const k of known) {
       if (this.holds(k.paperId)) continue
+      // The user got through there after this try, with no extension to go on then: the paper waits for
+      // the browser, not for them
+      if (k.triedAt <= (notes.resumedAt(k.gate) ?? Number.NEGATIVE_INFINITY)) continue
       let wait = this.waitsAt.get(k.gate)
       if (!wait) {
         const at = atOf(k.gate, k.kind, k.host)
@@ -539,6 +542,7 @@ export class ExtensionWork implements ExtensionFetcher {
     const known = gone.some((w) => w.known.size)
     gone.forEach((w, i) => {
       this.waitsAt.delete(w.gate)
+      this.notes.resumed(w.gate)
       this.notes.of(w)
       this.notes.down(w.gate, w.since, under[i])
     })
