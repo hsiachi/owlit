@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto"
 import { statSync } from "node:fs"
-import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, readFile, rename, stat, utimes, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 // Write through a temp file and rename, so a crash never leaves half a file behind. parents: false
@@ -26,6 +26,22 @@ export async function readJson<T>(file: string): Promise<T | undefined> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined
     throw error
   }
+}
+
+// Keeps a file a running owlit leaves in $TMPDIR (its socket, pointer, lock) for as long as it runs: macOS
+// deletes what sits there unread for three days, and an owlit left open longer lost its pointer, so
+// owlit-mcp and the CLI found no owlit. The file is touched every hour and, when it went anyway, written
+// again from contents (exclusively, never over a file someone else wrote). Returns a stop.
+export function keepInTemp(file: string, contents?: () => string, { everyMs = 60 * 60_000 } = {}) {
+  const timer = setInterval(() => {
+    const now = new Date()
+    utimes(file, now, now).catch(async (error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT" || !contents) return
+      await writeFile(file, contents(), { mode: 0o600, flag: "wx" }).catch(() => {})
+    })
+  }, everyMs)
+  timer.unref()
+  return () => clearInterval(timer)
 }
 
 // The temp files writeFileAtomic leaves for a moment beside the file it writes

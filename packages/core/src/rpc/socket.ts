@@ -5,6 +5,7 @@ import { chmod, rm, writeFile } from "node:fs/promises"
 import net from "node:net"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { keepInTemp } from "../fs-util.ts"
 import type { Caller } from "./router.ts"
 
 // The open workspace's JSON-RPC for programs other than the window (owlit-mcp, the CLI): a Unix socket
@@ -75,6 +76,7 @@ export class SocketServer {
   private server: net.Server
   private connections = new Set<Connection>()
   private unsubscribe: () => void
+  private stopKeeping: Array<() => void> = []
   // Session secrets by value, until the session they were made for ends (revoke) or the socket closes
   private readonly sessions: Map<string, Grant>
 
@@ -174,13 +176,16 @@ export class SocketServer {
     })
     await chmod(paths.socket, 0o600)
     const pointer: SocketPointer = { version: 1, socket: paths.socket, token, pid: process.pid, workspace }
-    await writeFile(paths.pointer, JSON.stringify(pointer) + "\n", { mode: 0o600 })
+    const pointerText = JSON.stringify(pointer) + "\n"
+    await writeFile(paths.pointer, pointerText, { mode: 0o600 })
     const started = new SocketServer(workspace, paths, server, unsubscribe, sessions)
     started.connections = connections
+    started.stopKeeping = [keepInTemp(paths.socket), keepInTemp(paths.pointer, () => pointerText)]
     return started
   }
 
   async close() {
+    for (const stop of this.stopKeeping) stop()
     this.unsubscribe()
     for (const connection of this.connections) connection.socket.destroy()
     await new Promise<void>((resolve) => this.server.close(() => resolve()))
