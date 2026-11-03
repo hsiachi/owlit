@@ -178,6 +178,8 @@ export class ExtensionWork implements ExtensionFetcher {
   private polledAt = Number.NEGATIVE_INFINITY
   // When each pairing last asked for work
   private readonly polled = new Map<string, number>()
+  // The waits each pairing's extension was last answered with (waitsSign); none answered yet is none
+  private readonly heard = new Map<string, string>()
   // Pages to open, per pairing, until its next GET /work collects them
   private readonly opens = new Map<string, OpenPage[]>()
   private readonly waiters = new Set<() => void>()
@@ -244,7 +246,7 @@ export class ExtensionWork implements ExtensionFetcher {
     follow.opened = { at: Date.now(), ...(browser ? { browser } : {}) }
     follow.retried = undefined
     this.notes.changed()
-    this.host.waits()
+    this.waitsChanged()
   }
 
   // A page for this pairing's extension to open, collected by its next GET /work, which it ends at once.
@@ -322,7 +324,7 @@ export class ExtensionWork implements ExtensionFetcher {
       if (where) this.pending.set(p.paperId, { ...where, tries: p.tries })
     }
     this.keepQueue()
-    this.host.waits()
+    this.waitsChanged()
     if (this.pending.size) this.host.papers(library, [...this.pending.keys()])
   }
 
@@ -381,7 +383,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (over) over.tryAt = Date.now()
     // Through the proxy the papers behind it in line say when their turn comes, which this one moved
     this.host.papers(library, lane.proxied ? all(lane).map((q) => q.paper.paperId) : [paper.paperId])
-    this.host.waits()
+    this.waitsChanged()
     this.keepQueue()
     this.kick()
   }
@@ -414,7 +416,7 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   runsChanged(library: Library) {
-    if (library === this.library) this.host.waits()
+    if (library === this.library) this.waitsChanged()
   }
 
   inQueue(library: Library, id: string): boolean {
@@ -447,16 +449,22 @@ export class ExtensionWork implements ExtensionFetcher {
     this.connectedTo = library
     if (arrived && library) this.host.connected(library)
     // The window says the browser is back (ExtensionView.connected)
-    if (wasAway) this.host.waits()
+    if (wasAway) this.waitsChanged()
     this.watchAway()
     const until = Date.now() + holdMs
     for (;;) {
       const due = this.due(by)
       const left = until - Date.now()
       // A page to open ends the hold too: the user is waiting for it; and so does a line going on that
-      // changed, which the popup counts
-      if (due.length || left <= 0 || closed.aborted || (by && this.opens.get(by)?.length) || (by && this.goingNews.has(by))) {
-        if (by) this.goingNews.delete(by)
+      // changed, which the popup counts. So do waits other than the extension last heard (one came up,
+      // changed kind, or went): it watches tabs for the user getting through by them, and a page opened
+      // at a new wait's site in the half minute before the next answer would be looked at for nothing.
+      const sign = by ? this.waitsSign() : ""
+      if (due.length || left <= 0 || closed.aborted || (by && this.opens.get(by)?.length) || (by && this.goingNews.has(by)) || (by && sign !== (this.heard.get(by) ?? NO_WAITS))) {
+        if (by) {
+          this.goingNews.delete(by)
+          this.heard.set(by, sign)
+        }
         this.polledAt = Date.now()
         if (by) this.polled.set(by, this.polledAt)
         ask.open--
@@ -562,7 +570,7 @@ export class ExtensionWork implements ExtensionFetcher {
       this.notes.changed()
       if (was && was !== before) was.tryAt = undefined
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...(was ? this.papersUnder(was) : [])])])
-      this.host.waits()
+      this.waitsChanged()
     } else {
       lane.offline = undefined
       lane.gatesOffline.delete(item.gate)
@@ -573,7 +581,7 @@ export class ExtensionWork implements ExtensionFetcher {
       const through = was && (ended !== undefined || !this.count(was)) ? was : undefined
       const freed = through ? this.papersUnder(through) : []
       if (through) this.lift(through)
-      if (was) this.host.waits()
+      if (was) this.waitsChanged()
       this.leaveIfEmpty(lane)
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }
@@ -611,7 +619,7 @@ export class ExtensionWork implements ExtensionFetcher {
   // The line of papers that went on after the user got through at this wait, put away
   dismissGoing(id: WaitId): boolean {
     const had = this.notes.dismissGoing(id)
-    if (had) this.host.waits()
+    if (had) this.waitsChanged()
     return had
   }
 
@@ -697,7 +705,7 @@ export class ExtensionWork implements ExtensionFetcher {
       // Papers known only from their records go to the queues now
       if (known) this.host.connected(this.library)
     }
-    this.host.waits()
+    this.waitsChanged()
     this.kick()
     return true
   }
@@ -726,7 +734,7 @@ export class ExtensionWork implements ExtensionFetcher {
       any = true
       if (this.library) this.host.papers(this.library, this.papersUnder(wait))
     }
-    if (any) this.host.waits()
+    if (any) this.waitsChanged()
     return any
   }
 
@@ -750,7 +758,7 @@ export class ExtensionWork implements ExtensionFetcher {
     this.keepQueue()
     if (!waitsChanged) return
     for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.lift(wait)
-    this.host.waits()
+    this.waitsChanged()
   }
 
   // The waits, as the window shows them; a paper out for a try still waits there. Without going, which
@@ -781,7 +789,7 @@ export class ExtensionWork implements ExtensionFetcher {
   private watchAway() {
     clearTimeout(this.awayTimer)
     this.awayTimer = setTimeout(() => {
-      if (!this.connected()) this.host.waits()
+      if (!this.connected()) this.waitsChanged()
     }, CONNECTED_MS + 1)
     this.awayTimer.unref?.()
   }
@@ -800,7 +808,7 @@ export class ExtensionWork implements ExtensionFetcher {
     const flushed = this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
     this.notes = new PdfWorkNotes(library?.dataDir, { after: flushed })
     this.warned.clear()
-    this.host.waits()
+    this.waitsChanged()
   }
 
   // A wait goes without the user getting through there (a paper of it got through by itself, the user
@@ -1025,10 +1033,26 @@ export class ExtensionWork implements ExtensionFetcher {
     return Math.max(0, next)
   }
 
+  // The window hears the waits (and the runs counted with them) again, and a held GET /work looks again
+  // whether the extension's copy of the waits is still what it was last answered (take)
+  private waitsChanged() {
+    this.host.waits()
+    this.kick()
+  }
+
+  // What the extension acts on in the waits it is answered with: which are up, for what, and where it
+  // watches for the user getting through. Not their counts, which change with every paper.
+  private waitsSign(): string {
+    return JSON.stringify(this.waitsForExtension().map((w) => [w.id, w.kind, w.watch]))
+  }
+
   private kick() {
     for (const waiter of [...this.waiters]) waiter()
   }
 }
+
+// waitsSign with no wait up
+const NO_WAITS = "[]"
 
 // What one try in flight, or out of it, is
 const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue] : lane.queue)

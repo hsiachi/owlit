@@ -302,6 +302,31 @@ describe("the extension's queue", () => {
     expect(ended).toBe(false)
   })
 
+  it("ends a held ask at once when the waits change, so the extension watches for a new one within a second", async () => {
+    const { work, never } = setup()
+    for (const id of ["a", "b"]) work.fetch(library, paper(id, "tandfonline.com"), false)
+    const [a] = await work.take(library, 0, never, "p1")
+    // Held: b waits for the gap after a
+    let ended = false
+    const held = work.take(library, 25_000, never, "p1").then(() => (ended = true))
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(ended).toBe(false)
+    // a met a check: a wait came up
+    work.settle(a.id, "check")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(ended).toBe(true)
+    await held
+    // Answered with it, the next ask is held again; the check turning into a block ends it at once
+    ended = false
+    const next = work.take(library, 25_000, never, "p1").then(() => (ended = true))
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(ended).toBe(false)
+    work.blocked("www.tandfonline.com", "https://www.tandfonline.com/blocked")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(ended).toBe(true)
+    await next
+  })
+
   it("tells the window when the extension went, and when it is back", async () => {
     const { work, take, waitsChanged } = setup()
     await take()

@@ -396,6 +396,15 @@ describe("a page whose load never ends", () => {
     expect(looks).toBeGreaterThanOrEqual(4)
   })
 
+  it("in the user's own tab opened before the extension heard of the wait, goes on once it hears", async () => {
+    const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 1, proxied: false, allow: ["science.org"] }
+    const b = await boot({ "www.science.org": () => stalled(article("Science", "https://www.science.org/doi/pdf/1")) })
+    // Read before any wait was known there; the page never finishes loading
+    await b.openTab("https://www.science.org/doi/1")
+    b.owlit.give({ waits: [science] })
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toEqual([{ route: "/work/resume", method: "POST", json: { wait: "pub:science" } }]), PATIENCE)
+  })
+
   it("in the user's own tab at a waiting site, goes on at the wait once the page is read", async () => {
     const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 1, proxied: false, allow: ["science.org"] }
     const b = await boot({ "www.science.org": () => stalled(article("Science", "https://www.science.org/doi/pdf/1")) })
@@ -479,6 +488,25 @@ describe("waits", () => {
     await vi.waitFor(() => expect(b.kept.session.waits).toEqual([science]), PATIENCE)
     await b.openTab("https://www.science.org/doi/1")
     await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toEqual([{ route: "/work/resume", method: "POST", json: { wait: "pub:science" } }]), PATIENCE)
+  })
+
+  it("tells owlit once that the user got through, however many looks at the page see it", async () => {
+    const b = await boot(sites)
+    b.owlit.give({ waits: [science] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([science]), PATIENCE)
+    // owlit is slow to answer the first: the page's content script reports it meanwhile
+    let answer = () => {}
+    b.owlit.resumeHeld = new Promise<void>((resolve) => (answer = resolve))
+    const tab = await b.openTab("https://www.science.org/doi/1")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toHaveLength(1), PATIENCE)
+    const html = article("Science", "https://www.science.org/doi/pdf/1").html
+    const reported = new Promise((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit({ kind: "page", url: tab.url, html }, { id: "fake", tab: { id: tab.id } }, resolve))
+    // Its report has been looked at: it asked owlit for the page's paper
+    await vi.waitFor(() => expect(b.owlit.asked.some((a) => a.route.startsWith("/papers"))).toBe(true), PATIENCE)
+    answer()
+    await reported
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([]), PATIENCE)
+    expect(b.owlit.posted("/work/resume")).toHaveLength(1)
   })
 
   it("still knows its waits after the worker restarts", async () => {

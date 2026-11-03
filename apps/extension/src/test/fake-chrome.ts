@@ -90,6 +90,8 @@ export class FakeOwlit {
   private holding: ((answer: unknown) => void) | null = null
   private closed = false
   private readonly legacy: boolean
+  // While set, POST /work/resume is heard and answered only once it settles
+  resumeHeld: Promise<unknown> | undefined
 
   constructor({ legacy = false } = {}) {
     this.legacy = legacy
@@ -130,7 +132,10 @@ export class FakeOwlit {
       if (refused) return new Response(JSON.stringify({ reason: "bad-request", message: "owlit couldn't read what the extension sent." }), { status: 400, headers: { "content-type": "application/json" } })
     }
     if (route === "/status") return json({ version: "0", workspace: { name: "w" }, connectedAt: 0, owlit: { id: "owlit-1", name: "owlit" } })
-    if (route.startsWith("/work/resume")) return json({ resumed: true })
+    if (route.startsWith("/work/resume")) {
+      await this.resumeHeld
+      return json({ resumed: true })
+    }
     if (route.startsWith("/work/blocked")) return json({ blocked: true })
     if (route.startsWith("/work/")) return json(type.includes("pdf") ? { paper: { id: "p", title: "", hasPdf: true } } : { noted: true })
     if (route.startsWith("/papers") && method === "PUT") return json({ paper: { id: route.split("/")[2], title: "", hasPdf: true } })

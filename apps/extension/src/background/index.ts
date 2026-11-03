@@ -602,10 +602,14 @@ function keepAsking() {
         const { token } = await local()
         if (!token) return
         const answer = await ask<WorkAnswer>("/work", { token })
+        const before = await waits()
+        const now = answer.waits.map(asWait)
         // An extension call between holds also keeps Chrome from taking the worker for idle. Firefox may
         // still unload its event page between holds; the WORK alarm loads it and asks again
-        await ext.storage.session.set({ [waitsKey]: answer.waits.map(asWait), [goingKey]: answer.going ?? [] })
+        await ext.storage.session.set({ [waitsKey]: now, [goingKey]: answer.going ?? [] })
         waitsHeard = true
+        forgetResumed(now)
+        if (signOf(now) !== signOf(before)) void lookAgainAtTabs(now).catch((error) => console.error("[owlit] couldn't look at the open tabs for the waits", error))
         if (allowedEarly) {
           allowedEarly = false
           void resumePermitted()
@@ -721,12 +725,56 @@ async function inTab(host: string): Promise<{ fetch: typeof fetch; url: string }
   return undefined
 }
 
+// A tab at a site whose wait the extension heard of only after the tab's page was read (owlit's answer
+// came a moment later): it is looked at once for that wait, as a page loading there now would be
+// (pageReady), since a page that never finishes loading is never looked at again by itself. Once per
+// document per wait and kind: a wait that turns from a check into a block is looked for again.
+const relooked = new Set<string>()
+const signOf = (all: Waits) => JSON.stringify(all.map((w) => [w.id ?? w.host, w.kind, watchOf(w)]))
+
+async function lookAgainAtTabs(all: Waits) {
+  for (const tab of await ext.tabs.query({})) {
+    if (tab.id === undefined || !tab.url || !/^https?:/.test(tab.url) || workTabIds.has(tab.id)) continue
+    const wait = waitAt(all, new URL(tab.url).hostname)
+    if (!wait) continue
+    const key = `${tab.id} ${(await htmlOf(tab.id))?.origin ?? tab.url} ${wait.id ?? wait.host} ${wait.kind}`
+    if (relooked.has(key)) continue
+    relooked.add(key)
+    if ((await pdfTabOf(tab.id)) === tab.url) {
+      // A PDF the tab loaded there: taken first, as when it loads (onUpdated)
+      await pdfTab(tab.id, tab.url, tab)
+      await resume(wait, tab.id).catch(() => undefined)
+    } else void watchForThrough(tab.id, tab.url)
+  }
+}
+
+// What the user got through at was told owlit once: per wait, kind and document (a tab's page, or none
+// for a site allowed). A page is seen past its wait by more than one look at once (its own load, its
+// content script's report, the popup), and each would tell owlit again. Forgotten once the wait is gone
+// from owlit's answer, so the same wait coming back later is told again.
+const resumed = new Set<string>()
+const resumedKey = (wait: Waits[number], doc: string) => `${wait.id ?? wait.host} ${wait.kind} ${doc}`
+function forgetResumed(all: Waits) {
+  const up = new Set(all.map((w) => `${w.id ?? w.host} `))
+  for (const key of resumed) if (![...up].some((id) => key.startsWith(id))) resumed.delete(key)
+}
+
 // The user got through at this wait: owlit goes on there, and the card in the tab says so
 async function resume(wait: Waits[number], tabId?: number) {
   const { token } = await local()
   if (!token) return
+  const doc = tabId === undefined ? "" : String((await htmlOf(tabId))?.origin ?? (await ext.tabs.get(tabId).catch(() => undefined))?.url ?? tabId)
+  const key = resumedKey(wait, `${tabId ?? ""} ${doc}`)
+  if (resumed.has(key)) return
+  resumed.add(key)
   // An owlit whose waits carry no id is told the host, which it matches through the waits' watch
-  await ask("/work/resume", { token, json: (wait.id ? { wait: wait.id } : { host: wait.host }) satisfies WorkResume })
+  try {
+    await ask("/work/resume", { token, json: (wait.id ? { wait: wait.id } : { host: wait.host }) satisfies WorkResume })
+  } catch (error) {
+    // Not heard: told again at the next look
+    resumed.delete(key)
+    throw error
+  }
   await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => !sameWait(w, wait)) })
   if (tabId !== undefined) await drawCard(tabId, cardOf({ kind: "through", host: wait.at, papers: wait.papers }))
 }
