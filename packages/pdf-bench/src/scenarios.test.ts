@@ -343,7 +343,7 @@ describe("owlit and the machine", () => {
     // and that fetch finds no copy
     screen = await b.sleep(6 * 60_000)
     expect(b.fetched()).toEqual([id, id])
-    expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "No PDF found" })
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Needs you to download it" })
     web.release()
     screen = await b.step("the first answer comes")
     expect(screen.papers[id].hasPdf).toBe(true)
