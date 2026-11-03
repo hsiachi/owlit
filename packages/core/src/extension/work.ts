@@ -27,6 +27,12 @@ export const PROXY_GAP_MS = 30_000
 // asked for this long is away, and so are its fetches still out (the browser closed, the machine slept,
 // the service worker was stopped mid-fetch).
 export const CONNECTED_MS = 60_000
+// A fetch out this long goes back to its queue even while the extension it went to keeps asking. The
+// reconnect rule (reissue) covers every way a fetch is lost that is known; this only keeps a site's
+// queue from stopping for ever on one that isn't (an answer the extension never sends). Far beyond the
+// extension's slowest answer: three gets of FETCH_MS (60 s) in apps/extension/src/lib/work.ts, then the
+// upload.
+export const STALLED_MS = 30 * 60_000
 // After a fetch at a site reached nothing (the network dropped, the proxy's minute-limit page), the site
 // waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
 // was learnt about it, and a limit that counts every request isn't asked again within the minute
@@ -80,7 +86,7 @@ interface Site {
   proxied: boolean
   queue: Queued[]
   // by: the pairing it was handed to
-  inFlight?: { id: string; item: Queued; by?: string }
+  inFlight?: { id: string; item: Queued; at: number; by?: string }
   // When its last fetch ended, for the gap before the next
   endedAt?: number
   paused?: Paused
@@ -455,7 +461,7 @@ export class ExtensionWork implements ExtensionFetcher {
       if (now < this.dueAt(site)) continue
       const item = site.queue.shift()!
       const id = workItemId(item.paper.paperId, item.tries + 1)
-      site.inFlight = { id, item, by }
+      site.inFlight = { id, item, at: now, by }
       const { paperId, url, pdfUrl, host, proxied } = item.paper
       out.push({ id, paperId, url, ...(pdfUrl ? { pdfUrl } : {}), host, proxied })
     }
@@ -471,13 +477,14 @@ export class ExtensionWork implements ExtensionFetcher {
   // attempt: nothing was noted for them, and the late answer of the first hand-out still counts. An
   // extension is away when it hasn't asked for work for CONNECTED_MS, or closed its last ask while it was
   // held, and none of its asks is being held now; while one is, its fetches are going on beside it, so a
-  // proxy never has two requests of the user's out at once.
+  // proxy never has two requests of the user's out at once. A fetch out STALLED_MS goes back whatever.
   private reissue() {
     const now = Date.now()
     for (const site of this.sites.values()) {
       if (!site.inFlight) continue
       const ask = this.asks.get(site.inFlight.by ?? "")
-      if (ask && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))) continue
+      const going = ask && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
+      if (going && now - site.inFlight.at < STALLED_MS) continue
       site.queue.unshift(site.inFlight.item)
       site.inFlight = undefined
       sortQueue(site)

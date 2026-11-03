@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
 
 const library = {} as Library
 const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {}): ExtensionPaper => ({ paperId, url: `https://${host}/doi/${paperId}`, host, proxied: false, ...extra })
@@ -382,15 +382,22 @@ describe("the extension's queue", () => {
     expect(parseWorkItemId("a1#0")).toBeUndefined()
   })
 
-  it("never asks again for a fetch while the extension it went to keeps asking, however long it takes", async () => {
+  it("doesn't ask again for a fetch while the extension it went to keeps asking, short of a stalled one", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)
     const [out] = await take()
-    for (let i = 0; i < 20; i++) {
+    const asks = STALLED_MS / (CONNECTED_MS / 2)
+    for (let i = 1; i < asks; i++) {
       vi.advanceTimersByTime(CONNECTED_MS / 2)
       expect(await take()).toEqual([])
     }
     expect(work.current(library, out.id)).toBeDefined()
+    // Out for STALLED_MS with the extension asking all along: an answer that never comes
+    vi.advanceTimersByTime(CONNECTED_MS / 2)
+    expect(await take()).toEqual([])
+    expect(work.current(library, out.id)).toBeUndefined()
+    vi.advanceTimersByTime(GAP_MS)
+    expect(await take()).toMatchObject([{ id: out.id }])
   })
 
   it("asks again under the same attempt once the extension comes back from being away", async () => {
