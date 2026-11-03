@@ -398,7 +398,7 @@ describe("the extension's port", () => {
       expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [], endings: [...WORK_ENDINGS] })
       // The line's Sign in: the extension that met it opens the page, in its own browser
       expect(await call("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
-      expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" }])
+      expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin", wait: "pub:sage" }])
       // and owlit brings that browser to the front, which the extension can't do from inside it
       expect(shown).toEqual([{ name: "Chrome" }])
       // Handed over once
@@ -728,6 +728,19 @@ describe("the extension's port", () => {
       expect((await call("extension.get")).waits).toMatchObject([{ host: "journals.sagepub.com", papers: 1 }])
       await call("library.remove", { ids: [other.id] })
       expect((await call("extension.get")).waits).toEqual([])
+    })
+
+    it("says whether it still waits for a work item: not once its paper has its PDF, nor for another attempt", async () => {
+      const { call, request, token, root } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const wanted = async (of: string) => (await request(`/work/${encodeURIComponent(of)}`, { token })).body
+      expect(await wanted(item.id)).toEqual({ wanted: true })
+      expect(await wanted(`${id}#7`)).toEqual({ wanted: false })
+      // The user opened its PDF in a tab, and the extension took it there
+      writeFileSync(path.join(root, "found.pdf"), pdfOf([`https://doi.org/${SAGE}`, title]))
+      await call("library.attachPdf", { id, path: path.join(root, "found.pdf") })
+      expect(await wanted(item.id)).toEqual({ wanted: false })
     })
 
     it("keeps the PDF the user dropped while the extension's was on its way", async () => {

@@ -183,7 +183,7 @@ export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetc
       if (got) return got
     }
     const theirs = await usersTab(item, deps)
-    if (theirs) return fetchFor(inTabItem(item, theirs.url), { ...deps, fetch: theirs.fetch, inTab: undefined })
+    if (theirs) return fetchFor(inTabItem(item, theirs.url), { ...deps, fetch: whileWanted(theirs.fetch, deps), inTab: undefined })
   }
   // Without a tab of its own to fetch in, a tab-only publisher's paper is fetched as any other: through
   // the library's proxy its first answer may be the proxy's sign-in, and either way the ending names
@@ -235,6 +235,8 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
     // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
     // again is the site's word that this is enough for now
     await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
+    // The paper may have its PDF by now (the user opened its page and the extension took it there)
+    if (!(await stillWanted(deps))) return notWanted(item)
     const before = (await documentOf(tab.tabId))?.origin
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
     await loaded(tab.tabId, before)
@@ -269,7 +271,7 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
   // proxy's, and on a society's host of a publisher (rss.onlinelibrary.wiley.com) owlit's PDF address is
   // the publisher's main host, another origin than the tab's
   const here = inTabItem(item, passed.through.url, passed.through)
-  const got = await fetchFor(here, { ...deps, fetch: tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), inTab: undefined })
+  const got = await fetchFor(here, { ...deps, fetch: whileWanted(tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), deps), inTab: undefined })
   // The site asks again, or turns the browser away: its own word that this is enough for now
   if ("ended" in got && (got.ended === "check" || got.ended === "blocked" || got.ended === "sign-in")) {
     await letGo(gate, tab)
@@ -389,10 +391,31 @@ export async function closeIdleTabs() {
   }
 }
 
-// A tab of the extension's at this host's site, for a wait the user opens there (index.ts openPage): the
-// gate's tab already at its check, brought to the front rather than a second one opened. It is the
-// user's from then on.
-export async function showWorkTab(host: string): Promise<chrome.tabs.Tab | undefined> {
+// owlit still waits for the item's answer; asked again before every fetch in a tab (FetchDeps.wanted)
+const stillWanted = async (deps: FetchDeps) => !deps.wanted || (await deps.wanted().catch(() => true))
+// What a fetch owlit no longer waits for says: nothing was fetched, and owlit, which has the paper's PDF
+// already or handed the paper out again, settles it with its answer to this (has-pdf) or lets it go
+const notWanted = (item: WorkItem): Fetched => ({ ended: "offline", host: hostOf(item.url) })
+// A tab's fetch for an item, made only while owlit still waits for it: one it no longer does fails as
+// unanswered, before the site is asked
+function whileWanted(fetch: typeof globalThis.fetch, deps: FetchDeps): typeof globalThis.fetch {
+  return (async (input: string | URL | Request, init?: RequestInit) => {
+    if (!(await stillWanted(deps))) throw new TypeError("owlit no longer waits for this paper")
+    return fetch(input, init)
+  }) as typeof globalThis.fetch
+}
+
+// A tab of the extension's at this check, for a wait the user opens there (index.ts openPage): the gate's
+// tab, brought to the front rather than a second one opened. It is the user's from then on. Found by the
+// gate the ladder keeps it for (wait: the wait's id, its gate), whatever the tab shows yet: a tab just
+// created has no address the browser has committed to; else, for an owlit that names no wait, a tab of
+// the extension's at the host's site.
+export async function showWorkTab(host: string, wait?: GateKey): Promise<chrome.tabs.Tab | undefined> {
+  const kept = wait && (await tabsKept())[wait]
+  if (kept && (await ext.tabs.get(kept.tabId).catch(() => undefined))) {
+    await markShown(kept.tabId)
+    return ext.tabs.update(kept.tabId, { active: true }).catch(() => undefined)
+  }
   const site = siteOf(host)
   const ids = [...new Set([...Object.values(await tabsKept()).map((t) => t!.tabId), ...(await shownTabs())])]
   for (const tabId of ids) {

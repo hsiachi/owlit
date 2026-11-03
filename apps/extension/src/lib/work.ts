@@ -32,6 +32,9 @@ export interface FetchDeps {
   // fetch itself hides an opaque redirect's target. undefined when no redirect of it was seen, or in a
   // browser whose webRequest doesn't report the extension's own requests.
   redirectedTo?: (url: string) => string | undefined
+  // owlit still waits for this item's answer (GET /work/:id): asked before each fetch made for it in a
+  // tab, which may be minutes after it was handed out. undefined: always.
+  wanted?: () => Promise<boolean>
 }
 
 export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnded

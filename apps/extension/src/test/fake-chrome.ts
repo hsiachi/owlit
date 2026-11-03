@@ -92,6 +92,8 @@ export class FakeOwlit {
   private readonly legacy: boolean
   // While set, POST /work/resume is heard and answered only once it settles
   resumeHeld: Promise<unknown> | undefined
+  // Work items owlit no longer waits for (GET /work/:id)
+  readonly unwanted = new Set<string>()
 
   constructor({ legacy = false } = {}) {
     this.legacy = legacy
@@ -132,6 +134,7 @@ export class FakeOwlit {
       if (refused) return new Response(JSON.stringify({ reason: "bad-request", message: "owlit couldn't read what the extension sent." }), { status: 400, headers: { "content-type": "application/json" } })
     }
     if (route === "/status") return json({ version: "0", workspace: { name: "w" }, connectedAt: 0, owlit: { id: "owlit-1", name: "owlit" } })
+    if (route.startsWith("/work/") && method === "GET") return json({ wanted: !this.unwanted.has(decodeURIComponent(route.slice("/work/".length))) })
     if (route.startsWith("/work/resume")) {
       await this.resumeHeld
       return json({ resumed: true })

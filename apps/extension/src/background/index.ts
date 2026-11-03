@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WalkAnswer, WalkNext, WalkStep, WorkAnswer, WorkBlocked, WorkResume, WorkWait } from "@owlit/protocol"
+import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WalkAnswer, WalkNext, WalkStep, WorkAnswer, WorkBlocked, WorkItem, WorkResume, WorkWait, WorkWanted } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
@@ -616,8 +616,11 @@ function keepAsking() {
         }
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
         for (const item of answer.work) {
-          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo })
-            .then((result) => report(item, result, { ask, token, endings: answer.endings }))
+          const wanted = () => stillWanted(item, token)
+          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo, wanted })
+            // A PDF owlit no longer waits for (the paper got one meanwhile) isn't handed over: a word is,
+            // which owlit settles the item by
+            .then(async (result) => report(item, "pdf" in result && !(await wanted()) ? { ended: "offline", host: result.host } : result, { ask, token, endings: answer.endings }))
             .catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
@@ -631,13 +634,23 @@ function keepAsking() {
   })()
 }
 
+// owlit still waits for this item's answer (GET /work/:id). An owlit that knows no such route (404), or
+// can't be asked, is taken to: the fetch goes on as it would have.
+async function stillWanted(item: WorkItem, token: string): Promise<boolean> {
+  try {
+    return (await ask<WorkWanted>(`/work/${encodeURIComponent(item.id)}`, { token })).wanted
+  } catch {
+    return true
+  }
+}
+
 // A page the user asked owlit for, from a waiting line in owlit's window: opened here, in the browser with
 // their access, and brought to the front
 async function openPage(page: OpenPage) {
   if (page.kind === "permission") return openAllowPage(page.host, { papers: String(page.papers), ...allowQuery((await waits()).find((w) => w.kind === "permission" && w.at === page.host)) })
   // The extension's own tab already at this site's check (a Get PDFs' tab brought to the front, or still
   // hidden): that one, in front, rather than a second
-  const at = page.kind === "walk" ? undefined : await showWorkTab(page.host)
+  const at = page.kind === "walk" ? undefined : await showWorkTab(page.host, page.wait)
   const tab = at ?? (await ext.tabs.create({ url: page.kind === "walk" ? page.step.url : page.url, active: true }))
   if (page.kind === "walk" && tab.id !== undefined) await ext.storage.session.set({ [walkKey]: { tabId: tab.id, paperId: page.step.paperId } satisfies Walk })
   if (tab.windowId !== undefined) await ext.windows.update(tab.windowId, { focused: true }).catch(() => undefined)

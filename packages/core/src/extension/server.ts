@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, WORK_ENDINGS, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type GateKey, type GoingOn, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, WORK_ENDINGS, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type GateKey, type GoingOn, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding, type WorkWanted } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -473,6 +473,17 @@ export class ExtensionServer {
         handle: async ({ closed, pairing }) => {
           const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
           return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going(), endings: [...WORK_ENDINGS] } satisfies WorkAnswer }
+        },
+      },
+      {
+        method: "GET",
+        path: (parts) => is("work", null)(parts) && parts[1] !== "resume" && parts[1] !== "blocked",
+        handle: async ({ parts }) => {
+          const id = parts[1]
+          const asked = parseWorkItemId(id)
+          const library = this.library()
+          const paper = asked && this.work.current(library, id) ? await library.get(asked.paperId) : undefined
+          return { body: { wanted: !!paper && !paper.pdf } satisfies WorkWanted }
         },
       },
       {

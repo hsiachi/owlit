@@ -304,8 +304,10 @@ export interface WorkAnswer {
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
 // extension's own page with one Allow button, for the papers waiting there. A walk: the first paper's
 // page of a walk through the manual downloads (WalkStep), in a tab of its own.
+// wait: the wait it is for (ExtensionWait.id), by which the extension finds its own tab at that check;
+// absent from an owlit that names none.
 export type OpenPage =
-  | { kind: "sign-in" | "check" | "blocked"; host: string; url: string }
+  | { kind: "sign-in" | "check" | "blocked"; host: string; url: string; wait?: WaitId }
   | { kind: "permission"; host: string; papers: number }
   | { kind: "walk"; step: Extract<WalkStep, { kind: "paper" }> }
 
@@ -338,6 +340,14 @@ export interface WorkEnded {
 // check nor a sign-in, or the extension was allowed there). { host } is what an extension that keys
 // waits by host sends, which core still matches through the waits' watch while such extensions are out.
 export type WorkResume = { wait: WaitId } | { host: string }
+
+// GET /work/:id: whether owlit still waits for this work item's answer (the attempt is the one out, and
+// its paper still has no PDF). The extension asks before each fetch it makes for the item in a tab, and
+// before handing over a PDF: the paper may have got its PDF meanwhile (the user opened the page and the
+// extension took it). An owlit that knows no such route answers 404, which counts as still waiting.
+export interface WorkWanted {
+  wanted: boolean
+}
 
 // POST /work/blocked: a page the user opened at a wait for a check or a sign-in shows the site's firewall
 // blocking them; the wait is for a way past the block instead, with that page to open. { host, url } as

@@ -478,6 +478,44 @@ describe("opening a wait", () => {
   })
 })
 
+describe("opening a wait while its tab is still at the check", () => {
+  it("brings the gate's tab to the front by the wait it is for, whatever address the tab shows yet", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1_000_000 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    // The check is still being given its time hidden when the user presses Open
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await vi.waitFor(() => expect(b.created).toHaveLength(1), PATIENCE)
+    const [tab] = [...b.tabs.keys()]
+    // Named by a host the tab isn't at: a tab just created has no address the browser committed to yet,
+    // and through a proxy the check's page is the proxy's address on its way
+    b.owlit.give({ open: [{ kind: "check", host: "tlink.lib.tsinghua.edu.cn", url: ACM, wait: "pub:acm" }] })
+    await vi.waitFor(() => expect(b.activated).toEqual([tab]), PATIENCE)
+    expect(b.created).toHaveLength(1)
+    // The user passes it there, and the paper is fetched in that tab
+    acm.state.cleared = true
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0]).toMatchObject({ pdf: true })
+  })
+})
+
+describe("a paper whose PDF came another way while its gate's tab waited", () => {
+  it("isn't fetched again in the tab: owlit hears it was let go", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { gapMs: 200 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: A2_PDF, userStarted: true })] })
+    // Its PDF is saved from a tab the user opened, while the gate's tab waits out its gap
+    b.owlit.unwanted.add("a2#1")
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).not.toHaveProperty("pdf")
+    expect(b.fetches.filter((f) => f.url === A2_PDF)).toEqual([])
+  })
+})
+
 describe("waits", () => {
   const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 2, proxied: false, allow: ["science.org"] }
   const sites = { "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }

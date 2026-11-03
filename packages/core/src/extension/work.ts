@@ -231,7 +231,7 @@ export class ExtensionWork implements ExtensionFetcher {
     const by = wait.by && connected.includes(wait.by) ? wait.by : connected[0]
     if (!by) return undefined
     const { kind, at: host } = wait
-    const page: OpenPage = kind === "permission" ? { kind, host, papers: this.count(wait) } : { kind, host, url: wait.url }
+    const page: OpenPage = kind === "permission" ? { kind, host, papers: this.count(wait) } : { kind, host, url: wait.url, wait: wait.gate }
     // Pressed twice before the extension collected it: opened once
     this.openFor(by, page, (o) => "host" in o && o.host === host)
     return by
