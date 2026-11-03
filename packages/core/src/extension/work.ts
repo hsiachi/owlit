@@ -606,9 +606,31 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   // The waits that went after the user got through, while their papers going on are to be shown: the
-  // ids that went on and since when, for the caller to count from the papers
+  // ids that went on and since when, for the caller to count from the papers. Watched (FollowUp.watch)
+  // where the wait was and at the publishers of its papers still going: through a proxy that sends the
+  // browser on (tlink), every page the user sees of them is the publisher's, never the proxy's.
   goneWaits(): FollowUp[] {
-    return this.notes.gone().filter((f) => !this.waitsAt.has(f.gate))
+    return this.notes
+      .gone()
+      .filter((f) => !this.waitsAt.has(f.gate))
+      .map((f) => ({ ...f, watch: this.goingWatch(f) }))
+  }
+
+  private goingWatch(f: FollowUp): string[] {
+    const watch = new Set(f.watch ?? [f.host])
+    const ids = new Set(f.going?.ids ?? [])
+    for (const lane of this.lanes.values())
+      for (const q of all(lane)) {
+        if (!ids.has(q.paper.paperId)) continue
+        // Under another wait now, it left the line (movedOn)
+        const wait = this.waitOver(lane, q)
+        if (wait && wait.gate !== f.gate) continue
+        // One that met the line's own gate (the proxy's sign-in) is at its predicted publisher's past it
+        const gate = q.gate === f.gate ? q.predicted : q.gate
+        if (gate === f.gate || gate.startsWith("proxy:")) continue
+        for (const host of watchOf(gate, lane.key, q.paper.proxied ? q.paper.proxy : undefined)) watch.add(host)
+      }
+    return [...watch]
   }
 
   // The follow-ups of a wait that is up

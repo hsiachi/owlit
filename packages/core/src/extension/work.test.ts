@@ -387,6 +387,24 @@ describe("the extension's queue", () => {
     expect(work.holding(library, "sage")).toEqual({ lane: `proxy:${TLINK}`, gate: `proxy:${TLINK}`, attempt: 2, at: TLINK, turnAt: Date.now() })
   })
 
+  it("watches a line going on after the proxy's sign-in at its papers' publishers too, where the user sees them", async () => {
+    const { work, take } = setup()
+    for (const [id, doi] of [["tandf", "10.1080/1"], ["wiley", "10.1111/1"]]) work.fetch(library, tlinkPaper(id, doi), false)
+    const [first] = await take()
+    work.settle(first.id, "sign-in", { host: "id.tsinghua.edu.cn", url: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form" })
+    work.opened(`proxy:${TLINK}`, "Chrome")
+    work.resume(TLINK)
+    const [line] = work.goneWaits()
+    expect(line).toMatchObject({ gate: `proxy:${TLINK}`, going: { ids: ["tandf", "wiley"] } })
+    expect(line.watch).toEqual(expect.arrayContaining([TLINK, "tandfonline.com", "wiley.com"]))
+    // T&F's came: the line is watched where its papers still going are
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [tandf] = await take()
+    work.settle(tandf.id, "pdf")
+    expect(work.goneWaits()[0].watch).not.toContain("tandfonline.com")
+    expect(work.goneWaits()[0].watch).toEqual(expect.arrayContaining([TLINK, "wiley.com"]))
+  })
+
   it("says when each paper in the proxy's line gets its turn, and lets a publisher that reached nothing go after the papers that can go now", async () => {
     const { work, take, heard } = setup()
     for (const [id, doi] of [["sage", "10.1177/1"], ["wiley", "10.1111/1"], ["ieee", "10.1109/1"], ["acm", "10.1145/1"]]) work.fetch(library, tlinkPaper(id, doi), false)
