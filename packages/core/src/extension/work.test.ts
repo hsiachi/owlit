@@ -203,6 +203,30 @@ describe("the extension's queue", () => {
     expect(work.waits().find((w) => w.kind === "permission" && w.host === "sagepub.com")).toBeDefined()
   })
 
+  it("waits at the publisher's site for a check a proxied fetch met there, and goes on when the user gets past it", async () => {
+    const { work, never } = setup()
+    const tlink = (id: string) => paper(id, "tlink.lib.tsinghua.edu.cn", { url: `https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/${id}`, proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/" })
+    const take = () => work.take(library, 0, never, "chrome")
+    work.fetch(library, tlink("10.1093/a"), false)
+    const [a] = await take()
+    const check = "https://academic.oup.com/abm/article/53/6/573/5091257"
+    work.settle(a.id, "check", { host: "academic.oup.com", url: check })
+    expect(work.waitsForExtension()).toEqual([{ kind: "check", host: "oup.com", papers: 1, proxied: true }])
+    expect(work.waits()[0]).toMatchObject({ kind: "check", host: "oup.com", url: check })
+    // The user passes it on academic.oup.com, not on the proxy's pages
+    expect(work.resume("tlink.lib.tsinghua.edu.cn")).toBe(false)
+    expect(work.resume("academic.oup.com")).toBe(true)
+    expect((await take()).map((w) => w.paperId)).toEqual(["10.1093/a"])
+  })
+
+  it("keeps a proxied fetch's sign-in at the proxy", async () => {
+    const { work, never } = setup()
+    work.fetch(library, paper("p1", "tlink.lib.tsinghua.edu.cn", { proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/go" }), false)
+    const [p1] = await work.take(library, 0, never)
+    work.settle(p1.id, "sign-in", { host: "id.tsinghua.edu.cn" })
+    expect(work.waitsForExtension()).toEqual([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 1, proxied: true }])
+  })
+
   it("tries one paper of a paused site once more, then waits for the user", async () => {
     const { work, take, never } = setup()
     work.fetch(library, paper("t1", "tandfonline.com"), false)

@@ -153,9 +153,10 @@ export const PUBLISHERS: Publisher[] = [
   { name: "biorxiv", prefixes: ["10.1101/"], pdf: "{landing}.full.pdf" },
 ]
 
-// Hosts the extension may read that belong to no publisher above: doi.org, which sends readers on, and
-// publishers a DOI's prefix doesn't name
-export const OTHER_HOSTS = ["doi.org", "academic.oup.com", "www.cambridge.org", "www.jstor.org", "www.emerald.com", "arxiv.org"]
+// Hosts the extension may read that belong to no publisher above: doi.org, which sends readers on,
+// publishers a DOI's prefix doesn't name, and Silverchair, whose numbered watermark hosts
+// (watermark02.silverchair.com) serve the PDFs of OUP's article-pdf links and of the other journals it hosts
+export const OTHER_HOSTS = ["doi.org", "academic.oup.com", "www.cambridge.org", "www.jstor.org", "www.emerald.com", "arxiv.org", "silverchair.com"]
 
 // Sites that only send a link on to the publisher's own site: what happens after the redirect is the
 // publisher's doing, so they never stand for the publisher
