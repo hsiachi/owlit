@@ -23,9 +23,9 @@ export interface FetchDeps {
   // The extension may read this address's site (its host permissions, chrome.permissions.contains)
   permitted: (url: string) => Promise<boolean>
   timeoutMs?: number
-  // A fetch made from inside an open tab of this host that is past its check. A passed check stays with
-  // the page that passed it: Cloudflare turns away the extension's own fetch to ACM with a 403 while the
-  // ACM article open in a tab fetches the same PDF. undefined when no such tab is open.
+  // A fetch made from inside a tab of this host the user has open, past its check: a firewall rule may
+  // refuse the extension's own requests (their Origin and Sec-Fetch-* say extension) and let the site's
+  // pages through. undefined when no such tab is open.
   inTab?: (host: string) => Promise<typeof fetch | undefined>
   // Where the browser last sent a fetch of this address on to (the background's webRequest listener):
   // fetch itself hides an opaque redirect's target. undefined when no redirect of it was seen, or in a
@@ -52,13 +52,15 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
   try {
     let response: Response
     try {
-      response = await deps.fetch(url, { credentials: "include", redirect: "follow", signal: controller.signal })
+      // no-store: after the user passed a check, the browser's cache still holds the challenge page it
+      // answered before, byte for byte, and hands it back for the same address
+      response = await deps.fetch(url, { credentials: "include", cache: "no-store", redirect: "follow", signal: controller.signal })
     } catch (error) {
       if (controller.signal.aborted) throw error
       // A followed redirect to a site the extension may not read (a school's sign-in, a publisher reached
       // from another host) fails as a network failure does. Asked again without following, it comes
       // back as an opaque redirect, whose target the browser doesn't show; a network failure fails again.
-      response = await deps.fetch(url, { credentials: "include", redirect: "manual", signal: controller.signal })
+      response = await deps.fetch(url, { credentials: "include", cache: "no-store", redirect: "manual", signal: controller.signal })
       if (response.type === "opaqueredirect") {
         const to = deps.redirectedTo?.(url)
         return to ? { kind: "redirected", to } : { kind: "redirected" }
@@ -98,7 +100,7 @@ async function follow(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promi
 }
 
 // What a page that came instead says, as owlit hears it
-const said = (page: Page): WorkEnded => {
+export const said = (page: Page): WorkEnded => {
   const title = titleOf(page.html)
   return { ended: verdict(page), host: hostOf(page.url), ...(title ? { title: title.slice(0, 300) } : {}), url: page.url }
 }
@@ -165,10 +167,20 @@ const stops = (page: Page) => {
   return word === "check" || word === "blocked" || word === "sign-in"
 }
 
-// The fetch, and its outcome handed to owlit. An answer owlit no longer waits for (it names no paper
-// owlit knows, the paper got its PDF another way, or the PDF was another paper's) needs nothing more.
-export async function doWork(item: WorkItem, deps: FetchDeps & { ask: typeof askOwlit; token: string }): Promise<Fetched> {
-  const result = await fetchFor(item, deps)
+// The fetch, and its outcome handed to owlit
+export async function doWork(item: WorkItem, deps: FetchDeps & ReportDeps): Promise<Fetched> {
+  return report(item, await fetchFor(item, deps), deps)
+}
+
+export interface ReportDeps {
+  ask: typeof askOwlit
+  token: string
+}
+
+// How a fetch of owlit's item ended, told to owlit under the item's own id. An answer owlit no longer
+// waits for (it names no paper owlit knows, the paper got its PDF another way, or the PDF was another
+// paper's) needs nothing more.
+export async function report(item: WorkItem, result: Fetched, deps: ReportDeps): Promise<Fetched> {
   const route = `/work/${encodeURIComponent(item.id)}`
   try {
     if ("pdf" in result) await deps.ask<PaperAnswer>(`${route}?host=${encodeURIComponent(result.host)}`, { method: "POST", token: deps.token, pdf: result.pdf })

@@ -4,7 +4,7 @@ import { OwlitError } from "./owlit.ts"
 import { doWork, fetchFor, type FetchDeps } from "./work.ts"
 
 const PDF = new TextEncoder().encode("%PDF-1.7\n...")
-const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "w1", paperId: "doi-10.1177-1", url: "https://journals.sagepub.com/doi/10.1177/1", host: "sagepub.com", proxied: false, ...extra })
+const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "doi-10.1177-1#1", paperId: "doi-10.1177-1", attempt: 1, url: "https://journals.sagepub.com/doi/10.1177/1", lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, ...extra })
 
 // A web of addresses: each answers with a body, a status and where its redirects ended
 // "away": a redirect to a site the extension may not read, which a followed fetch rejects; awayTo: the
@@ -16,6 +16,8 @@ function web(answers: Record<string, Answer>, permitted: (url: string) => boolea
   const fetch = (async (url: string, init?: RequestInit) => {
     asked.push(url)
     expect(init?.credentials).toBe("include")
+    // The browser's cache keeps a check's page after the user passed it
+    expect(init?.cache).toBe("no-store")
     const answer = answers[url] ?? { body: "<title>Not Found</title>", status: 404 }
     if (answer === "down") throw new TypeError("Failed to fetch")
     if (answer === "away" || "awayTo" in answer) {
@@ -205,9 +207,9 @@ describe("fetching a paper for owlit", () => {
     const ask = vi.fn(async () => ({}))
     const pdfWeb = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: PDF } })
     await doWork(item(), { ...pdfWeb.deps, ask: ask as never, token: "t" })
-    expect(ask).toHaveBeenLastCalledWith("/work/w1?host=journals.sagepub.com", expect.objectContaining({ method: "POST", token: "t", pdf: expect.any(ArrayBuffer) }))
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231?host=journals.sagepub.com", expect.objectContaining({ method: "POST", token: "t", pdf: expect.any(ArrayBuffer) }))
     await doWork(item(), { ...web({}, () => false).deps, ask: ask as never, token: "t" })
-    expect(ask).toHaveBeenLastCalledWith("/work/w1", { token: "t", json: { ended: "no-permission", host: "sagepub.com" } })
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231", { token: "t", json: { ended: "no-permission", host: "sagepub.com" } })
     const gone = vi.fn(async () => {
       throw new OwlitError(404, { reason: "not-found" })
     })
