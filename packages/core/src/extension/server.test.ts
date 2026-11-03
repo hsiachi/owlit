@@ -29,12 +29,13 @@ afterEach(async () => {
 // A core serving the extension on a free port, whose network serves recorded responses
 type Opened = [string, { app?: string; name?: string }]
 
-async function setup(options: { routes?: Record<string, string | number>; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: Opened[]; shown?: Opened[1][]; browserApp?: (remotePort: number) => Promise<BrowserApp | undefined> } = {}) {
+async function setup(options: { routes?: Record<string, string | number>; held?: (url: string) => Promise<void> | undefined; workspace?: boolean; port?: number; retryMs?: number; holdMs?: number; opened?: Opened[]; shown?: Opened[1][]; browserApp?: (remotePort: number) => Promise<BrowserApp | undefined> } = {}) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-extension-")))
   const root = path.join(base, "ws")
   mkdirSync(root)
   const routes = options.routes ?? {}
   const fetch = (async (url: string) => {
+    await options.held?.(url)
     const match = Object.entries(routes).find(([pattern]) => url.includes(pattern))
     if (!match) return new Response("not found", { status: 404 })
     return typeof match[1] === "number" ? new Response("", { status: match[1] }) : new Response(match[1])
@@ -354,9 +355,9 @@ describe("the extension's port", () => {
 
     const paperIn = async (call: (method: string) => Promise<any>) => (await call("library.list")).papers.find((p: { id: string }) => p.id === id)
 
-    async function connected() {
+    async function connected(held?: (url: string) => Promise<void> | undefined) {
       const shown: Opened[1][] = []
-      const s = await setup({ holdMs: 20, shown })
+      const s = await setup({ holdMs: 20, shown, held })
       const token = await s.pair()
       s.putPaper(id, { title, ids: { doi: SAGE } })
       // Asking for work is what makes the extension connected
@@ -915,6 +916,25 @@ describe("the extension's port", () => {
       expect((await request("/work", { token })).body.work).toEqual([])
       // Still a manual download, not owlit's own no copy
       expect((await paperIn(call)).pdfState).toMatchObject({ state: "no-pdf", reason: { by: "extension", ended: "unreadable" } })
+    })
+
+    it("hands a background look's miss to the extension as the user's once Find PDF joins it, where the extension met a paywall", async () => {
+      // The look's requests wait until the user has asked
+      let release!: () => void
+      const gate = new Promise<void>((resolve) => (release = resolve))
+      let looking = false
+      const { root, request, token, core, call } = await connected(() => (looking ? gate : undefined))
+      acquired(root, id, "no-pdf", [{ by: "search", ended: "no-copy", at: 1 }, { by: "extension", ended: "no-access", at: 2, host: "journals.sagepub.com" }])
+      const workspace = (core as unknown as { workspace: { tasks: { enqueue(kind: string, subject: string, priority: string): { id: string }; get(id: string): { priority: string } | undefined } } }).workspace
+      looking = true
+      const task = workspace.tasks.enqueue("paper.pdf", id, "background")
+      const found = call("library.fetchPdf", { id })
+      // Find PDF joined the look in flight rather than starting its own
+      await eventually(() => expect(workspace.tasks.get(task.id)?.priority).toBe("waiting"))
+      release()
+      expect((await found).pdfState).toMatchObject({ state: "finding", extension: { at: "sagepub.com" } })
+      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id, attempt: 2, userStarted: true }])
+      expect(acquisitionOf(root).tried.filter((t: { by: string }) => t.by === "search")).toHaveLength(2)
     })
 
     it("leaves a paper to owlit's own ways while no extension asks for work", async () => {
