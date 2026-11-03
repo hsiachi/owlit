@@ -3,7 +3,7 @@ import { readPdf } from "./text/extract.ts"
 
 // What owlit knows about each publisher, in one place: the DOIs that are its, its sites, where a PDF can
 // be had without a browser, where the extension goes, and its own API when it has one. The plain routes
-// (pdf.ts), the extension's routes (extension/route.ts), the API limits (library.ts), the key check in
+// (pdf.ts), the extension's routes and gates (extension/route.ts, keys.ts), the API limits (library.ts), the key check in
 // Settings (settings/rpc.ts) and the extension's site permissions (apps/extension) all read it.
 
 // The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
@@ -47,6 +47,9 @@ export interface Publisher {
     // Every paper there is open to all, so the extension goes straight there, not through the
     // library's proxy
     open?: boolean
+    // Its check always turns away the extension's own fetch, so the extension skips that and fetches in
+    // a tab of the site
+    tab?: boolean
   }
   api?: PublisherApi
 }
@@ -67,7 +70,7 @@ export const PUBLISHERS: Publisher[] = [
     prefixes: ["10.1145/", "10.5555/"],
     hosts: ["dl.acm.org"],
     pdf: "https://dl.acm.org/doi/pdf/{doi}",
-    browser: { landing: "https://dl.acm.org/doi/{doi}", open: true },
+    browser: { landing: "https://dl.acm.org/doi/{doi}", open: true, tab: true },
   },
   {
     name: "sage",
@@ -124,9 +127,9 @@ export const PUBLISHERS: Publisher[] = [
   {
     name: "elsevier",
     prefixes: ["10.1016/", "10.1006/", "10.1053/", "10.1054/", "10.1067/", "10.1078/", "10.1383/", "10.1529/"],
-    // Its DOIs are registered to elsevier.com and read at sciencedirect.com
-    hosts: ["linkinghub.elsevier.com", "www.sciencedirect.com", "pdf.sciencedirectassets.com"],
-    browser: {},
+    // Its DOIs are registered to elsevier.com and read at sciencedirect.com, Cell Press's at cell.com
+    hosts: ["linkinghub.elsevier.com", "www.sciencedirect.com", "pdf.sciencedirectassets.com", "www.cell.com"],
+    browser: { tab: true },
     api: {
       key: "elsevierApiKey",
       host: "api.elsevier.com",
@@ -141,7 +144,11 @@ export const PUBLISHERS: Publisher[] = [
   { name: "ieee", prefixes: ["10.1109/"], hosts: ["ieeexplore.ieee.org"], browser: {} },
   // doi.org sends APA's DOIs to doi.apa.org, which sends on to PsycNet; the PDF's address there isn't
   // known from the DOI
-  { name: "apa", prefixes: ["10.1037/"], hosts: ["psycnet.apa.org", "doi.apa.org"], browser: {} },
+  { name: "apa", prefixes: ["10.1037/"], hosts: ["psycnet.apa.org", "doi.apa.org"], browser: { tab: true } },
+  // Its PDFs are served from Silverchair's watermark hosts (OTHER_HOSTS)
+  { name: "oup", prefixes: ["10.1093/"], hosts: ["academic.oup.com"], browser: { tab: true } },
+  { name: "thieme", prefixes: ["10.1055/"], hosts: ["www.thieme-connect.de", "www.thieme-connect.com"], browser: { tab: true } },
+  { name: "misq", prefixes: ["10.25300/"], hosts: ["misq.umn.edu"], browser: { tab: true } },
   { name: "bmc", prefixes: ["10.1186/"], pdf: SPRINGER_PDF },
   { name: "nature", prefixes: ["10.1038/"], hosts: ["www.nature.com"], pdf: "https://www.nature.com/articles/{suffix}.pdf" },
   { name: "acs", prefixes: ["10.1021/"], hosts: ["pubs.acs.org"], pdf: "https://pubs.acs.org/doi/pdf/{doi}" },
@@ -156,7 +163,7 @@ export const PUBLISHERS: Publisher[] = [
 // Hosts the extension may read that belong to no publisher above: doi.org, which sends readers on,
 // publishers a DOI's prefix doesn't name, and Silverchair, whose numbered watermark hosts
 // (watermark02.silverchair.com) serve the PDFs of OUP's article-pdf links and of the other journals it hosts
-export const OTHER_HOSTS = ["doi.org", "academic.oup.com", "www.cambridge.org", "www.jstor.org", "www.emerald.com", "arxiv.org", "silverchair.com"]
+export const OTHER_HOSTS = ["doi.org", "www.cambridge.org", "www.jstor.org", "www.emerald.com", "arxiv.org", "silverchair.com"]
 
 // Sites that only send a link on to the publisher's own site: what happens after the redirect is the
 // publisher's doing, so they never stand for the publisher
