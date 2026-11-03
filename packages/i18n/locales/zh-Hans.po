@@ -7626,6 +7626,11 @@ msgstr "完成"
 msgid "{saved} saved"
 msgstr "已保存 {saved} 篇"
 
+#. popup: owlit fetches the papers that waited at this site; how many came so far
+#: apps/extension/src/lib/say.ts
+msgid "Going on · {done} of {total}"
+msgstr "继续中 · {done}/{total}"
+
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
 msgstr "{papers, plural, other {owlit 正在获取的 # 篇论文之一}}"
@@ -7710,11 +7715,6 @@ msgstr "把这个 PDF 交给 owlit"
 #: apps/share-web/src/App.tsx
 msgid "{0} et al."
 msgstr "{0} 等"
-
-#. popup: owlit fetches the papers that waited at this site; how many came so far
-#: apps/extension/src/popup/Popup.tsx
-msgid "Going on · {done} of {total}"
-msgstr "继续中 · {done}/{total}"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "Open in owlit"

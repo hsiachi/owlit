@@ -10,7 +10,7 @@ import { ext } from "../lib/browser.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
 import { originsOf, send, type Connection, type Outcome, type PageState, type PopupState } from "../lib/messages.ts"
 import { askForKnownSites, askForOrigins } from "../lib/permissions.ts"
-import { cardOf, gettingLine } from "../lib/say.ts"
+import { cardOf, gettingLine, siteLine } from "../lib/say.ts"
 
 // The popup, where the page can't say it: the browser opens it on the toolbar button when the click
 // needs a decision (connecting, a workspace) or when the page takes no card (the browser's own pages, a
@@ -118,7 +118,7 @@ export function Popup() {
       ) : (
         <Spinner className="text-muted-foreground" />
       )}
-      {connected && (state.wait || (state.going && !state.getting)) && <Waiting state={state} />}
+      {connected && <Waiting state={state} />}
       {/* Asking for the sites means nothing before the browser is connected */}
       {connected && !state.knownSites && (
         <section className="flex flex-col items-start gap-2 border-t pt-3">
@@ -266,17 +266,15 @@ function NeedsPdf() {
 // The first two authors, else the first and "et al."
 const authorsOf = (authors: string[]) => (authors.length > 2 ? t`${authors[0]} et al.` : authors.join(", "))
 
-// What this tab's site waits for, or owlit going on there once the person got through
+// What this tab's site waits for, or owlit going on there once the person got through (siteLine)
 function Waiting({ state }: { state: PopupState }) {
-  if (state.going) {
-    const { done, total } = state.going
-    return <p className="border-t pt-3 text-detail text-muted-foreground">{t({ message: `Going on · ${done} of ${total}`, comment: "popup: owlit fetches the papers that waited at this site; how many came so far" })}</p>
-  }
-  const { text, detail } = cardOf({ kind: "wait", wait: state.wait! })
+  const line = siteLine(state)
+  if (!line) return null
+  if (state.going) return <p className="border-t pt-3 text-detail text-muted-foreground">{line.text}</p>
   return (
     <section className="flex flex-col gap-0.5 border-t pt-3">
-      <p className="text-detail">{text}</p>
-      {detail && <Muted>{detail}</Muted>}
+      <p className="text-detail">{line.text}</p>
+      {line.detail && <Muted>{line.detail}</Muted>}
     </section>
   )
 }

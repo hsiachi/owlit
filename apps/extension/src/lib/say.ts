@@ -1,6 +1,6 @@
 import { plural, t } from "@lingui/core/macro"
 import type { WalkStep } from "@owlit/protocol"
-import type { CardView, Outcome, SiteWait } from "./messages.ts"
+import type { CardView, Outcome, PopupState, SiteWait } from "./messages.ts"
 
 // What the extension says about a click or a site, in one sentence and at most one action, and where it
 // says it: the card the content script draws in the page (content/card.ts), or the popup where no card can
@@ -199,6 +199,19 @@ export function walkCard(step: WalkStep): CardView {
     ],
     ...(saved > 0 ? { note: t({ message: `${saved} saved`, comment: "the owlit card in a web page: how many of the papers to download manually have their PDF so far" }) } : {}),
   }
+}
+
+// The popup's line for this tab's site, below the page's paper: owlit going on there once the person got
+// through, else what the site waits for. Said beside the paper's own words when it is one owlit is
+// getting: going on there is what moves it next.
+export function siteLine(state: Pick<PopupState, "wait" | "going">): { text: string; detail?: string } | undefined {
+  if (state.going) {
+    const { done, total } = state.going
+    return { text: t({ message: `Going on · ${done} of ${total}`, comment: "popup: owlit fetches the papers that waited at this site; how many came so far" }) }
+  }
+  if (!state.wait) return undefined
+  const { text, detail } = cardOf({ kind: "wait", wait: state.wait })
+  return detail ? { text, detail } : { text }
 }
 
 // The popup's quiet line under a Library paper owlit is getting through the browser: how many it is

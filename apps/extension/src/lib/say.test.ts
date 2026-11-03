@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Outcome } from "./messages.ts"
-import { badgeOf, cardOf, gettingLine, placesFor, savedPaper, sayIn, TAKEN, WAITING, walkCard } from "./say.ts"
+import { badgeOf, cardOf, gettingLine, placesFor, savedPaper, sayIn, siteLine, TAKEN, WAITING, walkCard } from "./say.ts"
 
 const card = (outcome: Outcome) => cardOf(outcome)
 
@@ -213,5 +213,20 @@ describe("savedPaper", () => {
     expect(savedPaper({ kind: "added", pdf: "saved", paperId: "p" })).toBe("p")
     expect(savedPaper({ kind: "added", pdf: "none-named", paperId: "p" })).toBeUndefined()
     expect(savedPaper({ kind: "has-pdf", paperId: "p" })).toBeUndefined()
+  })
+})
+
+describe("siteLine", () => {
+  it("says owlit going on at the site, on a page of a paper owlit is getting there too", () => {
+    const going = { host: "tandfonline.com", done: 1, total: 5 }
+    const state = { going, getting: { papers: 5 }, page: null }
+    expect(siteLine(state)).toEqual({ text: "Going on · 1 of 5" })
+    // Going on outweighs a wait the page is past
+    expect(siteLine({ ...state, wait: { kind: "check", host: "tandfonline.com", papers: 2, proxied: false } })).toEqual({ text: "Going on · 1 of 5" })
+  })
+
+  it("says what the site waits for, else nothing", () => {
+    expect(siteLine({ wait: { kind: "check", host: "tandfonline.com", papers: 2, proxied: false } })?.text).toBe(cardOf({ kind: "wait", wait: { kind: "check", host: "tandfonline.com", papers: 2, proxied: false } }).text)
+    expect(siteLine({})).toBeUndefined()
   })
 })

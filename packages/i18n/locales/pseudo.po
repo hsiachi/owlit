@@ -7626,6 +7626,11 @@ msgstr ""
 msgid "{saved} saved"
 msgstr ""
 
+#. popup: owlit fetches the papers that waited at this site; how many came so far
+#: apps/extension/src/lib/say.ts
+msgid "Going on · {done} of {total}"
+msgstr ""
+
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
 msgstr ""
@@ -7709,11 +7714,6 @@ msgstr ""
 #: apps/extension/src/popup/Popup.tsx
 #: apps/share-web/src/App.tsx
 msgid "{0} et al."
-msgstr ""
-
-#. popup: owlit fetches the papers that waited at this site; how many came so far
-#: apps/extension/src/popup/Popup.tsx
-msgid "Going on · {done} of {total}"
 msgstr ""
 
 #: apps/extension/src/popup/Popup.tsx
