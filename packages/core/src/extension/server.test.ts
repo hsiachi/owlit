@@ -517,7 +517,7 @@ describe("the extension's port", () => {
       expect(await rpc("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
       expect(opened).toEqual([])
       const back = await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })
-      expect((await back.json()).open).toEqual([{ kind: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}`, wait: "pub:sage" }])
+      expect(((await back.json()) as { open: unknown }).open).toEqual([{ kind: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}`, wait: "pub:sage" }])
     })
 
     it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
