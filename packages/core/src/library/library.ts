@@ -37,7 +37,7 @@ import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
-import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
+import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
 import type { KnownWait } from "../extension/work.ts"
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
 import { gateOf, gateOfTry } from "../extension/keys.ts"
@@ -2069,7 +2069,10 @@ export class Library {
       // the same either way
       const gate = gateOfTry(reason, proxy, gateOf(`https://doi.org/${doi}`))
       if (!gate) continue
-      known.push({ paperId: id, kind, gate, url: reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
+      // The library's sign-in page for the proxy's own sign-in, as ExtensionWork.settle opens: one found
+      // by a redirect has no page of its own, and the DOI's link would lead past the proxy
+      const signIn = kind === "sign-in" && gate.startsWith("proxy:") && proxy ? proxySignIn(proxy) : undefined
+      known.push({ paperId: id, kind, gate, url: signIn ?? reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
     }
     await extension.restore(this, known, proxy)
   }

@@ -499,6 +499,24 @@ describe("the extension's port", () => {
       expect(pdfWait((await ask("library.list")).papers.find((p: { id: string }) => p.id === id))).toBe("finding")
     })
 
+    it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
+      const { call, request, token, core, userDataDir, root } = await connected()
+      await call("settings.setProxy", { preset: "tsinghua" })
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      expect(item).toMatchObject({ proxied: true, host: "tlink.lib.tsinghua.edu.cn" })
+      // Signed out at the proxy, found by the redirect to the school's sign-in: no page of its own
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" } })
+      const signIn = "https://tlink.lib.tsinghua.edu.cn/gologin"
+      expect((await call("extension.get")).waits).toMatchObject([{ id: "proxy:tlink.lib.tsinghua.edu.cn", kind: "sign-in", url: signIn }])
+      await core.dispose()
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })
+      cleanups.push(() => again.dispose())
+      expect(await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })).not.toHaveProperty("error")
+      const view: any = await again.handle({ jsonrpc: "2.0", id: 2, method: "extension.get" })
+      expect(view.result.waits).toMatchObject([{ id: "proxy:tlink.lib.tsinghua.edu.cn", kind: "sign-in", url: signIn }])
+    })
+
     it("counts a Get PDFs from its papers, and ends it once nothing is going", async () => {
       const { call, request, token, putPaper } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
