@@ -1,5 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { pdfWait, type ExtensionWait, type Paper, type PdfWait } from "@owlit/protocol"
+import { clock } from "@/lib/time"
 
 // Where a paper without its PDF stands: one reading, in @owlit/protocol, shared with the agent's words
 export { pdfWait, waitedFor, type PdfWait } from "@owlit/protocol"
@@ -44,13 +45,19 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
 }
 
 // What a list row says of a paper without its PDF: its state's word, and Waiting while it is in line at
-// the extension, which owlit's own looking (Finding) isn't
+// the extension, which owlit's own looking (Finding) isn't; Can't reach site while the site its last
+// fetch went to didn't answer, until owlit tries it again
 export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">): string | undefined {
   const wait = pdfWait(p)
   const at = p.pdfState?.extension
+  if (unreachable(p) && (wait === "finding" || wait === "offline")) return t({ message: "Can't reach site", comment: "the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself" })
   if (wait === "finding" && at && !at.fetching) return t({ message: "Waiting", comment: "a paper in line for the owlit browser extension, which fetches one paper at a time per site" })
   return pdfWord(wait)
 }
+
+// The site that didn't answer the paper's last fetch through the extension, and when owlit tries it
+// again: while the extension has the paper in line, held back for it
+export const unreachable = (p: Pick<Paper, "pdfState">) => (p.pdfState?.extension && !p.pdfState.extension.wait ? p.pdfState.extension.unreachable : undefined)
 
 // The paper had its PDF and the file was deleted outside owlit: nothing looks for it until the daily look
 export const pdfGone = (p: Pick<Paper, "pdfState">) => p.pdfState?.reason?.ended === "pdf" && !p.pdfState.extension
@@ -64,6 +71,12 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">, wait?: Pick<Exten
   const state = pdfWait(p) ?? "finding"
   const s = p.pdfState
   const site = wait?.at ?? s?.extension?.at ?? s?.reason?.host?.replace(/^www\./, "")
+  const off = unreachable(p)
+  if (off && (state === "finding" || state === "offline")) {
+    const { at } = off
+    const time = clock(off.until)
+    return t({ message: `Can't reach ${at} right now · trying again at ${time}`, comment: "the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05" })
+  }
   switch (state) {
     case "finding":
       return !s?.extension && pdfGone(p) ? t`The PDF is gone` : t`Finding a PDF…`

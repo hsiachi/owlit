@@ -195,6 +195,31 @@ describe("the library's proxy", () => {
     expect(screen.block).toMatchObject({ total: 3, saved: 3, running: false, rows: [] })
   })
 
+  it("tlink, with a publisher the network can't reach: the other papers come, and that publisher's say when owlit tries again", async () => {
+    const web = tlink(new FakeWeb())
+    web.signIn(TLINK)
+    const sage = { doi: "10.1177/0956797655", title: "A SAGE Paper Behind A Poisoned Name" }
+    atypon(web, "journals.sagepub.com", sage.doi, sage.title, { subscription: true })
+    const papers = [1, 2].map((n) => ({ doi: `10.2196/4400${n}`, title: `A JMIR Paper Number ${n} About Apps` }))
+    for (const p of papers) atypon(web, "www.jmir.org", p.doi, p.title, { subscription: true })
+    web.down("journals.sagepub.com")
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const id = b.addPaper(sage.doi, sage.title)
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    let screen = await b.getPdfs()
+    // SAGE's went first, and JMIR's had to go on without it
+    expect(b.fetched()[0]).toBe(id)
+    expect(ids.map((i) => screen.papers[i].hasPdf)).toEqual([true, true])
+    expect(rowsOf(screen)).toEqual([["unreachable", 1, "journals.sagepub.com"]])
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, word: "Can't reach site" })
+    expect(screen.papers[id].title).toMatch(/^Can't reach journals\.sagepub\.com right now · trying again at /)
+    expect(screen.block).toMatchObject({ running: true })
+    await b.reach("journals.sagepub.com")
+    screen = await b.sleep(2 * 60_000)
+    expect(screen.papers[id].hasPdf).toBe(true)
+    expect(screen.block).toMatchObject({ total: 3, saved: 3, running: false, rows: [] })
+  })
+
   it("EZproxy signed out: its sign-in, then the PDF at the rewritten host", async () => {
     const web = ezproxy(new FakeWeb())
     const { doi, title } = science(9)

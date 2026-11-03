@@ -4551,6 +4551,17 @@ msgstr "你在浏览器里看过它们的页面，没有找到 PDF。之后找�
 msgid "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
 msgstr "它们在网站那边等你时，你停止了获取。在论文上按“再找一次”会重新试一次。"
 
+#. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
+#. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Can't reach {at} right now · trying again at {time}"
+msgstr "暂时连不上 {at} · {time} 再试"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{at} didn't answer your browser. owlit tries these again by itself, and goes on with the other sites meanwhile; on another network (or a VPN) it may get through."
+msgstr "{at} 没有响应你的浏览器。owlit 会自己再试，其间先继续处理其他网站的论文；换个网络（或开 VPN）也许能连上。"
+
 #. papers whose PDF the owlit extension is fetching in the user's browser right now
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "Getting…"
@@ -4778,6 +4789,11 @@ msgstr "无权限"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
 msgstr "出版方无 PDF"
+
+#. the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Can't reach site"
+msgstr "连不上网站"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"
@@ -5153,6 +5169,10 @@ msgstr "{label} · 第 {page} 页"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
 msgstr "第 {number} 页"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through."
+msgstr "{at} 没有响应你的浏览器。owlit 会自己再试；换个网络（或开 VPN）也许能连上。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."

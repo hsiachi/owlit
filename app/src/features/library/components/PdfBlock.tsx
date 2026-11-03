@@ -11,6 +11,7 @@ import { useExtension, useExtensionWaits, usePdfRun } from "@/features/extension
 import { actOnWait, browserName, dismissRun, doneWords, resumeWait, stillWords, stopRun, waitWords, walkManual } from "@/features/extension/waits"
 import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
+import { clock } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { waitsOnYou } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
@@ -75,7 +76,7 @@ export function PdfBlock() {
         bar={running && <Bar total={total} saved={saved} held={held} />}
       >
         {[...rows, ...outside.map((wait): RowModel => ({ kind: "wait", wait, papers: wait.papers }))].map((row) => (
-          <Row key={row.kind === "wait" ? `wait:${row.wait.id}` : row.kind} row={row} browser={browser} library={library} papers={papers} />
+          <Row key={row.kind === "wait" ? `wait:${row.wait.id}` : row.kind === "unreachable" ? `unreachable:${row.at}` : row.kind} row={row} browser={browser} library={library} papers={papers} />
         ))}
       </Block>
     )
@@ -96,11 +97,13 @@ export function PdfBlock() {
 type RowModel =
   | { kind: "wait"; wait: ExtensionWait; papers: number }
   | { kind: "manual"; papers: number; ids: string[]; sites: { host: string; papers: number }[] }
+  | { kind: "unreachable"; at: string; until: number; papers: number }
   | { kind: "away" | "none" | "skipped" | "stopped" | "getting" | "going"; papers: number }
 
 // A run's rows in the order the user can do something about them: its waits (the most papers first, as
 // core sorts them), the downloads by hand, the papers that didn't reach the browser; then those with no
-// PDF, those the user found none for or stopped, those being fetched now and those waiting their turn. A wait the run counts
+// PDF, those the user found none for or stopped, those held back by a site that didn't answer, those
+// being fetched now and those waiting their turn. A wait the run counts
 // that the waits list doesn't have yet (the two come by one notification, but a paper can be read
 // between) has no row until it does.
 function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
@@ -110,7 +113,9 @@ function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
     if (wait) rows.push({ kind: "wait", wait, papers: w.papers })
   }
   if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: run.manual.ids, sites: run.manual.sites })
-  for (const kind of ["away", "none", "skipped", "stopped", "getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
+  for (const kind of ["away", "none", "skipped", "stopped"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
+  for (const { at, until, papers } of run.unreachable) rows.push({ kind: "unreachable", at, until, papers })
+  for (const kind of ["getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
   return rows
 }
 
@@ -207,6 +212,12 @@ function Row({ row, browser, library, papers }: { row: RowModel; browser: string
     muted = true
     need = t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site" })
     why = t`You stopped getting these while they waited for you at their site. Look again on a paper tries it once more.`
+  } else if (row.kind === "unreachable") {
+    muted = true
+    const { at } = row
+    const time = clock(row.until)
+    need = t({ message: `Can't reach ${at} right now · trying again at ${time}`, comment: "the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05" })
+    why = t`${at} didn't answer your browser. owlit tries these again by itself, and goes on with the other sites meanwhile; on another network (or a VPN) it may get through.`
   } else if (row.kind === "getting") {
     muted = true
     need = t({ message: "Getting…", comment: "papers whose PDF the owlit extension is fetching in the user's browser right now" })

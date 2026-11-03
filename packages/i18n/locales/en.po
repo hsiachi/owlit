@@ -4551,6 +4551,17 @@ msgstr "You looked on their pages in your browser and found no PDF. If you find 
 msgid "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
 msgstr "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
 
+#. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
+#. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Can't reach {at} right now · trying again at {time}"
+msgstr "Can't reach {at} right now · trying again at {time}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{at} didn't answer your browser. owlit tries these again by itself, and goes on with the other sites meanwhile; on another network (or a VPN) it may get through."
+msgstr "{at} didn't answer your browser. owlit tries these again by itself, and goes on with the other sites meanwhile; on another network (or a VPN) it may get through."
+
 #. papers whose PDF the owlit extension is fetching in the user's browser right now
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "Getting…"
@@ -4778,6 +4789,11 @@ msgstr "No access"
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF there"
 msgstr "No PDF there"
+
+#. the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Can't reach site"
+msgstr "Can't reach site"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"
@@ -5153,6 +5169,10 @@ msgstr "{label} · p. {page}"
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
 msgstr "Page {number}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through."
+msgstr "{at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through."
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."

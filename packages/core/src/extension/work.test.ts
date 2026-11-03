@@ -226,6 +226,44 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
   })
 
+  it("through the proxy, backs off from a publisher that reached nothing alone, and goes on with the others", async () => {
+    const { work, take } = setup()
+    work.fetch(library, tlinkPaper("sage", "10.1177/1"), false)
+    work.fetch(library, tlinkPaper("wiley", "10.1111/1"), false)
+    work.fetch(library, tlinkPaper("ieee", "10.1109/1"), false)
+    const [first] = await take()
+    expect(first).toMatchObject({ paperId: "sage", gate: "pub:sage" })
+    // The proxy sent the browser on to SAGE, whose host didn't resolve
+    work.settle(first.id, "offline", { host: "journals.sagepub.com" })
+    expect(work.holding(library, "sage")).toMatchObject({ unreachable: { at: "journals.sagepub.com", until: Date.now() + 2 * 60_000 } })
+    expect(work.holding(library, "wiley")).not.toHaveProperty("unreachable")
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [second] = await take()
+    expect(second.paperId).toBe("wiley")
+    work.settle(second.id, "pdf")
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [third] = await take()
+    expect(third.paperId).toBe("ieee")
+    // SAGE keeps its place in its gate, and goes once its back-off ends
+    vi.advanceTimersByTime(2 * 60_000)
+    work.settle(third.id, "no-copy")
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["sage"])
+  })
+
+  it("through the proxy, backs off from every paper when the proxy itself reached nothing", async () => {
+    const { work, take } = setup()
+    work.fetch(library, tlinkPaper("sage", "10.1177/1"), false)
+    work.fetch(library, tlinkPaper("wiley", "10.1111/1"), false)
+    const [first] = await take()
+    work.settle(first.id, "offline", { host: TLINK })
+    expect(work.holding(library, "wiley")).toMatchObject({ unreachable: { at: TLINK } })
+    vi.advanceTimersByTime(2 * 60_000 - 1)
+    expect(await take()).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect((await take()).map((w) => w.paperId)).toEqual(["sage"])
+  })
+
   it("holds a long poll through an offline back-off and hands the paper out when it ends", async () => {
     const { work, take, never } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)

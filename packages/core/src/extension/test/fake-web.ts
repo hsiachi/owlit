@@ -36,6 +36,7 @@ export class FakeWeb {
   private readonly cleared = new Set<string>()
   private readonly signedIn = new Set<string>()
   private readonly blockedAt = new Set<string>()
+  private readonly downAt = new Set<string>()
   private readonly papers = new Map<string, { title: string }>()
   private readonly dois = new Map<string, { url: string; oa?: string }>()
   private readonly hung = new Set<{ visit: Visit; answer: () => void }>()
@@ -117,6 +118,16 @@ export class FakeWeb {
     return this.blockedAt.has(host)
   }
 
+  // The user's browser can't reach this host (its name doesn't resolve on their network, as SAGE's in
+  // China without a VPN), until up
+  down(host: string) {
+    this.downAt.add(host)
+  }
+
+  up(host: string) {
+    this.downAt.delete(host)
+  }
+
   // How many answers hang now
   hanging() {
     return this.hung.size
@@ -151,6 +162,7 @@ export class FakeWeb {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError")
     const at = new URL(url)
     this.log.push({ client, url })
+    if (client === "browser" && this.downAt.has(at.hostname)) throw new TypeError("Failed to fetch")
     const key = `${at.hostname}${at.pathname}${at.search}`
     // The newest route first, so a test can replace what a helper set up
     const routes = [...this.routes].reverse()

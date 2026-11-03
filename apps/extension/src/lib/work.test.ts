@@ -114,6 +114,27 @@ describe("fetching a paper for owlit", () => {
     expect(asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1"])
   })
 
+  it("names where nothing answered: the publisher the proxy sent the browser on to, or the proxy itself", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
+    const through = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", lane: "proxy:tlink.lib.tsinghua.edu.cn", proxied: true })
+    // The proxy answers and sends the browser on; the publisher's host doesn't resolve (DNS)
+    const sageDown = web({ [entry]: { awayTo: "https://journals.sagepub.com/doi/10.1177/1" }, "https://journals.sagepub.com/doi/10.1177/1": "down" })
+    expect(await fetchFor(through, sageDown.deps)).toEqual({ ended: "offline", host: "journals.sagepub.com" })
+    expect(await fetchFor(through, web({ [entry]: "down" }).deps)).toEqual({ ended: "offline", host: "tlink.lib.tsinghua.edu.cn" })
+    // Too slow, after the proxy sent the browser on: the publisher's, as the browser saw the redirect
+    const redirects = new Map<string, string>()
+    const hangs = {
+      fetch: ((url: string, init: RequestInit) => {
+        if (url === entry) redirects.set(entry, "https://journals.sagepub.com/doi/10.1177/1")
+        return new Promise<never>((_, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))
+      }) as unknown as typeof fetch,
+      permitted: async () => true,
+      redirectedTo: (url: string) => redirects.get(url),
+      timeoutMs: 5,
+    }
+    expect(await fetchFor(through, hangs)).toEqual({ ended: "offline", host: "journals.sagepub.com" })
+  })
+
   it("says sign-in through the proxy, and unreadable elsewhere, where a redirect leads to a site it may not read", async () => {
     // Signed out at the proxy: it sends the fetch on to the school's sign-in
     const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"

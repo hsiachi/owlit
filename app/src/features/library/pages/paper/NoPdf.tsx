@@ -13,7 +13,7 @@ import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
-import { noPdfTitle, pdfGone, pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
+import { noPdfTitle, pdfGone, pdfWait, unreachable, waitedFor, type PdfWait } from "../../lib/pdf-wait"
 import { useExtension, usePaperWait } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 
@@ -34,6 +34,12 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, wait:
   const host = hostName(reason)
   const date = reason ? shortDate(reason.at) : ""
   const tried = triedSentence(s?.tried ?? [])
+  // The extension has it in line, held back by a site that didn't answer it
+  const off = unreachable(paper)
+  if (off && !now && (state === "finding" || state === "offline")) {
+    const { at } = off
+    return t`${at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through.`
+  }
   switch (state) {
     case "looking":
     case "finding": {
@@ -150,7 +156,8 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, siteWait)
   const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), siteWait)
   const lost = state === "finding" && pdfGone(paper)
-  const working = (state === "looking" || state === "finding") && !lost
+  // Nothing spins while the paper only waits for a site that didn't answer
+  const working = (state === "looking" || (state === "finding" && !unreachable(paper))) && !lost
   const nextLook = paper.pdfState?.nextLook
   const nextDate = nextLook ? shortDate(nextLook) : ""
   const chooseFile = (

@@ -52,9 +52,11 @@ export const STALLED_MS = 30 * 60_000
 // dozens of silent tries into a paper's record and told the user nothing. After it the wait is for
 // the user to get through (resume), or to ask for one of its papers (fetch with askedFor).
 export const PAUSED_RETRY_MS = 15 * 60_000
-// After a fetch in a lane reached nothing (the network dropped, the proxy's minute-limit page), the lane
-// waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
-// was learnt about it, and a limit that counts every request isn't asked again within the minute
+// After a fetch reached nothing (the network dropped, a publisher's host doesn't resolve, the proxy's
+// minute-limit page), what didn't answer waits this long before its next, longer each time in a row: the
+// paper keeps its place, since nothing was learnt about it, and a limit that counts every request isn't
+// asked again within the minute. What waits is the gate whose site didn't answer, and the lane goes on
+// with its other gates; only the proxy not answering (its own host, its sign-in's) holds the whole lane.
 export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 
 export interface WorkOptions {
@@ -88,8 +90,17 @@ interface Lane {
   inFlight?: { id: string; item: Queued; at: number; by?: string }
   // When its last fetch ended, for the gap before the next
   endedAt?: number
-  // Its fetches reached nothing this many times in a row; none goes out before until
-  offline?: { times: number; until: number }
+  // The proxy reached nothing this many times in a row; none of the lane's fetches goes out before until.
+  // at: the host that didn't answer, as said.
+  offline?: Offline
+  // The same per gate in the lane, for a publisher that didn't answer: its papers wait, the others go on
+  gatesOffline: Map<GateKey, Offline>
+}
+
+interface Offline {
+  times: number
+  until: number
+  at: string
 }
 
 interface Wait {
@@ -292,7 +303,7 @@ export class ExtensionWork implements ExtensionFetcher {
     }
     let lane = this.lanes.get(laneKey)
     if (!lane) {
-      lane = { key: laneKey, proxied: paper.proxied, queue: [], endedAt: this.lastEnded.get(laneKey) }
+      lane = { key: laneKey, proxied: paper.proxied, queue: [], endedAt: this.lastEnded.get(laneKey), gatesOffline: new Map() }
       this.lanes.set(laneKey, lane)
     }
     lane.proxied = paper.proxied
@@ -336,7 +347,9 @@ export class ExtensionWork implements ExtensionFetcher {
       const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, at: item.paper.host }
       if (lane.inFlight?.item === item) return { ...base, fetching: true }
       const wait = this.waitOver(lane, item)
-      return wait ? { ...base, ...underWait(wait) } : base
+      if (wait) return { ...base, ...underWait(wait) }
+      const off = offlineOf(lane, item.gate)
+      return off ? { ...base, unreachable: { at: off.at, until: off.until } } : base
     }
     for (const wait of this.waitsAt.values()) {
       const tries = wait.known.get(id)
@@ -444,14 +457,20 @@ export class ExtensionWork implements ExtensionFetcher {
       // Its try reached nothing: a wait it was under keeps waiting, its one try still to come
       if (was) was.tryAt = now + PAUSED_RETRY_MS
       else {
-        const times = (lane.offline?.times ?? 0) + 1
-        lane.offline = { times, until: now + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1] }
+        const host = (page.url ? hostOf(page.url) : page.host)?.toLowerCase() || item.paper.host
+        const back = (before: Offline | undefined): Offline => {
+          const times = (before?.times ?? 0) + 1
+          return { times, until: now + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1], at: host.replace(/^www\./, "") }
+        }
+        if (atProxy(lane, item, host)) lane.offline = back(lane.offline)
+        else lane.gatesOffline.set(item.gate, back(lane.gatesOffline.get(item.gate)))
       }
       lane.queue.unshift(item)
       sortQueue(lane)
       this.host.papers(this.library, [item.paper.paperId])
     } else if (pause) {
       lane.offline = undefined
+      lane.gatesOffline.delete(item.gate)
       item.gate = answerGate(item, page)
       this.notes.ended(item.gate, ended as WorkEnding)
       lane.queue.unshift(item)
@@ -479,6 +498,7 @@ export class ExtensionWork implements ExtensionFetcher {
       this.host.waits()
     } else {
       lane.offline = undefined
+      lane.gatesOffline.delete(item.gate)
       if (ended && ended !== "pdf") this.notes.ended(answerGate(item, page), ended)
       // A try under a wait got through: the user did, somewhere the extension didn't see. One with
       // nothing to fetch any more (the paper went, or has its PDF by another way) says nothing of the
@@ -727,16 +747,19 @@ export class ExtensionWork implements ExtensionFetcher {
     return Math.max(lane.endedAt === undefined ? 0 : lane.endedAt + this.gap(lane), lane.offline?.until ?? 0)
   }
 
-  // The lane's next paper, and when it may go: the first not under a wait at once, else the first under a
-  // wait whose one try is due (and no paper of that wait is out already)
-  private next(lane: Lane): { item: Queued; at: number; wait?: Wait } | undefined {
+  // The lane's next paper, and when it may go: the first under no wait whose gate isn't backing off
+  // (offline), at once; else the one that may go soonest: under no wait once its gate's back-off ends, or
+  // under a wait whose one try is due (and no paper of that wait is out already)
+  private next(lane: Lane, now = Date.now()): { item: Queued; at: number; wait?: Wait } | undefined {
     let best: { item: Queued; at: number; wait?: Wait } | undefined
     const trying = new Set([...this.lanes.values()].flatMap((l) => (l.inFlight ? [this.waitOver(l, l.inFlight.item)] : [])))
     for (const item of lane.queue) {
       const wait = this.waitOver(lane, item)
-      if (!wait) return { item, at: 0 }
-      if (wait.tryAt === undefined || trying.has(wait)) continue
-      if (!best || wait.tryAt < best.at) best = { item, at: wait.tryAt, wait }
+      const free = lane.gatesOffline.get(item.gate)?.until ?? 0
+      if (!wait && free <= now) return { item, at: 0 }
+      if (wait && (wait.tryAt === undefined || trying.has(wait))) continue
+      const at = Math.max(wait?.tryAt ?? 0, free)
+      if (!best || at < best.at) best = { item, at, ...(wait ? { wait } : {}) }
     }
     return best
   }
@@ -819,6 +842,22 @@ const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue]
 
 // A paper's standing under a wait, as PdfState.extension says it
 const underWait = (wait: Wait) => ({ wait: wait.gate, kind: wait.kind, at: wait.at })
+
+// What a paper of this gate in this lane is backing off from now, if anything: the proxy, else its gate
+function offlineOf(lane: Lane, gate: GateKey, now = Date.now()): Offline | undefined {
+  const live = (o: Offline | undefined) => (o && o.until > now ? o : undefined)
+  const [proxy, own] = [live(lane.offline), live(lane.gatesOffline.get(gate))]
+  return proxy && own ? (proxy.until >= own.until ? proxy : own) : (proxy ?? own)
+}
+
+// A host that didn't answer is the library proxy's own when the paper goes through it and the host is
+// under the proxy's registrable domain (tlink, the school's sign-in beside it, an EZproxy's rewritten
+// publisher hosts); any other is the publisher's, which the proxy sent the browser on to
+function atProxy(lane: Lane, item: Queued, host: string): boolean {
+  if (!lane.proxied) return false
+  const proxyHost = lane.key.startsWith("proxy:") ? lane.key.slice("proxy:".length) : item.paper.host
+  return siteOf(host) === siteOf(proxyHost)
+}
 
 // The wait is named by this host: shown there, or watching it. Not by registrable domain alone: a proxy
 // and the identity provider beside it (tlink and id.tsinghua.edu.cn) share one, and a sign-in page

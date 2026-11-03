@@ -35,8 +35,9 @@ export interface FetchDeps {
 
 export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnded
 
-// redirected: a redirect led to a site the extension may not read; to: where, when the browser told
-type Got = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "page"; page: Page } | { kind: "redirected"; to?: string } | { kind: "offline" } | { kind: "timeout" }
+// redirected: a redirect led to a site the extension may not read; to: where, when the browser told.
+// offline, timeout: at: the address that didn't answer, as near as the browser tells (unreached)
+type Got = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "page"; page: Page } | { kind: "redirected"; to?: string } | { kind: "offline"; at: string } | { kind: "timeout"; at: string }
 
 const hostOf = (url: string) => {
   try {
@@ -45,6 +46,24 @@ const hostOf = (url: string) => {
     return ""
   }
 }
+
+// The address a fetch of url got no answer from: past the redirects the browser saw it sent on by (a
+// proxy that answered and sent the browser on to a publisher that doesn't), else url itself. owlit
+// backs off from the publisher alone when it is the publisher that is down, and from every paper
+// through the proxy when the proxy is. Redirects are kept by address, newest last, so a proxy's link
+// is taken to lead where it led last.
+function unreached(url: string, deps: FetchDeps): string {
+  let at = url
+  for (let hop = 0; hop < MAX_HOPS; hop++) {
+    const next = deps.redirectedTo?.(at)
+    if (!next) break
+    at = next
+  }
+  return at
+}
+
+// What an unanswered fetch tells owlit: offline, at the host that didn't answer
+const offlineAt = (got: { at: string }): WorkEnded => ({ ended: "offline", host: hostOf(got.at) })
 
 async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<Got> {
   const controller = new AbortController()
@@ -77,7 +96,8 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
     return { kind: "page", page: { url: response.url || url, status: response.status, html, proxy, headers: response.headers } }
   } catch {
     // No answer at all: the network, or the site, is down; aborted, it was too slow
-    return controller.signal.aborted ? { kind: "timeout" } : { kind: "offline" }
+    const at = unreached(url, deps)
+    return controller.signal.aborted ? { kind: "timeout", at } : { kind: "offline", at }
   } finally {
     clearTimeout(timer)
   }
@@ -144,12 +164,12 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
       const site = unreadable(got)
       if (site || item.proxied) return site ?? away
     }
-    if (got.kind === "timeout") return { ended: "offline", host: hostOf(item.pdfUrl) }
+    if (got.kind === "timeout") return offlineAt(got)
   }
   const got = await follow(item.url, deps, proxy)
   if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
   if (got.kind === "redirected") return unreadable(got) ?? away
-  if (got.kind === "offline" || got.kind === "timeout") return { ended: "offline", host: hostOf(item.url) }
+  if (got.kind === "offline" || got.kind === "timeout") return offlineAt(got)
   const { page } = got
   const named = paperOfPage(page.html, page.url)?.pdfUrl ?? pdfLinkIn(page.html, page.url)
   if (named && !tried.has(named) && !isCheck(page) && (await deps.permitted(named))) {
@@ -157,7 +177,7 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (pdf.kind === "pdf") return { pdf: pdf.bytes, host: hostOf(pdf.url), url: pdf.url }
     if (pdf.kind === "page" && stops(pdf.page)) return said(pdf.page)
     if (pdf.kind === "redirected") return unreadable(pdf) ?? away
-    if (pdf.kind === "timeout") return { ended: "offline", host: hostOf(named) }
+    if (pdf.kind === "timeout") return offlineAt(pdf)
   }
   return said(page)
 }

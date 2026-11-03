@@ -91,6 +91,9 @@ export interface PdfState {
     wait?: WaitId
     kind?: ExtensionWait["kind"]
     at: string
+    // In line, but its last fetch reached nothing, so it waits until then. at: the host that didn't
+    // answer (the publisher's, or the library proxy's when nothing through it can go)
+    unreachable?: { at: string; until: number }
   }
 }
 
