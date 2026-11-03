@@ -4,6 +4,7 @@
 // that tab, webRequest's redirect events, and owlit itself on its port. Not a browser: no rendering, no
 // CORS but the one rule the fetch ladder depends on (a tab's followed fetch to another origin fails).
 
+import { LEGACY_WORK_ENDINGS, type WorkEnding } from "@owlit/protocol"
 import { OWLIT_ORIGIN } from "../lib/owlit.ts"
 
 type Listener = (...args: any[]) => unknown
@@ -73,12 +74,19 @@ export interface Asked {
 }
 
 // owlit on this machine: GET /work answers what the test gives it, one answer at a time, and holds
-// otherwise; every other request is noted and answered as core would
+// otherwise; every other request is noted and answered as core would. legacy: as an owlit of 0.2.x
+// would (packages/core/src/extension/server.ts at v0.2.1): an ending it doesn't know, and a resume or a
+// block that names a wait rather than a host, are refused with a 400.
 export class FakeOwlit {
   readonly asked: Asked[] = []
   private answers: unknown[] = []
   private holding: ((answer: unknown) => void) | null = null
   private closed = false
+  private readonly legacy: boolean
+
+  constructor({ legacy = false } = {}) {
+    this.legacy = legacy
+  }
 
   give(answer: { work?: unknown[]; waits?: unknown[]; open?: unknown[]; going?: unknown[] }) {
     const full = { work: [], waits: [], open: [], going: [], ...answer }
@@ -108,7 +116,12 @@ export class FakeOwlit {
       if (answer === undefined) throw new TypeError("Failed to fetch")
       return json(answer)
     }
-    this.asked.push({ route, method, ...(type.includes("json") ? { json: JSON.parse(String(init.body)) } : {}), ...(type.includes("pdf") ? { pdf: true } : {}) })
+    const body = type.includes("json") ? JSON.parse(String(init.body)) : undefined
+    this.asked.push({ route, method, ...(body ? { json: body } : {}), ...(type.includes("pdf") ? { pdf: true } : {}) })
+    if (this.legacy && method === "POST" && route.startsWith("/work/")) {
+      const refused = route.startsWith("/work/resume") || route.startsWith("/work/blocked") ? typeof body?.host !== "string" : body && !LEGACY_WORK_ENDINGS.includes(body.ended as WorkEnding)
+      if (refused) return new Response(JSON.stringify({ reason: "bad-request", message: "owlit couldn't read what the extension sent." }), { status: 400, headers: { "content-type": "application/json" } })
+    }
     if (route === "/status") return json({ version: "0", workspace: { name: "w" }, connectedAt: 0, owlit: { id: "owlit-1", name: "owlit" } })
     if (route.startsWith("/work/resume")) return json({ resumed: true })
     if (route.startsWith("/work/blocked")) return json({ blocked: true })
@@ -140,8 +153,18 @@ export interface FakeBrowser {
 }
 
 // kept: the storage of a browser whose extension worker restarts (Chrome keeps session storage while the
-// browser runs). sites: by host.
-export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<string, unknown>; session: Record<string, unknown> }, owlit = new FakeOwlit()): FakeBrowser & { kept: { local: Record<string, unknown>; session: Record<string, unknown> } } {
+// browser runs). sites: by host. denied: hosts the extension may not read: permissions.contains says
+// no, a tab there has no url (as without the tabs permission) and no script runs in it.
+export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<string, unknown>; session: Record<string, unknown> }, owlit = new FakeOwlit(), denied: string[] = []): FakeBrowser & { kept: { local: Record<string, unknown>; session: Record<string, unknown> } } {
+  const deniedAt = (url: string) => {
+    try {
+      return denied.includes(new URL(url).hostname)
+    } catch {
+      return false
+    }
+  }
+  // A tab as the extension is told it
+  const told = (tab: FakeTab) => (deniedAt(tab.url) ? { ...tab, url: undefined } : { ...tab })
   const local = area(kept?.local ?? {})
   const session = area(kept?.session ?? {})
   const tabs = new Map<number, FakeTab>()
@@ -225,6 +248,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
   const executeScript = async ({ target, func, args = [], files }: { target: { tabId: number }; func?: (...a: any[]) => unknown; args?: unknown[]; files?: string[] }) => {
     const tab = tabs.get(target.tabId)
     if (!tab) throw new Error("No tab with id")
+    if (deniedAt(tab.url)) throw new Error("Cannot access contents of the page. Extension manifest must request permission to access the respective host.")
     if (files || !func) return [{ result: undefined }]
     const page = () => answerOf(new URL(tab.url), "tab", tab, true)
     const scope = {
@@ -252,7 +276,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     get: async (id: number) => {
       const tab = tabs.get(id)
       if (!tab) throw new Error(`No tab with id: ${id}`)
-      return { ...tab }
+      return told(tab)
     },
     query: async ({ url }: { url?: string[] } = {}) =>
       [...tabs.values()].filter((t) => !url || url.some((pattern) => new RegExp(`^${pattern.replace(/[.?]/g, "\\$&").replace(/\*/g, ".*")}$`).test(t.url))).map((t) => ({ ...t })),
@@ -307,7 +331,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
       setPopup: async () => undefined,
       onClicked: event(),
     },
-    permissions: { contains: async () => true, getAll: async () => ({ origins: [] }), onAdded: event(), onRemoved: event() },
+    permissions: { contains: async ({ origins = [] }: { origins?: string[] }) => !origins.some((origin) => deniedAt(origin.replace(/\*$/, ""))), getAll: async () => ({ origins: [] }), onAdded: event(), onRemoved: event() },
     contextMenus: { removeAll: async () => undefined, create: () => undefined, update: async () => undefined, onClicked: event() },
     notifications: { create: async () => "" },
   }

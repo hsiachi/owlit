@@ -49,9 +49,9 @@ const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idl
 const PATIENCE = { timeout: 5_000, interval: 5 }
 
 let running: FakeBrowser[] = []
-async function boot(sites: Record<string, Site>, kept?: ReturnType<typeof fakeBrowser>["kept"]) {
+async function boot(sites: Record<string, Site>, kept?: ReturnType<typeof fakeBrowser>["kept"], owlit = new FakeOwlit(), denied: string[] = []) {
   vi.resetModules()
-  const browser = fakeBrowser(sites, kept, new FakeOwlit())
+  const browser = fakeBrowser(sites, kept, owlit, denied)
   browser.kept.local.token ??= "token"
   vi.stubGlobal("chrome", browser.chrome)
   vi.stubGlobal("fetch", browser.fetch)
@@ -163,6 +163,73 @@ describe("the fetch ladder", () => {
     expect(answered(b, "a2#1")[0].json).toMatchObject({ ended: "check" })
     expect(b.removed).toContain(tab)
   })
+
+  it("opens no tab on a page it may not read, and names the site to allow", async () => {
+    const THIEME = "https://www.thieme-connect.de/products/ejournals/abstract/10.1055/1"
+    const b = await boot({ "www.thieme-connect.de": () => article("Thieme", `${THIEME}.pdf`) }, undefined, new FakeOwlit(), ["www.thieme-connect.de"])
+    b.owlit.give({ work: [item("h1", "pub:thieme", THIEME, { host: "thieme-connect.de", inTab: true, userStarted: true })] })
+    await until(b, "h1#1")
+    expect(answered(b, "h1#1")[0].json).toEqual({ ended: "no-permission", host: "thieme-connect.de" })
+    expect(b.created).toEqual([])
+  })
+
+  it("names the gate's site when the proxy sends the tab on to a site it may not read, never the proxy", async () => {
+    const TLINK = "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.cell.com/cell/fulltext/S0092-1"
+    const b = await boot(
+      { "tlink.lib.tsinghua.edu.cn": ({ url }) => ({ status: 302, redirect: url.searchParams.get("url")! }), "www.cell.com": () => article("Cell", "https://www.cell.com/cell/pdf/S0092-1.pdf") },
+      undefined,
+      new FakeOwlit(),
+      ["www.cell.com"],
+    )
+    b.owlit.give({ work: [item("c1", "pub:cell", TLINK, { lane: "proxy:tlink.lib.tsinghua.edu.cn", host: "tlink.lib.tsinghua.edu.cn", proxied: true, inTab: true, userStarted: true, sites: ["cell.com"] })] })
+    await until(b, "c1#1")
+    expect(answered(b, "c1#1")[0].json).toEqual({ ended: "no-permission", host: "cell.com" })
+    await vi.waitFor(() => expect(b.tabs.size).toBe(0), PATIENCE)
+  })
+
+  it("asks for a paper again when the user closes its tab during the check, rather than making up a check", async () => {
+    let b: FakeBrowser | undefined
+    // The user closes the tab as soon as its check shows
+    const closing: Site = ({ look, tab }) => {
+      if (look && tab) void b!.chrome.tabs.remove(tab.id)
+      return check()
+    }
+    b = await boot({ "dl.acm.org": closing })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { inTab: true, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+  })
+
+  it("hands a tab it brought to the front to the user once its paper is fetched: never loaded again, never closed", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { front: true })
+    const b = await boot({ "dl.acm.org": acm.site })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(b.activated).toHaveLength(1)
+    const [shown] = [...b.tabs.keys()]
+    await vi.waitFor(() => expect(b.kept.session.workTabs).toEqual({}), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/2", userStarted: true })] })
+    await until(b, "a2#1")
+    // Fetched from inside it, as from any tab the user has open past the check; never navigated
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.tabs.get(shown)?.url).toBe(ACM)
+    expect(b.removed).not.toContain(shown)
+  })
+
+  it("leaves a kept tab the user took to another site, and opens another for the gate's next paper", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site, "example.org": () => ({ html: "<title>Elsewhere</title>" }) })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    const [kept] = [...b.tabs.keys()]
+    await b.chrome.tabs.update(kept, { url: "https://example.org/" })
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/2", userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(2)
+    expect(b.tabs.get(kept)?.url).toBe("https://example.org/")
+    expect(b.removed).not.toContain(kept)
+  })
 })
 
 describe("waits", () => {
@@ -185,5 +252,47 @@ describe("waits", () => {
     const again = await boot(sites, first.kept)
     await again.openTab("https://www.science.org/doi/1")
     await vi.waitFor(() => expect(again.owlit.posted("/work/resume")).toMatchObject([{ json: { wait: "pub:science" } }]), PATIENCE)
+  })
+})
+
+describe("the popup", () => {
+  // What the popup is told of this tab
+  const stateOf = (b: FakeBrowser, tabId: number) =>
+    new Promise<any>((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit({ kind: "state", tabId }, { id: "fake" }, resolve))
+
+  it("says owlit goes on at a publisher's page reached through the proxy, by the hosts the wait watched", async () => {
+    // A host-rewriting proxy: the publisher's pages come under the proxy's own name for them
+    const REWRITTEN = "dl-acm-org.ezproxy.lib.example.edu"
+    const b = await boot({ [REWRITTEN]: () => article("ACM", `https://${REWRITTEN}/doi/pdf/1`) })
+    const going = { wait: "pub:acm", kind: "check", at: "dl.acm.org", watch: ["dl.acm.org", REWRITTEN], proxied: false, since: 1, going: { at: 2, ids: ["a1", "a2"], saved: 1, ended: 1 } }
+    b.owlit.give({ going: [going] })
+    await vi.waitFor(() => expect(b.kept.session.going).toEqual([going]), PATIENCE)
+    const tab = await b.openTab(`https://${REWRITTEN}/doi/10.1145/1`)
+    await vi.waitFor(async () => expect((await stateOf(b, tab.id)).going).toEqual({ host: "dl.acm.org", done: 1, total: 2 }), PATIENCE)
+  })
+})
+
+describe("an owlit of 0.2.x", () => {
+  // Its shapes, as its server.ts takes and gives them: items with an opaque id and a host, waits named by
+  // host alone, no endings said
+  const old = () => new FakeOwlit({ legacy: true })
+  const PSYCNET = "https://psycnet.apa.org/doiLanding?doi=10.1037/1"
+  const shell = { "psycnet.apa.org": () => ({ html: "<html><head><title>APA PsycNet</title></head><body><app-root></app-root></body></html>" }) }
+
+  it("hears a page the extension couldn't read as no copy, the word it knows", async () => {
+    const b = await boot(shell, undefined, old())
+    b.owlit.give({ work: [{ id: "7f3c", paperId: "p1", url: PSYCNET, host: "apa.org", proxied: false } as unknown as WorkItem] })
+    await until(b, "7f3c")
+    expect(answered(b, "7f3c").map((a) => a.json.ended)).toEqual(["no-copy"])
+  })
+
+  it("is told the host of the wait the user got through at, and keeps its other waits", async () => {
+    const legacyWait = (host: string) => ({ kind: "check", host, papers: 1, proxied: false }) as unknown as WorkWait
+    const b = await boot({ "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }, undefined, old())
+    b.owlit.give({ waits: [legacyWait("science.org"), legacyWait("tandfonline.com")] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toHaveLength(2), PATIENCE)
+    await b.openTab("https://www.science.org/doi/1")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toEqual([{ route: "/work/resume", method: "POST", json: { host: "science.org" } }]), PATIENCE)
+    await vi.waitFor(() => expect(b.kept.session.waits).toMatchObject([{ host: "tandfonline.com" }]), PATIENCE)
   })
 })

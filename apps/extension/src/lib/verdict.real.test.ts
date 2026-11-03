@@ -41,3 +41,17 @@ describe("recorded checks only a person passes", () => {
     expect(isInteractive(seen), page.really).toBe(/sciencedirect|interactive/i.test(page.name + page.really))
   })
 })
+
+// What scripts/trim-pages.mjs scrubs (scrub) stays out of every page committed: the recorder's address
+// and the account, user and session ids a publisher's page data carries
+describe("recorded pages say nothing of who recorded them", () => {
+  const IPV4 = /(?<![\w/.-])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\w.-])/g
+  const PERSONAL = /"(?:ip|ipAddress|userId|user_id|accountId|account_id|accountName|departmentId|institutionName|institution|institutionID|eventGroupKey)"\s*:\s*(?:"[^"]+"|[1-9]\d*)/g
+  const SESSION = /[?&](?:amp;)?(?:sid|sessionid|jsessionid|token|key)=[A-Za-z0-9%_.-]{12,}/gi
+  it.each(recorded.map((page) => [page.name] as const))("%s", (name) => {
+    const html = readFileSync(path.join(folder, `${name}.html`), "utf8")
+    expect((html.match(IPV4) ?? []).filter((ip) => !ip.startsWith("192.0.2."))).toEqual([])
+    expect(html.match(PERSONAL) ?? []).toEqual([])
+    expect(html.match(SESSION) ?? []).toEqual([])
+  })
+})

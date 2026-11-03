@@ -1,4 +1,7 @@
 import { PROXY_PRESETS } from "@owlit/protocol"
+import { mkdtempSync, realpathSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
 import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
@@ -69,12 +72,38 @@ describe("the extension's queue", () => {
     expect(tried).toMatchObject({ paperId: "a1", attempt: 2 })
     expect(tried).not.toHaveProperty("userStarted")
     work.settle(tried.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
-    expect(work.resumeAt("pub:sage")).toBe(true)
+    // The user says they got through: every paper there goes on as theirs
+    expect(work.resumeWait("pub:sage")).toBe(true)
     const [again] = await take()
     expect(again).toMatchObject({ paperId: "a1", attempt: 3, userStarted: true })
     work.settle(again.id, "pdf")
     vi.advanceTimersByTime(GAP_MS)
     expect(await take()).toMatchObject([{ paperId: "a2", userStarted: true }])
+  })
+
+  it("opens no tab for a paper the extension saw a wait passed for, unless the user opened that wait or asked for it", async () => {
+    const { work, take } = setup()
+    const check = { url: "https://journals.sagepub.com/doi/x" }
+    work.fetch(library, paper("a1", "sagepub.com"), true)
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    work.fetch(library, paper("b1", "wiley.com"), false)
+    const [a1, b1] = await take()
+    work.settle(a1.id, "check", check)
+    work.settle(b1.id, "check", { url: "https://onlinelibrary.wiley.com/doi/b1" })
+    // The extension sees the user on a page past the check at sagepub.com, browsing for something else
+    expect(work.resumeAt("pub:sage")).toBe(true)
+    const [again] = await take()
+    // Asked for: still theirs
+    expect(again).toMatchObject({ paperId: "a1", userStarted: true })
+    work.settle(again.id, "no-copy")
+    vi.advanceTimersByTime(GAP_MS)
+    const [a2] = await take()
+    expect(a2).toMatchObject({ paperId: "a2" })
+    expect(a2).not.toHaveProperty("userStarted")
+    // At wiley, they had the wait's page opened from owlit
+    work.opened("pub:wiley", "Chrome")
+    expect(work.resumeAt("pub:wiley")).toBe(true)
+    expect(await take()).toMatchObject([{ paperId: "b1", userStarted: true }])
   })
 
   it("keeps the gap at a site when its papers come one at a time", async () => {
@@ -271,6 +300,9 @@ describe("the extension's queue", () => {
     work.settle(next.id, "sign-in", { host: "id.tsinghua.edu.cn", url: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form" })
     expect(work.waits()).toMatchObject([{ id: `proxy:${TLINK}`, kind: "sign-in", at: TLINK, papers: 3, url: `https://${TLINK}/`, proxied: true, watch: [TLINK] }])
     expect(work.holding(library, "misq")).toMatchObject({ wait: `proxy:${TLINK}`, kind: "sign-in", at: TLINK })
+    // The school's sign-in page loading, under the same registrable domain, is not the user through
+    expect(work.resume("id.tsinghua.edu.cn")).toBe(false)
+    expect(work.waits()).toMatchObject([{ id: `proxy:${TLINK}` }])
     // Signed in: the publisher's check still holds its own two
     work.resume(TLINK)
     expect(work.waits()).toMatchObject([{ id: "pub:misq", papers: 2 }])
@@ -278,6 +310,23 @@ describe("the extension's queue", () => {
     work.drop(library, "misq2")
     expect(work.waits()).toEqual([])
     expect(work.holding(library, "sage")).toEqual({ lane: `proxy:${TLINK}`, gate: `proxy:${TLINK}`, attempt: 2, at: TLINK })
+  })
+
+  it("keeps a wait for its other papers when the one out for its try has its PDF by another way", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("s1", "sagepub.com"), false)
+    work.fetch(library, paper("s2", "sagepub.com"), false)
+    const [s1] = await take()
+    work.settle(s1.id, "check", { url: "https://journals.sagepub.com/doi/s1" })
+    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    const [tried] = await take()
+    expect(tried.paperId).toBe("s1")
+    // The user dropped s1's PDF meanwhile: its answer finds nothing to fetch (server.ts's 409)
+    work.settle(tried.id, undefined)
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", kind: "check", papers: 1 }])
+    expect(work.holding(library, "s2")).toMatchObject({ wait: "pub:sage" })
+    work.drop(library, "s2")
+    expect(work.waits()).toEqual([])
   })
 
   it("tries one paper of a paused site once more, then waits for the user", async () => {
@@ -566,3 +615,25 @@ describe("the extension's queue", () => {
     expect(work.waits()[0]).not.toHaveProperty("retried")
   })
 })
+
+describe("pdf-work.json across workspaces", () => {
+  it("reads a workspace's notes again only once what it still had to write is written (A, then B, then A)", async () => {
+    const base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-work-")))
+    try {
+      const a = { dataDir: path.join(base, "a") } as Library
+      const b = { dataDir: path.join(base, "b") } as Library
+      const { work } = setup()
+      const never = new AbortController().signal
+      work.fetch(a, paper("a1", "sagepub.com"), false)
+      // Handed out: the tally's to write, in a while
+      expect(await work.take(a, 0, never)).toHaveLength(1)
+      work.fetch(b, paper("b1", "wiley.com"), false)
+      work.fetch(a, paper("a2", "sagepub.com"), false)
+      await work.flush()
+      expect(work.tallies().get("pub:sage")).toMatchObject({ handed: 1 })
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+})
+

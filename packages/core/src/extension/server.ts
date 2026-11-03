@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type GoingOn, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, WORK_ENDINGS, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type GoingOn, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -145,7 +145,7 @@ export class ExtensionServer {
   private async going(): Promise<GoingOn[]> {
     const library = this.host.workspace()?.library
     const counted = async (going: { at: number; ids: string[] }): Promise<WaitGoing> => ({ at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) })
-    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
+    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, watch: f.watch ?? [f.host], proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
   }
 
   // The id the user's extensions pair with: made once, kept in settings.json
@@ -370,7 +370,7 @@ export class ExtensionServer {
     // A gate key, as core made it (pdf-keys.ts)
     const wait = z.string().regex(/^(pub|site|proxy):\S{1,300}$/)
     const ended = z.object({
-      ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission", "unreadable"]),
+      ended: z.enum(WORK_ENDINGS),
       host,
       title: z.string().max(500).optional(),
       // Only a web page: the url may be opened in a browser later, and `open` would run a file: or app link
@@ -467,7 +467,7 @@ export class ExtensionServer {
         path: is("work"),
         handle: async ({ closed, pairing }) => {
           const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
-          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going() } satisfies WorkAnswer }
+          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going(), endings: [...WORK_ENDINGS] } satisfies WorkAnswer }
         },
       },
       {

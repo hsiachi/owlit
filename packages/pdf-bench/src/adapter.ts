@@ -466,7 +466,7 @@ class Extension {
     this.waits = answer.waits
     this.going = answer.going ?? []
     for (const page of answer.open ?? []) this.openPage(page)
-    for (const item of answer.work) this.doOne(item)
+    for (const item of answer.work) this.doOne(item, answer.endings)
     return answer.work.length > 0 || (answer.open ?? []).length > 0
   }
 
@@ -477,7 +477,7 @@ class Extension {
     }, PATIENCE)
   }
 
-  private doOne(item: WorkItem) {
+  private doOne(item: WorkItem, endings: WorkAnswer["endings"]) {
     this.fetched.push(item.paperId)
     const going = doWork(item, {
       fetch: this.web.fetchFor("browser", { canRead: this.readable, redirects: this.redirects }),
@@ -488,6 +488,7 @@ class Extension {
       redirectedTo: (url) => this.redirects.get(url),
       ask: this.ask,
       token: this.token,
+      endings,
     })
       .catch((error) => console.error("[bench] the extension's fetch failed", error))
       .finally(() => this.pending.delete(going))

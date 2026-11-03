@@ -478,12 +478,13 @@ export class ExtensionWork implements ExtensionFetcher {
     } else {
       lane.offline = undefined
       if (ended && ended !== "pdf") this.notes.ended(answerGate(item, page), ended)
-      const freed = was ? this.papersUnder(was) : []
-      // A try under a wait got through: the user did, somewhere the extension didn't see
-      if (was) {
-        this.lift(was)
-        this.host.waits()
-      }
+      // A try under a wait got through: the user did, somewhere the extension didn't see. One with
+      // nothing to fetch any more (the paper went, or has its PDF by another way) says nothing of the
+      // wait, which stays for its other papers and goes with the last of them.
+      const through = was && (ended !== undefined || !this.count(was)) ? was : undefined
+      const freed = through ? this.papersUnder(through) : []
+      if (through) this.lift(through)
+      if (was) this.host.waits()
       this.leaveIfEmpty(lane)
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }
@@ -492,8 +493,8 @@ export class ExtensionWork implements ExtensionFetcher {
     this.kick()
   }
 
-  // POST /work/resume: the user got through at this host. Every wait it names (its at, a host it
-  // watches, or under the same registrable domain) goes, its papers on at once, the asked for first.
+  // POST /work/resume: the user got through at this host. Every wait it names (its at, or a host it
+  // watches) goes, its papers on at once, the asked for first.
   resume(host: string): boolean {
     return this.goOn([...this.waitsAt.values()].filter((w) => names(w, host)))
   }
@@ -511,7 +512,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (!wait) return false
     const follow = this.notes.of(wait)
     follow.retried = { at: Date.now(), again: false }
-    return this.goOn([wait])
+    return this.goOn([wait], true)
   }
 
   // The line of papers that went on after the user got through at this wait, put away
@@ -548,11 +549,16 @@ export class ExtensionWork implements ExtensionFetcher {
     return this.notes.flush()
   }
 
-  private goOn(gone: Wait[]): boolean {
+  // byUser: the user said they got through (resumeWait). Otherwise the extension saw a page past the wait
+  // load, which may be the user browsing the site for something else: what goes on is theirs only where
+  // they had the wait's page opened from owlit, or asked for the paper.
+  private goOn(gone: Wait[], byUser = false): boolean {
     if (!gone.length) return false
     const under = gone.map((w) => this.papersUnder(w))
     const freed = under.flat()
     const known = gone.some((w) => w.known.size)
+    // Read before the waits go down, which forgets their opened
+    const theirs = new Set(gone.flatMap((w, i) => (byUser || this.notes.get(w.gate, w.since)?.opened ? under[i] : [])))
     gone.forEach((w, i) => {
       this.waitsAt.delete(w.gate)
       this.notes.resumed(w.gate)
@@ -567,10 +573,10 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const lane of this.lanes.values())
       for (const q of all(lane))
         if (freed.includes(q.paper.paperId)) {
-          q.started = true
+          q.started ||= theirs.has(q.paper.paperId) || q.askedFor
           queued.add(q.paper.paperId)
         }
-    for (const id of freed) if (!queued.has(id)) this.startedIds.add(id)
+    for (const id of freed) if (!queued.has(id) && theirs.has(id)) this.startedIds.add(id)
     if (this.library) {
       this.host.papers(this.library, freed)
       // Papers known only from their records go to the queues now
@@ -658,8 +664,8 @@ export class ExtensionWork implements ExtensionFetcher {
     this.lastEnded.clear()
     this.opens.clear()
     this.startedIds.clear()
-    void this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
-    this.notes = new PdfWorkNotes(library?.dataDir)
+    const flushed = this.notes.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
+    this.notes = new PdfWorkNotes(library?.dataDir, { after: flushed })
     this.warned.clear()
     this.host.waits()
   }
@@ -759,6 +765,7 @@ export class ExtensionWork implements ExtensionFetcher {
         proxied,
         ...(tabOnly(next.item.gate) ? { inTab: true as const } : {}),
         ...(next.item.started ? { userStarted: true as const } : {}),
+        sites: allowOf(next.item.gate, atOf(next.item.gate, "check", undefined)),
       })
     }
     return out
@@ -811,8 +818,10 @@ const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue]
 // A paper's standing under a wait, as PdfState.extension says it
 const underWait = (wait: Wait) => ({ wait: wait.gate, kind: wait.kind, at: wait.at })
 
-// The wait is named by this host: shown there, watching it, or under the same registrable domain
-const names = (wait: Wait, host: string) => wait.at === host || siteOf(wait.at) === siteOf(host) || wait.watch.some((h) => host === h || host.endsWith(`.${h}`))
+// The wait is named by this host: shown there, or watching it. Not by registrable domain alone: a proxy
+// and the identity provider beside it (tlink and id.tsinghua.edu.cn) share one, and a sign-in page
+// loading there is not the user through at the proxy.
+const names = (wait: Wait, host: string) => wait.at === host || wait.watch.some((h) => host === h || host.endsWith(`.${h}`))
 
 // The gate an answer met: the page it ended on, else the host it names. The extension names the paper's
 // own site when it may not read the paper's page, which is the predicted gate's. A page a fetch ended on

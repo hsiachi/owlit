@@ -521,6 +521,10 @@ ext.tabs.onRemoved.addListener((tabId) => {
 // Kept in session storage, so a restarted worker still knows where to watch, and what owlit said goes
 // on after the user got through (core counts it from the papers)
 type Waits = WorkWait[]
+// An owlit of 0.2.x names its waits by host alone, with no id, at, watch or allow: the host stands for
+// the place shown, and for the wait itself
+const asWait = (wait: WorkWait): WorkWait => ({ ...wait, at: wait.at ?? wait.host })
+const sameWait = (a: WorkWait, b: WorkWait) => ((a.id as string | undefined) ?? a.host) === ((b.id as string | undefined) ?? b.host)
 const waitsKey = "waits"
 const waits = async () => ((await ext.storage.session.get(waitsKey))[waitsKey] ?? []) as Waits
 const goingKey = "going"
@@ -542,11 +546,11 @@ function keepAsking() {
         const answer = await ask<WorkAnswer>("/work", { token })
         // An extension call between holds also keeps Chrome from taking the worker for idle. Firefox may
         // still unload its event page between holds; the WORK alarm loads it and asks again
-        await ext.storage.session.set({ [waitsKey]: answer.waits, [goingKey]: answer.going ?? [] })
+        await ext.storage.session.set({ [waitsKey]: answer.waits.map(asWait), [goingKey]: answer.going ?? [] })
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
         for (const item of answer.work) {
           void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo })
-            .then((result) => report(item, result, { ask, token }))
+            .then((result) => report(item, result, { ask, token, endings: answer.endings }))
             .catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
@@ -652,7 +656,7 @@ async function resume(wait: Waits[number], tabId?: number) {
   if (!token) return
   // An owlit whose waits carry no id is told the host, which it matches through the waits' watch
   await ask("/work/resume", { token, json: (wait.id ? { wait: wait.id } : { host: wait.host }) satisfies WorkResume })
-  await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => w.id !== wait.id) })
+  await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => !sameWait(w, wait)) })
   if (tabId !== undefined) await drawCard(tabId, cardOf({ kind: "through", host: wait.at, papers: wait.papers }))
 }
 
@@ -663,9 +667,9 @@ async function blocked(wait: Waits[number], url: string, tabId: number) {
   const { token } = await local()
   if (!token) return
   await ask("/work/blocked", { token, json: (wait.id ? { wait: wait.id, url } : { host: wait.host, url }) satisfies WorkBlocked })
-  const all = (await waits()).map((w) => (w.id === wait.id ? { ...w, kind: "blocked" as const } : w))
+  const all = (await waits()).map((w) => (sameWait(w, wait) ? { ...w, kind: "blocked" as const } : w))
   await ext.storage.session.set({ [waitsKey]: all })
-  const now = all.find((w) => w.id === wait.id)
+  const now = all.find((w) => sameWait(w, wait))
   if (now) await drawCard(tabId, cardOf({ kind: "wait", wait: siteWait(now) }))
 }
 
@@ -896,10 +900,11 @@ function biggestWait(all: Waits, host: string) {
   return elsewhere.sort((a, b) => b.papers - a.papers)[0]
 }
 
-// owlit going on where this host is, after the user got through there, while its papers haven't all
-// ended: how many came with their PDF so far, as core counts them
+// owlit going on where this host is (a host the wait watched: the publisher's pages behind a proxy that
+// sends the browser on), after the user got through there, while its papers haven't all ended: how many
+// came with their PDF so far, as core counts them
 function goingAt(all: NonNullable<WorkAnswer["going"]>, host: string): SiteGoing | undefined {
-  const at = all.find((g) => g.going.ended < g.going.ids.length && under(host, [g.at]))
+  const at = all.find((g) => g.going.ended < g.going.ids.length && under(host, g.watch?.length ? g.watch : [g.at]))
   return at && { host: at.at, done: at.going.saved, total: at.going.ids.length }
 }
 

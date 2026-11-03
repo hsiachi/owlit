@@ -30,6 +30,8 @@ export interface FollowUp {
   // How it was shown when last up (ExtensionWait.kind, .at, .proxied), for its line once it went
   kind: ExtensionWait["kind"]
   host: string
+  // ExtensionWait.watch, for the popup to say its papers go on at those hosts once it went
+  watch?: string[]
   proxied: boolean
   opened?: { at: number; browser?: string }
   retried?: { at: number; again: boolean }
@@ -65,11 +67,13 @@ export class PdfWorkNotes {
   private timer: ReturnType<typeof setTimeout> | undefined
   private readonly writes = new Serial()
 
-  // dataDir: none for a library that keeps nothing on this machine (tests)
-  constructor(dataDir: string | undefined, { delayMs = WRITE_DELAY_MS } = {}) {
+  // dataDir: none for a library that keeps nothing on this machine (tests). after: the write of the
+  // notes this replaces (another workspace opened, and this one again), read only once it is done: read
+  // before, the file would lack what was still to be written
+  constructor(dataDir: string | undefined, { delayMs = WRITE_DELAY_MS, after }: { delayMs?: number; after?: Promise<unknown> } = {}) {
     this.file = dataDir && path.join(dataDir, "pdf-work.json")
     this.delayMs = delayMs
-    this.loaded = this.load()
+    this.loaded = (after ?? Promise.resolve()).catch(() => undefined).then(() => this.load())
   }
 
   // ---- Follow-ups
@@ -79,13 +83,13 @@ export class PdfWorkNotes {
   }
 
   // The follow-ups of the wait as it is shown now, made when it has none
-  of(wait: { gate: GateKey; since: number; kind: ExtensionWait["kind"]; at: string }): FollowUp {
+  of(wait: { gate: GateKey; since: number; kind: ExtensionWait["kind"]; at: string; watch?: string[] }): FollowUp {
     let follow = this.get(wait.gate, wait.since)
     if (!follow) {
       follow = { gate: wait.gate, since: wait.since, up: true, kind: wait.kind, host: wait.at, proxied: wait.gate.startsWith("proxy:") }
       this.followUps.push(follow)
     }
-    Object.assign(follow, { up: true, kind: wait.kind, host: wait.at })
+    Object.assign(follow, { up: true, kind: wait.kind, host: wait.at, ...(wait.watch ? { watch: wait.watch } : {}) })
     this.changed()
     return follow
   }

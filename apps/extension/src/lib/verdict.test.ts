@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { isThrough, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
-// Trimmed from the pages of 2026-10-22's run
+// Trimmed from real publishers' pages, as the extension met them
 const LINKINGHUB = `<html><head><meta HTTP-EQUIV="REFRESH" content="2; url='/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879%3Fvia%253Dihub&amp;key=ae79'"/>
 <title>Redirecting</title><script>function autoRedirectToURL() { window.location = url }</script></head><body onload="autoRedirectToURL();"></body></html>`
 const THIEME = `<html lang="en"><head><title>Please wait</title><script src="/products/assets/challenge-55fc.js"></script></head><body><h1 id="challenge-title">Please wait</h1>

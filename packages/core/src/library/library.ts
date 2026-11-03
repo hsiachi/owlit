@@ -37,7 +37,7 @@ import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
-import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
+import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
 import type { KnownWait } from "../extension/work.ts"
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
 import { gateOf, gateOfTry } from "../extension/keys.ts"
@@ -221,7 +221,8 @@ export class Library {
   private readonly acquisitions: Acquisitions
   // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
   private readonly batchStopped = new Set<string>()
-  // Get PDFs in this workspace since it opened, the newest last; in memory only (extension/runs.ts)
+  // The workspace's Get PDFs: the one going on, else the last, until put away; in memory only
+  // (extension/runs.ts)
   private pdfRuns: PdfRun[] = []
   // Every paper's cite key by id, and the keys in use: what a new key is checked against (cite-key.ts)
   private citeKeyOf = new Map<string, string>()
@@ -718,14 +719,16 @@ export class Library {
     const run = await this.runFor(queued)
     void (async () => {
       for (const [i, { id, doi }] of toQueue.entries()) {
-        // Stopped while the papers before it were being looked up
-        if (this.batchStopped.delete(id)) continue
-        if (!(await this.toExtension(id, doi, "waiting"))) {
+        // Stopped while the papers before it were being looked up, or while its own page was
+        let stopped = this.batchStopped.delete(id)
+        if (stopped) continue
+        if (!(await this.toExtension(id, doi, "waiting", undefined, () => (stopped = this.batchStopped.delete(id))))) {
           // The extension went: the rest stay out until the user asks again, and the run says so rather
           // than going on for ever
           for (const rest of toQueue.slice(i)) if (!run.handed.has(rest.id)) run.away.add(rest.id)
           break
         }
+        if (stopped) continue
         run.handed.add(id)
         run.away.delete(id)
       }
@@ -740,7 +743,9 @@ export class Library {
     let run = this.pdfRuns.findLast((r) => r.endedAt === undefined && r.stoppedAt === undefined && r.dismissedAt === undefined)
     if (!run) {
       run = { id: randomUUID(), started: Date.now(), ids: [], handed: new Set(), away: new Set() }
-      this.pdfRuns.push(run)
+      // The window shows the newest run only: the ones that ended go, so they aren't counted again from
+      // their papers every time the runs are shown
+      this.pdfRuns = [run]
     }
     run.ids = [...new Set([...run.ids, ...ids])]
     // Asked for again: in line once more, whatever the last hand-over met
@@ -2009,7 +2014,8 @@ export class Library {
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
   // set); false when no extension is asking for work. paused: what its record says its site waits for.
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal) {
+  // stopped: asked once its page is looked up, right before it is queued: true leaves it out
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean) {
     const extension = this.services.extension
     if (!extension?.connected()) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
@@ -2019,6 +2025,7 @@ export class Library {
     const predicted = gateOf(route.url, proxy)
     const own = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension") ?? []
     const met = own.at(-1) && gateOfTry(own.at(-1)!, proxy, predicted)
+    if (stopped?.()) return true
     extension.fetch(this, { paperId: id, ...route, tries: own.length, predicted, ...(met ? { gate: met } : {}), ...(proxy ? { proxy } : {}) }, priority === "waiting")
     return true
   }
@@ -2069,7 +2076,10 @@ export class Library {
       // the same either way
       const gate = gateOfTry(reason, proxy, gateOf(`https://doi.org/${doi}`))
       if (!gate) continue
-      known.push({ paperId: id, kind, gate, url: reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
+      // The library's sign-in page for the proxy's own sign-in, as ExtensionWork.settle opens: one found
+      // by a redirect has no page of its own, and the DOI's link would lead past the proxy
+      const signIn = kind === "sign-in" && gate.startsWith("proxy:") && proxy ? proxySignIn(proxy) : undefined
+      known.push({ paperId: id, kind, gate, url: signIn ?? reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
     }
     await extension.restore(this, known, proxy)
   }

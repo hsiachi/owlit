@@ -1,7 +1,7 @@
 import type { GateKey, WorkItem } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { serial } from "../lib/serial.ts"
-import { isCheck, isInteractive, isThrough } from "../lib/verdict.ts"
+import { isCheck, isInteractive, isThrough, siteOf } from "../lib/verdict.ts"
 import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 
 // How the extension fetches one of owlit's papers, step by step:
@@ -13,7 +13,8 @@ import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 //    front once if it hasn't after a while. Past it, the paper is fetched from inside the tab, as the
 //    site's own page would (a firewall refuses the background's requests by their shape: Origin
 //    chrome-extension://, Sec-Fetch-*, no Referer). The tab is kept for the gate's next papers and
-//    closed once they are done.
+//    closed once they are done; a tab brought to the front is the user's after its paper, and is
+//    neither reused nor closed.
 // 3. A check only a person passes (a captcha), a sign-in, a block, or a check met again in the tab: told
 //    to owlit as it came, which makes the wait the user acts on.
 // Outside something the user started no tab is opened: the paper waits under its gate's wait instead.
@@ -76,7 +77,8 @@ export const redirectedTo = (url: string) => redirects.get(url)
 
 interface WorkTab {
   tabId: number
-  // Brought to the front once for its check: it is the user's to look at now
+  // Brought to the front once for its check: it is the user's to look at now, and handed to them once
+  // its paper is fetched
   shown: boolean
   // When its last fetch from inside it ended
   lastAt: number
@@ -125,15 +127,21 @@ const hostOf = (url: string) => {
 export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   // Without a tab of its own to fetch in, a tab-only publisher's paper is fetched as any other: through
   // the library's proxy its first answer may be the proxy's sign-in, and either way the ending names
-  // the gate whose wait the paper goes under
-  const worker = item.inTab && item.userStarted ? undefined : await fetchFor(item, deps)
+  // the gate whose wait the paper goes under. A page the extension may not read is never opened in a
+  // tab, which it couldn't read either: the background's fetch says so (no-permission).
+  const skip = item.inTab && item.userStarted && (await deps.permitted(item.url))
+  const worker = skip ? undefined : await fetchFor(item, deps)
   if (worker && !("ended" in worker && worker.ended === "check")) return worker
   if (!item.userStarted) return worker!
   await tabsLoaded
   return inLine(item.gate)(async () => {
     running.add(item.gate)
     try {
-      return (await inOwnTab(item, deps)) ?? worker ?? { ended: "check", host: hostOf(item.url), url: item.url }
+      // A tab that went away under it (the user closed it), or whose page couldn't be read, says nothing
+      // of the paper: the check the background met, when it met one; else offline, which owlit asks for
+      // again. Never a check made up at the paper's address, which through a proxy is the proxy's and
+      // would hold every paper through it.
+      return (await inOwnTab(item, deps)) ?? worker ?? { ended: "offline", host: hostOf(item.url) }
     } finally {
       running.delete(item.gate)
       setTimeout(() => void closeIdleTabs(), TAB_TIMES.idleMs + 1)
@@ -145,33 +153,38 @@ export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetc
 // undefined when the tab went away under it (the user closed it)
 async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | undefined> {
   const gate = item.gate
-  let tab = (await tabsKept())[gate]
-  if (tab && !(await ext.tabs.get(tab.tabId).catch(() => undefined))) {
-    await keepTab(gate, undefined)
-    tab = undefined
-  }
+  let tab = await reusable(item)
+  const reused = !!tab
   if (tab) {
     // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
     // again is the site's word that this is enough for now
     await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
     await loaded(tab.tabId)
-    const passed = await pass(tab, item, { once: true })
-    if (passed !== "through") {
-      await letGo(gate, tab)
-      return passed
-    }
   } else {
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
     tab = { tabId: opened.id, shown: false, lastAt: 0 }
     await keepTab(gate, tab)
     await loaded(tab.tabId)
-    const passed = await pass(tab, item)
-    if (passed !== "through") {
-      await letGo(gate, tab)
-      return passed
-    }
+  }
+  const landed = await ext.tabs.get(tab.tabId).catch(() => undefined)
+  if (!landed) {
+    await keepTab(gate, undefined)
+    return undefined
+  }
+  // Landed where the extension may not read (a proxy sends the browser on to a publisher the user
+  // hasn't allowed): that site, to allow. The browser tells a tab's address only on a site the
+  // extension may read, so one it doesn't tell is named by the gate's own site, never by the proxy's.
+  if (!landed.url || !(await deps.permitted(landed.url))) {
+    await letGo(gate, tab)
+    const host = landed.url ? hostOf(landed.url) : item.sites?.[0]
+    return host ? { ended: "no-permission", host } : undefined
+  }
+  const passed = await pass(tab, item, { once: reused })
+  if (passed !== "through") {
+    await letGo(gate, tab)
+    return passed
   }
   // Fetched from where the paper's page landed: through a library proxy that sends the browser on to
   // the publisher (tlink), the proxy's address is another origin than the tab's, and only the tab's own
@@ -188,8 +201,23 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
     await keepTab(gate, undefined)
     return "ended" in got && got.ended === "offline" ? undefined : got
   }
-  await keepTab(gate, { ...tab, lastAt: Date.now() })
+  // Brought to the front, it is the user's now: theirs to close, never loaded with another paper
+  await keepTab(gate, tab.shown ? undefined : { ...tab, lastAt: Date.now() })
   return got
+}
+
+// The gate's kept tab, for its next paper, while it is still the extension's to load: open, never
+// brought to the front, and still at one of the gate's sites. Any other is forgotten, not closed: the
+// user may have taken it elsewhere.
+async function reusable(item: WorkItem): Promise<WorkTab | undefined> {
+  const tab = (await tabsKept())[item.gate]
+  if (!tab) return undefined
+  const now = await ext.tabs.get(tab.tabId).catch(() => undefined)
+  const host = now?.url ? hostOf(now.url) : ""
+  const sites = [...(item.sites ?? []), siteOf(hostOf(item.url))]
+  if (!tab.shown && host && sites.some((site) => host === site || host.endsWith(`.${site}`))) return tab
+  await keepTab(item.gate, undefined)
+  return undefined
 }
 
 // Until the tab's page has loaded, or a while
@@ -232,6 +260,8 @@ async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promis
     if (Date.now() >= until) {
       if (tab.shown) return said(page)
       tab.shown = true
+      // Kept so at once: a worker restarted meanwhile never closes it as idle
+      await keepTab(item.gate, { ...tab })
       await ext.tabs.update(tab.tabId, { active: true }).catch(() => undefined)
       until = Date.now() + TAB_TIMES.shownMs
     }
@@ -246,13 +276,17 @@ async function letGo(gate: GateKey, tab: WorkTab) {
   if (!tab.shown) await ext.tabs.remove(tab.tabId).catch(() => undefined)
 }
 
-// The gates' tabs with no paper of theirs going and none for a while: closed
+// The gates' tabs with no paper of theirs going and none for a while: closed, but for one brought to the
+// front, which is the user's and only forgotten
 export async function closeIdleTabs() {
   const now = Date.now()
   for (const [gate, tab] of Object.entries(await tabsKept()) as [GateKey, WorkTab][]) {
-    if (running.has(gate) || now - tab.lastAt < TAB_TIMES.idleMs) continue
-    await keepTab(gate, undefined)
-    await ext.tabs.remove(tab.tabId).catch(() => undefined)
+    if (running.has(gate)) continue
+    if (tab.shown) await keepTab(gate, undefined)
+    else if (now - tab.lastAt >= TAB_TIMES.idleMs) {
+      await keepTab(gate, undefined)
+      await ext.tabs.remove(tab.tabId).catch(() => undefined)
+    }
   }
 }
 

@@ -61,8 +61,8 @@ export interface ExtensionView {
   // Waits the user got through, while their papers go on (and until the window puts the line away,
   // extension.dismissGoing); a wait that is up again carries its own going instead
   going: GoingOn[]
-  // Get PDFs in the open workspace: at most one going on, then those that ended and weren't put away,
-  // the newest first (PdfRunView)
+  // Get PDFs in the open workspace: the one going on, else the last one, until it is put away; a new one
+  // replaces the one that ended (PdfRunView)
   runs: PdfRunView[]
 }
 
@@ -113,9 +113,11 @@ export interface WaitGoing {
   ended: number
 }
 
-// A wait that went, with its papers going on
+// A wait that went, with its papers going on. watch: the hosts its pages are at (ExtensionWait.watch),
+// where the extension's popup says so; absent from an owlit that sends none
 export interface GoingOn extends Pick<ExtensionWait, "kind" | "at" | "proxied" | "since"> {
   wait: WaitId
+  watch?: string[]
   going: WaitGoing
 }
 
@@ -264,6 +266,9 @@ export interface WorkItem {
   // The user started what this fetch is part of (Get PDFs, Find PDF, Look again, getting through at a
   // wait): only then may the extension open a tab of its own for it
   userStarted?: true
+  // The gate's sites (registrable domains), the one to allow first: where its tab may stand, and the
+  // site to name when that tab lands where the extension may not read
+  sites?: string[]
 }
 
 // A wait as the extension needs it: where to watch for the user getting through (watch), and, for a
@@ -282,6 +287,9 @@ export interface WorkAnswer {
   // The waits the user got through, with their papers going on, counted by core (ExtensionView.going);
   // absent from an owlit that kept no such count
   going?: GoingOn[]
+  // The endings POST /work/:id accepts (WORK_ENDINGS); absent from an owlit that takes only
+  // LEGACY_WORK_ENDINGS
+  endings?: WorkEnding[]
 }
 
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
@@ -304,17 +312,10 @@ export interface ExtensionOpened {
 // its final address, never the page's text. unreadable: the page wasn't the paper's and said nothing the
 // extension knows (a page built by its scripts, which the extension never runs, or a "Please wait"), so
 // whether the site has a copy is unknown.
-export type WorkEnding =
-  | "no-copy"
-  | "no-access"
-  | "not-offered"
-  | "not-there"
-  | "check"
-  | "blocked"
-  | "sign-in"
-  | "offline"
-  | "no-permission"
-  | "unreadable"
+export const WORK_ENDINGS = ["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission", "unreadable"] as const
+export type WorkEnding = (typeof WORK_ENDINGS)[number]
+// What an owlit whose GET /work names no endings accepts (0.2.x): it refuses any other with a 400
+export const LEGACY_WORK_ENDINGS: readonly WorkEnding[] = ["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission"]
 
 // POST /work/:id, as JSON when no PDF came (a PDF comes as application/pdf)
 export interface WorkEnded {

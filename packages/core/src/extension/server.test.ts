@@ -1,4 +1,4 @@
-import { pdfWait, type ExtensionView, type RpcNotification } from "@owlit/protocol"
+import { pdfWait, WORK_ENDINGS, type ExtensionView, type RpcNotification } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import net from "node:net"
 import { tmpdir } from "node:os"
@@ -360,7 +360,8 @@ describe("the extension's port", () => {
       const token = await s.pair()
       s.putPaper(id, { title, ids: { doi: SAGE } })
       // Asking for work is what makes the extension connected
-      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [], going: [] })
+      // With the endings it takes, so an extension never sends one it would refuse
+      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [], going: [], endings: [...WORK_ENDINGS] })
       return { ...s, token, shown }
     }
 
@@ -373,7 +374,7 @@ describe("the extension's port", () => {
       expect((await request(`/papers?doi=${SAGE}`, { token })).body).toEqual({ paper: { id, title, hasPdf: false }, getting: 1 })
       const { body } = await request("/work", { token })
       // Find PDF is the user's: the extension may open a tab for it
-      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, attempt: 1, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, userStarted: true }])
+      expect(body.work).toEqual([{ id: `${id}#1`, paperId: id, attempt: 1, url: `https://journals.sagepub.com/doi/${SAGE}`, pdfUrl: `https://journals.sagepub.com/doi/pdf/${SAGE}`, lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, userStarted: true, sites: ["sagepub.com"] }])
       const [item] = body.work
       const put = await request(`/work/${encodeURIComponent(item.id)}?host=journals.sagepub.com`, { token, bytes: pdfOf([`https://doi.org/${SAGE}`, title]) })
       expect(put).toMatchObject({ status: 200, body: { paper: { id, hasPdf: true } } })
@@ -393,7 +394,7 @@ describe("the extension's port", () => {
       const paper = await paperIn(call)
       expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { wait: "pub:sage", kind: "sign-in", at: "journals.sagepub.com" } })
       // The extension knows where to watch for the user getting through
-      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [] })
+      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [], endings: [...WORK_ENDINGS] })
       // The line's Sign in: the extension that met it opens the page, in its own browser
       expect(await call("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
       expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" }])
@@ -445,7 +446,7 @@ describe("the extension's port", () => {
       expect(await call("extension.resume", { wait: "pub:sage" })).toEqual({ resumed: true })
       let view: ExtensionView = await call("extension.get")
       expect(view.waits).toEqual([])
-      expect(view.going).toEqual([{ wait: "pub:sage", kind: "check", at: "journals.sagepub.com", proxied: false, since: wait.since, going: { at: expect.any(Number), ids: [id], saved: 0, ended: 0 } }])
+      expect(view.going).toEqual([{ wait: "pub:sage", kind: "check", at: "journals.sagepub.com", watch: ["sagepub.com"], proxied: false, since: wait.since, going: { at: expect.any(Number), ids: [id], saved: 0, ended: 0 } }])
       // owlit's try meets the same check: the same wait, back, which still asks the user
       await answer({ body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
       view = await call("extension.get")
@@ -498,6 +499,24 @@ describe("the extension's port", () => {
       expect(pdfWait((await ask("library.list")).papers.find((p: { id: string }) => p.id === id))).toBe("finding")
     })
 
+    it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
+      const { call, request, token, core, userDataDir, root } = await connected()
+      await call("settings.setProxy", { preset: "tsinghua" })
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      expect(item).toMatchObject({ proxied: true, host: "tlink.lib.tsinghua.edu.cn" })
+      // Signed out at the proxy, found by the redirect to the school's sign-in: no page of its own
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" } })
+      const signIn = "https://tlink.lib.tsinghua.edu.cn/gologin"
+      expect((await call("extension.get")).waits).toMatchObject([{ id: "proxy:tlink.lib.tsinghua.edu.cn", kind: "sign-in", url: signIn }])
+      await core.dispose()
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })
+      cleanups.push(() => again.dispose())
+      expect(await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })).not.toHaveProperty("error")
+      const view: any = await again.handle({ jsonrpc: "2.0", id: 2, method: "extension.get" })
+      expect(view.result.waits).toMatchObject([{ id: "proxy:tlink.lib.tsinghua.edu.cn", kind: "sign-in", url: signIn }])
+    })
+
     it("counts a Get PDFs from its papers, and ends it once nothing is going", async () => {
       const { call, request, token, putPaper } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
@@ -521,6 +540,16 @@ describe("the extension's port", () => {
       await call("pdfRuns.dismiss", { run })
       expect((await call("extension.get")).runs).toEqual([])
       await expect(call("pdfRuns.stop", { run })).rejects.toThrow()
+    })
+
+    it("lets a new Get PDFs replace the one that ended", async () => {
+      const { call } = await connected()
+      const first = (await call("library.fetchPdfs", { ids: [id] })).run
+      await call("pdfRuns.stop", { run: first })
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      expect(run).not.toBe(first)
+      expect((await call("extension.get")).runs).toMatchObject([{ id: run }])
+      await expect(call("pdfRuns.stop", { run: first })).rejects.toThrow()
     })
 
     it("says a Get PDFs isn't going when the extension went before its papers were handed over", async () => {
@@ -548,6 +577,28 @@ describe("the extension's port", () => {
       // The one out for a try still has its answer taken
       expect((await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })).status).toBe(200)
       expect((await request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("never queues a paper stopped while its page was being looked up", async () => {
+      const { call, request, token, core } = await connected()
+      const library = libraryOf(core) as unknown as { services: { settings: () => Promise<unknown> }; batchStopped: Set<string> }
+      const settings = library.services.settings.bind(library.services)
+      let release!: () => void
+      const held = new Promise<void>((resolve) => (release = resolve))
+      const looking = vi.spyOn(library.services, "settings").mockImplementation(async () => {
+        await held
+        return settings()
+      })
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect(looking).toHaveBeenCalled())
+      const stopping = call("pdfRuns.stop", { run })
+      await eventually(async () => expect(library.batchStopped.has(id)).toBe(true))
+      release()
+      await stopping
+      looking.mockRestore()
+      await eventually(async () => expect(library.batchStopped.has(id)).toBe(false))
+      expect((await request("/work", { token })).body.work).toEqual([])
+      expect((await paperIn(call)).pdfState?.extension).toBeUndefined()
     })
 
     it("opens a page to download by hand in the browser the extension was paired in", async () => {
