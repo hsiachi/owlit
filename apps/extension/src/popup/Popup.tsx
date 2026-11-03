@@ -84,8 +84,8 @@ export function Popup() {
 
   // owlit's papers waiting at a site the extension may not read: the permission is asked for from this
   // click, as the browser requires, and owlit goes on there once it is given
-  const allow = async (host: string) => {
-    if ((await askForOrigins(ext.permissions, originsOf(host))) !== "granted") return
+  const allow = async (host: string, sites: string[]) => {
+    if ((await askForOrigins(ext.permissions, sites.flatMap(originsOf))) !== "granted") return
     await send({ kind: "allowed", host })
     if (tabId !== null) void refresh(tabId)
   }
@@ -130,10 +130,10 @@ export function Popup() {
         </section>
       )}
       {connected &&
-        state.needs.map(({ host, papers }) => (
+        state.needs.map(({ host, papers, allow: sites }) => (
           <section key={host} className="flex items-center justify-between gap-3 border-t pt-3">
             <p className="min-w-0 text-detail">{cardOf({ kind: "wait", wait: { kind: "permission", host, papers, proxied: false } }).text}</p>
-            <Button size="sm" variant="outline" onClick={() => void allow(host)}>
+            <Button size="sm" variant="outline" onClick={() => void allow(host, sites)}>
               {t({ message: "Allow", comment: "button: let the owlit extension read this site, for the papers waiting there" })}
             </Button>
           </section>

@@ -1,11 +1,11 @@
 import { t } from "@lingui/core/macro"
-import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WalkAnswer, WalkNext, WalkStep, WorkAnswer, WorkBlocked, WorkResume } from "@owlit/protocol"
+import type { ExtensionStatus, OpenAnswer, OpenBody, OpenPage, OwlitIdentity, PairAnswer, PairBody, PairStarted, PaperAnswer, PaperFound, WalkAnswer, WalkNext, WalkStep, WorkAnswer, WorkBlocked, WorkResume, WorkWait } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { browserName } from "../lib/browser-name.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
 import { afterStatus, outcomeOfError } from "../lib/connect.ts"
 import { startI18n } from "../lib/i18n.ts"
-import { type Answers, type CardAction, type CardView, type Connection, type GoingOn, type Outcome, type PageState, type PopupState, type Request, type SiteWait, type ToPage } from "../lib/messages.ts"
+import { type Answers, type CardAction, type CardView, type Connection, type Outcome, type PageState, type PopupState, type Request, type SiteGoing, type SiteWait, type ToPage } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, namesPdf, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
@@ -13,7 +13,8 @@ import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArriva
 import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough } from "../lib/verdict.ts"
-import { doWork } from "../lib/work.ts"
+import { report } from "../lib/work.ts"
+import { closeIdleTabs, documentOf, fetchLadder, redirectedTo, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
 // owlit and fetches with the user's cookies. The toolbar button has no popup of its own: its click does the
@@ -191,7 +192,7 @@ const permitted = (url: string) => ext.permissions.contains({ origins: [`${new U
 // ---- The button's work
 
 // The PDF at an address, fetched with the user's cookies (and, for a tab, from the browser's cache)
-async function fetchPdf(url: string, cache: RequestCache = "default"): Promise<ArrayBuffer | undefined> {
+async function fetchPdf(url: string, cache: RequestCache = "no-store"): Promise<ArrayBuffer | undefined> {
   try {
     const response = await fetch(url, { credentials: "include", cache, redirect: "follow" })
     if (!response.ok) return undefined
@@ -385,8 +386,8 @@ async function cardAction(action: CardAction, tab: chrome.tabs.Tab | undefined) 
       if (!(await openInOwlit(action.kind === "open-paper" ? action.paperId : undefined)) && tabId !== undefined) await drawCard(tabId, cardOf({ kind: "offline" }))
       return
     case "allow": {
-      const waiting = (await waits()).find((w) => w.kind === "permission" && w.host === action.host)
-      await openAllowPage(action.host, tabId !== undefined && !waiting ? { tab: String(tabId) } : { papers: String(waiting?.papers ?? 0) })
+      const waiting = (await waits()).find((w) => w.kind === "permission" && w.at === action.host)
+      await openAllowPage(action.host, tabId !== undefined && !waiting ? { tab: String(tabId) } : { papers: String(waiting?.papers ?? 0), ...allowQuery(waiting) })
       return
     }
     case "walk":
@@ -477,6 +478,8 @@ async function pdfTab(tabId: number, url: string, tab: chrome.tabs.Tab) {
 }
 
 ext.tabs.onUpdated.addListener((tabId, change, tab) => {
+  // A tab the extension opened to fetch owlit's papers in (ladder.ts) is none of the user's pages
+  if (workTabIds.has(tabId)) return
   // Gone from the PDF it said something about: its "!" or "✓" goes with it (the page's own mark comes
   // after this, from its content script)
   if (change.url) {
@@ -495,7 +498,7 @@ ext.tabs.onUpdated.addListener((tabId, change, tab) => {
     if (pdfUrl && pdfUrl === url) {
       // A PDF that came at a site waiting for a check or a sign-in: the user is past it
       const wait = waitAt(await waits(), new URL(url).hostname)
-      if (wait) await resume(wait.host, tabId).catch(() => undefined)
+      if (wait) await resume(wait, tabId).catch(() => undefined)
       return pdfTab(tabId, url, tab)
     }
     // A site the extension may not read shows it no response, and only the address says it is a PDF
@@ -515,34 +518,15 @@ ext.tabs.onRemoved.addListener((tabId) => {
 
 // ---- Fetching for owlit
 
-// Kept in session storage, so a restarted worker still knows where to watch
-type Waits = WorkAnswer["waits"]
+// Kept in session storage, so a restarted worker still knows where to watch, and what owlit said goes
+// on after the user got through (core counts it from the papers)
+type Waits = WorkWait[]
 const waitsKey = "waits"
 const waits = async () => ((await ext.storage.session.get(waitsKey))[waitsKey] ?? []) as Waits
-// owlit going on at the sites the person got through at, counted as their PDFs come
 const goingKey = "going"
-const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?? []) as GoingOn[]
+const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?? []) as NonNullable<WorkAnswer["going"]>
 // Restarts the asking if the worker was stopped meanwhile
 const WORK = "work"
-
-// Where the extension's own fetches were sent on (work.ts, FetchDeps.redirectedTo): fetch hides an opaque
-// redirect's target, webRequest shows it, for the worker's own requests too (no tab, started by the
-// extension: Chrome names the initiator, Firefox originUrl). The newest per address, a few hundred in
-// all; a stopped worker loses them with the fetch that would have asked.
-const redirects = new Map<string, string>()
-const REDIRECTS_KEPT = 500
-const ownOrigin = new URL(ext.runtime.getURL("/")).origin
-ext.webRequest.onBeforeRedirect.addListener(
-  (details) => {
-    const from = details.initiator ?? (details as { originUrl?: string }).originUrl
-    if (details.tabId !== -1 || (from && new URL(from).origin !== ownOrigin)) return
-    redirects.delete(details.url)
-    redirects.set(details.url, details.redirectUrl)
-    if (redirects.size > REDIRECTS_KEPT) redirects.delete(redirects.keys().next().value!)
-  },
-  { urls: ["https://*/*", "http://*/*"], types: ["xmlhttprequest"] },
-)
-const redirectedTo = (url: string) => redirects.get(url)
 
 let asking: Promise<void> | null = null
 
@@ -558,11 +542,11 @@ function keepAsking() {
         const answer = await ask<WorkAnswer>("/work", { token })
         // An extension call between holds also keeps Chrome from taking the worker for idle. Firefox may
         // still unload its event page between holds; the WORK alarm loads it and asks again
-        await ext.storage.session.set({ [waitsKey]: answer.waits })
+        await ext.storage.session.set({ [waitsKey]: answer.waits, [goingKey]: answer.going ?? [] })
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
         for (const item of answer.work) {
-          void doWork(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo, ask, token })
-            .then((result) => ("pdf" in result ? cameAt(item.host) : undefined))
+          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo })
+            .then((result) => report(item, result, { ask, token }))
             .catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
@@ -576,17 +560,10 @@ function keepAsking() {
   })()
 }
 
-// A PDF came from a site owlit went on at: one more of its papers counted, and the count gone once all came
-const cameAt = (host: string) =>
-  session(async () => {
-    const all = (await going()).map((g) => (g.host === host ? { ...g, done: g.done + 1 } : g)).filter((g) => g.done < g.total)
-    await ext.storage.session.set({ [goingKey]: all })
-  })
-
 // A page the user asked owlit for, from a waiting line in owlit's window: opened here, in the browser with
 // their access, and brought to the front
 async function openPage(page: OpenPage) {
-  if (page.kind === "permission") return openAllowPage(page.host, { papers: String(page.papers) })
+  if (page.kind === "permission") return openAllowPage(page.host, { papers: String(page.papers), ...allowQuery((await waits()).find((w) => w.kind === "permission" && w.at === page.host)) })
   const tab = await ext.tabs.create({ url: page.kind === "walk" ? page.step.url : page.url, active: true })
   if (page.kind === "walk" && tab.id !== undefined) await ext.storage.session.set({ [walkKey]: { tabId: tab.id, paperId: page.step.paperId } satisfies Walk })
   if (tab.windowId !== undefined) await ext.windows.update(tab.windowId, { focused: true }).catch(() => undefined)
@@ -657,73 +634,39 @@ async function walkNext(action: Extract<CardAction, { kind: "walk" }>, tabId: nu
   await walkTo(step, tabId)
 }
 
-// The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab
-async function htmlOf(tabId: number): Promise<{ url: string; html: string } | undefined> {
-  try {
-    const [result] = await ext.scripting.executeScript({
-      target: { tabId },
-      func: () => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, 500_000) }),
-    })
-    return result?.result as { url: string; html: string } | undefined
-  } catch {
-    return undefined
-  }
-}
+const htmlOf = documentOf
 
-// A fetch run inside an open tab at this host that is past its check (work.ts, FetchDeps.inTab). The
-// page fetches with its own standing at the site; the bytes come back base64, since what a script in a
-// tab returns must be plain data.
+// A fetch run inside a tab the user has open at this host, past its check (work.ts, FetchDeps.inTab)
 async function inTab(host: string): Promise<typeof fetch | undefined> {
   for (const tab of await ext.tabs.query({ url: [`https://${host}/*`, `http://${host}/*`] })) {
     if (tab.id === undefined) continue
     const seen = await htmlOf(tab.id)
-    if (!seen || !isThrough({ url: seen.url, status: 0, html: seen.html })) continue
-    const tabId = tab.id
-    return (async (input: string | URL | Request, init?: RequestInit) => {
-      const [result] = await ext.scripting.executeScript({
-        target: { tabId },
-        args: [String(input), init?.redirect ?? "follow"],
-        func: async (url: string, redirect: RequestRedirect) => {
-          const response = await fetch(url, { credentials: "include", redirect })
-          const bytes = new Uint8Array(await response.arrayBuffer())
-          let binary = ""
-          for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-          return { status: response.status, url: response.url, type: response.type, contentType: response.headers.get("content-type") ?? "", body: btoa(binary) }
-        },
-      })
-      const got = result?.result as { status: number; url: string; type: string; contentType: string; body: string } | undefined
-      if (!got) throw new TypeError("The tab went away")
-      const body = Uint8Array.from(atob(got.body), (c) => c.charCodeAt(0))
-      const response = new Response(got.status === 0 || got.status === 204 ? null : body, { status: got.status || 200, headers: { "content-type": got.contentType } })
-      Object.defineProperty(response, "url", { value: got.url })
-      return response
-    }) as typeof fetch
+    if (seen && isThrough({ url: seen.url, status: 0, html: seen.html })) return tabFetch(tab.id)
   }
   return undefined
 }
 
-async function resume(host: string, tabId?: number) {
+// The user got through at this wait: owlit goes on there, and the card in the tab says so
+async function resume(wait: Waits[number], tabId?: number) {
   const { token } = await local()
   if (!token) return
-  const wait = (await waits()).find((w) => w.host === host)
-  await ask("/work/resume", { token, json: { host } satisfies WorkResume })
-  await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => w.host !== host) })
-  if (!wait) return
-  await session(async () => ext.storage.session.set({ [goingKey]: [...(await going()).filter((g) => g.host !== host), { host, done: 0, total: wait.papers }] }))
-  if (tabId !== undefined) await drawCard(tabId, cardOf({ kind: "through", host, papers: wait.papers }))
+  // An owlit whose waits carry no id is told the host, which it matches through the waits' watch
+  await ask("/work/resume", { token, json: (wait.id ? { wait: wait.id } : { host: wait.host }) satisfies WorkResume })
+  await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => w.id !== wait.id) })
+  if (tabId !== undefined) await drawCard(tabId, cardOf({ kind: "through", host: wait.at, papers: wait.papers }))
 }
 
 // The page the user opened at a site paused for a check or a sign-in is the site's block instead: owlit
 // hears it, so its line asks for another network rather than a check no one can pass, and the card here
 // says the same
-async function blocked(host: string, url: string, tabId: number) {
+async function blocked(wait: Waits[number], url: string, tabId: number) {
   const { token } = await local()
   if (!token) return
-  await ask("/work/blocked", { token, json: { host, url } satisfies WorkBlocked })
-  const all = (await waits()).map((w) => (w.host === host ? { ...w, kind: "blocked" as const } : w))
+  await ask("/work/blocked", { token, json: (wait.id ? { wait: wait.id, url } : { host: wait.host, url }) satisfies WorkBlocked })
+  const all = (await waits()).map((w) => (w.id === wait.id ? { ...w, kind: "blocked" as const } : w))
   await ext.storage.session.set({ [waitsKey]: all })
-  const wait = all.find((w) => w.host === host)
-  if (wait) await drawCard(tabId, cardOf({ kind: "wait", wait: siteWait(wait) }))
+  const now = all.find((w) => w.id === wait.id)
+  if (now) await drawCard(tabId, cardOf({ kind: "wait", wait: siteWait(now) }))
 }
 
 // A page that finished loading at a site paused for a check or a sign-in: once it is neither, the user
@@ -735,7 +678,7 @@ const THROUGH_EVERY_MS = 3000
 const watching = new Set<number>()
 
 // Whether a page the tab shows is past what its site waits for: neither a check, a block nor a sign-in
-const pastIn = (seen: { url: string; html: string }, wait: Waits[number]) => isThrough({ url: seen.url, status: 0, html: seen.html, proxy: wait.proxied ? { host: wait.host } : undefined })
+const pastIn = (seen: { url: string; html: string }, wait: Waits[number]) => isThrough({ url: seen.url, status: 0, html: seen.html, proxy: wait.proxied ? { host: wait.at } : undefined })
 
 // The same, for a tab the popup or a page's report finds at a waiting site: owlit goes on there at once.
 // A check Cloudflare passes in the page it stands in loads no new page, and the watch above may have
@@ -743,7 +686,7 @@ const pastIn = (seen: { url: string; html: string }, wait: Waits[number]) => isT
 async function pastAt(tabId: number, wait: Waits[number]): Promise<boolean> {
   const seen = await htmlOf(tabId)
   if (!seen || !pastIn(seen, wait)) return false
-  await resume(wait.host, tabId).catch(() => undefined)
+  await resume(wait, tabId).catch(() => undefined)
   return true
 }
 
@@ -761,11 +704,11 @@ async function watchForThrough(tabId: number, url: string) {
       const seen = await htmlOf(tabId)
       if (!seen) return
       if (pastIn(seen, wait)) {
-        await resume(wait.host, tabId).catch(() => undefined)
+        await resume(wait, tabId).catch(() => undefined)
         return
       }
       if (isBlocked(seen)) {
-        if (wait.kind !== "blocked") await blocked(wait.host, seen.url, tabId).catch(() => undefined)
+        if (wait.kind !== "blocked") await blocked(wait, seen.url, tabId).catch(() => undefined)
         return
       }
     }
@@ -778,7 +721,10 @@ async function watchForThrough(tabId: number, url: string) {
 
 ext.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === RECONNECT) void connection()
-  if (alarm.name === WORK) keepAsking()
+  if (alarm.name === WORK) {
+    keepAsking()
+    void closeIdleTabs().catch(() => undefined)
+  }
 })
 // Every time the worker starts: Chrome stops it when idle, and a stopped worker asks for no work
 void ext.alarms.create(WORK, { periodInMinutes: 0.5 })
@@ -809,9 +755,19 @@ const registered = () => void registerGranted().catch((error) => console.error("
 // page never sends its own "allowed".
 async function resumePermitted() {
   for (const wait of (await waits()).filter((w) => w.kind === "permission")) {
-    if (await mayRead(ext.permissions, wait.host)) await resume(wait.host).catch(() => undefined)
+    if (await mayReadAll(wait)) await resume(wait).catch(() => undefined)
   }
 }
+
+// The extension may read every site a wait to be allowed asks for
+async function mayReadAll(wait: Waits[number]) {
+  for (const site of allowOf(wait)) if (!(await mayRead(ext.permissions, site))) return false
+  return true
+}
+
+// The sites a wait to be allowed asks for: owlit's list, else (an owlit that sends none) its host
+const allowOf = (wait: Waits[number]) => (wait.allow?.length ? wait.allow : [wait.at ?? wait.host])
+const allowQuery = (wait: Waits[number] | undefined): Record<string, string> => (wait ? { allow: allowOf(wait).join(",") } : {})
 
 ext.permissions.onAdded.addListener(() => {
   registered()
@@ -825,9 +781,13 @@ ext.runtime.onInstalled.addListener(registered)
 async function popupState(tabId: number): Promise<PopupState> {
   const [conn, takePdfs, knownSites] = await Promise.all([connection(), takePdfsOn(), hasKnownSites(ext.permissions, ext.runtime.getManifest())])
   const all = conn.state === "connected" ? await waits() : []
-  const asked = all.filter((w) => w.kind === "permission").map(({ host, papers }) => ({ host, papers }))
-  const { needed: needs, allowed } = await notYetAllowed(ext.permissions, asked)
-  for (const host of allowed) void resume(host).catch(() => undefined)
+  const asked = all.filter((w) => w.kind === "permission").map((w) => ({ host: w.at, papers: w.papers, allow: allowOf(w), wait: w }))
+  const { needed, allowed } = await notYetAllowed(ext.permissions, asked)
+  for (const host of allowed) {
+    const wait = asked.find((a) => a.host === host)?.wait
+    if (wait && (await mayReadAll(wait))) void resume(wait).catch(() => undefined)
+  }
+  const needs = needed.map(({ host, papers, allow }) => ({ host, papers, allow }))
   const said = (await ext.storage.session.get(saidKey(tabId)))[saidKey(tabId)] as Outcome | undefined
   const page = await pageOf(tabId)
   const base = { connection: conn, takePdfs, knownSites, needs, said }
@@ -835,7 +795,7 @@ async function popupState(tabId: number): Promise<PopupState> {
   // A wait this page is past isn't said: owlit goes on there at once
   let wait = waitAt(all, page.host)
   if (wait && (await pastAt(tabId, wait))) wait = undefined
-  const goingOn = (await going()).find((g) => page.host === g.host || page.host.endsWith(`.${g.host}`))
+  const goingOn = goingAt(await going(), page.host)
   const { token } = await local()
   const found = conn.state === "connected" && conn.workspace && token && (page.paper || page.pdfTab) ? await find(page, token).catch(() => undefined) : undefined
   const pdfTab = pdfSaidOn(page.url, await pdfSaidOf(tabId))
@@ -874,7 +834,7 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
       return null
     case "allowed": {
       // Asked for on the Allow page (a permission can only be asked from a click); held, owlit goes on there
-      if (await mayRead(ext.permissions, request.host)) await resume(request.host).catch(() => undefined)
+      await resumePermitted()
       // From a click that needed the site: back to that tab, and the click's work done again
       if (request.tabId !== undefined) {
         const tab = await ext.tabs.update(request.tabId, { active: true }).catch(() => undefined)
@@ -887,7 +847,8 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
     }
     case "page": {
       const tabId = sender.tab?.id
-      if (tabId === undefined || !/^https?:/.test(request.url)) return null
+      // The extension's own tab for owlit's fetches: no mark, no card, no PDF taken there
+      if (tabId === undefined || !/^https?:/.test(request.url) || workTabIds.has(tabId)) return null
       const page = { url: request.url, host: new URL(request.url).hostname, pdfTab: false, paper: paperOfPage(request.html, request.url) }
       await rememberPage(tabId, page)
       const drawing = injected.get(tabId)
@@ -915,19 +876,31 @@ async function answer(request: Request, sender: chrome.runtime.MessageSender): P
 // Cards the person closed in this browser session, by their key
 const closedKey = "closedCards"
 
-// The sign-in or check a site this tab is on waits for, if any: the site itself or a host under it (a
-// proxy's rewritten publisher hosts are under the proxy's). A site waiting to be allowed runs no content
-// script, and the popup lists it apart.
+// A host is one of these, or under one
+const under = (host: string, hosts: string[]) => hosts.some((h) => host === h || host.endsWith(`.${h}`))
+// Where a wait is watched for the user getting through (core's watch: the publisher's hosts, the proxy's,
+// a host-rewriting proxy's names for them), else (an owlit that sends none) the wait's host
+const watchOf = (wait: Waits[number]) => (wait.watch?.length ? wait.watch : [wait.host])
+
+// The sign-in or check this tab's host is watched for, if any. A site waiting to be allowed runs no
+// content script, and the popup lists it apart.
 function waitAt(all: Waits, host: string) {
-  return all.find((w) => w.kind !== "permission" && (host === w.host || host.endsWith(`.${w.host}`)))
+  return all.find((w) => w.kind !== "permission" && under(host, watchOf(w)))
 }
 
-const siteWait = ({ kind, host, papers, proxied }: Waits[number]): SiteWait => ({ kind, host, papers, proxied })
+const siteWait = ({ kind, at, host, papers, proxied }: Waits[number]): SiteWait => ({ kind, host: at ?? host, papers, proxied })
 
 // The site wait that holds up the most papers, but for the one at this host
 function biggestWait(all: Waits, host: string) {
-  const elsewhere = all.filter((w) => host !== w.host && !host.endsWith(`.${w.host}`))
+  const elsewhere = all.filter((w) => !under(host, watchOf(w)))
   return elsewhere.sort((a, b) => b.papers - a.papers)[0]
+}
+
+// owlit going on where this host is, after the user got through there, while its papers haven't all
+// ended: how many came with their PDF so far, as core counts them
+function goingAt(all: NonNullable<WorkAnswer["going"]>, host: string): SiteGoing | undefined {
+  const at = all.find((g) => g.going.ended < g.going.ids.length && under(host, [g.at]))
+  return at && { host: at.at, done: at.going.saved, total: at.going.ids.length }
 }
 
 // A page at a site that waits on the person: the card says what for, until they close it; a page past it

@@ -95,8 +95,9 @@ export interface Screen {
   silent: string[]
   waits: WaitView[]
   papers: Record<string, PaperView>
-  // The user's browser: its tabs, the sites the extension's card counts PDFs coming from after the user
-  // got through (as background/index.ts keeps "going"), and the Allow pages it opened
+  // The user's browser: its tabs, the sites the extension's popup says owlit goes on at after the user
+  // got through (core's count in GET /work, as background/index.ts goingAt reads it), and the Allow
+  // pages it opened
   browser: { tabs: string[]; going: { host: string; done: number; total: number }[]; allowAsked: string[] }
 }
 
@@ -397,7 +398,7 @@ class Extension {
   private readonly redirects = new Map<string, string>()
   private waits: Waits = []
   private readonly tabs: string[] = []
-  private going: { host: string; done: number; total: number }[] = []
+  private going: NonNullable<WorkAnswer["going"]> = []
   private readonly allowAsked: string[] = []
   private readonly pending = new Set<Promise<unknown>>()
 
@@ -454,6 +455,7 @@ class Extension {
   async step(): Promise<boolean> {
     const answer = await this.ask<WorkAnswer>("/work", { token: this.token })
     this.waits = answer.waits
+    this.going = answer.going ?? []
     for (const page of answer.open ?? []) this.openPage(page)
     for (const item of answer.work) this.doOne(item)
     return answer.work.length > 0 || (answer.open ?? []).length > 0
@@ -478,10 +480,6 @@ class Extension {
       ask: this.ask,
       token: this.token,
     })
-      .then((result) => {
-        // background/index.ts cameAt: counted under the work item's host
-        if ("pdf" in result) this.going = this.going.map((g) => (g.host === item.host ? { ...g, done: g.done + 1 } : g)).filter((g) => g.done < g.total)
-      })
       .catch((error) => console.error("[bench] the extension's fetch failed", error))
       .finally(() => this.pending.delete(going))
     this.pending.add(going)
@@ -502,8 +500,8 @@ class Extension {
       if (!seen) continue
       const wait = waitAt(this.waits, new URL(seen.url).hostname)
       if (!wait) continue
-      if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy: wait.proxied ? { host: wait.host } : undefined })) await this.resume(wait.host)
-      else if (isBlocked(seen) && wait.kind !== "blocked") await this.ask("/work/blocked", { token: this.token, json: { host: wait.host, url: seen.url } })
+      if (isThrough({ url: seen.url, status: 0, html: seen.html, proxy: wait.proxied ? { host: wait.at } : undefined })) await this.resume(wait)
+      else if (isBlocked(seen) && wait.kind !== "blocked") await this.ask("/work/blocked", { token: this.token, json: { wait: wait.id, url: seen.url } })
     }
   }
 
@@ -512,16 +510,14 @@ class Extension {
     this.denied.delete(site)
     await this.step()
     for (const wait of this.waits.filter((w) => w.kind === "permission")) {
-      if (await mayRead(this.permissions, wait.host)) await this.resume(wait.host)
+      if (await mayRead(this.permissions, wait.at)) await this.resume(wait)
     }
   }
 
-  // background/index.ts resume: owlit goes on, and the card counts the site's PDFs as they come
-  private async resume(host: string) {
-    const wait = this.waits.find((w) => w.host === host)
-    await this.ask("/work/resume", { token: this.token, json: { host } })
-    this.waits = this.waits.filter((w) => w.host !== host)
-    if (wait) this.going = [...this.going.filter((g) => g.host !== host), { host, done: 0, total: wait.papers }]
+  // background/index.ts resume: owlit goes on at the wait, named by its id
+  private async resume(wait: Waits[number]) {
+    await this.ask("/work/resume", { token: this.token, json: { wait: wait.id } })
+    this.waits = this.waits.filter((w) => w.id !== wait.id)
   }
 
   // A tab's page as the user's browser shows it: every redirect followed, whatever the extension may read
@@ -535,12 +531,13 @@ class Extension {
   }
 
   browser(): Screen["browser"] {
-    return { tabs: [...this.tabs], going: this.going.map((g) => ({ ...g })), allowAsked: [...this.allowAsked] }
+    const going = this.going.filter((g) => g.going.ended < g.going.ids.length).map((g) => ({ host: g.at, done: g.going.saved, total: g.going.ids.length }))
+    return { tabs: [...this.tabs], going, allowAsked: [...this.allowAsked] }
   }
 }
 
-// background/index.ts waitAt: the sign-in or check this host's tab is under
-const waitAt = (all: Waits, host: string) => all.find((w) => w.kind !== "permission" && (host === w.host || host.endsWith(`.${w.host}`)))
+// background/index.ts waitAt: the sign-in or check whose watched hosts this tab's host is one of, or under
+const waitAt = (all: Waits, host: string) => all.find((w) => w.kind !== "permission" && w.watch.some((h) => host === h || host.endsWith(`.${h}`)))
 
 // ---- The window
 
