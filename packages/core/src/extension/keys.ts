@@ -1,7 +1,7 @@
 import type { GateKey, LaneKey, ProxySettings } from "@owlit/protocol"
 import { publisherOf, PUBLISHERS, REDIRECTORS } from "../library/publisher-table.ts"
 import { hostOf } from "../net/http.ts"
-import { siteOf, type ExtensionRoute } from "./route.ts"
+import { realHost, rewriteHost, siteOf, type ExtensionRoute } from "./route.ts"
 
 // The keys the extension's work is arranged by (packages/protocol/src/pdf-keys.ts), made here and
 // nowhere else. A gate is who can stop a fetch: the publisher whose check, block or sign-in it met, or
@@ -46,7 +46,7 @@ function publisherAt(host: string): string | undefined {
 
 // Where a page through the library's proxy really is: the target a login-url proxy carries in ?url=
 // (tlink's /go?url=, EZproxy's /login?url=), or the host a host-rewrite proxy hid in its first label
-// (www-sciencedirect-com.ezproxy.uni.edu, a hyphen of the host's own written as two). undefined for the
+// (www-sciencedirect-com.ezproxy.uni.edu, route.ts rewriteHost). undefined for the
 // proxy's own pages (its front page, its sign-in). A WebVPN that encrypts the host can't be read back:
 // its pages all stay the proxy's.
 function throughProxy(url: URL, proxy: ProxySettings): { url?: URL } | undefined {
@@ -62,11 +62,9 @@ function throughProxy(url: URL, proxy: ProxySettings): { url?: URL } | undefined
   }
   if (host === proxyHost) return {}
   if (!host.endsWith(`.${proxyHost}`)) return undefined
-  const hidden = host.slice(0, -proxyHost.length - 1)
-  const real = hidden.replace(/--/g, "\0").replace(/-/g, ".").replace(/\0/g, "-")
   const target = parse(url.toString())
   if (!target) return {}
-  target.hostname = real
+  target.hostname = realHost(host.slice(0, -proxyHost.length - 1))
   return { url: target }
 }
 
@@ -108,8 +106,9 @@ export function laneOf(route: Pick<ExtensionRoute, "url" | "host" | "proxied">):
 
 // The hosts where a page that loaded shows the user got past a wait at this gate (the extension matches
 // a tab's host to one of them or a host under it). A publisher's own hosts, and through a host-rewrite
-// proxy their rewritten names; the proxy's host for its own gate, and for a login-url proxy's lane,
-// whose pages it serves. Never an identity provider's: a page there is a sign-in going on, not done.
+// proxy their rewritten names; the proxy's host only for its own gate (a login-url proxy such as tlink
+// sends the browser on to the publisher's real host). Never an identity provider's: a page there is a
+// sign-in going on, not done.
 export function watchOf(gate: GateKey, lane: LaneKey, proxy?: ProxySettings): string[] {
   const proxyHost = proxy && lane.startsWith("proxy:") ? hostOf(proxy.base).toLowerCase() : undefined
   if (gate.startsWith("proxy:")) return [gate.slice("proxy:".length)]
@@ -122,16 +121,12 @@ export function watchOf(gate: GateKey, lane: LaneKey, proxy?: ProxySettings): st
     hosts = [site, `www.${site}`]
   }
   const watch = new Set(hosts.map(matchedUnder))
-  if (proxyHost && proxy!.scheme === "host-rewrite") for (const host of hosts) watch.add(rewritten(host, proxyHost))
-  if (proxyHost && proxy!.scheme === "login-url") watch.add(proxyHost)
+  if (proxyHost && proxy!.scheme === "host-rewrite") for (const host of hosts) watch.add(rewriteHost(host, proxyHost))
   return [...watch]
 }
 
 // The gate of the library proxy's own sign-in
 export const proxyGate = (proxy: ProxySettings): GateKey => `proxy:${hostOf(proxy.base).toLowerCase()}`
-
-// A host as a host-rewrite proxy names it (throughProxy above reads it back)
-const rewritten = (host: string, proxyHost: string) => `${host.replace(/-/g, "--").replace(/\./g, "-")}.${proxyHost}`
 
 function parse(url: string): URL | undefined {
   try {

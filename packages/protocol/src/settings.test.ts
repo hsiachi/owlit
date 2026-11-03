@@ -21,6 +21,7 @@ describe("proxyFromLink", () => {
       base: "https://ezproxy.example.edu",
       scheme: "host-rewrite",
     })
+    expect(proxyFromLink("https://www-thieme--connect-de.ezproxy.example.edu/products/1")).toEqual({ base: "https://ezproxy.example.edu", scheme: "host-rewrite" })
     expect(proxyFromLink("https://www-nature-com.proxy.lib.example.ac.uk:8443/articles/x")).toEqual({
       base: "https://proxy.lib.example.ac.uk:8443",
       scheme: "host-rewrite",

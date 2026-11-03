@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { FIREFOX_ANDROID_MIN, FIREFOX_MIN, GECKO_ID, manifest, TARGETS } from "./manifest.ts"
+import { FIREFOX_ANDROID_MIN, FIREFOX_MIN, GECKO_ID, manifest, REQUIRED_SITES, TARGETS } from "./manifest.ts"
 
-const publishers = ["https://*.acm.org/*", "https://*.springer.com/*"]
+const publishers = ["https://*.dl.acm.org/*", "https://*.link.springer.com/*"]
 const built = (target: (typeof TARGETS)[number]) => manifest(target, { version: "1.2.3", publishers })
 
 describe("manifest", () => {
@@ -21,6 +21,14 @@ describe("manifest", () => {
     expect(m.optional_host_permissions).toEqual(["https://*/*", "http://*/*"])
     // A match pattern takes no port
     for (const origin of [...m.host_permissions, ...m.optional_host_permissions]) expect(origin).toMatch(/^https?:\/\/(\*|\*\.[^/:*]+|[^/:*]+)\/\*$/)
+  })
+
+  it.each(TARGETS)("requires no publisher site beyond the ones it first shipped with, for %s", (target) => {
+    const m = manifest(target, { version: "1.2.3", publishers: [...REQUIRED_SITES, "https://*.thieme-connect.de/*", "https://*.misq.umn.edu/*"] })
+    expect(m.host_permissions).toEqual(["http://127.0.0.1/*", ...REQUIRED_SITES])
+    expect(m.content_scripts[0].matches).toEqual([...REQUIRED_SITES])
+    // Still readable once allowed: any site is an optional permission
+    expect(m.optional_host_permissions).toContain("https://*/*")
   })
 
   it.each(TARGETS)("shows the one tile on the toolbar, the extensions page and in the store, for %s", (target) => {

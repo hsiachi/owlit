@@ -1,7 +1,7 @@
 import { PROXY_PRESETS, type ProxySettings } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
 import { gateOf, laneOf, proxyGate, watchOf } from "./keys.ts"
-import { extensionRoute } from "./route.ts"
+import { extensionRoute, realHost, siteOf, throughProxy } from "./route.ts"
 
 const TLINK: ProxySettings = PROXY_PRESETS.tsinghua.proxy
 const EZPROXY: ProxySettings = { base: "https://ezproxy.uni.edu", scheme: "host-rewrite" }
@@ -81,7 +81,7 @@ describe("through tlink", () => {
   it("watches the publisher's hosts and tlink's, never the school's sign-in", () => {
     const lane = laneOf(extensionRoute("10.1126/science.abc1001", TLINK))
     expect(lane).toBe("proxy:tlink.lib.tsinghua.edu.cn")
-    expect(watchOf("pub:science", lane, TLINK).sort()).toEqual(["science.org", "tlink.lib.tsinghua.edu.cn"])
+    expect(watchOf("pub:science", lane, TLINK)).toEqual(["science.org"])
     expect(watchOf("proxy:tlink.lib.tsinghua.edu.cn", lane, TLINK)).toEqual(["tlink.lib.tsinghua.edu.cn"])
     for (const gate of ["pub:science", "proxy:tlink.lib.tsinghua.edu.cn"] as const) {
       expect(watchOf(gate, lane, TLINK).some((h) => h.endsWith("tsinghua.edu.cn") && h !== "tlink.lib.tsinghua.edu.cn")).toBe(false)
@@ -102,6 +102,15 @@ describe("through a host-rewriting EZproxy", () => {
     expect(gateOf("https://ezproxy.uni.edu/login", EZPROXY)).toBe("proxy:ezproxy.uni.edu")
     // The school's sign-in under the proxy's domain
     expect(gateOf("https://idp.uni.edu/idp/profile/SAML2", EZPROXY, "pub:elsevier")).toBe("proxy:ezproxy.uni.edu")
+  })
+
+  it("reads back exactly what owlit's own rewriting names", () => {
+    for (const host of ["www.thieme-connect.de", "dl.acm.org", "a--b.example-x.co.uk", "pdf.sciencedirectassets.com"]) {
+      const url = throughProxy(`https://${host}/doi/x?y=1`, EZPROXY)
+      expect(realHost(new URL(url).hostname.slice(0, -".ezproxy.uni.edu".length))).toBe(host)
+    }
+    expect(throughProxy("https://www.thieme-connect.de/products/1", EZPROXY)).toBe("https://www-thieme--connect-de.ezproxy.uni.edu/products/1")
+    expect(gateOf(throughProxy("https://www.thieme-connect.de/products/1", EZPROXY), EZPROXY)).toBe("pub:thieme")
   })
 
   it("watches the publisher's real and rewritten hosts", () => {
@@ -131,5 +140,16 @@ describe("a paper's lane", () => {
     expect(watchOf("site:example.org", "site:example.org")).toEqual(["example.org"])
     expect(watchOf("pub:misq", "pub:misq")).toEqual(["misq.umn.edu"])
     expect(watchOf("pub:oup", "pub:oup")).toEqual(["oup.com"])
+  })
+})
+
+describe("a host's registrable domain", () => {
+  it("follows the public suffix list", () => {
+    expect(siteOf("id.tsinghua.edu.cn")).toBe("tsinghua.edu.cn")
+    expect(siteOf("www.jstage.jst.go.jp")).toBe("jst.go.jp")
+    expect(siteOf("journals.example.co.jp")).toBe("example.co.jp")
+    expect(siteOf("Watermark02.Silverchair.com")).toBe("silverchair.com")
+    expect(siteOf("localhost")).toBe("localhost")
+    expect(siteOf("127.0.0.1")).toBe("127.0.0.1")
   })
 })

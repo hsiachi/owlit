@@ -25,6 +25,39 @@ export const CHROME_MIN = "116"
 const ICONS = { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 64: "icons/64.png", 96: "icons/96.png", 128: "icons/128.png" }
 const BUTTON = { 16: ICONS[16], 32: ICONS[32], 48: ICONS[48] }
 
+// The publisher sites the extension requires, as it first shipped them. A site added to core's publisher
+// table later is asked for when a paper needs it (the permission wait), never required: a browser
+// disables an extension whose update requires more sites until the user accepts them, and the user
+// rarely sees why.
+export const REQUIRED_SITES: readonly string[] = [
+  "https://*.academic.oup.com/*",
+  "https://*.arxiv.org/*",
+  "https://*.cambridge.org/*",
+  "https://*.dl.acm.org/*",
+  "https://*.doi.apa.org/*",
+  "https://*.doi.org/*",
+  "https://*.emerald.com/*",
+  "https://*.frontiersin.org/*",
+  "https://*.ieeexplore.ieee.org/*",
+  "https://*.iopscience.iop.org/*",
+  "https://*.journals.plos.org/*",
+  "https://*.journals.sagepub.com/*",
+  "https://*.jstor.org/*",
+  "https://*.link.springer.com/*",
+  "https://*.linkinghub.elsevier.com/*",
+  "https://*.mdpi.com/*",
+  "https://*.nature.com/*",
+  "https://*.onlinelibrary.wiley.com/*",
+  "https://*.pdf.sciencedirectassets.com/*",
+  "https://*.pnas.org/*",
+  "https://*.psycnet.apa.org/*",
+  "https://*.pubs.acs.org/*",
+  "https://*.science.org/*",
+  "https://*.sciencedirect.com/*",
+  "https://*.silverchair.com/*",
+  "https://*.tandfonline.com/*",
+]
+
 export interface Manifest {
   manifest_version: 3
   name: string
@@ -46,8 +79,11 @@ export interface Manifest {
   }
 }
 
-// dev: the build for Owlit Dev (scripts/build.mjs --dev), named apart so the two can sit side by side
-export function manifest(target: Target, { version, publishers, dev = false }: { version: string; publishers: string[]; dev?: boolean }): Manifest {
+// dev: the build for Owlit Dev (scripts/build.mjs --dev), named apart so the two can sit side by side.
+// publishers: the sites core's publisher table knows (scripts/hosts.mjs), of which REQUIRED_SITES alone
+// are required; content scripts match the same, since their matches are required access too.
+export function manifest(target: Target, { version, publishers: known, dev = false }: { version: string; publishers: string[]; dev?: boolean }): Manifest {
+  const publishers = known.filter((site) => REQUIRED_SITES.includes(site))
   const shared = {
     manifest_version: 3 as const,
     name: dev ? "owlit (dev)" : "owlit",

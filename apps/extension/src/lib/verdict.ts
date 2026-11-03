@@ -1,4 +1,5 @@
 import type { WorkEnding } from "@owlit/protocol"
+import { getDomain } from "tldts"
 
 // What a page that came instead of a PDF says, in owlit's one word for it: a check in front of the page,
 // the site's firewall turning this browser away (blocked), a sign-in (the library proxy's, a school's, a publisher's), the library's proxy saying it hasn't got the
@@ -77,12 +78,11 @@ const words = (html: string) => decode(html.replace(/<[^>]*>/g, " ")).replace(/\
 
 export const titleOf = (html: string) => words(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
 
-// A host's registrable domain, without the public suffix list: the last two labels, or three under a
-// country's second level (ac.uk, edu.cn). core's extension/route.ts siteOf, copied: change them together.
+// A host's registrable domain, by the public suffix list; the host itself where it has none. core's
+// extension/route.ts siteOf, the same: change them together.
 export function siteOf(host: string) {
-  const labels = host.toLowerCase().split(".").filter(Boolean)
-  const country = labels.length >= 3 && labels.at(-1)!.length === 2 && /^(ac|co|com|edu|gov|net|org)$/.test(labels.at(-2)!)
-  return labels.slice(country ? -3 : -2).join(".")
+  const bare = host.toLowerCase().replace(/\.$/, "")
+  return getDomain(bare) ?? bare
 }
 
 // A paper's own page carries its tags: Google Scholar's (citation_title, citation_doi), Dublin Core's

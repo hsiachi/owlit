@@ -18,6 +18,7 @@
     "@owlit/i18n": "workspace:*",
     "@owlit/protocol": "workspace:*",
     "diff": "8.0.4",
+    "tldts": "7.4.19",
     "zod": "4.6.5"
   },
   "devDependencies": {
