@@ -532,6 +532,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (ended === "pdf") this.notes.pdf(item.gate, now)
     if (ended === "offline") {
       // Its try reached nothing: a wait it was under keeps waiting, its one try still to come
+      let held = [item.paper.paperId]
       if (was) was.tryAt = now + PAUSED_RETRY_MS
       else {
         const host = (page.url ? hostOf(page.url) : page.host)?.toLowerCase() || item.paper.host
@@ -542,15 +543,18 @@ export class ExtensionWork implements ExtensionFetcher {
         if (atProxy(lane, item, host)) {
           lane.offline = back(lane.offline)
           this.sayWhenBackOffEnds(lane, undefined, lane.offline.until)
+          held = all(lane).map((q) => q.paper.paperId)
         } else {
           const off = back(lane.gatesOffline.get(item.gate))
           lane.gatesOffline.set(item.gate, off)
           this.sayWhenBackOffEnds(lane, item.gate, off.until)
+          held = all(lane).filter((q) => q.gate === item.gate).map((q) => q.paper.paperId)
         }
       }
       lane.queue.unshift(item)
       sortQueue(lane)
-      this.host.papers(this.library, [item.paper.paperId])
+      // Every paper the back-off holds says its new time to try again, not only the one that met it
+      this.host.papers(this.library, [...new Set([item.paper.paperId, ...held])])
     } else if (pause) {
       lane.offline = undefined
       lane.gatesOffline.delete(item.gate)

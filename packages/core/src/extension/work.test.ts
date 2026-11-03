@@ -226,13 +226,16 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
   })
 
-  it("tells the window when a back-off ends, so no paper still says a time to try again that has passed", async () => {
+  it("tells the window when a back-off begins and ends, so no paper says a time to try again that has passed", async () => {
     const { work, take, heard } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)
     work.fetch(library, paper("a2", "sagepub.com"), false)
     work.fetch(library, paper("w1", "wiley.com"), false)
     const first = await take()
+    heard.length = 0
     work.settle(first.find((w) => w.paperId === "a1")!.id, "offline")
+    // Every paper the back-off holds is said again with it, not only the one that met it
+    expect(heard).toEqual([["a1", "a2"]])
     const until = work.holding(library, "a1")!.unreachable!.until
     heard.length = 0
     vi.advanceTimersByTime(until - Date.now())
