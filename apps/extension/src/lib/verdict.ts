@@ -147,6 +147,16 @@ export function isCheck(page: Pick<Page, "status" | "html" | "headers">) {
   )
 }
 
+// A check that only a person passes, which no tab passes by waiting: Cloudflare's interactive challenge
+// (cType 'interactive', ScienceDirect's "Are you a robot?"), a captcha to solve, DataDome's and
+// PerimeterX's. Cloudflare's managed challenge (cType 'managed') passes by itself in a tab that runs it,
+// and its tab document loads Turnstile too, so Turnstile alone says nothing here.
+const INTERACTIVE = /\bcType:\s*["']interactive["']|are you a robot\?|captcha-delivery\.com|px-captcha|class=["'][^"']*\b(g-recaptcha|h-captcha)\b/i
+
+export function isInteractive(page: Pick<Page, "status" | "html" | "headers">) {
+  return isCheck(page) && INTERACTIVE.test(page.html)
+}
+
 // The path as written, decoded: a path that isn't valid percent-encoding is read as it is
 function pathOf(at: URL) {
   try {
