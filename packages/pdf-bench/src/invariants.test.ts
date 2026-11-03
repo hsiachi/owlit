@@ -10,9 +10,9 @@ const science = { id: "pub:science", kind: "check", host: "science.org", papers:
 describe("the bench's invariants", () => {
   it("hold on a screen that agrees with itself", () => {
     const screen: Screen = {
-      block: { batch: true, total: 2, saved: 1, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, host: "science.org", ids: ["a"] }] },
+      block: { batch: true, total: 2, saved: 1, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "pub:science", host: "science.org", ids: ["a"] }] },
       waits: [science],
-      papers: { a: { hasPdf: false, title: "", heldAt: { kind: "check", host: "science.org" }, foundUnder: { kind: "check", host: "science.org" } }, b: { hasPdf: true, title: "" } },
+      papers: { a: { hasPdf: false, title: "", heldAt: "pub:science", foundUnder: "pub:science" }, b: { hasPdf: true, title: "" } },
       silent: [],
       inLine: 0,
       browser,
@@ -20,33 +20,33 @@ describe("the bench's invariants", () => {
     expect(invariantErrors(screen)).toEqual([])
   })
 
-  it("catch a paper core holds at a publisher that the window looks for under the proxy's host", () => {
+  it("catch a paper core holds under a wait the window doesn't list, and a row for it", () => {
     const screen: Screen = {
-      block: { batch: true, total: 1, saved: 0, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, host: "tlink.lib.tsinghua.edu.cn", ids: ["a"] }] },
+      block: { batch: true, total: 1, saved: 0, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "proxy:tlink.lib.tsinghua.edu.cn", ids: ["a"] }] },
       waits: [science],
-      papers: { a: { hasPdf: false, title: "", heldAt: { kind: "check", host: "science.org" } } },
+      papers: { a: { hasPdf: false, title: "", heldAt: "proxy:tlink.lib.tsinghua.edu.cn" } },
       silent: [],
       inLine: 0,
       browser,
     }
     expect(invariantErrors(screen)).toEqual([
-      "a is held at check:science.org, but the window finds it under no wait",
-      "the wait check:science.org says 1 papers, and the window finds 0 under it",
-      "the row check:tlink.lib.tsinghua.edu.cn has no wait to act on",
-      "a is in the row check:tlink.lib.tsinghua.edu.cn, but its own card is under no wait",
+      "a is held at proxy:tlink.lib.tsinghua.edu.cn, but the window finds it under no wait",
+      "the wait pub:science says 1 papers, and the window finds 0 under it",
+      "the row wait proxy:tlink.lib.tsinghua.edu.cn has no wait to act on",
+      "a is in the row wait proxy:tlink.lib.tsinghua.edu.cn, but its own card is under no wait",
     ])
   })
 
   it("catch a batch whose rows don't add up, and a saved paper still waiting", () => {
     const screen: Screen = {
-      block: { batch: true, total: 3, saved: 1, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, host: "science.org", ids: ["a"] }] },
+      block: { batch: true, total: 3, saved: 1, byYou: 0, things: 1, running: false, outside: [], rows: [{ kind: "check", papers: 1, wait: "pub:science", host: "science.org", ids: ["a"] }] },
       waits: [science],
-      papers: { a: { hasPdf: true, title: "", heldAt: { kind: "check", host: "science.org" }, foundUnder: { kind: "check", host: "science.org" } } },
+      papers: { a: { hasPdf: true, title: "", heldAt: "pub:science", foundUnder: "pub:science" } },
       silent: [],
       inLine: 0,
       browser,
     }
-    expect(invariantErrors(screen)).toEqual(["a has its PDF and still waits at check:science.org", "a has its PDF and is in the row check:science.org", "the batch counts 2 papers in its rows and saved, of 3"])
+    expect(invariantErrors(screen)).toEqual(["a has its PDF and still waits at pub:science", "a has its PDF and is in the row wait pub:science", "the batch counts 2 papers in its rows and saved, of 3"])
   })
 
   it("catch a batch that spins with nothing in line, and a gate that gives nothing without a wait", () => {

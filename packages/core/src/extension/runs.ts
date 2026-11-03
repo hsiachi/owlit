@@ -59,12 +59,13 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
 
 // The run as the window shows it, from its papers (undefined: gone from the library) as they are now
 export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, connected: boolean, now = Date.now()): PdfRunView {
-  const view: PdfRunView = { id: run.id, started: run.started, total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, going: 0, away: 0, running: false }
+  const view: PdfRunView = { id: run.id, started: run.started, ids: [], total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, going: 0, away: 0, running: false }
   const waits = new Map<WaitId, { wait: WaitId; papers: number; ids: string[] }>()
   const sites = new Map<string, number>()
   for (const id of run.ids) {
     const paper = papers.get(id)
     if (!paper) continue
+    view.ids.push(id)
     view.total++
     const place = classify(id, paper, run, connected)
     if (place.kind === "wait") {

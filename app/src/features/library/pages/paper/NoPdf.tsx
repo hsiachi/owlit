@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useRef, useState } from "react"
-import { isTaskFinished, type Paper, type PdfTry } from "@owlit/protocol"
+import { isTaskFinished, type ExtensionWait, type Paper, type PdfTry } from "@owlit/protocol"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
 import { PdfFileInput } from "@/components/file-drop"
@@ -13,10 +13,9 @@ import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
-import { noPdfTitle, pdfGone, pdfWait, signsInAtLibrary, waitedFor, type PdfWait } from "../../lib/pdf-wait"
-import { proxyHostOf } from "@/features/settings/library-name"
-import { useExtension, useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, waitOf, waitWords } from "@/features/extension/waits"
+import { noPdfTitle, pdfGone, pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
+import { useExtension, usePaperWait } from "@/features/extension/store"
+import { actOnWait, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
 type CardState = PdfWait | "looking"
@@ -28,9 +27,8 @@ const LOOKING = new Set(["paper.pdf"])
 const hostName = (reason: PdfTry | undefined) => reason?.host?.replace(/^www\./, "") ?? ""
 
 // The card's why line, from the try that says where the paper stands; its title is the state's one name
-// as noPdfTitle says it, the paper card's too
-// library: a sign-in it waits for is the library's (signsInAtLibrary)
-function detailOf(state: CardState, paper: Paper, now: string | undefined, library: boolean): string {
+// as noPdfTitle says it, the paper card's too. wait: the one it is under (usePaperWait).
+function detailOf(state: CardState, paper: Paper, now: string | undefined, wait: ExtensionWait | undefined): string {
   const s = paper.pdfState
   const reason = s?.reason
   const host = hostName(reason)
@@ -41,10 +39,7 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, libra
     case "finding": {
       // The extension has it: owlit's routes are done, and the publisher is tried through the user's
       // browser, now or once its turn at the site comes
-      const site = s?.extension?.host
-      // Through the library's proxy, in line behind a paper that waits at a publisher for the user
-      const behind = s?.extension?.behind?.host
-      if (!now && behind) return t`In line behind a paper waiting at ${behind}; owlit goes on once that's done.`
+      const site = s?.extension?.at
       if (!now && site && s?.extension?.fetching) return tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.`
       if (!now && site) return tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.`
       if (state === "finding" && pdfGone(paper)) return t`Its file was deleted or moved outside owlit. If you have it, drop it here.`
@@ -56,10 +51,10 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, libra
     case "for-permission": {
       // The title names the wait and its site already: the line says since when, when its own try met it,
       // and what getting through does
-      const site = s?.extension?.waitsAt ?? s?.extension?.host ?? host
+      const site = wait?.at ?? s?.extension?.at ?? host
       const own = waitedFor(reason) ? reason : undefined
       let next: string
-      if (state === "for-sign-in" && library) next = t`One sign-in to your library covers every paper waiting for it.`
+      if (state === "for-sign-in" && wait?.proxied) next = t`One sign-in to your library covers every paper waiting for it.`
       else if (state === "for-sign-in") next = t`One sign-in there covers every paper waiting at ${site}.`
       else if (state === "for-check") next = t`Verifying once there covers every paper waiting at ${site}.`
       // The block is by the browser's network, mostly: another one (or a VPN turned off) gets past it
@@ -142,8 +137,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
   }
 
   // The line for the site the extension waits at, with its one thing to do
-  const waits = useExtensionWaits()
-  const siteWait = waitOf(paper, waits)
+  const siteWait = usePaperWait(paper)
 
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   // A browser whose extension may connect; until owlit says, as if there were one, so the offer below
@@ -153,9 +147,8 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   const wait = pdfWait(paper) ?? "finding"
   const state: CardState = looking ? "looking" : wait
-  const proxyHost = useSettings((s) => proxyHostOf(s.view?.library.proxy))
-  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, proxyHost)
-  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), signsInAtLibrary(paper, proxyHost))
+  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, siteWait)
+  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), siteWait)
   const lost = state === "finding" && pdfGone(paper)
   const working = (state === "looking" || state === "finding") && !lost
   const nextLook = paper.pdfState?.nextLook

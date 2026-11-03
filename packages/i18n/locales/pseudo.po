@@ -1093,10 +1093,12 @@ msgstr ""
 #. a step the answer stopped in the middle of
 #. an import that broke
 #. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
+#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/chat/components/messages/parts.tsx
 #: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PdfBlock.tsx
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Stopped"
 msgstr ""
@@ -4494,6 +4496,18 @@ msgid "{n, plural, one {# paper needs you} other {# papers need you}}"
 msgstr ""
 
 #: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+msgstr ""
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
+msgstr ""
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Opened in {where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here."
+msgstr ""
+
+#: app/src/features/library/components/PdfBlock.tsx
 msgid "{n, plural, one {Needs you to download it} other {Need you to download them}}"
 msgstr ""
 
@@ -4503,6 +4517,15 @@ msgstr ""
 
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
+msgstr ""
+
+#. papers of Get PDFs the owlit extension in the browser (e.g. Dia) never got, because it wasn't connected
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Didn't reach {browser}"
+msgstr ""
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} wasn't connected when their turn came. Open {browser}, then press Get PDFs again."
 msgstr ""
 
 #: app/src/features/library/components/PdfBlock.tsx
@@ -4525,28 +4548,15 @@ msgid "You looked on their pages in your browser and found no PDF. If you find o
 msgstr ""
 
 #: app/src/features/library/components/PdfBlock.tsx
-msgid "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
+msgid "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
 msgstr ""
 
-#. placeholder {0}: first.papers
 #: app/src/features/library/components/PdfBlock.tsx
-msgid "{0, plural, one {One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at {host}, through your library's proxy; it goes on once that's done.} other {One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at {host}, through your library's proxy; they go on once that's done.}}"
+msgid "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
 msgstr ""
 
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "One paper at a time per site, so no publisher sees a burst of downloads"
-msgstr ""
-
-#: app/src/features/library/components/PdfBlock.tsx
-msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
-msgstr ""
-
-#: app/src/features/library/components/PdfBlock.tsx
-msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
-msgstr ""
-
-#: app/src/features/library/components/PdfBlock.tsx
-msgid "Opened in {where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here."
 msgstr ""
 
 #: app/src/features/library/components/RecentlyRemoved.tsx
@@ -5133,10 +5143,6 @@ msgstr ""
 
 #: app/src/features/library/pages/paper/Digest.tsx
 msgid "Page {number}"
-msgstr ""
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "In line behind a paper waiting at {behind}; owlit goes on once that's done."
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx

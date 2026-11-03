@@ -1,8 +1,8 @@
 import { plural, t } from "@lingui/core/macro"
-import type { ExtensionWait, Paper } from "@owlit/protocol"
+import type { ExtensionWait } from "@owlit/protocol"
 
-// What a site the extension waits at says, and which wait a paper is held under: pure, apart from the
-// window's state in waits.ts, so tests that run without a window (packages/pdf-bench) read the same words
+// What a site the extension waits at says: pure, apart from the window's state in waits.ts, so tests that
+// run without a window (packages/pdf-bench) read the same words
 
 export interface WaitWords {
   // The row's sentence after its count: "Need you to sign in to your library"
@@ -16,8 +16,8 @@ export interface WaitWords {
 }
 
 // n: the papers it holds. libraryName: the library behind the proxy, when owlit knows it (libraryNameOf).
-export function waitWords(wait: Pick<ExtensionWait, "kind" | "host" | "proxied">, n: number, libraryName?: string): WaitWords {
-  const { host } = wait
+export function waitWords(wait: Pick<ExtensionWait, "kind" | "at" | "proxied">, n: number, libraryName?: string): WaitWords {
+  const { at: host } = wait
   switch (wait.kind) {
     case "sign-in": {
       if (wait.proxied) {
@@ -58,11 +58,4 @@ export function waitWords(wait: Pick<ExtensionWait, "kind" | "host" | "proxied">
         action: t({ message: "Allow", comment: "button: the owlit extension opens a page in the user's browser that asks to let it read this site" }),
       }
   }
-}
-
-// The site wait a paper is held under, if any
-export const waitOf = (paper: Pick<Paper, "pdfState">, waits: ExtensionWait[]) => {
-  const at = paper.pdfState?.extension
-  const host = at?.waits && (at.waitsAt ?? at.host)
-  return host ? waits.find((w) => w.host === host && w.kind === at.waits) : undefined
 }

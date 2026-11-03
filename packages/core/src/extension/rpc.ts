@@ -23,17 +23,13 @@ export function registerExtension({ router, extension }: Deps) {
     await extension?.pairings.answer(id, allow)
     return null
   })
-  router.register("extension.open", z.union([z.object({ wait: waitId }), z.object({ kind: z.enum(["sign-in", "check", "blocked", "permission"]), host: z.string().min(1).max(253) })]), "admin", async (params) => {
+  router.register("extension.open", z.object({ wait: waitId }), "admin", async ({ wait }) => {
     if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
-    const id = "wait" in params ? params.wait : extension.work.waitIdOf(params.kind, params.host)
-    return id ? extension.open(id) : { by: "none" as const }
+    return extension.open(wait)
   })
-  router.register("extension.resume", z.union([z.object({ wait: waitId }), z.object({ host: z.string().min(1).max(253) })]), "admin", async (params) => {
+  router.register("extension.resume", z.object({ wait: waitId }), "admin", async ({ wait }) => {
     if (!extension) throw new RpcFailure(RpcErrorCode.Unavailable, t`The browser extension needs the owlit desktop app.`)
-    if ("wait" in params) return { resumed: extension.work.resumeWait(params.wait) }
-    // The window names the wait by where it is shown
-    const shown = extension.work.waits().find((w) => w.at === params.host)
-    return { resumed: shown ? extension.work.resumeWait(shown.id) : extension.work.resume(params.host) }
+    return { resumed: extension.work.resumeWait(wait) }
   })
   router.register("extension.dismissGoing", z.object({ wait: waitId }), "admin", async ({ wait }) => {
     extension?.work.dismissGoing(wait)

@@ -754,7 +754,7 @@ export class Library {
     const run = this.pdfRuns.find((r) => r.id === id)
     if (!run) throw new RpcFailure(RpcErrorCode.NotFound, t`That Get PDFs is over.`, { id })
     run.stoppedAt ??= Date.now()
-    await this.stopFetchPdfs(run.ids)
+    await this.stopPapers(run.ids)
   }
 
   // A run the window puts away: it is no longer shown
@@ -800,11 +800,9 @@ export class Library {
     return { saved, ended }
   }
 
-  // Stop on a batch (fetchPdfs): its papers leave the extension's queue, and the ones not handed over yet
-  // never are. Their records stay as they were; one being fetched now still has its answer noted.
-  async stopFetchPdfs(ids: string[]) {
-    // A window that stops by the papers stops the run they went in
-    for (const run of this.pdfRuns) if (run.stoppedAt === undefined && run.endedAt === undefined && ids.some((id) => run.ids.includes(id))) run.stoppedAt = Date.now()
+  // A stopped run's papers leave the extension's queue, and the ones not handed over yet never are. Their
+  // records stay as they were; one being fetched now still has its answer noted.
+  private async stopPapers(ids: string[]) {
     for (const id of ids) {
       const held = this.services.extension?.holding(this, id)
       // Its record would say it waits for the user at a wait that is going: the user stopped it instead

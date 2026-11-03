@@ -1,6 +1,6 @@
 import type { ExtensionWait } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { siteWaitItem, siteWaitItems, stillWaits, stillWords, waitOf, waitWords } from "./waits"
+import { siteWaitItem, siteWaitItems, stillWords, waitWords } from "./waits"
 
 const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ id: "proxy:tlink.lib.tsinghua.edu.cn", at: "tlink.lib.tsinghua.edu.cn", watch: [], kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor, proxied: true, since: 0 })
 const publisher = (papers = 1): ExtensionWait => ({ id: "pub:sage", at: "sagepub.com", watch: [], kind: "sign-in", host: "sagepub.com", papers, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false, since: 0 })
@@ -34,21 +34,12 @@ describe("sites the extension waits at", () => {
     expect(waitWords(wait("check", true), 1).need).toBe("Needs you to verify you're human on tlink.lib.tsinghua.edu.cn")
   })
 
-  it("are found from a paper by the host its wait names", () => {
-    const apa: ExtensionWait = { id: "pub:apa", at: "apa.org", watch: [], kind: "permission", host: "apa.org", papers: 1, url: "https://doi.apa.org/x", askedFor: true, proxied: true, since: 0 }
-    const held = { pdfState: { state: "finding" as const, tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", waits: "permission" as const, waitsAt: "apa.org", proxied: true } } }
-    expect(waitOf(held, [wait("sign-in", true), apa])).toBe(apa)
-    expect(waitOf({ pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn" } } }, [wait("sign-in", true)])).toBeUndefined()
+  it("are keyed on Home by their id", () => {
+    expect(siteWaitItem(publisher(), () => {}).key).toBe("papers:wait:pub:sage")
   })
 
   it("say a check is still there when it came back after I've verified it", () => {
-    const misq = { kind: "check" as const, host: "misq.umn.edu", proxied: false, since: 0 }
-    const now = 10 * 60_000
-    expect(stillWaits([{ ...misq, at: now - 1000, gone: true }], misq, now)).toBe(true)
-    // The wait hadn't gone yet: owlit's try is still out
-    expect(stillWaits([{ ...misq, at: now - 1000, gone: false }], misq, now)).toBe(false)
-    // Long after, it is a new wait
-    expect(stillWaits([{ ...misq, at: 0, gone: true }], misq, now)).toBe(false)
-    expect(stillWords(misq)).toBe("misq.umn.edu still asks you to verify you're human")
+    expect(stillWords({ kind: "check", at: "misq.umn.edu", proxied: false })).toBe("misq.umn.edu still asks you to verify you're human")
+    expect(stillWords({ kind: "sign-in", at: "tlink.lib.tsinghua.edu.cn", proxied: true }, "Tsinghua University")).toBe("Tsinghua University still asks you to sign in")
   })
 })

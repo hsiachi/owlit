@@ -5,7 +5,7 @@ import { classify, runView, type PdfRun, type RunPaper } from "./runs.ts"
 const AT = 1_000
 const run = (ids: string[], extra: Partial<PdfRun> = {}): PdfRun => ({ id: "r", started: AT, ids, handed: new Set(ids), away: new Set(), ...extra })
 const tryOf = (ended: PdfTry["ended"], host: string, at = AT + 1, by: PdfTry["by"] = "extension"): PdfTry => ({ by, ended, at, host })
-const lane = { lane: "site:x" as GateKey, gate: "site:x" as GateKey, attempt: 1, host: "x" }
+const lane = { lane: "site:x" as GateKey, gate: "site:x" as GateKey, attempt: 1, at: "x" }
 const held = (wait: GateKey, kind: "sign-in" | "check" | "permission" = "check"): RunPaper => ({ paper: { pdfState: { state: "finding", tried: [], extension: { ...lane, wait, kind, at: "x" } } } })
 const inLine = (fetching = false): RunPaper => ({ paper: { pdfState: { state: "finding", tried: [], extension: { ...lane, ...(fetching ? { fetching } : {}) } } } })
 const ended = (end: PdfTry["ended"], host: string, at?: number, by?: PdfTry["by"]): RunPaper => {

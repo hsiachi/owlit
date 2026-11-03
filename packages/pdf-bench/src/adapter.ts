@@ -12,9 +12,9 @@ import { OwlitError, type ask as askOwlit } from "../../../apps/extension/src/li
 import { mayRead } from "../../../apps/extension/src/lib/permissions.ts"
 import { isBlocked, isThrough, siteOf } from "../../../apps/extension/src/lib/verdict.ts"
 import { doWork } from "../../../apps/extension/src/lib/work.ts"
-import { waitOf, waitWords } from "@/features/extension/wait-words"
+import { waitWords } from "@/features/extension/wait-words"
 import { noPdfTitle, pdfColumnWord, pdfWait } from "@/features/library/lib/pdf-wait"
-import { libraryNameOf, proxyHostOf } from "@/features/settings/library-name"
+import { libraryNameOf } from "@/features/settings/library-name"
 
 // The one place the bench talks to owlit: core's RPC methods and its extension routes, the shapes of
 // their answers, and how the renderer's pure parts read them. Scenarios and invariants see only Bench
@@ -42,6 +42,8 @@ export interface Row {
   // A wait's kind, or manual, none, skipped, stopped, waiting (in line or not handed over yet), away
   kind: string
   papers: number
+  // A wait's row: the wait (ExtensionWait.id) and where it is shown (at)
+  wait?: string
   host?: string
   // A wait's sentence after its count (waitWords.need)
   words?: string
@@ -70,16 +72,17 @@ export interface PaperView {
   word?: string
   // Its state's one name (pdfWait): for-check, manual, finding…
   state?: string
-  // Where core says the paper is held for the user (its pdfState), and the wait the renderer finds for
-  // it in the waits list (waitOf)
-  heldAt?: { kind: string; host: string }
-  foundUnder?: { kind: string; host: string }
+  // The wait core says the paper is under (PdfState.extension.wait), and the one the window finds for it
+  // in the waits list by that id
+  heldAt?: string
+  foundUnder?: string
 }
 
 export interface WaitView {
   // The gate it waits at (ExtensionWait.id)
   id: string
   kind: string
+  // Where the user acts (ExtensionWait.at)
   host: string
   papers: number
   // The whole sentence, as Home and a notification say it
@@ -232,18 +235,24 @@ export class Bench {
     return ((await this.call("extension.get")) as ExtensionView).runs[0]
   }
 
-  // The button on a wait's row (actOnWait): the extension opens its page in the browser
+  // The button on the row of the wait the window shows with this kind at this host (actOnWait): the
+  // extension opens its page in the browser, and core notes it opened
   async clickWait(kind: string, host: string) {
-    const opened = await this.call("extension.open", { kind, host })
-    if (opened.by !== "none") this.ui.opened.push({ kind, host })
+    const wait = await this.shownWait((w) => w.kind === kind && w.at === host)
+    if (wait) await this.call("extension.open", { wait: wait.id })
     return this.step(`click the ${kind} wait at ${host}`)
   }
 
-  // I've signed in / I've verified it (resumeWait)
+  // I've signed in / I've verified it on the row of the wait shown at this host (resumeWait)
   async pressDone(host: string) {
-    await this.call("extension.resume", { host })
-    this.ui.opened = this.ui.opened.filter((o) => o.host !== host)
+    const wait = await this.shownWait((w) => w.at === host)
+    if (wait) await this.call("extension.resume", { wait: wait.id })
     return this.step(`press done at ${host}`)
+  }
+
+  // The row the user presses on, as the window shows it now
+  private async shownWait(which: (wait: ExtensionWait) => boolean) {
+    return ((await this.call("extension.get")) as ExtensionView).waits.find(which)
   }
 
   // The user passes the check in the tab showing it; the extension watches that tab (watchForThrough)
@@ -289,7 +298,7 @@ export class Bench {
     return this.step("restart owlit")
   }
 
-  // The window reloads: what it kept (the pages opened) is gone; the batch is core's
+  // The window reloads: it keeps nothing of its own; the run and the waits' follow-ups are core's
   async reloadRenderer() {
     this.ui = new Renderer()
     return this.step("reload the window")
@@ -548,7 +557,6 @@ class Renderer {
   papers: Record<string, Paper> = {}
   view: ExtensionView | null = null
   proxy: ProxySettings | undefined
-  opened: { kind: string; host: string }[] = []
 
   // The window's papers and waits come by two notifications; read here by two calls, again until the
   // waits are the same on both sides of the papers, so a paper handed over between them isn't read as a
@@ -564,15 +572,13 @@ class Renderer {
       before = after
     }
     this.proxy = (await bench.call("settings.get")).library.proxy
-    // pruneOpened: an opened site that no longer waits for that goes
-    this.opened = this.opened.filter((o) => this.view!.waits.some((w) => w.host === o.host && w.kind === o.kind))
   }
 
   draw(): Omit<Screen, "browser" | "silent"> {
     const inLine = Object.values(this.papers).filter((p) => p.pdfState?.extension && !p.pdfState.extension.wait).length
     const waits = this.view?.waits ?? []
     const library = libraryNameOf(this.proxy)
-    const waitRow = (wait: ExtensionWait, papers: number, ids?: string[]): Row => ({ kind: wait.kind, papers, host: wait.at, words: waitWords(wait, papers, library).need, ...(ids ? { ids: [...ids] } : {}) })
+    const waitRow = (wait: ExtensionWait, papers: number, ids?: string[]): Row => ({ kind: wait.kind, papers, wait: wait.id, host: wait.at, words: waitWords(wait, papers, library).need, ...(ids ? { ids: [...ids] } : {}) })
     const byPapers = (a: ExtensionWait, b: ExtensionWait) => b.papers - a.papers
     let block: Block | null = null
     const run = this.view?.runs[0]
@@ -582,7 +588,7 @@ class Renderer {
       for (const w of run.waits) {
         const wait = waits.find((one) => one.id === w.wait)
         // A run's wait row the waits list doesn't have: drawn as such, which the invariants then name
-        rows.push(wait ? waitRow(wait, w.papers, w.ids) : { kind: "check", papers: w.papers, host: `(no wait ${w.wait})`, ids: [...w.ids] })
+        rows.push(wait ? waitRow(wait, w.papers, w.ids) : { kind: "check", papers: w.papers, wait: w.wait, ids: [...w.ids] })
       }
       if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: [...run.manual.ids] })
       for (const [kind, papers] of [["none", run.none], ["skipped", run.skipped], ["stopped", run.stopped], ["waiting", run.going], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
@@ -591,22 +597,22 @@ class Renderer {
     } else if (waits.length) {
       block = { batch: false, total: waits.reduce((n, w) => n + w.papers, 0), saved: 0, byYou: 0, things: waits.length, running: false, rows: [...waits].sort(byPapers).map((w) => waitRow(w, w.papers)), outside: [] }
     }
-    const proxyHost = proxyHostOf(this.proxy)
     const papers: Record<string, PaperView> = {}
     for (const p of Object.values(this.papers)) {
       const ext = p.pdfState?.extension
-      const found = waitOf(p, waits)
+      // usePaperWait: by the id core gives the paper
+      const found = ext?.wait ? waits.find((w) => w.id === ext.wait) : undefined
       const word = pdfColumnWord(p)
       const state = pdfWait(p)
       papers[p.id] = {
         hasPdf: !!p.pdf,
-        title: p.pdf ? "" : noPdfTitle(p, proxyHost),
+        title: p.pdf ? "" : noPdfTitle(p, found),
         ...(word ? { word } : {}),
         ...(state ? { state } : {}),
-        ...(ext?.waits ? { heldAt: { kind: ext.waits, host: ext.waitsAt ?? ext.host } } : {}),
-        ...(found ? { foundUnder: { kind: found.kind, host: found.host } } : {}),
+        ...(ext?.wait ? { heldAt: ext.wait } : {}),
+        ...(found ? { foundUnder: found.id } : {}),
       }
     }
-    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.host, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
+    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.at, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
   }
 }

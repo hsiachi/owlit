@@ -658,7 +658,7 @@ export function pdfStatus(p: Pick<Paper, "pdf" | "pdfState">) {
     case undefined:
       return "has PDF"
     case "finding":
-      return s?.extension ? `finding (through the user's browser, at ${s.extension.at ?? s.extension.host})` : "finding"
+      return s?.extension ? `finding (through the user's browser, at ${s.extension.at})` : "finding"
     case "offline":
       return "finding (waiting for the network)"
     case "for-sign-in":

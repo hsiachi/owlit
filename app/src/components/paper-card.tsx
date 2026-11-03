@@ -4,14 +4,12 @@ import { useLayoutEffect, useRef, useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { ReadingRing } from "@/components/marks"
 import { Button } from "@/components/ui/button"
-import { useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, waitOf, waitWords } from "@/features/extension/waits"
+import { usePaperWait } from "@/features/extension/store"
+import { actOnWait, waitWords } from "@/features/extension/waits"
 import { citationsSource, citationsText } from "@/features/library/lib/format"
 import { stripLatex } from "@/features/library/lib/latex"
 import { noPdfTitle, pdfWait, type PdfWait } from "@/features/library/lib/pdf-wait"
 import { statusLabel } from "@/features/library/lib/status"
-import { proxyHostOf } from "@/features/settings/library-name"
-import { useSettings } from "@/features/settings/store"
 import { libraryClient, useLibraryStore } from "@/features/library/store"
 import { toastError } from "@/lib/toast"
 import { cn } from "@/lib/utils"
@@ -100,10 +98,8 @@ function Byline({ facts, paper }: { facts: PaperCardFacts; paper: Paper | undefi
 function PdfLine({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [looking, setLooking] = useState(false)
-  const waits = useExtensionWaits()
   const wait = pdfWait(paper) ?? "finding"
-  const siteWait = waitOf(paper, waits)
-  const proxyHost = useSettings((s) => proxyHostOf(s.view?.library.proxy))
+  const siteWait = usePaperWait(paper)
   const lookAgain = async () => {
     setLooking(true)
     try {
@@ -127,7 +123,7 @@ function PdfLine({ paper }: { paper: Paper }) {
     ) : null
   return (
     <>
-      {looking ? t`Finding a PDF…` : noPdfTitle(paper, proxyHost)}
+      {looking ? t`Finding a PDF…` : noPdfTitle(paper, siteWait)}
       {action && !looking && <span className="ml-1.5">{action}</span>}
     </>
   )

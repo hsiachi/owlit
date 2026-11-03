@@ -203,11 +203,6 @@ export class ExtensionWork implements ExtensionFetcher {
     this.host.waits()
   }
 
-  // The wait shown at this host with this kind, for a window that names waits the old way
-  waitIdOf(kind: ExtensionWait["kind"], host: string): WaitId | undefined {
-    return [...this.waitsAt.values()].find((w) => w.at === host && w.kind === kind)?.gate
-  }
-
   // A page for this pairing's extension to open, collected by its next GET /work, which it ends at once.
   // replaces: the pages not collected yet that this one stands in for; a walk replaces any walk.
   openFor(by: string, page: OpenPage, replaces: (pending: OpenPage) => boolean = (o) => o.kind === "walk" && page.kind === "walk") {
@@ -326,7 +321,7 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const lane of this.lanes.values()) {
       const item = lane.inFlight?.item.paper.paperId === id ? lane.inFlight.item : lane.queue.find((q) => q.paper.paperId === id)
       if (!item) continue
-      const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, host: item.paper.host, ...(lane.proxied ? { proxied: true } : {}) }
+      const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, at: item.paper.host }
       if (lane.inFlight?.item === item) return { ...base, fetching: true }
       const wait = this.waitOver(lane, item)
       return wait ? { ...base, ...underWait(wait) } : base
@@ -334,7 +329,7 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const wait of this.waitsAt.values()) {
       const tries = wait.known.get(id)
       if (tries === undefined) continue
-      return { lane: wait.gate, gate: wait.gate, attempt: tries + 1, host: wait.at, ...(wait.gate.startsWith("proxy:") ? { proxied: true } : {}), ...underWait(wait) }
+      return { lane: wait.gate, gate: wait.gate, attempt: tries + 1, ...underWait(wait) }
     }
     return undefined
   }
@@ -764,10 +759,7 @@ export class ExtensionWork implements ExtensionFetcher {
 const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue] : lane.queue)
 
 // A paper's standing under a wait, as PdfState.extension says it
-const underWait = (wait: Wait) => {
-  const own = wait.gate.startsWith("proxy:")
-  return { wait: wait.gate, kind: wait.kind, at: wait.at, waits: wait.kind, ...(own ? {} : { waitsAt: wait.at }) }
-}
+const underWait = (wait: Wait) => ({ wait: wait.gate, kind: wait.kind, at: wait.at })
 
 // The wait is named by this host: shown there, watching it, or under the same registrable domain
 const names = (wait: Wait, host: string) => wait.at === host || siteOf(wait.at) === siteOf(host) || wait.watch.some((h) => host === h || host.endsWith(`.${h}`))

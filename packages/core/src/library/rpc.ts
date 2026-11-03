@@ -295,10 +295,6 @@ export function registerLibrary({ router, turns, reads, journal, requireWorkspac
   })
   router.register("library.fetchPdf", z.object({ id: paperId }), "meta", ({ id }) => library().fetchPdf(id))
   router.register("library.fetchPdfs", z.object({ ids: z.array(paperId) }), "meta", ({ ids }) => library().fetchPdfs(ids))
-  router.register("library.stopFetchPdfs", z.object({ ids: z.array(paperId) }), "meta", async ({ ids }) => {
-    await library().stopFetchPdfs(ids)
-    return null
-  })
   router.register("pdfRuns.stop", z.object({ run: z.string().min(1).max(100) }), "meta", async ({ run }) => {
     await library().stopRun(run)
     return null

@@ -78,7 +78,7 @@ export interface ExtensionWait {
   // allow for a permission (apa.org), the library proxy's host for its own sign-in; never an identity
   // provider's
   at: string
-  // The same as at, for the window until it joins by id
+  // The same as at, for the extension, which names waits by host (WorkAnswer.waits, WorkResume)
   host: string
   // Hosts where a page that loaded shows the user got through (keys.ts watchOf)
   watch: string[]
@@ -124,7 +124,8 @@ export interface GoingOn extends Pick<ExtensionWait, "kind" | "at" | "proxied" |
 export interface PdfRunView {
   id: string
   started: number
-  // Its papers still in the library
+  // Its papers still in the library, and how many
+  ids: string[]
   total: number
   // PDFs placed since it started by owlit's own search or the extension; byYou: by the user (dropped,
   // chosen, opened by hand)

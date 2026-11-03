@@ -1,47 +1,46 @@
 import { plural, t } from "@lingui/core/macro"
-import type { ExtensionWait, Paper } from "@owlit/protocol"
+import type { ExtensionWait, Paper, PdfRunView } from "@owlit/protocol"
 import { XIcon } from "lucide-react"
-import { useMemo } from "react"
 import { IconButton } from "@/components/icon-button"
 import { Info } from "@/components/info"
 import { WaitingDot } from "@/components/marks"
 import { JoinDots } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { useExtension, useExtensionWaits } from "@/features/extension/store"
-import { actOnWait, browserName, doneWords, putAwayBatch, resumeWait, stillWaits, stillWords, stopBatch, useBatch, useOpenedWaits, useRetried, waitWords, walkManual, type OpenedWait, type Retried } from "@/features/extension/waits"
+import { useExtension, useExtensionWaits, usePdfRun } from "@/features/extension/store"
+import { actOnWait, browserName, dismissRun, doneWords, resumeWait, stillWords, stopRun, waitWords, walkManual } from "@/features/extension/waits"
 import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
 import { cn } from "@/lib/utils"
-import { batchView, outsideRows, siteRows, type BatchRow } from "../lib/pdf-batch"
 import { waitsOnYou } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 
 // Atop the Library, getting PDFs through the extension in the user's browser, counted by what happens
 // next: one row per thing the user can do (sign in, verify, allow, get past a block, download by hand),
 // its count, its sentence, the why behind an info icon and one button; then the papers waiting their
-// turn. While a batch the user started (Get PDFs) is fetched, its header says how far it got, with Stop;
-// once nothing of it is fetched any more, the same block is its summary until put away. Without a batch,
-// the sites the extension waits at show as the same rows, amber only once the user asked for one of their
-// papers (waitsOnYou).
+// turn. While a Get PDFs is going (core's run, ExtensionView.runs, counted there from the papers), its
+// header says how far it got, with Stop; once nothing of it is going any more, the same block is its
+// summary until put away. Without one, the sites the extension waits at show as the same rows, amber
+// only once the user asked for one of their papers (waitsOnYou).
 export function PdfBlock() {
-  const batch = useBatch((s) => s.batch)
+  const run = usePdfRun()
   const papers = useLibraryStore((s) => s.papers)
   const waits = useExtensionWaits()
-  const opened = useOpenedWaits((s) => s.list)
-  const retried = useRetried((s) => s.list)
   const paired = useExtension((s) => s.view?.paired)
   const browser = browserName(paired)
   const library = useSettings((s) => libraryNameOf(s.view?.library.proxy))
-  const view = useMemo(() => (batch ? batchView(batch, papers) : null), [batch, papers])
+  const byPapers = (a: ExtensionWait, b: ExtensionWait) => b.papers - a.papers
 
-  if (view && view.total > 0) {
-    const { total, saved, things, running } = view
+  if (run && run.total > 0) {
+    const { total, running } = run
+    const saved = run.saved + run.byYou
+    const rows = runRows(run, waits)
+    const things = rows.filter((r) => r.kind === "wait").length
+    const held = rows.reduce((n, r) => (r.kind === "wait" ? n + r.papers : n), 0)
     // "the rest need you" only while there is something of the user's to do
-    const yours = view.rows.some((r) => r.kind !== "none" && r.kind !== "skipped" && r.kind !== "waiting")
-    // Sites waiting for papers outside the batch stay in view, under its rows, as they are without one
-    const outside = outsideRows(waits, view.rows)
-    const outsideOnYou = waits.some((w) => waitsOnYou(w) && outside.some((r) => r.kind === w.kind && r.host === w.host))
+    const yours = things > 0 || run.manual.ids.length > 0 || run.away > 0
+    // Sites waiting for papers outside the run stay in view, under its rows, as they are without one
+    const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers)
     const header = running ? (
       <JoinDots
         items={[
@@ -60,38 +59,59 @@ export function PdfBlock() {
     )
     return (
       <Block
-        mark={things > 0 || (!running && yours) || outsideOnYou ? <WaitingDot /> : running ? <Spinner className="size-3.5" /> : null}
+        mark={things > 0 || (!running && yours) || outside.some(waitsOnYou) ? <WaitingDot /> : running ? <Spinner className="size-3.5" /> : null}
         header={header}
         action={
           running ? (
-            <Button variant="text" size="inline" onClick={() => void stopBatch()}>
+            <Button variant="text" size="inline" onClick={() => void stopRun(run)}>
               {t({ message: "Stop", comment: "button: stop getting PDFs through the browser; the papers still in line are left" })}
             </Button>
           ) : (
-            <IconButton label={t`Dismiss`} onClick={putAwayBatch}>
+            <IconButton label={t`Dismiss`} onClick={() => void dismissRun(run)}>
               <XIcon />
             </IconButton>
           )
         }
-        bar={running && <Bar total={total} saved={saved} held={view.held} />}
+        bar={running && <Bar total={total} saved={saved} held={held} />}
       >
-        {[...view.rows, ...outside].map((row) => (
-          <Row key={`${row.kind}:${row.host ?? ""}`} row={row} waits={waits} opened={opened} retried={retried} browser={browser} library={library} papers={papers} />
+        {[...rows, ...outside.map((wait): RowModel => ({ kind: "wait", wait, papers: wait.papers }))].map((row) => (
+          <Row key={row.kind === "wait" ? `wait:${row.wait.id}` : row.kind} row={row} browser={browser} library={library} papers={papers} />
         ))}
       </Block>
     )
   }
 
-  const rows = siteRows(waits)
-  if (!rows.length) return null
-  const n = rows.reduce((sum, r) => sum + r.papers, 0)
+  if (!waits.length) return null
+  const n = waits.reduce((sum, w) => sum + w.papers, 0)
   return (
     <Block mark={waits.some(waitsOnYou) ? <WaitingDot /> : null} header={<span className="text-foreground">{plural(n, { one: "# paper needs you", other: "# papers need you" })}</span>}>
-      {rows.map((row) => (
-        <Row key={`${row.kind}:${row.host}`} row={row} waits={waits} opened={opened} retried={retried} browser={browser} library={library} papers={papers} />
+      {[...waits].sort(byPapers).map((wait) => (
+        <Row key={`wait:${wait.id}`} row={{ kind: "wait", wait, papers: wait.papers }} browser={browser} library={library} papers={papers} />
       ))}
     </Block>
   )
+}
+
+// One row of the block: a wait the user acts on, the papers to download by hand, or a count of the rest
+type RowModel =
+  | { kind: "wait"; wait: ExtensionWait; papers: number }
+  | { kind: "manual"; papers: number; ids: string[]; sites: { host: string; papers: number }[] }
+  | { kind: "away" | "none" | "skipped" | "stopped" | "going"; papers: number }
+
+// A run's rows in the order the user can do something about them: its waits (the most papers first, as
+// core sorts them), the downloads by hand, the papers that didn't reach the browser; then those with no
+// PDF, those the user found none for or stopped, and those waiting their turn. A wait the run counts
+// that the waits list doesn't have yet (the two come by one notification, but a paper can be read
+// between) has no row until it does.
+function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
+  const rows: RowModel[] = []
+  for (const w of run.waits) {
+    const wait = waits.find((one) => one.id === w.wait)
+    if (wait) rows.push({ kind: "wait", wait, papers: w.papers })
+  }
+  if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: run.manual.ids, sites: run.manual.sites })
+  for (const kind of ["away", "none", "skipped", "stopped", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
+  return rows
 }
 
 // The block's shape: the header as a status line (StatusLine's mark slot, words and edge action), the bar
@@ -124,16 +144,43 @@ function Bar({ total, saved, held }: { total: number; saved: number; held: numbe
   )
 }
 
-function Row({ row, waits, opened, retried, browser, library, papers }: { row: BatchRow; waits: ExtensionWait[]; opened: OpenedWait[]; retried: Retried[]; browser: string; library: string | undefined; papers: Record<string, Paper> }) {
-  const { kind, papers: n } = row
+function Row({ row, browser, library, papers }: { row: RowModel; browser: string; library: string | undefined; papers: Record<string, Paper> }) {
+  const { papers: n } = row
   let need: string
   let why: string
   let action: React.ReactNode = null
   // The rows of what the user can do read in ink; what only waits, in grey
   let muted = false
-  if (kind === "manual") {
+  if (row.kind === "wait") {
+    const { wait } = row
+    const words = waitWords(wait, n, library)
+    need = words.need
+    why = words.why
+    const done = wait.opened && doneWords(wait.kind)
+    // owlit tried at once after I've verified it and met the same page: said until the user acts again
+    if (wait.retried?.again) {
+      need = stillWords(wait, library)
+      const again = doneWords(wait.kind) ?? ""
+      why = t`owlit tried again just now and met the same page. Open it, finish there, then press ${again}.`
+    }
+    if (done) {
+      const where = wait.opened?.browser ?? browser
+      why = wait.kind === "sign-in" ? t`Opened in ${where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here.` : t`Opened in ${where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here.`
+      action = (
+        <Button variant="text" size="inline" onClick={() => void resumeWait(wait)}>
+          {done}
+        </Button>
+      )
+    } else {
+      action = (
+        <Button variant="text" size="inline" onClick={() => void actOnWait(wait)}>
+          {words.action}
+        </Button>
+      )
+    }
+  } else if (row.kind === "manual") {
     need = plural(n, { one: "Needs you to download it", other: "Need you to download them" })
-    const sites = (row.sites ?? []).map((s) => `${s.host} ${s.papers}`).join(" · ")
+    const sites = row.sites.map((s) => `${s.host} ${s.papers}`).join(" · ")
     why = sites
       ? t`owlit couldn't open these sites' pages: ${sites}. Open each one and click its PDF button; owlit saves it.`
       : t`owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it.`
@@ -145,55 +192,26 @@ function Row({ row, waits, opened, retried, browser, library, papers }: { row: B
         </Button>
       )
     }
-  } else if (kind === "none") {
+  } else if (row.kind === "away") {
+    need = t({ message: `Didn't reach ${browser}`, comment: "papers of Get PDFs the owlit extension in the browser (e.g. Dia) never got, because it wasn't connected" })
+    why = t`The owlit extension in ${browser} wasn't connected when their turn came. Open ${browser}, then press Get PDFs again.`
+  } else if (row.kind === "none") {
     muted = true
     need = plural(n, { one: "Has no PDF owlit can get", other: "Have no PDF owlit can get" })
     why = t`Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper.`
-  } else if (kind === "skipped") {
+  } else if (row.kind === "skipped") {
     muted = true
     need = t({ message: "You found none", comment: "papers the user looked for on the publisher's page and found no PDF (Skip in the browser)" })
     why = t`You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper.`
-  } else if (kind === "waiting") {
+  } else if (row.kind === "stopped") {
+    muted = true
+    need = t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site" })
+    why = t`You stopped getting these while they waited for you at their site. Look again on a paper tries it once more.`
+  } else {
+    // In line, or being looked up before its hand-over
     muted = true
     need = plural(n, { one: "Waiting its turn", other: "Waiting their turn" })
-    // Through the library's proxy every paper is in one line: those behind a paper that waits at a
-    // publisher for the user go on once that's done
-    const first = row.behind?.[0]
-    const host = first?.host
-    why = first
-      ? plural(first.papers, {
-          one: `One paper at a time per site, so no publisher sees a burst of downloads. # of them is in line behind a paper waiting at ${host}, through your library's proxy; it goes on once that's done.`,
-          other: `One paper at a time per site, so no publisher sees a burst of downloads. # of them are in line behind a paper waiting at ${host}, through your library's proxy; they go on once that's done.`,
-        })
-      : t`One paper at a time per site, so no publisher sees a burst of downloads`
-  } else {
-    const wait = waits.find((w) => w.kind === kind && w.host === row.host)
-    const words = waitWords({ kind, host: row.host ?? "", proxied: !!row.proxied }, n, library)
-    need = words.need
-    why = words.why
-    const open = opened.find((o) => o.host === row.host && o.kind === kind)
-    const done = open && doneWords(kind)
-    // owlit tried at once after I've verified it and met the same page: said until the user acts again
-    if (!open && wait && stillWaits(retried, wait)) {
-      need = stillWords(wait, library)
-      const again = doneWords(kind) ?? ""
-      why = t`owlit tried again just now and met the same page. Open it, finish there, then press ${again}.`
-    }
-    if (done && wait) {
-      const where = open.browser ?? browser
-      why = kind === "sign-in" ? t`Opened in ${where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here.` : t`Opened in ${where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here.`
-      action = (
-        <Button variant="text" size="inline" onClick={() => void resumeWait(wait)}>
-          {done}
-        </Button>
-      )
-    } else if (wait) {
-      action = (
-        <Button variant="text" size="inline" onClick={() => void actOnWait(wait)}>
-          {words.action}
-        </Button>
-      )
-    }
+    why = t`One paper at a time per site, so no publisher sees a burst of downloads`
   }
   return (
     <div className="flex min-h-7 items-center gap-3">

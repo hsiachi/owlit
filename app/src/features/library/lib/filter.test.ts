@@ -67,9 +67,9 @@ describe("papers without a PDF", () => {
   it("names the groups of papers with the extension as their rows do", () => {
     const at = (id: string, extension: NonNullable<PdfState["extension"]>) => paper(id, { pdfState: { state: "finding", tried: [], extension } })
     const papers = [
-      at("queued", { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com" }),
-      at("check", { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "oup.com", waits: "check", wait: "pub:oup" as const, kind: "check" as const }),
-      at("behind", { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "check", host: "misq.umn.edu" }, proxied: true }),
+      at("queued", { lane: "pub:sage" as const, gate: "pub:sage" as const, attempt: 1, at: "sagepub.com" }),
+      at("check", { lane: "pub:oup" as const, gate: "pub:oup" as const, attempt: 1, wait: "pub:oup" as const, kind: "check" as const, at: "academic.oup.com" }),
+      at("proxied", { lane: "proxy:tlink.lib.tsinghua.edu.cn" as const, gate: "pub:misq" as const, attempt: 1, at: "tlink.lib.tsinghua.edu.cn" }),
       paper("looking", { pdfState: { state: "finding", tried: [] } }),
       paper("manual", noPdf([tryOf("unreadable", "extension")])),
     ]
@@ -77,7 +77,7 @@ describe("papers without a PDF", () => {
     expect(groups.map((g) => [g.label, g.papers.map((p) => p.id)])).toEqual([
       ["Needs manual download", ["manual"]],
       ["Needs verification", ["check"]],
-      ["Waiting", ["queued", "behind"]],
+      ["Waiting", ["queued", "proxied"]],
       ["Finding", ["looking"]],
     ])
   })

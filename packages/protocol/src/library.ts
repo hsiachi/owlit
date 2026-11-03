@@ -77,17 +77,12 @@ export interface PdfState {
   reason?: PdfTry
   // When owlit's back-off look runs next; absent when it won't
   nextLook?: number
-  // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
-  // held while the site waits for the user (waits: a sign-in, a check, a way past its block, the
-  // extension being allowed there). waitsAt: the host that wait names (ExtensionWait.host) where it isn't
-  // the site's own: through the library's proxy, a wait met at a publisher is that publisher's. behind:
-  // the paper didn't meet its site's wait but is in line behind the paper that did (through the proxy,
-  // every paper shares one line), so it goes on once that wait is over. Kept in memory only, with the
-  // extension's queue.
-  // lane, gate: its keys (pdf-keys.ts); attempt: the extension's try it is on or will make next; wait: the
-  // wait it is under, with that wait's kind and at copied in for readers without the waits list.
-  // host, waits, waitsAt, proxied: the same as the window reads them (host the queue's site, waitsAt the
-  // wait's host unless it is the proxy's own), until it reads the keys.
+  // The browser extension has the paper: waiting its turn, being fetched now (fetching), or held under a
+  // wait for the user (a sign-in, a check, a way past a site's block, the extension being allowed there).
+  // Kept in memory only, with the extension's queue. lane, gate: its keys (pdf-keys.ts); attempt: the
+  // extension's try it is on or will make next; wait: the wait it is under (ExtensionWait.id), with that
+  // wait's kind copied in for readers without the waits list (pdfWait, the agent's words); at: where it
+  // is, as said: under a wait, the wait's at; else the site its fetch goes to.
   extension?: {
     lane: LaneKey
     gate: GateKey
@@ -95,12 +90,7 @@ export interface PdfState {
     fetching?: boolean
     wait?: WaitId
     kind?: ExtensionWait["kind"]
-    at?: string
-    host: string
-    waits?: ExtensionWait["kind"]
-    waitsAt?: string
-    behind?: { kind: ExtensionWait["kind"]; host: string }
-    proxied?: boolean
+    at: string
   }
 }
 
