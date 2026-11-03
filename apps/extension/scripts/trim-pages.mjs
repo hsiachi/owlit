@@ -8,6 +8,9 @@
 // before and after trimming, and the script stops if anything the extension reads from it differs.
 // Expectations already in the fixtures' index are kept; a new page takes the recorder's, and the ending
 // and isThrough the code gives it are printed beside them for a person to check.
+// What says who and where the recorder was is scrubbed (scrub): addresses, account and user ids in a
+// page's data, session ids in links. node apps/extension/scripts/trim-pages.mjs --fixtures scrubs the
+// fixtures already in place, and stops if any then reads differently.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
@@ -18,7 +21,7 @@ const { verdict, isThrough, refreshOf, titleOf } = await import(pathToFileURL(pa
 const { paperOfPage, pdfLinkIn } = await import(pathToFileURL(path.join(LIB, "page.ts")).href)
 
 const from = process.argv[2]
-if (!from) throw new Error("usage: trim-pages.mjs <recorded folder>")
+if (!from) throw new Error("usage: trim-pages.mjs <recorded folder> | --fixtures")
 
 const KEEP_ATTRS = new Set(["href", "src", "content", "name", "property", "http-equiv", "type", "rel", "id", "class", "action", "method", "scheme", "data-translate"])
 // An id or class is kept only when it names a check or a block (challenge-form, g-recaptcha, cf-error-details)
@@ -31,6 +34,25 @@ const CHECK_SCRIPT = /cf_chl_opt|challenge-platform|awswaf|AwsWafIntegration|_se
 // verdict reads only a page's links to its own PDF and its offers
 const REFERENCE_LINK = /<a\b[^>]*\bhref\s*=\s*["']?(?:https?:\/\/(?:scholar\.google\.[a-z.]+|pubmed\.ncbi\.nlm\.nih\.gov|www\.ncbi\.nlm\.nih\.gov|europepmc\.org|www\.scopus\.com|[^"'\s>]*webofscience|[^"'\s>]*crossref\.org)|\/servlet\/linkout|\/action\/getFTRLinkout|mailto:)[^>]*>([\s\S]*?)<\/a>/gi
 const IEEE_KEYS = ["title", "formulaStrippedArticleTitle", "authors", "doi", "publicationYear", "publicationTitle"]
+
+// A page's data naming the reader: their address, their account, user, department or session. The
+// value goes, the key stays, so the page's shape is what the verdict reads either way.
+const PERSONAL_KEY = /^(?:ip|ipaddress|remoteaddr|clientip|(?:user|account|accountname|department|customer|member|subscriber|session|visitor|institution|org|organization|eventgroup)[_-]?(?:id|key|name)?|e-?mail)$/i
+// Session ids carried in a link's query
+const SESSION_PARAM = /([?&](?:amp;)?(?:sid|sessionid|jsessionid|session|token|ticket|key)=)[A-Za-z0-9%_.-]{12,}/gi
+// An IPv4 address standing alone (not a version, as in Chrome/149.0.0.0 or -1.2.1.1-), but for the
+// documentation range 192.0.2.0/24 the recorder already writes
+const IPV4 = /(?<![\w/.-])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\w.-])/g
+// An IPv6 address, written out or shortened with ::
+const IPV6 = /(?<![\w:.])(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})(?![\w:])/gi
+
+export function scrub(text) {
+  return text
+    .replace(/(["'])([A-Za-z_-]+)\1(\s*:\s*)("(?:[^"\\]|\\.)*"|'[^']*'|-?\d+)/g, (all, q, key, colon, value) => (PERSONAL_KEY.test(key) ? `${q}${key}${q}${colon}${/^["']/.test(value) ? `${value[0]}${value[0]}` : "0"}` : all))
+    .replace(SESSION_PARAM, "$1x")
+    .replace(IPV4, (ip) => (ip.startsWith("192.0.2.") ? ip : "192.0.2.1"))
+    .replace(IPV6, (ip) => (/[a-f]/i.test(ip) || ip.includes("::") ? "2001:db8::1" : ip))
+}
 
 const cut = (text, max) => (text.length > max ? text.slice(0, max) : text)
 
@@ -137,6 +159,30 @@ const reading = (page) =>
 
 mkdirSync(OUT, { recursive: true })
 const indexPath = path.join(OUT, "index.json")
+
+// The fixtures in place, scrubbed: each must read as it did, but for what the scrub took out
+if (from === "--fixtures") {
+  let differ = 0
+  const index = JSON.parse(readFileSync(indexPath, "utf8"))
+  for (const entry of index) {
+    const file = path.join(OUT, `${entry.name}.html`)
+    const html = readFileSync(file, "utf8")
+    const clean = scrub(html)
+    if (scrub(reading(pageOf(entry, html))) !== reading(pageOf(entry, clean))) {
+      differ++
+      console.error(`${entry.name}: scrubbed reads differently`)
+    }
+    if (clean !== html) writeFileSync(file, clean)
+  }
+  const listed = readFileSync(indexPath, "utf8")
+  if (scrub(listed) !== listed) writeFileSync(indexPath, scrub(listed))
+  if (differ) {
+    console.error(`${differ} fixtures read differently once scrubbed`)
+    process.exit(1)
+  }
+  process.exit(0)
+}
+
 const before = new Map(existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, "utf8")).map((e) => [e.name, e]) : [])
 const recorded = JSON.parse(readFileSync(path.join(from, "index.json"), "utf8"))
 const index = []
@@ -155,10 +201,11 @@ for (const e of recorded) {
     title: e.title ?? "",
     really: e.really,
   }
-  const small = trim(full)
+  const small = scrub(trim(full))
   const was = reading(pageOf(entry, full))
   const now = reading(pageOf(entry, small))
-  if (was !== now) {
+  // What the scrub took out may be in what the verdict reads (a refresh's address)
+  if (scrub(was) !== now) {
     differ++
     console.error(`${name}: trimmed reads differently\n  full    ${was}\n  trimmed ${now}`)
   }
