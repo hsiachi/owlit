@@ -14,6 +14,9 @@ export interface PdfRun {
   // because no extension was connected by their turn
   handed: Set<string>
   away: Set<string>
+  // Hand-overs still at work on its papers (fetchPdfs looks each up first): while one is, a paper under
+  // a wait now may be in line in a moment, so the run hasn't ended
+  handing?: number
   stoppedAt?: number
   endedAt?: number
   dismissedAt?: number
@@ -21,7 +24,7 @@ export interface PdfRun {
 
 // Where one of a run's papers stands
 export type RunPlace =
-  | { kind: "saved" | "byYou" | "none" | "skipped" | "stopped" | "going" | "away" }
+  | { kind: "saved" | "byYou" | "none" | "skipped" | "stopped" | "getting" | "going" | "away" }
   | { kind: "wait"; wait: WaitId }
   | { kind: "manual"; host?: string }
 
@@ -37,7 +40,7 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
   const s = paper.pdfState
   const ext = s?.extension
   if (ext?.wait) return { kind: "wait", wait: ext.wait }
-  if (ext) return { kind: connected ? "going" : "away" }
+  if (ext) return { kind: connected ? (ext.fetching ? "getting" : "going") : "away" }
   // The extension's try, or the user's on the walk through the downloads by hand (Skip) or Stop. One
   // from before the run says nothing of it: the extension hasn't had the paper since.
   if (s?.tried.some((t) => t.by !== "search" && t.at >= run.started)) {
@@ -59,7 +62,7 @@ export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<Pd
 
 // The run as the window shows it, from its papers (undefined: gone from the library) as they are now
 export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, connected: boolean, now = Date.now()): PdfRunView {
-  const view: PdfRunView = { id: run.id, started: run.started, ids: [], total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, going: 0, away: 0, running: false }
+  const view: PdfRunView = { id: run.id, started: run.started, ids: [], total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, getting: 0, going: 0, away: 0, running: false }
   const waits = new Map<WaitId, { wait: WaitId; papers: number; ids: string[] }>()
   const sites = new Map<string, number>()
   for (const id of run.ids) {
@@ -80,9 +83,11 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
   }
   view.waits = [...waits.values()].sort((a, b) => b.papers - a.papers)
   view.manual.sites = [...sites].map(([host, papers]) => ({ host, papers })).sort((a, b) => b.papers - a.papers)
-  view.running = view.going > 0
+  view.running = view.getting + view.going > 0 || (run.handing ?? 0) > 0
+  // Written once, the first time nothing is going. A run that goes on again after (the user got through
+  // at a wait, and its papers went on) shows none while it does.
   if (!view.running && run.endedAt === undefined) run.endedAt = now
   if (run.stoppedAt !== undefined) view.stoppedAt = run.stoppedAt
-  if (run.endedAt !== undefined) view.endedAt = run.endedAt
+  if (run.endedAt !== undefined && !view.running) view.endedAt = run.endedAt
   return view
 }

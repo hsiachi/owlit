@@ -732,12 +732,16 @@ export class Library {
         run.handed.add(id)
         run.away.delete(id)
       }
-      this.services.extension?.runsChanged(this)
-    })().catch((error) => console.error("[core] couldn't hand papers to the extension", error))
+    })()
+      .catch((error) => console.error("[core] couldn't hand papers to the extension", error))
+      .finally(() => {
+        run.handing!--
+        this.services.extension?.runsChanged(this)
+      })
     return { queued, noDoi, run: run.id }
   }
 
-  // The run these papers go in: the one going on, which keeps its start, or a new one
+  // The run these papers go in, its hand-over begun: the one going on, which keeps its start, or a new one
   private async runFor(ids: string[]): Promise<PdfRun> {
     await this.pdfRunViews()
     let run = this.pdfRuns.findLast((r) => r.endedAt === undefined && r.stoppedAt === undefined && r.dismissedAt === undefined)
@@ -750,6 +754,8 @@ export class Library {
     run.ids = [...new Set([...run.ids, ...ids])]
     // Asked for again: in line once more, whatever the last hand-over met
     for (const id of ids) run.away.delete(id)
+    // Its hand-over starts now (fetchPdfs), before the window counts the run
+    run.handing = (run.handing ?? 0) + 1
     this.services.extension?.runsChanged(this)
     return run
   }

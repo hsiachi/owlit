@@ -39,7 +39,8 @@ const PATIENCE = { timeout: 10_000, interval: 10 }
 // ---- What the user sees
 
 export interface Row {
-  // A wait's kind, or manual, none, skipped, stopped, waiting (in line or not handed over yet), away
+  // A wait's kind, or manual, none, skipped, stopped, getting (being fetched), waiting (in line or not
+  // handed over yet), away
   kind: string
   papers: number
   // A wait's row: the wait (ExtensionWait.id) and where it is shown (at)
@@ -589,7 +590,7 @@ class Renderer {
         rows.push(wait ? waitRow(wait, w.papers, w.ids) : { kind: "check", papers: w.papers, wait: w.wait, ids: [...w.ids] })
       }
       if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: [...run.manual.ids] })
-      for (const [kind, papers] of [["none", run.none], ["skipped", run.skipped], ["stopped", run.stopped], ["waiting", run.going], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
+      for (const [kind, papers] of [["none", run.none], ["skipped", run.skipped], ["stopped", run.stopped], ["getting", run.getting], ["waiting", run.going], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
       const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers).map((w) => waitRow(w, w.papers))
       block = { batch: true, total: run.total, saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, rows, outside }
     } else if (waits.length) {

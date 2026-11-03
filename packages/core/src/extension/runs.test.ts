@@ -42,7 +42,7 @@ describe("a Get PDFs, counted from its papers", () => {
     const papers = { queued: inLine(), fetching: inLine(true), came: saved("extension"), found: saved("search"), dropped: saved("person"), before: ended("no-copy", "doi.org", AT - 1), apa: held("pub:apa", "permission"), gone: undefined }
     // Its record is from before the run, and it is still being looked up: not handed over yet
     const view = viewOf(papers, { handed: new Set(Object.keys(papers).filter((id) => id !== "before")) })
-    expect(view).toMatchObject({ total: 7, saved: 2, byYou: 1, going: 3, running: true, waits: [{ wait: "pub:apa", papers: 1, ids: ["apa"] }] })
+    expect(view).toMatchObject({ total: 7, saved: 2, byYou: 1, getting: 1, going: 2, running: true, waits: [{ wait: "pub:apa", papers: 1, ids: ["apa"] }] })
     expect(view).not.toHaveProperty("endedAt")
   })
 
@@ -69,6 +69,33 @@ describe("a Get PDFs, counted from its papers", () => {
     const check = tryOf("check", "www.science.org")
     for (const connected of [true, false]) expect(classify("a", { paper: { pdfState: { state: "finding", tried: [check], reason: check } } }, run(["a"]), connected)).toEqual({ kind: "away" })
     expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"]), true)).toEqual({ kind: "away" })
+  })
+
+  it("counts the paper being fetched apart from those in line", () => {
+    expect(viewOf({ a: inLine(true), b: inLine(), c: inLine() })).toMatchObject({ getting: 1, going: 2, running: true })
+  })
+
+  it("hasn't ended while its papers are still being handed over, though all of them wait for the user now", () => {
+    const r = run(["a", "b"], { handing: 1 })
+    const papers = new Map([
+      ["a", held("pub:sage")],
+      ["b", held("pub:sage")],
+    ])
+    const view = runView(r, papers, true, 5)
+    expect(view).toMatchObject({ running: true })
+    expect(view).not.toHaveProperty("endedAt")
+    expect(r.endedAt).toBeUndefined()
+    r.handing = 0
+    expect(runView(r, papers, true, 9)).toMatchObject({ running: false, endedAt: 9 })
+  })
+
+  it("shows no end while it goes on again after it ended", () => {
+    const r = run(["a"])
+    runView(r, new Map([["a", held("pub:sage")]]), true, 5)
+    const view = runView(r, new Map([["a", inLine()]]), true, 9)
+    expect(view).toMatchObject({ running: true })
+    expect(view).not.toHaveProperty("endedAt")
+    expect(r.endedAt).toBe(5)
   })
 
   it("writes when it ended once, and keeps it", () => {

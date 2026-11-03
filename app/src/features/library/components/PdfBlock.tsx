@@ -96,11 +96,11 @@ export function PdfBlock() {
 type RowModel =
   | { kind: "wait"; wait: ExtensionWait; papers: number }
   | { kind: "manual"; papers: number; ids: string[]; sites: { host: string; papers: number }[] }
-  | { kind: "away" | "none" | "skipped" | "stopped" | "going"; papers: number }
+  | { kind: "away" | "none" | "skipped" | "stopped" | "getting" | "going"; papers: number }
 
 // A run's rows in the order the user can do something about them: its waits (the most papers first, as
 // core sorts them), the downloads by hand, the papers that didn't reach the browser; then those with no
-// PDF, those the user found none for or stopped, and those waiting their turn. A wait the run counts
+// PDF, those the user found none for or stopped, those being fetched now and those waiting their turn. A wait the run counts
 // that the waits list doesn't have yet (the two come by one notification, but a paper can be read
 // between) has no row until it does.
 function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
@@ -110,7 +110,7 @@ function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
     if (wait) rows.push({ kind: "wait", wait, papers: w.papers })
   }
   if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: run.manual.ids, sites: run.manual.sites })
-  for (const kind of ["away", "none", "skipped", "stopped", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
+  for (const kind of ["away", "none", "skipped", "stopped", "getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
   return rows
 }
 
@@ -207,6 +207,10 @@ function Row({ row, browser, library, papers }: { row: RowModel; browser: string
     muted = true
     need = t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site" })
     why = t`You stopped getting these while they waited for you at their site. Look again on a paper tries it once more.`
+  } else if (row.kind === "getting") {
+    muted = true
+    need = t({ message: "Getting…", comment: "papers whose PDF the owlit extension is fetching in the user's browser right now" })
+    why = t`The owlit extension in ${browser} is fetching these now.`
   } else {
     // In line, or being looked up before its hand-over
     muted = true

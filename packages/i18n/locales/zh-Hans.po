@@ -4551,6 +4551,15 @@ msgstr "你在浏览器里看过它们的页面，没有找到 PDF。之后找�
 msgid "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
 msgstr "它们在网站那边等你时，你停止了获取。在论文上按“再找一次”会重新试一次。"
 
+#. papers whose PDF the owlit extension is fetching in the user's browser right now
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Getting…"
+msgstr "正在获取…"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} is fetching these now."
+msgstr "{browser} 里的 owlit 扩展正在获取这些论文。"
+
 #: app/src/features/library/components/PdfBlock.tsx
 msgid "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
 msgstr "{n, plural, other {排队中}}"

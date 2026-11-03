@@ -141,14 +141,15 @@ export interface PdfRunView {
   none: number
   skipped: number
   stopped: number
-  // In line or being fetched, or not handed over yet; away: not handed over, or in line, with no
-  // extension connected, so nothing moves until one is
+  // Being fetched now (getting); in line, or not handed over yet (going); away: not handed over, or in
+  // line, with no extension connected, so nothing moves until one is
+  getting: number
   going: number
   away: number
   // Something is going
   running: boolean
   stoppedAt?: number
-  // When nothing was going any more, the first time
+  // When nothing was going any more, the first time; absent while something is going again
   endedAt?: number
 }
 
