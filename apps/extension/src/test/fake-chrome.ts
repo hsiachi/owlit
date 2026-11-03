@@ -4,6 +4,7 @@
 // that tab, webRequest's redirect events, and owlit itself on its port. Not a browser: no rendering, no
 // CORS but the one rule the fetch ladder depends on (a tab's followed fetch to another origin fails).
 
+import { LEGACY_WORK_ENDINGS, type WorkEnding } from "@owlit/protocol"
 import { OWLIT_ORIGIN } from "../lib/owlit.ts"
 
 type Listener = (...args: any[]) => unknown
@@ -73,12 +74,19 @@ export interface Asked {
 }
 
 // owlit on this machine: GET /work answers what the test gives it, one answer at a time, and holds
-// otherwise; every other request is noted and answered as core would
+// otherwise; every other request is noted and answered as core would. legacy: as an owlit of 0.2.x
+// would (packages/core/src/extension/server.ts at v0.2.1): an ending it doesn't know, and a resume or a
+// block that names a wait rather than a host, are refused with a 400.
 export class FakeOwlit {
   readonly asked: Asked[] = []
   private answers: unknown[] = []
   private holding: ((answer: unknown) => void) | null = null
   private closed = false
+  private readonly legacy: boolean
+
+  constructor({ legacy = false } = {}) {
+    this.legacy = legacy
+  }
 
   give(answer: { work?: unknown[]; waits?: unknown[]; open?: unknown[]; going?: unknown[] }) {
     const full = { work: [], waits: [], open: [], going: [], ...answer }
@@ -108,7 +116,12 @@ export class FakeOwlit {
       if (answer === undefined) throw new TypeError("Failed to fetch")
       return json(answer)
     }
-    this.asked.push({ route, method, ...(type.includes("json") ? { json: JSON.parse(String(init.body)) } : {}), ...(type.includes("pdf") ? { pdf: true } : {}) })
+    const body = type.includes("json") ? JSON.parse(String(init.body)) : undefined
+    this.asked.push({ route, method, ...(body ? { json: body } : {}), ...(type.includes("pdf") ? { pdf: true } : {}) })
+    if (this.legacy && method === "POST" && route.startsWith("/work/")) {
+      const refused = route.startsWith("/work/resume") || route.startsWith("/work/blocked") ? typeof body?.host !== "string" : body && !LEGACY_WORK_ENDINGS.includes(body.ended as WorkEnding)
+      if (refused) return new Response(JSON.stringify({ reason: "bad-request", message: "owlit couldn't read what the extension sent." }), { status: 400, headers: { "content-type": "application/json" } })
+    }
     if (route === "/status") return json({ version: "0", workspace: { name: "w" }, connectedAt: 0, owlit: { id: "owlit-1", name: "owlit" } })
     if (route.startsWith("/work/resume")) return json({ resumed: true })
     if (route.startsWith("/work/blocked")) return json({ blocked: true })

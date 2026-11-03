@@ -1,7 +1,7 @@
 import type { WorkItem } from "@owlit/protocol"
 import { describe, expect, it, vi } from "vitest"
 import { OwlitError } from "./owlit.ts"
-import { doWork, fetchFor, type FetchDeps } from "./work.ts"
+import { doWork, fetchFor, report, type FetchDeps } from "./work.ts"
 
 const PDF = new TextEncoder().encode("%PDF-1.7\n...")
 const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "doi-10.1177-1#1", paperId: "doi-10.1177-1", attempt: 1, url: "https://journals.sagepub.com/doi/10.1177/1", lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, ...extra })
@@ -214,5 +214,21 @@ describe("fetching a paper for owlit", () => {
       throw new OwlitError(404, { reason: "not-found" })
     })
     await expect(doWork(item(), { ...web({}).deps, ask: gone as never, token: "t" })).resolves.toMatchObject({ ended: "not-there" })
+  })
+
+  it("tells an owlit only the endings it takes, and one that refuses a word anyway the word every owlit knows", async () => {
+    const unreadable = { ended: "unreadable" as const, host: "psycnet.apa.org" }
+    const ask = vi.fn(async () => ({}))
+    await report(item(), unreadable, { ask: ask as never, token: "t", endings: ["no-copy", "unreadable"] })
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231", { token: "t", json: unreadable })
+    // One that names none takes the words of 0.2.x
+    await report(item(), unreadable, { ask: ask as never, token: "t" })
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231", { token: "t", json: { ...unreadable, ended: "no-copy" } })
+    const refusing = vi.fn(async (_route: string, init: { json?: { ended: string } }) => {
+      if (init.json?.ended !== "no-copy") throw new OwlitError(400, { reason: "bad-request" })
+      return {}
+    })
+    await report(item(), unreadable, { ask: refusing as never, token: "t", endings: ["unreadable"] })
+    expect(refusing.mock.calls.map(([, init]) => init.json?.ended)).toEqual(["unreadable", "no-copy"])
   })
 })

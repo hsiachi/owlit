@@ -1,4 +1,4 @@
-import { pdfWait, type ExtensionView, type RpcNotification } from "@owlit/protocol"
+import { pdfWait, WORK_ENDINGS, type ExtensionView, type RpcNotification } from "@owlit/protocol"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import net from "node:net"
 import { tmpdir } from "node:os"
@@ -360,7 +360,8 @@ describe("the extension's port", () => {
       const token = await s.pair()
       s.putPaper(id, { title, ids: { doi: SAGE } })
       // Asking for work is what makes the extension connected
-      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [], going: [] })
+      // With the endings it takes, so an extension never sends one it would refuse
+      expect((await s.request("/work", { token })).body).toEqual({ work: [], waits: [], open: [], going: [], endings: [...WORK_ENDINGS] })
       return { ...s, token, shown }
     }
 
@@ -393,7 +394,7 @@ describe("the extension's port", () => {
       const paper = await paperIn(call)
       expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { wait: "pub:sage", kind: "sign-in", at: "journals.sagepub.com" } })
       // The extension knows where to watch for the user getting through
-      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [] })
+      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [], endings: [...WORK_ENDINGS] })
       // The line's Sign in: the extension that met it opens the page, in its own browser
       expect(await call("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
       expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin" }])

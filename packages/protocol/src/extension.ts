@@ -282,6 +282,9 @@ export interface WorkAnswer {
   // The waits the user got through, with their papers going on, counted by core (ExtensionView.going);
   // absent from an owlit that kept no such count
   going?: GoingOn[]
+  // The endings POST /work/:id accepts (WORK_ENDINGS); absent from an owlit that takes only
+  // LEGACY_WORK_ENDINGS
+  endings?: WorkEnding[]
 }
 
 // A sign-in or a check: the page that asked, or the proxy's sign-in. Being allowed to read a site: the
@@ -304,17 +307,10 @@ export interface ExtensionOpened {
 // its final address, never the page's text. unreadable: the page wasn't the paper's and said nothing the
 // extension knows (a page built by its scripts, which the extension never runs, or a "Please wait"), so
 // whether the site has a copy is unknown.
-export type WorkEnding =
-  | "no-copy"
-  | "no-access"
-  | "not-offered"
-  | "not-there"
-  | "check"
-  | "blocked"
-  | "sign-in"
-  | "offline"
-  | "no-permission"
-  | "unreadable"
+export const WORK_ENDINGS = ["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission", "unreadable"] as const
+export type WorkEnding = (typeof WORK_ENDINGS)[number]
+// What an owlit whose GET /work names no endings accepts (0.2.x): it refuses any other with a 400
+export const LEGACY_WORK_ENDINGS: readonly WorkEnding[] = ["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission"]
 
 // POST /work/:id, as JSON when no PDF came (a PDF comes as application/pdf)
 export interface WorkEnded {

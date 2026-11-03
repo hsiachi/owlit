@@ -49,9 +49,9 @@ const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idl
 const PATIENCE = { timeout: 5_000, interval: 5 }
 
 let running: FakeBrowser[] = []
-async function boot(sites: Record<string, Site>, kept?: ReturnType<typeof fakeBrowser>["kept"]) {
+async function boot(sites: Record<string, Site>, kept?: ReturnType<typeof fakeBrowser>["kept"], owlit = new FakeOwlit()) {
   vi.resetModules()
-  const browser = fakeBrowser(sites, kept, new FakeOwlit())
+  const browser = fakeBrowser(sites, kept, owlit)
   browser.kept.local.token ??= "token"
   vi.stubGlobal("chrome", browser.chrome)
   vi.stubGlobal("fetch", browser.fetch)
@@ -185,5 +185,30 @@ describe("waits", () => {
     const again = await boot(sites, first.kept)
     await again.openTab("https://www.science.org/doi/1")
     await vi.waitFor(() => expect(again.owlit.posted("/work/resume")).toMatchObject([{ json: { wait: "pub:science" } }]), PATIENCE)
+  })
+})
+
+describe("an owlit of 0.2.x", () => {
+  // Its shapes, as its server.ts takes and gives them: items with an opaque id and a host, waits named by
+  // host alone, no endings said
+  const old = () => new FakeOwlit({ legacy: true })
+  const PSYCNET = "https://psycnet.apa.org/doiLanding?doi=10.1037/1"
+  const shell = { "psycnet.apa.org": () => ({ html: "<html><head><title>APA PsycNet</title></head><body><app-root></app-root></body></html>" }) }
+
+  it("hears a page the extension couldn't read as no copy, the word it knows", async () => {
+    const b = await boot(shell, undefined, old())
+    b.owlit.give({ work: [{ id: "7f3c", paperId: "p1", url: PSYCNET, host: "apa.org", proxied: false } as unknown as WorkItem] })
+    await until(b, "7f3c")
+    expect(answered(b, "7f3c").map((a) => a.json.ended)).toEqual(["no-copy"])
+  })
+
+  it("is told the host of the wait the user got through at, and keeps its other waits", async () => {
+    const legacyWait = (host: string) => ({ kind: "check", host, papers: 1, proxied: false }) as unknown as WorkWait
+    const b = await boot({ "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }, undefined, old())
+    b.owlit.give({ waits: [legacyWait("science.org"), legacyWait("tandfonline.com")] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toHaveLength(2), PATIENCE)
+    await b.openTab("https://www.science.org/doi/1")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toEqual([{ route: "/work/resume", method: "POST", json: { host: "science.org" } }]), PATIENCE)
+    await vi.waitFor(() => expect(b.kept.session.waits).toMatchObject([{ host: "tandfonline.com" }]), PATIENCE)
   })
 })

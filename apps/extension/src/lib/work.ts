@@ -1,4 +1,4 @@
-import type { PaperAnswer, WorkEnded, WorkItem } from "@owlit/protocol"
+import { LEGACY_WORK_ENDINGS, type PaperAnswer, type WorkEnded, type WorkEnding, type WorkItem } from "@owlit/protocol"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
 import { isCheck, isSignInAddress, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
@@ -175,6 +175,21 @@ export async function doWork(item: WorkItem, deps: FetchDeps & ReportDeps): Prom
 export interface ReportDeps {
   ask: typeof askOwlit
   token: string
+  // The endings this owlit takes (WorkAnswer.endings); undefined for one that names none
+  endings?: readonly WorkEnding[]
+}
+
+// For an owlit that doesn't know a word yet, the one it knows that says the most of the same: an
+// unreadable page was told as no copy before it had a word of its own
+const NEAREST: Partial<Record<WorkEnding, WorkEnding>> = { unreadable: "no-copy" }
+
+// The ending as this owlit can take it: an older one refuses a word it doesn't know (400), and an
+// answer refused leaves the paper in flight there, handed out again and again
+export function sayable(result: WorkEnded, endings: readonly WorkEnding[] | undefined): WorkEnded {
+  const known = endings ?? LEGACY_WORK_ENDINGS
+  if (known.includes(result.ended)) return result
+  const near = NEAREST[result.ended]
+  return { ...result, ended: near && known.includes(near) ? near : "no-copy" }
 }
 
 // How a fetch of owlit's item ended, told to owlit under the item's own id. An answer owlit no longer
@@ -182,11 +197,22 @@ export interface ReportDeps {
 // paper's) needs nothing more.
 export async function report(item: WorkItem, result: Fetched, deps: ReportDeps): Promise<Fetched> {
   const route = `/work/${encodeURIComponent(item.id)}`
+  const settled = (error: unknown) => error instanceof OwlitError && [404, 409, 422].includes(error.status)
   try {
     if ("pdf" in result) await deps.ask<PaperAnswer>(`${route}?host=${encodeURIComponent(result.host)}`, { method: "POST", token: deps.token, pdf: result.pdf })
-    else await deps.ask(route, { token: deps.token, json: result })
+    else {
+      const json = sayable(result, deps.endings)
+      try {
+        await deps.ask(route, { token: deps.token, json })
+      } catch (error) {
+        // An owlit that says nothing of its endings may still not know this one: told once more as the
+        // word every owlit knows, so the paper settles there
+        if (!(error instanceof OwlitError) || error.status !== 400 || json.ended === "no-copy") throw error
+        await deps.ask(route, { token: deps.token, json: { ...json, ended: "no-copy" } })
+      }
+    }
   } catch (error) {
-    if (!(error instanceof OwlitError) || ![404, 409, 422].includes(error.status)) throw error
+    if (!settled(error)) throw error
   }
   return result
 }
