@@ -255,6 +255,23 @@ describe("waits", () => {
   })
 })
 
+describe("the popup", () => {
+  // What the popup is told of this tab
+  const stateOf = (b: FakeBrowser, tabId: number) =>
+    new Promise<any>((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit({ kind: "state", tabId }, { id: "fake" }, resolve))
+
+  it("says owlit goes on at a publisher's page reached through the proxy, by the hosts the wait watched", async () => {
+    // A host-rewriting proxy: the publisher's pages come under the proxy's own name for them
+    const REWRITTEN = "dl-acm-org.ezproxy.lib.example.edu"
+    const b = await boot({ [REWRITTEN]: () => article("ACM", `https://${REWRITTEN}/doi/pdf/1`) })
+    const going = { wait: "pub:acm", kind: "check", at: "dl.acm.org", watch: ["dl.acm.org", REWRITTEN], proxied: false, since: 1, going: { at: 2, ids: ["a1", "a2"], saved: 1, ended: 1 } }
+    b.owlit.give({ going: [going] })
+    await vi.waitFor(() => expect(b.kept.session.going).toEqual([going]), PATIENCE)
+    const tab = await b.openTab(`https://${REWRITTEN}/doi/10.1145/1`)
+    await vi.waitFor(async () => expect((await stateOf(b, tab.id)).going).toEqual({ host: "dl.acm.org", done: 1, total: 2 }), PATIENCE)
+  })
+})
+
 describe("an owlit of 0.2.x", () => {
   // Its shapes, as its server.ts takes and gives them: items with an opaque id and a host, waits named by
   // host alone, no endings said

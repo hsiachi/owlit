@@ -30,6 +30,8 @@ export interface FollowUp {
   // How it was shown when last up (ExtensionWait.kind, .at, .proxied), for its line once it went
   kind: ExtensionWait["kind"]
   host: string
+  // ExtensionWait.watch, for the popup to say its papers go on at those hosts once it went
+  watch?: string[]
   proxied: boolean
   opened?: { at: number; browser?: string }
   retried?: { at: number; again: boolean }
@@ -79,13 +81,13 @@ export class PdfWorkNotes {
   }
 
   // The follow-ups of the wait as it is shown now, made when it has none
-  of(wait: { gate: GateKey; since: number; kind: ExtensionWait["kind"]; at: string }): FollowUp {
+  of(wait: { gate: GateKey; since: number; kind: ExtensionWait["kind"]; at: string; watch?: string[] }): FollowUp {
     let follow = this.get(wait.gate, wait.since)
     if (!follow) {
       follow = { gate: wait.gate, since: wait.since, up: true, kind: wait.kind, host: wait.at, proxied: wait.gate.startsWith("proxy:") }
       this.followUps.push(follow)
     }
-    Object.assign(follow, { up: true, kind: wait.kind, host: wait.at })
+    Object.assign(follow, { up: true, kind: wait.kind, host: wait.at, ...(wait.watch ? { watch: wait.watch } : {}) })
     this.changed()
     return follow
   }

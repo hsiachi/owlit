@@ -446,7 +446,7 @@ describe("the extension's port", () => {
       expect(await call("extension.resume", { wait: "pub:sage" })).toEqual({ resumed: true })
       let view: ExtensionView = await call("extension.get")
       expect(view.waits).toEqual([])
-      expect(view.going).toEqual([{ wait: "pub:sage", kind: "check", at: "journals.sagepub.com", proxied: false, since: wait.since, going: { at: expect.any(Number), ids: [id], saved: 0, ended: 0 } }])
+      expect(view.going).toEqual([{ wait: "pub:sage", kind: "check", at: "journals.sagepub.com", watch: ["sagepub.com"], proxied: false, since: wait.since, going: { at: expect.any(Number), ids: [id], saved: 0, ended: 0 } }])
       // owlit's try meets the same check: the same wait, back, which still asks the user
       await answer({ body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
       view = await call("extension.get")

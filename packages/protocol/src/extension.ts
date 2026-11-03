@@ -113,9 +113,11 @@ export interface WaitGoing {
   ended: number
 }
 
-// A wait that went, with its papers going on
+// A wait that went, with its papers going on. watch: the hosts its pages are at (ExtensionWait.watch),
+// where the extension's popup says so; absent from an owlit that sends none
 export interface GoingOn extends Pick<ExtensionWait, "kind" | "at" | "proxied" | "since"> {
   wait: WaitId
+  watch?: string[]
   going: WaitGoing
 }
 

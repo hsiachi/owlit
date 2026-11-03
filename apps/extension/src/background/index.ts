@@ -900,10 +900,11 @@ function biggestWait(all: Waits, host: string) {
   return elsewhere.sort((a, b) => b.papers - a.papers)[0]
 }
 
-// owlit going on where this host is, after the user got through there, while its papers haven't all
-// ended: how many came with their PDF so far, as core counts them
+// owlit going on where this host is (a host the wait watched: the publisher's pages behind a proxy that
+// sends the browser on), after the user got through there, while its papers haven't all ended: how many
+// came with their PDF so far, as core counts them
 function goingAt(all: NonNullable<WorkAnswer["going"]>, host: string): SiteGoing | undefined {
-  const at = all.find((g) => g.going.ended < g.going.ids.length && under(host, [g.at]))
+  const at = all.find((g) => g.going.ended < g.going.ids.length && under(host, g.watch?.length ? g.watch : [g.at]))
   return at && { host: at.at, done: at.going.saved, total: at.going.ids.length }
 }
 

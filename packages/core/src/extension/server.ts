@@ -145,7 +145,7 @@ export class ExtensionServer {
   private async going(): Promise<GoingOn[]> {
     const library = this.host.workspace()?.library
     const counted = async (going: { at: number; ids: string[] }): Promise<WaitGoing> => ({ at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going) : { saved: 0, ended: 0 }) })
-    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
+    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, watch: f.watch ?? [f.host], proxied: f.proxied, since: f.since, going: await counted(f.going!) })))
   }
 
   // The id the user's extensions pair with: made once, kept in settings.json
