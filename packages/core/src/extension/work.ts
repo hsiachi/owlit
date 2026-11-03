@@ -338,7 +338,8 @@ export class ExtensionWork implements ExtensionFetcher {
     // A try that gets through lifts it; one that meets it again leaves it as it was.
     const over = askedFor ? this.waitOver(lane, item) : undefined
     if (over) over.tryAt = Date.now()
-    this.host.papers(library, [paper.paperId])
+    // Through the proxy the papers behind it in line say when their turn comes, which this one moved
+    this.host.papers(library, lane.proxied ? all(lane).map((q) => q.paper.paperId) : [paper.paperId])
     this.host.waits()
     this.kick()
   }
@@ -354,7 +355,8 @@ export class ExtensionWork implements ExtensionFetcher {
       const wait = this.waitOver(lane, item)
       if (wait) return { ...base, ...underWait(wait) }
       const off = offlineOf(lane, item.gate)
-      return off ? { ...base, unreachable: { at: off.at, until: off.until } } : base
+      const turnAt = lane.proxied ? this.turns(lane).get(id) : undefined
+      return { ...base, ...(off ? { unreachable: { at: off.at, until: off.until } } : {}), ...(turnAt !== undefined ? { turnAt } : {}) }
     }
     for (const wait of this.waitsAt.values()) {
       const tries = wait.known.get(id)
@@ -523,6 +525,8 @@ export class ExtensionWork implements ExtensionFetcher {
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }
     if (ended === "offline") this.notes.ended(item.gate, ended)
+    // Through the proxy the papers still in line moved up, and say when their turn comes
+    if (lane.proxied && lane.queue.length) this.host.papers(this.library, lane.queue.map((q) => q.paper.paperId))
     if (this.notes.inGoing(item.paper.paperId)) for (const pairing of this.polled.keys()) this.goingNews.add(pairing)
     this.warnIfSilent(now)
     this.kick()
@@ -771,21 +775,52 @@ export class ExtensionWork implements ExtensionFetcher {
     return Math.max(lane.endedAt === undefined ? 0 : lane.endedAt + this.gap(lane), lane.offline?.until ?? 0)
   }
 
-  // The lane's next paper, and when it may go: the first under no wait whose gate isn't backing off
-  // (offline), at once; else the one that may go soonest: under no wait once its gate's back-off ends, or
-  // under a wait whose one try is due (and no paper of that wait is out already)
+  // The lane's next paper, and when it may go: the first under no wait whose gate reached something
+  // last, at once; then one whose gate reached nothing last and whose back-off is over (a publisher the
+  // network can't reach takes no turn from the papers that can go now); else the one that may go
+  // soonest: under no wait once its gate's back-off ends, or under a wait whose one try is due (and no
+  // paper of that wait is out already)
   private next(lane: Lane, now = Date.now()): { item: Queued; at: number; wait?: Wait } | undefined {
     let best: { item: Queued; at: number; wait?: Wait } | undefined
+    let retry: Queued | undefined
     const trying = new Set([...this.lanes.values()].flatMap((l) => (l.inFlight ? [this.waitOver(l, l.inFlight.item)] : [])))
     for (const item of lane.queue) {
       const wait = this.waitOver(lane, item)
-      const free = lane.gatesOffline.get(item.gate)?.until ?? 0
-      if (!wait && free <= now) return { item, at: 0 }
+      const off = lane.gatesOffline.get(item.gate)
+      const free = off?.until ?? 0
+      if (!wait && free <= now) {
+        if (!off) return { item, at: 0 }
+        retry ??= item
+        continue
+      }
       if (wait && (wait.tryAt === undefined || trying.has(wait))) continue
       const at = Math.max(wait?.tryAt ?? 0, free)
       if (!best || at < best.at) best = { item, at, ...(wait ? { wait } : {}) }
     }
-    return best
+    return retry ? { item: retry, at: 0 } : best
+  }
+
+  // When each paper in line under no wait gets its turn, the lane going on as next() takes them: one
+  // after another at the lane's pace, a back-off ending in its time. The fetch out now is taken to end
+  // now; a fetch's own seconds are small beside the proxy's gap.
+  private turns(lane: Lane, now = Date.now()): Map<string, number> {
+    const turns = new Map<string, number>()
+    const gap = this.gap(lane)
+    let at = Math.max(now, this.paceAt(lane), lane.inFlight ? now + gap : 0)
+    const left = lane.queue.filter((item) => !this.waitOver(lane, item))
+    const free = (item: Queued) => lane.gatesOffline.get(item.gate)?.until ?? 0
+    while (left.length) {
+      let i = left.findIndex((item) => !lane.gatesOffline.has(item.gate))
+      if (i < 0) i = left.findIndex((item) => free(item) <= at)
+      if (i < 0) {
+        at = Math.min(...left.map(free))
+        continue
+      }
+      turns.set(left[i].paper.paperId, at)
+      left.splice(i, 1)
+      at += gap
+    }
+    return turns
   }
 
   private due(by: string | undefined): WorkItem[] {

@@ -49,6 +49,16 @@ describe("pdfWait", () => {
     expect(pdfColumnWord({ pdfState: { state: "finding", tried: [] } })).toBe("Finding")
   })
 
+  it("says about how long a paper waits its turn at the library's proxy", () => {
+    const inLine = (turnAt: number) => ({ pdfState: { state: "finding" as const, tried: [], extension: { lane: "proxy:tlink.lib.tsinghua.edu.cn" as const, gate: "pub:tandf" as const, attempt: 1, at: "tlink.lib.tsinghua.edu.cn", turnAt } } })
+    expect(pdfColumnWord(inLine(Date.now() + 4 * 60_000 + 10_000))).toBe("In line · about 5 min")
+    expect(noPdfTitle(inLine(Date.now() + 4 * 60_000 + 10_000))).toBe("In line through your library · about 5 min")
+    // Due now, or nearly: still a minute's word, never none
+    expect(pdfColumnWord(inLine(Date.now() - 1000))).toBe("In line · about 1 min")
+    // Out for its fetch: Finding, as any other
+    expect(pdfColumnWord({ pdfState: { ...inLine(Date.now()).pdfState, extension: { ...inLine(Date.now()).pdfState.extension, fetching: true } } })).toBe("Finding")
+  })
+
   it("waits on the user at a site only once they asked for one of its papers", () => {
     const wait = { id: "proxy:tlink.lib.tsinghua.edu.cn" as const, at: "tlink.lib.tsinghua.edu.cn", watch: [], kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true, since: 0 }
     expect(waitsOnYou({ ...wait, askedFor: false })).toBe(false)

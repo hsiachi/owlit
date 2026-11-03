@@ -383,7 +383,31 @@ describe("the extension's queue", () => {
     work.drop(library, "misq")
     work.drop(library, "misq2")
     expect(work.waits()).toEqual([])
-    expect(work.holding(library, "sage")).toEqual({ lane: `proxy:${TLINK}`, gate: `proxy:${TLINK}`, attempt: 2, at: TLINK })
+    // First in the proxy's line, at once now that the user got through
+    expect(work.holding(library, "sage")).toEqual({ lane: `proxy:${TLINK}`, gate: `proxy:${TLINK}`, attempt: 2, at: TLINK, turnAt: Date.now() })
+  })
+
+  it("says when each paper in the proxy's line gets its turn, and lets a publisher that reached nothing go after the papers that can go now", async () => {
+    const { work, take, heard } = setup()
+    for (const [id, doi] of [["sage", "10.1177/1"], ["wiley", "10.1111/1"], ["ieee", "10.1109/1"], ["acm", "10.1145/1"]]) work.fetch(library, tlinkPaper(id, doi), false)
+    const [first] = await take()
+    expect(first.paperId).toBe("sage")
+    // While SAGE is out, the others are a gap apart behind it
+    const now = Date.now()
+    expect(["wiley", "ieee", "acm"].map((id) => work.holding(library, id)?.turnAt)).toEqual([now + PROXY_GAP_MS, now + 2 * PROXY_GAP_MS, now + 3 * PROXY_GAP_MS])
+    heard.length = 0
+    work.settle(first.id, "offline", { host: "journals.sagepub.com" })
+    // They moved up, and the window hears it
+    expect(heard.flat()).toEqual(expect.arrayContaining(["wiley", "ieee", "acm"]))
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    const [second] = await take()
+    expect(second.paperId).toBe("wiley")
+    // SAGE's back-off ends before IEEE's turn: it still goes after the papers that can go
+    vi.advanceTimersByTime(2 * 60_000)
+    expect(work.holding(library, "sage")?.turnAt).toBe(work.holding(library, "acm")!.turnAt! + PROXY_GAP_MS)
+    work.settle(second.id, "pdf")
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["ieee"])
   })
 
   it("keeps a wait for its other papers when the one out for its try has its PDF by another way", async () => {

@@ -4809,10 +4809,20 @@ msgstr "等待 {away}"
 msgid "Can't reach site"
 msgstr "连不上网站"
 
+#. a paper waiting its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "In line · about {turn} min"
+msgstr "排队中 · 约 {turn} 分钟"
+
 #. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "Waiting for {away} to open"
 msgstr "等待打开 {away}"
+
+#. the paper waits its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "In line through your library · about {turn} min"
+msgstr "在图书馆的代理排队 · 约 {turn} 分钟"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"

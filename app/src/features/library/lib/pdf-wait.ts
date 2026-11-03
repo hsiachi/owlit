@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { pdfWait, type ExtensionWait, type Paper, type PdfWait } from "@owlit/protocol"
-import { clock } from "@/lib/time"
+import { clock, MINUTE } from "@/lib/time"
 
 // Where a paper without its PDF stands: one reading, in @owlit/protocol, shared with the agent's words
 export { pdfWait, waitedFor, type PdfWait } from "@owlit/protocol"
@@ -45,7 +45,8 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
 }
 
 // What a list row says of a paper without its PDF: its state's word, and Waiting while it is in line at
-// the extension, which owlit's own looking (Finding) isn't; Can't reach site while the site its last
+// the extension, which owlit's own looking (Finding) isn't, with about how long through the library's
+// proxy, which takes one paper at a time for every publisher; Can't reach site while the site its last
 // fetch went to didn't answer, until owlit tries it again; Waiting for Dia while the browser the
 // extension is in (away, useBrowserAway) isn't open
 export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">, away?: string): string | undefined {
@@ -53,8 +54,18 @@ export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">, away?: string)
   const at = p.pdfState?.extension
   if (away && withExtension(p)) return t({ message: `Waiting for ${away}`, comment: "the paper is with the owlit extension in this browser (e.g. Dia), which isn't open" })
   if (unreachable(p) && (wait === "finding" || wait === "offline")) return t({ message: "Can't reach site", comment: "the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself" })
+  const turn = minutesInLine(p)
+  if (wait === "finding" && turn !== undefined) return t({ message: `In line · about ${turn} min`, comment: "a paper waiting its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn" })
   if (wait === "finding" && at && !at.fetching) return t({ message: "Waiting", comment: "a paper in line for the owlit browser extension, which fetches one paper at a time per site" })
   return pdfWord(wait)
+}
+
+// The minutes until a paper in line through the library's proxy gets its turn, at least one; undefined
+// for any other paper
+export function minutesInLine(p: Pick<Paper, "pdf" | "pdfState">): number | undefined {
+  const at = p.pdfState?.extension
+  if (p.pdf || !at || at.wait || at.fetching || at.unreachable || at.turnAt === undefined) return undefined
+  return Math.max(1, Math.ceil((at.turnAt - Date.now()) / MINUTE))
 }
 
 // The extension has the paper in line or out for a try, under no wait
@@ -83,6 +94,8 @@ export function noPdfTitle(p: Pick<Paper, "pdf" | "pdfState">, wait?: Pick<Exten
     const time = clock(off.until)
     return t({ message: `Can't reach ${at} right now · trying again at ${time}`, comment: "the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05" })
   }
+  const turn = minutesInLine(p)
+  if (turn !== undefined && state === "finding") return t({ message: `In line through your library · about ${turn} min`, comment: "the paper waits its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn" })
   switch (state) {
     case "finding":
       return !s?.extension && pdfGone(p) ? t`The PDF is gone` : t`Finding a PDF…`

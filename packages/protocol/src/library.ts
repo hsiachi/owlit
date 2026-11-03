@@ -94,6 +94,9 @@ export interface PdfState {
     // In line, but its last fetch reached nothing, so it waits until then. at: the host that didn't
     // answer (the publisher's, or the library proxy's when nothing through it can go)
     unreachable?: { at: string; until: number }
+    // In line through the library's proxy, which takes one paper at a time: when its turn comes, as near
+    // as core can tell from the papers ahead of it and the proxy's pace
+    turnAt?: number
   }
 }
 
