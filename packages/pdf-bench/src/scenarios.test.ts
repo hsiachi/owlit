@@ -446,6 +446,22 @@ describe("owlit and the machine", () => {
     expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true])
   })
 
+  it("a paper added while the browser is closed: owlit's own look misses, and it waits for the browser, then comes", async () => {
+    const web = new FakeWeb()
+    const doi = "10.1177/0956797643"
+    const title = "A Paper Added While The Browser Was Closed"
+    atypon(web, "journals.sagepub.com", doi, title)
+    // Only the user's browser gets it
+    web.on(`journals.sagepub.com/doi/pdf/${doi}`, inBrowser(pdf(doi)))
+    const b = await start(web)
+    await b.closeBrowser()
+    const id = b.addPaper(doi, title)
+    let screen = await b.findPdf(id)
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open", word: "Waiting for Chrome" })
+    screen = await b.openBrowser()
+    expect(screen.papers[id].hasPdf).toBe(true)
+  })
+
   it("asleep mid-fetch: the fetch is asked for again on waking, and the first one's PDF, coming late, is kept", async () => {
     const web = new FakeWeb()
     const doi = "10.1177/0956797642"

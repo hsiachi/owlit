@@ -117,6 +117,7 @@ export class ExtensionServer {
         papers: (library, ids) => void library.pdfChanged(ids).catch((error) => console.error("[core] couldn't tell the window about papers with the extension", error)),
         waits: () => void this.announce(),
         connected: (library) => void library.handToExtension().catch((error) => console.error("[core] couldn't hand papers to the extension", error)),
+        paired: async () => ((await this.host.settings.get()).extension?.paired ?? []).length > 0,
       },
       options.work,
     )

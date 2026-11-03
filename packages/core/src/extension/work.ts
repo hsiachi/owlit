@@ -154,6 +154,8 @@ export interface WorkHost {
   // An extension began asking for work for this library, with nothing of it queued yet or not for a
   // while: the library hands over what waits for the extension
   connected: (library: Library) => void
+  // An extension is paired with this owlit, connected now or not
+  paired?: () => Promise<boolean>
 }
 
 export class ExtensionWork implements ExtensionFetcher {
@@ -203,6 +205,10 @@ export class ExtensionWork implements ExtensionFetcher {
 
   connected() {
     return Date.now() - this.polledAt < CONNECTED_MS
+  }
+
+  async paired(): Promise<boolean> {
+    return (await this.host.paired?.()) ?? false
   }
 
   // The pairings asking for work now, the most recent first

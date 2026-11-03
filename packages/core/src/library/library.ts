@@ -143,6 +143,9 @@ export interface ExtensionFetcher {
   // An extension is asking for work: papers the plain routes miss go to it; without one they have no
   // PDF until it connects (Library.handToExtension)
   connected(): boolean
+  // An extension is paired, connected now or not: a paper for it goes to its queue while its browser is
+  // closed, and is handed over once it connects
+  paired?(): Promise<boolean>
   // askedFor: the user waits on this paper (Look again, Get them all)
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
   // The waits the workspace's papers' records say they met, as it opens, and the papers it would hand
@@ -1838,7 +1841,7 @@ export class Library {
           const told = before && standing(before.tried).reason?.ended
           const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
-          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal)
+          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal, undefined, { closed: true })
           await this.announce([id])
         },
       }),
@@ -2025,11 +2028,14 @@ export class Library {
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
-  // set); false when no extension is asking for work. paused: what its record says its site waits for.
-  // stopped: asked once its page is looked up, right before it is queued: true leaves it out
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean) {
+  // set); false when no extension is asking for work. stopped: asked once its page is looked up, right
+  // before it is queued: true leaves it out. closed: queued too while the paired browser is closed, where
+  // it waits for it (the window says so) and goes once it connects; a paper owlit's own look missed
+  // otherwise reads "No PDF found" with nothing about the browser, until the browser asks
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean, { closed = false } = {}) {
     const extension = this.services.extension
-    if (!extension?.connected()) return false
+    if (!extension) return false
+    if (!extension.connected() && !(closed && (await extension.paired?.()))) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const libraryProxy = (await this.services.settings()).proxy
     const route = extensionRoute(doi, libraryProxy, registered)
