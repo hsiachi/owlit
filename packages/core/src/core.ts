@@ -137,6 +137,8 @@ export class Core {
   private notifier = new Notifier()
   private options: CoreOptions
   private started = false
+  // The parsing settings settings.changed last carried, so only a change to them looks for unread papers
+  private parsingSeen: string | undefined
   private workspace: Workspace | null = null
   // Opens and closes run one at a time, in the order asked
   private switching: Promise<unknown> = Promise.resolve()
@@ -322,6 +324,10 @@ export class Core {
       changed: (view) => {
         this.notifier.notify("settings.changed", view)
         void this.workspace?.members.ensure(view.profile).catch((error) => console.error("[core] couldn't update the workspace's members", error))
+        // A parsing service set up (or its token put back) reads the papers that went without one
+        const parsing = JSON.stringify([view.parsing, view.secrets.mineruToken])
+        if (parsing !== this.parsingSeen) void this.workspace?.library.parseOwed().catch((error) => console.error("[core] couldn't queue MinerU's reading", error))
+        this.parsingSeen = parsing
       },
     })
     registerDocs({ router, notifier, requireWorkspace, answerReply: (ws, path, id) => this.answerReply(ws, path, id), pdfiumWasm: options.pdfiumWasm })
