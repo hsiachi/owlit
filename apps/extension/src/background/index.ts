@@ -14,7 +14,7 @@ import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING }
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough, siteOf } from "../lib/verdict.ts"
 import { report } from "../lib/work.ts"
-import { closeIdleTabs, documentOf, fetchLadder, pdfOfTab, redirectedTo, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
+import { closeIdleTabs, documentOf, fetchLadder, pdfOfTab, redirectedTo, showWorkTab, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
 // owlit and fetches with the user's cookies. The toolbar button has no popup of its own: its click does the
@@ -631,7 +631,10 @@ function keepAsking() {
 // their access, and brought to the front
 async function openPage(page: OpenPage) {
   if (page.kind === "permission") return openAllowPage(page.host, { papers: String(page.papers), ...allowQuery((await waits()).find((w) => w.kind === "permission" && w.at === page.host)) })
-  const tab = await ext.tabs.create({ url: page.kind === "walk" ? page.step.url : page.url, active: true })
+  // The extension's own tab already at this site's check (a Get PDFs' tab brought to the front, or still
+  // hidden): that one, in front, rather than a second
+  const at = page.kind === "walk" ? undefined : await showWorkTab(page.host)
+  const tab = at ?? (await ext.tabs.create({ url: page.kind === "walk" ? page.step.url : page.url, active: true }))
   if (page.kind === "walk" && tab.id !== undefined) await ext.storage.session.set({ [walkKey]: { tabId: tab.id, paperId: page.step.paperId } satisfies Walk })
   if (tab.windowId !== undefined) await ext.windows.update(tab.windowId, { focused: true }).catch(() => undefined)
 }

@@ -452,6 +452,23 @@ describe("a PDF the user opens at a waiting site", () => {
   })
 })
 
+describe("opening a wait", () => {
+  it("brings the extension's tab already at that check to the front, rather than opening another", async () => {
+    // Cloudflare's check that never passes by itself here: the run's tab is brought to the front and left
+    // there with the user
+    const acm = guarded(() => article("ACM", ACM_PDF), { passAfter: 1_000_000 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toMatchObject({ ended: "check" })
+    const [shown] = [...b.tabs.keys()]
+    expect(b.activated).toEqual([shown])
+    b.owlit.give({ open: [{ kind: "check", host: "dl.acm.org", url: ACM }] })
+    await vi.waitFor(() => expect(b.activated).toEqual([shown, shown]), PATIENCE)
+    expect(b.created).toHaveLength(1)
+  })
+})
+
 describe("waits", () => {
   const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 2, proxied: false, allow: ["science.org"] }
   const sites = { "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }

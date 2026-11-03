@@ -135,6 +135,13 @@ export const tabsLoaded = tabsKept().then((all) => {
   for (const kept of Object.values(all)) workTabIds.add(kept!.tabId)
 })
 
+// The extension's tabs brought to the front, for a check or by the user's Open on a wait: the user's to
+// look at from then on, never closed or loaded with another paper by the extension
+const SHOWN_KEY = "shownTabs"
+const shownTabs = async () => ((await ext.storage.session.get(SHOWN_KEY))[SHOWN_KEY] ?? []) as number[]
+const isShown = async (tab: WorkTab) => tab.shown || (await shownTabs()).includes(tab.tabId)
+const markShown = (tabId: number) => keeping(async () => ext.storage.session.set({ [SHOWN_KEY]: [...new Set([...(await shownTabs()), tabId])] }))
+
 // Gates whose check the background's own fetch met in this browser session: a tab past it is where
 // their papers are fetched (fetchLadder)
 const CHECKED_KEY = "checkedGates"
@@ -273,7 +280,7 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
     return "ended" in got && got.ended === "offline" ? undefined : got
   }
   // Brought to the front, it is the user's now: theirs to close, never loaded with another paper
-  await keepTab(gate, tab.shown ? undefined : { ...tab, lastAt: Date.now() })
+  await keepTab(gate, (await isShown(tab)) ? undefined : { ...tab, lastAt: Date.now() })
   return got
 }
 
@@ -286,7 +293,7 @@ async function reusable(item: WorkItem): Promise<WorkTab | undefined> {
   const now = await ext.tabs.get(tab.tabId).catch(() => undefined)
   const host = now?.url ? hostOf(now.url) : ""
   const sites = [...(item.sites ?? []), siteOf(hostOf(item.url))]
-  if (!tab.shown && host && sites.some((site) => host === site || host.endsWith(`.${site}`))) return tab
+  if (!(await isShown(tab)) && host && sites.some((site) => host === site || host.endsWith(`.${site}`))) return tab
   await keepTab(item.gate, undefined)
   return undefined
 }
@@ -353,6 +360,7 @@ async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promis
       tab.shown = true
       // Kept so at once: a worker restarted meanwhile never closes it as idle
       await keepTab(item.gate, { ...tab })
+      await markShown(tab.tabId)
       await ext.tabs.update(tab.tabId, { active: true }).catch(() => undefined)
       until = Date.now() + TAB_TIMES.shownMs
     }
@@ -364,7 +372,7 @@ async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promis
 // on what stands in it (a captcha, a sign-in); then it is theirs
 async function letGo(gate: GateKey, tab: WorkTab) {
   await keepTab(gate, undefined)
-  if (!tab.shown) await ext.tabs.remove(tab.tabId).catch(() => undefined)
+  if (!(await isShown(tab))) await ext.tabs.remove(tab.tabId).catch(() => undefined)
 }
 
 // The gates' tabs with no paper of theirs going and none for a while: closed, but for one brought to the
@@ -373,7 +381,7 @@ export async function closeIdleTabs() {
   const now = Date.now()
   for (const [gate, tab] of Object.entries(await tabsKept()) as [GateKey, WorkTab][]) {
     if (running.has(gate)) continue
-    if (tab.shown) await keepTab(gate, undefined)
+    if (await isShown(tab)) await keepTab(gate, undefined)
     else if (now - tab.lastAt >= TAB_TIMES.idleMs) {
       await keepTab(gate, undefined)
       await ext.tabs.remove(tab.tabId).catch(() => undefined)
@@ -381,9 +389,29 @@ export async function closeIdleTabs() {
   }
 }
 
+// A tab of the extension's at this host's site, for a wait the user opens there (index.ts openPage): the
+// gate's tab already at its check, brought to the front rather than a second one opened. It is the
+// user's from then on.
+export async function showWorkTab(host: string): Promise<chrome.tabs.Tab | undefined> {
+  const site = siteOf(host)
+  const ids = [...new Set([...Object.values(await tabsKept()).map((t) => t!.tabId), ...(await shownTabs())])]
+  for (const tabId of ids) {
+    const tab = await ext.tabs.get(tabId).catch(() => undefined)
+    const at = tab?.url ? hostOf(tab.url) : ""
+    if (!tab || !at || (at !== site && !at.endsWith(`.${site}`))) continue
+    await markShown(tabId)
+    return ext.tabs.update(tabId, { active: true }).catch(() => undefined)
+  }
+  return undefined
+}
+
 // The user closed one of the gates' tabs
 ext.tabs.onRemoved.addListener((tabId) => {
   injected.delete(tabId)
+  void keeping(async () => {
+    const all = await shownTabs()
+    if (all.includes(tabId)) await ext.storage.session.set({ [SHOWN_KEY]: all.filter((id) => id !== tabId) })
+  })
   if (!workTabIds.has(tabId)) return
   void (async () => {
     for (const [gate, tab] of Object.entries(await tabsKept()) as [GateKey, WorkTab][]) if (tab.tabId === tabId) await keepTab(gate, undefined)
