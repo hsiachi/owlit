@@ -1,12 +1,16 @@
 import type { WorkEnding } from "@owlit/protocol"
-import { getDomain } from "tldts"
+import { describesPaper, paperOfPage, pdfLinkIn, siteOf } from "./page.ts"
+
+export { siteOf }
 
 // What a page that came instead of a PDF says, in owlit's one word for it: a check in front of the page,
-// the site's firewall turning this browser away (blocked), a sign-in (the library proxy's, a school's, a publisher's), the library's proxy saying it hasn't got the
-// paper, a page that isn't there, an offer to buy or get access, the paper's own page naming no PDF (no
-// copy), or a page that is none of these and not the paper's (unreadable). Read from
-// where the fetch ended, its status, and its HTML as text, so it runs the same in the background, on a
-// tab's document and in a test.
+// the site's firewall turning this browser away (blocked), a sign-in (the library proxy's, a school's, a
+// publisher's), the library's proxy saying it hasn't got the paper, a page that isn't there, the paper's
+// page offering to buy or get access to it, the paper's page naming a PDF that didn't come (no copy), or
+// a page the extension can't be sure of (unreadable), which the user looks at by hand. Read from where
+// the fetch ended, its status, its headers when there are any, and its HTML as text, so it runs the same
+// in the background, on a tab's document and in a test. fixtures/real/ holds the recorded pages it is
+// checked against.
 //
 // What a real run showed (Dia, Tsinghua's tlink off campus): SAGE answering an institution without the
 // journal with its abstract page; T&F with "Get Access"; tlink with /ui/unauthorized for a resource the
@@ -14,7 +18,9 @@ import { getDomain } from "tldts"
 // /go?url= while signed out; the school's sign-in on id.tsinghua.edu.cn; Cloudflare's "Just a moment..."
 // in front of a download; the ACM's "ACM Error: 404". And pages that only scripts make anything of, which
 // the extension never runs: APA PsycNet's shell of a page, Elsevier's linkinghub "Redirecting" (a meta
-// refresh, which work.ts follows), Thieme's "Please wait".
+// refresh, which work.ts follows). On a campus network with access everywhere: Thieme's, Fastly's (JSTOR)
+// and Akamai's (MDPI) script checks, AWS WAF's (IEEE) as a 202 with no body, and article pages whose
+// headers and footers say "Subscribe", "Purchase" and "Institutional Login" to readers who have the paper.
 
 export interface Page {
   // Where the fetch ended, after redirects
@@ -24,16 +30,23 @@ export interface Page {
   html: string
   // Fetched through the library's proxy: its host, and the address the fetch started at
   proxy?: { host: string; entry?: string }
+  // The response's headers; none for a tab's document. AWS WAF's challenge says what it is only here.
+  headers?: { get(name: string): string | null }
 }
 
 // Cloudflare's and the like's interstitials, by their title
-const CHECK_TITLE = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|请稍候|正在验证|安全检查/i
+const CHECK_TITLE = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|client challenge|请稍候|正在验证|安全检查/i
 // By the page's own markup: Cloudflare's challenge, DataDome's and PerimeterX's. Cloudflare also puts its
 // bot scripts on ordinary pages, at /cdn-cgi/challenge-platform/scripts/… (ACM's articles) and
 // /cdn-cgi/challenge-platform/h/b/scripts/jsd/… (the page it lets through once its check is passed), so
 // only the interstitial's orchestrate script counts; and a paper's own page is never the interstitial,
-// whatever scripts it carries.
-const CHECK_MARKUP = /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|\/cdn-cgi\/challenge-platform\/(h\/[a-z]\/)?orchestrate\/|captcha-delivery\.com|px-captcha/i
+// whatever scripts it carries. Fastly's client challenge serves its scripts from /_fs-ch-<id>/, which
+// JSTOR's article pages carry too once it is passed. Akamai Bot Manager's interstitial posts to
+// /_sec/verify and refreshes to ?bm-verify=.
+const CHECK_MARKUP =
+  /id=["']?challenge-form|cf-browser-verification|cf_chl_opt|\/cdn-cgi\/challenge-platform\/(h\/[a-z]\/)?orchestrate\/|captcha-delivery\.com|px-captcha|\/_fs-ch-[\w-]+\/|\/_sec\/verify\?provider=interstitial|\/akamai\/interstitial\.html|[?&]bm-verify=/i
+// A site's own script check behind a stand-in's title: Thieme's "Please wait" runs /…/challenge-<hash>.js
+const CHALLENGE_SCRIPT = /<script\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\bchallenge\b[^"'\s>]*\.js/i
 // AWS WAF's script is on the pages of sites that use it whether or not they challenge; it is a check
 // only on the 202 (or a refusal) WAF answers a challenge with
 const WAF_MARKUP = /awswaf|AwsWafIntegration/i
@@ -59,14 +72,16 @@ const signIn = (text: string) => SIGN_IN.test(text) || SIGN_IN.test(text.replace
 const PROXY_SIGN_IN = /log-?in|sign-?in|sso|\/cas\b/i
 const PASSWORD = /<input\b[^>]*\btype\s*=\s*["']?password\b/i
 const PAYWALL = /get access|access options|purchase|buy article|\brent\b|subscribe|institutional access|购买|订阅/i
-// The words of a control on the page that offers access rather than the paper: APA PsycNet's "Get
-// Access", Elsevier's "Get access", Springer's "Buy article PDF", ScienceDirect's "Purchase PDF",
-// "Access through your institution"
-const ACCESS_OFFER = /^(get (full )?access|buy|purchase|rent)\b|access through your institution|institutional (login|access)|access options|^subscribe\b|购买|订阅/i
+// A control's whole words that offer access to this paper: Atypon's "Get Access", Springer's "Buy article
+// PDF", ScienceDirect's "Purchase PDF" and "Access through your institution", SAGE's "View access
+// options". Whole, since a site's header and footer offer the journal ("Subscribe", "Purchase", "Purchase
+// Access to Other Journals") and a sign-in ("Institutional Login") on every page, the paper's included.
+const ACCESS_OFFER =
+  /^((get|check) (full |instant )?access( now)?|buy (this )?(article|chapter|paper)( pdf)?|buy pdf|purchase (this )?(article|chapter|paper|pdf|access)|purchase pdf|rent( this)?( article| chapter)?|access through your institution|(view )?access options|购买(本文|全文|文章|PDF)?|获取全文)$/i
 const MISSING = /\b(404|410)\b|not found|page (doesn't|does not) exist|找不到|不存在/i
 // A page that stands in while its scripts go on somewhere: never the paper's page, whatever its tags
 const INTERSTITIAL_TITLE = /^(please wait|redirecting|loading)\b|^(请稍等|正在跳转|加载中)/i
-const REFUSED = /unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限/i
+const REFUSED = /unauthori[sz]ed|denied|forbidden|no access|not subscribed|无权|未授权|没有权限|未订阅/i
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " }
 const decode = (text: string) =>
@@ -76,13 +91,13 @@ const decode = (text: string) =>
   })
 const words = (html: string) => decode(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim()
 
-export const titleOf = (html: string) => words(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
-
-// A host's registrable domain, by the public suffix list; the host itself where it has none. core's
-// extension/route.ts siteOf, the same: change them together.
-export function siteOf(host: string) {
-  const bare = host.toLowerCase().replace(/\.$/, "")
-  return getDomain(bare) ?? bare
+// The document's title, not an icon's: IEEE Xplore's pages put SVGs with empty <title>s before their own
+export function titleOf(html: string) {
+  for (const found of html.matchAll(/<title\b[^>]*>([\s\S]*?)<\/title>/gi)) {
+    const before = html.slice(0, found.index).toLowerCase()
+    if (before.lastIndexOf("<svg") <= before.lastIndexOf("</svg")) return words(found[1])
+  }
+  return ""
 }
 
 // A paper's own page carries its tags: Google Scholar's (citation_title, citation_doi), Dublin Core's
@@ -91,17 +106,21 @@ export function siteOf(host: string) {
 // in its header, password field and all, so the sign-in signs below count only on a page without them.
 const PAPER_TAG = /\b(name|property)\s*=\s*["']?(citation_title|citation_doi|dc\.title|dc\.identifier)["'\s/>]/i
 const ARTICLE_TYPE = /\bproperty\s*=\s*["']?og:type["'\s]/i
+// Without them, the markup page.ts reads a paper from (JSTOR's JSON-LD, IEEE Xplore's script) says so.
 const isArticle = (html: string) => {
   for (const [tag] of html.matchAll(/<meta\b[^>]*>/gi)) {
     if (PAPER_TAG.test(tag) || (ARTICLE_TYPE.test(tag) && /\bcontent\s*=\s*["']?article\b/i.test(tag))) return true
   }
-  return false
+  return describesPaper(html)
 }
 
-// The words of the page's links and buttons, for an offer of access in place of the paper
+// The words of the page's links and buttons, for an offer of access to the paper
 function offersAccess(html: string) {
   for (const control of html.matchAll(/<(a|button)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
-    if (ACCESS_OFFER.test(words(control[2]))) return true
+    const said = words(control[2])
+      .replace(/\(opens? in (a )?new (window|tab)\)/gi, "")
+      .trim()
+    if (ACCESS_OFFER.test(said)) return true
   }
   return false
 }
@@ -114,10 +133,14 @@ export function isBlocked(page: Pick<Page, "html">) {
   return BLOCK_WORDS.test(text) || AKAMAI_BLOCK.test(text)
 }
 
-export function isCheck(page: Pick<Page, "status" | "html">) {
+export function isCheck(page: Pick<Page, "status" | "html" | "headers">) {
   const refused = page.status === 403 || page.status === 429 || page.status === 503
+  const title = titleOf(page.html)
   return (
-    CHECK_TITLE.test(titleOf(page.html)) ||
+    /^challenge$/i.test(page.headers?.get("x-amzn-waf-action") ?? "") ||
+    /^challenge$/i.test(page.headers?.get("cf-mitigated") ?? "") ||
+    CHECK_TITLE.test(title) ||
+    (INTERSTITIAL_TITLE.test(title) && CHALLENGE_SCRIPT.test(page.html)) ||
     (CHECK_MARKUP.test(page.html) && !isArticle(page.html)) ||
     (refused && CAPTCHA_MARKUP.test(page.html)) ||
     ((refused || page.status === 202 || page.status === 405) && WAF_MARKUP.test(page.html))
@@ -141,12 +164,8 @@ export function isSignInAddress(url: string) {
 }
 
 export function verdict(page: Page): WorkEnding {
-  let at: URL
-  try {
-    at = new URL(page.url)
-  } catch {
-    return "no-copy"
-  }
+  const at = safeUrl(page.url)
+  if (!at) return "unreadable"
   const title = titleOf(page.html)
   if (isBlocked(page)) return "blocked"
   if (isCheck(page)) return "check"
@@ -155,6 +174,7 @@ export function verdict(page: Page): WorkEnding {
   // nothing, and owlit looks again later
   if ((page.proxy && LIMIT.test(at.pathname)) || LIMIT_TITLE.test(title) || page.status === 429) return "offline"
   const path = pathOf(at)
+  const article = isArticle(page.html)
   // A proxy's rewrite of some publisher's page (/https/443/com/sciencedirect/…, or
   // www-sciencedirect-com.proxy.example.edu): an article page through the library, whatever its path says
   const rewritten = /^\/https?\/\d+\//.test(at.pathname) || /-(com|org|net|edu|gov)\./.test(at.hostname)
@@ -162,20 +182,27 @@ export function verdict(page: Page): WorkEnding {
     const entry = page.proxy.entry ? safeUrl(page.proxy.entry) : undefined
     const onEntry = !!entry && entry.hostname === at.hostname && entry.pathname === at.pathname
     if (at.hostname === page.proxy.host && (onEntry || PROXY_SIGN_IN.test(at.pathname) || at.pathname === "/")) return "sign-in"
-    // The school's own sign-in, under the same domain (id.tsinghua.edu.cn beside tlink)
-    if (!isArticle(page.html) && (PASSWORD.test(page.html) || signIn(`${at.hostname}${path}`) || signIn(title))) return "sign-in"
+    // The school's own sign-in, under the same domain (id.tsinghua.edu.cn beside tlink): there the title
+    // alone is enough, since the proxy sends a signed-out reader nowhere else
+    if (!article && (PASSWORD.test(page.html) || signIn(`${at.hostname}${path}`) || signIn(title))) return "sign-in"
     if (REFUSED.test(path) || REFUSED.test(title)) return "not-offered"
-    // Elsewhere on the proxy's own pages, it has said no
-    if (!isArticle(page.html)) return "not-offered"
+    // Another of the proxy's own pages, which says nothing the extension knows
+    if (!article) return "unreadable"
   }
-  if (!isArticle(page.html)) {
-    if (PASSWORD.test(page.html) || signIn(`${at.hostname}${path}`) || signIn(title)) return "sign-in"
-  }
+  // Elsewhere a title alone is no sign-in an ending can rest on (isThrough still reads it as one)
+  if (!article && (PASSWORD.test(page.html) || signIn(`${at.hostname}${path}`))) return "sign-in"
   if (INTERSTITIAL_TITLE.test(title)) return "unreadable"
   if (MISSING.test(title)) return "not-there"
-  if (PAYWALL.test(title) || offersAccess(page.html)) return "no-access"
-  // Only the paper's own page can say the site has no copy; any other page says nothing about the paper
-  return isArticle(page.html) ? "no-copy" : "unreadable"
+  // Only the paper's own page can say what the site offers for the paper; any other page offering
+  // access says so in its title or says nothing sure
+  if (!article) return PAYWALL.test(title) ? "no-access" : "unreadable"
+  // A link to the paper's PDF outweighs an offer: the offers on a page a reader has access to are its
+  // site's, or hidden until a reader without it comes (SAGE's "Purchase access", Science's "Access
+  // through your institution")
+  const pdfLink = pdfLinkIn(page.html, page.url)
+  if (!pdfLink && offersAccess(page.html)) return "no-access"
+  // The paper's page names a PDF that didn't come; one that names none leaves it to the user
+  return pdfLink || paperOfPage(page.html, page.url)?.pdfUrl ? "no-copy" : "unreadable"
 }
 
 // A wait longer than this is a page meant to be read, not a hop
@@ -184,7 +211,8 @@ const REFRESH_MAX_S = 10
 // Where a page that sends the browser on by a meta refresh goes. Not from the paper's own page: one may
 // refresh to a sign-out once its session is old.
 export function refreshOf(page: Pick<Page, "url" | "html">): string | undefined {
-  if (isArticle(page.html)) return undefined
+  // Nor from a check: Akamai's refreshes to ?bm-verify=, which asks the check again
+  if (isArticle(page.html) || isCheck({ status: 0, html: page.html })) return undefined
   for (const [tag] of page.html.matchAll(/<meta\b[^>]*>/gi)) {
     if (!/\bhttp-equiv\s*=\s*["']?refresh\b/i.test(tag)) continue
     const quoted = /\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag)
@@ -198,10 +226,16 @@ export function refreshOf(page: Pick<Page, "url" | "html">): string | undefined 
   return undefined
 }
 
-// Whether the user got through at this page: it is neither a check, a block nor a sign-in
-export const isThrough = (page: Page) => {
+// Whether the user got through at this page: it is neither a check, a block, a sign-in nor a stand-in
+// still on its way. Generous with sign-ins, unlike the ending verdict reports: a page that isn't the
+// paper's and whose title says sign in (a publisher's "Log in" page with its form built by scripts) is
+// one the user hasn't got past.
+export function isThrough(page: Page) {
   const said = verdict(page)
-  return said !== "check" && said !== "blocked" && said !== "sign-in"
+  if (said === "check" || said === "blocked" || said === "sign-in") return false
+  const title = titleOf(page.html)
+  if (INTERSTITIAL_TITLE.test(title)) return false
+  return isArticle(page.html) || !signIn(title)
 }
 
 function safeUrl(text: string, base?: string) {

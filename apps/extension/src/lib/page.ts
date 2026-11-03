@@ -1,4 +1,4 @@
-import { siteOf } from "./verdict.ts"
+import { getDomain } from "tldts"
 
 // What a page says about the paper it shows: the meta tags publishers and arXiv put in a paper's page for
 // Google Scholar (citation_*), Dublin Core's identifier, schema.org's ScholarlyArticle in JSON-LD, IEEE
@@ -35,6 +35,13 @@ const decode = (text: string) =>
 const attr = (tag: string, name: string) => {
   const value = new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s"'>]+))`, "i").exec(tag)?.slice(2).find((v) => v !== undefined)
   return value === undefined ? undefined : decode(value).trim()
+}
+
+// A host's registrable domain, by the public suffix list; the host itself where it has none. core's
+// extension/route.ts siteOf, the same: change them together.
+export function siteOf(host: string) {
+  const bare = host.toLowerCase().replace(/\.$/, "")
+  return getDomain(bare) ?? bare
 }
 
 // Lowercase, without what a publisher's address or a sentence adds after it
@@ -193,9 +200,25 @@ function pdfIn(html: string, metas: Map<string, string[]>, page: string) {
   return undefined
 }
 
-// The page's own link to its PDF, for a page without citation_pdf_url: one labelled just "PDF" (or
-// "Download PDF"), to a .pdf on the page's own site. APA PsycNet's full-text pages link
-// /fulltext/<id>.pdf this way and carry no citation tags.
+// Atypon's addresses for a paper's PDF (ACM, SAGE, T&F, Science, PNAS, Wiley's pdfdirect) and for its
+// viewers (epdf, reader), each followed by the DOI
+const ATYPON_PDF = /^\/doi\/(pdf|pdfdirect|epdf|reader)\/(10\.\d{4,9}\/.+)$/i
+// A link's words that name the paper's PDF and nothing else: "PDF", "Download PDF", "View PDF/EPUB".
+// A size after it ("PDF (6.16 MB)") is a supplement's.
+const PDF_WORDS = /^((download|view|get)\s+)?(the\s+)?(article\s+|full[- ]text\s+)?pdf(\/epub)?$/i
+const linkWords = (inner: string) =>
+  decode(inner.replace(/<[^>]*>/g, " "))
+    .replace(/\(opens? in (a )?new (window|tab)\)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    // An icon's label repeats the link's own ("Download PDF PDF")
+    .replace(/\b(\w+)( \1\b)+/gi, "$1")
+
+// The page's own link to its PDF, for a page without citation_pdf_url: one on the page's own site,
+// labelled just "PDF" (or "Download PDF") to a .pdf or a …/pdf, or Atypon's /doi/pdf/<doi> however it is
+// labelled. APA PsycNet's full-text pages link /fulltext/<id>.pdf this way and carry no citation tags. Only
+// the page's own links count, not its tags: a paywalled page often still names its PDF in citation_pdf_url
+// (Springer's always does), but shows a link to it only to a reader who has access.
 export function pdfLinkIn(html: string, page: string): string | undefined {
   let base: URL
   try {
@@ -204,19 +227,39 @@ export function pdfLinkIn(html: string, page: string): string | undefined {
     return undefined
   }
   const site = siteOf(base.hostname)
+  const doi = paperOfPage(html, page)?.doi
+  let viewer: string | undefined
   for (const link of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
-    const text = decode(link[2].replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim()
-    if (!/^(download\s+)?(article\s+)?pdf$/i.test(text)) continue
     const href = attr(`<a ${link[1]}>`, "href")
     if (!href) continue
+    let url: URL
     try {
-      const url = new URL(href, base)
-      if (/^https?:$/.test(url.protocol) && siteOf(url.hostname) === site && /\.pdf$/i.test(url.pathname)) return url.toString()
+      url = new URL(href, base)
     } catch {
-      // Not an address
+      continue
     }
+    if (!/^https?:$/.test(url.protocol) || siteOf(url.hostname) !== site) continue
+    const atypon = ATYPON_PDF.exec(decodeURIComponentSafe(url.pathname))
+    if (atypon) {
+      // A link to another paper's PDF (a reference, a related article)
+      if (doi && cleanDoi(atypon[2]) !== doi) continue
+      if (/^pdf/i.test(atypon[1])) return url.toString()
+      // The viewers are pages, and Atypon serves the PDF itself at /doi/pdf/: SAGE's article links only
+      // its reader
+      viewer ??= `${url.origin}/doi/pdf/${atypon[2]}`
+      continue
+    }
+    if (PDF_WORDS.test(linkWords(link[2])) && /\.pdf$|\/pdf$/i.test(url.pathname)) return url.toString()
   }
-  return undefined
+  return viewer
+}
+
+// Whether the page's own markup describes a paper where it has no citation tags: schema.org's
+// ScholarlyArticle in its JSON-LD (JSTOR), IEEE Xplore's metadata script. Not its address: a check or a
+// sign-in stands at the paper's own address too.
+export function describesPaper(html: string): boolean {
+  if (html.includes("xplGlobal.document.metadata")) return true
+  return !!scholarlyArticleOf(html)
 }
 
 type More = Omit<PagePaper, "arxiv">

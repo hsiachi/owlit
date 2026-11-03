@@ -8,11 +8,16 @@ const THIEME = `<html lang="en"><head><title>Please wait</title><script src="/pr
 <p>This process is protecting Thieme-Connect from malicious requests caused by AI crawlers, botnets and other hostile web agents.</p><div id="spinner" class="spinner"></div></body></html>`
 
 const page = (url: string, html: string, extra: Partial<Page> = {}): Page => ({ url, status: 200, html, ...extra })
-const article = (title: string, body = "") => `<html><head><title>${title}</title><meta name="citation_title" content="${title}"></head><body>${body}</body></html>`
+// The paper's own page, naming its PDF in its tags
+const article = (title: string, body = "") =>
+  `<html><head><title>${title}</title><meta name="citation_title" content="${title}"><meta name="citation_pdf_url" content="/pdf/1.pdf"></head><body>${body}</body></html>`
 const tlink = { host: "tlink.lib.tsinghua.edu.cn", entry: "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1" }
 
 describe("what a page that came instead of a PDF says", () => {
   it("knows a check in front of the page", () => {
+    // Thieme's own wait while its script checks the browser
+    expect(verdict(page("https://www.thieme-connect.de/products/ejournals/abstract/10.1055/s-0029-1185335", THIEME))).toBe("check")
+    expect(isThrough(page("https://www.thieme-connect.de/products/ejournals/abstract/10.1055/s-0029-1185335", THIEME, { status: 0 }))).toBe(false)
     expect(verdict(page("https://dl.acm.org/doi/10.1145/1", "<title>Just a moment...</title>", { status: 403 }))).toBe("check")
     expect(verdict(page("https://www.science.org/doi/1", '<html><body><form id="challenge-form" action="/x"></form></body></html>', { status: 503 }))).toBe("check")
     expect(verdict(page("https://www.sciencedirect.com/science/article/pii/1", '<script src="https://abc.token.awswaf.com/challenge.js"></script>', { status: 202 }))).toBe("check")
@@ -31,6 +36,10 @@ describe("what a page that came instead of a PDF says", () => {
     const interstitial = '<html><head><title>academic.oup.com</title></head><body><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1?ray=8e1b"></script></body></html>'
     expect(verdict(page("https://academic.oup.com/abm/article/53/6/573/5134993", interstitial, { status: 403 }))).toBe("check")
     expect(isThrough({ url: "https://academic.oup.com/abm/article/53/6/573/5134993", status: 0, html: interstitial })).toBe(false)
+    // AWS WAF's challenge is a 202 with no body, said only in a header
+    const waf = new Headers({ "x-amzn-waf-action": "challenge" })
+    expect(verdict(page("https://ieeexplore.ieee.org/document/726791", "", { status: 202, headers: waf }))).toBe("check")
+    expect(verdict(page("https://www.jstor.org/stable/2346101", '<title>Client Challenge</title><script src="/_fs-ch-1T1w/script.js"></script>'))).toBe("check")
   })
 
   it("tells a firewall's block from a check", () => {
@@ -99,9 +108,32 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://journals.sagepub.com/doi/1", "<title>Purchase this article</title>"))).toBe("no-access")
   })
 
-  it("says no copy for the paper's own page that names no PDF", () => {
+  it("takes no site's header or footer for an offer of the paper", () => {
+    const chrome = '<a href="/subscribe">Subscribe</a><a href="/action/ssostart">Institutional Login</a><a href="/journal/subscribe">Purchase</a><a href="/purchase-journal-access">Purchase Access to Other Journals in the Science Family</a>'
+    expect(verdict(page("https://academic.oup.com/abm/article/1", article("A Paper", chrome)))).toBe("no-copy")
+    // A link to the paper's PDF outweighs an offer the page hides from a reader with access
+    const sage = '<meta name="dc.Identifier" scheme="doi" content="10.1177/1"><a href="/doi/reader/10.1177/1">View PDF/EPUB</a><button>Purchase access</button>'
+    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", `<title>A Paper</title>${sage}`))).toBe("no-copy")
+    // A PDF named only in the tags (Springer names it to everyone) doesn't
+    expect(verdict(page("https://link.springer.com/article/1", article("A Paper", "<button>Buy article PDF</button>")))).toBe("no-access")
+  })
+
+  it("says no copy for the paper's own page that names a PDF that didn't come", () => {
     expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", "<p>Abstract</p>")))).toBe("no-copy")
-    expect(verdict(page("not an address", ""))).toBe("no-copy")
+    // Named by a link only, Atypon's /doi/pdf/ however it is labelled
+    const linked = '<title>A Paper</title><meta name="dc.Identifier" scheme="doi" content="10.1177/1"><a class="btn--pdf" href="/doi/pdf/10.1177/1?download=true"><i></i></a>'
+    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", linked))).toBe("no-copy")
+  })
+
+  it("leaves to the user a page it can't be sure of", () => {
+    // The paper's page naming no PDF, and an offer on a page that isn't the paper's
+    expect(verdict(page("https://journals.sagepub.com/doi/1", '<title>A Paper</title><meta name="citation_title" content="A Paper"><p>Abstract</p>'))).toBe("unreadable")
+    expect(verdict(page("https://journals.sagepub.com/toc/1", "<title>Issue 5</title><a href='/action/access'>Get Access</a>"))).toBe("unreadable")
+    expect(verdict(page("not an address", ""))).toBe("unreadable")
+    // A title alone that says sign in: unreadable as an ending, but not a page the user got through at
+    const login = page("https://www.example.org/account", "<title>Login | Example</title><div id='app'></div>")
+    expect(verdict(login)).toBe("unreadable")
+    expect(isThrough(login)).toBe(false)
   })
 
   it("says it couldn't read a page that isn't the paper's and says nothing it knows", () => {
@@ -110,8 +142,6 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://psycnet.apa.org/doiLanding?doi=10.1037/0022-3514.54.4.569", psycnet))).toBe("unreadable")
     // Elsevier's linkinghub, when its refresh isn't followed
     expect(verdict(page("https://linkinghub.elsevier.com/retrieve/pii/S0957417412003879", LINKINGHUB))).toBe("unreadable")
-    // Thieme's own wait while its scripts check the browser
-    expect(verdict(page("https://www.thieme-connect.de/products/ejournals/abstract/10.1055/s-0029-1185335", THIEME))).toBe("unreadable")
     // A stand-in's title says so even beside a paper's tags
     expect(verdict(page("https://example.org/article/1", '<title>Loading…</title><meta name="citation_title" content="A Paper">'))).toBe("unreadable")
     expect(isThrough(page("https://psycnet.apa.org/doiLanding?doi=1", psycnet))).toBe(true)
@@ -127,6 +157,10 @@ describe("what a page that came instead of a PDF says", () => {
     expect(refreshOf(page("https://a.example/x", '<meta http-equiv="refresh" content="600; url=/signout">'))).toBeUndefined()
     expect(refreshOf(page("https://a.example/x", '<meta name="citation_title" content="A"><meta http-equiv="refresh" content="0; url=/signout">'))).toBeUndefined()
     expect(refreshOf(page("https://a.example/x", '<meta http-equiv="refresh" content="0; url=javascript:alert(1)">'))).toBeUndefined()
+    // Akamai's interstitial refreshes to ask its check again
+    const akamai = `<meta http-equiv="refresh" content="5; URL='/2076-3417/9/5/909?bm-verify=x'" /><title>&nbsp;</title><iframe src="/akamai/interstitial.html"></iframe>`
+    expect(refreshOf(page("https://www.mdpi.com/2076-3417/9/5/909", akamai))).toBeUndefined()
+    expect(verdict(page("https://www.mdpi.com/2076-3417/9/5/909", akamai))).toBe("check")
   })
 
   it("tells when the user got through", () => {
