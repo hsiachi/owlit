@@ -3,6 +3,7 @@ import { link, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
+import { keepInTemp } from "../fs-util.ts"
 import { socketHash } from "../rpc/socket.ts"
 
 export interface LockInfo {
@@ -30,12 +31,17 @@ export async function acquireLock(file: string, workspace: string) {
   const info: LockInfo = { pid: process.pid, workspace, since: Date.now() }
   // Written aside and linked into place, so a second opener never reads a half-written lock as no lock
   const draft = `${file}.${process.pid}.tmp`
-  await writeFile(draft, JSON.stringify(info) + "\n")
+  const text = JSON.stringify(info) + "\n"
+  await writeFile(draft, text)
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         await link(draft, file)
-        return () => releaseLock(file)
+        const stopKeeping = keepInTemp(file, () => text)
+        return () => {
+          stopKeeping()
+          return releaseLock(file)
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
         const holder = await readLock(file)
