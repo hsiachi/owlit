@@ -542,6 +542,16 @@ describe("the extension's port", () => {
       await expect(call("pdfRuns.stop", { run })).rejects.toThrow()
     })
 
+    it("lets a new Get PDFs replace the one that ended", async () => {
+      const { call } = await connected()
+      const first = (await call("library.fetchPdfs", { ids: [id] })).run
+      await call("pdfRuns.stop", { run: first })
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      expect(run).not.toBe(first)
+      expect((await call("extension.get")).runs).toMatchObject([{ id: run }])
+      await expect(call("pdfRuns.stop", { run: first })).rejects.toThrow()
+    })
+
     it("says a Get PDFs isn't going when the extension went before its papers were handed over", async () => {
       const { call, putPaper, server } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }

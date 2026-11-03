@@ -221,7 +221,8 @@ export class Library {
   private readonly acquisitions: Acquisitions
   // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
   private readonly batchStopped = new Set<string>()
-  // Get PDFs in this workspace since it opened, the newest last; in memory only (extension/runs.ts)
+  // The workspace's Get PDFs: the one going on, else the last, until put away; in memory only
+  // (extension/runs.ts)
   private pdfRuns: PdfRun[] = []
   // Every paper's cite key by id, and the keys in use: what a new key is checked against (cite-key.ts)
   private citeKeyOf = new Map<string, string>()
@@ -742,7 +743,9 @@ export class Library {
     let run = this.pdfRuns.findLast((r) => r.endedAt === undefined && r.stoppedAt === undefined && r.dismissedAt === undefined)
     if (!run) {
       run = { id: randomUUID(), started: Date.now(), ids: [], handed: new Set(), away: new Set() }
-      this.pdfRuns.push(run)
+      // The window shows the newest run only: the ones that ended go, so they aren't counted again from
+      // their papers every time the runs are shown
+      this.pdfRuns = [run]
     }
     run.ids = [...new Set([...run.ids, ...ids])]
     // Asked for again: in line once more, whatever the last hand-over met

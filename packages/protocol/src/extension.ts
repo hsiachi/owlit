@@ -61,8 +61,8 @@ export interface ExtensionView {
   // Waits the user got through, while their papers go on (and until the window puts the line away,
   // extension.dismissGoing); a wait that is up again carries its own going instead
   going: GoingOn[]
-  // Get PDFs in the open workspace: at most one going on, then those that ended and weren't put away,
-  // the newest first (PdfRunView)
+  // Get PDFs in the open workspace: the one going on, else the last one, until it is put away; a new one
+  // replaces the one that ended (PdfRunView)
   runs: PdfRunView[]
 }
 
