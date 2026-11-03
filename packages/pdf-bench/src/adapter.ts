@@ -34,6 +34,8 @@ const HOLD_MS = 20
 // by an async step of core's (a restart's hand-over) lands in a later round
 const QUIET_ROUNDS = 3
 const MAX_ROUNDS = 300
+// How long the bench waits for core or the extension to get somewhere, well under the test timeout
+const PATIENCE = { timeout: 10_000, interval: 10 }
 
 // ---- What the user sees
 
@@ -194,7 +196,7 @@ export class Bench {
     await vi.waitFor(() => {
       const now = new Set(this.handed.slice(from))
       if (!queued.every((id: string) => now.has(id))) throw new Error("core is still handing the batch to the extension")
-    })
+    }, PATIENCE)
     return this.step(`get PDFs for ${queued.length} papers`)
   }
 
@@ -410,7 +412,7 @@ class Extension {
       const [one] = ((await bench.call("extension.get")) as ExtensionView).asking
       if (!one) throw new Error("no pairing question yet")
       return one
-    })
+    }, PATIENCE)
     await bench.call("extension.answer", { id: asking.id, allow: true })
     this.token = (await this.ask<{ token: string }>(`/pair/${started.pairing}`)).token
   }
@@ -429,7 +431,7 @@ class Extension {
   async drain() {
     await vi.waitFor(() => {
       if (this.pending.size > this.web.hanging()) throw new Error("the extension's fetches are still out")
-    })
+    }, PATIENCE)
   }
 
   private doOne(item: WorkItem) {

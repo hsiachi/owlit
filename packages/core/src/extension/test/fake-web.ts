@@ -61,7 +61,7 @@ export class FakeWeb {
   }
 
   // An address, or every address it starts (host + path + query, no scheme), answered by a behaviour; the
-  // longest matching one answers. A function matches as it says, before any string.
+  // longest matching one answers, the newest of equals. A function matches as it says, before any string.
   on(match: string | ((url: URL) => boolean), behaviour: Behaviour): this {
     this.routes.push({ match, behaviour })
     return this
@@ -152,8 +152,10 @@ export class FakeWeb {
     const at = new URL(url)
     this.log.push({ client, url })
     const key = `${at.hostname}${at.pathname}${at.search}`
-    const fn = this.routes.find((r) => typeof r.match === "function" && r.match(at))
-    const best = fn ?? this.routes.filter((r) => typeof r.match === "string" && key.startsWith(r.match)).sort((a, b) => (b.match as string).length - (a.match as string).length)[0]
+    // The newest route first, so a test can replace what a helper set up
+    const routes = [...this.routes].reverse()
+    const fn = routes.find((r) => typeof r.match === "function" && r.match(at))
+    const best = fn ?? routes.filter((r) => typeof r.match === "string" && key.startsWith(r.match)).sort((a, b) => (b.match as string).length - (a.match as string).length)[0]
     if (!best) return page("Not Found", "<h1>Not Found</h1>", 404)
     return best.behaviour({ url: at, client, web: this, signal })
   }
