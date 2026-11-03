@@ -247,6 +247,77 @@ describe("the fetch ladder", () => {
   })
 })
 
+describe("a paper's addresses on another host than the tab past the check", () => {
+  // Wiley: owlit's PDF address is on onlinelibrary.wiley.com; its journals' pages are on a society's
+  // host of it (rss.onlinelibrary.wiley.com), where the article's address sends the browser and where
+  // the check is passed. The page's own PDF link names Wiley's viewer (/doi/pdf/), on the main host.
+  const RSS = "rss.onlinelibrary.wiley.com"
+  const wiley = (doi: string, link = `https://onlinelibrary.wiley.com/doi/pdf/${doi}`) => {
+    const site = guarded((url) => (url.pathname.startsWith("/doi/pdfdirect/") ? { pdf: true } : url.pathname.startsWith("/doi/pdf/") ? { html: "<title>ePDF</title><div id='app'></div>" } : article("Wiley", link)), { passAfter: 1 })
+    return {
+      [RSS]: site.site,
+      "onlinelibrary.wiley.com": ((request) => (request.url.pathname.startsWith("/doi/10.") ? { status: 302, redirect: `https://${RSS}${request.url.pathname}` } : site.site(request))) as Site,
+    }
+  }
+  const TLINK = "https://tlink.lib.tsinghua.edu.cn/go?url="
+  const tlink = { "tlink.lib.tsinghua.edu.cn": (({ url }) => ({ status: 302, redirect: decodeURIComponent(/[?&]url=(.*)$/.exec(url.search)![1]) })) as Site }
+  const tandf = () => guarded((url) => (url.pathname.startsWith("/doi/pdf/") ? { pdf: true } : article("T&F", url.href.replace("/doi/", "/doi/pdf/"))), { passAfter: 1 })
+  const viaTlink = (paperId: string, doi: string, extra: Partial<WorkItem> = {}) =>
+    item(paperId, "pub:tandf", `${TLINK}https://www.tandfonline.com/doi/${doi}`, { pdfUrl: `${TLINK}https://www.tandfonline.com/doi/pdf/${doi}`, lane: "proxy:tlink.lib.tsinghua.edu.cn", host: "tlink.lib.tsinghua.edu.cn", proxied: true, ...extra })
+
+  it("in its own tab on a society's host, fetches owlit's PDF address moved onto that host", async () => {
+    const b = await boot(wiley("10.1111/1"))
+    b.owlit.give({ work: [item("w1", "pub:wiley", "https://onlinelibrary.wiley.com/doi/10.1111/1", { pdfUrl: "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1111/1", userStarted: true })] })
+    await until(b, "w1#1")
+    expect(answered(b, "w1#1")[0]).toMatchObject({ route: `/work/w1%231?host=${RSS}`, pdf: true })
+    expect(b.fetches.filter((f) => f.url === `https://${RSS}/doi/pdfdirect/10.1111/1`).map((f) => f.from)).toEqual(["tab"])
+  })
+
+  it("in its own tab, reaches a PDF link on another host of the site by loading it there, never by the background", async () => {
+    const b = await boot(wiley("10.1111/2", "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1111/2"))
+    b.owlit.give({ work: [item("w2", "pub:wiley", "https://onlinelibrary.wiley.com/doi/10.1111/2", { userStarted: true })] })
+    await until(b, "w2#1")
+    expect(answered(b, "w2#1")[0]).toMatchObject({ route: "/work/w2%231?host=onlinelibrary.wiley.com", pdf: true })
+    expect(b.fetches.filter((f) => f.url.includes("/doi/pdfdirect/")).map((f) => f.from)).toEqual(["tab"])
+  })
+
+  it("through tlink, in its own tab at the publisher, fetches the PDF the proxy's link carries", async () => {
+    const b = await boot({ ...tlink, "www.tandfonline.com": tandf().site })
+    b.owlit.give({ work: [viaTlink("t1", "10.1080/1", { userStarted: true })] })
+    await until(b, "t1#1")
+    expect(answered(b, "t1#1")[0]).toMatchObject({ route: "/work/t1%231?host=www.tandfonline.com", pdf: true })
+    expect(b.fetches.filter((f) => f.url === "https://www.tandfonline.com/doi/pdf/10.1080/1").map((f) => f.from)).toEqual(["worker", "tab"])
+  })
+
+  it("through tlink, fetches in a tab the user has open at the publisher, past its check", async () => {
+    const b = await boot({ ...tlink, "www.tandfonline.com": tandf().site })
+    const mine = await b.openTab("https://www.tandfonline.com/doi/10.1080/9")
+    b.owlit.give({ work: [viaTlink("t2", "10.1080/2")] })
+    await until(b, "t2#1")
+    expect(answered(b, "t2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(1)
+    expect(b.tabs.get(mine.id)?.url).toBe("https://www.tandfonline.com/doi/10.1080/9")
+  })
+
+  it("fetches in a tab the user has open on another host of the publisher, without moving it", async () => {
+    const b = await boot(wiley("10.1111/3"))
+    const mine = await b.openTab(`https://${RSS}/doi/10.1111/8`)
+    b.owlit.give({ work: [item("w3", "pub:wiley", "https://onlinelibrary.wiley.com/doi/10.1111/3", { pdfUrl: "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1111/3" })] })
+    await until(b, "w3#1")
+    expect(answered(b, "w3#1")[0]).toMatchObject({ route: `/work/w3%231?host=${RSS}`, pdf: true })
+    expect(b.created).toHaveLength(1)
+    expect(b.tabs.get(mine.id)?.url).toBe(`https://${RSS}/doi/10.1111/8`)
+  })
+
+  it("takes a PDF the user opens by reading it in its tab, which the site lets through and the background's fetch isn't", async () => {
+    const PDF_AT = `https://${RSS}/doi/pdfdirect/10.1111/4`
+    const b = await boot({ [RSS]: ({ from }) => (from === "tab" ? { pdf: true } : check()) })
+    await b.openTab(PDF_AT)
+    await vi.waitFor(() => expect(b.owlit.asked.filter((a) => a.method === "PUT" && a.pdf)).toHaveLength(1), PATIENCE)
+    expect(b.fetches.filter((f) => f.url === PDF_AT).map((f) => f.from)).toEqual(["tab"])
+  })
+})
+
 describe("waits", () => {
   const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 2, proxied: false, allow: ["science.org"] }
   const sites = { "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }

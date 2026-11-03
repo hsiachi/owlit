@@ -1,4 +1,5 @@
 import { LEGACY_WORK_ENDINGS, type PaperAnswer, type WorkEnded, type WorkEnding, type WorkItem } from "@owlit/protocol"
+import { inTabItem } from "./from-tab.ts"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
 import { isCheck, isSignInAddress, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
@@ -23,10 +24,10 @@ export interface FetchDeps {
   // The extension may read this address's site (its host permissions, chrome.permissions.contains)
   permitted: (url: string) => Promise<boolean>
   timeoutMs?: number
-  // A fetch made from inside a tab of this host the user has open, past its check: a firewall rule may
-  // refuse the extension's own requests (their Origin and Sec-Fetch-* say extension) and let the site's
-  // pages through. undefined when no such tab is open.
-  inTab?: (host: string) => Promise<typeof fetch | undefined>
+  // A fetch made from inside a tab the user has open at this host's site, past its check, and where the
+  // tab is: a firewall rule may refuse the extension's own requests (their Origin and Sec-Fetch-* say
+  // extension) and let the site's pages through. undefined when no such tab is open.
+  inTab?: (host: string) => Promise<{ fetch: typeof fetch; url: string } | undefined>
   // Where the browser last sent a fetch of this address on to (the background's webRequest listener):
   // fetch itself hides an opaque redirect's target. undefined when no redirect of it was seen, or in a
   // browser whose webRequest doesn't report the extension's own requests.
@@ -127,12 +128,13 @@ export const said = (page: Page): WorkEnded => {
 
 // The PDF's own address first, when owlit knows it; then the article page, and the PDF it names. A
 // check or a block in the way is tried once more from a tab of that site the user got past it in (a
-// firewall rule may refuse the extension's own requests and let the site's pages through).
+// firewall rule may refuse the extension's own requests and let the site's pages through), with the
+// paper's addresses moved to where that tab is (from-tab.ts).
 export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   const got = await fetchWith(item, deps)
   if ("pdf" in got || (got.ended !== "check" && got.ended !== "blocked") || !deps.inTab) return got
-  const tabFetch = await deps.inTab(got.host)
-  return tabFetch ? fetchWith(item, { ...deps, fetch: tabFetch, inTab: undefined }) : got
+  const tab = await deps.inTab(got.host)
+  return tab ? fetchWith(inTabItem(item, tab.url), { ...deps, fetch: tab.fetch, inTab: undefined }) : got
 }
 
 async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {

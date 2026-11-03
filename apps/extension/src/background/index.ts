@@ -12,9 +12,9 @@ import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, whyNotTaken, type PdfSaid, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
-import { isBlocked, isThrough } from "../lib/verdict.ts"
+import { isBlocked, isThrough, siteOf } from "../lib/verdict.ts"
 import { report } from "../lib/work.ts"
-import { closeIdleTabs, documentOf, fetchLadder, redirectedTo, tabFetch, workTabIds } from "./ladder.ts"
+import { closeIdleTabs, documentOf, fetchLadder, pdfOfTab, redirectedTo, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
 // owlit and fetches with the user's cookies. The toolbar button has no popup of its own: its click does the
@@ -204,8 +204,16 @@ async function fetchPdf(url: string, cache: RequestCache = "no-store"): Promise<
   }
 }
 
-async function putPdf(id: string, url: string, token: string): Promise<"saved" | "not-a-pdf" | "not-this-paper"> {
-  const pdf = await fetchPdf(url)
+// The PDF at an address, read inside the tab that shows it when one does (pdfOfTab: the site that let the
+// tab load it may turn the background's own fetch away), else fetched by the background
+async function pdfFor(url: string, tabId: number | undefined, cache: RequestCache = "no-store"): Promise<ArrayBuffer | undefined> {
+  const tab = tabId === undefined ? undefined : await ext.tabs.get(tabId).catch(() => undefined)
+  const shown = tab?.url && showsPdf(tab.url, url) ? await pdfOfTab(tabId!, tab.url) : undefined
+  return shown ?? fetchPdf(url, cache)
+}
+
+async function putPdf(id: string, url: string, token: string, tabId?: number): Promise<"saved" | "not-a-pdf" | "not-this-paper"> {
+  const pdf = await pdfFor(url, tabId)
   if (!pdf) return "not-a-pdf"
   try {
     await ask<PaperAnswer>(`/papers/${encodeURIComponent(id)}/pdf`, { method: "PUT", token, pdf })
@@ -230,8 +238,9 @@ const answered: TakeDeps["answered"] = {
     }),
 }
 
-const takeDeps = (token: string, cache: RequestCache): Omit<TakeDeps, "answered"> => ({
-  fetchPdf: (url) => fetchPdf(url, cache),
+// tabId: the tab that shows the PDF, which reads it itself
+const takeDeps = (token: string, cache: RequestCache, tabId?: number): Omit<TakeDeps, "answered"> => ({
+  fetchPdf: (url) => pdfFor(url, tabId, cache),
   lookUp: (ids) => lookUp({ url: "", paper: { ...ids, authors: [] } }, token),
   put: (paperId, pdf) => (paperId ? ask<PaperAnswer>(`/papers/${encodeURIComponent(paperId)}/pdf`, { method: "PUT", token, pdf }) : ask<PaperAnswer>("/pdfs", { method: "PUT", token, pdf })),
 })
@@ -250,7 +259,7 @@ async function act(tabId: number): Promise<Outcome> {
     const address = pdfAddress(page)!
     if (!(await permitted(address))) return { kind: "needs-site", host: new URL(address).hostname }
     if (plan.do === "save") {
-      const result = await putPdf(plan.paperId, address, token)
+      const result = await putPdf(plan.paperId, address, token, page.pdfTab ? tabId : undefined)
       if (result === "not-a-pdf") return { kind: "no-pdf", host: new URL(address).hostname }
       if (result === "not-this-paper") return { kind: "not-this-paper" }
       // The PDF tab's own PDF: the popup says so from now on, not why it wasn't saved
@@ -259,7 +268,7 @@ async function act(tabId: number): Promise<Outcome> {
     }
     // A PDF tab that names no paper: owlit tells by its first pages whose it is. Asked again whatever
     // was answered for it before, since the person pressed for it.
-    const taken = await takePdf(page.url, {}, { ...takeDeps(token, "force-cache"), answered: { has: async () => false, add: answered.add } })
+    const taken = await takePdf(page.url, {}, { ...takeDeps(token, "force-cache", tabId), answered: { has: async () => false, add: answered.add } })
     if ("taken" in taken) {
       const outcome: Outcome = { kind: "taken", paperId: taken.taken.id, title: taken.taken.title }
       await keepPdfSaid(tabId, page.url, outcome)
@@ -454,8 +463,8 @@ async function pdfTab(tabId: number, url: string, tab: chrome.tabs.Tab) {
     await keepPdfSaid(tabId, url, outcome)
     return setBadge(tabId, "!", WAITING)
   }
-  // From the cache: the tab has just loaded it
-  const taken = await takePdf(url, ids, { ...takeDeps(token, "force-cache"), answered })
+  // Read in the tab, from the cache: the tab has just loaded it
+  const taken = await takePdf(url, ids, { ...takeDeps(token, "force-cache", tabId), answered })
   if ("missed" in taken && taken.missed && !(taken.missed instanceof OwlitError) && !(taken.missed instanceof Unreachable)) console.error("[owlit] couldn't hand a PDF to owlit", taken.missed)
   // owlit's no for the paper the PDF was opened from; a PDF owlit couldn't place by its first pages is
   // no Library paper's, and nothing is said
@@ -651,12 +660,17 @@ async function walkNext(action: Extract<CardAction, { kind: "walk" }>, tabId: nu
 
 const htmlOf = documentOf
 
-// A fetch run inside a tab the user has open at this host, past its check (work.ts, FetchDeps.inTab)
-async function inTab(host: string): Promise<typeof fetch | undefined> {
-  for (const tab of await ext.tabs.query({ url: [`https://${host}/*`, `http://${host}/*`] })) {
+// A fetch run inside a tab the user has open at this host's site, past its check, and where that tab is
+// (work.ts, FetchDeps.inTab): one at the host itself first, then one at another host of the site (the
+// check met at onlinelibrary.wiley.com, the user's tab on rss.onlinelibrary.wiley.com)
+async function inTab(host: string): Promise<{ fetch: typeof fetch; url: string } | undefined> {
+  const site = siteOf(host)
+  const tabs = await ext.tabs.query({ url: [`https://*.${site}/*`, `https://${site}/*`, `http://*.${site}/*`, `http://${site}/*`] })
+  const at = (tab: chrome.tabs.Tab) => (tab.url ? new URL(tab.url).hostname : "")
+  for (const tab of [...tabs.filter((t) => at(t) === host), ...tabs.filter((t) => at(t) !== host)]) {
     if (tab.id === undefined) continue
     const seen = await htmlOf(tab.id)
-    if (seen && isThrough({ url: seen.url, status: 0, html: seen.html })) return tabFetch(tab.id)
+    if (seen && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id), url: seen.url }
   }
   return undefined
 }

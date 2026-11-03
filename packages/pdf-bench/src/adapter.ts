@@ -509,7 +509,10 @@ class Extension {
       permitted: async (url) => this.readable(url),
       // A tab open at the site, past its check: the fake web lets the browser's every fetch through once
       // the check is passed, so the tab's fetch is the browser's own
-      inTab: async (host) => (this.tabs.some((t) => new URL(t).hostname === host) ? this.web.fetchFor("browser") : undefined),
+      inTab: async (host) => {
+        const tab = this.tabs.find((t) => new URL(t).hostname === host)
+        return tab ? { fetch: this.web.fetchFor("browser"), url: tab } : undefined
+      },
       redirectedTo: (url) => this.redirects.get(url),
       ask: this.ask,
       token: this.token,

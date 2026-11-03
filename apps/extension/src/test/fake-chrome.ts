@@ -126,7 +126,9 @@ export class FakeOwlit {
     if (route.startsWith("/work/resume")) return json({ resumed: true })
     if (route.startsWith("/work/blocked")) return json({ blocked: true })
     if (route.startsWith("/work/")) return json(type.includes("pdf") ? { paper: { id: "p", title: "", hasPdf: true } } : { noted: true })
+    if (route.startsWith("/papers") && method === "PUT") return json({ paper: { id: route.split("/")[2], title: "", hasPdf: true } })
     if (route.startsWith("/papers")) return json({ paper: null })
+    if (route === "/pdfs") return json({ paper: { id: "placed", title: "", hasPdf: true } })
     if (route === "/walk") return json({ step: null })
     return json({})
   }
@@ -176,6 +178,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
   const onUpdated = event()
   const onRemoved = event()
   const onBeforeRedirect = event()
+  const onHeadersReceived = event()
 
   const answerOf = (url: URL, from: "worker" | "tab", tab?: FakeTab, look?: boolean): Answer => sites[url.hostname]?.({ url, from, tab, look }) ?? { status: 404, html: "<title>Not Found</title>" }
   const responseOf = (answer: Answer, url: string) => {
@@ -225,14 +228,17 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
       throw new TypeError("Too many redirects")
     }) as typeof fetch
 
-  // A tab loads a page: redirects followed wherever they go
+  // A tab loads a page: redirects followed wherever they go, and the main frame's headers told as
+  // webRequest tells them
   const load = (tab: FakeTab, url: string) => {
     let at = new URL(url)
-    for (let hop = 0; hop < 10; hop++) {
-      const answer = answerOf(at, "tab", tab)
-      if (!answer.redirect) break
+    let answer = answerOf(at, "tab", tab)
+    for (let hop = 0; hop < 10 && answer.redirect; hop++) {
       at = new URL(answer.redirect, at)
+      answer = answerOf(at, "tab", tab)
     }
+    const type = answer.pdf ? "application/pdf" : "text/html"
+    onHeadersReceived.emit({ tabId: tab.id, url: at.href, type: "main_frame", statusCode: answer.status ?? 200, responseHeaders: Object.entries({ "content-type": type, ...answer.headers }).map(([name, value]) => ({ name, value })) })
     tab.url = at.href
     tab.status = "loading"
     onUpdated.emit(tab.id, { status: "loading", url: tab.url }, { ...tab })
@@ -315,7 +321,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     tabs: tabApi,
     windows: { update: async () => ({}) },
     scripting: { executeScript, registerContentScripts: async () => undefined, unregisterContentScripts: async () => undefined },
-    webRequest: { onBeforeRedirect, onHeadersReceived: event() },
+    webRequest: { onBeforeRedirect, onHeadersReceived },
     runtime: {
       id: "fake",
       getURL: (path: string) => `chrome-extension://fake/${path.replace(/^\//, "")}`,

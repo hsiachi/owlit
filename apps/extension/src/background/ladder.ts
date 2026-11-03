@@ -1,6 +1,7 @@
 import type { GateKey, WorkItem } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { serial } from "../lib/serial.ts"
+import { inTabItem, proxyHostOf, sameSite } from "../lib/from-tab.ts"
 import { isCheck, isInteractive, isThrough, siteOf } from "../lib/verdict.ts"
 import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 
@@ -201,16 +202,16 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
     return host ? { ended: "no-permission", host } : undefined
   }
   const passed = await pass(tab, item, { once: reused })
-  if (passed !== "through") {
+  if (!passed || !("through" in passed)) {
     await letGo(gate, tab)
     return passed
   }
-  // Fetched from where the paper's page landed: through a library proxy that sends the browser on to
-  // the publisher (tlink), the proxy's address is another origin than the tab's, and only the tab's own
-  // origin is fetched from inside it
-  const at = (await ext.tabs.get(tab.tabId).catch(() => undefined))?.url
-  const here = at && hostOf(at) !== hostOf(item.url) ? { ...item, url: at, proxied: false } : item
-  const got = await fetchFor(here, { ...deps, fetch: tabFetch(tab.tabId), inTab: undefined })
+  // Fetched from where the paper's page landed, with its addresses moved there (from-tab.ts): through a
+  // library proxy that sends the browser on to the publisher (tlink) every address owlit gave is the
+  // proxy's, and on a society's host of a publisher (rss.onlinelibrary.wiley.com) owlit's PDF address is
+  // the publisher's main host, another origin than the tab's
+  const here = inTabItem(item, passed.through.url, passed.through)
+  const got = await fetchFor(here, { ...deps, fetch: tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), inTab: undefined })
   // The site asks again, or turns the browser away: its own word that this is enough for now
   if ("ended" in got && (got.ended === "check" || got.ended === "blocked" || got.ended === "sign-in")) {
     await letGo(gate, tab)
@@ -264,17 +265,17 @@ function loaded(tabId: number): Promise<void> {
   })
 }
 
-// The tab's page past its check: "through", or what stands in the way as owlit hears it. A managed check
-// is given its time hidden, then once in front; anything else in the way is the user's at once.
-// once: a look and no more, on a tab whose check was passed before.
-async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promise<"through" | Fetched | undefined> {
+// The tab's page past its check (through: its document), or what stands in the way as owlit hears it. A
+// managed check is given its time hidden, then once in front; anything else in the way is the user's at
+// once. once: a look and no more, on a tab whose check was passed before.
+async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promise<{ through: { url: string; html: string } } | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
     const seen = await documentOf(tab.tabId)
     if (!seen) return undefined
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
-    if (isThrough(page)) return "through"
+    if (isThrough(page)) return { through: seen }
     if (once || !isCheck(page) || isInteractive(page)) return said(page)
     if (Date.now() >= until) {
       if (tab.shown) return said(page)
@@ -319,37 +320,74 @@ ext.tabs.onRemoved.addListener((tabId) => {
 })
 
 // A fetch run inside a tab: the page fetches with its own standing at the site (same origin, its
-// cookies, its Referer). An address of another origin is fetched by the background: the tab's fetch
+// cookies, its Referer). An address of another site is fetched by the background: the tab's fetch
 // would need that site's CORS, and the address is one a redirect the tab saw signed (Silverchair's).
-// The bytes come back base64, since what a script in a tab returns must be plain data.
-export function tabFetch(tabId: number): typeof fetch {
+// One on another host of the tab's own site is the site's, whose firewall turned the background away
+// already: the extension's own tab (navigate) is sent there and reads what loads; a tab of the user's,
+// never navigated, fetches the same path on its own host. proxyHost: a host-rewriting proxy's, whose
+// names for every publisher share its domain. The bytes come back base64, since what a script in a tab
+// returns must be plain data.
+export function tabFetch(tabId: number, { navigate = false, proxyHost }: { navigate?: boolean; proxyHost?: string } = {}): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input)
+    let url = String(input)
     const tab = await ext.tabs.get(tabId).catch(() => undefined)
     if (!tab?.url) throw new TypeError("The tab went away")
-    if (new URL(url).origin !== new URL(tab.url).origin) return fetch(url, { ...init, credentials: "include", cache: "no-store" })
-    const redirect = init?.redirect ?? "follow"
-    const origin = new URL(tab.url).origin
-    const marked = injected.get(tabId)?.origin === origin ? injected.get(tabId)! : { origin, running: 0, endedAt: 0 }
-    marked.running++
-    injected.set(tabId, marked)
-    try {
-      return await fetchInTab(tabId, url, redirect)
-    } finally {
-      marked.running--
-      marked.endedAt = Date.now()
+    const cache = init?.cache ?? "no-store"
+    const [to, at] = [new URL(url), new URL(tab.url)]
+    if (to.origin !== at.origin) {
+      if (!sameSite(to.hostname, at.hostname, proxyHost)) return fetch(url, { ...init, credentials: "include", cache })
+      if (navigate) return loadInTab(tabId, url, cache)
+      url = new URL(`${to.pathname}${to.search}`, at.origin).href
     }
+    return mark(tabId, at.origin, () => fetchInTab(tabId, url, init?.redirect ?? "follow", cache))
   }) as typeof fetch
 }
 
+// Runs an injected fetch in the tab, marked for the webRequest listener as the extension's own
+async function mark<T>(tabId: number, origin: string, run: () => Promise<T>): Promise<T> {
+  const marked = injected.get(tabId)?.origin === origin ? injected.get(tabId)! : { origin, running: 0, endedAt: 0 }
+  marked.running++
+  injected.set(tabId, marked)
+  try {
+    return await run()
+  } finally {
+    marked.running--
+    marked.endedAt = Date.now()
+  }
+}
+
+// The extension's own tab sent to the address, and what loaded there read as the page itself would: a
+// same-origin fetch of its own address, from the cache the load just filled (a PDF isn't asked twice)
+async function loadInTab(tabId: number, url: string, cache: RequestCache): Promise<Response> {
+  await ext.tabs.update(tabId, { url }).catch(() => undefined)
+  await loaded(tabId)
+  const now = await ext.tabs.get(tabId).catch(() => undefined)
+  if (!now?.url) throw new TypeError("The tab went away")
+  return mark(tabId, new URL(now.url).origin, () => fetchInTab(tabId, now.url!, "follow", cache === "no-store" ? "force-cache" : cache))
+}
+
+// The PDF a tab shows, read inside it (a same-origin fetch of its own address, from the cache the viewer
+// just filled): the site that let the tab load it may turn away the background's fetch of the same
+// address. undefined when it can't be read there, or isn't a PDF.
+export async function pdfOfTab(tabId: number, url: string): Promise<ArrayBuffer | undefined> {
+  try {
+    const response = await tabFetch(tabId)(url, { cache: "force-cache" })
+    if (!response.ok) return undefined
+    const bytes = await response.arrayBuffer()
+    return new TextDecoder("latin1").decode(bytes.slice(0, 5)) === "%PDF-" ? bytes : undefined
+  } catch {
+    return undefined
+  }
+}
+
 // tabFetch's fetch, run in the tab's page
-async function fetchInTab(tabId: number, url: string, redirect: RequestRedirect): Promise<Response> {
+async function fetchInTab(tabId: number, url: string, redirect: RequestRedirect, cache: RequestCache): Promise<Response> {
   const [result] = await ext.scripting.executeScript({
     target: { tabId },
-    args: [url, redirect],
-    func: async (url: string, redirect: RequestRedirect) => {
+    args: [url, redirect, cache],
+    func: async (url: string, redirect: RequestRedirect, cache: RequestCache) => {
       try {
-        const response = await fetch(url, { credentials: "include", cache: "no-store", redirect })
+        const response = await fetch(url, { credentials: "include", cache, redirect })
         const bytes = new Uint8Array(await response.arrayBuffer())
         let binary = ""
         for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))

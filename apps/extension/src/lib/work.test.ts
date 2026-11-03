@@ -63,7 +63,7 @@ describe("fetching a paper for owlit", () => {
     const inside = web({ "https://dl.acm.org/doi/pdf/10.1145/1": { body: PDF } })
     const hosts: string[] = []
     const acm = item({ url: "https://dl.acm.org/doi/10.1145/1", pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/1", host: "acm.org" })
-    const got = await fetchFor(acm, { ...deps, inTab: async (host) => (hosts.push(host), inside.deps.fetch) })
+    const got = await fetchFor(acm, { ...deps, inTab: async (host) => (hosts.push(host), { fetch: inside.deps.fetch, url: "https://dl.acm.org/doi/10.1145/2" }) })
     expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
     expect(hosts).toEqual(["dl.acm.org"])
     // No such tab: the check stands
