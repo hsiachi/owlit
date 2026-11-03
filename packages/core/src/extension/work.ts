@@ -393,8 +393,10 @@ export class ExtensionWork implements ExtensionFetcher {
       const item = lane.inFlight?.item.paper.paperId === id ? lane.inFlight.item : lane.queue.find((q) => q.paper.paperId === id)
       if (!item) continue
       const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, at: item.paper.host }
-      if (lane.inFlight?.item === item) return { ...base, fetching: true }
       const wait = this.waitOver(lane, item)
+      // Out for its wait's one try, it is still that wait's (the wait counts it, waits()): a window that
+      // read it as being fetched apart from the wait would count it twice
+      if (lane.inFlight?.item === item) return { ...base, fetching: true, ...(wait ? { ...underWait(wait), trying: true as const } : {}) }
       if (wait) return { ...base, ...underWait(wait), ...(this.tryComing(wait) ? { trying: true as const } : {}) }
       const off = offlineOf(lane, item.gate)
       const turnAt = lane.proxied ? this.turns(lane).get(id) : undefined

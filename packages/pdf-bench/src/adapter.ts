@@ -13,6 +13,7 @@ import { mayRead } from "../../../apps/extension/src/lib/permissions.ts"
 import { isBlocked, isThrough, siteOf } from "../../../apps/extension/src/lib/verdict.ts"
 import { doWork } from "../../../apps/extension/src/lib/work.ts"
 import { browserName, waitWords } from "@/features/extension/wait-words"
+import { blockRows, type RowModel } from "@/features/library/lib/pdf-block-rows"
 import { noPdfTitle, pdfColumnWord, pdfWait } from "@/features/library/lib/pdf-wait"
 import { libraryNameOf } from "@/features/settings/library-name"
 
@@ -57,6 +58,8 @@ export interface Block {
   // A batch the user started (Get PDFs) is up; otherwise the rows are the sites waiting
   batch: boolean
   total: number
+  // The batch's papers (PdfRunView.ids)
+  ids: string[]
   // PDFs placed since the batch started, the user's own among them (byYou)
   saved: number
   byYou: number
@@ -639,20 +642,22 @@ class Renderer {
     const run = this.view?.runs[0]
     // PdfBlock: the run's block while any of its papers is still in the library, else the sites waiting
     if (run && run.total > 0) {
-      const rows: Row[] = []
-      for (const w of run.waits) {
-        const wait = waits.find((one) => one.id === w.wait)
-        // A run's wait row the waits list doesn't have: drawn as such, which the invariants then name
-        rows.push(wait ? waitRow(wait, w.papers, w.ids) : { kind: "check", papers: w.papers, wait: w.wait, ids: [...w.ids] })
+      const drawn = blockRows(run, waits, this.papers)
+      const kinds: Record<string, string> = { going: "waiting" }
+      const rowOf = (r: RowModel): Row => {
+        if (r.kind === "wait") return waitRow(r.wait, r.papers, run.waits.find((w) => w.wait === r.wait.id)?.ids)
+        if (r.kind === "manual") return { kind: "manual", papers: r.papers, ids: [...r.ids] }
+        if (r.kind === "unreachable") return { kind: "unreachable", papers: r.papers, host: r.at, ids: [...(run.unreachable.find((u) => u.at === r.at)?.ids ?? [])] }
+        return { kind: kinds[r.kind] ?? r.kind, papers: r.papers }
       }
-      if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: [...run.manual.ids] })
-      for (const [kind, papers] of [["none", run.none], ["skipped", run.skipped], ["stopped", run.stopped]] as const) if (papers) rows.push({ kind, papers })
-      for (const u of run.unreachable) rows.push({ kind: "unreachable", papers: u.papers, host: u.at, ids: [...u.ids] })
-      for (const [kind, papers] of [["getting", run.getting], ["waiting", run.going], ["closed", run.closed], ["away", run.away]] as const) if (papers) rows.push({ kind, papers })
-      const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers).map((w) => waitRow(w, w.papers))
-      block = { batch: true, total: run.total, saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, ended: run.endedAt !== undefined, rows, outside }
+      const rows = drawn.rows.map(rowOf)
+      // A run's wait row the waits list doesn't have (PdfBlock draws none): drawn as such, which the
+      // invariants then name
+      for (const w of run.waits) if (!waits.some((one) => one.id === w.wait)) rows.push({ kind: "check", papers: w.papers, wait: w.wait, ids: [...w.ids] })
+      const outside = drawn.outside.map(rowOf)
+      block = { batch: true, total: run.total, ids: [...run.ids], saved: run.saved + run.byYou, byYou: run.byYou, things: run.waits.length, running: run.running, ended: run.endedAt !== undefined, rows, outside }
     } else if (waits.length) {
-      block = { batch: false, total: waits.reduce((n, w) => n + w.papers, 0), saved: 0, byYou: 0, things: waits.length, running: false, ended: false, rows: [...waits].sort(byPapers).map((w) => waitRow(w, w.papers)), outside: [] }
+      block = { batch: false, total: waits.reduce((n, w) => n + w.papers, 0), ids: [], saved: 0, byYou: 0, things: waits.length, running: false, ended: false, rows: [...waits].sort(byPapers).map((w) => waitRow(w, w.papers)), outside: [] }
     }
     const papers: Record<string, PaperView> = {}
     for (const p of Object.values(this.papers)) {

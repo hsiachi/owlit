@@ -51,9 +51,7 @@ export function invariantErrors(screen: Screen): string[] {
       for (const id of r.ids ?? []) if (papers[id]?.hasPdf) errors.push(`${id} has its PDF and is in the row ${key(r)}`)
     }
     if (block.batch) {
-      // got + waiting + manual + none + still waiting = the batch's papers
-      const counted = block.saved + block.rows.reduce((n, r) => n + r.papers, 0)
-      if (counted !== block.total) errors.push(`the batch counts ${counted} papers in its rows and saved, of ${block.total}`)
+      errors.push(...batchCountErrors(screen))
       for (const id of seen.keys()) {
         const p = papers[id]
         if (p?.foundUnder && seen.get(id) !== waitKey(p.foundUnder)) errors.push(`${id} waits at ${p.foundUnder} and is in the row ${seen.get(id)}`)
@@ -79,6 +77,23 @@ export function invariantErrors(screen: Screen): string[] {
   // go and come back with nothing, and no one to ask
   for (const gate of screen.silent) errors.push(`${gate} was handed papers all day and gave no PDF, with no wait to say why`)
 
+  return errors
+}
+
+// The batch's block counts each of its papers once: its rows and the saved add up to its papers, and a
+// site's row under them, for papers outside the batch, counts none of the batch's. These hold at any
+// moment, a fetch out or not.
+export function batchCountErrors({ block, papers }: Pick<Screen, "block" | "papers">): string[] {
+  if (!block?.batch) return []
+  const errors: string[] = []
+  // got + waiting + manual + none + still waiting = the batch's papers
+  const counted = block.saved + block.rows.reduce((n, r) => n + r.papers, 0)
+  if (counted !== block.total) errors.push(`the batch counts ${counted} papers in its rows and saved, of ${block.total}`)
+  const inBatch = new Set(block.ids)
+  for (const r of block.outside) {
+    const theirs = Object.entries(papers).filter(([id, p]) => p.foundUnder === r.wait && !inBatch.has(id)).length
+    if (r.papers !== theirs) errors.push(`the row ${key(r)} under the batch counts ${r.papers} papers, and ${theirs} of the papers under it aren't the batch's: ${block.total} papers show as ${counted + r.papers - theirs}`)
+  }
   return errors
 }
 

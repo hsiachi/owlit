@@ -82,7 +82,8 @@ export interface PdfState {
   // Kept in memory only, with the extension's queue. lane, gate: its keys (pdf-keys.ts); attempt: the
   // extension's try it is on or will make next; wait: the wait it is under (ExtensionWait.id), with that
   // wait's kind copied in for readers without the waits list (pdfWait, the agent's words); at: where it
-  // is, as said: under a wait, the wait's at; else the site its fetch goes to.
+  // is, as said: under a wait, the wait's at; else the site its fetch goes to. Out for its wait's one
+  // try, it is both fetching and under the wait (trying).
   extension?: {
     lane: LaneKey
     gate: GateKey

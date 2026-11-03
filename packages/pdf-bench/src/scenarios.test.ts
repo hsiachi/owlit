@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { FakeWeb, hang, landing, notFound, page, pdf, tlink, ezproxy } from "../../core/src/extension/test/fake-web.ts"
+import { cloudflareCheck, FakeWeb, hang, landing, notFound, page, pdf, tlink, ezproxy } from "../../core/src/extension/test/fake-web.ts"
 import { startBench, type Bench, type BenchSetup, type Row, type Screen } from "./adapter.ts"
-import { checkInvariants } from "./invariants.ts"
+import { batchCountErrors, checkInvariants } from "./invariants.ts"
 import { atypon, elsevier, inBrowser, openAccess, psycnet } from "./sites.ts"
 
 // One test per real-world story of getting PDFs, each saying what the user would see: the Library's PDF
@@ -173,6 +173,28 @@ describe("a check at a publisher", () => {
     const screen = await b.passCheck("www.science.org")
     expect(screen.papers[id].hasPdf).toBe(true)
     expect(screen.browser.going).toEqual([])
+  })
+})
+
+describe("a batch while a wait's try is out", () => {
+  it("counts the paper out for its wait's one try once, under its wait", async () => {
+    const web = new FakeWeb()
+    const p = science(7)
+    atypon(web, "www.science.org", p.doi, p.title, { check: true })
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    let screen = await b.findPdf(id)
+    expect(screen.waits).toMatchObject([{ id: "pub:science", papers: 1 }])
+    // Get PDFs on it: the wait's one try goes now, and its answer is slow to come
+    web.on(`www.science.org/doi/pdf/${p.doi}`, (visit) => (visit.client === "browser" ? hang(() => cloudflareCheck())(visit) : page("Access denied", "", 403)))
+    await b.getPdfsNow([id])
+    screen = await b.askOnce()
+    expect(web.hanging()).toBe(1)
+    expect(batchCountErrors(screen)).toEqual([])
+    expect(rowsOf(screen)).toEqual([["check", 1, "science.org"]])
+    web.release()
+    screen = await b.step("the try's answer comes")
+    expect(screen.waits).toMatchObject([{ id: "pub:science", papers: 1 }])
   })
 })
 

@@ -1,5 +1,5 @@
 import { plural, t } from "@lingui/core/macro"
-import type { ExtensionWait, Paper, PdfRunView } from "@owlit/protocol"
+import type { ExtensionWait, Paper } from "@owlit/protocol"
 import { XIcon } from "lucide-react"
 import { IconButton } from "@/components/icon-button"
 import { Info } from "@/components/info"
@@ -13,6 +13,7 @@ import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
 import { clock } from "@/lib/time"
 import { cn } from "@/lib/utils"
+import { blockRows, type RowModel } from "../lib/pdf-block-rows"
 import { waitsOnYou } from "../lib/pdf-wait"
 import { useLibraryStore } from "../store"
 
@@ -35,13 +36,12 @@ export function PdfBlock() {
   if (run && run.total > 0) {
     const { total, running } = run
     const saved = run.saved + run.byYou
-    const rows = runRows(run, waits)
+    // Sites waiting for papers outside the run stay in view, under its rows, as they are without one
+    const { rows, outside } = blockRows(run, waits, papers)
     const things = rows.filter((r) => r.kind === "wait").length
     const held = rows.reduce((n, r) => (r.kind === "wait" ? n + r.papers : n), 0)
     // "the rest need you" only while there is something of the user's to do
     const yours = things > 0 || run.manual.ids.length > 0 || run.away > 0 || run.closed > 0
-    // Sites waiting for papers outside the run stay in view, under its rows, as they are without one
-    const outside = waits.filter((w) => !run.waits.some((r) => r.wait === w.id)).sort(byPapers)
     const header = running ? (
       <JoinDots
         items={[
@@ -60,7 +60,7 @@ export function PdfBlock() {
     )
     return (
       <Block
-        mark={things > 0 || (!running && yours) || outside.some(waitsOnYou) ? <WaitingDot /> : running ? <Spinner className="size-3.5" /> : null}
+        mark={things > 0 || (!running && yours) || outside.some((r) => r.kind === "wait" && waitsOnYou(r.wait)) ? <WaitingDot /> : running ? <Spinner className="size-3.5" /> : null}
         header={header}
         action={
           running ? (
@@ -75,7 +75,7 @@ export function PdfBlock() {
         }
         bar={running && <Bar total={total} saved={saved} held={held} />}
       >
-        {[...rows, ...outside.map((wait): RowModel => ({ kind: "wait", wait, papers: wait.papers }))].map((row) => (
+        {[...rows, ...outside].map((row) => (
           <Row key={row.kind === "wait" ? `wait:${row.wait.id}` : row.kind === "unreachable" ? `unreachable:${row.at}` : row.kind} row={row} browser={browser} library={library} papers={papers} />
         ))}
       </Block>
@@ -91,33 +91,6 @@ export function PdfBlock() {
       ))}
     </Block>
   )
-}
-
-// One row of the block: a wait the user acts on, the papers to download by hand, or a count of the rest
-type RowModel =
-  | { kind: "wait"; wait: ExtensionWait; papers: number }
-  | { kind: "manual"; papers: number; ids: string[]; sites: { host: string; papers: number }[] }
-  | { kind: "unreachable"; at: string; until: number; papers: number }
-  | { kind: "closed" | "away" | "none" | "skipped" | "stopped" | "getting" | "going"; papers: number }
-
-// A run's rows in the order the user can do something about them: its waits (the most papers first, as
-// core sorts them), the downloads by hand, the papers waiting for the browser to open and those that
-// didn't reach it; then those with no
-// PDF, those the user found none for or stopped, those held back by a site that didn't answer, those
-// being fetched now and those waiting their turn. A wait the run counts
-// that the waits list doesn't have yet (the two come by one notification, but a paper can be read
-// between) has no row until it does.
-function runRows(run: PdfRunView, waits: ExtensionWait[]): RowModel[] {
-  const rows: RowModel[] = []
-  for (const w of run.waits) {
-    const wait = waits.find((one) => one.id === w.wait)
-    if (wait) rows.push({ kind: "wait", wait, papers: w.papers })
-  }
-  if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: run.manual.ids, sites: run.manual.sites })
-  for (const kind of ["closed", "away", "none", "skipped", "stopped"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
-  for (const { at, until, papers } of run.unreachable) rows.push({ kind: "unreachable", at, until, papers })
-  for (const kind of ["getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
-  return rows
 }
 
 // The block's shape: the header as a status line (StatusLine's mark slot, words and edge action), the bar
