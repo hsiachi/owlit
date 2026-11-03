@@ -61,7 +61,9 @@ export function invariantErrors(screen: Screen): string[] {
       // The bench looks once everything that moves by itself has moved: a batch still going then has a
       // paper the extension holds in line (an offline back-off, a gap still to run), or it spins for ever
       if (block.running && !screen.inLine) errors.push("the batch says it is getting PDFs, and nothing is in line at the extension")
-      if (block.running !== block.rows.some((r) => r.kind === "waiting" || r.kind === "getting" || r.kind === "unreachable")) errors.push(block.running ? "the batch says it is getting PDFs, with nothing in line" : "the batch says it is done, with papers still in line")
+      // A host that didn't answer holds its papers for as long as it takes: they are tried again by
+      // themselves, and the batch says it is done meanwhile, with their row
+      if (block.running !== block.rows.some((r) => r.kind === "waiting" || r.kind === "getting")) errors.push(block.running ? "the batch says it is getting PDFs, with nothing in line" : "the batch says it is done, with papers still in line")
     } else {
       // Without a batch, the rows are the waits
       const want = waits.map((w) => waitKey(w.id)).sort()

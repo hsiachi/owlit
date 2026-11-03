@@ -226,6 +226,23 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
   })
 
+  it("tells the window when a back-off ends, so no paper still says a time to try again that has passed", async () => {
+    const { work, take, heard } = setup()
+    work.fetch(library, paper("a1", "sagepub.com"), false)
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    work.fetch(library, paper("w1", "wiley.com"), false)
+    const first = await take()
+    work.settle(first.find((w) => w.paperId === "a1")!.id, "offline")
+    const until = work.holding(library, "a1")!.unreachable!.until
+    heard.length = 0
+    vi.advanceTimersByTime(until - Date.now())
+    expect(heard).toEqual([])
+    vi.advanceTimersByTime(1)
+    // sagepub.com's papers, not wiley.com's
+    expect(heard).toEqual([["a1", "a2"]])
+    expect(work.holding(library, "a1")).not.toHaveProperty("unreachable")
+  })
+
   it("through the proxy, backs off from a publisher that reached nothing alone, and goes on with the others", async () => {
     const { work, take } = setup()
     work.fetch(library, tlinkPaper("sage", "10.1177/1"), false)

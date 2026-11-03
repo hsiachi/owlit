@@ -197,6 +197,8 @@ export class ExtensionWork implements ExtensionFetcher {
   private readonly goingNews = new Set<string>()
   // Fires once the extension has gone CONNECTED_MS without asking: the window hears it went
   private awayTimer: ReturnType<typeof setTimeout> | undefined
+  // Fire as each back-off ends (by lane, and gate for a publisher's): its papers are said again
+  private readonly backOffTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(host: WorkHost, options: WorkOptions = {}) {
     this.host = host
@@ -519,8 +521,14 @@ export class ExtensionWork implements ExtensionFetcher {
           const times = (before?.times ?? 0) + 1
           return { times, until: now + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1], at: host.replace(/^www\./, "") }
         }
-        if (atProxy(lane, item, host)) lane.offline = back(lane.offline)
-        else lane.gatesOffline.set(item.gate, back(lane.gatesOffline.get(item.gate)))
+        if (atProxy(lane, item, host)) {
+          lane.offline = back(lane.offline)
+          this.sayWhenBackOffEnds(lane, undefined, lane.offline.until)
+        } else {
+          const off = back(lane.gatesOffline.get(item.gate))
+          lane.gatesOffline.set(item.gate, off)
+          this.sayWhenBackOffEnds(lane, item.gate, off.until)
+        }
       }
       lane.queue.unshift(item)
       sortQueue(lane)
@@ -762,6 +770,7 @@ export class ExtensionWork implements ExtensionFetcher {
 
   dispose() {
     clearTimeout(this.awayTimer)
+    for (const timer of this.backOffTimers.values()) clearTimeout(timer)
     for (const waiter of [...this.waiters]) waiter()
   }
 
@@ -781,6 +790,8 @@ export class ExtensionWork implements ExtensionFetcher {
     this.lanes.clear()
     this.waitsAt.clear()
     this.lastEnded.clear()
+    for (const timer of this.backOffTimers.values()) clearTimeout(timer)
+    this.backOffTimers.clear()
     this.opens.clear()
     this.startedIds.clear()
     this.pending.clear()
@@ -795,6 +806,27 @@ export class ExtensionWork implements ExtensionFetcher {
   private lift(wait: Wait) {
     this.waitsAt.delete(wait.gate)
     this.notes.down(wait.gate, wait.since)
+  }
+
+  // A paper held by a back-off says until when (PdfState.extension.unreachable), and nothing about it
+  // changes when that time comes: its papers are said again then, or the window keeps a "trying again
+  // at" that has passed until the retry ends, a minute or more later. gate: a publisher's back-off in the
+  // lane; none, the proxy's own, which holds every paper in it.
+  private sayWhenBackOffEnds(lane: Lane, gate: GateKey | undefined, until: number) {
+    const key = `${lane.key} ${gate ?? ""}`
+    clearTimeout(this.backOffTimers.get(key))
+    const library = this.library
+    const timer = setTimeout(
+      () => {
+        this.backOffTimers.delete(key)
+        const now = this.lanes.get(lane.key)
+        if (!library || library !== this.library || !now) return
+        this.host.papers(library, all(now).filter((q) => !gate || q.gate === gate).map((q) => q.paper.paperId))
+      },
+      Math.max(0, until - Date.now()) + 1,
+    )
+    timer.unref?.()
+    this.backOffTimers.set(key, timer)
   }
 
   // The log says it, once a day per gate, where someone reads it

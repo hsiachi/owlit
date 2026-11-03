@@ -85,11 +85,11 @@ describe("a Get PDFs, counted from its papers", () => {
     expect(classify("a", { paper: { pdfState: { state: "finding", tried: [] } } }, run(["a"]), true)).toEqual({ kind: "away" })
   })
 
-  it("counts the papers held back by a host that didn't answer, by that host, as still going", () => {
+  it("counts the papers held back by a host that didn't answer by that host, and ends once only they are left", () => {
     const off = (at: string, until: number): RunPaper => ({ paper: { pdfState: { state: "finding", tried: [], extension: { ...lane, unreachable: { at, until } } } } })
     const view = viewOf({ a: off("journals.sagepub.com", 50), b: off("journals.sagepub.com", 70), c: inLine() })
     expect(view).toMatchObject({ going: 1, running: true, unreachable: [{ at: "journals.sagepub.com", until: 70, papers: 2, ids: ["a", "b"] }] })
-    expect(viewOf({ a: off("journals.sagepub.com", 50) })).toMatchObject({ going: 0, running: true })
+    expect(viewOf({ a: off("journals.sagepub.com", 50) })).toMatchObject({ going: 0, running: false, endedAt: expect.any(Number), unreachable: [{ papers: 1 }] })
   })
 
   it("counts the paper being fetched apart from those in line", () => {

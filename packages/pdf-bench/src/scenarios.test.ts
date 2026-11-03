@@ -229,7 +229,8 @@ describe("the library's proxy", () => {
     expect(rowsOf(screen)).toEqual([["unreachable", 1, "journals.sagepub.com"]])
     expect(screen.papers[id]).toMatchObject({ hasPdf: false, word: "Can't reach site" })
     expect(screen.papers[id].title).toMatch(/^Can't reach journals\.sagepub\.com right now · trying again at /)
-    expect(screen.block).toMatchObject({ running: true })
+    // Nothing else of the run is going: it ends with that row, and the paper is tried again by itself
+    expect(screen.block).toMatchObject({ running: false, ended: true })
     await b.reach("journals.sagepub.com")
     screen = await b.sleep(2 * 60_000)
     expect(screen.papers[id].hasPdf).toBe(true)

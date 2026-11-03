@@ -99,9 +99,12 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
   view.waits = [...waits.values()].sort((a, b) => b.papers - a.papers)
   view.unreachable = [...unreachable.values()].sort((a, b) => b.papers - a.papers)
   view.manual.sites = [...sites].map(([host, papers]) => ({ host, papers })).sort((a, b) => b.papers - a.papers)
-  // Papers held by a back-off go by themselves once it ends, and those under a wait whose try the user
-  // started is still to come go on to it (through the proxy one paper at a time, a gap apart): still going
-  view.running = view.getting + view.going + view.unreachable.length > 0 || (run.handing ?? 0) > 0 || trying
+  // Papers under a wait whose try the user started is still to come go on to it (through the proxy one
+  // paper at a time, a gap apart): still going. Papers held by a back-off from a host that didn't answer
+  // are not: owlit tries them again by itself for as long as it takes (minutes apart, then a quarter of
+  // an hour), and a run that waited on them would say "Getting" with Stop for as long. The run ends with
+  // their row, and a retry that gets through brings the PDF all the same.
+  view.running = view.getting + view.going > 0 || (run.handing ?? 0) > 0 || trying
   // Written once, the first time nothing is going. A run that goes on again after (the user got through
   // at a wait, and its papers went on) shows none while it does.
   if (!view.running && run.endedAt === undefined) run.endedAt = now
