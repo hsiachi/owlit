@@ -511,7 +511,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (!wait) return false
     const follow = this.notes.of(wait)
     follow.retried = { at: Date.now(), again: false }
-    return this.goOn([wait])
+    return this.goOn([wait], true)
   }
 
   // The line of papers that went on after the user got through at this wait, put away
@@ -548,11 +548,16 @@ export class ExtensionWork implements ExtensionFetcher {
     return this.notes.flush()
   }
 
-  private goOn(gone: Wait[]): boolean {
+  // byUser: the user said they got through (resumeWait). Otherwise the extension saw a page past the wait
+  // load, which may be the user browsing the site for something else: what goes on is theirs only where
+  // they had the wait's page opened from owlit, or asked for the paper.
+  private goOn(gone: Wait[], byUser = false): boolean {
     if (!gone.length) return false
     const under = gone.map((w) => this.papersUnder(w))
     const freed = under.flat()
     const known = gone.some((w) => w.known.size)
+    // Read before the waits go down, which forgets their opened
+    const theirs = new Set(gone.flatMap((w, i) => (byUser || this.notes.get(w.gate, w.since)?.opened ? under[i] : [])))
     gone.forEach((w, i) => {
       this.waitsAt.delete(w.gate)
       this.notes.resumed(w.gate)
@@ -567,10 +572,10 @@ export class ExtensionWork implements ExtensionFetcher {
     for (const lane of this.lanes.values())
       for (const q of all(lane))
         if (freed.includes(q.paper.paperId)) {
-          q.started = true
+          q.started ||= theirs.has(q.paper.paperId) || q.askedFor
           queued.add(q.paper.paperId)
         }
-    for (const id of freed) if (!queued.has(id)) this.startedIds.add(id)
+    for (const id of freed) if (!queued.has(id) && theirs.has(id)) this.startedIds.add(id)
     if (this.library) {
       this.host.papers(this.library, freed)
       // Papers known only from their records go to the queues now

@@ -69,12 +69,38 @@ describe("the extension's queue", () => {
     expect(tried).toMatchObject({ paperId: "a1", attempt: 2 })
     expect(tried).not.toHaveProperty("userStarted")
     work.settle(tried.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
-    expect(work.resumeAt("pub:sage")).toBe(true)
+    // The user says they got through: every paper there goes on as theirs
+    expect(work.resumeWait("pub:sage")).toBe(true)
     const [again] = await take()
     expect(again).toMatchObject({ paperId: "a1", attempt: 3, userStarted: true })
     work.settle(again.id, "pdf")
     vi.advanceTimersByTime(GAP_MS)
     expect(await take()).toMatchObject([{ paperId: "a2", userStarted: true }])
+  })
+
+  it("opens no tab for a paper the extension saw a wait passed for, unless the user opened that wait or asked for it", async () => {
+    const { work, take } = setup()
+    const check = { url: "https://journals.sagepub.com/doi/x" }
+    work.fetch(library, paper("a1", "sagepub.com"), true)
+    work.fetch(library, paper("a2", "sagepub.com"), false)
+    work.fetch(library, paper("b1", "wiley.com"), false)
+    const [a1, b1] = await take()
+    work.settle(a1.id, "check", check)
+    work.settle(b1.id, "check", { url: "https://onlinelibrary.wiley.com/doi/b1" })
+    // The extension sees the user on a page past the check at sagepub.com, browsing for something else
+    expect(work.resumeAt("pub:sage")).toBe(true)
+    const [again] = await take()
+    // Asked for: still theirs
+    expect(again).toMatchObject({ paperId: "a1", userStarted: true })
+    work.settle(again.id, "no-copy")
+    vi.advanceTimersByTime(GAP_MS)
+    const [a2] = await take()
+    expect(a2).toMatchObject({ paperId: "a2" })
+    expect(a2).not.toHaveProperty("userStarted")
+    // At wiley, they had the wait's page opened from owlit
+    work.opened("pub:wiley", "Chrome")
+    expect(work.resumeAt("pub:wiley")).toBe(true)
+    expect(await take()).toMatchObject([{ paperId: "b1", userStarted: true }])
   })
 
   it("keeps the gap at a site when its papers come one at a time", async () => {
