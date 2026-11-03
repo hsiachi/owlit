@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, WORK_ENDINGS, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type GateKey, type GoingOn, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding, type WorkWanted } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, WORK_ENDINGS, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type GateKey, type GoingOn, type OpenAnswer, type OpenPage, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding, type WorkWanted } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -66,8 +66,15 @@ export interface ExtensionServerOptions {
   retryMs?: number
   questionMs?: number
   holdMs?: number
+  // OPEN_HEARD_MS (tests: shorter)
+  openHeardMs?: number
   work?: WorkOptions
 }
+
+// Open handed to an extension on its way back after owlit started (ExtensionWork RETURNING_MS) waits
+// this long for its ask; then owlit opens the page itself, as with no extension connected. The extension
+// asks again 5 s after owlit stopped answering, a few seconds more for owlit to have started.
+export const OPEN_HEARD_MS = 5_000
 
 interface Request {
   method: string
@@ -98,7 +105,9 @@ export class ExtensionServer {
   // The papers the user downloads by hand, one tab at a time
   readonly walk = new ManualWalk()
   private readonly host: ExtensionHost
-  private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs">> & { port: number }
+  private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs" | "openHeardMs">> & { port: number }
+  // Opens handed to a returning extension, waiting for its ask
+  private readonly unheard = new Set<ReturnType<typeof setTimeout>>()
   private server: Server | null = null
   private portTaken = false
   private retry: ReturnType<typeof setTimeout> | undefined
@@ -110,7 +119,7 @@ export class ExtensionServer {
 
   constructor(host: ExtensionHost, options: ExtensionServerOptions = {}) {
     this.host = host
-    this.options = { port: options.port ?? EXTENSION_PORT, retryMs: options.retryMs ?? RETRY_MS, holdMs: options.holdMs ?? HOLD_MS }
+    this.options = { port: options.port ?? EXTENSION_PORT, retryMs: options.retryMs ?? RETRY_MS, holdMs: options.holdMs ?? HOLD_MS, openHeardMs: options.openHeardMs ?? OPEN_HEARD_MS }
     this.pairings = new Pairings(host.settings, () => void this.announce(), { questionMs: options.questionMs })
     this.work = new ExtensionWork(
       {
@@ -176,12 +185,14 @@ export class ExtensionServer {
     if (!wait) return { by: "none" }
     const paired = (await this.host.settings.get()).extension?.paired ?? []
     const pairingOf = (pairing: string | undefined) => paired.find((p) => p.id === pairing)
-    const to = this.work.open(id, this.returning(paired))
+    const returning = this.work.connectedPairings().length ? undefined : this.returning(paired)
+    const to = this.work.open(id, returning)
     if (to) {
       // The extension's tab and window focus stay inside the browser: macOS keeps owlit in front unless
       // owlit itself hands the front over
       const pairing = pairingOf(to)
       this.work.opened(id, pairing?.browser)
+      if (to === returning) this.openUnlessHeard(to, wait, pairing)
       await this.host.showBrowser?.(clean({ app: pairing?.app, name: pairing?.browser })).catch(() => undefined)
       return { by: "extension", browser: pairing?.browser }
     }
@@ -191,6 +202,20 @@ export class ExtensionServer {
     await this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser }))
     this.work.opened(id, pairing?.browser)
     return { by: "browser", browser: pairing?.browser }
+  }
+
+  // A page handed to an extension on its way back: if it hasn't collected it within openHeardMs, the
+  // click isn't left with no answer: the page is taken back (so a later ask doesn't open it a second
+  // time) and owlit opens it in that pairing's browser, as with no extension connected
+  private openUnlessHeard(by: string, wait: ExtensionWait, pairing: StoredPairing | undefined) {
+    const timer = setTimeout(() => {
+      this.unheard.delete(timer)
+      const page = (o: OpenPage) => o.kind === wait.kind && "host" in o && o.host === wait.at
+      if (!this.work.withdrawOpen(by, page) || !this.host.openInBrowser) return
+      void this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser })).catch((error) => console.error("[core] couldn't open the page in the browser", error))
+    }, this.options.openHeardMs)
+    timer.unref?.()
+    this.unheard.add(timer)
   }
 
   // The pairing whose extension was asking for work just before owlit started, and will again within
@@ -237,6 +262,7 @@ export class ExtensionServer {
   async close() {
     this.stopped = true
     clearTimeout(this.retry)
+    for (const timer of this.unheard) clearTimeout(timer)
     this.pairings.dispose()
     this.work.dispose()
     await this.work.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))

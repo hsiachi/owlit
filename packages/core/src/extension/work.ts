@@ -269,6 +269,16 @@ export class ExtensionWork implements ExtensionFetcher {
     return this.waitsAt.get(id)?.by
   }
 
+  // A page waiting for this pairing, taken back before its extension collected it; whether one was
+  withdrawOpen(by: string, which: (page: OpenPage) => boolean): boolean {
+    const pages = this.opens.get(by) ?? []
+    const left = pages.filter((page) => !which(page))
+    if (left.length === pages.length) return false
+    if (left.length) this.opens.set(by, left)
+    else this.opens.delete(by)
+    return true
+  }
+
   // The pages waiting for this pairing, handed over once
   takeOpens(by: string | undefined): OpenPage[] {
     if (!by) return []

@@ -507,7 +507,7 @@ describe("the extension's port", () => {
       await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}` } })
       await core.dispose()
       const opened: Opened[] = []
-      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch, openInBrowser: async (url, browser) => void opened.push([url, browser]), showBrowser: async () => undefined }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch, openInBrowser: async (url, browser) => void opened.push([url, browser]), showBrowser: async () => undefined }, retryBaseMs: 1, extension: { port: 0, holdMs: 20, openHeardMs: 100 } })
       cleanups.push(() => again.dispose())
       const rpc = async (method: string, params?: unknown): Promise<any> => ((await again.handle({ jsonrpc: "2.0", id: 1, method, params })) as { result: unknown }).result
       await rpc("workspace.open", { path: root })
@@ -516,8 +516,33 @@ describe("the extension's port", () => {
       // Open at once, the extension not back yet: it goes to the extension, not to the system's browser
       expect(await rpc("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
       expect(opened).toEqual([])
-      const back = await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })
-      expect(((await back.json()) as { open: unknown }).open).toEqual([{ kind: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}`, wait: "pub:sage" }])
+      const ask = async () => ((await (await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })).json()) as { open: unknown[] }).open
+      expect(await ask()).toEqual([{ kind: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}`, wait: "pub:sage" }])
+      // Collected: once its wait for the ask is over, owlit hasn't opened it itself as well
+      await eventually(async () => expect((server as unknown as { unheard: Set<unknown> }).unheard.size).toBe(0))
+      expect(opened).toEqual([])
+    })
+
+    it("opens it in the paired browser itself when the returning extension doesn't ask in time, and only once", async () => {
+      const { call, request, token, core, userDataDir, root } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const url = `https://journals.sagepub.com/doi/${SAGE}`
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url } })
+      await core.dispose()
+      const opened: Opened[] = []
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch, openInBrowser: async (to, browser) => void opened.push([to, browser]), showBrowser: async () => undefined }, retryBaseMs: 1, extension: { port: 0, holdMs: 20, openHeardMs: 50 } })
+      cleanups.push(() => again.dispose())
+      await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+      const server = (again as unknown as { extension: ExtensionServer }).extension
+      await server.start()
+      expect(((await again.handle({ jsonrpc: "2.0", id: 2, method: "extension.open", params: { wait: "pub:sage" } })) as { result: unknown }).result).toEqual({ by: "extension", browser: "Chrome" })
+      // The browser isn't coming back: owlit opens the page there itself
+      await eventually(async () => expect(opened).toEqual([[url, { name: "Chrome" }]]))
+      // An ask that comes later anyway doesn't open it a second time
+      const late = await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })
+      expect(((await late.json()) as { open: unknown[] }).open).toEqual([])
+      expect(opened).toHaveLength(1)
     })
 
     it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
