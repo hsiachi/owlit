@@ -112,6 +112,16 @@ async function setup(fetch: typeof globalThis.fetch, library = {}) {
   return { base, root, call, core }
 }
 
+// The library's only paper once the look the add queued has ended without a PDF
+const lookEnded = async (call: (method: string) => Promise<any>) => {
+  let paper: any
+  await eventually(async () => {
+    paper = (await call("library.list")).papers[0]
+    expect(paper.pdfState?.state).toBe("no-pdf")
+  })
+  return paper
+}
+
 describe("paper.pdf", () => {
   it("gets an arXiv paper's PDF and records the route", async () => {
     const { root, call } = await setup(serving({ "arxiv.org/pdf/1706.03762": () => new Response(PDF) }))
@@ -129,7 +139,8 @@ describe("paper.pdf", () => {
     })
     const { root, call } = await setup(fetch, { contactEmail: "me@example.org" })
     await call("library.add", { paper: { id: "doi-10.1145-1", title: "Paywalled", authors: [], ids: { doi: "10.1145/1" } } })
-    const paper = await call("library.fetchPdf", { id: "doi-10.1145-1" })
+    // The add's own look: a fetchPdf here would be a second look once that one had ended
+    const paper = await lookEnded(call)
     expect(paper.pdf).toBeUndefined()
     expect(paper.pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "search", ended: "no-copy", route: "publisher:acm" }], reason: { ended: "no-copy" } })
     // The next look, a day after this one
@@ -153,7 +164,7 @@ describe("paper.pdf", () => {
     const fetch = serving({})
     const { call } = await setup(((url: string) => (asked.push(url), fetch(url))) as typeof globalThis.fetch)
     await call("library.add", { paper: { id: "doi-10.9999-x", title: "Nowhere", authors: [], ids: { doi: "10.9999/x" } } })
-    await call("library.fetchPdf", { id: "doi-10.9999-x" })
+    await lookEnded(call)
     // Unpaywall is asked under owlit's contact when the person gave none
     expect(asked.some((u) => u.startsWith("https://api.unpaywall.org/v2/10.9999/x?email=contact%40owlit.ink"))).toBe(true)
     expect((await call("library.list")).papers[0].pdfState).toMatchObject({ state: "no-pdf", tried: [{ by: "search", ended: "no-copy" }] })
