@@ -718,14 +718,16 @@ export class Library {
     const run = await this.runFor(queued)
     void (async () => {
       for (const [i, { id, doi }] of toQueue.entries()) {
-        // Stopped while the papers before it were being looked up
-        if (this.batchStopped.delete(id)) continue
-        if (!(await this.toExtension(id, doi, "waiting"))) {
+        // Stopped while the papers before it were being looked up, or while its own page was
+        let stopped = this.batchStopped.delete(id)
+        if (stopped) continue
+        if (!(await this.toExtension(id, doi, "waiting", undefined, () => (stopped = this.batchStopped.delete(id))))) {
           // The extension went: the rest stay out until the user asks again, and the run says so rather
           // than going on for ever
           for (const rest of toQueue.slice(i)) if (!run.handed.has(rest.id)) run.away.add(rest.id)
           break
         }
+        if (stopped) continue
         run.handed.add(id)
         run.away.delete(id)
       }
@@ -2009,7 +2011,8 @@ export class Library {
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
   // set); false when no extension is asking for work. paused: what its record says its site waits for.
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal) {
+  // stopped: asked once its page is looked up, right before it is queued: true leaves it out
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean) {
     const extension = this.services.extension
     if (!extension?.connected()) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
@@ -2019,6 +2022,7 @@ export class Library {
     const predicted = gateOf(route.url, proxy)
     const own = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension") ?? []
     const met = own.at(-1) && gateOfTry(own.at(-1)!, proxy, predicted)
+    if (stopped?.()) return true
     extension.fetch(this, { paperId: id, ...route, tries: own.length, predicted, ...(met ? { gate: met } : {}), ...(proxy ? { proxy } : {}) }, priority === "waiting")
     return true
   }

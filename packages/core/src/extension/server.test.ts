@@ -569,6 +569,28 @@ describe("the extension's port", () => {
       expect((await request("/work", { token })).body.work).toEqual([])
     })
 
+    it("never queues a paper stopped while its page was being looked up", async () => {
+      const { call, request, token, core } = await connected()
+      const library = libraryOf(core) as unknown as { services: { settings: () => Promise<unknown> }; batchStopped: Set<string> }
+      const settings = library.services.settings.bind(library.services)
+      let release!: () => void
+      const held = new Promise<void>((resolve) => (release = resolve))
+      const looking = vi.spyOn(library.services, "settings").mockImplementation(async () => {
+        await held
+        return settings()
+      })
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect(looking).toHaveBeenCalled())
+      const stopping = call("pdfRuns.stop", { run })
+      await eventually(async () => expect(library.batchStopped.has(id)).toBe(true))
+      release()
+      await stopping
+      looking.mockRestore()
+      await eventually(async () => expect(library.batchStopped.has(id)).toBe(false))
+      expect((await request("/work", { token })).body.work).toEqual([])
+      expect((await paperIn(call)).pdfState?.extension).toBeUndefined()
+    })
+
     it("opens a page to download by hand in the browser the extension was paired in", async () => {
       const opened: Opened[] = []
       const s = await setup({ holdMs: 20, opened })
