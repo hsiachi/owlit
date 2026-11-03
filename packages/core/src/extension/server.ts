@@ -13,6 +13,7 @@ import { HOLD_MS, Pairings } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 import { clean } from "../util.ts"
 import { ManualWalk } from "./walk.ts"
+import { withoutQuery } from "./keys.ts"
 import { ExtensionWork, parseWorkItemId, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
@@ -512,7 +513,8 @@ export class ExtensionServer {
               // answer again, and an item left in flight holds back every other paper of its site
               if (current) {
                 const word = whyNotPlaced(failure.status)
-                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+                const gate = this.work.gateFor(id, { host: at })
+                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
                 this.work.settle(id, word)
               }
               throw error
@@ -522,7 +524,8 @@ export class ExtensionServer {
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           if (!current) return { body: { ignored: true } }
           const { ended: word, host: at, title, url } = body.data
-          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined }))
+          const gate = this.work.gateFor(id, { url, host: at })
+          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
           this.work.settle(id, word, { url, host: at })
           return { body: { noted: true } }
         },

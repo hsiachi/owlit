@@ -74,6 +74,8 @@ export interface PaperView {
 }
 
 export interface WaitView {
+  // The gate it waits at (ExtensionWait.id)
+  id: string
   kind: string
   host: string
   papers: number
@@ -590,6 +592,6 @@ class Renderer {
         ...(found ? { foundUnder: { kind: found.kind, host: found.host } } : {}),
       }
     }
-    return { block, waits: waits.map((w: ExtensionWait) => ({ kind: w.kind, host: w.host, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
+    return { block, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.host, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
   }
 }

@@ -1,3 +1,4 @@
+import type { WaitId } from "./pdf-keys.ts"
 // What owlit's browser extension and owlit say to each other over the local port, and what the window
 // shows of it. The extension runs in the user's own browser with their sign-ins; core serves it on
 // 127.0.0.1 only, to browser extensions only, and only after the user allowed one in the window.
@@ -64,13 +65,19 @@ export interface ExtensionView {
 // allowed to read it. One covers every paper waiting there; it goes by itself once the user is through
 // and owlit goes on.
 export interface ExtensionWait {
+  // The gate it waits at, one wait per gate (pdf-keys.ts); what every join with a paper goes by
+  id: WaitId
   kind: "sign-in" | "check" | "blocked" | "permission"
-  // Where the user acts: the publisher's registrable domain, or the library proxy's host for the proxy's
-  // own sign-in. Through the proxy, a wait met at a publisher names that publisher (misq.umn.edu; for a
-  // permission the whole site to allow, apa.org), never the proxy.
+  // Where the user acts, as shown: the page's host (sciencedirect.com, misq.umn.edu), the whole site to
+  // allow for a permission (apa.org), the library proxy's host for its own sign-in; never an identity
+  // provider's
+  at: string
+  // The same as at, for the window until it joins by id
   host: string
-  // Papers whose fetch it is in the way of. Through the proxy, papers only in line behind the one that met
-  // a publisher's wait aren't counted (PdfState.extension.behind).
+  // Hosts where a page that loaded shows the user got through (keys.ts watchOf)
+  watch: string[]
+  // Papers whose fetch it is in the way of: those whose gate it is, and every paper of a lane it holds
+  // (the proxy's own sign-in)
   papers: number
   // What to open in the user's browser for it: the proxy's sign-in page, or the page that asked
   url: string
@@ -190,7 +197,7 @@ export interface WorkItem {
 // for the user, so the extension knows where to watch for them getting through
 export interface WorkAnswer {
   work: WorkItem[]
-  waits: { kind: ExtensionWait["kind"]; host: string; papers: number; proxied: boolean }[]
+  waits: Pick<ExtensionWait, "id" | "kind" | "at" | "host" | "watch" | "papers" | "proxied">[]
   // Pages the user asked owlit to open for a site that waits on them: the extension opens each in its
   // own browser, the one with the user's access. The answer comes at once when there is one.
   open: OpenPage[]

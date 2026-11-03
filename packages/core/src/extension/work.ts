@@ -1,13 +1,21 @@
-import type { ExtensionWait, OpenPage, PdfState, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
+import type { ExtensionWait, GateKey, LaneKey, OpenPage, PdfState, ProxySettings, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
+import { hostOf } from "../net/http.ts"
+import { gateOf, laneOf, watchOf } from "./keys.ts"
 import { siteOf } from "./route.ts"
 
 // The papers owlit hands to its browser extension once its own routes found no copy, and the pace it
-// asks for them at. owlit decides what and when: per site (the publisher's registrable domain, or the
-// library proxy's host) one fetch at a time, the next a while after the last ended, so no publisher sees
-// a burst from the user's browser. A fetch that stopped where only the user can get through (a check, a
-// sign-in, the extension not allowed there) pauses its site, not the others, and every paper queued
-// there waits for the one time the user gets through (or for one of the site's occasional tries to).
+// asks for them at. owlit decides what and when: per lane (the library proxy, which every paper through
+// it shares, or else the paper's gate, keys.ts) one fetch at a time, the next a while after the last
+// ended, so no publisher or proxy sees a burst from the user's browser. A fetch that stopped where only
+// the user can get through (a check, a sign-in, the extension not allowed there) makes a wait at the gate
+// it met, one per gate. A paper is under a wait when its gate is the wait's, or when its lane is (the
+// proxy's own sign-in holds every paper through it); a lane passes over the papers under a wait, and each
+// wait's papers go on at the one time the user gets through (or one of its occasional tries does).
+//
+// A paper's gate is the one its newest extension try met (PdfTry.gate), else the one its route predicts.
+// The waits of a workspace are rebuilt from its papers' records when it opens (restore), so they are up
+// before any extension connects; the queues are filled when one does.
 //
 // In memory only: when the extension connects (its first GET /work since owlit started, since it was
 // last away, or since another workspace opened), the library hands over every paper waiting for it again
@@ -33,15 +41,15 @@ export const CONNECTED_MS = 60_000
 // extension's slowest answer: three gets of FETCH_MS (60 s) in apps/extension/src/lib/work.ts, then the
 // upload.
 export const STALLED_MS = 30 * 60_000
-// After a fetch at a site reached nothing (the network dropped, the proxy's minute-limit page), the site
-// waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
-// was learnt about it, and a limit that counts every request isn't asked again within the minute
-// A site paused for the user tries its first paper once more this long after the pause began: the user
+// A wait tries its first paper once more this long after it began: the user
 // may have got through where the extension couldn't tell (signing in can end on a page that still looks
 // like a sign-in, the proxy's own front page). Once only: a try every quarter of an hour for days wrote
-// dozens of silent tries into a paper's record and told the user nothing. After it the site waits for
+// dozens of silent tries into a paper's record and told the user nothing. After it the wait is for
 // the user to get through (resume), or to ask for one of its papers (fetch with askedFor).
 export const PAUSED_RETRY_MS = 15 * 60_000
+// After a fetch in a lane reached nothing (the network dropped, the proxy's minute-limit page), the lane
+// waits this long before its next, longer each time in a row: the paper keeps its place, since nothing
+// was learnt about it, and a limit that counts every request isn't asked again within the minute
 export const OFFLINE_BACKOFF_MS = [2 * 60_000, 5 * 60_000, 15 * 60_000]
 
 export interface WorkOptions {
@@ -55,51 +63,56 @@ interface Queued {
   askedFor: boolean
   // The extension's tries the paper's record holds: its next hand-out is attempt tries + 1
   tries: number
+  // Its gate now (the newest try's, else predicted), and the one its route predicts
+  gate: GateKey
+  predicted: GateKey
 }
 
-interface Paused {
-  kind: ExtensionWait["kind"]
-  // Where the user acts, when it isn't the site's own key: through the library's proxy the fetch is sent
-  // on to a publisher, and a check, a block, a publisher's sign-in or a permission met there is that
-  // publisher's (misq.umn.edu, thieme-connect.de), not the proxy's. For a permission, the whole
-  // publisher's site, so one Allow covers its other hosts.
-  host?: string
-  // The papers whose own try met it. Through the proxy every paper shares one queue, so a wait at one
-  // publisher holds papers bound for others: those are only behind it (held), not under it.
-  met: Set<string>
-  // What the user's browser opens for it
-  url: string
-  // When the one try on owlit's own goes (PAUSED_RETRY_MS after the pause began); absent once it ran
-  tryAt?: number
-  // The pairing whose fetch met it: its browser is the one where the user gets through
-  by?: string
-}
-
-// A pause carried over from a paper's record (its newest try met it before owlit restarted), so the
-// site's waiting line is up as soon as the extension connects, without a try first
-export interface KnownPause {
-  kind: ExtensionWait["kind"]
-}
-
-interface Site {
-  key: string
+interface Lane {
+  key: LaneKey
   proxied: boolean
   queue: Queued[]
   // by: the pairing it was handed to
   inFlight?: { id: string; item: Queued; at: number; by?: string }
   // When its last fetch ended, for the gap before the next
   endedAt?: number
-  paused?: Paused
   // Its fetches reached nothing this many times in a row; none goes out before until
   offline?: { times: number; until: number }
+}
+
+interface Wait {
+  gate: GateKey
+  kind: ExtensionWait["kind"]
+  // ExtensionWait.at, .url, .watch
+  at: string
+  url: string
+  watch: string[]
+  // When its one try on owlit's own goes (PAUSED_RETRY_MS after it began); absent once it ran
+  tryAt?: number
+  // The pairing whose fetch met it: its browser is the one where the user gets through
+  by?: string
+  // Papers whose records say they met it, not in a queue yet (the extension hasn't connected since the
+  // workspace opened): paper id → the extension's tries its record holds
+  known: Map<string, number>
+}
+
+// A wait a paper's record says it met, as the library reads it when a workspace opens
+export interface KnownWait {
+  paperId: string
+  kind: ExtensionWait["kind"]
+  gate: GateKey
+  // The page the try ended on, else one that leads to the same place (the DOI's link)
+  url: string
+  host?: string
+  tries: number
 }
 
 const PAUSES: Partial<Record<WorkEnding, ExtensionWait["kind"]>> = { check: "check", blocked: "blocked", "sign-in": "sign-in", "no-permission": "permission" }
 
 export interface WorkHost {
-  // These papers' standing changed (queued, paused, left the queue): the window hears them again
+  // These papers' standing changed (queued, under a wait, left the queue): the window hears them again
   papers: (library: Library, ids: string[]) => void
-  // The sites paused for the user changed
+  // The waits changed
   waits: () => void
   // An extension began asking for work for this library, with nothing of it queued yet or not for a
   // while: the library hands over what waits for the extension
@@ -109,13 +122,17 @@ export interface WorkHost {
 export class ExtensionWork implements ExtensionFetcher {
   private readonly host: WorkHost
   private readonly options: Required<WorkOptions>
-  // The workspace's library the queue belongs to; another workspace opening starts it afresh
+  // The workspace's library the queues and waits belong to; another workspace opening starts them afresh
   private library: Library | null = null
-  private readonly sites = new Map<string, Site>()
-  // When the last fetch ended at a site whose queue has since emptied: a paper arriving there after it
+  // The library an extension was last counted as arriving at (WorkHost.connected): not the same as the
+  // one owned, which a background look in a reopened workspace takes over before the extension asks
+  private connectedTo: Library | null = null
+  private readonly lanes = new Map<LaneKey, Lane>()
+  private readonly waitsAt = new Map<GateKey, Wait>()
+  // When the last fetch ended in a lane whose queue has since emptied: a paper arriving there after it
   // still waits for the gap, so papers that come one at a time (an import's lookups finishing seconds
   // apart) aren't fetched in a burst
-  private readonly lastEnded = new Map<string, number>()
+  private readonly lastEnded = new Map<LaneKey, number>()
   // Each pairing's GET /work (by its id; "" for a caller that names none): how many are being held now,
   // when the last ended, and whether the extension closed it while held (its service worker stopped)
   private readonly asks = new Map<string, { open: number; at: number; dropped: boolean }>()
@@ -141,16 +158,16 @@ export class ExtensionWork implements ExtensionFetcher {
     return [...this.polled].filter(([, at]) => now - at < CONNECTED_MS).sort((a, b) => b[1] - a[1]).map(([by]) => by)
   }
 
-  // The user asked to open what a waiting site needs: handed to the extension whose fetch met it, or,
-  // when that one isn't asking now, to the one that asked last. The pairing it went to; undefined when
-  // the site doesn't wait for that or no extension is connected.
+  // The user asked to open what a wait needs: handed to the extension whose fetch met it, or, when that
+  // one isn't asking now, to the one that asked last. The pairing it went to; undefined when no wait
+  // there is of that kind or no extension is connected.
   open(kind: ExtensionWait["kind"], host: string): string | undefined {
-    const site = this.waitingAt(host)
-    if (!site?.paused || site.paused.kind !== kind || !under(site).length) return undefined
+    const wait = this.waitNamed(host)
+    if (!wait || wait.kind !== kind || !this.count(wait)) return undefined
     const connected = this.connectedPairings()
-    const by = site.paused.by && connected.includes(site.paused.by) ? site.paused.by : connected[0]
+    const by = wait.by && connected.includes(wait.by) ? wait.by : connected[0]
     if (!by) return undefined
-    const page: OpenPage = kind === "permission" ? { kind, host, papers: under(site).length } : { kind, host, url: site.paused.url }
+    const page: OpenPage = kind === "permission" ? { kind, host, papers: this.count(wait) } : { kind, host, url: wait.url }
     // Pressed twice before the extension collected it: opened once
     this.openFor(by, page, (o) => "host" in o && o.host === host)
     return by
@@ -163,14 +180,9 @@ export class ExtensionWork implements ExtensionFetcher {
     this.kick()
   }
 
-  // The pairing whose fetch met what this site waits for
+  // The pairing whose fetch met the wait shown at this host
   pausedBy(host: string): string | undefined {
-    return this.waitingAt(host)?.paused?.by
-  }
-
-  // The paused site a wait names (ExtensionWait.host)
-  private waitingAt(host: string): Site | undefined {
-    return [...this.sites.values()].find((site) => site.paused && waitHost(site) === host)
+    return this.waitNamed(host)?.by
   }
 
   // The pages waiting for this pairing, handed over once
@@ -181,74 +193,115 @@ export class ExtensionWork implements ExtensionFetcher {
     return pages
   }
 
-  // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
-  // when the user asked now; asked for, it goes before the ones that weren't, and a site paused for the
-  // user is tried once more, since the user may have got through already. paused: the paper's record
-  // says its site waits for the user; a site with nothing going on there takes that pause as its own,
-  // with its one try on owlit's own still to come.
-  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean, paused?: KnownPause) {
+  // The waits a workspace's papers' records say they met (Library.restoreWaits), up as it opens, before
+  // any extension connects; their papers join the queues once one does. Each wait's one try goes as
+  // soon as a paper of it is queued: the user may have got through since owlit last ran.
+  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined) {
     this.own(library)
-    // A paper whose publisher (or proxy) changed since it was queued moves to that site
-    for (const site of this.sites.values()) {
-      if (site.key === paper.host) continue
-      const at = site.queue.findIndex((q) => q.paper.paperId === paper.paperId)
-      if (at >= 0) site.queue.splice(at, 1)
+    const now = Date.now()
+    for (const k of known) {
+      if (this.holds(k.paperId)) continue
+      let wait = this.waitsAt.get(k.gate)
+      if (!wait) {
+        const at = atOf(k.gate, k.kind, k.host)
+        const lane: LaneKey = k.gate.startsWith("proxy:") ? k.gate : proxy ? `proxy:${hostOf(proxy.base).toLowerCase()}` : k.gate
+        wait = { gate: k.gate, kind: k.kind, at, url: k.url, watch: watchOf(k.gate, lane, proxy), tryAt: now, known: new Map() }
+        this.waitsAt.set(k.gate, wait)
+      }
+      wait.known.set(k.paperId, k.tries)
     }
-    let site = this.sites.get(paper.host)
-    if (!site) {
-      site = { key: paper.host, proxied: paper.proxied, queue: [], endedAt: this.lastEnded.get(paper.host) }
-      this.sites.set(paper.host, site)
+    this.host.waits()
+  }
+
+  // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
+  // when the user asked now; asked for, it goes before the ones that weren't, and the wait it is under is
+  // lifted, since the user may have got through already.
+  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean) {
+    this.own(library)
+    const proxy = paper.proxied ? paper.proxy : undefined
+    const predicted = paper.predicted ?? gateOf(paper.url, proxy)
+    const gate = paper.gate ?? predicted
+    const laneKey = laneOf(paper)
+    // A paper whose lane changed since it was queued (the proxy set or cleared) moves to its new one
+    for (const lane of this.lanes.values()) {
+      if (lane.key === laneKey) continue
+      const at = lane.queue.findIndex((q) => q.paper.paperId === paper.paperId)
+      if (at >= 0) lane.queue.splice(at, 1)
     }
-    site.proxied = paper.proxied
-    if (site.inFlight?.item.paper.paperId === paper.paperId) site.inFlight.item.askedFor ||= askedFor
-    else {
-      const queued = site.queue.find((q) => q.paper.paperId === paper.paperId)
+    let known = 0
+    for (const wait of this.waitsAt.values()) {
+      known = Math.max(known, wait.known.get(paper.paperId) ?? 0)
+      wait.known.delete(paper.paperId)
+    }
+    let lane = this.lanes.get(laneKey)
+    if (!lane) {
+      lane = { key: laneKey, proxied: paper.proxied, queue: [], endedAt: this.lastEnded.get(laneKey) }
+      this.lanes.set(laneKey, lane)
+    }
+    lane.proxied = paper.proxied
+    let item: Queued
+    if (lane.inFlight?.item.paper.paperId === paper.paperId) {
+      item = lane.inFlight.item
+      item.askedFor ||= askedFor
+    } else {
+      const queued = lane.queue.find((q) => q.paper.paperId === paper.paperId)
       if (queued) {
-        queued.paper = paper
+        item = queued
+        Object.assign(queued, { paper, gate, predicted })
         queued.askedFor ||= askedFor
         // The record may lag a try settled in memory whose note is still being written
-        queued.tries = Math.max(queued.tries, paper.tries ?? 0)
-      } else site.queue.push({ paper, askedFor, tries: paper.tries ?? 0 })
-      sortQueue(site)
+        queued.tries = Math.max(queued.tries, paper.tries ?? 0, known)
+      } else {
+        item = { paper, askedFor, tries: Math.max(paper.tries ?? 0, known), gate, predicted }
+        lane.queue.push(item)
+      }
+      sortQueue(lane)
     }
-    const unpaused = askedFor && !!site.paused
-    if (unpaused) site.paused = undefined
-    else if (paused && !askedFor && !site.paused && !site.inFlight && site.queue.length === 1) {
-      // Its one try goes at once: the user may have got through since owlit last ran
-      site.paused = { kind: paused.kind, url: (paused.kind === "sign-in" && paper.signIn) || paper.url, tryAt: Date.now(), met: new Set([paper.paperId]) }
-    } else if (paused && !askedFor && site.paused?.kind === paused.kind) site.paused.met.add(paper.paperId)
-    this.host.papers(library, unpaused ? ids(site) : [paper.paperId])
+    const over = askedFor ? this.waitOver(lane, item) : undefined
+    const lifted = over ? this.papersUnder(over) : []
+    if (over) this.waitsAt.delete(over.gate)
+    this.host.papers(library, [...new Set([paper.paperId, ...lifted])])
     this.host.waits()
     this.kick()
   }
 
-  // Where the paper stands with the extension, while it has it
+  // Where the paper stands with the extension, while it has it, or while a wait holds it from its record
   holding(library: Library, id: string): PdfState["extension"] | undefined {
     if (library !== this.library) return undefined
-    for (const site of this.sites.values()) {
-      const proxied = site.proxied ? { proxied: true } : {}
-      if (site.inFlight?.item.paper.paperId === id) return { host: site.key, fetching: true, ...proxied }
-      if (!site.queue.some((q) => q.paper.paperId === id)) continue
-      if (!site.paused) return { host: site.key, ...proxied }
-      if (!isUnder(site, id)) return { host: site.key, behind: { kind: site.paused.kind, host: waitHost(site) }, ...proxied }
-      return { host: site.key, waits: site.paused.kind, ...(site.paused.host ? { waitsAt: site.paused.host } : {}), ...proxied }
+    for (const lane of this.lanes.values()) {
+      const item = lane.inFlight?.item.paper.paperId === id ? lane.inFlight.item : lane.queue.find((q) => q.paper.paperId === id)
+      if (!item) continue
+      const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, host: item.paper.host, ...(lane.proxied ? { proxied: true } : {}) }
+      if (lane.inFlight?.item === item) return { ...base, fetching: true }
+      const wait = this.waitOver(lane, item)
+      return wait ? { ...base, ...underWait(wait) } : base
+    }
+    for (const wait of this.waitsAt.values()) {
+      const tries = wait.known.get(id)
+      if (tries === undefined) continue
+      return { lane: wait.gate, gate: wait.gate, attempt: tries + 1, host: wait.at, ...(wait.gate.startsWith("proxy:") ? { proxied: true } : {}), ...underWait(wait) }
     }
     return undefined
   }
 
-  // How many papers the queue holds, the ones out for a try included
+  inQueue(library: Library, id: string): boolean {
+    return library === this.library && this.holds(id)
+  }
+
+  // How many papers the queues hold, the ones out for a try included
   queued(library: Library): number {
     if (library !== this.library) return 0
-    return [...this.sites.values()].reduce((n, site) => n + paused(site).length, 0)
+    return [...this.lanes.values()].reduce((n, lane) => n + all(lane).length, 0)
   }
 
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
   // answer comes (settle), or until an extension asks for work while the one it went to is away.
   async take(library: Library | null, holdMs: number, closed: AbortSignal, by?: string): Promise<WorkItem[]> {
-    // Away for longer than counts as connected, or never here: papers the plain routes missed meanwhile
-    // went to no queue, and after a restart this one is empty, so the library fills it before anything
-    // is due. Marked connected first, so what the library hands over is queued, not left with no PDF.
-    const arrived = !this.connected() || library !== this.library
+    // Away for longer than counts as connected, or never here for this library: papers the plain routes
+    // missed meanwhile went to no queue, and after a restart the queues are empty, so the library fills
+    // them before anything is due. Marked connected first, so what the library hands over is queued, not
+    // left with no PDF.
+    const arrived = !this.connected() || library !== this.connectedTo
     // Before this ask is counted: the asker's own fetches from before it was away go out again too
     this.reissue()
     const ask = this.asks.get(by ?? "") ?? { open: 0, at: 0, dropped: false }
@@ -257,6 +310,7 @@ export class ExtensionWork implements ExtensionFetcher {
     this.polledAt = Date.now()
     if (by) this.polled.set(by, this.polledAt)
     if (library !== this.library) this.own(library)
+    this.connectedTo = library
     if (arrived && library) this.host.connected(library)
     const until = Date.now() + holdMs
     for (;;) {
@@ -293,140 +347,141 @@ export class ExtensionWork implements ExtensionFetcher {
     return this.flying(id)?.inFlight?.item.paper
   }
 
+  // The gate the answer to the attempt in flight met, as its try notes it (PdfTry.gate); undefined when
+  // the attempt isn't the one in flight
+  gateFor(id: string, page: { url?: string; host?: string }): GateKey | undefined {
+    const lane = this.flying(id)
+    return lane?.inFlight ? answerGate(lane.inFlight.item, page) : undefined
+  }
+
   // The extension's answer, once core has noted it: a PDF (ended undefined) or a word. A word that only
-  // the user can get past pauses the site, its paper first in line for when they have.
-  // Not the attempt in flight: nothing changes.
+  // the user can get past makes, or adds to, the wait at the gate the page belongs to, its paper first in
+  // line for when they have. Not the attempt in flight: nothing changes.
   settle(id: string, ended: WorkEnding | undefined, page: { url?: string; host?: string } = {}) {
-    const site = this.flying(id)
-    if (!site?.inFlight || !this.library) return
-    const { item, by } = site.inFlight
-    site.inFlight = undefined
+    const lane = this.flying(id)
+    if (!lane?.inFlight || !this.library) return
+    const { item, by } = lane.inFlight
+    lane.inFlight = undefined
     // The answer was noted as one more try in the paper's record
     item.tries++
-    site.endedAt = Date.now()
+    const now = Date.now()
+    lane.endedAt = now
+    const was = this.waitOver(lane, item)
     const pause = ended && PAUSES[ended]
-    if (ended === "offline" && site.paused) {
-      // Its try reached nothing: it waits for the user as it did, the one try still to come
-      if (site.paused.tryAt !== undefined) site.paused.tryAt = site.endedAt + PAUSED_RETRY_MS
-      site.queue.unshift(item)
-      sortQueue(site)
-    } else if (ended === "offline") {
-      const times = (site.offline?.times ?? 0) + 1
-      site.offline = { times, until: site.endedAt + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1] }
-      site.queue.unshift(item)
-      sortQueue(site)
+    if (ended === "offline") {
+      // Its try reached nothing: a wait it was under keeps waiting, its one try still to come
+      if (was) was.tryAt = now + PAUSED_RETRY_MS
+      else {
+        const times = (lane.offline?.times ?? 0) + 1
+        lane.offline = { times, until: now + OFFLINE_BACKOFF_MS[Math.min(times, OFFLINE_BACKOFF_MS.length) - 1] }
+      }
+      lane.queue.unshift(item)
+      sortQueue(lane)
       this.host.papers(this.library, [item.paper.paperId])
     } else if (pause) {
-      site.offline = undefined
-      site.queue.unshift(item)
-      sortQueue(site)
-      const host = pauseHost(site, pause, page.host)
+      lane.offline = undefined
+      item.gate = answerGate(item, page)
+      lane.queue.unshift(item)
+      sortQueue(lane)
+      const pageHost = page.url ? hostOf(page.url) : page.host
+      const at = atOf(item.gate, pause, pageHost)
       // The library's sign-in page for the proxy's own sign-in; the publisher's page for one met there
-      const url = (pause === "sign-in" && !host && item.paper.signIn) || page.url || item.paper.url
-      // Met again by the one try on owlit's own: no more until the user acts
-      const tryAt = site.paused ? undefined : site.endedAt + PAUSED_RETRY_MS
-      // The same wait met again adds its paper; another one (the next publisher through the proxy, after
-      // the user got past the first) starts its own count
-      const same = site.paused && site.paused.kind === pause && site.paused.host === host
-      const met = same ? site.paused!.met.add(item.paper.paperId) : new Set([item.paper.paperId])
-      site.paused = { kind: pause, url, by, met, ...(tryAt !== undefined ? { tryAt } : {}), ...(host ? { host } : {}) }
-      this.host.papers(this.library, ids(site))
-      this.host.waits()
-    } else if (site.paused) {
-      // A try at the paused site got through: the user did, somewhere the extension didn't see
-      site.offline = undefined
-      site.paused = undefined
-      this.host.papers(this.library, [item.paper.paperId, ...ids(site)])
+      const url = (pause === "sign-in" && item.gate.startsWith("proxy:") && item.paper.signIn) || page.url || item.paper.url
+      const before = this.waitsAt.get(item.gate)
+      const proxy = item.paper.proxied ? item.paper.proxy : undefined
+      // Met again (by its one try on owlit's own, or another paper of it): no more tries until the user
+      // acts. A wait it was under elsewhere had its try too.
+      const wait: Wait = { gate: item.gate, kind: pause, at, url, watch: watchOf(item.gate, lane.key, proxy), by, known: before?.known ?? new Map(), ...(before ? {} : { tryAt: now + PAUSED_RETRY_MS }) }
+      this.waitsAt.set(item.gate, wait)
+      if (was && was !== before) was.tryAt = undefined
+      this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...(was ? this.papersUnder(was) : [])])])
       this.host.waits()
     } else {
-      site.offline = undefined
-      if (!site.queue.length) {
-        this.sites.delete(site.key)
-        this.lastEnded.set(site.key, site.endedAt)
+      lane.offline = undefined
+      const freed = was ? this.papersUnder(was) : []
+      // A try under a wait got through: the user did, somewhere the extension didn't see
+      if (was) {
+        this.waitsAt.delete(was.gate)
+        this.host.waits()
       }
-      this.host.papers(this.library, [item.paper.paperId])
+      this.leaveIfEmpty(lane)
+      this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
     }
     this.kick()
   }
 
-  // POST /work/resume: the user got through at this host. Every site paused there (by the host its wait
-  // names, or under the same registrable domain) goes on at once, the papers the user asked for first.
+  // POST /work/resume: the user got through at this host. Every wait it names (its at, a host it
+  // watches, or under the same registrable domain) goes, its papers on at once, the asked for first.
   resume(host: string): boolean {
-    const wanted = siteOf(host)
-    let any = false
-    for (const site of this.sites.values()) {
-      if (!site.paused || (waitHost(site) !== host && siteOf(waitHost(site)) !== wanted)) continue
-      site.paused = undefined
-      site.endedAt = undefined
-      sortQueue(site)
-      any = true
-      if (this.library) this.host.papers(this.library, ids(site))
+    const gone = [...this.waitsAt.values()].filter((w) => names(w, host))
+    if (!gone.length) return false
+    const freed = gone.flatMap((w) => this.papersUnder(w))
+    const known = gone.some((w) => w.known.size)
+    for (const w of gone) this.waitsAt.delete(w.gate)
+    for (const lane of this.lanes.values()) {
+      if (lane.queue.some((q) => freed.includes(q.paper.paperId))) lane.endedAt = undefined
     }
-    if (any) {
-      this.host.waits()
-      this.kick()
+    if (this.library) {
+      this.host.papers(this.library, freed)
+      // Papers known only from their records go to the queues now
+      if (known) this.host.connected(this.library)
     }
-    return any
+    this.host.waits()
+    this.kick()
+    return true
   }
 
-  // POST /work/blocked: the user's browser met a block at this host where the site waits for a check or
-  // a sign-in (the fetch read the block as one, or the block came after). Matched as resume matches;
-  // the site stays paused, without another try, and its line says what is in the way now.
+  // POST /work/blocked: the user's browser met a block at this host where a wait is for a check or a
+  // sign-in (the fetch read the block as one, or the block came after). Matched as resume matches; the
+  // wait stays, without another try, and says what is in the way now.
   blocked(host: string, url: string): boolean {
-    const wanted = siteOf(host)
     let any = false
-    for (const site of this.sites.values()) {
-      if (!site.paused || (waitHost(site) !== host && siteOf(waitHost(site)) !== wanted)) continue
-      if (site.paused.kind !== "check" && site.paused.kind !== "sign-in") continue
-      const at = pauseHost(site, "blocked", hostOf(url))
-      site.paused = { ...site.paused, kind: "blocked", url, ...(at ? { host: at } : {}) }
+    for (const wait of this.waitsAt.values()) {
+      if (!names(wait, host) || (wait.kind !== "check" && wait.kind !== "sign-in")) continue
+      wait.kind = "blocked"
+      wait.url = url
+      if (!wait.gate.startsWith("proxy:")) wait.at = atOf(wait.gate, "blocked", hostOf(url))
+      wait.tryAt = undefined
       any = true
-      if (this.library) this.host.papers(this.library, ids(site))
+      if (this.library) this.host.papers(this.library, this.papersUnder(wait))
     }
     if (any) this.host.waits()
     return any
   }
 
   // A paper that no longer wants fetching (its PDF was placed another way, it went to the trash or was
-  // folded into another): out of its queue, and out of the count of the line it waited in. One in flight
-  // is left to its answer, which finds the paper gone or with its PDF.
+  // folded into another, the user stopped it): out of its queue, and out of the count of the wait it was
+  // under; a wait with no paper left goes. One in flight is left to its answer, which finds the paper
+  // gone or with its PDF.
   drop(library: Library, id: string) {
     if (library !== this.library) return
     let waitsChanged = false
-    for (const site of [...this.sites.values()]) {
-      const at = site.queue.findIndex((q) => q.paper.paperId === id)
+    for (const wait of this.waitsAt.values()) if (wait.known.delete(id)) waitsChanged = true
+    for (const lane of [...this.lanes.values()]) {
+      const at = lane.queue.findIndex((q) => q.paper.paperId === id)
       if (at < 0) continue
-      site.queue.splice(at, 1)
-      if (site.paused) {
-        waitsChanged = true
-        site.paused.met.delete(id)
-        // The paper that met a publisher's wait through the proxy left: the ones held behind it go on
-        if (!under(site).length && site.queue.length) {
-          site.paused = undefined
-          this.host.papers(library, ids(site))
-          this.kick()
-        }
-      }
-      if (!site.queue.length && !site.inFlight) {
-        this.sites.delete(site.key)
-        if (site.endedAt !== undefined) this.lastEnded.set(site.key, site.endedAt)
-      }
+      const [item] = lane.queue.splice(at, 1)
+      if (this.waitOver(lane, item)) waitsChanged = true
+      this.leaveIfEmpty(lane)
     }
-    if (waitsChanged) this.host.waits()
+    if (!waitsChanged) return
+    for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.waitsAt.delete(wait.gate)
+    this.host.waits()
   }
 
-  // The sites paused for the user, as the window shows them; a paper out for a try still waits there
+  // The waits, as the window shows them; a paper out for a try still waits there
   waits(): ExtensionWait[] {
-    return [...this.sites.values()].flatMap((site) => {
-      const waiting = under(site)
-      // Asked for: the user asked for a paper under it, or for one held behind it
-      return site.paused && waiting.length ? [{ kind: site.paused.kind, host: waitHost(site), papers: waiting.length, url: site.paused.url, askedFor: paused(site).some((q) => q.askedFor), proxied: atProxy(site) }] : []
+    return [...this.waitsAt.values()].flatMap((wait) => {
+      const papers = this.count(wait)
+      if (!papers) return []
+      const askedFor = this.itemsUnder(wait).some((q) => q.askedFor)
+      return [{ id: wait.gate, kind: wait.kind, at: wait.at, host: wait.at, watch: wait.watch, papers, url: wait.url, askedFor, proxied: wait.gate.startsWith("proxy:") }]
     })
   }
 
   // The same for the extension, which watches those sites for the user getting through
   waitsForExtension(): WorkAnswer["waits"] {
-    return [...this.sites.values()].flatMap((site) => (site.paused && under(site).length ? [{ kind: site.paused.kind, host: waitHost(site), papers: under(site).length, proxied: atProxy(site) }] : []))
+    return this.waits().map(({ id, kind, at, host, watch, papers, proxied }) => ({ id, kind, at, host, watch, papers, proxied }))
   }
 
   dispose() {
@@ -436,41 +491,90 @@ export class ExtensionWork implements ExtensionFetcher {
   private own(library: Library | null) {
     if (library === this.library) return
     this.library = library
-    this.sites.clear()
+    this.lanes.clear()
+    this.waitsAt.clear()
     this.lastEnded.clear()
     this.opens.clear()
     this.host.waits()
   }
 
-  private gap(site: Site) {
-    return site.proxied ? this.options.proxyGapMs : this.options.gapMs
+  private holds(id: string) {
+    return [...this.lanes.values()].some((lane) => all(lane).some((q) => q.paper.paperId === id))
   }
 
-  // When the site's next fetch may go out: after the gap, after an offline back-off, and while it is
-  // paused for the user, only for its one try on owlit's own; never once that ran
-  private dueAt(site: Site) {
-    const paused = site.paused ? (site.paused.tryAt ?? Number.POSITIVE_INFINITY) : 0
-    return Math.max(site.endedAt === undefined ? 0 : site.endedAt + this.gap(site), site.offline?.until ?? 0, paused)
+  // The wait a paper is under: its lane's own (the proxy's sign-in holds every paper through it), else
+  // its gate's
+  private waitOver(lane: Lane, item: Queued): Wait | undefined {
+    return this.waitsAt.get(lane.key) ?? this.waitsAt.get(item.gate)
+  }
+
+  private itemsUnder(wait: Wait): Queued[] {
+    return [...this.lanes.values()].flatMap((lane) => all(lane).filter((q) => this.waitOver(lane, q) === wait))
+  }
+
+  private papersUnder(wait: Wait): string[] {
+    return [...this.itemsUnder(wait).map((q) => q.paper.paperId), ...wait.known.keys()]
+  }
+
+  private count(wait: Wait) {
+    return this.papersUnder(wait).length
+  }
+
+  // The wait shown at this host (ExtensionWait.at)
+  private waitNamed(host: string): Wait | undefined {
+    return [...this.waitsAt.values()].find((w) => w.at === host)
+  }
+
+  private leaveIfEmpty(lane: Lane) {
+    if (lane.queue.length || lane.inFlight) return
+    this.lanes.delete(lane.key)
+    if (lane.endedAt !== undefined) this.lastEnded.set(lane.key, lane.endedAt)
+  }
+
+  private gap(lane: Lane) {
+    return lane.proxied ? this.options.proxyGapMs : this.options.gapMs
+  }
+
+  // When the lane's next fetch may go out: after the gap and after an offline back-off
+  private paceAt(lane: Lane) {
+    return Math.max(lane.endedAt === undefined ? 0 : lane.endedAt + this.gap(lane), lane.offline?.until ?? 0)
+  }
+
+  // The lane's next paper, and when it may go: the first not under a wait at once, else the first under a
+  // wait whose one try is due (and no paper of that wait is out already)
+  private next(lane: Lane): { item: Queued; at: number; wait?: Wait } | undefined {
+    let best: { item: Queued; at: number; wait?: Wait } | undefined
+    const trying = new Set([...this.lanes.values()].flatMap((l) => (l.inFlight ? [this.waitOver(l, l.inFlight.item)] : [])))
+    for (const item of lane.queue) {
+      const wait = this.waitOver(lane, item)
+      if (!wait) return { item, at: 0 }
+      if (wait.tryAt === undefined || trying.has(wait)) continue
+      if (!best || wait.tryAt < best.at) best = { item, at: wait.tryAt, wait }
+    }
+    return best
   }
 
   private due(by: string | undefined): WorkItem[] {
     const now = Date.now()
     const out: WorkItem[] = []
-    for (const site of this.sites.values()) {
-      if (site.inFlight || !site.queue.length) continue
-      if (now < this.dueAt(site)) continue
-      const item = site.queue.shift()!
-      const id = workItemId(item.paper.paperId, item.tries + 1)
-      site.inFlight = { id, item, at: now, by }
-      const { paperId, url, pdfUrl, host, proxied } = item.paper
+    for (const lane of this.lanes.values()) {
+      if (lane.inFlight || !lane.queue.length || now < this.paceAt(lane)) continue
+      const next = this.next(lane)
+      if (!next || now < next.at) continue
+      // Its one try is out
+      if (next.wait) next.wait.tryAt = undefined
+      lane.queue.splice(lane.queue.indexOf(next.item), 1)
+      const id = workItemId(next.item.paper.paperId, next.item.tries + 1)
+      lane.inFlight = { id, item: next.item, at: now, by }
+      const { paperId, url, pdfUrl, host, proxied } = next.item.paper
       out.push({ id, paperId, url, ...(pdfUrl ? { pdfUrl } : {}), host, proxied })
     }
     return out
   }
 
-  // The site whose fetch in flight is this attempt
-  private flying(id: string): Site | undefined {
-    return [...this.sites.values()].find((site) => site.inFlight?.id === id)
+  // The lane whose fetch in flight is this attempt
+  private flying(id: string): Lane | undefined {
+    return [...this.lanes.values()].find((lane) => lane.inFlight?.id === id)
   }
 
   // Fetches out with an extension that is away go back to the head of their queue, under the same
@@ -480,24 +584,26 @@ export class ExtensionWork implements ExtensionFetcher {
   // proxy never has two requests of the user's out at once. A fetch out STALLED_MS goes back whatever.
   private reissue() {
     const now = Date.now()
-    for (const site of this.sites.values()) {
-      if (!site.inFlight) continue
-      const ask = this.asks.get(site.inFlight.by ?? "")
+    for (const lane of this.lanes.values()) {
+      if (!lane.inFlight) continue
+      const ask = this.asks.get(lane.inFlight.by ?? "")
       const going = ask && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
-      if (going && now - site.inFlight.at < STALLED_MS) continue
-      site.queue.unshift(site.inFlight.item)
-      site.inFlight = undefined
-      sortQueue(site)
-      site.endedAt = now
+      if (going && now - lane.inFlight.at < STALLED_MS) continue
+      lane.queue.unshift(lane.inFlight.item)
+      lane.inFlight = undefined
+      sortQueue(lane)
+      lane.endedAt = now
     }
   }
 
-  // How long until the next site is due
+  // How long until the next lane is due
   private nextDueIn() {
     const now = Date.now()
     let next = Number.POSITIVE_INFINITY
-    for (const site of this.sites.values()) {
-      if (!site.inFlight && site.queue.length) next = Math.min(next, this.dueAt(site) - now)
+    for (const lane of this.lanes.values()) {
+      if (lane.inFlight || !lane.queue.length) continue
+      const paper = this.next(lane)
+      if (paper) next = Math.min(next, Math.max(this.paceAt(lane), paper.at) - now)
     }
     return Math.max(0, next)
   }
@@ -507,7 +613,48 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 }
 
-const ids = (site: Site) => site.queue.map((q) => q.paper.paperId)
+// What one try in flight, or out of it, is
+const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue] : lane.queue)
+
+// A paper's standing under a wait, as PdfState.extension says it
+const underWait = (wait: Wait) => {
+  const own = wait.gate.startsWith("proxy:")
+  return { wait: wait.gate, kind: wait.kind, at: wait.at, waits: wait.kind, ...(own ? {} : { waitsAt: wait.at }) }
+}
+
+// The wait is named by this host: shown there, watching it, or under the same registrable domain
+const names = (wait: Wait, host: string) => wait.at === host || siteOf(wait.at) === siteOf(host) || wait.watch.some((h) => host === h || host.endsWith(`.${h}`))
+
+// The gate an answer met: the page it ended on, else the host it names. The extension names the paper's
+// own site when it may not read the paper's page, which is the predicted gate's. A page a fetch ended on
+// at a login-url proxy's own host is the proxy's, whatever its ?url= says: the proxy sends a reader it
+// lets through on to the publisher's host, and keeps the target in the address of its sign-in.
+function answerGate(item: Queued, page: { url?: string; host?: string }): GateKey {
+  const proxy = item.paper.proxied ? item.paper.proxy : undefined
+  const pageHost = (page.url ? hostOf(page.url) : page.host)?.toLowerCase()
+  if (proxy?.scheme === "login-url" && pageHost === hostOf(proxy.base).toLowerCase()) return `proxy:${pageHost}`
+  if (page.url) return gateOf(page.url, proxy, item.predicted)
+  if (!page.host) return item.gate
+  if (!item.paper.proxied && page.host === item.paper.host) return item.predicted
+  return gateOf(`https://${page.host}/`, proxy, item.predicted)
+}
+
+// Where the user acts on a wait, as shown (ExtensionWait.at): the proxy's host for its own gate; the
+// whole site to allow for a permission (one Allow covers doi.apa.org and psycnet.apa.org); the page's
+// host when the page is the gate's own; else the gate's own name, so an identity provider or a CDN the
+// page was on is never shown
+function atOf(gate: GateKey, kind: ExtensionWait["kind"], pageHost: string | undefined): string {
+  if (gate.startsWith("proxy:")) return gate.slice("proxy:".length)
+  const host = pageHost?.toLowerCase()
+  if (host && kind === "permission") return siteOf(host)
+  if (host && gateOf(`https://${host}/`) === gate) return host.replace(/^www\./, "")
+  return gate.startsWith("site:") ? gate.slice("site:".length) : (watchOf(gate, gate)[0] ?? gate.slice("pub:".length))
+}
+
+// The papers the user asked for first, each group in the order it came
+const sortQueue = (lane: Lane) => {
+  lane.queue = [...lane.queue.filter((q) => q.askedFor), ...lane.queue.filter((q) => !q.askedFor)]
+}
 
 // A work item's id, and back: the paper and its attempt (WorkItem.id). An id of another shape (from an
 // owlit that handed out random ids) names no attempt, so its answer is owlit's no longer.
@@ -517,42 +664,4 @@ export function parseWorkItemId(id: string): { paperId: string; attempt: number 
   const attempt = Number(id.slice(at + 1))
   if (at <= 0 || !Number.isInteger(attempt) || attempt < 1) return undefined
   return { paperId: id.slice(0, at), attempt }
-}
-
-// The host a paused site's wait names: the site to allow, or the site itself
-const waitHost = (site: Site) => site.paused?.host ?? site.key
-
-// What waits at a site, the paper out for a try included
-const paused = (site: Site) => (site.inFlight ? [site.inFlight.item, ...site.queue] : site.queue)
-
-// The papers a paused site's wait is about. A wait that is the site's own (a publisher's, or the library
-// proxy's sign-in) is in the way of every paper there; one at a publisher behind the proxy only of those
-// that met it there, the rest being only behind it in the proxy's queue.
-const under = (site: Site) => (!site.paused?.host || !site.proxied ? paused(site) : paused(site).filter((q) => site.paused!.met.has(q.paper.paperId)))
-const isUnder = (site: Site, id: string) => under(site).some((q) => q.paper.paperId === id)
-
-// The wait is the library proxy's own (its sign-in), not one met at a publisher behind it
-const atProxy = (site: Site) => site.proxied && !site.paused?.host
-
-const hostOf = (url: string) => {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return undefined
-  }
-}
-
-// Where the user acts on a wait, when it isn't the site's own key: a permission names the whole
-// publisher's site (one Allow covers doi.apa.org and psycnet.apa.org); through the proxy a check, a block
-// or a sign-in met at a publisher names that page's host. The proxy's own sign-in page is the site's.
-function pauseHost(site: Site, kind: ExtensionWait["kind"], pageHost: string | undefined): string | undefined {
-  if (!pageHost) return undefined
-  if (kind === "permission") return siteOf(pageHost) !== site.key ? siteOf(pageHost) : undefined
-  if (!site.proxied || pageHost === site.key || siteOf(pageHost) === siteOf(site.key)) return undefined
-  return pageHost.replace(/^www\./, "")
-}
-
-// The papers the user asked for first, each group in the order it came
-const sortQueue = (site: Site) => {
-  site.queue = [...site.queue.filter((q) => q.askedFor), ...site.queue.filter((q) => !q.askedFor)]
 }

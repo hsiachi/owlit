@@ -2,6 +2,8 @@ import { t } from "@lingui/core/macro"
 import {
   DEFAULT_NOTE_LANGUAGE,
   RpcErrorCode,
+  type GateKey,
+  type ProxySettings,
   type DigestSource,
   type ThreadPaper,
   type FoundPaper,
@@ -36,7 +38,8 @@ import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
-import type { KnownPause } from "../extension/work.ts"
+import type { KnownWait } from "../extension/work.ts"
+import { gateOf, gateOfTry } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -127,17 +130,26 @@ export interface ExtensionPaper extends ExtensionRoute {
   paperId: string
   // The extension's tries its record holds, which numbers the next one (ExtensionWork's work item ids)
   tries?: number
+  // The gate its route predicts, and the one its newest extension try met (keys.ts); worked out from
+  // the route when absent
+  predicted?: GateKey
+  gate?: GateKey
+  // The library's proxy, when the paper goes through it
+  proxy?: ProxySettings
 }
 
 export interface ExtensionFetcher {
   // An extension is asking for work: papers the plain routes miss go to it; without one they have no
   // PDF until it connects (Library.handToExtension)
   connected(): boolean
-  // askedFor: the user waits on this paper (Look again, Get them all). paused: its record says its site
-  // waits for the user, which the queue takes over without a try first
-  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean, paused?: KnownPause): void
-  // Where the paper stands with the extension, while it has it
+  // askedFor: the user waits on this paper (Look again, Get them all)
+  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
+  // The waits the workspace's papers' records say they met, as it opens
+  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined): void
+  // Where the paper stands with the extension, while it has it or a wait holds it from its record
   holding(library: Library, id: string): PdfState["extension"] | undefined
+  // The paper is in one of the extension's queues (not only held from its record)
+  inQueue(library: Library, id: string): boolean
   // The paper no longer wants fetching: it has its PDF, or it left the library
   drop(library: Library, id: string): void
 }
@@ -711,7 +723,10 @@ export class Library {
   // never are. Their records stay as they were; one being fetched now still has its answer noted.
   async stopFetchPdfs(ids: string[]) {
     for (const id of ids) {
-      if (this.services.extension?.holding(this, id)) this.services.extension.drop(this, id)
+      const held = this.services.extension?.holding(this, id)
+      // Its record would say it waits for the user at a wait that is going: the user stopped it instead
+      if (held?.wait) await this.acquisitions.noteTried(id, { by: "person", ended: "stopped", at: Date.now() })
+      if (held) this.services.extension!.drop(this, id)
       else this.batchStopped.add(id)
     }
     await this.announce(ids)
@@ -1912,13 +1927,17 @@ export class Library {
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
   // set); false when no extension is asking for work. paused: what its record says its site waits for.
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, paused?: KnownPause) {
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal) {
     const extension = this.services.extension
     if (!extension?.connected()) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
-    const route = extensionRoute(doi, (await this.services.settings()).proxy, registered)
-    const tries = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension").length ?? 0
-    extension.fetch(this, { paperId: id, ...route, tries }, priority === "waiting", paused)
+    const libraryProxy = (await this.services.settings()).proxy
+    const route = extensionRoute(doi, libraryProxy, registered)
+    const proxy = route.proxied ? libraryProxy : undefined
+    const predicted = gateOf(route.url, proxy)
+    const own = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension") ?? []
+    const met = own.at(-1) && gateOfTry(own.at(-1)!, proxy, predicted)
+    extension.fetch(this, { paperId: id, ...route, tries: own.length, predicted, ...(met ? { gate: met } : {}), ...(proxy ? { proxy } : {}) }, priority === "waiting")
     return true
   }
 
@@ -1927,26 +1946,50 @@ export class Library {
   // this a restart would strand the papers waiting at a site for the user's sign-in, and papers whose
   // plain routes missed while no extension was connected would wait for their next back-off look; with
   // it the Library fills in by itself, at the queue's pace. A paper whose newest try met a sign-in, a
-  // check or a missing permission brings that pause with it, so the site's line is up at once and the
-  // extension doesn't try the site again just to learn what the record says.
+  // check or a missing permission falls under the wait restoreWaits put up for it, by its try's gate.
   async handToExtension() {
     const extension = this.services.extension
     if (!extension?.connected()) return
-    const waiting: { id: string; doi: string; at: number; paused?: KnownPause }[] = []
+    const waiting: { id: string; doi: string; at: number }[] = []
     for (const id of await this.ids()) {
-      if (extension.holding(this, id) || (await hasPdfFile(this.root, id))) continue
+      // Held from its record alone (restoreWaits) isn't in a queue yet
+      if (extension.inQueue(this, id) || (await hasPdfFile(this.root, id))) continue
       const acquisition = await this.acquisitions.read(id)
       const reason = acquisition && forExtension(acquisition)
       const doi = reason && (await readRecord(this.root, id))?.ids.doi
       if (!doi) continue
-      const kind = waitsForUser(reason) ? waitedFor(reason) : undefined
-      waiting.push({ id, doi, at: reason.at, ...(kind ? { paused: { kind } } : {}) })
+      waiting.push({ id, doi, at: reason.at })
     }
     waiting.sort((a, b) => a.at - b.at)
-    // One at a time, so each site's queue keeps this order
-    for (const { id, doi, paused } of waiting) {
-      if (!(await this.toExtension(id, doi, "background", undefined, paused))) return
+    // One at a time, so each lane's queue keeps this order
+    for (const { id, doi } of waiting) {
+      if (!(await this.toExtension(id, doi, "background"))) return
     }
+  }
+
+  // The waits the papers' records say they met, put up as the workspace opens, before any extension
+  // connects: a paper whose newest try stopped where only the user gets through, at the gate it met
+  async restoreWaits() {
+    const extension = this.services.extension
+    if (!extension) return
+    const proxy = (await this.services.settings()).proxy
+    const known: KnownWait[] = []
+    for (const id of await this.ids()) {
+      if (await hasPdfFile(this.root, id)) continue
+      const acquisition = await this.acquisitions.read(id)
+      const reason = acquisition && forExtension(acquisition)
+      const kind = reason && waitsForUser(reason) ? waitedFor(reason) : undefined
+      if (!reason || !kind) continue
+      const doi = (await readRecord(this.root, id))?.ids.doi
+      if (!doi) continue
+      const own = acquisition!.tried.filter((t) => t.by === "extension")
+      // Through the proxy when one is set: the try's host alone doesn't say, and its pages read back
+      // the same either way
+      const gate = gateOfTry(reason, proxy, gateOf(`https://doi.org/${doi}`))
+      if (!gate) continue
+      known.push({ paperId: id, kind, gate, url: reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length })
+    }
+    extension.restore(this, known, proxy)
   }
 
   // A try the extension made, noted without telling the window: its queue says when the paper's

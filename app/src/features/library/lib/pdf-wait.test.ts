@@ -27,25 +27,25 @@ describe("pdfWait", () => {
   it("reads a paper the extension waits with as still finding, under its site's wait", () => {
     const signIn = tryOf("sign-in", "extension")
     // In the queue at a site that waits for the user
-    expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-copy")], reason: tryOf("no-copy"), extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" } } })).toBe("for-sign-in")
-    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tandfonline.com", waits: "check" } } })).toBe("for-check")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-copy")], reason: tryOf("no-copy"), extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" } } })).toBe("for-sign-in")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tandfonline.com", waits: "check" } } })).toBe("for-check")
     const blocked = tryOf("blocked", "extension")
-    expect(pdfWait({ pdfState: { state: "finding", tried: [blocked], reason: blocked, extension: { host: "bmj.com", waits: "blocked" } } })).toBe("blocked")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [blocked], reason: blocked, extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "bmj.com", waits: "blocked" } } })).toBe("blocked")
     expect(pdfWord("blocked")).toBe("Blocked")
     // Fetched again once the user got through: finding, whatever its last try met
-    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { host: "tlink.lib.tsinghua.edu.cn" } } })).toBe("finding")
+    expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn, extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn" } } })).toBe("finding")
     // After a restart, before the queue has it again, its last try says what it waits for
     expect(pdfWait({ pdfState: { state: "finding", tried: [signIn], reason: signIn } })).toBe("for-sign-in")
     expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("no-permission", "extension")], reason: tryOf("no-permission", "extension") } })).toBe("for-permission")
     expect(pdfWord("for-sign-in")).toBe("Needs sign-in")
     // In line at the extension, not held: Waiting, which owlit's own looking is not
-    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com" } } })).toBe("Waiting")
-    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com", fetching: true } } })).toBe("Finding")
+    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com" } } })).toBe("Waiting")
+    expect(pdfColumnWord({ pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com", fetching: true } } })).toBe("Finding")
     expect(pdfColumnWord({ pdfState: { state: "finding", tried: [] } })).toBe("Finding")
   })
 
   it("waits on the user at a site only once they asked for one of its papers", () => {
-    const wait = { kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true }
+    const wait = { id: "proxy:tlink.lib.tsinghua.edu.cn" as const, at: "tlink.lib.tsinghua.edu.cn", watch: [], kind: "sign-in" as const, host: "tlink.lib.tsinghua.edu.cn", papers: 2, url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true }
     expect(waitsOnYou({ ...wait, askedFor: false })).toBe(false)
     expect(waitsOnYou({ ...wait, askedFor: true })).toBe(true)
   })
@@ -61,7 +61,7 @@ describe("pdfWait", () => {
     expect(noPdfTitle(fromRecord, "tlink.lib.tsinghua.edu.cn")).toBe("Needs you to sign in to your library")
     expect(noPdfTitle(fromRecord, undefined)).toBe("Needs you to sign in at tlink.lib.tsinghua.edu.cn")
     // A publisher's sign-in met through the proxy is that publisher's
-    const at = { host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" as const, waitsAt: "thieme-connect.de", proxied: true }
+    const at = { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in" as const, waitsAt: "thieme-connect.de", proxied: true }
     expect(noPdfTitle({ pdfState: { state: "finding", tried: [], extension: at } }, "tlink.lib.tsinghua.edu.cn")).toBe("Needs you to sign in at thieme-connect.de")
   })
 })

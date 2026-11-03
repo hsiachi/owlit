@@ -5,8 +5,8 @@ import { batchView, outsideRows, siteRows } from "./pdf-batch"
 const AT = 1_000
 const paper = (id: string, extra: Partial<Paper> = {}): Paper => ({ id, title: id, authors: [], ids: { doi: `10.1/${id}` }, tags: [], starred: false, status: "unread", addedAt: 0, ...extra }) as Paper
 const tryOf = (ended: PdfTry["ended"], host: string, at = AT + 1, by: PdfTry["by"] = "extension"): PdfTry => ({ by, ended, at, host })
-const held = (id: string, kind: ExtensionWait["kind"], host: string, proxied = false) => paper(id, { pdfState: { state: "finding", tried: [], extension: { host, waits: kind, ...(proxied ? { proxied } : {}) } } })
-const inLine = (id: string, fetching = false) => paper(id, { pdfState: { state: "finding", tried: [], extension: { host: "sagepub.com", ...(fetching ? { fetching } : {}) } } })
+const held = (id: string, kind: ExtensionWait["kind"], host: string, proxied = false) => paper(id, { pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host, waits: kind, ...(proxied ? { proxied } : {}) } } })
+const inLine = (id: string, fetching = false) => paper(id, { pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com", ...(fetching ? { fetching } : {}) } } })
 const ended = (id: string, ended: PdfTry["ended"], host: string, at?: number): Paper => {
   const t = tryOf(ended, host, at)
   return paper(id, { pdfState: { state: "no-pdf", tried: [t], reason: t } satisfies PdfState })
@@ -75,8 +75,8 @@ describe("a batch of papers sent to the extension", () => {
 
   it("counts a wait met at a publisher through the proxy for its own paper, the rest only behind it", () => {
     const tlink = "tlink.lib.tsinghua.edu.cn"
-    const thieme = paper("thieme", { pdfState: { state: "finding", tried: [], extension: { host: tlink, waits: "permission", waitsAt: "thieme-connect.de", proxied: true } } })
-    const behind = Array.from({ length: 19 }, (_, i) => paper(`held${i}`, { pdfState: { state: "finding", tried: [], extension: { host: tlink, behind: { kind: "permission", host: "thieme-connect.de" }, proxied: true } } }))
+    const thieme = paper("thieme", { pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: tlink, waits: "permission", waitsAt: "thieme-connect.de", proxied: true } } })
+    const behind = Array.from({ length: 19 }, (_, i) => paper(`held${i}`, { pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: tlink, behind: { kind: "permission", host: "thieme-connect.de" }, proxied: true } } }))
     const papers = [thieme, ...behind]
     const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
     expect(view.rows.map((r) => [r.kind, r.host, r.papers, r.proxied])).toEqual([
@@ -92,14 +92,14 @@ describe("a batch of papers sent to the extension", () => {
   })
 
   it("keeps the sites that wait for papers outside the batch, under the batch's rows", () => {
-    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ kind, host, papers, url: `https://${host}/`, askedFor: true, proxied: false })
+    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ id: `site:${host}`, at: host, watch: [], kind, host, papers, url: `https://${host}/`, askedFor: true, proxied: false })
     const papers = [held("a", "check", "oup.com"), inLine("b")]
     const view = batchView({ ids: papers.map((p) => p.id), at: AT }, byId(papers))
     expect(outsideRows([wait("check", "oup.com", 3), wait("permission", "tsinghua.edu.cn", 13)], view.rows).map((r) => [r.kind, r.host, r.papers])).toEqual([["permission", "tsinghua.edu.cn", 13]])
   })
 
   it("shows the sites that wait without a batch, the most papers first", () => {
-    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ kind, host, papers, url: `https://${host}/`, askedFor: false, proxied: false })
+    const wait = (kind: ExtensionWait["kind"], host: string, papers: number): ExtensionWait => ({ id: `site:${host}`, at: host, watch: [], kind, host, papers, url: `https://${host}/`, askedFor: false, proxied: false })
     expect(siteRows([wait("check", "oup.com", 1), wait("sign-in", "sagepub.com", 4)]).map((r) => [r.kind, r.host, r.papers])).toEqual([
       ["sign-in", "sagepub.com", 4],
       ["check", "oup.com", 1],

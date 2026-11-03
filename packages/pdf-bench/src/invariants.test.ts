@@ -5,7 +5,7 @@ import { invariantErrors } from "./invariants.ts"
 // The invariants catch what they are for, on screens made by hand
 
 const browser = { tabs: [], going: [], allowAsked: [] }
-const science = { kind: "check", host: "science.org", papers: 1, what: "", askedFor: true }
+const science = { id: "pub:science", kind: "check", host: "science.org", papers: 1, what: "", askedFor: true }
 
 describe("the bench's invariants", () => {
   it("hold on a screen that agrees with itself", () => {

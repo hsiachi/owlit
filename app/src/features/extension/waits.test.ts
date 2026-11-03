@@ -2,8 +2,8 @@ import type { ExtensionWait } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
 import { siteWaitItem, siteWaitItems, stillWaits, stillWords, waitOf, waitWords } from "./waits"
 
-const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor, proxied: true })
-const publisher = (papers = 1): ExtensionWait => ({ kind: "sign-in", host: "sagepub.com", papers, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false })
+const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ id: "proxy:tlink.lib.tsinghua.edu.cn", at: "tlink.lib.tsinghua.edu.cn", watch: [], kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor, proxied: true })
+const publisher = (papers = 1): ExtensionWait => ({ id: "pub:sage", at: "sagepub.com", watch: [], kind: "sign-in", host: "sagepub.com", papers, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false })
 
 describe("sites the extension waits at", () => {
   it("wait on the user only once they asked for one of the papers there", () => {
@@ -35,10 +35,10 @@ describe("sites the extension waits at", () => {
   })
 
   it("are found from a paper by the host its wait names", () => {
-    const apa: ExtensionWait = { kind: "permission", host: "apa.org", papers: 1, url: "https://doi.apa.org/x", askedFor: true, proxied: true }
-    const held = { pdfState: { state: "finding" as const, tried: [], extension: { host: "tlink.lib.tsinghua.edu.cn", waits: "permission" as const, waitsAt: "apa.org", proxied: true } } }
+    const apa: ExtensionWait = { id: "pub:apa", at: "apa.org", watch: [], kind: "permission", host: "apa.org", papers: 1, url: "https://doi.apa.org/x", askedFor: true, proxied: true }
+    const held = { pdfState: { state: "finding" as const, tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", waits: "permission" as const, waitsAt: "apa.org", proxied: true } } }
     expect(waitOf(held, [wait("sign-in", true), apa])).toBe(apa)
-    expect(waitOf({ pdfState: { state: "finding", tried: [], extension: { host: "tlink.lib.tsinghua.edu.cn" } } }, [wait("sign-in", true)])).toBeUndefined()
+    expect(waitOf({ pdfState: { state: "finding", tried: [], extension: { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn" } } }, [wait("sign-in", true)])).toBeUndefined()
   })
 
   it("say a check is still there when it came back after I've verified it", () => {

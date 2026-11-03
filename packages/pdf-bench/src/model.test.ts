@@ -44,16 +44,13 @@ const events = fc.oneof(
   fc.constant(event("pass the check at science.org", (b) => b.passCheck("www.science.org"))),
   fc.constant(event("sign in at tlink", (b) => b.signIn(TLINK))),
   fc.constant(event("another network for tandfonline", (b) => b.changeNetwork("www.tandfonline.com"))),
-  // Left out while they break an invariant on the code as it is (scenarios.test.ts has each as it.fails):
-  // Stop leaves papers saying they need the user with no wait to act on; a workspace switch and back
-  // strands a paper that met a check
-  // fc.constant(event("Stop", (b) => b.stop())),
+  fc.constant(event("Stop", (b) => b.stop())),
   fc.constant(event("Dismiss", (b) => b.dismiss())),
   paper.map((i) => event(`drop the PDF of ${i}`, (b, ids, s) => (s.papers[ids[i]]?.hasPdf ? b.step("already has it") : b.dropPdf(ids[i], PAPERS[i].doi)))),
   fc.constant(event("restart owlit", (b) => b.restartCore())),
   fc.constant(event("reload the window", (b) => b.reloadRenderer())),
   fc.constant(event("sleep 20 minutes", (b) => b.sleep(20 * 60_000))),
-  // fc.constant(event("open another workspace and come back", async (b) => (await b.openWorkspace("other"), b.openWorkspace("main")))),
+  fc.constant(event("open another workspace and come back", async (b) => (await b.openWorkspace("other"), b.openWorkspace("main")))),
 )
 
 it("keeps the screen consistent through any sequence of what the user and the machine do", { timeout: 600_000 }, async () => {

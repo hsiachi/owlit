@@ -1,6 +1,7 @@
 import type { ActorId } from "./changes.ts"
 import type { PaperView } from "./activity.ts"
 import type { ExtensionWait } from "./extension.ts"
+import type { GateKey, LaneKey, WaitId } from "./pdf-keys.ts"
 
 // Library domain types. A paper is one record: facts about it plus the user's judgement
 // (star, status, tags). Highlights and notes are separate records keyed by paper.
@@ -43,7 +44,9 @@ export interface PaperPdf {
 // unreadable: the browser extension couldn't open the publisher's page (see WorkEnding). skipped: the
 // person looked at the publisher's page in their browser, walked through the manual downloads, and
 // found no PDF there (by "person").
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission" | "unreadable" | "skipped"
+// stopped: the person stopped getting it (Stop on Get PDFs) while the extension waited for them at its
+// site, so nothing waits for them there any more.
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission" | "unreadable" | "skipped" | "stopped"
 
 // One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)
 // or the browser extension.
@@ -56,6 +59,11 @@ export interface PdfTry {
   host?: string
   route?: string
   title?: string
+  // The extension's try: the gate it met (pdf-keys.ts), and the page it ended on without its query or
+  // fragment, since those hold challenge tokens and proxy session ids, and the record sits in a folder
+  // that may be synced
+  gate?: GateKey
+  url?: string
 }
 
 export interface PdfState {
@@ -76,7 +84,24 @@ export interface PdfState {
   // the paper didn't meet its site's wait but is in line behind the paper that did (through the proxy,
   // every paper shares one line), so it goes on once that wait is over. Kept in memory only, with the
   // extension's queue.
-  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; waitsAt?: string; behind?: { kind: ExtensionWait["kind"]; host: string }; proxied?: boolean }
+  // lane, gate: its keys (pdf-keys.ts); attempt: the extension's try it is on or will make next; wait: the
+  // wait it is under, with that wait's kind and at copied in for readers without the waits list.
+  // host, waits, waitsAt, proxied: the same as the window reads them (host the queue's site, waitsAt the
+  // wait's host unless it is the proxy's own), until it reads the keys.
+  extension?: {
+    lane: LaneKey
+    gate: GateKey
+    attempt: number
+    fetching?: boolean
+    wait?: WaitId
+    kind?: ExtensionWait["kind"]
+    at?: string
+    host: string
+    waits?: ExtensionWait["kind"]
+    waitsAt?: string
+    behind?: { kind: ExtensionWait["kind"]; host: string }
+    proxied?: boolean
+  }
 }
 
 export interface Paper {

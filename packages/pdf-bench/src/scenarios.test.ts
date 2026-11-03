@@ -120,9 +120,7 @@ describe("a check at a publisher", () => {
   // elsevier.com, the DOI's registered site
   const ELS = { doi: "10.1016/j.chb.2024.108000", title: "Computers In Human Behavior Paper About Feeds" }
 
-  // owlit names the wait elsevier.com (the queue's site) while its page is at www.sciencedirect.com, so the
-  // extension never matches the passed check's tab to the wait and owlit doesn't go on by itself
-  it.fails("at ScienceDirect, with no proxy: owlit goes on by itself once the user passes it", async () => {
+  it("at ScienceDirect, with no proxy: owlit goes on by itself once the user passes it", async () => {
     const web = new FakeWeb()
     elsevier(web, ELS.doi, ELS.title, { check: true })
     const b = await start(web)
@@ -139,7 +137,7 @@ describe("a check at a publisher", () => {
     const b = await start(web)
     const id = b.addPaper(ELS.doi, ELS.title)
     const { waits } = await b.findPdf(id)
-    expect(waits).toMatchObject([{ kind: "check", host: "elsevier.com" }])
+    expect(waits).toMatchObject([{ id: "pub:elsevier", kind: "check", host: "sciencedirect.com" }])
     await b.clickWait(waits[0].kind, waits[0].host)
     await b.passCheck("www.sciencedirect.com")
     expect((await b.pressDone(waits[0].host)).papers[id].hasPdf).toBe(true)
@@ -153,12 +151,9 @@ describe("a check at a publisher", () => {
     const b = await start(web, { proxy: { preset: "tsinghua" } })
     const ids = papers.map((p) => b.addPaper(p.doi, p.title))
     let screen = await b.getPdfs()
-    // The paper that met the check is under it; the other is in line behind it at the proxy
-    expect(rowsOf(screen)).toEqual([
-      ["check", 1, "science.org"],
-      ["waiting", 1],
-    ])
-    expect(screen.block!.rows[0].words).toBe("Needs you to verify you're human on science.org")
+    // Both are Science's, so both are under its check, though only one met it
+    expect(rowsOf(screen)).toEqual([["check", 2, "science.org"]])
+    expect(screen.block!.rows[0].words).toBe("Need you to verify you're human on science.org")
     await b.clickWait("check", "science.org")
     screen = await b.passCheck("www.science.org")
     expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true])
@@ -266,18 +261,18 @@ describe("a batch of papers (Get PDFs)", () => {
     expect(screen.block).toBeNull()
   })
 
-  // Stop takes the papers out of the queue but leaves their records saying they met the check: their
-  // cards say "Needs you to verify you're human on science.org" with no wait left to verify at
-  it.fails("stopped while a check waits: the papers leave the queue, and the block goes", async () => {
+  it("stopped while a check waits: the papers leave the queue, and the block goes", async () => {
     const web = new FakeWeb()
     const papers = [science(12), science(13)]
     for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { check: true })
     const b = await start(web)
-    for (const p of papers) b.addPaper(p.doi, p.title)
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
     expect(rowsOf(await b.getPdfs())).toEqual([["check", 2, "science.org"]])
     const screen = await b.stop()
     expect(screen.block).toBeNull()
     expect(screen.waits).toEqual([])
+    // Their cards no longer ask the user to verify anything
+    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, state: "not-found" })
   })
 
   it("survives the window reloading: the sites waiting stay in view, as rows without the batch", async () => {
@@ -315,21 +310,14 @@ describe("owlit and the machine", () => {
     expect(screen.papers[id].hasPdf).toBe(true)
   })
 
-  // A background look in the reopened workspace hands a paper to the extension's queue before the
-  // extension asks again, so the queue never counts the extension as arriving there and never hands
-  // over the paper that met the check: it says "Needs you to verify you're human on science.org" for
-  // good, with no row to act on
-  it.fails("a workspace switch mid-batch: back in it, every paper of the batch is got once the user acts", async () => {
+  it("a workspace switch mid-batch: back in it, every paper of the batch is got once the user acts", async () => {
     const web = tlink(new FakeWeb())
     web.signIn(TLINK)
     const papers = [science(17), science(18), science(19)]
     for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { check: true, subscription: true })
     const b = await start(web, { proxy: { preset: "tsinghua" } })
     const ids = papers.map((p) => b.addPaper(p.doi, p.title))
-    expect(rowsOf(await b.getPdfs())).toEqual([
-      ["check", 1, "science.org"],
-      ["waiting", 2],
-    ])
+    expect(rowsOf(await b.getPdfs())).toEqual([["check", 3, "science.org"]])
     expect((await b.openWorkspace("other")).waits).toEqual([])
     let screen = await b.openWorkspace("main")
     expect(screen.waits).toMatchObject([{ kind: "check", host: "science.org" }])

@@ -1,4 +1,4 @@
-import type { GateKey, LaneKey, ProxySettings } from "@owlit/protocol"
+import type { GateKey, LaneKey, PdfTry, ProxySettings } from "@owlit/protocol"
 import { publisherOf, PUBLISHERS, REDIRECTORS } from "../library/publisher-table.ts"
 import { hostOf } from "../net/http.ts"
 import { realHost, rewriteHost, siteOf, type ExtensionRoute } from "./route.ts"
@@ -143,4 +143,21 @@ function safeDecode(text: string) {
   } catch {
     return text
   }
+}
+
+// The gate a paper's extension try met: the one it noted, or, for a try noted before tries kept their
+// gate, the one of the host it ended on
+export function gateOfTry(tried: PdfTry, proxy: ProxySettings | undefined, predicted?: GateKey): GateKey | undefined {
+  if (tried.gate) return tried.gate
+  return tried.host ? gateOf(`https://${tried.host}/`, proxy, predicted) : undefined
+}
+
+// A page's address as a try keeps it: without its query and fragment, which hold challenge tokens and
+// proxy session ids, in a record that may sit in a synced folder
+export function withoutQuery(url: string | undefined): string | undefined {
+  const parsed = url ? parse(url) : undefined
+  if (!parsed) return undefined
+  parsed.search = ""
+  parsed.hash = ""
+  return parsed.toString()
 }

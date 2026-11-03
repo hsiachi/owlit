@@ -1,8 +1,12 @@
+import { PROXY_PRESETS } from "@owlit/protocol"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
 import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
 
 const library = {} as Library
+const TLINK = "tlink.lib.tsinghua.edu.cn"
+// A paper through Tsinghua's tlink, to the DOI's link
+const tlinkPaper = (paperId: string, doi: string): ExtensionPaper => ({ paperId, url: `https://${TLINK}/go?url=https://doi.org/${doi}`, host: TLINK, proxied: true, signIn: `https://${TLINK}/`, proxy: PROXY_PRESETS.tsinghua.proxy })
 const paper = (paperId: string, host: string, extra: Partial<ExtensionPaper> = {}): ExtensionPaper => ({ paperId, url: `https://${host}/doi/${paperId}`, host, proxied: false, ...extra })
 
 function setup() {
@@ -87,10 +91,10 @@ describe("the extension's queue", () => {
     const first = await take()
     const t1 = first.find((w) => w.paperId === "t1")!
     work.settle(t1.id, "check", { url: "https://www.tandfonline.com/doi/full/t1" })
-    expect(work.waits()).toEqual([{ kind: "check", host: "tandfonline.com", papers: 3, url: "https://www.tandfonline.com/doi/full/t1", askedFor: false, proxied: false }])
+    expect(work.waits()).toMatchObject([{ kind: "check", host: "tandfonline.com", papers: 3, url: "https://www.tandfonline.com/doi/full/t1", askedFor: false, proxied: false }])
     // Every paper waiting there is told it waits for the check, the one that met it first in line
     expect(heard.at(-1)).toEqual(["t1", "t2", "t3"])
-    expect(work.holding(library, "t2")).toEqual({ host: "tandfonline.com", waits: "check" })
+    expect(work.holding(library, "t2")).toMatchObject({ host: "tandfonline.com", waits: "check" })
     work.settle(first.find((w) => w.paperId === "w1")!.id, "no-access")
     expect(work.holding(library, "w1")).toBeUndefined()
     vi.advanceTimersByTime(GAP_MS)
@@ -115,8 +119,8 @@ describe("the extension's queue", () => {
     work.fetch(library, paper("b1", "bmj.com"), false)
     const [b1] = await take()
     work.settle(b1.id, "blocked", { url: "https://www.bmj.com/content/b1" })
-    expect(work.waits()).toEqual([{ kind: "blocked", host: "bmj.com", papers: 1, url: "https://www.bmj.com/content/b1", askedFor: false, proxied: false }])
-    expect(work.holding(library, "b1")).toEqual({ host: "bmj.com", waits: "blocked" })
+    expect(work.waits()).toMatchObject([{ kind: "blocked", host: "bmj.com", papers: 1, url: "https://www.bmj.com/content/b1", askedFor: false, proxied: false }])
+    expect(work.holding(library, "b1")).toMatchObject({ host: "bmj.com", waits: "blocked" })
   })
 
   it("turns a check into a block the user's browser met there, without another try", async () => {
@@ -125,7 +129,7 @@ describe("the extension's queue", () => {
     const first = await take()
     work.settle(first[0].id, "check", { url: "https://qualitysafety.bmj.com/content/q1" })
     expect(work.blocked("qualitysafety.bmj.com", "https://qualitysafety.bmj.com/content/q1")).toBe(true)
-    expect(work.waits()).toEqual([{ kind: "blocked", host: "bmj.com", papers: 2, url: "https://qualitysafety.bmj.com/content/q1", askedFor: false, proxied: false }])
+    expect(work.waits()).toMatchObject([{ id: "site:bmj.com", kind: "blocked", at: "qualitysafety.bmj.com", papers: 2, url: "https://qualitysafety.bmj.com/content/q1", askedFor: false, proxied: false }])
     expect(heard.at(-1)).toEqual(["q1", "q2"])
     // Nowhere paused there, or paused for something a block doesn't stand in for: nothing changes
     expect(work.blocked("wiley.com", "https://onlinelibrary.wiley.com/doi/1")).toBe(false)
@@ -139,7 +143,7 @@ describe("the extension's queue", () => {
     const [first] = await take()
     work.settle(first.id, "offline")
     // Still queued, first in line
-    expect(work.holding(library, "a1")).toEqual({ host: "sagepub.com" })
+    expect(work.holding(library, "a1")).toMatchObject({ host: "sagepub.com" })
     vi.advanceTimersByTime(2 * 60_000 - 1)
     expect(await take()).toEqual([])
     vi.advanceTimersByTime(1)
@@ -191,56 +195,61 @@ describe("the extension's queue", () => {
 
   it("waits to be allowed on the site a proxied fetch was sent on to, and goes on once it is", async () => {
     const { work, never } = setup()
-    const tlink = (id: string) => paper(id, "tlink.lib.tsinghua.edu.cn", { url: `https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/${id}`, proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/" })
     const take = () => work.take(library, 0, never, "chrome")
-    work.fetch(library, tlink("10.1037/a"), false)
-    work.fetch(library, tlink("10.1037/b"), false)
+    work.fetch(library, tlinkPaper("a", "10.1037/a"), false)
+    work.fetch(library, tlinkPaper("b", "10.1037/b"), false)
     const [a] = await take()
     // The extension may not read where the proxy sent it: the whole publisher's site is the one to allow
     work.settle(a.id, "no-permission", { host: "doi.apa.org" })
-    expect(work.waits()).toEqual([{ kind: "permission", host: "apa.org", papers: 1, url: a.url, askedFor: false, proxied: false }])
-    expect(work.waitsForExtension()).toEqual([{ kind: "permission", host: "apa.org", papers: 1, proxied: false }])
-    // The paper that met it is under it, at the site the wait names; the other is only behind it in the queue
-    expect(work.holding(library, "10.1037/a")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", waits: "permission", waitsAt: "apa.org", proxied: true })
-    expect(work.holding(library, "10.1037/b")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "permission", host: "apa.org" }, proxied: true })
+    expect(work.waits()).toMatchObject([{ id: "pub:apa", kind: "permission", at: "apa.org", host: "apa.org", papers: 2, url: a.url, askedFor: false, proxied: false }])
+    expect(work.waitsForExtension()).toMatchObject([{ id: "pub:apa", kind: "permission", host: "apa.org", papers: 2, proxied: false }])
+    // Both are APA's, so both are under it, though only one met it; the proxy's lane holds them both
+    for (const id of ["a", "b"]) expect(work.holding(library, id)).toMatchObject({ lane: `proxy:${TLINK}`, gate: "pub:apa", wait: "pub:apa", kind: "permission", at: "apa.org", host: TLINK, waits: "permission", waitsAt: "apa.org", proxied: true })
+    expect(work.holding(library, "b")).not.toHaveProperty("behind")
     // Opened and resumed by the site the wait names, not the proxy's
-    expect(work.open("permission", "tlink.lib.tsinghua.edu.cn")).toBeUndefined()
+    expect(work.open("permission", TLINK)).toBeUndefined()
     expect(work.open("permission", "apa.org")).toBe("chrome")
     expect(work.pausedBy("apa.org")).toBe("chrome")
-    expect(work.resume("tlink.lib.tsinghua.edu.cn")).toBe(false)
+    expect(work.resume(TLINK)).toBe(false)
     expect(work.resume("psycnet.apa.org")).toBe(true)
     expect(work.waits()).toEqual([])
-    expect((await take()).map((w) => w.paperId)).toEqual(["10.1037/a"])
-    // Not allowed before the fetch, at the site's own host: the wait names the site as before
+    expect((await take()).map((w) => w.paperId)).toEqual(["a"])
+    // Not allowed before the fetch, at the site's own host: the wait is the paper's own gate
     work.fetch(library, paper("s1", "sagepub.com"), false)
     const [s1] = (await take()).filter((w) => w.paperId === "s1")
-    work.settle(s1.id, "no-permission", { host: "journals.sagepub.com" })
-    expect(work.waits().find((w) => w.kind === "permission" && w.host === "sagepub.com")).toBeDefined()
+    work.settle(s1.id, "no-permission", { host: "sagepub.com" })
+    expect(work.waits().find((w) => w.kind === "permission")).toMatchObject({ id: "pub:sage", at: "sagepub.com" })
   })
 
-  it("names a check met at a publisher through the proxy by that publisher, and counts only its paper", async () => {
+  it("passes over the papers under a publisher's wait in the proxy's lane, and holds them all for its sign-in", async () => {
     const { work, never } = setup()
-    const tlink = (id: string) => paper(id, "tlink.lib.tsinghua.edu.cn", { url: `https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/${id}`, proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/" })
     const take = () => work.take(library, 0, never, "chrome")
-    for (const id of ["misq", "apa", "sage"]) work.fetch(library, tlink(id), false)
+    work.fetch(library, tlinkPaper("misq", "10.25300/misq/1"), false)
+    work.fetch(library, tlinkPaper("misq2", "10.25300/misq/2"), false)
+    work.fetch(library, tlinkPaper("sage", "10.1177/1"), false)
     const [misq] = await take()
-    work.settle(misq.id, "check", { host: "misq.umn.edu", url: "https://misq.umn.edu/x" })
-    expect(work.waits()).toEqual([{ kind: "check", host: "misq.umn.edu", papers: 1, url: "https://misq.umn.edu/x", askedFor: false, proxied: false }])
-    expect(work.holding(library, "apa")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "check", host: "misq.umn.edu" }, proxied: true })
-    // The library's own sign-in is in the way of every paper there, and opens the library's sign-in page
-    work.resume("misq.umn.edu")
+    work.settle(misq.id, "check", { host: "misq.umn.edu", url: "https://misq.umn.edu/x?__cf_chl_tk=abc" })
+    expect(work.waits()).toMatchObject([{ id: "pub:misq", kind: "check", at: "misq.umn.edu", papers: 2, askedFor: false, proxied: false }])
+    expect(work.waits()[0].watch).toEqual(["misq.umn.edu"])
+    // The next paper of the lane not under a wait goes, after the proxy's gap
+    expect(await take()).toEqual([])
+    vi.advanceTimersByTime(PROXY_GAP_MS)
     const [next] = await take()
-    work.settle(next.id, "sign-in", { host: "tlink.lib.tsinghua.edu.cn", url: "https://tlink.lib.tsinghua.edu.cn/login" })
-    expect(work.waits()).toMatchObject([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 3, url: "https://tlink.lib.tsinghua.edu.cn/", proxied: true }])
-    work.resume("tlink.lib.tsinghua.edu.cn")
-    // The paper that met a publisher's wait leaves: the ones behind it go on
-    const [again] = await take()
-    work.settle(again.id, "check", { host: "www.science.org", url: "https://www.science.org/x" })
-    expect(work.waits()).toMatchObject([{ host: "science.org", papers: 1 }])
-    work.drop(library, again.paperId)
+    expect(next.paperId).toBe("sage")
+    expect(work.holding(library, "misq2")).toMatchObject({ gate: "pub:misq", wait: "pub:misq" })
+    // The library's own sign-in is in the way of every paper through it, and opens its sign-in page;
+    // the school's sign-in page it ended on is the proxy's, never named
+    work.settle(next.id, "sign-in", { host: "id.tsinghua.edu.cn", url: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form" })
+    expect(work.waits()).toMatchObject([{ id: `proxy:${TLINK}`, kind: "sign-in", at: TLINK, papers: 3, url: `https://${TLINK}/`, proxied: true, watch: [TLINK] }])
+    expect(work.holding(library, "misq")).toMatchObject({ wait: `proxy:${TLINK}`, kind: "sign-in", host: TLINK, proxied: true })
+    expect(work.holding(library, "misq")).not.toHaveProperty("waitsAt")
+    // Signed in: the publisher's check still holds its own two
+    work.resume(TLINK)
+    expect(work.waits()).toMatchObject([{ id: "pub:misq", papers: 2 }])
+    work.drop(library, "misq")
+    work.drop(library, "misq2")
     expect(work.waits()).toEqual([])
-    const left = ["misq", "apa", "sage"].filter((id) => id !== again.paperId).map((id) => work.holding(library, id))
-    expect(left).toEqual([{ host: "tlink.lib.tsinghua.edu.cn", proxied: true }, { host: "tlink.lib.tsinghua.edu.cn", proxied: true }])
+    expect(work.holding(library, "sage")).toEqual({ lane: `proxy:${TLINK}`, gate: `proxy:${TLINK}`, attempt: 2, host: TLINK, proxied: true })
   })
 
   it("tries one paper of a paused site once more, then waits for the user", async () => {
@@ -286,20 +295,23 @@ describe("the extension's queue", () => {
     expect(work.holding(library, "t1")).toBeUndefined()
   })
 
-  it("takes a pause a paper's record carries over as the site's own, line up and one try to come", async () => {
+  it("puts up the waits the papers' records say, before any extension connects, with one try to come", async () => {
     const { work, take, waitsChanged } = setup()
     const before = waitsChanged()
-    work.fetch(library, paper("p1", "sagepub.com", { signIn: "https://proxy.example.edu/login" }), false, { kind: "sign-in" })
-    expect(work.waits()).toMatchObject([{ kind: "sign-in", host: "sagepub.com", papers: 1, url: "https://proxy.example.edu/login" }])
+    work.restore(library, [{ paperId: "p1", kind: "sign-in", gate: "pub:sage", url: "https://journals.sagepub.com/action/showLogin", host: "journals.sagepub.com", tries: 1 }], undefined)
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", papers: 1, url: "https://journals.sagepub.com/action/showLogin" }])
     expect(waitsChanged()).toBeGreaterThan(before)
-    expect(work.holding(library, "p1")).toMatchObject({ host: "sagepub.com", waits: "sign-in" })
-    // A second paper of the site joins the line; a site with something going on keeps its own state
-    work.fetch(library, paper("p2", "sagepub.com"), false, { kind: "check" })
+    expect(work.holding(library, "p1")).toMatchObject({ gate: "pub:sage", attempt: 2, wait: "pub:sage", waits: "sign-in", waitsAt: "journals.sagepub.com" })
+    expect(work.inQueue(library, "p1")).toBe(false)
+    // Queued once the extension connects, it is under the wait, with a second paper of its gate
+    work.fetch(library, paper("p1", "sagepub.com"), false)
+    work.fetch(library, paper("p2", "sagepub.com"), false)
+    expect(work.inQueue(library, "p1")).toBe(true)
     expect(work.waits()).toMatchObject([{ kind: "sign-in", papers: 2 }])
-    // Its one try on owlit's own goes at once (the user may have got through since owlit last ran);
-    // met again, the site waits for the user
+    // Its one try on owlit's own goes at once (the user may have got through since owlit last ran),
+    // numbered on from the record; met again, the wait is for the user
     const [p1] = await take()
-    expect(p1.paperId).toBe("p1")
+    expect(p1.id).toBe("p1#2")
     work.settle(p1.id, "sign-in")
     vi.advanceTimersByTime(24 * 60 * PAUSED_RETRY_MS)
     expect(await take()).toEqual([])
@@ -350,12 +362,12 @@ describe("the extension's queue", () => {
 
   it("opens the proxy's sign-in for a sign-in through it", async () => {
     const { work, take } = setup()
-    work.fetch(library, paper("p1", "tlink.lib.tsinghua.edu.cn", { proxied: true, signIn: "https://tlink.lib.tsinghua.edu.cn/go" }), false)
+    work.fetch(library, tlinkPaper("p1", "10.1126/science.1"), false)
     const [p1] = await take()
     work.settle(p1.id, "sign-in", { url: "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form" })
-    expect(work.waits()[0]).toMatchObject({ kind: "sign-in", url: "https://tlink.lib.tsinghua.edu.cn/go", proxied: true })
-    expect(work.holding(library, "p1")).toEqual({ host: "tlink.lib.tsinghua.edu.cn", waits: "sign-in", proxied: true })
-    expect(work.waitsForExtension()).toEqual([{ kind: "sign-in", host: "tlink.lib.tsinghua.edu.cn", papers: 1, proxied: true }])
+    expect(work.waits()[0]).toMatchObject({ kind: "sign-in", url: `https://${TLINK}/`, proxied: true })
+    expect(work.holding(library, "p1")).toMatchObject({ host: TLINK, waits: "sign-in", proxied: true })
+    expect(work.waitsForExtension()).toMatchObject([{ kind: "sign-in", host: TLINK, papers: 1, proxied: true }])
   })
 
   it("numbers each hand-out of a paper by the extension's tries its record holds", async () => {

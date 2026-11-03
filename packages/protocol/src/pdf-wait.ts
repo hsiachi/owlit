@@ -33,6 +33,8 @@ const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-permission": "for-permission",
   unreadable: "manual",
   skipped: "skipped",
+  // Not looked for any more, and no copy found before
+  stopped: "not-found",
 }
 
 const BY_WAIT: Record<ExtensionWait["kind"], PdfWait> = { "sign-in": "for-sign-in", check: "for-check", blocked: "blocked", permission: "for-permission" }

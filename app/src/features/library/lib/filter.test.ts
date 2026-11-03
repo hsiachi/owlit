@@ -67,9 +67,9 @@ describe("papers without a PDF", () => {
   it("names the groups of papers with the extension as their rows do", () => {
     const at = (id: string, extension: NonNullable<PdfState["extension"]>) => paper(id, { pdfState: { state: "finding", tried: [], extension } })
     const papers = [
-      at("queued", { host: "sagepub.com" }),
-      at("check", { host: "oup.com", waits: "check" }),
-      at("behind", { host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "check", host: "misq.umn.edu" }, proxied: true }),
+      at("queued", { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "sagepub.com" }),
+      at("check", { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "oup.com", waits: "check" }),
+      at("behind", { lane: "site:x" as const, gate: "site:x" as const, attempt: 1, host: "tlink.lib.tsinghua.edu.cn", behind: { kind: "check", host: "misq.umn.edu" }, proxied: true }),
       paper("looking", { pdfState: { state: "finding", tried: [] } }),
       paper("manual", noPdf([tryOf("unreadable", "extension")])),
     ]
