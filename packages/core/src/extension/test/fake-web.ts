@@ -75,7 +75,7 @@ export class FakeWeb {
     return this
   }
 
-  pdfOf(doi: string): Uint8Array {
+  pdfOf(doi: string): Uint8Array<ArrayBuffer> {
     const known = this.papers.get(doi.toLowerCase())
     if (!known) throw new Error(`The fake web knows no paper ${doi}`)
     return new Uint8Array(makePdf([[{ x: 72, y: 60, size: 12, text: `https://doi.org/${doi}` }, { x: 72, y: 90, size: 12, text: known.title }, ...paragraph(72, 300, ["Body text of the paper."])]]))

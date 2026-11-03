@@ -639,6 +639,30 @@ importers:
         specifier: 5.0.2
         version: 5.0.2(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
 
+  packages/pdf-bench:
+    devDependencies:
+      '@lingui/vite-plugin':
+        specifier: 6.9.1
+        version: 6.9.1(@babel/core@7.29.7)(@lingui/babel-plugin-lingui-macro@6.9.1(@babel/core@7.29.7))(esbuild@0.28.2)(rolldown@1.2.13)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+      '@owlit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@types/chrome':
+        specifier: 0.3.5
+        version: 0.3.5
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.19.1
+      oxlint:
+        specifier: ^1.81.0
+        version: 1.87.0
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: 5.0.2
+        version: 5.0.2(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+
   packages/protocol:
     devDependencies:
       oxlint:
