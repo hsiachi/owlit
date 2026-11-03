@@ -54,17 +54,36 @@ export async function documentOf(tabId: number): Promise<{ url: string; html: st
 
 // Where a fetch of the extension's was sent on (work.ts, FetchDeps.redirectedTo): fetch hides an opaque
 // redirect's target, webRequest shows it. The worker's own requests (no tab; Chrome names the
-// initiator, Firefox originUrl), and those of its own tabs' fetches: a PDF on another host (OUP's on
+// initiator, Firefox originUrl), and those of a fetch the extension injected into a tab (its own tabs',
+// or a tab the user has open past a check, FetchDeps.inTab): a PDF on another host (OUP's on
 // Silverchair's) is reached by the tab's fetch without following, which webRequest shows the signed
-// address of, and the worker fetches that. The newest per address, a few hundred in all.
+// address of, and the worker fetches that. A tab's requests are taken only from its page's own origin
+// and only while an injected fetch runs there, or just after: the user's own browsing in that tab is
+// not the extension's. The newest per address, a few hundred in all.
 const redirects = new Map<string, string>()
 const REDIRECTS_KEPT = 500
+// webRequest may tell of a redirect a moment after the injected fetch has its answer (tabFetch waits up
+// to a second for it): a tab's requests are still taken this long after
+const INJECTED_GRACE_MS = 2_000
+const injected = new Map<number, { origin: string; running: number; endedAt: number }>()
 const ownOrigin = () => new URL(ext.runtime.getURL("/")).origin
+const originOf = (url: string | undefined) => {
+  try {
+    return url ? new URL(url).origin : undefined
+  } catch {
+    return undefined
+  }
+}
+const injecting = (tabId: number, from: string | undefined) => {
+  const at = injected.get(tabId)
+  if (!at || originOf(from) !== at.origin) return false
+  return at.running > 0 || Date.now() - at.endedAt <= INJECTED_GRACE_MS
+}
 ext.webRequest.onBeforeRedirect.addListener(
   (details) => {
     const from = details.initiator ?? (details as { originUrl?: string }).originUrl
     const worker = details.tabId === -1 && (!from || new URL(from).origin === ownOrigin())
-    if (!worker && !workTabIds.has(details.tabId)) return
+    if (!worker && !workTabIds.has(details.tabId) && !injecting(details.tabId, from)) return
     redirects.delete(details.url)
     redirects.set(details.url, details.redirectUrl)
     if (redirects.size > REDIRECTS_KEPT) redirects.delete(redirects.keys().next().value!)
@@ -292,6 +311,7 @@ export async function closeIdleTabs() {
 
 // The user closed one of the gates' tabs
 ext.tabs.onRemoved.addListener((tabId) => {
+  injected.delete(tabId)
   if (!workTabIds.has(tabId)) return
   void (async () => {
     for (const [gate, tab] of Object.entries(await tabsKept()) as [GateKey, WorkTab][]) if (tab.tabId === tabId) await keepTab(gate, undefined)
@@ -309,31 +329,45 @@ export function tabFetch(tabId: number): typeof fetch {
     if (!tab?.url) throw new TypeError("The tab went away")
     if (new URL(url).origin !== new URL(tab.url).origin) return fetch(url, { ...init, credentials: "include", cache: "no-store" })
     const redirect = init?.redirect ?? "follow"
-    const [result] = await ext.scripting.executeScript({
-      target: { tabId },
-      args: [url, redirect],
-      func: async (url: string, redirect: RequestRedirect) => {
-        try {
-          const response = await fetch(url, { credentials: "include", cache: "no-store", redirect })
-          const bytes = new Uint8Array(await response.arrayBuffer())
-          let binary = ""
-          for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-          return { status: response.status, url: response.url, type: response.type, contentType: response.headers.get("content-type") ?? "", body: btoa(binary) }
-        } catch (error) {
-          return { error: String(error) }
-        }
-      },
-    })
-    const got = result?.result as { status: number; url: string; type: string; contentType: string; body: string } | { error: string } | undefined
-    // A redirect to another origin fails the followed fetch as a network failure does (work.ts asks
-    // again without following)
-    if (!got || "error" in got) throw new TypeError(got?.error ?? "The tab went away")
-    // webRequest tells of the redirect apart from the fetch's answer: a moment for it to arrive
-    if (got.type === "opaqueredirect") for (let look = 0; look < 10 && !redirects.has(url); look++) await sleep(100)
-    const body = Uint8Array.from(atob(got.body), (c) => c.charCodeAt(0))
-    const response = new Response(got.status === 0 || got.status === 204 ? null : body, { status: got.status || 200, headers: { "content-type": got.contentType } })
-    Object.defineProperty(response, "url", { value: got.url || url })
-    Object.defineProperty(response, "type", { value: got.type })
-    return response
+    const origin = new URL(tab.url).origin
+    const marked = injected.get(tabId)?.origin === origin ? injected.get(tabId)! : { origin, running: 0, endedAt: 0 }
+    marked.running++
+    injected.set(tabId, marked)
+    try {
+      return await fetchInTab(tabId, url, redirect)
+    } finally {
+      marked.running--
+      marked.endedAt = Date.now()
+    }
   }) as typeof fetch
+}
+
+// tabFetch's fetch, run in the tab's page
+async function fetchInTab(tabId: number, url: string, redirect: RequestRedirect): Promise<Response> {
+  const [result] = await ext.scripting.executeScript({
+    target: { tabId },
+    args: [url, redirect],
+    func: async (url: string, redirect: RequestRedirect) => {
+      try {
+        const response = await fetch(url, { credentials: "include", cache: "no-store", redirect })
+        const bytes = new Uint8Array(await response.arrayBuffer())
+        let binary = ""
+        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+        return { status: response.status, url: response.url, type: response.type, contentType: response.headers.get("content-type") ?? "", body: btoa(binary) }
+      } catch (error) {
+        return { error: String(error) }
+      }
+    },
+  })
+  const got = result?.result as { status: number; url: string; type: string; contentType: string; body: string } | { error: string } | undefined
+  // A redirect to another origin fails the followed fetch as a network failure does (work.ts asks
+  // again without following)
+  if (!got || "error" in got) throw new TypeError(got?.error ?? "The tab went away")
+  // webRequest tells of the redirect apart from the fetch's answer: a moment for it to arrive
+  if (got.type === "opaqueredirect") for (let look = 0; look < 10 && !redirects.has(url); look++) await sleep(100)
+  const body = Uint8Array.from(atob(got.body), (c) => c.charCodeAt(0))
+  const response = new Response(got.status === 0 || got.status === 204 ? null : body, { status: got.status || 200, headers: { "content-type": got.contentType } })
+  Object.defineProperty(response, "url", { value: got.url || url })
+  Object.defineProperty(response, "type", { value: got.type })
+  return response
 }

@@ -119,6 +119,21 @@ describe("the fetch ladder", () => {
     expect(b.fetches.filter((f) => f.url === SIGNED).map((f) => f.from)).toEqual(["worker"])
   })
 
+  it("fetched through a tab the user has open past the check, reaches a PDF on another host by the redirect that tab's fetch met", async () => {
+    const OUP = "https://academic.oup.com/jamia/article/2"
+    const OUP_PDF = "https://academic.oup.com/jamia/article-pdf/2/paper.pdf"
+    const SIGNED = "https://watermark.silverchair.com/jamia.pdf?token=signed"
+    const oup = guarded((url) => (url.pathname.includes("article-pdf") ? { status: 302, redirect: SIGNED } : article("JAMIA", OUP_PDF)), { passAfter: 1 })
+    const b = await boot({ "academic.oup.com": oup.site, "watermark.silverchair.com": () => ({ pdf: true }) })
+    // The user's own tab, from an earlier Open, past OUP's check
+    await b.openTab("https://academic.oup.com/jamia/article/1")
+    b.owlit.give({ work: [item("j1", "pub:oup", OUP, { pdfUrl: OUP_PDF })] })
+    await until(b, "j1#1")
+    expect(answered(b, "j1#1")[0]).toMatchObject({ route: "/work/j1%231?host=watermark.silverchair.com", pdf: true })
+    // No tab of the extension's own: the user's was the one fetched from
+    expect(b.created).toHaveLength(1)
+  })
+
   it("through a library proxy that sends the browser on, fetches from the publisher's page the tab landed on", async () => {
     const TLINK = "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.science.org/doi/10.1126/1"
     const science = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("Science", "https://www.science.org/doi/pdf/10.1126/1")), { passAfter: 1 })
