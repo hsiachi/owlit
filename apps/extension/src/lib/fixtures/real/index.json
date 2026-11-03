@@ -1,0 +1,968 @@
+[
+  {
+    "name": "acm-article.tab",
+    "from": "tab",
+    "url": "https://dl.acm.org/doi/10.1145/3290605.3300233",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Guidelines for Human-AI Interaction | Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems",
+    "really": "ACM DL article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "acm-article.worker",
+    "from": "worker",
+    "url": "https://dl.acm.org/doi/10.1145/3290605.3300233",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "acm-pdf-afterpass.worker",
+    "from": "worker",
+    "url": "https://dl.acm.org/doi/pdf/10.1145/3290605.3300233",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "acm-pdf-cold.tab-800ms",
+    "from": "tab",
+    "url": "https://dl.acm.org/doi/pdf/10.1145/3290605.3300233",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "application/pdf;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC",
+      "content-disposition": "inline; filename=3290605.3300233.pdf"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "acm-pdf-cold.tab-2500ms",
+    "from": "tab",
+    "url": "https://dl.acm.org/doi/pdf/10.1145/3290605.3300233",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "application/pdf;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC",
+      "content-disposition": "inline; filename=3290605.3300233.pdf"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "acm-pdf-cold.worker",
+    "from": "worker",
+    "url": "https://dl.acm.org/doi/pdf/10.1145/3290605.3300233",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "apa-shell.tab",
+    "from": "tab",
+    "url": "https://psycnet.apa.org/doiLanding?doi=10.1037/0033-295X.84.2.191",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=UTF-8",
+      "x-cdn": "Imperva",
+      "x-iinfo": "(present)"
+    },
+    "title": "APA PsycNet",
+    "really": "the same shell after 8 s in a tab: the page had not built itself (no paper metadata in the DOM)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "apa-shell.worker",
+    "from": "worker",
+    "url": "https://psycnet.apa.org/doiLanding?doi=10.1037/0033-295X.84.2.191",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=UTF-8",
+      "x-cdn": "Imperva",
+      "x-iinfo": "(present)"
+    },
+    "title": "APA PsycNet",
+    "really": "APA PsycNet doiLanding shell (Imperva CDN, scripts build the page; no check)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "cell-article.tab",
+    "from": "tab",
+    "url": "https://www.cell.com/cell/fulltext/S0092-8674(11)00127-9",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Hallmarks of Cancer: The Next Generation: Cell",
+    "really": "Cell article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "cell-article.worker",
+    "from": "worker",
+    "url": "https://www.cell.com/cell/fulltext/S0092-8674(11)00127-9",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "ieee-article.tab",
+    "from": "tab",
+    "url": "https://ieeexplore.ieee.org/document/726791",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8",
+      "via": "1.1 bef25f3267667422edea78ea1419d7fc.cloudfront.net (CloudFront)"
+    },
+    "title": "<!----><!---->",
+    "really": "IEEE Xplore article page with access (title is '<!----><!---->' Angular comments; metadata in xplGlobal)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "ieee-article.worker",
+    "from": "worker",
+    "url": "https://ieeexplore.ieee.org/document/726791",
+    "status": 202,
+    "headers": {
+      "server": "CloudFront",
+      "content-type": "text/html; charset=UTF-8",
+      "via": "1.1 4ecd66ab879d183a1f99e50b1fafb57c.cloudfront.net (CloudFront)",
+      "x-amzn-waf-action": "challenge"
+    },
+    "title": "",
+    "really": "AWS WAF challenge: 202, empty body, header x-amzn-waf-action: challenge (CloudFront)",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "jstor-article.tab",
+    "from": "tab",
+    "url": "https://www.jstor.org/stable/2346101",
+    "status": 200,
+    "headers": {
+      "server": "envoy",
+      "content-type": "text/html",
+      "via": "1.1 varnish"
+    },
+    "title": "Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing | JSTOR",
+    "really": "JSTOR stable page for the paper after the tab passed the Fastly check",
+    "verdict": "unreadable",
+    "isThrough": true,
+    "why": "The recorder said no-copy or no-access, but nothing on the page names a PDF (its download menu is built by scripts) and nothing offers access: the user looks at it"
+  },
+  {
+    "name": "jstor-article.worker",
+    "from": "worker",
+    "url": "https://www.jstor.org/stable/2346101",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 varnish"
+    },
+    "title": "Client Challenge",
+    "really": "Fastly 'Client Challenge' (JS bot check, /_fs-ch-*/ assets), status 200",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "linkinghub-redirect.tab",
+    "from": "tab",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0957417412003879?via%3Dihub",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "tab followed linkinghub on to ScienceDirect's interactive check",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "linkinghub-redirect.worker",
+    "from": "worker",
+    "url": "https://linkinghub.elsevier.com/retrieve/pii/S0957417412003879",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "Redirecting",
+    "really": "linkinghub 'Redirecting' (meta refresh 2s to ScienceDirect)",
+    "verdict": "unreadable",
+    "isThrough": false
+  },
+  {
+    "name": "mdpi-article.tab",
+    "from": "tab",
+    "url": "https://www.mdpi.com/2076-3417/9/5/909",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=utf-8",
+      "akamai-grn": "(present)"
+    },
+    "title": "Review of Artificial Intelligence Adversarial Attack and Defense Technologies",
+    "really": "MDPI open-access article page (after Akamai's interstitial passed in the tab)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "mdpi-article.worker",
+    "from": "worker",
+    "url": "https://www.mdpi.com/2076-3417/9/5/909",
+    "status": 200,
+    "headers": {
+      "server": "AkamaiGHost",
+      "content-type": "text/html",
+      "akamai-grn": "(present)"
+    },
+    "title": "&nbsp;",
+    "really": "Akamai Bot Manager interstitial (server AkamaiGHost, title &nbsp;, iframe /akamai/interstitial.html, meta refresh 5s to ?bm-verify=, POST /_sec/verify)",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "nature-article-oa.tab",
+    "from": "tab",
+    "url": "https://www.nature.com/articles/s41586-021-03819-2",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.2513.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Highly accurate protein structure prediction with AlphaFold | Nature",
+    "really": "Nature open-access article page",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "nature-article-oa.worker",
+    "from": "worker",
+    "url": "https://www.nature.com/articles/s41586-021-03819-2",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.2513.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Highly accurate protein structure prediction with AlphaFold | Nature",
+    "really": "Nature open-access article page",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "nature-article-paywalled.tab",
+    "from": "tab",
+    "url": "https://www.nature.com/articles/nature14539",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.2513.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Deep learning | Nature",
+    "really": "Nature article page, full access",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "nature-article-paywalled.worker",
+    "from": "worker",
+    "url": "https://www.nature.com/articles/nature14539",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.2513.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Deep learning | Nature",
+    "really": "Nature article page, 'You have full access' on campus",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "oup-article-afterpass.worker",
+    "from": "worker",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5134993",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "oup-article-cold.tab-800ms",
+    "from": "tab",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5134993",
+    "status": 301,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC",
+      "location": "/abm/article/53/6/573/5091257"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "oup-article-cold.tab-3000ms",
+    "from": "tab",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5134993",
+    "status": 301,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC",
+      "location": "/abm/article/53/6/573/5091257"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "oup-article-cold.tab-12000ms",
+    "from": "tab",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5091257",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Efficacy of Contextually Tailored Suggestions for Physical Activity: A Micro-randomized Optimization Trial of HeartSteps | Annals of Behavioral Medicine | Oxford Academic",
+    "really": "OUP (cold profile, after the check passed on its own) article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "oup-article-cold.worker",
+    "from": "worker",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5134993",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "oup-article.tab",
+    "from": "tab",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5091257",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Efficacy of Contextually Tailored Suggestions for Physical Activity: A Micro-randomized Optimization Trial of HeartSteps | Annals of Behavioral Medicine | Oxford Academic",
+    "really": "OUP article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "oup-article.worker",
+    "from": "worker",
+    "url": "https://academic.oup.com/abm/article/53/6/573/5134993",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "pnas-article.tab",
+    "from": "tab",
+    "url": "https://www.pnas.org/doi/10.1073/pnas.79.8.2554",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Neural networks and physical systems with emergent collective computational abilities. | PNAS",
+    "really": "PNAS article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "pnas-article.worker",
+    "from": "worker",
+    "url": "https://www.pnas.org/doi/10.1073/pnas.79.8.2554",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "sage-article.tab",
+    "from": "tab",
+    "url": "https://journals.sagepub.com/doi/10.1177/0956797611417632",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "False-Positive Psychology - Joseph P. Simmons, Leif D. Nelson, Uri Simonsohn, 2011",
+    "really": "SAGE article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "sage-article.worker",
+    "from": "worker",
+    "url": "https://journals.sagepub.com/doi/10.1177/0956797611417632",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "science-article.tab",
+    "from": "tab",
+    "url": "https://www.science.org/doi/10.1126/science.aaa8415",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Machine learning: Trends, perspectives, and prospects | Science",
+    "really": "Science article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "science-article.worker",
+    "from": "worker",
+    "url": "https://www.science.org/doi/10.1126/science.aaa8415",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "sciencedirect-article-oa.tab",
+    "from": "tab",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0004370218305988",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "same interactive check in a tab, not passed on its own",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "sciencedirect-article-oa.worker",
+    "from": "worker",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0004370218305988",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "ScienceDirect",
+    "really": "ScienceDirect 'Are you a robot?' (Cloudflare Turnstile, interactive)",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "sciencedirect-article-paywalled.tab",
+    "from": "tab",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0957417412003879",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "ScienceDirect 'Are you a robot?' in a tab, stuck at 'Verification successful. Waiting for www.sciencedirect.com' (did not pass on its own)",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "sciencedirect-article-paywalled.worker",
+    "from": "worker",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0957417412003879",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "ScienceDirect",
+    "really": "ScienceDirect 'Are you a robot?' (Cloudflare Turnstile, interactive), title 'ScienceDirect'",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "springer-article.tab",
+    "from": "tab",
+    "url": "https://link.springer.com/article/10.1007/BF00994018",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.1825.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Support-vector networks | Machine Learning | Springer Nature Link",
+    "really": "Springer article page with access",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "springer-article.worker",
+    "from": "worker",
+    "url": "https://link.springer.com/article/10.1007/BF00994018",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.1825.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Support-vector networks | Machine Learning | Springer Nature Link",
+    "really": "Springer article page with access",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tandf-article.tab",
+    "from": "tab",
+    "url": "https://www.tandfonline.com/doi/full/10.1080/01621459.2017.1285773",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Full article: Variational Inference: A Review for Statisticians",
+    "really": "T&F full article page with access",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tandf-article.worker",
+    "from": "worker",
+    "url": "https://www.tandfonline.com/doi/full/10.1080/01621459.2017.1285773",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "thieme-article.tab",
+    "from": "tab",
+    "url": "https://www.thieme-connect.de/products/ejournals/abstract/10.1055/s-0029-1186160",
+    "status": 200,
+    "headers": {
+      "server": "Apache",
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "Thieme E-Journals - Planta Medica / Abstract",
+    "really": "Thieme abstract page with 'Buy Article' and a PDF link; access unclear",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "thieme-article.worker",
+    "from": "worker",
+    "url": "https://www.thieme-connect.de/products/ejournals/abstract/10.1055/s-0029-1186160",
+    "status": 200,
+    "headers": {
+      "server": "Apache",
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "Please wait",
+    "really": "Thieme 'Please wait' anti-crawler JS check (status 200, Apache)",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "tlink-acm.tab",
+    "from": "tab",
+    "url": "https://dl.acm.org/doi/10.1145/3290605.3300233",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://dl.acm.org/doi/10.1145/3290605.3300233"
+    },
+    "title": "Guidelines for Human-AI Interaction | Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems",
+    "really": "ACM DL via tlink article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tlink-acm.worker",
+    "from": "worker",
+    "url": "https://dl.acm.org/doi/10.1145/3290605.3300233",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://dl.acm.org/doi/10.1145/3290605.3300233"
+    },
+    "title": "Guidelines for Human-AI Interaction | Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems",
+    "really": "ACM DL via tlink (worker got the article, 200) article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tlink-gologin-cold.tab",
+    "from": "tab",
+    "url": "https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/REDACTED/1",
+    "status": 200,
+    "headers": {
+      "server": "Apache",
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/gologin?lineType="
+    },
+    "title": "\u6e05\u534e\u5927\u5b66\u7528\u6237\u7535\u5b50\u8eab\u4efd\u670d\u52a1\u7cfb\u7edf",
+    "really": "id.tsinghua.edu.cn login form (password field)",
+    "verdict": "sign-in",
+    "isThrough": false
+  },
+  {
+    "name": "tlink-gologin-cold.worker",
+    "from": "worker",
+    "url": "https://idp.tsinghua.edu.cn/idp/profile/SAML2/Redirect/SSO?execution=e1s1",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=utf-8"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/gologin?lineType="
+    },
+    "title": "Web Login Service - Loading Session Information",
+    "really": "Shibboleth IdP 'Loading Session Information' (JS/local-storage step before the school's login form)",
+    "verdict": "sign-in",
+    "isThrough": false
+  },
+  {
+    "name": "tlink-root-cold.tab",
+    "from": "tab",
+    "url": "https://tlink.lib.tsinghua.edu.cn/",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/"
+    },
+    "title": "\u6e05\u534e\u5927\u5b66\u56fe\u4e66\u9986\u667a\u80fd\u8d44\u6e90\u7f51\u5173",
+    "really": "tlink gateway page",
+    "verdict": "sign-in",
+    "isThrough": false
+  },
+  {
+    "name": "tlink-root-cold.worker",
+    "from": "worker",
+    "url": "https://tlink.lib.tsinghua.edu.cn/",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/"
+    },
+    "title": "\u6e05\u534e\u5927\u5b66\u56fe\u4e66\u9986\u667a\u80fd\u8d44\u6e90\u7f51\u5173",
+    "really": "tlink's gateway page: 'please sign in', \u767b\u5f55\u7edf\u4e00\u8eab\u4efd\u8ba4\u8bc1 button",
+    "verdict": "sign-in",
+    "isThrough": false
+  },
+  {
+    "name": "tlink-sciencedirect.worker",
+    "from": "worker",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0957417412003879",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.sciencedirect.com/science/article/pii/S0957417412003879"
+    },
+    "title": "ScienceDirect",
+    "really": "ScienceDirect 'Are you a robot?' after tlink's redirect",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "tlink-springer-cold.tab",
+    "from": "tab",
+    "url": "https://link.springer.com/article/10.1007/BF00994018",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.1825.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://link.springer.com/article/10.1007/BF00994018"
+    },
+    "title": "Support-vector networks | Machine Learning | Springer Nature Link",
+    "really": "same, in a tab",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tlink-springer-cold.worker",
+    "from": "worker",
+    "url": "https://link.springer.com/article/10.1007/BF00994018",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.1825.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://link.springer.com/article/10.1007/BF00994018"
+    },
+    "title": "Support-vector networks | Machine Learning | Springer Nature Link",
+    "really": "tlink go?url= redirected straight to Springer (campus IP, no sign-in)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tlink-wiley.tab",
+    "from": "tab",
+    "url": "https://rss.onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x"
+    },
+    "title": "Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing - Benjamini - 1995 - Journal of the Royal Statistical Society: Series B (Methodological) - Wiley Online Library",
+    "really": "Wiley via tlink article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "tlink-wiley.worker",
+    "from": "worker",
+    "url": "https://rss.onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "proxy": {
+      "host": "tlink.lib.tsinghua.edu.cn",
+      "entry": "https://tlink.lib.tsinghua.edu.cn/go?url=https://onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "wiley-article.tab",
+    "from": "tab",
+    "url": "https://rss.onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing - Benjamini - 1995 - Journal of the Royal Statistical Society: Series B (Methodological) - Wiley Online Library",
+    "really": "Wiley article page, full access on the campus IP (page names Tsinghua / says access provided)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "wiley-article.worker",
+    "from": "worker",
+    "url": "https://onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "wiley-pdfdirect-afterpass.worker",
+    "from": "worker",
+    "url": "https://rss.onlinelibrary.wiley.com/doi/pdfdirect/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "wiley-pdfdirect-cold.tab-800ms",
+    "from": "tab",
+    "url": "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 301,
+    "headers": {
+      "server": "cloudflare",
+      "cf-cache-status": "DYNAMIC",
+      "location": "https://rss.onlinelibrary.wiley.com/doi/pdfdirect/10.1111/j.2517-6161.1995.tb02031.x"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "wiley-pdfdirect-cold.tab-3000ms",
+    "from": "tab",
+    "url": "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 301,
+    "headers": {
+      "server": "cloudflare",
+      "cf-cache-status": "DYNAMIC",
+      "location": "https://rss.onlinelibrary.wiley.com/doi/pdfdirect/10.1111/j.2517-6161.1995.tb02031.x"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "wiley-pdfdirect-cold.worker",
+    "from": "worker",
+    "url": "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1111/j.2517-6161.1995.tb02031.x",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "cf-mitigated": "challenge",
+      "content-type": "text/html; charset=UTF-8"
+    },
+    "title": "Just a moment...",
+    "really": "Cloudflare managed challenge (Just a moment...), cType managed",
+    "verdict": "check",
+    "isThrough": false
+  }
+]

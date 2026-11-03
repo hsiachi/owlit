@@ -72,7 +72,7 @@ async function get(url: string, deps: FetchDeps, proxy: Page["proxy"]): Promise<
     const mark = head.indexOf("%PDF-")
     if (mark === 0 || (typed && mark > 0)) return { kind: "pdf", bytes: mark ? bytes.slice(mark) : bytes, url: response.url || url }
     const html = new TextDecoder().decode(bytes.slice(0, PAGE_MAX_CHARS))
-    return { kind: "page", page: { url: response.url || url, status: response.status, html, proxy } }
+    return { kind: "page", page: { url: response.url || url, status: response.status, html, proxy, headers: response.headers } }
   } catch {
     // No answer at all: the network, or the site, is down; aborted, it was too slow
     return controller.signal.aborted ? { kind: "timeout" } : { kind: "offline" }
