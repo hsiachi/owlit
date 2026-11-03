@@ -151,7 +151,16 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
     tab = undefined
   }
   if (tab) {
+    // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
+    // again is the site's word that this is enough for now
     await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
+    await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
+    await loaded(tab.tabId)
+    const passed = await pass(tab, item, { once: true })
+    if (passed !== "through") {
+      await letGo(gate, tab)
+      return passed
+    }
   } else {
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
@@ -164,7 +173,12 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
       return passed
     }
   }
-  const got = await fetchFor(item, { ...deps, fetch: tabFetch(tab.tabId), inTab: undefined })
+  // Fetched from where the paper's page landed: through a library proxy that sends the browser on to
+  // the publisher (tlink), the proxy's address is another origin than the tab's, and only the tab's own
+  // origin is fetched from inside it
+  const at = (await ext.tabs.get(tab.tabId).catch(() => undefined))?.url
+  const here = at && hostOf(at) !== hostOf(item.url) ? { ...item, url: at, proxied: false } : item
+  const got = await fetchFor(here, { ...deps, fetch: tabFetch(tab.tabId), inTab: undefined })
   // The site asks again, or turns the browser away: its own word that this is enough for now
   if ("ended" in got && (got.ended === "check" || got.ended === "blocked" || got.ended === "sign-in")) {
     await letGo(gate, tab)
@@ -205,7 +219,8 @@ function loaded(tabId: number): Promise<void> {
 
 // The tab's page past its check: "through", or what stands in the way as owlit hears it. A managed check
 // is given its time hidden, then once in front; anything else in the way is the user's at once.
-async function pass(tab: WorkTab, item: WorkItem): Promise<"through" | Fetched | undefined> {
+// once: a look and no more, on a tab whose check was passed before.
+async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promise<"through" | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
@@ -213,7 +228,7 @@ async function pass(tab: WorkTab, item: WorkItem): Promise<"through" | Fetched |
     if (!seen) return undefined
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
     if (isThrough(page)) return "through"
-    if (!isCheck(page) || isInteractive(page)) return said(page)
+    if (once || !isCheck(page) || isInteractive(page)) return said(page)
     if (Date.now() >= until) {
       if (tab.shown) return said(page)
       tab.shown = true
