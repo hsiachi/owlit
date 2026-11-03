@@ -1,4 +1,6 @@
 import type { WorkItem, WorkWait } from "@owlit/protocol"
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser, FakeOwlit, type Answer, type FakeBrowser, type Site } from "../test/fake-chrome.ts"
 
@@ -315,6 +317,41 @@ describe("a paper's addresses on another host than the tab past the check", () =
     await b.openTab(PDF_AT)
     await vi.waitFor(() => expect(b.owlit.asked.filter((a) => a.method === "PUT" && a.pdf)).toHaveLength(1), PATIENCE)
     expect(b.fetches.filter((f) => f.url === PDF_AT).map((f) => f.from)).toEqual(["tab"])
+  })
+})
+
+describe("a check that passes by itself in the tab", () => {
+  const WAF_PAGE = readFileSync(path.join(import.meta.dirname, "../lib/fixtures/real/ieee-waf-challenge.tab.html"), "utf8")
+  const IEEE = "https://ieeexplore.ieee.org/document/8440847"
+  const IEEE_PDF = "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?arnumber=8440847"
+
+  it("waits while AWS WAF's challenge runs in the tab, then fetches the PDF there", async () => {
+    let looks = 0
+    const ieee: Site = ({ url, from, look }) => {
+      if (from === "worker") return { status: 202, headers: { "x-amzn-waf-action": "challenge" }, html: "" }
+      if (look) looks++
+      if (looks < 4) return { html: WAF_PAGE }
+      return url.pathname.startsWith("/stampPDF/") ? { pdf: true } : article("IEEE", IEEE_PDF)
+    }
+    const b = await boot({ "ieeexplore.ieee.org": ieee })
+    b.owlit.give({ work: [item("i1", "pub:ieee", IEEE, { pdfUrl: IEEE_PDF, userStarted: true })] })
+    await until(b, "i1#1")
+    expect(answered(b, "i1#1")[0]).toMatchObject({ pdf: true })
+    expect(looks).toBeGreaterThanOrEqual(4)
+  })
+
+  it("takes no word from a page that stands in while the tab goes on to the paper's", async () => {
+    let looks = 0
+    const acm: Site = ({ url, from, look }) => {
+      if (from === "worker") return check()
+      if (look) looks++
+      if (looks < 3) return { html: "<html><head><title>Redirecting</title></head><body></body></html>" }
+      return url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)
+    }
+    const b = await boot({ "dl.acm.org": acm })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0]).toMatchObject({ pdf: true })
   })
 })
 

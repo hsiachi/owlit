@@ -2,7 +2,7 @@ import type { GateKey, WorkItem } from "@owlit/protocol"
 import { ext } from "../lib/browser.ts"
 import { serial } from "../lib/serial.ts"
 import { inTabItem, proxyHostOf, sameSite } from "../lib/from-tab.ts"
-import { isCheck, isInteractive, isThrough, siteOf } from "../lib/verdict.ts"
+import { isCheck, isInteractive, isStandIn, isThrough, siteOf } from "../lib/verdict.ts"
 import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 
 // How the extension fetches one of owlit's papers, step by step:
@@ -267,16 +267,21 @@ function loaded(tabId: number): Promise<void> {
 
 // The tab's page past its check (through: its document), or what stands in the way as owlit hears it. A
 // managed check is given its time hidden, then once in front; anything else in the way is the user's at
-// once. once: a look and no more, on a tab whose check was passed before.
+// once. A tab still loading, or showing a page that stands in while it goes on (AWS WAF's challenge,
+// which reloads into the paper's page, a "Please wait"), says nothing yet and is looked at again in the
+// same time. once: a check met again on a tab whose check was passed before is the site's word at once.
 async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promise<{ through: { url: string; html: string } } | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
-    const seen = await documentOf(tab.tabId)
+    const now = await ext.tabs.get(tab.tabId).catch(() => undefined)
+    const seen = now && (await documentOf(tab.tabId))
     if (!seen) return undefined
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
-    if (isThrough(page)) return { through: seen }
-    if (once || !isCheck(page) || isInteractive(page)) return said(page)
+    const loading = now.status === "loading"
+    if (!loading && isThrough(page)) return { through: seen }
+    const onItsWay = loading || isStandIn(page)
+    if (!onItsWay && (once || !isCheck(page) || isInteractive(page))) return said(page)
     if (Date.now() >= until) {
       if (tab.shown) return said(page)
       tab.shown = true

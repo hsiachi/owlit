@@ -50,6 +50,14 @@ const CHALLENGE_SCRIPT = /<script\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\bchallenge\b[
 // AWS WAF's script is on the pages of sites that use it whether or not they challenge; it is a check
 // only on the 202 (or a refusal) WAF answers a challenge with
 const WAF_MARKUP = /awswaf|AwsWafIntegration/i
+// AWS WAF's challenge page as a tab's document shows it (no status or headers there): its challenge
+// script from <id>.token.awswaf.com, its gokuProps, and AwsWafIntegration getting the token before it
+// reloads, around an empty body. The sites' own pages load AWS's integration script (jsapi.js), never
+// challenge.js, and carry their own words.
+const WAF_INTERSTITIAL = /awswaf\.com\/[^"'\s>]*\/challenge\.js|\bgokuProps\b|AwsWafIntegration\.(getToken|checkForceRefresh|forceRefreshToken)\b/i
+// The text a near-empty interstitial still shows (a "verifying" heading); a page with more is a page of
+// its own
+const STAND_IN_MAX_CHARS = 400
 // The firewall turning the browser away with nothing to pass, which only another network (or time) gets
 // past: Cloudflare's block page ("Sorry, you have been blocked", its Access denied 10xx errors) and
 // Akamai's Access Denied with its reference number. Read before the check: Cloudflare's block page has
@@ -143,15 +151,32 @@ export function isCheck(page: Pick<Page, "status" | "html" | "headers">) {
     (INTERSTITIAL_TITLE.test(title) && CHALLENGE_SCRIPT.test(page.html)) ||
     (CHECK_MARKUP.test(page.html) && !isArticle(page.html)) ||
     (refused && CAPTCHA_MARKUP.test(page.html)) ||
-    ((refused || page.status === 202 || page.status === 405) && WAF_MARKUP.test(page.html))
+    ((refused || page.status === 202 || page.status === 405) && WAF_MARKUP.test(page.html)) ||
+    isWafInterstitial(page.html)
   )
+}
+
+// AWS WAF's challenge, read from the page itself, as from a tab
+const isWafInterstitial = (html: string) => WAF_INTERSTITIAL.test(html) && !isArticle(html) && shown(html).length < STAND_IN_MAX_CHARS
+
+// The page's text as a reader sees it: without its scripts, styles and what shows only without scripts
+const shown = (html: string) => words(html.replace(/<(script|style|noscript)\b[\s\S]*?<\/\1\s*>/gi, " "))
+
+// A tab's document still on its way to the page it stands in for: a challenge that passes by itself and
+// reloads (AWS WAF's), a "Please wait" or "Redirecting" page, a document with nothing in it yet. Nothing
+// it says is the site's word on the paper (ladder.ts keeps looking).
+export function isStandIn(page: Pick<Page, "html">) {
+  // The browser's PDF viewer shows its PDF in an embed, with no text of its own
+  if (isArticle(page.html) || /<embed\b[^>]*application\/pdf/i.test(page.html)) return false
+  return isWafInterstitial(page.html) || INTERSTITIAL_TITLE.test(titleOf(page.html)) || !shown(page.html)
 }
 
 // A check that only a person passes, which no tab passes by waiting: Cloudflare's interactive challenge
 // (cType 'interactive', ScienceDirect's "Are you a robot?"), a captcha to solve, DataDome's and
 // PerimeterX's. Cloudflare's managed challenge (cType 'managed') passes by itself in a tab that runs it,
 // and its tab document loads Turnstile too, so Turnstile alone says nothing here.
-const INTERACTIVE = /\bcType:\s*["']interactive["']|are you a robot\?|captcha-delivery\.com|px-captcha|class=["'][^"']*\b(g-recaptcha|h-captcha)\b/i
+// AWS WAF's CAPTCHA action (a puzzle from captcha.awswaf.com) is one; its challenge action isn't.
+const INTERACTIVE = /\bcType:\s*["']interactive["']|are you a robot\?|captcha-delivery\.com|px-captcha|class=["'][^"']*\b(g-recaptcha|h-captcha)\b|captcha\.awswaf\.com|AwsWafCaptcha/i
 
 export function isInteractive(page: Pick<Page, "status" | "html" | "headers">) {
   return isCheck(page) && INTERACTIVE.test(page.html)

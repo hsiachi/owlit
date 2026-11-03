@@ -182,6 +182,21 @@
     "isThrough": false
   },
   {
+    "name": "ieee-waf-challenge.tab",
+    "from": "tab",
+    "url": "https://ieeexplore.ieee.org/document/8440847",
+    "status": 202,
+    "headers": {
+      "server": "CloudFront",
+      "content-type": "text/html; charset=UTF-8",
+      "x-amzn-waf-action": "challenge"
+    },
+    "title": "",
+    "really": "AWS WAF challenge as a tab's document shows it while its script runs (gokuProps, challenge.js from token.awswaf.com, AwsWafIntegration.getToken then a reload into the article); written from AWS WAF's challenge page, not recorded",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
     "name": "jstor-article.tab",
     "from": "tab",
     "url": "https://www.jstor.org/stable/2346101",
