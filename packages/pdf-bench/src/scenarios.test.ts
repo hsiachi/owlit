@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { FakeWeb, hang, landing, notFound, page, pdf, tlink, ezproxy } from "../../core/src/extension/test/fake-web.ts"
 import { startBench, type Bench, type BenchSetup, type Row, type Screen } from "./adapter.ts"
+import { checkInvariants } from "./invariants.ts"
 import { atypon, elsevier, inBrowser, openAccess, psycnet } from "./sites.ts"
 
 // One test per real-world story of getting PDFs, each saying what the user would see: the Library's PDF
-// block (its rows and counts), a paper's words, the waits.
+// block (its rows and counts), a paper's words, the waits. The bench's invariants run after every step.
 // A story that fails on the code as it is, because of a real bug, is it.fails with the bug in one line.
 
 const TLINK = "tlink.lib.tsinghua.edu.cn"
@@ -17,7 +18,7 @@ afterEach(async () => {
 })
 
 const start = async (web: FakeWeb, setup: BenchSetup = {}) => {
-  bench = await startBench(web, setup)
+  bench = await startBench(web, { check: checkInvariants, ...setup })
   return bench
 }
 
