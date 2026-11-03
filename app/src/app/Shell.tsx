@@ -105,7 +105,7 @@ function AppShell() {
           {/* The bar drags the window. Padding of gap + 2px puts the first 28px button on the same centre
               line as the rail icons; on macOS it starts after the traffic lights instead, except in full screen */}
           <header
-            className="app-drag flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground"
+            className="app-drag relative flex h-(--header-height) shrink-0 items-center gap-0.5 px-[calc(var(--frame-gap)+2px)] text-muted-foreground"
             style={controlsRoom ? { paddingLeft: controlsRoom } : undefined}
           >
             <IconButton label={t`Back`} onClick={() => navigate(-1)}>
@@ -115,7 +115,10 @@ function AppShell() {
               <ArrowRightIcon />
             </IconButton>
             {hasPanel && <SidebarTrigger />}
-            <WorkspaceMenu />
+            {/* Centred on the window, not on the space between the buttons, as macOS centres a title */}
+            <div className="absolute left-1/2 -translate-x-1/2">
+              <WorkspaceMenu />
+            </div>
             <AgentToggle />
           </header>
           <div className="flex min-h-0 flex-1">

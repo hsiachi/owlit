@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The workspace's name sits in the middle of the top bar, where a window's title goes, and its menu opens under it.
 - With a library proxy set, a check on the publisher's own site (OUP's "Just a moment...") now goes on by itself once you pass it in your browser. Before, owlit kept waiting at the proxy and never heard you got through.
 - The browser extension takes PDFs served from Silverchair (where OUP's PDF links and other journals' lead), both the one you open and the ones it fetches for owlit. Reload the extension once to grant the new site.
 - Papers read while no MinerU token was set (or after one was lost) are read by MinerU once a token is put back, and at the next start, so their digests can show figures. Before, they kept their built-in text for good.

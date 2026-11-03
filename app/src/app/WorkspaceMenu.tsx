@@ -9,7 +9,7 @@ import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { pickWorkspaceFolder, switchWorkspace, useWorkspace } from "@/lib/workspace"
 
-// The open workspace's name in the top bar, muted, so which folder this is shows on every page (the
+// The open workspace's name in the middle of the top bar, muted, so which folder this is shows on every page (the
 // window's own title bar is hidden); it opens the File menu's Open Recent, with New and Open after it
 export function WorkspaceMenu() {
   const current = useWorkspace((s) => s.current)
@@ -34,7 +34,7 @@ export function WorkspaceMenu() {
           <span className="truncate">{current.name}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-56">
+      <DropdownMenuContent align="center" className="min-w-56">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t`Open Recent`}</DropdownMenuLabel>
         {others.map((w) => (
           <DropdownMenuItem key={w.path} title={w.path} onSelect={() => void open(w.path)}>
