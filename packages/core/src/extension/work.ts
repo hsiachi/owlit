@@ -1006,6 +1006,16 @@ const sortQueue = (lane: Lane) => {
   lane.queue = [...lane.queue.filter((q) => q.askedFor), ...lane.queue.filter((q) => !q.askedFor)]
 }
 
+// Whether a paper of a line going on after the user got through at gate has left it: it is under
+// another wait now (the publisher's check, met once the proxy let it through), or held back by another
+// site that didn't answer, which its own words say. It is no longer going on there, so the line ends
+// without it.
+export function movedOn(gate: GateKey, held: PdfState["extension"] | undefined): boolean {
+  if (!held) return false
+  if (held.wait) return held.wait !== gate
+  return !!held.unreachable && held.gate !== gate && gate !== `proxy:${held.unreachable.at}`
+}
+
 // A work item's id, and back: the paper and its attempt (WorkItem.id). An id of another shape (from an
 // owlit that handed out random ids) names no attempt, so its answer is owlit's no longer.
 export const workItemId = (paperId: string, attempt: number) => `${paperId}#${attempt}`

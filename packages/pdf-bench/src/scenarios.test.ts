@@ -195,6 +195,22 @@ describe("the library's proxy", () => {
     expect(screen.block).toMatchObject({ total: 3, saved: 3, running: false, rows: [] })
   })
 
+  it("tlink signed out, then a publisher's check: the line going on after the sign-in ends once its papers wait at the check", async () => {
+    const web = tlink(new FakeWeb())
+    const papers = [science(23), science(24)]
+    for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { check: true, subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    expect(rowsOf(await b.getPdfs())).toEqual([["sign-in", 2, TLINK]])
+    await b.clickWait("sign-in", TLINK)
+    let screen = await b.signIn(TLINK)
+    if (screen.waits.some((w) => w.host === TLINK)) screen = await b.pressDone(TLINK)
+    expect(screen.waits).toMatchObject([{ kind: "check", host: "science.org", papers: 2 }])
+    for (const id of ids) expect(screen.papers[id].title).toBe("Needs you to verify you're human on science.org")
+    // Nothing goes on at tlink any more: the popup's line there has ended
+    expect(screen.browser.going).toEqual([])
+  })
+
   it("tlink, with a publisher the network can't reach: the other papers come, and that publisher's say when owlit tries again", async () => {
     const web = tlink(new FakeWeb())
     web.signIn(TLINK)

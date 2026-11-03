@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { CONNECTED_MS, ExtensionWork, GAP_MS, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, movedOn, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
 
 const library = {} as Library
 const TLINK = "tlink.lib.tsinghua.edu.cn"
@@ -529,6 +529,21 @@ describe("the extension's queue", () => {
     } finally {
       rmSync(base, { recursive: true, force: true })
     }
+  })
+
+  it("counts a paper of a line going on as moved on once it waits elsewhere, never while it is still the line's", () => {
+    const proxy = `proxy:${TLINK}` as const
+    const base = { lane: proxy, gate: "pub:tandf" as const, attempt: 2, at: TLINK }
+    // In line, or out for its fetch: still going on there
+    expect(movedOn(proxy, base)).toBe(false)
+    expect(movedOn(proxy, { ...base, fetching: true })).toBe(false)
+    // Under the publisher's check it met once through the proxy, or another site's that didn't answer
+    expect(movedOn(proxy, { ...base, wait: "pub:tandf", kind: "check", at: "tandfonline.com" })).toBe(true)
+    expect(movedOn(proxy, { ...base, gate: "pub:sage", unreachable: { at: "journals.sagepub.com", until: 1 } })).toBe(true)
+    // The proxy itself not answering, or the line's own wait back: still the line's
+    expect(movedOn(proxy, { ...base, unreachable: { at: TLINK, until: 1 } })).toBe(false)
+    expect(movedOn(proxy, { ...base, wait: proxy, kind: "sign-in", at: TLINK })).toBe(false)
+    expect(movedOn("pub:wiley", { lane: "pub:wiley", gate: "pub:wiley", attempt: 1, at: "wiley.com", unreachable: { at: "onlinelibrary.wiley.com", until: 1 } })).toBe(false)
   })
 
   it("lets go of a paper that got its PDF another way or left the library", async () => {

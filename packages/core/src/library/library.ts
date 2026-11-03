@@ -38,7 +38,7 @@ import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
-import type { KnownPending, KnownWait } from "../extension/work.ts"
+import { movedOn, type KnownPending, type KnownWait } from "../extension/work.ts"
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
 import { gateOf, gateOfTry } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
@@ -802,15 +802,17 @@ export class Library {
 
   // The papers that went on after the user got through at a wait (ExtensionWait.going): how many came
   // back with their PDF, and how many ended either way, since at (or since it went on, from). A paper
-  // still with the extension, or not tried since, is still going.
-  async goingCounts(going: { at: number; ids: string[]; from?: Record<string, number> }): Promise<{ saved: number; ended: number }> {
+  // still with the extension, or not tried since, is still going; one that left the line at gate for
+  // another wait (movedOn) has ended there.
+  async goingCounts(going: { at: number; ids: string[]; from?: Record<string, number> }, gate?: GateKey): Promise<{ saved: number; ended: number }> {
     let saved = 0
     let ended = 0
     for (const id of going.ids) {
       const paper = await this.get(id)
       const since = going.from?.[id] ?? going.at
+      const held = paper?.pdfState?.extension
       if (paper?.pdf) saved++
-      if (!paper || paper.pdf || (!paper.pdfState?.extension && paper.pdfState?.tried.some((t) => t.by !== "search" && t.at >= since))) ended++
+      if (!paper || paper.pdf || (gate && movedOn(gate, held)) || (!held && paper.pdfState?.tried.some((t) => t.by !== "search" && t.at >= since))) ended++
     }
     return { saved, ended }
   }
