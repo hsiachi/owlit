@@ -37,15 +37,25 @@ export const TAB_TIMES = {
 
 // The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab.
 // The verdict reads the PDF links too, and ACM's sit past the first megabyte of its article pages.
+// parsed: the browser has read the whole document (readyState interactive or complete), so what it says
+// is the page's; never its load, which a page whose third-party scripts never answer (blocked on the
+// network, as in China without a proxy) doesn't finish for minutes with its article there. origin: which
+// document it is (performance.timeOrigin), a new one for every page the tab loads.
 const DOCUMENT_MAX_CHARS = 4_000_000
-export async function documentOf(tabId: number): Promise<{ url: string; html: string } | undefined> {
+export interface TabDocument {
+  url: string
+  html: string
+  parsed: boolean
+  origin: number
+}
+export async function documentOf(tabId: number): Promise<TabDocument | undefined> {
   try {
     const [result] = await ext.scripting.executeScript({
       target: { tabId },
       args: [DOCUMENT_MAX_CHARS],
-      func: (max: number) => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, max) }),
+      func: (max: number) => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, max), parsed: document.readyState !== "loading", origin: performance.timeOrigin }),
     })
-    return result?.result as { url: string; html: string } | undefined
+    return result?.result as TabDocument | undefined
   } catch {
     return undefined
   }
@@ -179,8 +189,9 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps): Promise<Fetched | unde
     // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
     // again is the site's word that this is enough for now
     await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
+    const before = (await documentOf(tab.tabId))?.origin
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
-    await loaded(tab.tabId)
+    await loaded(tab.tabId, before)
   } else {
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
@@ -240,10 +251,16 @@ async function reusable(item: WorkItem): Promise<WorkTab | undefined> {
   return undefined
 }
 
-// Until the tab's page has loaded, or a while
-function loaded(tabId: number): Promise<void> {
+// Until the tab shows a new document the browser has parsed (before: the origin of the one it showed
+// before it was sent on), or its load ended, or a while. Never until its load alone: a page whose
+// third-party scripts never answer stays loading for minutes with its article there. A page the
+// extension may not read tells nothing of its document, and is waited for by its load.
+function loaded(tabId: number, before?: number): Promise<void> {
   return new Promise((resolve) => {
+    let over = false
     const done = () => {
+      if (over) return
+      over = true
       ext.tabs.onUpdated.removeListener(heard)
       ext.tabs.onRemoved.removeListener(gone)
       clearTimeout(timer)
@@ -258,29 +275,38 @@ function loaded(tabId: number): Promise<void> {
     const timer = setTimeout(done, TAB_TIMES.loadMs)
     ext.tabs.onUpdated.addListener(heard)
     ext.tabs.onRemoved.addListener(gone)
-    void ext.tabs
-      .get(tabId)
-      .then((tab) => tab.status === "complete" && done())
-      .catch(done)
+    void (async () => {
+      while (!over) {
+        const tab = await ext.tabs.get(tabId).catch(() => undefined)
+        if (!tab) return done()
+        const seen = await documentOf(tabId)
+        // The browser's PDF viewer, though, until its PDF is all there (its load has no third-party
+        // scripts to wait for): what is read from the cache next is the whole of it
+        const viewer = !!seen && /<embed\b[^>]*application\/pdf/i.test(seen.html)
+        if (seen?.parsed && seen.origin !== before && seen.url !== "about:blank" && (!viewer || tab.status === "complete")) return done()
+        if (!seen && tab.status === "complete") return done()
+        await sleep(TAB_TIMES.lookMs)
+      }
+    })()
   })
 }
 
 // The tab's page past its check (through: its document), or what stands in the way as owlit hears it. A
 // managed check is given its time hidden, then once in front; anything else in the way is the user's at
-// once. A tab still loading, or showing a page that stands in while it goes on (AWS WAF's challenge,
-// which reloads into the paper's page, a "Please wait"), says nothing yet and is looked at again in the
-// same time. once: a check met again on a tab whose check was passed before is the site's word at once.
+// once. A document still being parsed, or a page that stands in while the tab goes on (AWS WAF's
+// challenge, which reloads into the paper's page, a "Please wait"), says nothing yet and is looked at
+// again in the same time. Judged by the document alone, never by whether the tab is still loading: a
+// page whose third-party scripts never answer stays loading for minutes with its article there.
+// once: a check met again on a tab whose check was passed before is the site's word at once.
 async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promise<{ through: { url: string; html: string } } | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
-    const now = await ext.tabs.get(tab.tabId).catch(() => undefined)
-    const seen = now && (await documentOf(tab.tabId))
+    const seen = await documentOf(tab.tabId)
     if (!seen) return undefined
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
-    const loading = now.status === "loading"
-    if (!loading && isThrough(page)) return { through: seen }
-    const onItsWay = loading || isStandIn(page)
+    if (seen.parsed && isThrough(page)) return { through: seen }
+    const onItsWay = !seen.parsed || isStandIn(page)
     if (!onItsWay && (once || !isCheck(page) || isInteractive(page))) return said(page)
     if (Date.now() >= until) {
       if (tab.shown) return said(page)
@@ -364,8 +390,9 @@ async function mark<T>(tabId: number, origin: string, run: () => Promise<T>): Pr
 // The extension's own tab sent to the address, and what loaded there read as the page itself would: a
 // same-origin fetch of its own address, from the cache the load just filled (a PDF isn't asked twice)
 async function loadInTab(tabId: number, url: string, cache: RequestCache): Promise<Response> {
+  const before = (await documentOf(tabId))?.origin
   await ext.tabs.update(tabId, { url }).catch(() => undefined)
-  await loaded(tabId)
+  await loaded(tabId, before)
   const now = await ext.tabs.get(tabId).catch(() => undefined)
   if (!now?.url) throw new TypeError("The tab went away")
   return mark(tabId, new URL(now.url).origin, () => fetchInTab(tabId, now.url!, "follow", cache === "no-store" ? "force-cache" : cache))

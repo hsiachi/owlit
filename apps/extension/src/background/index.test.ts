@@ -355,6 +355,57 @@ describe("a check that passes by itself in the tab", () => {
   })
 })
 
+describe("a page whose load never ends", () => {
+  // On a network that blocks its third-party scripts (Google's, analytics), a publisher's page is read
+  // and shows the paper, and the tab stays "loading" for minutes
+  const stalled = (answer: Answer): Answer => ({ ...answer, stalls: true })
+
+  it("is read once its document is parsed: the PDF is fetched in the hidden tab, not after the page's load", async () => {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": (request) => stalled(acm.site(request)!) })
+    // The load is never waited for: with this, a wait on it would outlast the test
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { loadMs: 600_000 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0]).toMatchObject({ pdf: true })
+    expect([...b.tabs.values()].every((tab) => tab.status === "loading")).toBe(true)
+    // Never brought to the front: nothing stood in the way
+    expect(b.activated).toEqual([])
+    // The gate's next paper in the same tab, its new page read as soon as it is parsed
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/2", userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(1)
+  })
+
+  it("still waits while AWS WAF's challenge runs in a tab that never finishes loading", async () => {
+    const WAF_PAGE = readFileSync(path.join(import.meta.dirname, "../lib/fixtures/real/ieee-waf-challenge.tab.html"), "utf8")
+    const IEEE = "https://ieeexplore.ieee.org/document/8440847"
+    const IEEE_PDF = "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?arnumber=8440847"
+    let looks = 0
+    const ieee: Site = ({ url, from, look }) => {
+      if (from === "worker") return { status: 202, headers: { "x-amzn-waf-action": "challenge" }, html: "" }
+      if (look) looks++
+      if (looks < 4) return stalled({ html: WAF_PAGE })
+      return stalled(url.pathname.startsWith("/stampPDF/") ? { pdf: true } : article("IEEE", IEEE_PDF))
+    }
+    const b = await boot({ "ieeexplore.ieee.org": ieee })
+    b.owlit.give({ work: [item("i1", "pub:ieee", IEEE, { pdfUrl: IEEE_PDF, userStarted: true })] })
+    await until(b, "i1#1")
+    expect(answered(b, "i1#1")[0]).toMatchObject({ pdf: true })
+    expect(looks).toBeGreaterThanOrEqual(4)
+  })
+
+  it("in the user's own tab at a waiting site, goes on at the wait once the page is read", async () => {
+    const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 1, proxied: false, allow: ["science.org"] }
+    const b = await boot({ "www.science.org": () => stalled(article("Science", "https://www.science.org/doi/pdf/1")) })
+    b.owlit.give({ waits: [science] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([science]), PATIENCE)
+    await b.openTab("https://www.science.org/doi/1")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toEqual([{ route: "/work/resume", method: "POST", json: { wait: "pub:science" } }]), PATIENCE)
+  })
+})
+
 describe("waits", () => {
   const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 2, proxied: false, allow: ["science.org"] }
   const sites = { "www.science.org": () => article("Science", "https://www.science.org/doi/pdf/1") }

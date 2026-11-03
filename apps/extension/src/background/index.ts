@@ -14,7 +14,7 @@ import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING }
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough, siteOf } from "../lib/verdict.ts"
 import { report } from "../lib/work.ts"
-import { closeIdleTabs, documentOf, fetchLadder, pdfOfTab, redirectedTo, tabFetch, workTabIds } from "./ladder.ts"
+import { closeIdleTabs, documentOf, fetchLadder, pdfOfTab, redirectedTo, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
 // owlit and fetches with the user's cookies. The toolbar button has no popup of its own: its click does the
@@ -500,8 +500,17 @@ ext.tabs.onUpdated.addListener((tabId, change, tab) => {
       await setBadge(tabId, "")
     })()
   }
-  if (change.status !== "complete" || !tab.url) return
+  if (!tab.url) return
   const url = tab.url
+  // A page on its way: looked at once its document is parsed, where the walk or a wait has something
+  // to do there
+  if (change.status === "loading") {
+    void (async () => {
+      if (await looksHere(tabId, url)) await pageReady(tabId)
+    })()
+    return
+  }
+  if (change.status !== "complete") return
   void (async () => {
     const pdfUrl = await pdfTabOf(tabId)
     if (pdfUrl && pdfUrl === url) {
@@ -512,12 +521,43 @@ ext.tabs.onUpdated.addListener((tabId, change, tab) => {
     }
     // A site the extension may not read shows it no response, and only the address says it is a PDF
     if (/^https?:/.test(url) && namesPdf(url) && !(await permitted(url))) return pdfTab(tabId, url, tab)
-    await showWalk(tabId).catch(() => undefined)
-    await watchForThrough(tabId, url)
+    if (await looksHere(tabId, url)) await pageReady(tabId)
   })()
 })
 
+// The walk is in this tab, or a wait watches its site
+const looksHere = async (tabId: number, url: string) => /^https?:/.test(url) && ((await walkOf())?.tabId === tabId || !!waitAt(await waits(), new URL(url).hostname))
+
+// The document of each tab the walk and the waits last looked at (its performance.timeOrigin): a page
+// is looked at once, whether its parse or its load came first
+const lookedAt = new Map<number, number>()
+const PARSED_EVERY_MS = 250
+
+// A page of the user's, looked at for the walk and the waits once its document is parsed. Never once it
+// has loaded: a page whose third-party scripts never answer (blocked on the network) stays loading for
+// minutes with its article there. The tab's PDF is the PDF branch's above.
+async function pageReady(tabId: number) {
+  const until = Date.now() + TAB_TIMES.loadMs
+  for (;;) {
+    const tab = await ext.tabs.get(tabId).catch(() => undefined)
+    if (!tab?.url || !/^https?:/.test(tab.url)) return
+    const seen = await htmlOf(tabId)
+    // The document the tab shows now, not the one it showed before it was sent on
+    const now = seen && seen.parsed && withoutHash(seen.url) === withoutHash(tab.url) && seen.origin !== lookedAt.get(tabId)
+    if (now) {
+      lookedAt.set(tabId, seen.origin)
+      if ((await pdfTabOf(tabId)) === tab.url) return
+      await showWalk(tabId).catch(() => undefined)
+      return watchForThrough(tabId, tab.url)
+    }
+    if (Date.now() >= until) return
+    await new Promise((resolve) => setTimeout(resolve, PARSED_EVERY_MS))
+  }
+}
+const withoutHash = (url: string) => url.replace(/#.*$/, "")
+
 ext.tabs.onRemoved.addListener((tabId) => {
+  lookedAt.delete(tabId)
   void session(() => ext.storage.session.remove([pageKey(tabId), pdfTabKey(tabId), saidKey(tabId), pdfSaidKey(tabId)]))
   // The walk's tab closed: the walk is put away here; owlit keeps where it stood until another one starts
   void (async () => {
@@ -670,7 +710,7 @@ async function inTab(host: string): Promise<{ fetch: typeof fetch; url: string }
   for (const tab of [...tabs.filter((t) => at(t) === host), ...tabs.filter((t) => at(t) !== host)]) {
     if (tab.id === undefined) continue
     const seen = await htmlOf(tab.id)
-    if (seen && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id), url: seen.url }
+    if (seen?.parsed && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id), url: seen.url }
   }
   return undefined
 }
@@ -698,7 +738,7 @@ async function blocked(wait: Waits[number], url: string, tabId: number) {
   if (now) await drawCard(tabId, cardOf({ kind: "wait", wait: siteWait(now) }))
 }
 
-// A page that finished loading at a site paused for a check or a sign-in: once it is neither, the user
+// A page read at a site paused for a check or a sign-in (pageReady): once it is neither, the user
 // got through, and owlit goes on there. A check often finishes in the page it stands in (Cloudflare's
 // swaps the article in without loading a new page), so the tab is looked at again for a while; a block
 // stays as it is, so it is told once and the looking ends.
@@ -714,7 +754,7 @@ const pastIn = (seen: { url: string; html: string }, wait: Waits[number]) => isT
 // ended before the user got to it.
 async function pastAt(tabId: number, wait: Waits[number]): Promise<boolean> {
   const seen = await htmlOf(tabId)
-  if (!seen || !pastIn(seen, wait)) return false
+  if (!seen?.parsed || !pastIn(seen, wait)) return false
   await resume(wait, tabId).catch(() => undefined)
   return true
 }
@@ -732,6 +772,8 @@ async function watchForThrough(tabId: number, url: string) {
       if (!tab?.url || !waitAt([wait], new URL(tab.url).hostname)) return
       const seen = await htmlOf(tabId)
       if (!seen) return
+      // Still being read: looked at again
+      if (!seen.parsed) continue
       if (pastIn(seen, wait)) {
         await resume(wait, tabId).catch(() => undefined)
         return

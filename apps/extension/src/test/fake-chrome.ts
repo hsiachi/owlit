@@ -51,6 +51,9 @@ export interface Answer {
   headers?: Record<string, string>
   // A redirect there (302)
   redirect?: string
+  // A page whose load never ends in a tab (a third-party script that never answers, as on a network that
+  // blocks it): its document is parsed, and the tab stays "loading"
+  stalls?: boolean
 }
 // from: who asks; look: the tab's document looked at (executeScript reading it), not a fetch
 export type Site = (request: { url: URL; from: "worker" | "tab"; look?: boolean; tab?: FakeTab }) => Answer | undefined
@@ -62,6 +65,10 @@ export interface FakeTab {
   url: string
   active: boolean
   status: "loading" | "complete"
+  // Its document's, as document.readyState says; and which document it is (performance.timeOrigin): a
+  // new one for every page the tab loads
+  readyState: "loading" | "interactive" | "complete"
+  timeOrigin: number
   windowId: number
   openerTabId?: number
 }
@@ -148,7 +155,7 @@ export interface FakeBrowser {
   created: { url: string; active: boolean }[]
   activated: number[]
   removed: number[]
-  // The user opens a page in a tab of their own
+  // The user opens a page in a tab of their own, and it is read
   openTab(url: string): Promise<FakeTab>
   // The worker's fetch, as the background's global fetch
   fetch: typeof fetch
@@ -171,6 +178,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
   const session = area(kept?.session ?? {})
   const tabs = new Map<number, FakeTab>()
   let nextTab = 100
+  let documents = 0
   const fetches: FakeBrowser["fetches"] = []
   const created: FakeBrowser["created"] = []
   const activated: number[] = []
@@ -241,9 +249,15 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     onHeadersReceived.emit({ tabId: tab.id, url: at.href, type: "main_frame", statusCode: answer.status ?? 200, responseHeaders: Object.entries({ "content-type": type, ...answer.headers }).map(([name, value]) => ({ name, value })) })
     tab.url = at.href
     tab.status = "loading"
+    tab.readyState = "loading"
+    tab.timeOrigin = ++documents
+    const loading = tab.timeOrigin
     onUpdated.emit(tab.id, { status: "loading", url: tab.url }, { ...tab })
     setTimeout(() => {
-      if (!tabs.has(tab.id)) return
+      if (!tabs.has(tab.id) || tab.timeOrigin !== loading) return
+      tab.readyState = "interactive"
+      if (answer.stalls) return
+      tab.readyState = "complete"
       tab.status = "complete"
       onUpdated.emit(tab.id, { status: "complete" }, { ...tab })
     }, 0)
@@ -261,19 +275,27 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
       location: { get href() {
         return tab.url
       } },
-      document: { documentElement: { get outerHTML() {
-        const answer = page()
-        return answer.pdf ? "<embed type='application/pdf'>" : (answer.html ?? "")
-      } } },
+      document: {
+        get readyState() {
+          return tab.readyState
+        },
+        documentElement: { get outerHTML() {
+          const answer = page()
+          return answer.pdf ? "<embed type='application/pdf'>" : (answer.html ?? "")
+        } },
+      },
+      performance: { get timeOrigin() {
+        return tab.timeOrigin
+      } },
       fetch: tabFetchOf(tab),
     }
-    const run = new Function("location", "document", "fetch", `return (${func.toString()})`)(scope.location, scope.document, scope.fetch) as (...a: unknown[]) => unknown
+    const run = new Function("location", "document", "performance", "fetch", `return (${func.toString()})`)(scope.location, scope.document, scope.performance, scope.fetch) as (...a: unknown[]) => unknown
     return [{ result: await run(...args) }]
   }
 
   const tabApi = {
     create: async ({ url, active = true, openerTabId }: { url: string; active?: boolean; openerTabId?: number }) => {
-      const tab: FakeTab = { id: nextTab++, url, active, status: "loading", windowId: 1, openerTabId }
+      const tab: FakeTab = { id: nextTab++, url, active, status: "loading", readyState: "loading", timeOrigin: 0, windowId: 1, openerTabId }
       tabs.set(tab.id, tab)
       created.push({ url, active })
       load(tab, url)
@@ -353,6 +375,8 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     kept: { local: local.data, session: session.data },
     openTab: async (url: string) => {
       const tab = await tabApi.create({ url, active: true })
+      // As the user sees it: the page read, its load done or still going
+      await new Promise((resolve) => setTimeout(resolve, 0))
       return tabs.get(tab.id)!
     },
   }
