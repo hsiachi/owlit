@@ -23,12 +23,12 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://www.sciencedirect.com/science/article/pii/1", '<script src="https://abc.token.awswaf.com/challenge.js"></script>', { status: 202 }))).toBe("check")
     expect(verdict(page("https://journals.sagepub.com/doi/1", '<div class="g-recaptcha" data-sitekey="x"></div>', { status: 403 }))).toBe("check")
     // A captcha on an article page that answered is its comment form's
-    expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", '<div class="g-recaptcha"></div>')))).toBe("no-copy")
+    expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", '<div class="g-recaptcha"></div>')))).toBe("unreadable")
     // Cloudflare's and AWS WAF's scripts ride on ordinary article pages too
     const acm = article("Jogger", '<script src="/cdn-cgi/challenge-platform/scripts/precursor/main.js"></script>')
-    expect(verdict(page("https://dl.acm.org/doi/10.5555/2034396.2034432", acm))).toBe("no-copy")
+    expect(verdict(page("https://dl.acm.org/doi/10.5555/2034396.2034432", acm))).toBe("unreadable")
     expect(isThrough({ url: "https://dl.acm.org/doi/10.5555/2034396.2034432", status: 0, html: acm })).toBe(true)
-    expect(verdict(page("https://www.sciencedirect.com/science/article/pii/2", article("A Paper", '<script src="https://abc.token.awswaf.com/challenge.js"></script>')))).toBe("no-copy")
+    expect(verdict(page("https://www.sciencedirect.com/science/article/pii/2", article("A Paper", '<script src="https://abc.token.awswaf.com/challenge.js"></script>')))).toBe("unreadable")
     // An article Cloudflare let through carries its bot script under /h/, in an inline script
     const passed = article("Efficacy of contextually-tailored suggestions", `<script>(function(){var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/h/b/scripts/jsd/62ec4f065604/main.js'})();</script>`)
     expect(isThrough({ url: "https://academic.oup.com/abm/article/53/6/573/5134993", status: 0, html: passed })).toBe(true)
@@ -54,7 +54,7 @@ describe("what a page that came instead of a PDF says", () => {
     expect(verdict(page("https://www.example.com/doi/pdf/1", akamai, { status: 403 }))).toBe("blocked")
     // Cloudflare's 5xx pages share the block page's markup, and a paper may write about being blocked
     expect(verdict(page("https://www.bmj.com/content/1", '<title>bmj.com | 522: Connection timed out</title><div id="cf-error-details">Error 522</div>', { status: 522 }))).not.toBe("blocked")
-    expect(verdict(page("https://www.bmj.com/content/2", article("When You Have Been Blocked on Twitter")))).toBe("no-copy")
+    expect(verdict(page("https://www.bmj.com/content/2", article("When You Have Been Blocked on Twitter")))).toBe("unreadable")
   })
 
   it("knows the library proxy's sign-in, the school's and a publisher's", () => {
@@ -68,8 +68,8 @@ describe("what a page that came instead of a PDF says", () => {
   })
 
   it("doesn't take an article's own words for a sign-in", () => {
-    expect(verdict(page("https://dl.acm.org/doi/10.1145/2", article("Continuous Authentication of Smartphone Users")))).toBe("no-copy")
-    expect(verdict(page("https://www.tandfonline.com/doi/full/1", article("Lessons from the Association of Authors")))).toBe("no-copy")
+    expect(verdict(page("https://dl.acm.org/doi/10.1145/2", article("Continuous Authentication of Smartphone Users")))).toBe("unreadable")
+    expect(verdict(page("https://www.tandfonline.com/doi/full/1", article("Lessons from the Association of Authors")))).toBe("unreadable")
   })
 
   it("doesn't take a paywalled paper's page with a sign-in pop-up for a sign-in", () => {
@@ -110,19 +110,24 @@ describe("what a page that came instead of a PDF says", () => {
 
   it("takes no site's header or footer for an offer of the paper", () => {
     const chrome = '<a href="/subscribe">Subscribe</a><a href="/action/ssostart">Institutional Login</a><a href="/journal/subscribe">Purchase</a><a href="/purchase-journal-access">Purchase Access to Other Journals in the Science Family</a>'
-    expect(verdict(page("https://academic.oup.com/abm/article/1", article("A Paper", chrome)))).toBe("no-copy")
+    expect(verdict(page("https://academic.oup.com/abm/article/1", article("A Paper", chrome)))).toBe("unreadable")
     // A link to the paper's PDF outweighs an offer the page hides from a reader with access
     const sage = '<meta name="dc.Identifier" scheme="doi" content="10.1177/1"><a href="/doi/reader/10.1177/1">View PDF/EPUB</a><button>Purchase access</button>'
-    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", `<title>A Paper</title>${sage}`))).toBe("no-copy")
+    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", `<title>A Paper</title>${sage}`))).toBe("unreadable")
     // A PDF named only in the tags (Springer names it to everyone) doesn't
     expect(verdict(page("https://link.springer.com/article/1", article("A Paper", "<button>Buy article PDF</button>")))).toBe("no-access")
   })
 
-  it("says no copy for the paper's own page that names a PDF that didn't come", () => {
-    expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", "<p>Abstract</p>")))).toBe("no-copy")
+  it("leaves to the user the paper's own page whose named PDF didn't come", () => {
+    expect(verdict(page("https://journals.sagepub.com/doi/1", article("A Paper", "<p>Abstract</p>")))).toBe("unreadable")
     // Named by a link only, Atypon's /doi/pdf/ however it is labelled
     const linked = '<title>A Paper</title><meta name="dc.Identifier" scheme="doi" content="10.1177/1"><a class="btn--pdf" href="/doi/pdf/10.1177/1?download=true"><i></i></a>'
-    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", linked))).toBe("no-copy")
+    expect(verdict(page("https://journals.sagepub.com/doi/10.1177/1", linked))).toBe("unreadable")
+  })
+
+  it("reads a title that says sign in, with or without a space, as no page the user got through at", () => {
+    expect(isThrough(page("https://login.example.org/", "<title>Sign in</title>"))).toBe(false)
+    expect(isThrough(page("https://login.example.org/", "<title>Log in to your account</title>"))).toBe(false)
   })
 
   it("leaves to the user a page it can't be sure of", () => {

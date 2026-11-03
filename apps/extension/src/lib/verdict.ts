@@ -1,5 +1,5 @@
 import type { WorkEnding } from "@owlit/protocol"
-import { describesPaper, paperOfPage, pdfLinkIn, siteOf } from "./page.ts"
+import { describesPaper, pdfLinkIn, siteOf } from "./page.ts"
 
 export { siteOf }
 
@@ -66,7 +66,7 @@ const LIMIT_TITLE = /too many requests|rate limit|频繁/i
 // Whole words only (a host's labels, a path's segments, a title's words): "sso" is in "Lessons" and
 // "Association", "auth" begins "Author" and "Authentic". camelCase is read as words too, for /LoginForm
 // and /userLogin.
-const SIGN_IN = /(?<![a-z])(log-?(in|on)s?|sign-?(in|on)|sso(login)?|saml|cas|idp|shibboleth|openathens|wayf|o?auth(n|server|enticate|entication)?)(?![a-z])|登录|认证|身份/i
+const SIGN_IN = /(?<![a-z])(log[- ]?(in|on)s?|sign[- ]?(in|on)|sso(login)?|saml|cas|idp|shibboleth|openathens|wayf|o?auth(n|server|enticate|entication)?)(?![a-z])|登录|认证|身份/i
 const signIn = (text: string) => SIGN_IN.test(text) || SIGN_IN.test(text.replace(/([a-z])([A-Z])/g, "$1 $2"))
 // A sign-in path on the proxy's own host
 const PROXY_SIGN_IN = /log-?in|sign-?in|sso|\/cas\b/i
@@ -201,8 +201,9 @@ export function verdict(page: Page): WorkEnding {
   // through your institution")
   const pdfLink = pdfLinkIn(page.html, page.url)
   if (!pdfLink && offersAccess(page.html)) return "no-access"
-  // The paper's page names a PDF that didn't come; one that names none leaves it to the user
-  return pdfLink || paperOfPage(page.html, page.url)?.pdfUrl ? "no-copy" : "unreadable"
+  // The paper's own page, and no PDF came of it: whether it names one (a viewer, a link that needs the
+  // page's scripts) or none, the user can get it there by hand, and nothing on it says the site has none
+  return "unreadable"
 }
 
 // A wait longer than this is a page meant to be read, not a hop
