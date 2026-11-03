@@ -112,6 +112,12 @@ export class FakeOwlit {
   close() {
     this.closed = true
     this.holding?.(undefined)
+    this.holding = null
+  }
+
+  // owlit runs again, as after a restart
+  reopen() {
+    this.closed = false
   }
 
   posted(prefix: string) {

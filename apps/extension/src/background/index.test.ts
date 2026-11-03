@@ -558,6 +558,21 @@ describe("waits", () => {
   })
 })
 
+describe("owlit restarting", () => {
+  it("is asked for work again a moment after it stopped answering, well before the alarm", async () => {
+    const b = await boot({})
+    Object.assign((await import("./index.ts")).ASK_TIMES, { restartRetryMs: 20 })
+    b.owlit.give({})
+    // owlit quits mid-ask and is back at once
+    await vi.waitFor(() => expect((b.owlit as unknown as { holding: unknown }).holding).toBeTruthy(), PATIENCE)
+    b.owlit.close()
+    b.owlit.reopen()
+    const science: WorkWait = { id: "pub:science", kind: "check", at: "science.org", host: "science.org", watch: ["science.org"], papers: 1, proxied: false, allow: ["science.org"] }
+    b.owlit.give({ waits: [science] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([science]), PATIENCE)
+  })
+})
+
 describe("allowing a site", () => {
   const apa: WorkWait = { id: "pub:apa", kind: "permission", at: "apa.org", host: "apa.org", watch: ["apa.org"], papers: 1, proxied: false, allow: ["apa.org"] }
   const emit = (b: FakeBrowser, message: unknown) => new Promise<unknown>((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit(message, { id: "fake" }, resolve))

@@ -583,6 +583,8 @@ const goingKey = "going"
 const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?? []) as NonNullable<WorkAnswer["going"]>
 // Restarts the asking if the worker was stopped meanwhile
 const WORK = "work"
+// After owlit stopped answering mid-ask: a restart of owlit's takes about this long (a test sets it shorter)
+export const ASK_TIMES = { restartRetryMs: 5_000 }
 
 let asking: Promise<void> | null = null
 // This worker has had a GET /work answer, so the waits in session storage are owlit's now. Before the
@@ -597,11 +599,13 @@ let allowedEarly = false
 // reached or forgot this browser; the alarm or the next connection starts it again.
 function keepAsking() {
   asking ??= (async () => {
+    let answered = false
     try {
       for (;;) {
         const { token } = await local()
         if (!token) return
         const answer = await ask<WorkAnswer>("/work", { token })
+        answered = true
         const before = await waits()
         const now = answer.waits.map(asWait)
         // An extension call between holds also keeps Chrome from taking the worker for idle. Firefox may
@@ -626,7 +630,13 @@ function keepAsking() {
       }
     } catch (error) {
       if (error instanceof OwlitError && error.status === 401) await unpair()
-      else if (error instanceof Unreachable || error instanceof Elsewhere) void ext.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+      else if (error instanceof Unreachable || error instanceof Elsewhere) {
+        void ext.alarms.create(RECONNECT, { periodInMinutes: 0.5 })
+        // owlit was answering until now: most likely it is restarting (an update, a quit and open), and
+        // back in a few seconds, well before the alarm. Asked again once then, so what the user opens
+        // from owlit right after reaches this browser (core waits for it, server.ts returning).
+        if (answered) setTimeout(() => keepAsking(), ASK_TIMES.restartRetryMs)
+      }
       else console.error("[owlit] asking owlit for work failed", error)
     } finally {
       asking = null

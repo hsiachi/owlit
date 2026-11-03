@@ -500,6 +500,26 @@ describe("the extension's port", () => {
       expect(pdfWait((await ask("library.list")).papers.find((p: { id: string }) => p.id === id))).toBe("finding")
     })
 
+    it("hands Open to the extension that was asking before a restart, before its first ask since", async () => {
+      const { call, request, token, core, userDataDir, root } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}` } })
+      await core.dispose()
+      const opened: Opened[] = []
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch, openInBrowser: async (url, browser) => void opened.push([url, browser]), showBrowser: async () => undefined }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })
+      cleanups.push(() => again.dispose())
+      const rpc = async (method: string, params?: unknown): Promise<any> => ((await again.handle({ jsonrpc: "2.0", id: 1, method, params })) as { result: unknown }).result
+      await rpc("workspace.open", { path: root })
+      const server = (again as unknown as { extension: ExtensionServer }).extension
+      await server.start()
+      // Open at once, the extension not back yet: it goes to the extension, not to the system's browser
+      expect(await rpc("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
+      expect(opened).toEqual([])
+      const back = await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })
+      expect((await back.json()).open).toEqual([{ kind: "check", host: "journals.sagepub.com", url: `https://journals.sagepub.com/doi/${SAGE}`, wait: "pub:sage" }])
+    })
+
     it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
       const { call, request, token, core, userDataDir, root } = await connected()
       await call("settings.setProxy", { preset: "tsinghua" })

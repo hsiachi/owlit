@@ -12,7 +12,7 @@ export const QUESTION_MS = 2 * 60_000
 // worker whose fetch takes longer than that to answer.
 export const HOLD_MS = 20_000
 // A pairing's last request is written to settings.json at most this often
-const SEEN_EVERY_MS = 60_000
+export const SEEN_EVERY_MS = 60_000
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex")
 

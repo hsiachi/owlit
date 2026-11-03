@@ -9,13 +9,13 @@ import { PDF_MAX_BYTES } from "../library/pdf.ts"
 import type { SettingsStore } from "../settings/store.ts"
 import type { BrowserApp } from "./browser-app.ts"
 import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send } from "./http.ts"
-import { HOLD_MS, Pairings } from "./pairings.ts"
+import { HOLD_MS, Pairings, SEEN_EVERY_MS } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 import { clean } from "../util.ts"
 import { ManualWalk } from "./walk.ts"
 import { withoutQuery } from "./keys.ts"
 import type { Going } from "./pdf-work.ts"
-import { ExtensionWork, parseWorkItemId, type WorkOptions } from "./work.ts"
+import { ExtensionWork, parseWorkItemId, RETURNING_MS, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
 // way Zotero's connector reaches Zotero). A browser asks only for what an extension may: every request
@@ -176,7 +176,7 @@ export class ExtensionServer {
     if (!wait) return { by: "none" }
     const paired = (await this.host.settings.get()).extension?.paired ?? []
     const pairingOf = (pairing: string | undefined) => paired.find((p) => p.id === pairing)
-    const to = this.work.open(id)
+    const to = this.work.open(id, this.returning(paired))
     if (to) {
       // The extension's tab and window focus stay inside the browser: macOS keeps owlit in front unless
       // owlit itself hands the front over
@@ -191,6 +191,14 @@ export class ExtensionServer {
     await this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser }))
     this.work.opened(id, pairing?.browser)
     return { by: "browser", browser: pairing?.browser }
+  }
+
+  // The pairing whose extension was asking for work just before owlit started, and will again within
+  // half a minute: owlit restarted under it (an update, a quit and open). Its last request is written
+  // down at most every SEEN_EVERY_MS.
+  private returning(paired: StoredPairing[]): string | undefined {
+    const last = seenLast(paired)
+    return last?.lastSeenAt !== undefined && this.work.startedAt - last.lastSeenAt < RETURNING_MS + SEEN_EVERY_MS ? last.id : undefined
   }
 
   // A page for the user to act on by hand (a paper whose PDF they download there), in the browser the

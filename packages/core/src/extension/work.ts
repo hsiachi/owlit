@@ -40,6 +40,10 @@ export const PROXY_GAP_MS = 30_000
 // asked for this long is away, and so are its fetches still out (the browser closed, the machine slept,
 // the service worker was stopped mid-fetch).
 export const CONNECTED_MS = 60_000
+// After owlit starts, an extension that was asking for work before is on its way back (it asks again
+// within half a minute, its alarm's pace): for this long, what the user opens for it waits for that ask
+// instead of going to the system's browser
+export const RETURNING_MS = CONNECTED_MS
 // A fetch out this long goes back to its queue even while the extension it went to keeps asking. The
 // reconnect rule (reissue) covers every way a fetch is lost that is known; this only keeps a site's
 // queue from stopping for ever on one that isn't (an answer the extension never sends). Far beyond the
@@ -176,6 +180,8 @@ export class ExtensionWork implements ExtensionFetcher {
   // when the last ended, and whether the extension closed it while held (its service worker stopped)
   private readonly asks = new Map<string, { open: number; at: number; dropped: boolean }>()
   private polledAt = Number.NEGATIVE_INFINITY
+  // When owlit started this
+  readonly startedAt = Date.now()
   // When each pairing last asked for work
   private readonly polled = new Map<string, number>()
   // The waits each pairing's extension was last answered with (waitsSign); none answered yet is none
@@ -222,13 +228,15 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   // The user asked to open what a wait needs: handed to the extension whose fetch met it, or, when that
-  // one isn't asking now, to the one that asked last. The pairing it went to; undefined when no such
-  // wait is up or no extension is connected.
-  open(id: WaitId): string | undefined {
+  // one isn't asking now, to the one that asked last; with none asking yet since owlit started, to the
+  // one returning (RETURNING_MS), whose first ask collects it. The pairing it went to; undefined when no
+  // such wait is up or no extension is connected.
+  open(id: WaitId, returning?: string): string | undefined {
     const wait = this.waitsAt.get(id)
     if (!wait || !this.count(wait)) return undefined
     const connected = this.connectedPairings()
-    const by = wait.by && connected.includes(wait.by) ? wait.by : connected[0]
+    const back = !connected.length && returning && Date.now() - this.startedAt < RETURNING_MS ? returning : undefined
+    const by = (wait.by && connected.includes(wait.by) ? wait.by : connected[0]) ?? back
     if (!by) return undefined
     const { kind, at: host } = wait
     const page: OpenPage = kind === "permission" ? { kind, host, papers: this.count(wait) } : { kind, host, url: wait.url, wait: wait.gate }
