@@ -15,7 +15,7 @@ import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
 import { noPdfTitle, pdfGone, pdfWait, unreachable, waitedFor, withExtension, type PdfWait } from "../../lib/pdf-wait"
 import { useBrowserAway, useExtension, usePaperWait } from "@/features/extension/store"
-import { actOnWait, waitWords } from "@/features/extension/waits"
+import { actOnWait, openInBrowser, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
 type CardState = PdfWait | "looking"
@@ -181,10 +181,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const alone = state === "not-found" && !!doi
   const noExtension = alone && !hasExtension
   const askAccess = alone && (!hasExtension || proxyMissing)
-  // The page opens in the person's browser, where owlit can't follow: the card says the next step
+  // The page opens in the browser the extension is in, where the person's access and its PDF button are,
+  // and where owlit can't follow: the card says the next step
   const [opened, setOpened] = useState(false)
   const openPage = () => {
-    window.open(`https://doi.org/${doi}`, "_blank", "noreferrer")
+    void openInBrowser(`https://doi.org/${doi}`)
     setOpened(true)
   }
 
