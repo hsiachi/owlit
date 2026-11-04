@@ -13,7 +13,7 @@ import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArriva
 import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough, siteOf } from "../lib/verdict.ts"
-import { report } from "../lib/work.ts"
+import { asItem, report, type Fetched } from "../lib/work.ts"
 import { closeIdleTabs, documentOf, fetchLadder, passedAt, pdfOfTab, redirectedTo, showWorkTab, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
@@ -619,9 +619,16 @@ function keepAsking() {
           void resumePermitted()
         }
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
-        for (const item of answer.work) {
+        for (const handed of answer.work) {
+          const item = asItem(handed)
           const wanted = () => stillWanted(item, token)
           void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo, wanted })
+            // A failure here says nothing of the paper: owlit hears a try that reached nothing and asks
+            // again, where without an answer the paper stays in flight there, holding its lane
+            .catch((error): Fetched => {
+              console.error("[owlit] couldn't fetch for owlit", error)
+              return { ended: "offline", host: item.host }
+            })
             // A PDF owlit no longer waits for (the paper got one meanwhile) isn't handed over: a word is,
             // which owlit settles the item by
             .then(async (result) => report(item, "pdf" in result && !(await wanted()) ? { ended: "offline", host: result.host } : result, { ask, token, endings: answer.endings }))

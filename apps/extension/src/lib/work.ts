@@ -43,6 +43,16 @@ export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnde
 // offline, timeout: at: the address that didn't answer, as near as the browser tells (unreached)
 type Got = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "page"; page: Page } | { kind: "redirected"; to?: string } | { kind: "offline"; at: string } | { kind: "timeout"; at: string }
 
+// A paper as owlit hands it: an owlit of 0.2.x names no lane or gate
+export type HandedItem = Omit<WorkItem, "lane" | "gate"> & Partial<Pick<WorkItem, "lane" | "gate">>
+
+// The item with its lane and gate, which everything past GET /work takes as given. An owlit of 0.2.x says
+// the same in host and proxied: the proxy's host, else the publisher's registrable domain.
+export function asItem(item: HandedItem): WorkItem {
+  const gate = item.gate ?? item.lane ?? (item.proxied ? (`proxy:${item.host}` as const) : (`site:${siteOf(item.host)}` as const))
+  return { ...item, gate, lane: item.lane ?? gate }
+}
+
 const hostOf = (url: string) => {
   try {
     return new URL(url).hostname

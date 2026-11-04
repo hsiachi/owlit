@@ -1,7 +1,7 @@
 import type { WorkItem } from "@owlit/protocol"
 import { describe, expect, it, vi } from "vitest"
 import { OwlitError } from "./owlit.ts"
-import { doWork, fetchFor, report, type FetchDeps } from "./work.ts"
+import { asItem, doWork, fetchFor, report, type FetchDeps } from "./work.ts"
 
 const PDF = new TextEncoder().encode("%PDF-1.7\n...")
 const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "doi-10.1177-1#1", paperId: "doi-10.1177-1", attempt: 1, url: "https://journals.sagepub.com/doi/10.1177/1", lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, ...extra })
@@ -273,5 +273,18 @@ describe("fetching a paper for owlit", () => {
     })
     await report(item(), unreadable, { ask: refusing as never, token: "t", endings: ["unreadable"] })
     expect(refusing.mock.calls.map(([, init]) => init.json?.ended)).toEqual(["unreadable", "no-copy"])
+  })
+})
+
+describe("an item from an owlit of 0.2.x, with no lane or gate", () => {
+  const old = (host: string, proxied: boolean) => ({ id: "7f3c", paperId: "p1", url: "https://example.org/1", host, proxied })
+
+  it("is paced and stopped by what its host and proxied say", () => {
+    expect(asItem(old("tlink.lib.tsinghua.edu.cn", true))).toMatchObject({ lane: "proxy:tlink.lib.tsinghua.edu.cn", gate: "proxy:tlink.lib.tsinghua.edu.cn" })
+    expect(asItem(old("apa.org", false))).toMatchObject({ lane: "site:apa.org", gate: "site:apa.org" })
+  })
+
+  it("leaves what an owlit does name", () => {
+    expect(asItem(item({ lane: "proxy:tlink.lib.tsinghua.edu.cn", gate: "pub:sage" }))).toMatchObject({ lane: "proxy:tlink.lib.tsinghua.edu.cn", gate: "pub:sage" })
   })
 })

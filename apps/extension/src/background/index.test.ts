@@ -249,6 +249,20 @@ describe("the fetch ladder", () => {
   })
 })
 
+describe("a fetch that fails in the extension itself", () => {
+  it("still answers owlit, as a try that reached nothing", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const b = await boot({ "dl.acm.org": () => check() })
+    b.chrome.tabs.create = (async () => {
+      throw new Error("Tabs cannot be edited right now")
+    }) as never
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+    error.mockRestore()
+  })
+})
+
 describe("a paper's addresses on another host than the tab past the check", () => {
   // Wiley: owlit's PDF address is on onlinelibrary.wiley.com; its journals' pages are on a society's
   // host of it (rss.onlinelibrary.wiley.com), where the article's address sends the browser and where
@@ -659,6 +673,16 @@ describe("an owlit of 0.2.x", () => {
     b.owlit.give({ work: [{ id: "7f3c", paperId: "p1", url: PSYCNET, host: "apa.org", proxied: false } as unknown as WorkItem] })
     await until(b, "7f3c")
     expect(answered(b, "7f3c").map((a) => a.json.ended)).toEqual(["no-copy"])
+  })
+
+  it("hears from a tab of the user's a paper through the proxy, its item naming no lane or gate", async () => {
+    const TLINK_ACM = `https://tlink.lib.tsinghua.edu.cn/go?url=${ACM}`
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "tlink.lib.tsinghua.edu.cn": () => ({ status: 302, redirect: ACM }), "dl.acm.org": acm.site }, undefined, old())
+    await b.openTab("https://dl.acm.org/doi/10.1145/9")
+    b.owlit.give({ work: [{ id: "9a1b", paperId: "p2", url: TLINK_ACM, host: "tlink.lib.tsinghua.edu.cn", proxied: true } as unknown as WorkItem] })
+    await until(b, "9a1b")
+    expect(answered(b, "9a1b")[0]).toMatchObject({ pdf: true })
   })
 
   it("is told the host of the wait the user got through at, and keeps its other waits", async () => {
