@@ -11,3 +11,8 @@ export type LaneKey = GateKey
 
 // A wait for the user is one per gate at a time, named by it
 export type WaitId = GateKey
+
+// Hosts a publisher's single sign-on passes through on its way to the reader's library or back: Elsevier's,
+// OpenAthens' and Atypon's. A page ended at one is a step of that publisher's sign-in, never a gate of its
+// own or the proxy's.
+export const SSO_HOP_HOSTS = ["auth.elsevier.com", "login.openathens.net", "iam.atypon.com"] as const
