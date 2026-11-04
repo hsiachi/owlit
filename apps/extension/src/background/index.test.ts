@@ -283,6 +283,72 @@ describe("a step of an institution's sign-in in the gate's kept tab", () => {
   })
 })
 
+describe("a step of a sign-in on a site the extension may not read", () => {
+  const SD = "https://www.sciencedirect.com/science/article/pii/S1"
+  const SD_PDF = "https://www.sciencedirect.com/science/article/pii/S1/pdfft"
+  const TLINK_SD = `https://tlink.lib.tsinghua.edu.cn/go?url=${SD}`
+  const HOP = "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID=x"
+  const through = (extra: Partial<WorkItem> = {}) => item("e1", "pub:elsevier", TLINK_SD, { lane: "proxy:tlink.lib.tsinghua.edu.cn", host: "tlink.lib.tsinghua.edu.cn", proxied: true, sites: ["sciencedirect.com"], ...extra })
+  function web() {
+    const state = { signedIn: false, standIn: false }
+    const sites: Record<string, Site> = {
+      "tlink.lib.tsinghua.edu.cn": () => ({ status: 302, redirect: SD }),
+      "www.sciencedirect.com": ({ url, from }) => {
+        if (state.standIn && from === "tab" && !state.signedIn) return { html: "<title>Redirecting</title>" }
+        if (!state.signedIn) return { status: 302, redirect: HOP }
+        return url.pathname.endsWith("/pdfft") ? { pdf: true } : article("Elsevier", SD_PDF)
+      },
+      "auth.elsevier.com": () => ({ html: "<title>Signing you in</title>" }),
+    }
+    return { state, sites }
+  }
+
+  it("is a check for a paper nobody started, never the proxy's sign-in, and opens no tab", async () => {
+    const b = await boot(web().sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    b.owlit.give({ work: [through()] })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0].json).toEqual({ ended: "check", host: "auth.elsevier.com" })
+    expect(b.created).toEqual([])
+  })
+
+  it("is waited out in a tab for a paper the user started, and the paper is fetched where the tab comes to", async () => {
+    const { state, sites } = web()
+    const b = await boot(sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [through({ userStarted: true })] })
+    await vi.waitFor(() => expect([...b.tabs.values()].map((t) => t.url)).toEqual([HOP]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    state.signedIn = true
+    await b.chrome.tabs.update(tabId, { url: SD })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0]).toMatchObject({ pdf: true })
+  })
+
+  it("is waited out too when the tab reaches it from a page it could read", async () => {
+    const { state, sites } = web()
+    state.standIn = true
+    const b = await boot(sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [through({ inTab: true, userStarted: true })] })
+    await vi.waitFor(() => expect([...b.tabs.values()].map((t) => t.url)).toEqual([SD]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    await b.chrome.tabs.update(tabId, { url: HOP })
+    state.signedIn = true
+    await vi.waitFor(() => expect(b.tabs.get(tabId)?.status).toBe("complete"), PATIENCE)
+    await b.chrome.tabs.update(tabId, { url: SD })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0]).toMatchObject({ pdf: true })
+  })
+
+  it("names the publisher to allow when the tab stops there", async () => {
+    const b = await boot(web().sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    b.owlit.give({ work: [through({ userStarted: true })] })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0].json).toEqual({ ended: "no-permission", host: "sciencedirect.com" })
+    await vi.waitFor(() => expect(b.tabs.size).toBe(0), PATIENCE)
+  })
+})
+
 describe("a kept tab the user took over", () => {
   const A2 = "https://dl.acm.org/doi/10.1145/2"
   const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"

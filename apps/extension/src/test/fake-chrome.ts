@@ -222,7 +222,8 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
   }
   const opaque = () => ({ type: "opaqueredirect", status: 0, url: "", headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(0) }) as unknown as Response
 
-  // The worker's fetch: owlit on its port, else the web, following redirects anywhere
+  // The worker's fetch: owlit on its port, else the web. A followed redirect to a site the extension may
+  // not read fails as a network failure does; webRequest still saw where it went.
   const workerFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
     const url = String(input)
     if (url.startsWith(OWLIT_ORIGIN)) return owlit.handle(url.slice(OWLIT_ORIGIN.length), init)
@@ -234,6 +235,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
       const to = new URL(answer.redirect, at)
       onBeforeRedirect.emit({ url: at.href, redirectUrl: to.href, tabId: -1, type: "xmlhttprequest", initiator: "chrome-extension://fake" })
       if (init.redirect === "manual") return opaque()
+      if (deniedAt(to.href)) throw new TypeError("Failed to fetch")
       at = to
     }
     throw new TypeError("Too many redirects")
@@ -346,8 +348,9 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
       if (!tab) throw new Error(`No tab with id: ${id}`)
       return told(tab)
     },
+    // Without the tabs permission, a url pattern matches only where the extension may read
     query: async ({ url }: { url?: string[] } = {}) =>
-      [...tabs.values()].filter((t) => !url || url.some((pattern) => new RegExp(`^${pattern.replace(/[.?]/g, "\\$&").replace(/\*/g, ".*")}$`).test(t.url))).map((t) => ({ ...t })),
+      [...tabs.values()].filter((t) => !url || (!deniedAt(t.url) && url.some((pattern) => new RegExp(`^${pattern.replace(/[.?]/g, "\\$&").replace(/\*/g, ".*")}$`).test(t.url)))).map(told),
     update: async (id: number, change: { active?: boolean; url?: string }) => {
       const tab = tabs.get(id)
       if (!tab) throw new Error(`No tab with id: ${id}`)

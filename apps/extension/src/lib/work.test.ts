@@ -218,6 +218,23 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "unreadable", host: "sagepub.com" })
   })
 
+  it("says check where a redirect reaches a step of a publisher's sign-in on a site it may not read", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.sciencedirect.com/science/article/pii/S1"
+    const article = "https://www.sciencedirect.com/science/article/pii/S1"
+    const hop = "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID=https%3A%2F%2Fidp.tsinghua.edu.cn"
+    const reads = (url: string) => !url.includes("elsevier.com")
+    const tlink = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", lane: "proxy:tlink.lib.tsinghua.edu.cn", proxied: true })
+    // No word of the proxy's sign-in, which would hold every paper through it
+    const walked = web({ [entry]: { awayTo: article }, [article]: { awayTo: hop } }, reads)
+    expect(await fetchFor(tlink, walked.deps)).toEqual({ ended: "check", host: "auth.elsevier.com" })
+    // From the PDF's address too, and without a proxy
+    const pdf = "https://www.sciencedirect.com/science/article/pii/S1/pdfft"
+    expect(await fetchFor(item({ url: article, pdfUrl: pdf, host: "sciencedirect.com" }), web({ [pdf]: { awayTo: hop } }, reads).deps)).toEqual({ ended: "check", host: "auth.elsevier.com" })
+    // A sign-in that isn't one of those steps is the proxy's, as before
+    const school = web({ [entry]: { awayTo: "https://login.microsoftonline.com/common/saml2" } }, (url) => !url.includes("microsoftonline"))
+    expect(await fetchFor(tlink, school.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
+  })
+
   it("follows a page's meta refresh, and says it couldn't read a page that is none of the paper's", async () => {
     // Elsevier's linkinghub sends the browser on by a refresh and a script; the refresh's address
     // redirects on to ScienceDirect's article, which names its PDF

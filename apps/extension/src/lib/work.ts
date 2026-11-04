@@ -2,7 +2,7 @@ import { LEGACY_WORK_ENDINGS, type PaperAnswer, type WorkEnded, type WorkEnding,
 import { inTabItem } from "./from-tab.ts"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
-import { isCheck, isSignInAddress, refreshOf, refusesPdf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+import { isCheck, isSignInAddress, isSsoHopAddress, refreshOf, refusesPdf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
 // Fetching a paper owlit asked for (GET /work), with the user's cookies: its PDF, or one word for what
 // came instead (verdict.ts). Nothing else is fetched, and what goes back to owlit is the PDF, or the word,
@@ -156,10 +156,13 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   // Where a redirect left for a site the extension may not read, and the browser said which: that site,
   // for the user to let the extension read (the publisher's, reached through the proxy or doi.org).
   // Unless it is the school's sign-in, which a signed-out proxy sends every fetch to: a site under the
-  // proxy's own domain (id.tsinghua.edu.cn beside tlink), or an address that says sign in.
+  // proxy's own domain (id.tsinghua.edu.cn beside tlink), or an address that says sign in. A step of a
+  // publisher's sign-in is neither: a tab walks it by itself, so it ends as a check, with no url, since
+  // the address of a step is good only once and the paper's own is the one to open.
   const unreadable = (got: { to?: string }): WorkEnded | undefined => {
     if (!got.to) return undefined
     const host = hostOf(got.to)
+    if (isSsoHopAddress(got.to)) return { ended: "check", host }
     if (!host || (proxy && siteOf(host) === siteOf(proxy.host)) || isSignInAddress(got.to)) return undefined
     return { ended: "no-permission", host }
   }

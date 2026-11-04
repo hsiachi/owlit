@@ -260,19 +260,6 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
     await keepTab(gate, tab)
     await loaded(tab.tabId)
   }
-  const landed = await ext.tabs.get(tab.tabId).catch(() => undefined)
-  if (!landed) {
-    await keepTab(gate, undefined)
-    return undefined
-  }
-  // Landed where the extension may not read (a proxy sends the browser on to a publisher the user
-  // hasn't allowed): that site, to allow. The browser tells a tab's address only on a site the
-  // extension may read, so one it doesn't tell is named by the gate's own site, never by the proxy's.
-  if (!landed.url || !(await deps.permitted(landed.url))) {
-    await letGo(gate, tab)
-    const host = landed.url ? hostOf(landed.url) : item.sites?.[0]
-    return host ? { ended: "no-permission", host } : undefined
-  }
   const passed = await pass(tab, item, deps, { once: reused })
   if (passed && "theirs" in passed) {
     await letGo(gate, tab)
@@ -367,12 +354,27 @@ function loaded(tabId: number, before?: number, signal?: AbortSignal): Promise<v
 // once: a check met again on a tab whose check was passed before is the site's word at once. theirs: a
 // tab of the user's got past the gate's check meanwhile (passedAt), where the paper is fetched instead:
 // a check that only a person passes may stand in this tab for its whole time, the user being elsewhere.
+// A tab on a site the extension may not read may be on a step of a sign-in, which the tab walks by
+// itself, so it is given the same time to leave. Stopped there (a proxy sent the browser on to a
+// publisher the user hasn't allowed), that site is the one to allow. The browser tells a tab's address
+// only on a site the extension may read, so one it doesn't tell is named by the gate's own site, never
+// by the proxy's. A readable tab whose document can't be read is between two pages, and looked at again.
 async function pass(tab: WorkTab, item: WorkItem, deps: FetchDeps, { once = false } = {}): Promise<{ through: { url: string; html: string } } | { theirs: { fetch: typeof fetch; url: string } } | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
-    const seen = await documentOf(tab.tabId)
-    if (!seen) return undefined
+    const now = await ext.tabs.get(tab.tabId).catch(() => undefined)
+    if (!now) return undefined
+    const readable = !!now.url && (await deps.permitted(now.url))
+    const seen = readable ? await documentOf(tab.tabId) : undefined
+    if (!seen) {
+      if (Date.now() < until) {
+        await sleep(TAB_TIMES.lookMs)
+        continue
+      }
+      const host = now.url ? hostOf(now.url) : item.sites?.[0]
+      return !readable && host ? { ended: "no-permission", host } : undefined
+    }
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
     if (seen.parsed && isThrough(page)) return { through: seen }
     if (passedElsewhere.delete(item.gate)) {
