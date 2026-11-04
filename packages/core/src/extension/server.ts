@@ -408,6 +408,9 @@ export class ExtensionServer {
     const host = z.string().trim().min(1).max(253)
     // A gate key, as core made it (pdf-keys.ts)
     const wait = z.string().regex(/^(pub|site|proxy):\S{1,300}$/)
+    // A SAML or ?url= address can run past what is worth keeping: the answer it came with still counts,
+    // and refused it would leave the paper in flight until STALLED_MS
+    const kept = (url: string | undefined) => (url && url.length <= 4096 ? url : undefined)
     const ended = z.object({
       ended: z.enum(WORK_ENDINGS),
       host,
@@ -415,9 +418,8 @@ export class ExtensionServer {
       // Only a web page: the url may be opened in a browser later, and `open` would run a file: or app link
       url: z
         .string()
-        .max(4096)
         .optional()
-        .transform((url) => (url && /^https?:\/\//i.test(url) ? url : undefined)),
+        .transform((url) => (url && /^https?:\/\//i.test(url) ? kept(url) : undefined)),
     })
     return [
       {
@@ -534,7 +536,7 @@ export class ExtensionServer {
         path: is("work", "blocked"),
         handle: async ({ raw }) => {
           // Only a web page, as a fetch's ending: the window opens it in a browser
-          const url = z.string().max(4096).regex(/^https?:\/\//i)
+          const url = z.string().regex(/^https?:\/\//i).transform(kept)
           const body = z.union([z.object({ wait, url }), z.object({ host, url })]).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           return { body: { blocked: "wait" in body.data ? this.work.blockedAt(body.data.wait as WaitId, body.data.url) : this.work.blocked(body.data.host, body.data.url) } }

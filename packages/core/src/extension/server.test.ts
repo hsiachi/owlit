@@ -545,6 +545,19 @@ describe("the extension's port", () => {
       expect(opened).toHaveLength(1)
     })
 
+    it("keeps an answer whose address is too long to keep, without the address", async () => {
+      const { call, request, token } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const url = `https://journals.sagepub.com/doi/1?SAMLRequest=${"a".repeat(5000)}`
+      const answer = await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url } })
+      expect(answer).toMatchObject({ status: 200, body: { noted: true } })
+      expect((await call("extension.get")).waits).toMatchObject([{ id: "pub:sage", kind: "check", url: item.url }])
+      const blocked = await request("/work/blocked", { token, body: { wait: "pub:sage", url } })
+      expect(blocked).toMatchObject({ status: 200, body: { blocked: true } })
+      expect((await call("extension.get")).waits).toMatchObject([{ id: "pub:sage", kind: "blocked", url: item.url }])
+    })
+
     it("brings a check at a sign-in hop back after a restart as it was, under the paper's publisher", async () => {
       const { call, request, token, core, userDataDir, root } = await connected()
       await call("settings.setProxy", { preset: "tsinghua" })

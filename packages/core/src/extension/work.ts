@@ -758,24 +758,27 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // POST /work/blocked: the user's browser met a block at this host where a wait is for a check or a
   // sign-in (the fetch read the block as one, or the block came after). Matched as resume matches; the
-  // wait stays, without another try, and says what is in the way now.
-  blocked(host: string, url: string): boolean {
+  // wait stays, without another try, and says what is in the way now. No url: an address too long to
+  // keep, so the wait keeps the page it has.
+  blocked(host: string, url: string | undefined): boolean {
     return this.block([...this.waitsAt.values()].filter((w) => names(w, host)), url)
   }
 
   // POST /work/blocked { wait, url }: the same for the one wait the extension names
-  blockedAt(id: WaitId, url: string): boolean {
+  blockedAt(id: WaitId, url: string | undefined): boolean {
     const wait = this.waitsAt.get(id)
     return wait ? this.block([wait], url) : false
   }
 
-  private block(waits: Wait[], url: string): boolean {
+  private block(waits: Wait[], url: string | undefined): boolean {
     let any = false
     for (const wait of waits) {
       if (wait.kind !== "check" && wait.kind !== "sign-in") continue
       wait.kind = "blocked"
-      wait.url = url
-      if (!wait.gate.startsWith("proxy:")) wait.at = atOf(wait.gate, "blocked", hostOf(url))
+      if (url) {
+        wait.url = url
+        if (!wait.gate.startsWith("proxy:")) wait.at = atOf(wait.gate, "blocked", hostOf(url))
+      }
       wait.tryAt = undefined
       any = true
       if (this.library) this.host.papers(this.library, this.papersUnder(wait))
