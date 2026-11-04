@@ -79,8 +79,17 @@ export const siteWaitItems = (waits: ExtensionWait[], showLibrary: () => void, l
 export function stillWords(wait: Pick<ExtensionWait, "kind" | "at" | "proxied">, libraryName?: string): string {
   const { at: host } = wait
   if (wait.kind === "check") return t`${host} still asks you to verify you're human`
+  if (wait.kind === "blocked") return t`${host} still blocks your browser`
+  if (wait.kind === "permission") return t`owlit still needs your permission for ${host}`
   if (!wait.proxied) return t`${host} still asks you to sign in`
   return libraryName ? t`${libraryName} still asks you to sign in` : t`Your library still asks you to sign in`
+}
+
+// Why, behind the same row's info icon. A block and a permission have no button of their own to press
+// (doneWords): they go on by themselves.
+export function stillWhy(kind: ExtensionWait["kind"]): string {
+  const again = doneWords(kind)
+  return again ? t`owlit tried again just now and met the same page. Open it, finish there, then press ${again}.` : t`owlit tried again just now and met the same page. It goes on by itself once a page there loads.`
 }
 
 // ---- Get PDFs, as core keeps it (ExtensionView.runs)
