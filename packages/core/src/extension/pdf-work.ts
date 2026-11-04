@@ -184,8 +184,8 @@ export class PdfWorkNotes {
     this.save()
   }
 
-  // The user got through at this gate (they said so, or the extension saw it). A try that met a wait
-  // there earlier says nothing any more: restore puts no wait up from it.
+  // The user got through at this gate (they said so, the extension saw it, or a try got past it). A try
+  // that met a wait there earlier says nothing any more: restore puts no wait up from it.
   resumed(gate: GateKey, at = Date.now()) {
     this.resumes.set(gate, Math.max(at, this.resumes.get(gate) ?? 0))
     this.save()

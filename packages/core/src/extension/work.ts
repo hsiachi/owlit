@@ -620,6 +620,7 @@ export class ExtensionWork implements ExtensionFetcher {
         // The lane's own wait: the try got past it, so it holds no one, and left up it would keep this
         // paper from the wait it just met (waitOver). Its last paper moved on: left up, it would catch
         // the next paper of its gate with no try to come.
+        if (was.gate === lane.key) this.notes.resumed(was.gate)
         if (was.gate === lane.key || !left.length) this.lift(was)
       }
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...left])])
@@ -633,7 +634,10 @@ export class ExtensionWork implements ExtensionFetcher {
       // wait, which stays for its other papers and goes with the last of them.
       const through = was && (ended !== undefined || !this.count(was)) ? was : undefined
       const freed = through ? this.papersUnder(through) : []
-      if (through) this.lift(through)
+      if (through) {
+        this.notes.resumed(through.gate)
+        this.lift(through)
+      }
       if (was) this.waitsChanged()
       this.leaveIfEmpty(lane)
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...freed])])
@@ -896,8 +900,8 @@ export class ExtensionWork implements ExtensionFetcher {
     this.waitsChanged()
   }
 
-  // A wait goes without the user getting through there (a paper of it got through by itself, the user
-  // asked for one, none of its papers is left): nothing goes on to follow
+  // A wait goes with no line of papers going on to follow: a paper of it got through by itself (the
+  // caller notes that as the user through, for restore), the user asked for one, none of its papers is left
   private lift(wait: Wait) {
     this.waitsAt.delete(wait.gate)
     this.notes.down(wait.gate, wait.since)

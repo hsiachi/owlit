@@ -747,6 +747,28 @@ describe("owlit and the machine", () => {
     for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open" })
   })
 
+  it("restarted after a try got past the proxy's sign-in: the sign-in isn't asked for again", async () => {
+    const web = tlink(new FakeWeb())
+    const checked = science(92)
+    const next = { doi: "10.2196/44092", title: "A JMIR Paper Behind The Same Sign-In" }
+    atypon(web, "www.science.org", checked.doi, checked.title, { check: true, subscription: true })
+    atypon(web, "www.jmir.org", next.doi, next.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const id = b.addPaper(checked.doi, checked.title)
+    const other = b.addPaper(next.doi, next.title)
+    await b.getPdfs()
+    // Both have tried and met the sign-in
+    await b.pressDone(TLINK)
+    web.signIn(TLINK)
+    await b.hold()
+    await b.call("library.fetchPdf", { id })
+    await b.askOnce()
+    await b.closeBrowser()
+    const screen = await b.restartCore()
+    expect(screen.waits).toMatchObject([{ id: "pub:science", kind: "check", papers: 1 }])
+    expect(screen.papers[other]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open" })
+  })
+
   it("restarted while a check waits: the wait is back at once, and passing it gets the PDF", async () => {
     const web = new FakeWeb()
     const { doi, title } = science(16)
