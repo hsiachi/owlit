@@ -33,7 +33,7 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
     case "skipped":
       return t({ message: "You found none", comment: "the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)" })
     case "stopped":
-      return t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site" })
+      return t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs)" })
     case "not-found":
       return t({ message: "No PDF found", comment: "owlit looked for the paper's PDF and found no copy" })
     case "no-access":

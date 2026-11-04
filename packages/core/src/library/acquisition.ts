@@ -93,11 +93,12 @@ const saysLess = (later: PdfTry, earlier: PdfTry) =>
 // When owlit's back-off look is next due for a paper without its PDF: from its newest look, after
 // LOOK_AGAIN_DAYS by how many found nothing; undefined once every step was taken (owlit won't look again
 // on its own), while it isn't spaced out (finding), and once the user looked at its page and found none
-// (skipped): their word stands until they ask again (Look again). A record that had the PDF is asked
+// (skipped) or stopped getting it (stopped): their word stands until they ask again. A record that had the PDF is asked
 // only when its file is gone (deleted outside owlit): due since then, since nothing else looks for it.
 export function nextLookAt(acquisition: Pick<Acquisition, "state" | "tried" | "looks">) {
   if (acquisition.state === "have-it") return acquisition.tried.at(-1)?.at ?? 0
-  if (acquisition.state !== "no-pdf" || standing(acquisition.tried).reason?.ended === "skipped") return undefined
+  const said = standing(acquisition.tried).reason?.ended
+  if (acquisition.state !== "no-pdf" || said === "skipped" || said === "stopped") return undefined
   const looks = Math.max(acquisition.looks ?? 1, 1)
   if (looks > LOOK_AGAIN_DAYS.length) return undefined
   const last = acquisition.tried.findLast((t) => t.by === "search")?.at ?? acquisition.tried.at(-1)?.at ?? 0

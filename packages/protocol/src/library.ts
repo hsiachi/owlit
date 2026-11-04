@@ -44,8 +44,8 @@ export interface PaperPdf {
 // unreadable: the browser extension couldn't open the publisher's page (see WorkEnding). skipped: the
 // person looked at the publisher's page in their browser, walked through the manual downloads, and
 // found no PDF there (by "person").
-// stopped: the person stopped getting it (Stop on Get PDFs) while the extension waited for them at its
-// site, so nothing waits for them there any more.
+// stopped: the person stopped getting it (Stop on Get PDFs) before the extension had an answer: nothing
+// takes it up again until they ask.
 export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission" | "unreadable" | "skipped" | "stopped"
 
 // One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)

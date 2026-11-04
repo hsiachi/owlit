@@ -119,6 +119,27 @@ describe("owlit's back-off look", () => {
   })
 })
 
+describe("a paper the user stopped", () => {
+  const stopped = (...tried: PdfTry[]) => ({ state: standing(tried).state, tried, looks: 1 })
+
+  it("isn't taken by the extension's connect or the daily look, whatever came before", () => {
+    const far = 100 * 24 * 60 * 60 * 1000
+    for (const before of [owlit("no-copy", 1), extension("check", 1), extension("offline", 1)]) {
+      const record = stopped(before, you("stopped", 2))
+      expect(record.state).toBe("no-pdf")
+      expect(forExtension(record)).toBeUndefined()
+      expect(nextLookAt(record)).toBeUndefined()
+      expect(lookDue(record, far)).toBe(false)
+    }
+  })
+
+  it("stays stopped through a look owlit had begun before the Stop", () => {
+    const record = stopped(extension("check", 1), you("stopped", 2), owlit("no-copy", 3))
+    expect(standing(record.tried).reason).toMatchObject({ by: "person", ended: "stopped" })
+    expect(forExtension(record)).toBeUndefined()
+  })
+})
+
 describe("a record written by 0.2.1", () => {
   // Its tries said owlit and you for what are search and person now
   async function stored(tried: object[], state: string) {

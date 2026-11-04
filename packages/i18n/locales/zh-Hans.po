@@ -1092,7 +1092,7 @@ msgstr "重命名对话"
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
 #. an import that broke
-#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
+#. the user stopped getting the paper's PDF (Stop on Get PDFs)
 #. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
@@ -5289,8 +5289,8 @@ msgid "You looked on its page in your browser and skipped it · {date}"
 msgstr "你在浏览器里看过它的页面，跳过了 · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "You stopped it while it waited for you at its site · {date}"
-msgstr "它在网站上等你时，你停止了获取 · {date}"
+msgid "You stopped getting its PDF · {date}"
+msgstr "你停止了获取它的 PDF · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"

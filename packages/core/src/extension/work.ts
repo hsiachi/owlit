@@ -93,8 +93,9 @@ interface Lane {
   key: LaneKey
   proxied: boolean
   queue: Queued[]
-  // by: the pairing it was handed to
-  inFlight?: { id: string; item: Queued; at: number; by?: string }
+  // by: the pairing it was handed to. stopped: the user stopped its paper while it was out: the lane
+  // still waits for the answer, for the pace, but nothing counts the paper as with the extension
+  inFlight?: { id: string; item: Queued; at: number; by?: string; stopped?: boolean }
   // When its last fetch ended, for the gap before the next
   endedAt?: number
   // The proxy reached nothing this many times in a row; none of the lane's fetches goes out before until.
@@ -383,6 +384,7 @@ export class ExtensionWork implements ExtensionFetcher {
     let item: Queued
     if (lane.inFlight?.item.paper.paperId === paper.paperId) {
       item = lane.inFlight.item
+      if (askedFor) lane.inFlight.stopped = false
       item.askedFor ||= askedFor
       item.started ||= askedFor
     } else {
@@ -417,7 +419,7 @@ export class ExtensionWork implements ExtensionFetcher {
   holding(library: Library, id: string): PdfState["extension"] | undefined {
     if (library !== this.library) return undefined
     for (const lane of this.lanes.values()) {
-      const item = lane.inFlight?.item.paper.paperId === id ? lane.inFlight.item : lane.queue.find((q) => q.paper.paperId === id)
+      const item = all(lane).find((q) => q.paper.paperId === id)
       if (!item) continue
       const base = { lane: lane.key, gate: item.gate, attempt: item.tries + 1, at: item.paper.host }
       const wait = this.waitOver(lane, item)
@@ -536,10 +538,12 @@ export class ExtensionWork implements ExtensionFetcher {
   // for when they have. Not the attempt in flight: nothing changes.
   // triedAt: when the try was noted, which a wait it makes begins at, so a restart that rebuilds the
   // wait from the try finds its follow-ups (restore).
-  settle(id: string, ended: WorkEnding | "pdf" | undefined, page: { url?: string; host?: string; triedAt?: number } = {}) {
+  // A paper the user stopped while it was out ends here whatever came back, but for its PDF.
+  settle(id: string, answer: WorkEnding | "pdf" | undefined, page: { url?: string; host?: string; triedAt?: number } = {}) {
     const lane = this.flying(id)
     if (!lane?.inFlight || !this.library) return
-    const { item, by } = lane.inFlight
+    const { item, by, stopped } = lane.inFlight
+    const ended = stopped && answer !== "pdf" ? undefined : answer
     lane.inFlight = undefined
     // The answer was noted as one more try in the paper's record
     item.tries++
@@ -788,7 +792,7 @@ export class ExtensionWork implements ExtensionFetcher {
   }
 
   // A paper that no longer wants fetching (its PDF was placed another way, it went to the trash or was
-  // folded into another, the user stopped it): out of its queue, and out of the count of the wait it was
+  // folded into another): out of its queue, and out of the count of the wait it was
   // under; a wait with no paper left goes. One in flight is left to its answer, which finds the paper
   // gone or with its PDF.
   drop(library: Library, id: string) {
@@ -808,6 +812,21 @@ export class ExtensionWork implements ExtensionFetcher {
     if (!waitsChanged) return
     for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.lift(wait)
     this.waitsChanged()
+  }
+
+  // The user stopped this paper: as drop, and one in flight ends with its answer (settle), which only a
+  // PDF outlives
+  stop(library: Library, id: string) {
+    if (library !== this.library) return
+    for (const lane of this.lanes.values()) if (lane.inFlight?.item.paper.paperId === id) lane.inFlight.stopped = true
+    this.drop(library, id)
+    for (const wait of [...this.waitsAt.values()]) if (!this.count(wait)) this.lift(wait)
+    this.waitsChanged()
+  }
+
+  // The attempt in flight is of a paper the user stopped: its answer isn't a try of the paper's
+  isStopped(id: string): boolean {
+    return !!this.flying(id)?.inFlight?.stopped
   }
 
   // The waits, as the window shows them; a paper out for a try still waits there. Without going, which
@@ -1063,7 +1082,7 @@ export class ExtensionWork implements ExtensionFetcher {
       const ask = this.asks.get(lane.inFlight.by ?? "")
       const going = ask && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
       if (going && now - lane.inFlight.at < STALLED_MS) continue
-      lane.queue.unshift(lane.inFlight.item)
+      if (!lane.inFlight.stopped) lane.queue.unshift(lane.inFlight.item)
       lane.inFlight = undefined
       sortQueue(lane)
       lane.endedAt = now
@@ -1103,8 +1122,8 @@ export class ExtensionWork implements ExtensionFetcher {
 // waitsSign with no wait up
 const NO_WAITS = "[]"
 
-// What one try in flight, or out of it, is
-const all = (lane: Lane) => (lane.inFlight ? [lane.inFlight.item, ...lane.queue] : lane.queue)
+// The papers a lane has, the one in flight included unless the user stopped it
+const all = (lane: Lane) => (lane.inFlight && !lane.inFlight.stopped ? [lane.inFlight.item, ...lane.queue] : lane.queue)
 
 // A paper's standing under a wait, as PdfState.extension says it
 const underWait = (wait: Wait) => ({ wait: wait.gate, kind: wait.kind, at: wait.at })

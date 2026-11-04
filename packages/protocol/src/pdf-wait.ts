@@ -15,7 +15,7 @@ import type { Paper, PdfEnded, PdfTry } from "./library.ts"
 //   by hand (the extension saves a PDF they open)
 // - skipped: no PDF; the user looked at the publisher's page and found none (Skip on the extension's
 //   walk through the manual downloads). Their word stands: nothing offers or looks for it again on its own
-// - stopped: no PDF; the user stopped getting it (Stop on Get PDFs) while it waited for them at its site
+// - stopped: no PDF; the user stopped getting it (Stop on Get PDFs). Their word stands, as for skipped
 // - not-found, no-access, not-offered, not-there: no PDF, for that reason. A check or a sign-in that
 //   stopped owlit itself (only older records have one) is not-found: it waits on nobody
 export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "blocked" | "for-permission" | "manual" | "skipped" | "stopped" | "not-found" | "no-access" | "not-offered" | "not-there"

@@ -605,7 +605,7 @@ export class ExtensionServer {
                 const word = whyNotPlaced(failure.status)
                 const gate = this.work.gateFor(id, { host: at })
                 const triedAt = Date.now()
-                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+                if (!this.work.isStopped(id)) await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
                 this.work.settle(id, word, { triedAt })
               }
               throw error
@@ -617,7 +617,8 @@ export class ExtensionServer {
           const { ended: word, host: at, title, url } = body.data
           const gate = this.work.gateFor(id, { url, host: at })
           const triedAt = Date.now()
-          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
+          // The user's Stop stands as the paper's newest word
+          if (!this.work.isStopped(id)) await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
           this.work.settle(id, word, { url, host: at, triedAt })
           return { body: { noted: true } }
         },

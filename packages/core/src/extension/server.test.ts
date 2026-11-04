@@ -642,7 +642,7 @@ describe("the extension's port", () => {
       await eventually(async () => expect((await call("extension.get")).runs).toMatchObject([{ id: run, total: 2, going: 0, closed: 1, away: 1, running: false }]))
     })
 
-    it("takes a stopped batch's papers out of the extension's queue, leaving their records", async () => {
+    it("takes a stopped batch's papers out of the extension's queue, each noted as the user's stop", async () => {
       const { call, request, token, putPaper } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
       putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
@@ -654,9 +654,45 @@ describe("the extension's port", () => {
       await call("pdfRuns.stop", { run })
       const papers = (await call("library.list")).papers
       expect(papers.find((p: { id: string }) => p.id === other.id).pdfState?.extension).toBeUndefined()
-      // The one out for a try still has its answer taken
+      expect(papers.find((p: { id: string }) => p.id === other.id).pdfState?.reason).toMatchObject({ by: "person", ended: "stopped" })
+      // The one out for a try has its answer heard, and stays stopped
       expect((await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })).status).toBe(200)
+      expect((await paperIn(call)).pdfState?.reason).toMatchObject({ by: "person", ended: "stopped" })
       expect((await request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("makes no wait from the answer of a paper stopped in flight, and hands it over on no connect", async () => {
+      const { call, request, token, core } = await connected()
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      const [item] = (await request("/work", { token })).body.work
+      await call("pdfRuns.stop", { run })
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
+      expect((await call("extension.get")).waits).toEqual([])
+      expect((await paperIn(call)).pdfState).toMatchObject({ state: "no-pdf", reason: { by: "person", ended: "stopped" } })
+      expect((await paperIn(call)).pdfState?.extension).toBeUndefined()
+      await libraryOf(core).handToExtension()
+      expect((await request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("keeps the PDF of a paper stopped in flight", async () => {
+      const { call, request, token } = await connected()
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      const [item] = (await request("/work", { token })).body.work
+      await call("pdfRuns.stop", { run })
+      const answer = await request(`/work/${encodeURIComponent(item.id)}`, { token, bytes: pdfOf([title]) })
+      expect(answer.status).toBe(200)
+      expect((await paperIn(call)).pdf).toBeTruthy()
+    })
+
+    it("hands a stopped paper over again once the user asks", async () => {
+      const { call, request, token } = await connected()
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      await call("pdfRuns.stop", { run })
+      await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id, userStarted: true }]))
     })
 
     it("hands nothing over from a workspace another one replaced, keeping the new one's waits and queue", async () => {

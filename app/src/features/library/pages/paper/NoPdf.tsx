@@ -79,7 +79,7 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, wait:
     case "skipped":
       return t`You looked on its page in your browser and skipped it · ${date}`
     case "stopped":
-      return t`You stopped it while it waited for you at its site · ${date}`
+      return t`You stopped getting its PDF · ${date}`
     case "not-found":
       // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
       if (reason?.ended === "check" || reason?.ended === "sign-in") {

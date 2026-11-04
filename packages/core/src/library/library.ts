@@ -157,6 +157,8 @@ export interface ExtensionFetcher {
   holding(library: Library, id: string): PdfState["extension"] | undefined
   // The paper is in one of the extension's queues (not only held from its record)
   inQueue(library: Library, id: string): boolean
+  // The user stopped getting the paper: out of the queues; if it is in flight, only a PDF it brings counts
+  stop(library: Library, id: string): void
   // The paper no longer wants fetching: it has its PDF, or it left the library
   drop(library: Library, id: string): void
   // Papers of a Get PDFs changed, or the run did: the window hears the runs again
@@ -773,7 +775,7 @@ export class Library {
     const run = this.pdfRuns.find((r) => r.id === id)
     if (!run) throw new RpcFailure(RpcErrorCode.NotFound, t`That Get PDFs is over.`, { id })
     run.stoppedAt ??= Date.now()
-    await this.stopPapers(run.ids)
+    await this.stopPapers(run)
   }
 
   // A run the window puts away: it is no longer shown
@@ -822,17 +824,18 @@ export class Library {
     return { saved, ended }
   }
 
-  // A stopped run's papers leave the extension's queue, and the ones not handed over yet never are. Their
-  // records stay as they were; one being fetched now still has its answer noted.
-  private async stopPapers(ids: string[]) {
-    for (const id of ids) {
+  // A stopped run's papers leave the extension's queue, and the ones not handed over yet never are. Each
+  // of those is noted as the user's try, so neither the extension's next connect nor the daily look
+  // takes it back until they ask; one being fetched now keeps only a PDF its answer brings. A paper the
+  // run already finished with keeps what it ended on.
+  private async stopPapers(run: PdfRun) {
+    for (const id of run.ids) {
       const held = this.services.extension?.holding(this, id)
-      // Its record would say it waits for the user at a wait that is going: the user stopped it instead
-      if (held?.wait) await this.acquisitions.noteTried(id, { by: "person", ended: "stopped", at: Date.now() })
-      if (held) this.services.extension!.drop(this, id)
+      if (held) this.services.extension!.stop(this, id)
       else this.batchStopped.add(id)
+      if (held || !run.handed.has(id)) await this.acquisitions.noteTried(id, { by: "person", ended: "stopped", at: Date.now() }).catch(ignoreMissing)
     }
-    await this.announce(ids)
+    await this.announce(run.ids)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -1838,11 +1841,11 @@ export class Library {
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
           // extension, or to the user's browser), nor once the extension couldn't open its page, which it
-          // would fail to open again the same way, nor once the user found none there: only the user
-          // asking looks again there.
+          // would fail to open again the same way, nor once the user found none there or stopped it: only
+          // the user asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
-          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped"
+          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped" || told === "stopped"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
           if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal, undefined, { closed: true })
           await this.announce([id])

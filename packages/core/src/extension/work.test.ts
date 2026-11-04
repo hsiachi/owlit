@@ -31,6 +31,67 @@ afterEach(() => {
 })
 
 describe("the extension's queue", () => {
+  describe("a paper stopped while it is out for a fetch", () => {
+    async function outThenStopped() {
+      const s = setup()
+      s.work.fetch(library, paper("a1", "sagepub.com"), true)
+      s.work.fetch(library, paper("a2", "sagepub.com"), true)
+      const [item] = await s.take()
+      s.work.stop(library, "a1")
+      return { ...s, item }
+    }
+
+    it("reads as gone from the moment of the Stop, though the lane waits for its answer", async () => {
+      const { work, take, item } = await outThenStopped()
+      expect(work.holding(library, "a1")).toBeUndefined()
+      expect(work.inQueue(library, "a1")).toBe(false)
+      expect(work.isStopped(item.id)).toBe(true)
+      expect(work.current(library, item.id)).toMatchObject({ paperId: "a1" })
+      vi.advanceTimersByTime(GAP_MS)
+      expect(await take()).toEqual([])
+    })
+
+    it.each(["check", "sign-in", "blocked", "no-permission", "offline", "no-access"] as const)("makes no wait and is never requeued after %s", async (ended) => {
+      const { work, take, item } = await outThenStopped()
+      work.settle(item.id, ended, { url: "https://journals.sagepub.com/doi/a1", host: "journals.sagepub.com" })
+      expect(work.waits()).toEqual([])
+      expect(work.holding(library, "a1")).toBeUndefined()
+      vi.advanceTimersByTime(GAP_MS)
+      expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+    })
+
+    it("is never requeued when the extension goes away with it", async () => {
+      const { work, take } = await outThenStopped()
+      vi.advanceTimersByTime(STALLED_MS)
+      expect(await take()).toEqual([])
+      expect(work.holding(library, "a1")).toBeUndefined()
+      vi.advanceTimersByTime(GAP_MS)
+      expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+    })
+
+    it("lifts a wait it was the last paper of, its one try out", async () => {
+      const { work, take } = setup()
+      work.fetch(library, paper("a1", "sagepub.com"), true)
+      const [first] = await take()
+      work.settle(first.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
+      vi.advanceTimersByTime(PAUSED_RETRY_MS)
+      const [again] = await take()
+      expect(again.paperId).toBe("a1")
+      work.stop(library, "a1")
+      expect(work.waits()).toEqual([])
+      expect(work.followUpOf("pub:sage")).toBeUndefined()
+    })
+
+    it("goes on as the user's when they ask for it again before its answer", async () => {
+      const { work, item } = await outThenStopped()
+      work.fetch(library, paper("a1", "sagepub.com"), true)
+      expect(work.isStopped(item.id)).toBe(false)
+      expect(work.holding(library, "a1")).toMatchObject({ fetching: true })
+      work.settle(item.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
+      expect(work.waits()).toMatchObject([{ id: "pub:sage", kind: "check" }])
+    })
+  })
+
   it("keeps a check at a sign-in hop under the paper's publisher, holding only that publisher's papers in the proxy's lane", async () => {
     const { work, take } = setup()
     work.fetch(library, { ...tlinkPaper("s1", "10.1177/1"), predicted: "pub:sage" }, true)

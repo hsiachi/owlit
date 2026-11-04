@@ -1092,7 +1092,7 @@ msgstr ""
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
 #. an import that broke
-#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
+#. the user stopped getting the paper's PDF (Stop on Get PDFs)
 #. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
@@ -5289,7 +5289,7 @@ msgid "You looked on its page in your browser and skipped it · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "You stopped it while it waited for you at its site · {date}"
+msgid "You stopped getting its PDF · {date}"
 msgstr ""
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
