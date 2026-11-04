@@ -316,11 +316,15 @@ export class ExtensionWork implements ExtensionFetcher {
     if (notes !== this.notes) return
     const now = Date.now()
     const made = new Set<Wait>()
+    const withBrowser = [...pending]
     for (const k of known) {
       if (this.holds(k.paperId)) continue
       // The user got through there after this try, with no extension to go on then: the paper waits for
       // the browser, not for them
-      if (k.triedAt <= (notes.resumedAt(k.gate) ?? Number.NEGATIVE_INFINITY)) continue
+      if (k.triedAt <= (notes.resumedAt(k.gate) ?? Number.NEGATIVE_INFINITY)) {
+        withBrowser.push({ paperId: k.paperId, tries: k.tries, gate: k.gate, ...(k.host ? { host: k.host } : {}) })
+        continue
+      }
       let wait = this.waitsAt.get(k.gate)
       if (!wait) {
         const at = atOf(k.gate, k.kind, k.host)
@@ -342,7 +346,7 @@ export class ExtensionWork implements ExtensionFetcher {
     }
     notes.keepUp((f) => this.waitsAt.get(f.gate)?.since === f.since)
     const proxyLane = proxy ? proxyGate(proxy) : undefined
-    for (const p of pending) {
+    for (const p of withBrowser) {
       if (this.holds(p.paperId) || [...this.waitsAt.values()].some((w) => w.known.has(p.paperId))) continue
       const kept = notes.queuedOf(p.paperId)
       const where = kept ?? (p.gate ? { lane: proxyLane ?? p.gate, gate: p.gate, at: p.host?.replace(/^www\./, "") ?? atOf(p.gate, "check", undefined) } : undefined)

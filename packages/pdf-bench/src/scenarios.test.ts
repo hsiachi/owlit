@@ -732,6 +732,21 @@ describe("owlit and the machine", () => {
     expect(screen.inLine).toBe(1)
   })
 
+  it("restarted after the user said they got through with the browser closed: the papers say they wait for it", async () => {
+    const web = tlink(new FakeWeb())
+    const papers = [science(90), science(91)]
+    for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    await b.getPdfs()
+    await b.closeBrowser()
+    await b.restartCore()
+    await b.pressDone(TLINK)
+    const screen = await b.restartCore()
+    expect(screen.waits).toEqual([])
+    for (const id of ids) expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open" })
+  })
+
   it("restarted while a check waits: the wait is back at once, and passing it gets the PDF", async () => {
     const web = new FakeWeb()
     const { doi, title } = science(16)
