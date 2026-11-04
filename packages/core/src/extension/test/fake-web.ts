@@ -46,7 +46,7 @@ export class FakeWeb {
   private readonly downAt = new Set<string>()
   private readonly papers = new Map<string, { title: string }>()
   private readonly dois = new Map<string, { url: string; oa?: string }>()
-  private readonly hung = new Set<{ visit: Visit; answer: () => void }>()
+  private readonly hung = new Set<{ visit: Visit; answer: () => void; counted: boolean }>()
   private readonly heldNext = new Set<string>()
 
   constructor() {
@@ -141,9 +141,9 @@ export class FakeWeb {
     this.heldNext.add(host)
   }
 
-  // How many answers hang now
+  // How many answers hang now, those that a fetch can give up on (hang, not stall)
   hanging() {
-    return this.hung.size
+    return [...this.hung].filter((h) => h.counted).length
   }
 
   // The hanging answers come, as their behaviour says
@@ -157,7 +157,7 @@ export class FakeWeb {
   // Waits on a behaviour that hangs (hang below): called by it
   holdUntilReleased(visit: Visit, then: Behaviour): Promise<Response> {
     return new Promise<Response>((resolve, reject) => {
-      const held = { visit, answer: () => void Promise.resolve(then(visit)).then(resolve, reject) }
+      const held = { visit, answer: () => void Promise.resolve(then(visit)).then(resolve, reject), counted: !!visit.signal }
       this.hung.add(held)
       visit.signal?.addEventListener(
         "abort",
@@ -274,7 +274,7 @@ export const hang =
 // An answer that doesn't come, the fetch's own signal or not: a page that froze, for FakeWeb.release alone
 export const stall =
   (then: Behaviour): Behaviour =>
-  ({ signal: _signal, ...visit }) =>
+  ({ signal: _ignored, ...visit }) =>
     visit.web.holdUntilReleased(visit, then)
 
 // Cloudflare's check in front of the address, until the user passes it in their browser (clear)

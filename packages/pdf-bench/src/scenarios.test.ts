@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cloudflareCheck, FakeWeb, hang, landing, notFound, page, pdf, stall, tlink, ezproxy } from "../../core/src/extension/test/fake-web.ts"
 import { startBench, type Bench, type BenchSetup, type Row, type Screen } from "./adapter.ts"
 import { batchCountErrors, checkInvariants } from "./invariants.ts"
-import { atypon, behindSso, elsevier, inBrowser, openAccess, psycnet, refusesWorker } from "./sites.ts"
+import { atypon, behindSso, checksWorker, elsevier, inBrowser, openAccess, psycnet, refusesWorker } from "./sites.ts"
 
 // One test per real-world story of getting PDFs, each saying what the user would see: the Library's PDF
 // block (its rows and counts), a paper's words, the waits. The bench's invariants run after every step.
@@ -365,7 +365,7 @@ describe("a stalled publisher", () => {
     refusesWorker(web, "dl.acm.org", stalled.doi, stalled.title)
     web.on(`dl.acm.org/doi/pdf/${stalled.doi}`, (visit) => (visit.from === "tab" ? stall(pdf(stalled.doi))(visit) : page(stalled.title, `<h1>${stalled.title}</h1>`, 403, `<meta name="citation_title" content="${stalled.title}">`)))
     atypon(web, "journals.sagepub.com", after.doi, after.title, { subscription: true })
-    const b = await start(web, { proxy: { preset: "tsinghua" }, times: { fetchMs: 25 } })
+    const b = await start(web, { proxy: { preset: "tsinghua" }, times: { fetchMs: 150 } })
     const id = b.addPaper(stalled.doi, stalled.title)
     const next = b.addPaper(after.doi, after.title)
     const screen = await b.getPdfs()
@@ -435,6 +435,8 @@ describe("a publisher's sign-in hop, off campus", () => {
     const other = b.addPaper(direct.doi, direct.title)
     const screen = await b.getPdfs()
     expect(screen.papers[id].heldAt).toBe("pub:elsevier")
+    // Named by the publisher: the hop's host is one step of its sign-in
+    expect(screen.waits).toMatchObject([{ id: "pub:elsevier", host: "elsevier.com" }])
     expect(screen.papers[other].hasPdf).toBe(true)
   })
 
@@ -560,6 +562,21 @@ describe("Stop", () => {
     expect(b.fetched()).toEqual([id])
   })
 
+  it("with its block left up: a paper out at Stop is counted stopped once its answer comes", async () => {
+    const web = new FakeWeb()
+    const p = science(52)
+    atypon(web, "www.science.org", p.doi, p.title)
+    web.on(`www.science.org/doi/pdf/${p.doi}`, (visit) => (visit.client === "browser" ? hang(() => cloudflareCheck())(visit) : page("Access denied", "", 403)))
+    const b = await start(web)
+    b.addPaper(p.doi, p.title)
+    await b.getPdfs()
+    await b.stopKeepingBlock()
+    web.release()
+    const screen = await b.step("the held answer comes")
+    expect(rowsOf(screen)).toEqual([["stopped", 1]])
+    expect(screen.block).toMatchObject({ total: 1, running: false })
+  })
+
   it("while a fetch is held, and the worker restarts: the stopped paper isn't handed out again", async () => {
     const web = new FakeWeb()
     const p = science(51)
@@ -587,6 +604,8 @@ describe("a gate's kept tab", () => {
     expect(screen.papers[first].hasPdf).toBe(true)
     expect(screen.browser.tabs).toEqual([`https://dl.acm.org/doi/${papers[0].doi}`])
     await b.clickTab("dl.acm.org")
+    // And goes on to a tab of their own: the click is what says the first is theirs
+    await b.openPage("https://www.example.org/")
     const second = b.addPaper(papers[1].doi, papers[1].title)
     screen = await b.findPdf(second)
     expect(screen.papers[second].hasPdf).toBe(true)
@@ -594,7 +613,48 @@ describe("a gate's kept tab", () => {
     expect(screen.browser.tabs).toContain(`https://dl.acm.org/doi/${papers[0].doi}`)
     // Long after, the extension's own is closed as idle, and theirs isn't
     screen = await b.sleep(2 * 60_000)
-    expect(screen.browser.tabs).toEqual([`https://dl.acm.org/doi/${papers[0].doi}`])
+    expect(screen.browser.tabs.filter((tab) => tab.includes("acm.org"))).toEqual([`https://dl.acm.org/doi/${papers[0].doi}`])
+  })
+})
+
+describe("a wait", () => {
+  it("the user says they got through: what goes on is theirs, so a tab may open for it", async () => {
+    const web = new FakeWeb()
+    const p = { doi: "10.1145/0000901", title: "A Paper Behind A Check Only A Tab Passes" }
+    checksWorker(web, "dl.acm.org", p.doi, p.title)
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    // Handed over by owlit's own look: nothing the user started, so no tab opens and a wait comes up
+    let screen = await b.restartCore()
+    expect(screen.waits).toMatchObject([{ id: "pub:acm", kind: "check", papers: 1 }])
+    expect(screen.browser.tabs).toEqual([])
+    screen = await b.pressDone("dl.acm.org")
+    expect(screen.papers[id].hasPdf).toBe(true)
+  })
+
+  it("the user got through where the extension didn't see: its one try, a quarter of an hour on, gets the paper", async () => {
+    const web = new FakeWeb()
+    const p = science(80)
+    atypon(web, "www.science.org", p.doi, p.title, { check: true })
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    expect((await b.findPdf(id)).waits).toMatchObject([{ id: "pub:science", kind: "check" }])
+    web.clear("www.science.org")
+    const screen = await b.sleep(16 * 60_000)
+    expect(screen.papers[id].hasPdf).toBe(true)
+    expect(screen.waits).toEqual([])
+  })
+
+  it("keeps what the user did across a crash: its page opened, from the notes on disk", async () => {
+    const web = new FakeWeb()
+    const p = science(81)
+    atypon(web, "www.science.org", p.doi, p.title, { check: true })
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    await b.findPdf(id)
+    expect((await b.clickWait("check", "science.org")).waits).toMatchObject([{ opened: true }])
+    const screen = await b.crashCore()
+    expect(screen.waits).toMatchObject([{ id: "pub:science", opened: true }])
   })
 })
 

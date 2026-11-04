@@ -77,6 +77,12 @@ function expectationErrors(screen: Screen, ids: string[], wants: Want[]): string
     if (want.stopped && (p.heldAt || p.inLine)) errors.push(`${name}: the user stopped it, and it is still ${p.heldAt ? `under ${p.heldAt}` : "in line"}`)
     if (PAPERS[i].kind === "manual" && p.hasPdf && !want.dropped) errors.push(`${name}: only the user can get it, and it reads saved`)
   })
+  // A wait is at the gate that can stop a fetch: the proxy's sign-in is the proxy's, and in this library
+  // no publisher asks for one; a check or a block is a publisher's
+  for (const w of screen.waits) {
+    if (w.kind === "sign-in" && !w.id.startsWith("proxy:")) errors.push(`the sign-in wait ${w.id} isn't the proxy's`)
+    if ((w.kind === "check" || w.kind === "blocked") && w.id.startsWith("proxy:")) errors.push(`the ${w.kind} wait ${w.id} is the proxy's`)
+  }
   return errors
 }
 
@@ -183,7 +189,9 @@ async function doEverything(r: Run) {
       seen.push(...watchErrors(wait, landed))
     }
     r.last = await b.step("the user acted")
-    for (const wait of r.last.waits) r.last = await b.pressDone(wait.host)
+    // A sign-in can end on a page that still looks like one: the row's button says the user is done.
+    // Anything else ends by the extension seeing the user past it.
+    for (const wait of r.last.waits) if (wait.kind === "sign-in") r.last = await b.pressDone(wait.host)
     r.last = await b.sleep(20 * 60_000)
     if (!r.last.waits.length && !r.last.queued) break
   }
@@ -198,7 +206,7 @@ async function doEverything(r: Run) {
   }
   r.last = await b.step("look again on what has nothing")
   for (let round = 0; round < 6 && (r.last.waits.length || r.last.queued); round++) {
-    for (const wait of r.last.waits) r.last = await b.pressDone(wait.host)
+    for (const wait of r.last.waits) await b.clickWait(wait.kind, wait.host)
     r.last = await b.sleep(20 * 60_000)
   }
   expect(livenessErrors(r.last)).toEqual([])
@@ -230,7 +238,9 @@ export async function modelRun(proxy: boolean, sequence: Event[]) {
     // What was kept is what was on the screen, once owlit has looked at every paper
     web.release()
     looksAtAll(wants)
-    await bench.restartCore()
+    r.last = await bench.restartCore()
+    // What the user did about a wait is kept too
+    if (r.last.waits[0]) await bench.clickWait(r.last.waits[0].kind, r.last.waits[0].host)
     await bench.closeBrowser()
     const before = kept(await bench.step("the browser is closed"))
     expect(kept(await bench.restartCore())).toEqual(before)
@@ -249,7 +259,7 @@ export async function modelRun(proxy: boolean, sequence: Event[]) {
 
 export function modelTest(proxy: boolean, seed: number) {
   return fc.assert(
-    fc.asyncProperty(fc.array(events, { minLength: 1, maxLength: Number(process.env.PDF_BENCH_EVENTS) || 16 }), (sequence) => modelRun(proxy, sequence)),
+    fc.asyncProperty(fc.array(events, { minLength: 1, maxLength: Number(process.env.PDF_BENCH_EVENTS) || 20 }), (sequence) => modelRun(proxy, sequence)),
     { numRuns: Number(process.env.PDF_BENCH_RUNS) || 30, seed: Number(process.env.PDF_BENCH_SEED) || seed, endOnFailure: !!process.env.PDF_BENCH_NO_SHRINK },
   )
 }

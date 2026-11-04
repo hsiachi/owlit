@@ -1,4 +1,4 @@
-import { checked, firewalled, landing, metaRefresh, page, pdf, publisherLogin, redirectTo, shell, ssoStep, subscribed, type Behaviour, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
+import { checked, cloudflareCheck, firewalled, landing, metaRefresh, page, pdf, publisherLogin, redirectTo, shell, ssoStep, subscribed, type Behaviour, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
 
 // Publishers as the scenarios meet them on the fake web, at the addresses owlit's publisher table
 // (packages/core/src/library/publisher-table.ts) sends the extension to
@@ -80,4 +80,12 @@ export function refusesWorker(web: FakeWeb, host: string, doi: string, title: st
   web.paper(doi, title, { url: at })
   web.on(`${host}/doi/pdf/${doi}`, (visit) => (visit.from === "tab" ? pdf(doi)(visit) : article(403)()))
   web.on(`${host}/doi/${doi}`, inBrowser(article(200)))
+}
+
+// A publisher whose check turns the extension's own fetches away and passes in any tab that runs it
+export function checksWorker(web: FakeWeb, host: string, doi: string, title: string) {
+  const inTab = (then: Behaviour): Behaviour => (visit) => (visit.from === "tab" ? then(visit) : cloudflareCheck())
+  web.paper(doi, title, { url: `https://${host}/doi/${doi}` })
+  web.on(`${host}/doi/pdf/${doi}`, inTab(pdf(doi)))
+  web.on(`${host}/doi/${doi}`, inTab(landing(doi, title, `https://${host}/doi/pdf/${doi}`)))
 }

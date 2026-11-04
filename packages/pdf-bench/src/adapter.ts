@@ -1,9 +1,10 @@
 import type { ExtensionView, ExtensionWait, Paper, PdfRunView, ProxySettings, Task, WorkAnswer } from "@owlit/protocol"
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { vi } from "vitest"
 import { Core } from "../../core/src/core.ts"
+import { PdfWorkNotes } from "../../core/src/extension/pdf-work.ts"
 import type { ExtensionServer } from "../../core/src/extension/server.ts"
 import { CONNECTED_MS, ExtensionWork } from "../../core/src/extension/work.ts"
 import { SENDS_TO, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
@@ -33,6 +34,8 @@ const HOLD_MS = 4
 // Answered GET /work rounds with nothing new before the bench counts the system as quiet: a paper handed
 // over by an async step of core's (a restart's hand-over) lands in a later round
 const QUIET_ROUNDS = 3
+// The same with the browser closed, with no asking to count: core's look at a paper ends in file work
+const QUIET_CLOSED_MS = 60
 // How long the bench waits for core or the extension to get somewhere, well under the test timeout
 const PATIENCE = { timeout: 10_000, interval: 5 }
 // The ladder's and the background's times, in proportion to each other, at the bench's pace
@@ -309,6 +312,13 @@ export class Bench {
     return this.step("stop the batch")
   }
 
+  // Stop, with the block left up: its rows say what became of the papers
+  async stopKeepingBlock() {
+    const run = await this.run()
+    if (run) await this.call("pdfRuns.stop", { run: run.id })
+    return this.step("stop the batch, its block left up")
+  }
+
   // Dismiss the batch's summary
   async dismiss() {
     const run = await this.run()
@@ -432,6 +442,21 @@ export class Bench {
     return this.step("restart owlit")
   }
 
+  // owlit dies, once what it kept reached the disk (a note is written a moment after it changes): nothing
+  // more is written on the way out, and it starts again from the file
+  async crashCore() {
+    const file = path.join((this.core as unknown as { workspace: { library: Library } }).workspace.library.dataDir!, "pdf-work.json")
+    const notes = (this.server.work as unknown as { notes: PdfWorkNotes }).notes
+    const unsaved = () => (notes as unknown as { timer?: unknown }).timer
+    await vi.waitFor(() => {
+      if (unsaved() || !existsSync(file)) throw new Error("the notes aren't on disk yet")
+    }, PATIENCE)
+    const flush = vi.spyOn(PdfWorkNotes.prototype, "flush").mockResolvedValue(undefined)
+    await this.restartCore()
+    flush.mockRestore()
+    return this.step("owlit crashed and started again")
+  }
+
   // The window reloads: it keeps nothing of its own; the run and the waits' follow-ups are core's
   async reloadRenderer() {
     this.ui = new Renderer()
@@ -481,7 +506,7 @@ export class Bench {
         seen = moved
         asksThen = this.ext.asks
         quietSince = performance.now()
-      } else if (this.ext.closed ? performance.now() - quietSince >= HOLD_MS * QUIET_ROUNDS : this.ext.asks - asksThen >= QUIET_ROUNDS) return
+      } else if (this.ext.closed ? performance.now() - quietSince >= QUIET_CLOSED_MS : this.ext.asks - asksThen >= QUIET_ROUNDS) return
       if (performance.now() > gaveUpAt) throw new Error(`Nothing settles: ${this.ext.describe()}`)
       // What a stopped worker's alarm would start again, and the tabs' tidying
       if (round % 8 === 0) this.ext.tick()
