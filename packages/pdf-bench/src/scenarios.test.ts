@@ -286,6 +286,27 @@ describe("the library's proxy", () => {
     expect(screen.block).toMatchObject({ total: 2, saved: 2, running: false, ended: true, rows: [] })
   })
 
+  it("tlink's sign-in wait, a paper asked for meets a publisher's check: the check counts it, and the sign-in is over", async () => {
+    const web = tlink(new FakeWeb())
+    const checked = science(31)
+    atypon(web, "www.science.org", checked.doi, checked.title, { check: true, subscription: true })
+    const jmir = { doi: "10.2196/44031", title: "A JMIR Paper Under The Same Sign-In" }
+    atypon(web, "www.jmir.org", jmir.doi, jmir.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const id = b.addPaper(checked.doi, checked.title)
+    const other = b.addPaper(jmir.doi, jmir.title)
+    expect(rowsOf(await b.getPdfs())).toEqual([["sign-in", 2, TLINK]])
+    // The user signed in somewhere the extension didn't see, and asks for one of the papers: its try gets
+    // past the proxy and stops at Science's check
+    web.signIn(TLINK)
+    await b.call("library.fetchPdf", { id })
+    const screen = await b.step("the asked-for paper's try")
+    expect(screen.waits).toMatchObject([{ id: "pub:science", kind: "check", papers: 1 }])
+    expect(screen.papers[id]).toMatchObject({ heldAt: "pub:science", title: "Needs you to verify you're human on science.org" })
+    // The proxy let a reader through, so its sign-in holds no one
+    expect(screen.papers[other].hasPdf).toBe(true)
+  })
+
   it("EZproxy signed out: its sign-in, then the PDF at the rewritten host", async () => {
     const web = ezproxy(new FakeWeb())
     const { doi, title } = science(9)
@@ -636,6 +657,22 @@ describe("a workspace switch", () => {
 })
 
 describe("owlit and the machine", () => {
+  it("a PDF dropped while the workspace opens: the other papers in line stay with the browser", async () => {
+    const web = new FakeWeb()
+    const papers = [1, 2].map((n) => ({ doi: `10.1177/095679767${n}`, title: `A Paper In Line Across A Restart ${n}` }))
+    for (const p of papers) atypon(web, "journals.sagepub.com", p.doi, p.title)
+    // Only a browser gets these, and it is closed: they stay in line, in pdf-work.json alone
+    const b = await start(web)
+    const [dropped, kept] = papers.map((p) => b.addPaper(p.doi, p.title))
+    await b.hold()
+    await b.getPdfsNow([dropped, kept])
+    await b.closeBrowser()
+    const screen = await b.restartCore({ whileOpening: () => b.attachPdf(dropped, papers[0].doi) })
+    expect(screen.papers[dropped].hasPdf).toBe(true)
+    expect(screen.papers[kept]).toMatchObject({ hasPdf: false, title: "Waiting for Chrome to open" })
+    expect(screen.inLine).toBe(1)
+  })
+
   it("restarted while a check waits: the wait is back at once, and passing it gets the PDF", async () => {
     const web = new FakeWeb()
     const { doi, title } = science(16)

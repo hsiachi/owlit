@@ -158,6 +158,7 @@ export class Bench {
   // still running (Library.handToExtension), so a settle waits for them
   private readonly handed: string[] = []
   private readonly busy = new Set<Promise<unknown>>()
+  private opening: (() => Promise<unknown>) | undefined
 
   constructor(web: FakeWeb, setup: BenchSetup) {
     this.web = web
@@ -172,6 +173,14 @@ export class Bench {
     vi.spyOn(ExtensionWork.prototype, "fetch").mockImplementation(function (this: ExtensionWork, ...args) {
       handed.push(args[1].paperId)
       return fetch.apply(this, args)
+    })
+    const restore = ExtensionWork.prototype.restore
+    const bench = this
+    vi.spyOn(ExtensionWork.prototype, "restore").mockImplementation(async function (this: ExtensionWork, ...args) {
+      const opening = bench.opening
+      bench.opening = undefined
+      await opening?.()
+      return restore.apply(this, args)
     })
     const handTo = Library.prototype.handToExtension
     const busy = this.busy
@@ -251,6 +260,11 @@ export class Bench {
   async askOnce() {
     await this.ext.askOnce()
     return this.glance()
+  }
+
+  // The extension asks for nothing more until the next step
+  hold() {
+    return this.ext.hold()
   }
 
   // What the user sees now, in the middle of things: the bench's checks, which hold once everything
@@ -369,16 +383,23 @@ export class Bench {
 
   // A PDF dragged onto the paper
   async dropPdf(id: string, doi: string) {
-    const file = path.join(this.base, `${id}.pdf`)
-    writeFileSync(file, this.web.pdfOf(doi))
-    await this.call("library.attachPdf", { id, path: file })
+    await this.attachPdf(id, doi)
     return this.step(`drop a PDF on ${id}`)
   }
 
-  // owlit quits and starts again on the same workspace; the extension keeps its pairing
-  async restartCore() {
+  // The same, not looked at after: the window reads nothing until the workspace's waits are up
+  async attachPdf(id: string, doi: string) {
+    const file = path.join(this.base, `${id}.pdf`)
+    writeFileSync(file, this.web.pdfOf(doi))
+    await this.call("library.attachPdf", { id, path: file })
+  }
+
+  // owlit quits and starts again on the same workspace; the extension keeps its pairing. whileOpening:
+  // what the user does once the workspace read what it kept, before its waits and queues are up.
+  async restartCore({ whileOpening }: { whileOpening?: () => Promise<unknown> } = {}) {
     await this.core.dispose()
     this.ext.ownerGone()
+    this.opening = whileOpening
     await this.startCore()
     this.ui = new Renderer()
     return this.step("restart owlit")
