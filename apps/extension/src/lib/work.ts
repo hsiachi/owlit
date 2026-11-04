@@ -163,8 +163,8 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   // for the user to let the extension read (the publisher's, reached through the proxy or doi.org).
   // Unless it is the school's sign-in, which a signed-out proxy sends every fetch to: a site under the
   // proxy's own domain (id.tsinghua.edu.cn beside tlink), or an address that says sign in. A step of a
-  // publisher's sign-in is neither: a tab walks it by itself, so it ends as a check, with no url, since
-  // the address of a step is good only once and the paper's own is the one to open.
+  // publisher's sign-in is neither: a tab walks it by itself, so it ends as a check, with no url: the
+  // page to open for it is the paper's, not one step of a walk.
   const unreadable = (got: { to?: string }): WorkEnded | undefined => {
     if (!got.to) return undefined
     const host = hostOf(got.to)

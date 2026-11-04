@@ -142,15 +142,14 @@ function offersAccess(html: string) {
 
 // IEEE Xplore draws its "Sign In or Purchase" by script, after the page has been read; its page data
 // says the same: a paper neither free nor open, for a reader with no institution and no subscription.
-// A member's society subscriptions don't show in it, so a member's access can't be told.
+// Whether a member has the paper it doesn't say.
 const ieeeKeepsIt = (html: string) =>
   /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html) && !/"userInfo":\{[^{}]*"member":true/.test(html)
 
 // What a PDF's address (asked) answered with when the site keeps the PDF from this reader: the paper's
 // own page where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the
-// article on it) or sent away to it with its offers (JAMA, Science). Offers alone say nothing: a campus
-// reader's paper page carries them hidden, and a viewer's page at the PDF's address is such a page. A
-// reader who has the paper is not sent away.
+// article on it) or sent away to it with its offers (JAMA, Science). Offers alone say nothing, a campus
+// reader's paper page carrying them hidden; a reader who has the paper is not sent away.
 export function refusesPdf(page: Pick<Page, "url" | "status" | "html">, asked: string) {
   if (!isArticle(page.html)) return false
   if (page.status === 401 || page.status === 403) return true
