@@ -153,6 +153,27 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(item(), web({ "https://journals.sagepub.com/doi/10.1177/1": "down" }).deps)).toMatchObject({ ended: "offline" })
   })
 
+  it("says no access when the PDF's address answers with the paper's own page", async () => {
+    const article = (extra = "") => `<title>A Paper</title><meta name="citation_title" content="A Paper"><meta name="citation_doi" content="10.1177/1"><a href="/doi/pdf/10.1177/1">PDF</a>${extra}`
+    const at = "https://journals.sagepub.com/doi/10.1177/1"
+    const pdfAt = "https://journals.sagepub.com/doi/pdf/10.1177/1"
+    // Wiley's and ASCE's: refused, with the article on the refusal
+    const refused = web({ [at]: { body: article() }, [pdfAt]: { body: article(), status: 403 } })
+    expect(await fetchFor(item(), refused.deps)).toMatchObject({ ended: "no-access", title: "A Paper" })
+    // Science's and JAMA's: sent back to the paper's page, with its offers
+    const sentBack = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: article("<a>Check Access</a>"), endsAt: at } })
+    expect(await fetchFor(item(), sentBack.deps)).toMatchObject({ ended: "no-access" })
+    // The same known from the PDF address owlit gave
+    const given = web({ [at]: { body: article() }, [pdfAt]: { body: article(), status: 403 } })
+    expect(await fetchFor(item({ pdfUrl: pdfAt }), given.deps)).toMatchObject({ ended: "no-access" })
+    // A viewer's page where the PDF should be offers nothing: the user can get it there by hand
+    const viewer = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: '<title>A Paper</title><div id="viewer"></div>' } })
+    expect(await fetchFor(item(), viewer.deps)).toMatchObject({ ended: "unreadable" })
+    // A site's error in the PDF's place says nothing of the reader's access
+    const broken = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: "<title>Server error</title>", status: 500 } })
+    expect(await fetchFor(item(), broken.deps)).toMatchObject({ ended: "unreadable" })
+  })
+
   it("names the site a redirect reached when the extension may not read it", async () => {
     // Through the proxy, the publisher's own site: a site to let the extension read, not the proxy's sign-in
     const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://doi.org/10.1037/0022-3514.54.4.569"

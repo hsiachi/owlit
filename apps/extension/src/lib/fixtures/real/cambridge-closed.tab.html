@@ -1,0 +1,550 @@
+<html><head><meta><meta><meta><meta><meta><meta><meta><meta><meta><meta>
+ <script type="text/plain" src="https://snap.licdn.com/li.lms-analytics/insight.min.js"></script><script type="text/javascript" src="https://static.ads-twitter.com/uwt.js"></script><script type="text/plain" src="https://static.hotjar.com/c/hotjar-2580298.js?sv=7"></script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=G-ZYGQ8432T2&amp;cx=c&amp;gtm=4e6b21"></script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=G-7PM892EE02&amp;cx=c&amp;gtm=4e6b21"></script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=G-P7DT1QXXSK&amp;cx=c&amp;gtm=4e6b21"></script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=AW-763157808&amp;cx=c&amp;gtm=4e6b21"></script><script type="text/javascript" src="https://cdn-ukwest.onetrust.com/consent/3dd5ea87-ecd6-4ace-b901-982f3d284f86/OtAutoBlock.js"></script>
+ <script src="https://cdn-ukwest.onetrust.com/scripttemplates/otSDKStub.js" type="text/javascript"></script><script src="https://www.googletagmanager.com/gtm.js?id=GTM-NTX72TG"></script><script type="text/plain" src="https://www.google-analytics.com/analytics.js"></script>
+ <script type="text/javascript">
+ window.addEventListener("OTConsentApplied", function () {
+ window.location.reload();
+ });
+ // TODO: remove after fixing the OneTrust implementation in Static Pages
+ window.addEventListener("OneTrustGroupsUpdated", function () {
+ document.dispatchEvent(new Event("optanon-wrapper-triggered"));
+ });
+ </script>
+ <meta name="google-site-verification" content="SzMHvEaWkra7_ePshnHv1q3d7a76r58We9kiZaDqf_U"> <meta> <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Scaling laws for segregation forces in dense sheared granular flows | Journal of Fluid Mechanics | Cambridge Core</title>
+ <script src="/core/vanilla/public/js/sentry.min.js"></script>
+ <script>
+ let isTerminated = false;
+ 
+ window.addEventListener('pagehide', (event) => {
+ isTerminated = !event.persisted;
+ }, { capture: true });
+ 
+ const EXTRA_KEY = "ROUTE_TO";
+ 
+ Sentry.init({
+ dsn: "https://user@example.org/6395238",
+ release: "v7.754.0",
+ environment: "prod",
+ ignoreErrors: [],
+ integrations: [Sentry.moduleMetadataIntegration()],
+ transport: Sentry.makeMultiplexedTransport(
+ Sentry.makeFetchTransport,
+ (args) => {
+ const event = args.getEvent();
+ if (
+ event &&
+ event.extra &&
+ EXTRA_KEY in event.extra &&
+ Array.isArray(event.extra[EXTRA_KEY])
+ ) {
+ return event.extra[EXTRA_KEY];
+ }
+ return [];
+ },
+ ),
+ beforeSend: (event) => {
+ if (isTerminated || (window.location.protocol !== 'http:' && window.location.protocol !== 'https:')) {
+ return null;
+ }
+ 
+ if (event?.exception?.values?.[0].stacktrace?.frames) {
+ const { frames } = event.exception.values[0].stacktrace;
+ 
+ const routeTo = frames
+ .filter((frame) => frame.module_metadata && frame.module_metadata.dsn)
+ .map((v) => v.module_metadata)
+ .slice(-1);
+ 
+ if (routeTo.length) {
+ event.extra = {
+ ...event.extra,
+ [EXTRA_KEY]: routeTo,
+ };
+ }
+ }
+ 
+ return event;
+ },
+ });
+ </script>
+ <meta property="og:site_name" content="Cambridge Core"> <meta property="og:type" content="website"> <meta property="og:url" content="https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41"> <meta property="og:title" content="Scaling laws for segregation forces in dense sheared granular flows | Journal of Fluid Mechanics | Cambridge Core"> <meta property="og:description" content="Scaling laws for segregation forces in dense sheared granular flows - Volume 807"> <meta property="og:image" content="https://static.cambridge.org/covers/FLM_0_0_0/journal_of fluid mechanics.jpg?send-full-size-image=true"> <meta name="description" content="Scaling laws for segregation forces in dense sheared granular flows - Volume 807"> <link rel="canonical" href="https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41"> <meta name="dc.identifier" content="doi:10.1017/jfm.2016.605"> <meta name="citation_journal_title" content="Journal of Fluid Mechanics"> <meta name="citation_publisher" content="Cambridge University Press"> <meta name="citation_title" content="Scaling laws for segregation forces in dense sheared granular flows"> <meta name="citation_author" content="François Guillard"> <meta name="citation_author" content="Yoël Forterre"> <meta name="citation_author" content="Olivier Pouliquen"> <meta name="citation_publication_date" content="2016/10"> <meta name="citation_online_date" content="2016/10/18"> <meta name="citation_volume" content="807"> <meta name="citation_firstpage" content="R1"> <meta name="citation_issn" content="0022-1120"> <meta name="citation_issn" content="1469-7645"> <meta name="citation_keywords" content="granular media; granular mixing"> <meta name="citation_pdf_url" content="https://www.cambridge.org/core/services/aop-cambridge-core/content/view/5BE7B7A60DE924ACC00D7DC906E98B41/S0022112016006054a.pdf/div-class-title-scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows-div.pdf"> <meta name="citation_abstract" content="In order to better understand the mechanism governing segregation in dense granular flows, the force experienced by a large particle embedded in a granular flow made of small particles is studied using discrete numerical simulations. Accurate force measurements have been obtained in a large range of"> <meta name="citation_doi" content="10.1017/jfm.2016.605"> <meta name="tdm-reservation" content="1"> <meta name="tdm-policy" content="https://www.cambridge.org/core/tdm/tdm-policy.json"> <link rel="alternate" href="/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41"> <link rel="icon" href="/core/cambridge-core/public/images/favicon.ico" type="image/x-icon"> <link rel="shortcut icon" href="/core/cambridge-core/public/images/favicon.ico" type="image/x-icon"> <link href="//fonts.googleapis.com/css?family=Noto+Sans:400,700,400italic,700italic" rel="stylesheet" type="text/css"> <link rel="stylesheet" href="/core/cambridge-core/public/css/app.css?version=none"> <link rel="stylesheet" href="/core/cambridge-core/public/bower_components/font-awesome/css/font-awesome.min.css">
+ <script src="/core/system/public/bower_components/jquery/dist/jquery.min.js"></script><script src="https://cdn-ukwest.onetrust.com/scripttemplates/202509.1.0/otBannerSdk.js" type="text/javascript"></script>
+ <script src="/core/system/public/bower_components/jquery-migrate-3/jquery-migrate.min.js"></script>
+ <script src="/core/cambridge-core/public/bower_components/modernizr/modernizr.js"></script>
+ <script>
+ (function(a,s,y,n,c,h,i,d,e){
+ s.className+=' '+y;
+ h.start=1*new Date;
+ h.end=i=function(){s.className=s.className.replace(RegExp(' ?'+y),'')};
+ (a[n]=a[n]||[]).hide=h;
+ setTimeout(function(){i();h.end=null},c);
+ h.timeout=c;
+ })(window,document.documentElement,'async-hide','dataLayer',4000, {'GTM-PWNSR3B':true});
+ 
+ (function(i,s,o,g,r,a,m){
+ i['GoogleAnalyticsObject']=r,
+ i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)
+ },
+ i[r].l=1*new Date();
+ a=s.createElement(o),
+ a.async=1,
+ a.src=g;
+ 
+ // Add GA after OneTrust
+ var ot = s.querySelector("script[src*='otSDKStub.js']");
+ if (ot && ot.parentNode) {
+ ot.parentNode.insertBefore(a, ot.nextSibling);
+ } else {
+ m=s.getElementsByTagName(o)[0];
+ m.parentNode.insertBefore(a,m);
+ }
+ 
+ ga('create', 'UA-86516288-1', 'auto');
+ ga('require', 'GTM-PWNSR3B');
+ ga('send', 'pageview');
+ })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+ </script>
+ <script>
+ // OneTrust Cookies Consent Notice for www.cambridge.org
+ // load GTM after OneTrust IF not accepted or rejected
+ (function(w,d,s,l,i){
+ w[l]=w[l]||[];
+ w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});
+ var j=d.createElement(s)
+ var dl=l!='dataLayer'?'&l='+l:'';
+ 
+ j.async=true;
+ j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+ 
+ var ot = d.querySelector("script[src*='otSDKStub.js']"); // find OneTrust script
+ if (ot && ot.parentNode) {
+ ot.parentNode.insertBefore(j, ot.nextSibling); // insert right after OneTrust
+ } else {
+ d.head.appendChild(j); // fallback
+ }
+ })(window,document,'script','dataLayer','GTM-NTX72TG');
+ </script>
+ <script></script>
+ <script type="text/javascript">
+ function handleImageError(element) {
+ const $element = $(element);
+ $element.css('pointer-events', 'none');
+ $element.attr('tabindex', '-1');
+ }
+ </script>
+ <meta name="shareaholic:site_id" content="b60ec523a5bee2ad04c630bf0d3aa388"> <link rel="preload" href="https://cdn.shareaholic.net/assets/pub/shareaholic.js">
+ <script>
+ $(document).ready(function () {
+ AOP.loadScript(AOP.baseUrl + '/cambridge-core/public/js/a11y-1.0.40.min.js', function () {
+ if(!window.cambridgeA11y) {
+ console.error('cambridgeA11y not loaded')
+ return
+ }
+ const { ShareaholicAccessibilityHandler, FocusTrapKeydownHandler } = window.cambridgeA11y
+ new ShareaholicAccessibilityHandler(new FocusTrapKeydownHandler()).fixAccessibilityForShareaholicModal();
+ })
+ })
+ </script>
+ <script type="text/javascript"></script>
+ <script>
+ $(document).ready(function () {
+ // remove all `click` for `consent-link`, then delegate the event to that class only
+ $(document).off('click', '.consent-link').on('click', '.consent-link', function (e) {
+ e.preventDefault();
+
+ if (window?.OneTrust?.ToggleInfoDisplay) {
+ window.OneTrust.ToggleInfoDisplay();
+ }
+ })
+
+ setTimeout(function () {
+ var ua = navigator.userAgent;
+
+ var isFirefox = ua.toLowerCase().includes('firefox');
+ var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+
+ if (isFirefox || isSafari) {
+ $('.ot-tgl input').next('span').remove();
+ }
+ }, 2000); // 2 seconds delay
+ });
+ </script>
+<meta><script src="/core/page-component/f44fbe2.js"></script><script src="/core/page-component/a926a18.js"></script><link rel="preload" href="https://cdn.shareaholic.net/assets/pub/shareaholic.js"><meta name="shareaholic:site_id" content="b60ec523a5bee2ad04c630bf0d3aa388"><script type="text/javascript" src="/core/citationTool/public/js/app.js"></script><script type="text/javascript" src="https://crossmark-cdn.crossref.org/widget/v2.0/widget.js"></script><script src="//unpkg.com/@theidentityselector/thiss-ds"></script></head> <body> <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NTX72TG"></iframe></noscript> <a href="#maincontent"> Skip to main content </a> <a href="/core/accessibility"> Accessibility help </a> <h2>Login Alert</h2> <a href="#">Cancel</a> <a href="/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41">Log in</a> <a href="#">× </a> <a href="#"></a> <a href="#"></a> <a>×</a> <link rel="stylesheet" href="/aca/shared-elements/_nuxt/entry.DPo2eHMz.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-404.CMmh0Ct3.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-500.CT9tzdfr.css">
+ <script>window.__MAINTENANCE_MESSAGE_DATA__ = {"unleashContext":{"sessionId":"","appName":"ACTECH-SHAREDELEMENTS","environment":"prod","currentTime":"2026-11-04T04:50:22.262Z","remoteAddress":"192.0.2.1"},"mappedData":[]}</script>
+ <maintenance-message></maintenance-message> <link rel="stylesheet" href="/aca/shared-elements/_nuxt/entry.DPo2eHMz.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-404.CMmh0Ct3.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-500.CT9tzdfr.css"> <a href="https://www.cambridge.org/academic"></a> <a href="https://www.cambridge.org/academic"></a> <button> </button> <a href="/core/shopping-cart" rel="nofollow"> </a> <button> </button> <button> Discover Content </button> <button> Products and Services </button> <a href="https://www.cambridge.org/core/register"> Register</a> <a href="/core/login"> Log In</a> <a href="/core/shopping-cart" rel="nofollow"> (0) Cart </a> 
+ <script>window.__GLOBAL_HEADER_DATA__ = {"unleashContext":{"sessionId":"","appName":"ACTECH-SHAREDELEMENTS","environment":"prod","currentTime":"2026-11-04T04:50:15.350Z","remoteAddress":"192.0.2.1"}}</script>
+ <global-header></global-header>
+ <script>
+ const globalHeader = $('#global-header');
+ const globalHeaderWc = $('#global-header-wc');
+ const maintenanceMessage = $('#maintenance-message');
+ const maintenanceMessageWc = $('#maintenance-message-wc');
+ const isSAPCDCEnabled = false;
+ globalHeaderWc.on('initialized', function () {
+ globalHeader.hide();
+ globalHeaderWc.show();
+
+ if (!isSAPCDCEnabled) {
+ return
+ }
+ // Ezproxy implementation to prevent rewrite for SAP CDC Register url
+ const globalHeaderEl = globalHeaderWc[0];
+ const menuOptions = globalHeaderEl.shadowRoot.querySelectorAll('.gh-menu-option');
+ $(menuOptions).each(function() {
+ const anchor = $(this).find('a')[0];
+ if (anchor && anchor.textContent.trim() === 'Register') {
+ const encodedHref = anchor.getAttribute('href');
+ if (encodedHref) {
+ const decodedHref = atob(encodedHref);
+ const newHref = `${decodedHref}&state_redirect=${encodeURIComponent(window.location.href)}`;
+ anchor.setAttribute('href', newHref);
+ }
+ }
+ });
+ });
+
+ maintenanceMessageWc.on('initialized', function () {
+ maintenanceMessage.hide();
+ maintenanceMessageWc.show();
+ });
+
+ </script>
+<link rel="stylesheet" href="/aca/shared-elements/_nuxt/entry.DPo2eHMz.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-404.CMmh0Ct3.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-500.CT9tzdfr.css"> <a href="/core/"> </a> <button type="button"> </button> <input type="search"><button type="button"> </button><button type="button"> Search </button> <button type="button"> </button> <a href="/core/"> </a> <button type="button">Browse </button> <button type="button">Services </button> <button type="button">Open research </button> <button type="button">Institution Login </button> <input type="search"><button type="button"> </button><button type="button"> Search </button> <noscript>Menu links Browse Subjects Subjects (A-D) <a href="/core/browse-subjects/anthropology">Anthropology</a> <a href="/core/browse-subjects/archaeology">Archaeology</a> <a href="/core/browse-subjects/area-studies">Area Studies</a> <a href="/core/browse-subjects/art">Art</a> <a href="/core/browse-subjects/chemistry">Chemistry</a> <a href="/core/browse-subjects/classical-studies">Classical Studies</a> <a href="/core/browse-subjects/computer-science">Computer Science</a> <a href="/core/browse-subjects/drama-and-theatre">Drama, Theatre, Performance Studies</a> Subjects (E-K) <a href="/core/browse-subjects/earth-and-environmental-sciences">Earth and Environmental Science</a> <a href="/core/browse-subjects/economics">Economics</a> <a href="/core/browse-subjects/education">Education</a> <a href="/core/browse-subjects/engineering">Engineering</a> <a href="/core/browse-subjects/english-language-teaching-resources-for-teachers">English Language Teaching – Resources for Teachers</a> <a href="/core/browse-subjects/film-media-mass-ommunication">Film, Media, Mass Communication</a> <a href="/core/browse-subjects/general-science">General Science</a> <a href="/core/browse-subjects/geography">Geography</a> <a href="/core/browse-subjects/history">History</a> Subjects (L-O) <a href="/core/browse-subjects/language-and-linguistics">Language and Linguistics</a> <a href="/core/browse-subjects/law">Law</a> <a href="/core/browse-subjects/life-sciences">Life Sciences</a> <a href="/core/browse-subjects/literature">Literature</a> <a href="/core/browse-subjects/management">Management</a> <a href="/core/browse-subjects/materials-science">Materials Science</a> <a href="/core/browse-subjects/mathematics">Mathematics</a> <a href="/core/browse-subjects/medicine">Medicine</a> <a href="/core/browse-subjects/music">Music</a> <a href="/core/browse-subjects/nutrition">Nutrition</a> Subjects (P-Z) <a href="/core/browse-subjects/philosophy">Philosophy</a> <a href="/core/browse-subjects/physics">Physics and Astronomy</a> <a href="/core/browse-subjects/politics-and-international-relations">Politics and International Relations</a> <a href="/core/browse-subjects/psychiatry">Psychiatry</a> <a href="/core/browse-subjects/psychology">Psychology</a> <a href="/core/browse-subjects/religion">Religion</a> <a href="/core/browse-subjects/social-science-research-methods">Social Science Research Methods</a> <a href="/core/browse-subjects/sociology">Sociology</a> <a href="/core/browse-subjects/statistics-and-probability">Statistics and Probability</a> Open access All open access publishing <a href="/core/publications/open-access">Open access</a> <a href="/core/publications/open-access/listing?aggs[productTypes][filters]=JOURNAL&amp;statuses=PUBLISHED&amp;sort=titleSort:asc">Open access journals</a> <a href="/core/publications/open-access/research-open?aggs[productTypes][filters]=JOURNAL&amp;statuses=PUBLISHED&amp;sort=titleSort:asc">Research open journals</a> <a href="/core/publications/open-access/hybrid-open-access-journals?aggs[productTypes][filters]=JOURNAL&amp;statuses=PUBLISHED&amp;sort=titleSort:asc">Journals containing open access</a> <a href="/core/publications/open-access/listing?aggs[productTypes][filters]=JOURNAL_ARTICLE">Open access articles</a> <a href="/core/publications/open-access/listing?aggs[productTypes][filters]=BOOK&amp;sort=canonical.date:desc">Open access books</a> <a href="/core/publications/elements/published-elements?aggs%5BopenAccess%5D%5Bfilters%5D=7275BA1E84CA769210167A6A66523B47&amp;aggs%5BproductTypes%5D%5Bfilters%5D=ELEMENT&amp;searchWithinIds=ECFD8F5C64F47F3F5A3D395C15B7C493">Open access Elements</a> Journals Explore <a href="/core/publications/journals">All journal subjects</a> <a href="/core/publications/journals">Search journals</a> Open access <a href="/core/publications/open-access/listing?aggs[productTypes][filters]=JOURNAL&amp;statuses=PUBLISHED&amp;sort=titleSort:asc">Open access journals</a> <a href="/core/publications/open-access/research-open?aggs[productTypes][filters]=JOURNAL&amp;statuses=PUBLISHED&amp;sort=titleSort:asc">Research open journals</a> <a href="/core/publications/open-access/hybrid-open-access-journals?aggs[productTypes][filters]=JOURNAL&amp;statuses=PUBLISHED&amp;sort=titleSort:asc">Journals containing open access</a> <a href="/core/publications/open-access/listing?aggs[productTypes][filters]=JOURNAL_ARTICLE">Open access articles</a> Collections <a href="/core/publications/collections/cambridge-forum">Cambridge Forum</a> <a href="/core/publications/collections/cambridge-law-reports-collection">Cambridge Law Reports Collection</a> <a href="/core/publications/collections/cambridge-prisms">Cambridge Prisms</a> <a href="/core/publications/collections/research-directions">Research Directions</a> Books Explore <a href="/core/publications/books">Books</a> <a href="/core/publications/open-access/listing?aggs[productTypes][filters]=BOOK&amp;sort=canonical.date:desc">Open access books</a> <a href="/core/publications/books/listing?aggs[productDate][filters]=Last+3+months&amp;aggs[productTypes][filters]=BOOK&amp;sort=canonical.date:desc">New books</a> <a href="/core/publications/collections/flip-it-open">Flip it Open</a> Collections <a href="/core/publications/collections/cambridge-companions">Cambridge Companions</a> <a href="/core/publications/collections/cambridge-editions">Cambridge Editions</a> <a href="/core/publications/collections/cambridge-histories">Cambridge Histories</a> <a href="/core/publications/collections/cambridge-library-collection">Cambridge Library Collection</a> <a href="/core/publications/collections/cambridge-shakespeare">Cambridge Shakespeare</a> <a href="/core/publications/collections/cambridgehandbooks">Cambridge Handbooks</a> Collections (cont.) <a href="/core/publications/collections/dispute-settlement-reports-online">Dispute Settlement Reports Online</a> <a href="/core/publications/collections/flip-it-open">Flip it Open</a> <a href="/core/publications/collections/hemingway-letters">Hemingway Letters</a> <a href="/core/publications/collections/shakespeare-survey">Shakespeare Survey</a> <a href="/core/publications/collections/stahl-online">Stahl Online</a> <a href="/core/publications/collections/the-correspondence-of-isaac-newton">The Correspondence of Isaac Newton</a> Elements Explore <a href="/core/publications/elements">About Elements</a> <a href="/core/publications/elements/cambridge-elements-series">Elements series</a> <a href="/core/publications/elements/published-elements?aggs%5BopenAccess%5D%5Bfilters%5D=7275BA1E84CA769210167A6A66523B47&amp;aggs%5BproductTypes%5D%5Bfilters%5D=ELEMENT&amp;searchWithinIds=ECFD8F5C64F47F3F5A3D395C15B7C493">Open access Elements</a> <a href="/core/publications/elements/published-elements?aggs%5BproductTypes%5D%5Bfilters%5D=ELEMENT&amp;aggs%5BproductDate%5D%5Bfilters%5D=Last%203%20months&amp;searchWithinIds=ECFD8F5C64F47F3F5A3D395C15B7C493">New Elements</a> Subjects (A-E) <a href="/core/elements/subject/Anthropology/2E44A5AF2838E017617A26DD79FAEAEE">Anthropology</a> <a href="/core/elements/subject/Archaeology/63A50B5368A9F97F8AA2D6AB965B5F4C">Archaeology</a> <a href="/core/elements/subject/Classical%20Studies/DDC63B7F5792FE2A95D1FB15F76E3F42">Classical Studies</a> <a href="/core/elements/subject/Computer%20Science/A57E10708F64FB69CE78C81A5C2A6555">Computer Science</a> <a href="/core/elements/subject/Drama,%20Theatre,%20Performance%20Studies/2825E4E39F2D641B36543EE80FB1DEA3">Drama, Theatre, Performance Studies</a> <a href="/core/elements/subject/Earth%20and%20Environmental%20Sciences/F470FBF5683D93478C7CAE5A30EF9AE8">Earth and Environmental Sciences</a> <a href="/core/elements/subject/Economics/FA44491F1F55F917C43E9832715B9DE7">Economics</a> <a href="/core/elements/subject/Education/550D00F8DF590F2598CF7CC0038E24D1">Education</a> <a href="/core/elements/subject/Engineering/CCC62FE56DCC1D050CA1340C1CCF46F5">Engineering</a> Subjects (F-O) <a href="/core/elements/subject/Film,%20Media,%20Mass%20Communication/4B91F10E834814A90CE718E7831E492F">Film, Media, Mass Communication</a> <a href="/core/elements/subject/History/66BE42A30172E280FDE64F8EE2F485B0">History</a> <a href="/core/elements/subject/Language%20and%20Linguistics/140D314098408C26BDF3009F7FF858E9">Language and Linguistics</a> <a href="/core/elements/subject/Law/7C9FB6788DD8D7E6696263BC774F4D5B">Law</a> <a href="/core/elements/subject/Life%20Sciences/E044EF2F61B601378786E9EDA901B2D5">Life Sciences</a> <a href="/core/elements/subject/Literature/F2434ADC122145767C6C3B988A8E9BD5">Literature</a> <a href="/core/elements/subject/Management/0EDCC0540639B06A5669BDEEF50C4CBE">Management</a> <a href="/core/elements/subject/Mathematics/FA1467C44B5BD46BB8AA6E58C2252153">Mathematics</a> <a href="/core/elements/subject/Medicine/66FF02B2A4F83D9A645001545197F287">Medicine</a> <a href="/core/elements/subject/Music/A370B5604591CB3C7F9AFD892DDF7BD1">Music</a> Subjects (P-Z) <a href="/core/elements/subject/Philosophy/2D1AC3C0E174F1F1A93F8C7DE19E0FAB">Philosophy</a> <a href="/core/elements/subject/Physics%20and%20Astronomy/DBFB610E9FC5E012C011430C0573CC06">Physics and Astronomy</a> <a href="/core/elements/subject/Politics%20and%20International%20Relations/3BF83347E5E456DAC34F3FABFC8BBF4E">Politics and International Relations</a> <a href="/core/elements/subject/Psychology/21B42A72BA3E4CB0E3315E5B1B71B07F">Psychology</a> <a href="/core/elements/subject/Religion/53E51D24FB488962B9364A2C4B45D1C3">Religion</a> <a href="/core/elements/subject/Sociology/0E2CD53A93003DF17E52D753F6E90683">Sociology</a> <a href="/core/elements/subject/Statistics%20and%20Probability/3150B8B0D1B0B4E8DC17EC9EDFD9CA26">Statistics and Probability</a> Textbooks Explore <a href="/highereducation/">Cambridge Higher Education</a> <a href="/highereducation/services/librarians/title-list">Title list</a> <a href="/highereducation/search?sortBy=publication_date&amp;aggs=%24productDate%24Last%25206%2520months%3Atrue%26Last%252012%2520months%3Atrue%26Last%25203%2520years%3Atrue%26Over%25203%2520years%3Atrue%3B%3B&amp;event=SE-AU_PREF">New titles</a> Collections Book collections <a href="/core/publications/collections/cambridge-companions">Cambridge Companions</a> <a href="/core/publications/collections/cambridge-editions">Cambridge Editions</a> <a href="/core/publications/collections/cambridge-histories">Cambridge Histories</a> <a href="/core/publications/collections/cambridge-library-collection">Cambridge Library Collection</a> <a href="/core/publications/collections/cambridge-shakespeare">Cambridge Shakespeare</a> <a href="/core/publications/collections/cambridgehandbooks">Cambridge Handbooks</a> Book collections (cont.) <a href="/core/publications/collections/dispute-settlement-reports-online">Dispute Settlement Reports Online</a> <a href="/core/publications/collections/flip-it-open">Flip it Open</a> <a href="/core/publications/collections/hemingway-letters">Hemingway Letters</a> <a href="/core/publications/collections/shakespeare-survey">Shakespeare Survey</a> <a href="/core/publications/collections/stahl-online">Stahl Online</a> <a href="/core/publications/collections/the-correspondence-of-isaac-newton">The Correspondence of Isaac Newton</a> Journal collections <a href="/core/publications/collections/cambridge-forum">Cambridge Forum</a> <a href="/core/publications/collections/cambridge-law-reports-collection">Cambridge Law Reports Collection</a> <a href="/core/publications/collections/cambridge-materials">Cambridge Materials</a> <a href="/core/publications/collections/cambridge-prisms">Cambridge Prisms</a> Series <a href="/core/publications/collections/series">All series</a> Partners Partners <a href="/core/publications/publishing-partners/agenda-publishing">Agenda Publishing</a> <a href="/core/publications/publishing-partners/anthem-press">Anthem Press</a> <a href="/core/publications/publishing-partners/arc-humanities-press">ARC Humanities Press</a> <a href="/core/publications/publishing-partners/boydell-brewer">Boydell &amp; Brewer</a> <a href="/core/publications/publishing-partners/bristol-university-press">Bristol University Press</a> <a href="/core/publications/publishing-partners/central-european-university-press">Central European University Press</a> <a href="/core/publications/publishing-partners/edinburgh-university-press">Edinburgh University Press</a> <a href="/core/publications/publishing-partners/emirates-center">Emirates Center for Strategic Studies and Research</a> <a href="/core/publications/publishing-partners/facet-publishing">Facet Publishing</a> <a href="/core/publications/publishing-partners/foundation-books">Foundation Books</a> Partners (cont.) <a href="/core/publications/publishing-partners/gerlach-press">Gerlach Press</a> <a href="/core/publications/publishing-partners/intersentia">Intersentia</a> <a href="/core/publications/publishing-partners/iseas">ISEAS-Yusof Ishak Institute</a> <a href="/core/publications/publishing-partners/jagiellonian-university-press">Jagiellonian University Press</a> <a href="/core/publications/publishing-partners/manchester-university-press">Manchester University Press</a> <a href="/core/publications/publishing-partners/multilingual-matters">Multilingual Matters</a> <a href="/core/publications/publishing-partners/oxbow-books">Oxbow Books</a> <a href="/core/publications/publishing-partners/royal-economic-society">Royal Economic Society</a> <a href="/core/publications/publishing-partners/university-adelaide-press">The University of Adelaide Press</a> <a href="/core/publications/publishing-partners/unisa-press">Unisa Press</a> Partners (cont.) <a href="/core/publications/publishing-partners/wits-university-press">Wits University Press</a> Services About About Cambridge Core <a href="/core/services/about/about">About</a> <a href="/core/services/about/accessibility">Accessibility statement</a> <a href="/core/services/about/crossmark-policy">CrossMark policy</a> <a href="/core/services/about/ethical-standards">Ethical Standards</a> Environment and sustainability <a href="/core/services/about/environment-and-sustainability">Environment and sustainability</a> <a href="/core/services/about/reducing-print">Reducing print</a> <a href="/core/services/about/journals-moving-to-online-only">Journals moving to online only</a> Guides <a href="/core/services/about/user-guides">User guides</a> <a href="/core/services/about/user-guides-and-videos">User Guides and Videos</a> <a href="/core/services/about/support-videos">Support Videos</a> <a href="/core/services/about/training">Training</a> Help <a href="https://corehelp.cambridge.org/">Cambridge Core help</a> <a href="https://corehelp.cambridge.org/hc/en-gb/p/contact-information">Contact us</a> <a href="https://corehelp.cambridge.org/hc/en-gb/requests/new">Technical support</a> Agents Services for agents <a href="/core/services/agents/services-for-agents">Services for agents</a> <a href="/core/services/agents/journals-for-agents">Journals for agents</a> <a href="/core/services/agents/books-for-agents">Books for agents</a> <a href="/core/services/agents/price-list">Price list</a> Authors Journals <a href="/core/services/authors/journals">Journal authors</a> <a href="/core/services/authors/journal-publishing-statistics">Journal publishing statistics</a> <a href="/core/services/authors/corresponding-author">Corresponding author</a> <a href="/core/services/authors/seeking-permission-to-use-copyrighted-material">Seeking permission to use copyrighted material</a> <a href="/core/services/authors/publishing-supplementary-material">Publishing supplementary material</a> <a href="/core/services/authors/preparing-accessible-materials">Preparing accessible materials</a> <a href="/core/services/authors/journal-production-faqs">Journal production - FAQs</a> Journals (cont.) <a href="/core/services/authors/author-affiliations">Author affiliations</a> <a href="/core/services/authors/co-reviewing-policy">Co-reviewing policy</a> <a href="/core/services/authors/anonymising-your-manuscript">Anonymising your manuscript</a> <a href="/core/services/authors/publishing-open-access">Publishing open access</a> <a href="/core/services/authors/convert-your-article-to-open-access">Convert your article to Gold Open Access</a> Journals (cont.) <a href="/core/services/authors/preparing-and-submitting-your-paper">Preparing and submitting your paper</a> <a href="/core/services/authors/publication-journey">Journals publication journey</a> <a href="/core/services/authors/digital-author-publishing-agreement-faqs">Publishing agreement FAQs for journal authors</a> <a href="/core/services/authors/author-information-form-faqs">Author Information Form FAQs</a> <a href="/core/services/authors/promoting-your-published-paper">Promoting your published paper</a> <a href="/core/services/authors/measuring-impact">Measuring impact</a> <a href="/core/services/authors/journals-artwork-guide">Journals artwork guide</a> <a href="/core/services/authors/using-orcid">Using ORCID</a> Books <a href="/core/services/authors/books">Books</a> <a href="/core/services/authors/publishing-an-open-access-book">Publishing your book open access</a> <a href="/core/services/authors/marketing-your-book">Marketing your book</a> <a href="/core/services/authors/elements-user-guides">Author guides for Cambridge Elements</a> Corporates Corporates <a href="/core/services/corporates/commercial-reprints">Commercial reprints</a> <a href="/core/services/corporates/advertising">Advertising</a> <a href="/core/services/corporates/sponsorship">Sponsorship</a> <a href="/core/services/corporates/book-special-sales">Book special sales</a> <a href="/core/services/corporates/contact-us">Contact us</a> Editors Information <a href="/core/services/editors/journal-development">Journal development</a> <a href="/core/services/editors/peer-review-for-editors">Peer review for editors</a> <a href="/core/services/editors/open-access-for-editors">Open access for editors</a> <a href="/core/services/editors/policies-and-guidelines">Policies and guidelines</a> Resources <a href="/core/services/editors/the-editors-role">The editor&#39;s role</a> <a href="/core/services/editors/open-research-for-editors">Open research for editors</a> <a href="/core/services/editors/engagement-and-promotion">Engagement and promotion for editors</a> Librarians Information <a href="/core/services/librarians/open-access-for-librarians">Open Access for Librarians</a> <a href="https://www.cambridge.org/core/services/open-access-policies/read-and-publish-agreements">Transformative agreements</a> <a href="/core/services/librarians/transformative-agreements-faqs">Transformative Agreements - FAQs</a> <a href="/core/services/librarians/evidence-based-acquisition">Evidence based acquisition</a> <a href="/core/services/librarians/cambridge-libraries-of-the-world-podcast">Cambridge libraries of the world podcast</a> <a href="/core/services/librarians/purchasing-models">Purchasing models</a> <a href="/core/services/librarians/journals-publishing-updates">Journals Publishing Updates</a> Products <a href="/core/services/librarians/cambridge-frontlist">Cambridge frontlist</a> <a href="/core/services/librarians/cambridge-journals-digital-archive">Cambridge journals digital archive</a> <a href="/core/services/librarians/hot-topics">Hot topics</a> <a href="/core/services/librarians/other-digital-products">Other digital products</a> <a href="/core/services/librarians/perpetual-access-products">Perpetual access products</a> <a href="/core/services/librarians/price-list">Price list</a> <a href="/core/services/librarians/developing-country-programme">Developing country programme</a> <a href="/core/services/librarians/new-content">New content</a> Tools <a href="/core/eligibility-checker">Eligibility checker</a> <a href="https://www.cambridge.org/core/services/open-access-policies/read-and-publish-agreements">Transformative agreements</a> <a href="https://www.cambridge.org/core/services/librarians/kbart">KBART</a> <a href="https://www.cambridge.org/core/services/librarians/marc-records">MARC records</a> <a href="/core/services/librarians/using-marcedit-for-marc-records">Using MARCEdit for MARC records</a> <a href="/core/services/librarians/inbound-openurl-specifications">Inbound OpenURL specifications</a> <a href="/core/services/librarians/counter-usage-reporting">COUNTER usage reporting</a> Resources <a href="/core/services/librarians/catalogues-and-resources">Catalogues and resources</a> <a href="/core/services/librarians/making-the-most-of-your-eba">Making the most of your EBA</a> <a href="/core/services/librarians/posters">Posters</a> <a href="/core/services/librarians/leaflets-and-brochures">Leaflets and brochures</a> <a href="/core/services/librarians/additional-resources">Additional resources</a> <a href="/core/services/librarians/find-my-sales-contact">Find my sales contact</a> <a href="/core/services/librarians/training">Training</a> <a href="/core/services/librarians/read-and-publish-resources">Read and publish resources</a> Peer review Peer review <a href="/core/services/peer-review/how-to-peer-review-journal-articles">How to peer review journal articles</a> <a href="/core/services/peer-review/how-to-peer-review-book-proposals">How to peer review book proposals</a> <a href="/core/services/peer-review/how-to-peer-review-registered-reports">How to peer review Registered Reports</a> <a href="/core/services/peer-review/peer-review-faqs">Peer review FAQs</a> <a href="/core/services/peer-review/ethics-in-peer-review">Ethics in peer review</a> <a href="/core/services/peer-review/online-peer-review-systems">Online peer review systems</a> <a href="/core/services/peer-review/a-guide-to-publons">A guide to Publons</a> Publishing ethics Journals <a href="/core/services/publishing-ethics/publishing-ethics-guidelines-journals">Publishing ethics guidelines for journals</a> <a href="/core/services/publishing-ethics/core-editorial-policies-journals">Core editorial policies for journals</a> <a href="/core/services/publishing-ethics/authorship-and-contributorship-journals">Authorship and contributorship for journals</a> <a href="/core/services/publishing-ethics/affiliations-journals">Affiliations for journals</a> <a href="/core/services/publishing-ethics/research-ethics-journals">Research ethics for journals</a> <a href="/core/services/publishing-ethics/competing-interests-and-funding-journals">Competing interests and funding for journals</a> Journals (cont.) <a href="/core/services/publishing-ethics/data-and-supporting-evidence-for-journals">Data and supporting evidence for journals</a> <a href="/core/services/publishing-ethics/misconduct-journals">Misconduct for journals</a> <a href="/core/services/publishing-ethics/corrections-retractions-and-removals-journals">Corrections, retractions and removals for journals</a> <a href="/core/services/publishing-ethics/versions-and-adaptations-journals">Versions and adaptations for journals</a> <a href="/core/services/publishing-ethics/libel-defamation-and-freedom-of-expression">Libel, defamation and freedom of expression</a> <a href="/core/services/publishing-ethics/business-ethics-journals">Business ethics journals</a> Books <a href="/core/services/publishing-ethics/publishing-ethics-guidelines-books">Publishing ethics guidelines for books</a> <a href="/core/services/publishing-ethics/core-editorial-policies-books">Core editorial policies for books</a> <a href="/core/services/publishing-ethics/authorship-and-contributorship-books">Authorship and contributorship for books</a> <a href="/core/services/publishing-ethics/affiliations-books">Affiliations for books</a> <a href="/core/services/publishing-ethics/research-ethics-books">Research ethics for books</a> <a href="/core/services/publishing-ethics/competing-interests-and-funding-books">Competing interests and funding for books</a> Books (cont.) <a href="/core/services/publishing-ethics/data-and-supporting-evidence-books">Data and supporting evidence for books</a> <a href="/core/services/publishing-ethics/misconduct-books">Misconduct for books</a> <a href="/core/services/publishing-ethics/corrections-retractions-and-removals-books">Corrections, retractions and removals for books</a> <a href="/core/services/publishing-ethics/versions-and-adaptations-books">Versions and adaptations for books</a> <a href="/core/services/publishing-ethics/libel-defamation-and-freedom-of-expression">Libel, defamation and freedom of expression</a> <a href="/core/services/publishing-ethics/business-ethics-books">Business ethics books</a> Publishing partners Publishing partners <a href="/core/services/publishing-partners/publishing-partnerships">Publishing partnerships</a> <a href="/core/services/publishing-partners/partner-books">Book publishing partners</a> <a href="/core/services/publishing-partners/ebook-publishing-partnerships">eBook publishing partnerships</a> <a href="/core/services/publishing-partners/journal-publishing-partnerships">Journal publishing partnerships</a> Publishing partners (cont.) <a href="/core/services/publishing-partners/journals-publishing">Journals publishing</a> <a href="/core/services/publishing-partners/customer-support">Customer support</a> <a href="/core/services/publishing-partners/membership-services">Membership Services</a> <a href="/core/services/publishing-partners/our-team">Our Team</a> Open research Open access policies Open access policies <a href="/core/services/open-research-policies/open-research">Open research</a> <a href="/core/services/open-research-policies/open-access-policies">Open access policies</a> <a href="/core/services/open-research-policies/text-and-data-mining">Text and data mining</a> <a href="/core/services/open-research-policies/preprint-policy">Preprint policy</a> Journals <a href="/core/services/open-research-policies/open-access-journals">Open access journals</a> <a href="/core/services/open-research-policies/gold-open-access-journals">Gold Open Access journals</a> <a href="/core/services/open-research-policies/green-open-access-policy-for-journals">Green Open Access policy for journals</a> <a href="/core/services/open-research-policies/transparent-pricing-policy-for-journals">Transparent pricing policy for journals</a> Books and Elements <a href="/core/services/open-research-policies/open-access-books">Open access books</a> <a href="/core/services/open-research-policies/gold-open-access-books">Gold open access books</a> <a href="/core/services/open-research-policies/green-open-access-policy-for-books">Green Open Access policy for books</a> <a href="/core/services/open-research-policies/open-access-elements">Open access Elements</a> Open access publishing About open access <a href="/core/services/open-access-publishing/open-research">Open research</a> <a href="/core/services/open-access-publishing/open-access">What is open access?</a> <a href="/core/services/open-access-publishing/open-access-glossary">Open access glossary</a> <a href="/core/services/open-access-publishing/open-access-myths">Open access myths</a> <a href="/core/services/open-access-publishing/hybrid-open-access-faqs">Hybrid Open Access FAQs</a> <a href="/core/eligibility-checker">Eligibility checker</a> Open access resources <a href="/core/services/open-access-publishing/open-access-resources">Open access resources</a> <a href="/core/services/open-access-publishing/benefits-of-open-access">Benefits of open access</a> <a href="/core/services/open-access-publishing/creative-commons-licenses">Creative commons licences</a> <a href="/core/services/open-access-publishing/funder-policies-and-mandates">Funder policies and mandates</a> <a href="/core/services/open-access-publishing/article-type-definitions">Article type definitions</a> <a href="/core/services/open-access-publishing/convert-your-article-to-open-access">Convert your article to Gold Open Access</a> Open research initiatives Research transparency <a href="/core/services/open-research-initiatives/transparency-and-openness">Transparency and openness</a> <a href="/core/services/open-research-initiatives/open-practice-badges">Open Practice Badges</a> <a href="/core/services/open-research-initiatives/oa-organisations-initiatives-and-directories">OA organisations, initiatives &amp; directories</a> <a href="/core/services/open-research-initiatives/registered-reports">Registered Reports</a> <a href="/core/services/open-research-initiatives/annotation-for-transparent-inquiry-ati">Annotation for Transparent Inquiry (ATI)</a> Journal flips <a href="/core/services/open-research-initiatives/open-access-journal-flips">Open access journal flips</a> <a href="/core/services/open-research-initiatives/oa-journal-flip-faqs">OA Journal Flip FAQs</a> Flip it Open <a href="/core/services/open-research-initiatives/flip-it-open">Flip it Open</a> <a href="/core/services/open-research-initiatives/flip-it-open-faqs">Flip it Open FAQs</a> Open access funding Open access funding <a href="/core/services/open-access-funding/funding-open-access-publication">Funding open access publication</a> <a href="/core/services/open-access-funding/cambridge-open-equity-initiative">Cambridge Open Equity Initiative</a> <a href="/core/services/open-access-funding/completing-a-rightslink-open-access-transaction">Completing a RightsLink (open access) transaction</a> Cambridge Open Engage Cambridge Open Engage <a href="/core/services/cambridge-open-engage/cambridge-open-engage">Cambridge Open Engage</a> <a href="/core/services/cambridge-open-engage/engage-apsa-preprints">APSA Preprints</a> <a href="/core/services/cambridge-open-engage/engage-apsa-preprints-faqs">APSA Preprints FAQs</a> </noscript> 
+ <script></script>
+ <platform-header></platform-header>
+ <script>
+ const platformHeader = $('#platform-header');
+ const platformHeaderWc = $('#platform-header-wc');
+ platformHeaderWc.prop('initialData', window.__PLATFORM_HEADER_DATA__);
+ platformHeaderWc.on('initialized', function () {
+ platformHeader.hide();
+ platformHeaderWc.show();
+ });
+ 
+ const createForm = function (searchPhrase) {
+ const form = document.createElement('form');
+ form.style.display = 'none';
+ form.method = 'GET';
+ form.action = '/core/search';
+ 
+ const input = document.createElement('input');
+ input.type = 'hidden';
+ input.name = 'q';
+ input.value = searchPhrase;
+ 
+ form.appendChild(input);
+ return form;
+ };
+ 
+ platformHeaderWc.on('search', function (e) {
+ const searchPhrase = e?.originalEvent?.detail[0]?.phrase;
+ 
+ if (!searchPhrase) {
+ return;
+ }
+ 
+ const form = createForm(searchPhrase);
+ document.body.appendChild(form);
+ $('form').submit();
+ 
+ document.body.removeChild(form);
+ });
+ </script>
+ <script>
+ var AOP = AOP || {};
+ 
+ $( document ).ready(function() {
+ 
+ if (AOP.onLoadfocusTriggered !== true) {
+ if($(".alert-box").length) {
+ AOP.enableKeyboardAccess($(".alert-box"));
+ }
+ AOP.onLoadfocusTriggered = true; 
+ }
+ });
+ 
+ </script> 
+ <script src="//unpkg.com/@theidentityselector/thiss-ds"></script><link rel="preload" href="/core/page-component/4d078d7.js"><link rel="preload" href="/core/page-component/59de534.js"><link rel="preload" href="/core/page-component/css/styles.67f6448.css"><link rel="preload" href="/core/page-component/872b0bd.js"><link rel="preload" href="/core/page-component/css/app.ca99f4b.css"><link rel="preload" href="/core/page-component/dc9afa3.js"><link rel="stylesheet" href="/core/page-component/css/styles.67f6448.css"><link rel="stylesheet" href="/core/page-component/css/app.ca99f4b.css"> Hostname: page-component-74656f9884-qr5l4 Total loading tim<a href="/core">Home </a> &gt; <a href="/core/publications/journals">Journals </a> &gt; <a href="/core/journals/journal-of-fluid-mechanics">Journal of Fluid Mechanics </a> &gt; <a href="/core/journals/journal-of-fluid-mechanics/volume/ECA9CE7968947C1463E0430A5D7C607F">Volume 807 </a> &gt; Scaling laws for segregation forces in dense sheared..<a href="/core/journals/journal-of-fluid-mechanics">Journal of Fluid Mechanics </a> <h2>Article contents</h2> <a href="#sec0">Abstract </a> <a href="#references-list">References </a> <hgroup><h1>Scaling laws for segregation forces in dense sheared granula</h1> </hgroup> Published online by Cambridge University Press:&nbsp; 18 Oc<a href="/core/search?filters%5BauthorTerms%5D=Fran%C3%A7ois%20Guillard&amp;eventCode=SE-AU">François Guillard </a> , <a href="/core/search?filters%5BauthorTerms%5D=Yo%C3%ABl%20Forterre&amp;eventCode=SE-AU">Yoël Forterre </a> &nbsp;and <a href="/core/search?filters%5BauthorTerms%5D=Olivier%20Pouliquen&amp;eventCode=SE-AU">Olivier Pouliquen </a> <a href="#authors-details">Show author details </a> François Guillard* Affiliation: Aix-Marseille Université, C<a href="#appTabs">Article </a> <a href="#article-tab">Article </a> <a href="#metrics-tab">Metrics </a> <a href="#toc-list-mobile">Article contents </a> <a href="#sec0">Abstract </a> <a href="#references-list">References </a> <a href="#access-block">Get access</a> <button> Share </button> <a rel="nofollow" href="/#shr-copy_link"></a> Copy <a rel="nofollow" href="/#shr-whatsapp"></a> Share <a rel="nofollow" href="/#shr-wechat"></a> Share <a rel="nofollow" href="/#shr-facebook"></a> Share <a rel="nofollow" href="/#shr-facebook_messenger"></a> Share <a rel="nofollow" href="/#shr-twitter"></a> Post <a rel="nofollow" href="/#shr-linkedin"></a> Share <a rel="nofollow" href="/#shr-email_this"></a> Mail <a rel="nofollow" href="/#shr-all"></a> Share <button> </button> <button href="#cite-modal"> Cite </button> <a href="https://s100.copyright.com/AppDispatchServlet?publisherName=CUP&amp;publication=FLM&amp;title=Scaling%20laws%20for%20segregation%20forces%20in%20dense%20sheared%20granular%20flows&amp;publicationDate=18%20October%202016&amp;author=Fran%C3%A7ois%20Guillard%2C%20Yo%C3%ABl%20Forterre%2C%20Olivier%20Pou">Rights &amp; Permissions [Opens in a new window] </a> <h2>Abstract</h2> In order to better understand the mechanism governing segre<h2>JFM classification</h2> <a href="/core/search?filters[classificationCodesByType]=FLM%3BGranular%20media%3BGranular%20media"> Granular media: Granular media </a><a href="/core/search?filters[classificationCodesByType]=FLM%3BMixing%3BGranular%20mixing"> Mixing: Granular mixing </a> <h2>Information</h2> Type Rapids Information <a href="/core/journals/journal-of-fluid-mechanics">Journal of Fluid Mechanics </a> , <a href="/core/journals/journal-of-fluid-mechanics/volume/ECA9CE7968947C1463E0430A5D7C607F">Volume 807 </a> , 25 November 2016 , R1 DOI: <a href="https://doi.org/10.1017/jfm.2016.605">https://doi.org/10.1017/jfm.2016.605 [Opens in a new window]</a> <a href="#"></a> Copyright © 2016 Cambridge University Press&nbsp; <h2>Access options</h2> Get access to the full version of this content by using one<h3>Check access</h3> <h4>Institutional login</h4> We recognised you are associated with one or more instituti<a href="https://shibboleth.cambridge.org/Shibboleth.sso/discovery?target=https://shibboleth.cambridge.org/CJOShibb2/index?app=https://www.cambridge.org/core/shibboleth/seamless-access?ref=/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flow">Access through your institution </a> <a href="https://shibboleth.cambridge.org/Shibboleth.sso/discovery?target=https://shibboleth.cambridge.org/CJOShibb2/index?app=https://www.cambridge.org/core/shibboleth/seamless-access?ref=/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flow">Change institution </a> <h4>Personal login</h4> Log in with your <a href="/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41">Cambridge Core</a> account or <a href="/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41">society details</a>. <a href="/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41">Log in </a> <h3>Article purchase</h3> <h4>Digital access for individuals</h4> US$41.00 <a>Add to cart </a> <h2>References</h2> Aranson , I. S. &nbsp;&amp; Tsimring , L. S. 2006 Patterns <a href="https://dx.doi.org/10.1103/PhysRevLett.95.098001">CrossRef</a> Google Scholar Da Cruz , F. , Emam , S. , Prochnow , M. , R<a href="https://dx.doi.org/10.1103/PhysRevLett.106.218301">CrossRef</a> Google Scholar PubMed Fan , Y. &nbsp;&amp; Hill , K. M. 201<a href="https://dx.doi.org/10.1063/1.857479">CrossRef</a> Google Scholar Kloss , C. , Goniva , C. , Hager , A. , Ambe<a href="https://dx.doi.org/10.1504/PCFD.2012.047457">CrossRef</a> Google Scholar Kokelaar , B. P. , Graham , R. L. , Gray , J<a href="https://dx.doi.org/10.1017/S002211208800103X">CrossRef</a> Google Scholar Schlick , C. P. , Fan , Y. , Umbanhowar , P.<a href="https://dx.doi.org/10.1017/S0022112007009445">CrossRef</a> Google Scholar Tripathi , A. &nbsp;&amp; Khakhar , D. V. 20<a href="https://dx.doi.org/10.1103/PhysRevLett.107.108001">CrossRef</a> Google Scholar Woodhouse , M. J. , Thornton , A. R. , Johns<a href="https://dx.doi.org/10.1017/jfm.2012.348">CrossRef</a> Google Scholar 71 <a>Cited by </a> <h1>Cited by</h1> Loading... <button> </button> <script></script><script src="/core/page-component/4d078d7.js"></script><script src="/core/page-component/59de534.js"></script><script src="/core/page-component/872b0bd.js"></script><script src="/core/page-component/dc9afa3.js"></script>
+ Cited by 
+ <a href="#"> 0 </a> <a href="#"> </a> No CrossRef data available. Google Scholar Citations View a<a href="#">× </a>
+<script>
+ $(document).ready(function () {
+ $('body').on('click', '#article-new-home-productCitations .section-button', function (e) {
+ e.preventDefault();
+ var id = $(this).attr('data-id');
+ $('#article-new-home-productCitations .section-content section').hide();
+ $('#article-new-home-productCitations .section-container').removeClass('active');
+ $(this).parent('.section-container').addClass('active');
+ $('#' + id).show();
+ });
+ });
+</script>
+<link rel="stylesheet" href="/aca/shared-elements/_nuxt/entry.DPo2eHMz.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-404.CMmh0Ct3.css"> <link rel="prefetch" href="/aca/shared-elements/_nuxt/error-500.CT9tzdfr.css"> <a href="/"></a><h2>Our Site</h2><a href="/core/services/accessibility">Accessibility </a> <a href="/core/help/FAQs">Contact &amp; Help </a> <a href="/core/legal-notices/terms">Legal Notices </a> <button type="button">Cookie Settings </button> <a href="https://withdraw.cambridge.org/hc/en-gb/requests/new">Cancel your order </a> <h2>Quick Links</h2><a href="https://www.cambridge.org/core/">Cambridge Core </a> <a href="https://www.cambridge.org/engage/coe/public-dashboard">Cambridge Open Engage </a> <a href="https://www.cambridge.org/highereducation/">Cambridge Aspire website </a> <h2>Our Products</h2><a href="https://www.cambridge.org/core/publications/journals">Journals </a> <a href="https://www.cambridge.org/core/search?aggs%5BproductTypes%5D%5Bfilters%5D=BOOK">Books </a> <a href="https://www.cambridge.org/core/publications/elements">Elements </a> <a href="https://www.cambridge.org/highereducation/search?aggs=%24productTypes%24BOOK%3Atrue%3B%3B">Textbooks </a> <a href="https://www.cambridge.org/highereducation/search?aggs=%24productTypes%24COURSEWARE%3Atrue%3B%3B">Courseware </a> <h2>Join us online</h2><a href="https://www.youtube.com/playlist?list=PLTK8KRW19hUVucVRHbIx73oLKUro8HXt0"> </a> <a href="https://twitter.com/CambridgeCore"> </a> <a href="https://www.facebook.com/CambridgeCore"> </a> <a href="https://www.instagram.com/cambridgeuniversitypress/"> </a> <a href="https://www.linkedin.com/showcase/11096649"> </a> Location <input type="text"> <button type="button"> </button> Please choose a valid location. <button type="submit">Update </button> <button type="button">Legal Information </button><a href="https://www.cambridge.org/about-us/rights-permissions/">Rights &amp; Permissions </a> <a href="https://www.cambridge.org/about-us/legal-notices/copyright/">Copyright </a> <a href="https://www.cambridge.org/about-us/legal-notices/privacy-policy/">Privacy Notice </a> <a href="https://www.cambridge.org/about-us/legal-notices/terms-use">Terms of Use </a> <a href="https://www.cambridge.org/about-us/legal-notices/cookies-policy/">Cookies Policy </a> Cambridge University Press 2026 
+ <script></script>
+ <platform-footer></platform-footer>
+ <script>
+ const platformFooter = $('#platform-footer');
+ const platformFooterWc = $('#platform-footer-wc');
+ platformFooterWc.prop('initialData', window.__PLATFORM_FOOTER_DATA__);
+ 
+ platformFooterWc.on('initialized', function () {
+ platformFooter.hide();
+ platformFooterWc.show();
+ });
+ 
+ platformFooterWc.on('update-location', function (event) {
+ $.post(AOP.baseUrl + '/services/country/override', {
+ countryCode: event.originalEvent.detail[0].alpha2Code
+ }, function () {
+ window.location.reload();
+ window.scrollTo(0, document.body.scrollHeight); // scroll the bottom of the page
+ })
+ })
+ </script>
+ <script src="/core/system/public/bower_components/foundation/js/foundation.js"></script>
+ <script src="/core/cambridge-core/public/bower_components/jquery-lazy/jquery.lazy.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/jquery.autocomplete.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/slick.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/jquery.qtip.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/foggy.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/jquery.cookie.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/jquery.textresizer.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/chosen.jquery.min.js"></script>
+ <script src="/core/cambridge-core/public/js/plugins/jquery.sticky.js"></script>
+ <script type="text/javascript">
+ var AOP = AOP || {};
+ </script>
+ <script type="text/javascript">
+ window.AOP = window.AOP || {};
+ window.AOP.pageId = '';
+ window.AOP.baseUrl = '/core';
+ window.AOP.env = 'prod';
+ window.AOP.shouldUseCitationTool = true;
+ 
+ 
+ </script>
+ <script src="/core/system/public/js/foundationUtils.js" type="text/javascript"></script>
+ <script src="/core/system/public/js/confirmModal.js" type="text/javascript"></script>
+ <script src="/core/system/public/js/trimWhitespace.js" type="text/javascript"></script>
+ <script src="/core/system/public/js/loadScript.js" type="text/javascript"></script>
+ <script src="/core/system/public/js/isArray.js"></script>
+ <script src="/core/system/public/js/parseQuerystring.js"></script>
+ <script src="/core/system/public/js/createAlertBox.js"></script>
+ <script src="/core/system/public/js/countryPicker.js"></script>
+ <h1></h1> <a href="#">Cancel</a> <a href="#">Confirm</a> <a href="#">× </a>
+ <script src="/aca/shared-elements/platform-header-footer.umd.js"></script>
+ <script src="/core/cambridge-core/public/js/ecommerce/add-to-basket.js?v=none"></script>
+ <script src="/core/system/public/js/validation.js" type="text/javascript"></script>
+ <script src="/core/system/public/js/revealModal.js" type="text/javascript"></script>
+ <script type="text/javascript">
+ window.AOP = window.AOP || {};
+ window.AOP.webTrendsFpcdom = '';
+ window.AOP.webtrendsSourceId = '';
+ window.AOP.oracleInfinityAccountId = '';
+ window.AOP.isInternalTraffic = false;
+ </script>
+ <script src="/core/cambridge-core/public/js/jquery-extend.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/additional.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/multilingual.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/analytics/cup-events.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/app.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/accessibility.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/analytics/listeners/counter.js?v=none"></script>
+ <script src="/core/cambridge-core/public/js/ga-events.js?v=none"></script>
+ <script type="text/javascript">
+ $(document).ready(function () {
+ if (typeof $(document).cupEvent === 'function') {
+ $(document).cupEvent();
+ }
+
+ AOP.initCounterReporter({
+ isInitCounterSecurityEnabled: true,
+ applicationId: '8a94020952a738f80152b223c992000b',
+ identities: [],
+ authenticationMethods: [],
+ botHeaders: {"botScore":52,"verifiedBot":false},
+ sessionId: 'REDACTED',
+ eventContext: '/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41'
+ })
+ });
+ </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a550ffd99e01c85e',t:'MTc5Mzc2Nzg0Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=REDACTED',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe></iframe> <h1>Save article to Kindle</h1> To send this article to your Kindle, first ensure user@exam<a href="/core/help">Find out more about saving to your Kindle</a>. Note you can select to save to either the @free.kindle.com<a href="https://www.amazon.com/gp/help/customer/display.html/ref=kinw_myk_wl_ln?ie=UTF8&amp;nodeId=200767340#fees">Kindle Personal Document Service.</a> Scaling laws for segregation forces in dense sheared granul<a href="/core/search?filters%5BauthorTerms%5D=François Guillard&amp;eventCode=SE-AU">François Guillard</a> (a1) (a2) , <a href="/core/search?filters%5BauthorTerms%5D=Yoël Forterre&amp;eventCode=SE-AU">Yoël Forterre</a> (a1) and <a href="/core/search?filters%5BauthorTerms%5D=Olivier Pouliquen&amp;eventCode=SE-AU">Olivier Pouliquen</a> (a1) DOI: <a href="https://doi.org/10.1017/jfm.2016.605">https://doi.org/10.1017/jfm.2016.605</a> <form action="/core/services/aop-cambridge-core/sendto" method="GET"> <fieldset> <legend> Your Kindle email address </legend> <input name="kindleEmailAddress" type="text"> Please provide your Kindle email. <input name="kindleEmailDomain" type="radio"> @free.kindle.com <input name="kindleEmailDomain" type="radio"> @kindle.com (<a href="https://www.amazon.com/gp/help/customer/display.html/ref=kinw_myk_wl_ln?ie=UTF8&amp;nodeId=200767340#fees">service fees apply</a>) </fieldset> <fieldset> <legend>Available formats</legend> <input type="checkbox" name="formats"> PDF Please select a format to save. </fieldset> <input type="checkbox" name="usagePolicykindle"> By using this service, you agree that you will only keep co<input type="hidden" name="suppressTrackingEvent"> <input type="hidden" name="service"> <input type="hidden" name="documents"> <input type="hidden" name="finalReturn"> <input type="hidden" name="_csrf"> </form> <button href="#">Cancel</button> <button type="submit"> Save </button> <a>×</a>
+<script type="text/javascript"></script>
+ <h1>Save article to Dropbox</h1> To save this article to your Dropbox account, please select<a href="/core/help">Find out more about saving content to Dropbox</a>. Scaling laws for segregation forces in dense sheared granu<a href="/core/search?filters%5BauthorTerms%5D=François Guillard&amp;eventCode=SE-AU">François Guillard</a> (a1) (a2) , <a href="/core/search?filters%5BauthorTerms%5D=Yoël Forterre&amp;eventCode=SE-AU">Yoël Forterre</a> (a1) and <a href="/core/search?filters%5BauthorTerms%5D=Olivier Pouliquen&amp;eventCode=SE-AU">Olivier Pouliquen</a> (a1) DOI: <a href="https://doi.org/10.1017/jfm.2016.605">https://doi.org/10.1017/jfm.2016.605</a> <form action="/core/services/aop-cambridge-core/sendto" method="GET"> <fieldset> <legend>Available formats</legend> <input type="checkbox" name="formats"> PDF Please select a format to save. </fieldset> <input type="checkbox" name="usagePolicydropbox"> By using this service, you agree that you will only keep co<input type="hidden" name="suppressTrackingEvent"> <input type="hidden" name="service"> <input type="hidden" name="documents"> <input type="hidden" name="finalReturn"> <input type="hidden" name="_csrf"> </form> <button href="#">Cancel</button> <button type="submit"> Save </button> <a>×</a>
+<script type="text/javascript">
+ $('#sendTodropboxForm').on('submit', validatedropboxForm);
+
+ var _formdropbox = $('#sendTodropboxForm');
+
+ function resetValidationdropboxForm() {
+ var _form = _formdropbox;
+ _form.find('.error.formats').hide();
+ _form.find('.error.usagePolicy').hide();
+ }
+
+ function validatedropboxFormats(e) {
+ var _form = _formdropbox;
+ var errors = false;
+ var formats = _form.find('input[name="formats"]:checked');
+ if (formats.length < 1) {
+ _form.find('.error.formats').show();
+ errors = true;
+ } else {
+ _form.find('.error.formats').hide();
+ }
+ return errors;
+ }
+
+ function validatedropboxUsagePolicy(e) {
+ var _form = _formdropbox;
+ var usagePolicy = _form.find('input[name="usagePolicydropbox"]');
+ var errors = false;
+ if (!usagePolicy.is(':checked')) {
+ _form.find('.error.usagePolicy').show();
+ errors = true;
+ } else {
+ _form.find('.error.usagePolicy').hide();
+ }
+ return errors;
+ }
+
+
+
+ function validatedropboxForm(e) {
+ var _form = _formdropbox;
+ var resultPolicy = validatedropboxUsagePolicy();
+ var resultFormats = validatedropboxFormats();
+
+ if (resultPolicy) {
+ $('#usagePolicydropbox', _form).one('change', validatedropboxUsagePolicy);
+ }
+ if (resultFormats) {
+ $('.formats', _form).one('change', validatedropboxFormats);
+ }
+
+
+ return !resultPolicy && !resultFormats ;
+ }
+
+
+ $(document).ready(function () {
+ // reset validation when the modal opens
+ $(document).on('open.fndtn.reveal', '[data-reveal]', function () {
+ resetValidationdropboxForm();
+
+ // automatically select if there's only one format
+ if ($('#sendTodropboxForm input[name="formats"]').length === 1) {
+ $('#sendTodropboxForm input[name="formats"]').prop('checked', true);
+ }
+ });
+ });
+
+</script>
+ <h1>Save article to Google Drive</h1> To save this article to your Google Drive account, please s<a href="/core/help">Find out more about saving content to Google Drive</a>. Scaling laws for segregation forces in dense sheared granu<a href="/core/search?filters%5BauthorTerms%5D=François Guillard&amp;eventCode=SE-AU">François Guillard</a> (a1) (a2) , <a href="/core/search?filters%5BauthorTerms%5D=Yoël Forterre&amp;eventCode=SE-AU">Yoël Forterre</a> (a1) and <a href="/core/search?filters%5BauthorTerms%5D=Olivier Pouliquen&amp;eventCode=SE-AU">Olivier Pouliquen</a> (a1) DOI: <a href="https://doi.org/10.1017/jfm.2016.605">https://doi.org/10.1017/jfm.2016.605</a> <form action="/core/services/aop-cambridge-core/sendto" method="GET"> <fieldset> <legend>Available formats</legend> <input type="checkbox" name="formats"> PDF Please select a format to save. </fieldset> <input type="checkbox" name="usagePolicygoogleDrive"> By using this service, you agree that you will only keep co<input type="hidden" name="suppressTrackingEvent"> <input type="hidden" name="service"> <input type="hidden" name="documents"> <input type="hidden" name="finalReturn"> <input type="hidden" name="_csrf"> </form> <button href="#">Cancel</button> <button type="submit"> Save </button> <a>×</a>
+<script type="text/javascript">
+ $('#sendTogoogleDriveForm').on('submit', validategoogleDriveForm);
+
+ var _formgoogleDrive = $('#sendTogoogleDriveForm');
+
+ function resetValidationgoogleDriveForm() {
+ var _form = _formgoogleDrive;
+ _form.find('.error.formats').hide();
+ _form.find('.error.usagePolicy').hide();
+ }
+
+ function validategoogleDriveFormats(e) {
+ var _form = _formgoogleDrive;
+ var errors = false;
+ var formats = _form.find('input[name="formats"]:checked');
+ if (formats.length < 1) {
+ _form.find('.error.formats').show();
+ errors = true;
+ } else {
+ _form.find('.error.formats').hide();
+ }
+ return errors;
+ }
+
+ function validategoogleDriveUsagePolicy(e) {
+ var _form = _formgoogleDrive;
+ var usagePolicy = _form.find('input[name="usagePolicygoogleDrive"]');
+ var errors = false;
+ if (!usagePolicy.is(':checked')) {
+ _form.find('.error.usagePolicy').show();
+ errors = true;
+ } else {
+ _form.find('.error.usagePolicy').hide();
+ }
+ return errors;
+ }
+
+
+
+ function validategoogleDriveForm(e) {
+ var _form = _formgoogleDrive;
+ var resultPolicy = validategoogleDriveUsagePolicy();
+ var resultFormats = validategoogleDriveFormats();
+
+ if (resultPolicy) {
+ $('#usagePolicygoogleDrive', _form).one('change', validategoogleDriveUsagePolicy);
+ }
+ if (resultFormats) {
+ $('.formats', _form).one('change', validategoogleDriveFormats);
+ }
+
+
+ return !resultPolicy && !resultFormats ;
+ }
+
+
+ $(document).ready(function () {
+ // reset validation when the modal opens
+ $(document).on('open.fndtn.reveal', '[data-reveal]', function () {
+ resetValidationgoogleDriveForm();
+
+ // automatically select if there's only one format
+ if ($('#sendTogoogleDriveForm input[name="formats"]').length === 1) {
+ $('#sendTogoogleDriveForm input[name="formats"]').prop('checked', true);
+ }
+ });
+ });
+
+</script>
+ <a>×</a> <h4> Reply to: Submit a response </h4> <form action="/core/services/aop-cambridge-core/comments/submit" method="POST"> <input type="hidden" name="_csrf"> <input type="hidden" name="_pid"> <input type="hidden" name="_cid"> Title * <input name="title" type="text"> Please enter a title for your response. Contents * <a href="#"> Contents help </a> <a href="#"> Close Contents help </a> - No HTML tags allowed- Web page URLs will display as text <textarea name="comment"></textarea> Please enter your response. <h4>Your details</h4> First name * <input name="firstname_0" type="text"> Please enter a valid first name. Only letters, spaces, hyph<input name="lastName_0" type="text"> Please enter a valid last name. Only letters, spaces, hyphe<a href="#"> Email help </a> <a href="#"> Close Email help </a> Your email address will be used in order to notify you when<input name="emailAddress_0" type="text"> Please enter a valid email address. Occupation <input name="occupation_0" type="text"> Please enter your occupation. Affiliation <input name="organisation_0" type="text"> Please enter any affiliation. <input type="button"> <h5>You have entered the maximum number of contributors</h5> <h4>Conflicting interests</h4> Do you have any conflicting interests? * <a href="#"> Conflicting interests help </a> <a href="#"> Close Conflicting interests help </a> Please list any fees and grants from, employment by, consul<input type="radio" name="conflictInterest"> Yes <input type="radio" name="conflictInterest"> No More information * <textarea name="conflictInfo"></textarea> Please enter details of the conflict of interest or select <input name="agreeToTerms" type="checkbox"> &nbsp; Please tick the box to confirm you agree to our&nbsp<a href="/core/legal-notices/terms">Terms of use</a>. * Please accept terms of use. <input name="agreePrint" type="checkbox"> &nbsp; Please tick the box to confirm you agree that your n<input type="submit"> </form>
+<script type="text/template"></script>
+<script>
+ window.AOP.basket.currency = 'USD';
+ window.AOP.basket.isEnabled = true;
+</script>
+<script>
+ /* style checkboxes and radio inputs */
+ AOP.styleInputElements = function (container) {
+ var selector;
+
+ // Use '.no-style' on the input element to exclude checkboxes from styling
+ if (container) {
+ selector = $('input[type=checkbox], input[type=radio]', container).not('.styled,.no-style');
+ } else {
+ selector = $('input[type=checkbox], input[type=radio]').not('.styled,.no-style');
+ }
+
+ selector.each(function (i, el) {
+ $(this).addClass('styled');
+ el = $(el)[0];
+ var doneAlready = (el && el.nextElementSibling && el.nextElementSibling.outerHTML === '<span></span>');
+
+ if (!doneAlready) {
+ $(this).after($('<span></span>'));
+ }
+ });
+ };
+
+ $(document).ready(function () {
+ AOP.styleInputElements();
+ });
+</script><iframe></iframe> <h2>This website uses cookies</h2>By clicking “Accept all cookies”, you agree to the storing o<a href="https://www.cambridge.org/legal/cookies" rel="noopener">Cookie notice</a> <button>Cookie Settings</button> <button>Reject all</button> <button>Accept all cookies</button> <button></button> <button></button> <h2>Use of Cookies by Cambridge</h2>When you visit our website, Cambridge may store or retrieve <a href="https://www.cambridge.org/legal/cookies" rel="noopener">More information</a> <button>Allow All</button><h3>Manage Cookies </h3><button></button><h4>Strictly Necessary Cookies</h4>Always Active These cookies are necessary for the website to<button>Cookies Details‎</button> <button></button><h4>Functional Cookies</h4><input type="checkbox" name="ot-group-id-C0003"> Functional Cookies These cookies enable the website to prov<button>Cookies Details‎</button> <button></button><h4>Performance Cookies</h4><input type="checkbox" name="ot-group-id-C0002"> Performance Cookies These cookies allow us to count visits <button>Cookies Details‎</button> <button></button><h4>Targeting Cookies</h4><input type="checkbox" name="ot-group-id-C0004"> Targeting Cookies These cookies may be set through our site<button>Cookies Details‎</button> <button></button><h3>Cookie List</h3> <input type="text" name="vendor-search-handler"> <button></button> <button>Clear</button><input type="checkbox"> checkbox label label <button>Apply</button> <button>Cancel</button> Consent Leg.Interest <input type="checkbox"> checkbox label label <input type="checkbox"> checkbox label label <input type="checkbox"> checkbox label label <button>Confirm My Choices</button> <a href="https://www.onetrust.com/products/cookie-consent/" rel="noopener noreferrer"></a> <iframe></iframe> <button type="button"></button> <button type="button"> </button> <iframe src="https://service.seamlessaccess.org/ps/"></iframe> <h1>Citation Tools</h1> Copy and paste a formatted citation or download in your cho<a href="#">× </a>
+<script type="text/javascript">(function(){var l=function(e,g,f,h){this.get=function(a){a+="\x3d";for(var b=document.cookie.split(";"),c=0,k=b.length;c<k;c++){for(var d=b[c];" "==d.charAt(0);)d=d.substring(1,d.length);if(0==d.indexOf(a))return d.substring(a.length,d.length)}return null};this.set=function(a,b){var c=new Date;c.setTime(c.getTime()+6048E5);c="; expires\x3d"+c.toGMTString();document.cookie=a+"\x3d"+b+c+"; path\x3d/; "};this.check=function(){var a=this.get(f);if(a)a=a.split(":");else if(100!=e)"v"==g&&(e=Math.random()>=
+e/100?0:100),a=[g,e,0],this.set(f,a.join(":"));else return!0;var b=a[1];if(100==b)return!0;switch(a[0]){case "v":return!1;case "r":return b=a[2]%Math.floor(100/b),a[2]++,this.set(f,a.join(":")),!b}return!0};this.go=function(){if(this.check()){var a=document.createElement("script");a.type="text/javascript";a.src=h;document.body&&document.body.appendChild(a)}};this.start=function(){var a=this;"complete"!==document.readyState?window.addEventListener?window.addEventListener("load",function(){a.go()},
+!1):window.attachEvent&&window.attachEvent("onload",function(){a.go()}):a.go()}};try{(new l(100,"r","QSI_S_ZN_bPf2MIKxXcylqPI","https://znbpf2mikxxcylqpi-cup.siteintercept.qualtrics.com/SIE/?Q_ZID\x3dZN_bPf2MIKxXcylqPI")).start()}catch(e){}})();</script> 
+<script type="text/javascript" src="https://znbpf2mikxxcylqpi-cup.siteintercept.qualtrics.com/SIE/?Q_ZID=ZN_bPf2MIKxXcylqPI"></script><iframe src="https://service.seamlessaccess.org/ps/"></iframe><iframe src="https://service.seamlessaccess.org/ps/"></iframe></body></html>

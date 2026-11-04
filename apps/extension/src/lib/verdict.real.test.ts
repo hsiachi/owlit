@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { isInteractive, isThrough, verdict, type Page } from "./verdict.ts"
+import { isInteractive, isThrough, refusesPdf, verdict, type Page } from "./verdict.ts"
 
 // Real publishers' pages as the extension met them, trimmed by scripts/trim-pages.mjs: from a worker
 // fetch (its status and headers) or a tab's document (neither). verdict is the ending a try reports,
@@ -39,6 +39,15 @@ describe("recorded checks only a person passes", () => {
     const html = readFileSync(path.join(folder, `${page.name}.html`), "utf8")
     const seen = page.from === "worker" ? { status: page.status, html, headers: new Headers(page.headers) } : { status: 0, html }
     expect(isInteractive(seen), page.really).toBe(/sciencedirect|interactive/i.test(page.name + page.really))
+  })
+})
+
+// What a PDF's address answers a reader without the paper: never a check, and the paper's own page
+describe("recorded PDF addresses keeping the PDF from a reader", () => {
+  const refusals = recorded.filter((page) => page.name.endsWith("-closed-pdf.worker"))
+  it.each(refusals.map((page) => [page.name, page] as const))("%s", (_, page) => {
+    const html = readFileSync(path.join(folder, `${page.name}.html`), "utf8")
+    expect(refusesPdf({ status: page.status, html }), page.really).toBe(true)
   })
 })
 

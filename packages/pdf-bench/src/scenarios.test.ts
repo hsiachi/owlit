@@ -301,6 +301,25 @@ describe("the library's proxy", () => {
   })
 })
 
+describe("a paper the site keeps from this reader", () => {
+  // Off campus: the paper's page names its PDF, and the PDF's address answers 403 with the article
+  it("reads No access, with nothing left for the user to do at the site", async () => {
+    const web = new FakeWeb()
+    const paper = { doi: "10.1111/0000405", title: "A Paper Behind A Paywall" }
+    const article = (status: number) => () => page(paper.title, `<h1>${paper.title}</h1><a href="/doi/pdf/${paper.doi}">PDF</a>`, status, `<meta name="citation_title" content="${paper.title}"><meta name="citation_doi" content="${paper.doi}">`)
+    web.paper(paper.doi, paper.title, { url: `https://onlinelibrary.wiley.com/doi/${paper.doi}` })
+    web.on(`onlinelibrary.wiley.com/doi/pdf`, article(403))
+    web.on(`onlinelibrary.wiley.com/doi/pdfdirect`, article(403))
+    web.on(`onlinelibrary.wiley.com/doi/`, article(200))
+    const b = await start(web)
+    const id = b.addPaper(paper.doi, paper.title)
+    const screen = await b.getPdfs()
+    expect(screen.block).toMatchObject({ total: 1, saved: 0, things: 0, running: false })
+    expect(screen.papers[id].hasPdf).toBe(false)
+    expect(rowsOf(screen)).toEqual([["none", 1]])
+  })
+})
+
 describe("a batch of papers (Get PDFs)", () => {
   // Ten papers as a real library has them: three the browser gets at once, two behind a check, two only
   // scripts read, one the publisher hasn't got, one paywalled, one at a site not yet allowed
