@@ -5,6 +5,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 ## Unreleased
 
 - Get PDFs recovers better when something goes away mid-way: a PDF that arrives after its paper was asked for again is kept, papers out with the browser extension go out again when its background restarts, and after a restart of owlit a site you already got through no longer asks you again, nor do its papers read "Finding a PDF…".
+- A publisher's page that a blocked third-party script keeps from finishing (BMJ's, from China) no longer holds Get PDFs for minutes.
 - Through your library's proxy, a paper that gets past the sign-in and stops at a publisher's check now counts under that check, and the sign-in row goes. A check on a step of a publisher's sign-in is named by the publisher.
 - Signing in to Tsinghua's library from off campus now works for Get PDFs: the sign-in owlit opened ended on a page that looked signed in, while every paper went on asking you to sign in. The publishers' own institution sign-in steps after it (OpenAthens, Elsevier's, Atypon's) are walked in a background tab instead of asking you to sign in again.
 - Off campus, a paper your access doesn't cover reads "No access" instead of asking you to download it by hand: buy buttons with a price on them (Springer, De Gruyter, APS, IEEE's "Sign In or Purchase") are understood, and so is a PDF link that only leads back to the paper's page (Wiley, Science, ASCE, JAMA). A site that blocks your address (SIAM) reads Blocked, not a sign-in.
