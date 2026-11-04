@@ -545,6 +545,93 @@ describe("the extension's port", () => {
       expect(opened).toHaveLength(1)
     })
 
+    it("settles a paper whose try couldn't be noted, so it doesn't hold its site", async () => {
+      const { call, request, token, core, server } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      vi.spyOn(libraryOf(core), "noteExtensionTry").mockRejectedValue(new Error("disk full"))
+      const answer = await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })
+      expect(answer.status).toBe(200)
+      expect(server.work.current(libraryOf(core), item.id)).toBeUndefined()
+    })
+
+    it("forgets a paper's old id when it takes on a DOI", async () => {
+      const { call, core, server, putPaper } = await connected()
+      const local = "local-abc"
+      putPaper(local, { title: "A Local Paper", ids: {} })
+      const library = libraryOf(core)
+      await eventually(async () => expect(await library.get(local)).toBeTruthy())
+      server.work.fetch(library, { paperId: local, url: "https://journals.sagepub.com/doi/x", host: "sagepub.com", proxied: false }, false)
+      await call("library.update", { id: local, patch: { ids: { doi: "10.1177/0000009" } } })
+      expect(server.work.holding(library, local)).toBeUndefined()
+    })
+
+    it("keeps an answer whose address is too long to keep, without the address", async () => {
+      const { call, request, token } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      const url = `https://journals.sagepub.com/doi/1?SAMLRequest=${"a".repeat(5000)}`
+      const answer = await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url } })
+      expect(answer).toMatchObject({ status: 200, body: { noted: true } })
+      expect((await call("extension.get")).waits).toMatchObject([{ id: "pub:sage", kind: "check", url: item.url }])
+      const blocked = await request("/work/blocked", { token, body: { wait: "pub:sage", url } })
+      expect(blocked).toMatchObject({ status: 200, body: { blocked: true } })
+      expect((await call("extension.get")).waits).toMatchObject([{ id: "pub:sage", kind: "blocked", url: item.url }])
+    })
+
+    it("brings a check at a sign-in hop back after a restart as it was, under the paper's publisher", async () => {
+      const { call, request, token, core, userDataDir, root } = await connected()
+      await call("settings.setProxy", { preset: "tsinghua" })
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "login.openathens.net", url: "https://login.openathens.net/saml/2/sso?SAMLRequest=abc" } })
+      const [wait] = (await call("extension.get")).waits
+      expect(wait).toMatchObject({ id: "pub:sage", kind: "check", url: item.url })
+      expect(wait.url).not.toContain("openathens")
+      await core.dispose()
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })
+      cleanups.push(() => again.dispose())
+      await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+      const view: any = await again.handle({ jsonrpc: "2.0", id: 2, method: "extension.get" })
+      expect(view.result.waits).toMatchObject([{ id: wait.id, kind: wait.kind, at: wait.at, watch: wait.watch, url: wait.url }])
+    })
+
+    it("loses no queued paper to an ask that comes while the workspace's waits go up", async () => {
+      const { call, token, core, userDataDir, root, putPaper } = await connected()
+      await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      // Queued with a verdict on record: only pdf-work.json says it goes on, and no look on opening finds it
+      writeFileSync(path.join(root, "library/papers", id, "acquisition.json"), JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "extension", ended: "no-access", at: Date.now() }], dropHere: "paper.pdf" }))
+      // With owlit's own miss on record: the ask hands this one over by itself
+      const missed = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      putPaper(missed.id, { title: "Another Paper", ids: { doi: missed.doi } })
+      writeFileSync(path.join(root, "library/papers", missed.id, "acquisition.json"), JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "search", ended: "no-copy", at: 1 }], dropHere: "paper.pdf" }))
+      await core.dispose()
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20, work: { gapMs: 0 } } })
+      cleanups.push(() => again.dispose())
+      const server = (again as unknown as { extension: ExtensionServer }).extension
+      await server.start()
+      let release!: () => void
+      const held = new Promise<void>((resolve) => (release = resolve))
+      const restore = server.work.restore.bind(server.work)
+      const restoring = vi.spyOn(server.work, "restore").mockImplementation(async (...args) => {
+        await held
+        return restore(...args)
+      })
+      const opening = again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+      await eventually(async () => expect(restoring).toHaveBeenCalled())
+      const handed = vi.spyOn(server.work, "fetch")
+      await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })
+      // A hand-over that went ahead of the restore shows here; one that waits for it never comes
+      await vi.waitFor(() => expect(handed).toHaveBeenCalled(), { timeout: 300 }).catch(() => undefined)
+      release()
+      await opening
+      await eventually(async () => {
+        const list: any = await again.handle({ jsonrpc: "2.0", id: 2, method: "library.list" })
+        expect(list.result.papers.filter((p: { pdfState?: { extension?: unknown } }) => p.pdfState?.extension).map((p: { id: string }) => p.id).sort()).toEqual([id, missed.id].sort())
+      })
+    })
+
     it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
       const { call, request, token, core, userDataDir, root } = await connected()
       await call("settings.setProxy", { preset: "tsinghua" })
@@ -612,7 +699,7 @@ describe("the extension's port", () => {
       await eventually(async () => expect((await call("extension.get")).runs).toMatchObject([{ id: run, total: 2, going: 0, closed: 1, away: 1, running: false }]))
     })
 
-    it("takes a stopped batch's papers out of the extension's queue, leaving their records", async () => {
+    it("takes a stopped batch's papers out of the extension's queue, each noted as the user's stop", async () => {
       const { call, request, token, putPaper } = await connected()
       const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
       putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
@@ -624,9 +711,72 @@ describe("the extension's port", () => {
       await call("pdfRuns.stop", { run })
       const papers = (await call("library.list")).papers
       expect(papers.find((p: { id: string }) => p.id === other.id).pdfState?.extension).toBeUndefined()
-      // The one out for a try still has its answer taken
+      expect(papers.find((p: { id: string }) => p.id === other.id).pdfState?.reason).toMatchObject({ by: "person", ended: "stopped" })
+      // The one out for a try has its answer heard, and stays stopped
       expect((await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })).status).toBe(200)
+      expect((await paperIn(call)).pdfState?.reason).toMatchObject({ by: "person", ended: "stopped" })
       expect((await request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("makes no wait from the answer of a paper stopped in flight, and hands it over on no connect", async () => {
+      const { call, request, token, core } = await connected()
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      const [item] = (await request("/work", { token })).body.work
+      await call("pdfRuns.stop", { run })
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "journals.sagepub.com", url: "https://journals.sagepub.com/doi/1" } })
+      expect((await call("extension.get")).waits).toEqual([])
+      expect((await paperIn(call)).pdfState).toMatchObject({ state: "no-pdf", reason: { by: "person", ended: "stopped" } })
+      expect((await paperIn(call)).pdfState?.extension).toBeUndefined()
+      await libraryOf(core).handToExtension()
+      expect((await request("/work", { token })).body.work).toEqual([])
+    })
+
+    it("keeps the PDF of a paper stopped in flight", async () => {
+      const { call, request, token } = await connected()
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      const [item] = (await request("/work", { token })).body.work
+      await call("pdfRuns.stop", { run })
+      const answer = await request(`/work/${encodeURIComponent(item.id)}`, { token, bytes: pdfOf([title]) })
+      expect(answer.status).toBe(200)
+      expect((await paperIn(call)).pdf).toBeTruthy()
+    })
+
+    it("hands a stopped paper over again once the user asks", async () => {
+      const { call, request, token } = await connected()
+      const { run } = await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      await call("pdfRuns.stop", { run })
+      await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: id, userStarted: true }]))
+    })
+
+    it("hands nothing over from a workspace another one replaced, keeping the new one's waits and queue", async () => {
+      const { call, request, token, core, putPaper, server, root } = await connected()
+      const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
+      const old = libraryOf(core) as unknown as { services: { settings: () => Promise<unknown> }; pdfRuns: { handing?: number }[] }
+      const settings = old.services.settings.bind(old.services)
+      let release!: () => void
+      const held = new Promise<void>((resolve) => (release = resolve))
+      let looks = 0
+      vi.spyOn(old.services, "settings").mockImplementation(async () => {
+        if (++looks === 2) await held
+        return settings()
+      })
+      await call("library.fetchPdfs", { ids: [id, other.id] })
+      await eventually(async () => expect(looks).toBe(2))
+      const next = path.join(path.dirname(root), "next")
+      mkdirSync(next)
+      await call("workspace.open", { path: next })
+      const handed = vi.spyOn(server.work, "fetch")
+      const owned = libraryOf(core)
+      server.work.fetch(owned, { paperId: "here", url: "https://journals.sagepub.com/doi/here", host: "sagepub.com", proxied: false }, false)
+      release()
+      await eventually(async () => expect(old.pdfRuns[0].handing).toBe(0))
+      expect(handed).toHaveBeenCalledTimes(1)
+      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: "here" }])
     })
 
     it("never queues a paper stopped while its page was being looked up", async () => {
@@ -780,12 +930,12 @@ describe("the extension's port", () => {
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
       const wanted = async (of: string) => (await request(`/work/${encodeURIComponent(of)}`, { token })).body
-      expect(await wanted(item.id)).toEqual({ wanted: true })
-      expect(await wanted(`${id}#7`)).toEqual({ wanted: false })
+      expect(await wanted(item.id)).toEqual({ wanted: true, lacksPdf: true })
+      expect(await wanted(`${id}#7`)).toEqual({ wanted: false, lacksPdf: true })
       // The user opened its PDF in a tab, and the extension took it there
       writeFileSync(path.join(root, "found.pdf"), pdfOf([`https://doi.org/${SAGE}`, title]))
       await call("library.attachPdf", { id, path: path.join(root, "found.pdf") })
-      expect(await wanted(item.id)).toEqual({ wanted: false })
+      expect(await wanted(item.id)).toEqual({ wanted: false, lacksPdf: false })
     })
 
     it("keeps the PDF the user dropped while the extension's was on its way", async () => {

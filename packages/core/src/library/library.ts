@@ -40,7 +40,7 @@ import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
 import { movedOn, type KnownPending, type KnownWait } from "../extension/work.ts"
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
-import { gateOf, gateOfTry } from "../extension/keys.ts"
+import { gateOf, gateOfTry, isSsoHop } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -157,6 +157,8 @@ export interface ExtensionFetcher {
   holding(library: Library, id: string): PdfState["extension"] | undefined
   // The paper is in one of the extension's queues (not only held from its record)
   inQueue(library: Library, id: string): boolean
+  // The user stopped getting the paper: out of the queues; if it is in flight, only a PDF it brings counts
+  stop(library: Library, id: string): void
   // The paper no longer wants fetching: it has its PDF, or it left the library
   drop(library: Library, id: string): void
   // Papers of a Get PDFs changed, or the run did: the window hears the runs again
@@ -225,6 +227,10 @@ export class Library {
   private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
+  // Its workspace closed: hand-overs still going stop at their next paper
+  private disposed = false
+  // Settled once the waits and queues of the papers' records are up (restoreWaits)
+  private waitsUp: Promise<void> = Promise.resolve()
   // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
   private readonly batchStopped = new Set<string>()
   // The workspace's Get PDFs: the one going on, else the last, until put away; in memory only
@@ -484,6 +490,7 @@ export class Library {
       throw new RpcFailure(RpcErrorCode.Conflict, t`Another paper in your library already has that id.`, { id: other })
     }
     this.scheduler?.cancelSubject(id)
+    this.services.extension?.drop(this, id)
     await mkdir(path.dirname(paperStateDir(this.root, next)), { recursive: true })
     await rename(paperDir(this.root, id), paperDir(this.root, next))
     await rename(paperStateDir(this.root, id), paperStateDir(this.root, next)).catch(ignoreMissing)
@@ -771,7 +778,7 @@ export class Library {
     const run = this.pdfRuns.find((r) => r.id === id)
     if (!run) throw new RpcFailure(RpcErrorCode.NotFound, t`That Get PDFs is over.`, { id })
     run.stoppedAt ??= Date.now()
-    await this.stopPapers(run.ids)
+    await this.stopPapers(run)
   }
 
   // A run the window puts away: it is no longer shown
@@ -820,17 +827,18 @@ export class Library {
     return { saved, ended }
   }
 
-  // A stopped run's papers leave the extension's queue, and the ones not handed over yet never are. Their
-  // records stay as they were; one being fetched now still has its answer noted.
-  private async stopPapers(ids: string[]) {
-    for (const id of ids) {
+  // A stopped run's papers leave the extension's queue, and the ones not handed over yet never are. Each
+  // of those is noted as the user's try, so neither the extension's next connect nor the daily look
+  // takes it back until they ask; one being fetched now keeps only a PDF its answer brings. A paper the
+  // run already finished with keeps what it ended on.
+  private async stopPapers(run: PdfRun) {
+    for (const id of run.ids) {
       const held = this.services.extension?.holding(this, id)
-      // Its record would say it waits for the user at a wait that is going: the user stopped it instead
-      if (held?.wait) await this.acquisitions.noteTried(id, { by: "person", ended: "stopped", at: Date.now() })
-      if (held) this.services.extension!.drop(this, id)
+      if (held) this.services.extension!.stop(this, id)
       else this.batchStopped.add(id)
+      if (held || !run.handed.has(id)) await this.acquisitions.noteTried(id, { by: "person", ended: "stopped", at: Date.now() }).catch(ignoreMissing)
     }
-    await this.announce(ids)
+    await this.announce(run.ids)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -1636,6 +1644,7 @@ export class Library {
   }
 
   dispose() {
+    this.disposed = true
     clearTimeout(this.timer)
     clearInterval(this.hourly)
     for (const timer of this.noteTimers.values()) clearTimeout(timer)
@@ -1835,11 +1844,11 @@ export class Library {
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
           // extension, or to the user's browser), nor once the extension couldn't open its page, which it
-          // would fail to open again the same way, nor once the user found none there: only the user
-          // asking looks again there.
+          // would fail to open again the same way, nor once the user found none there or stopped it: only
+          // the user asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
-          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped"
+          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped" || told === "stopped"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
           if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal, undefined, { closed: true })
           await this.announce([id])
@@ -2028,13 +2037,14 @@ export class Library {
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
-  // set); false when no extension is asking for work. stopped: asked once its page is looked up, right
-  // before it is queued: true leaves it out. closed: queued too while the paired browser is closed, where
+  // set); false when no extension is asking for work, or this library's workspace closed. stopped: asked
+  // once its page is looked up, right before it is queued: true leaves it out. closed: queued too while the paired browser is closed, where
   // it waits for it (the window says so) and goes once it connects; a paper owlit's own look missed
   // otherwise reads "No PDF found" with nothing about the browser, until the browser asks
   private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean, { closed = false } = {}) {
     const extension = this.services.extension
-    if (!extension) return false
+    if (!extension || this.disposed) return false
+    await this.waitsUp
     if (!extension.connected() && !(closed && (await extension.paired?.()))) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const libraryProxy = (await this.services.settings()).proxy
@@ -2043,6 +2053,7 @@ export class Library {
     const predicted = gateOf(route.url, proxy)
     const own = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension") ?? []
     const met = own.at(-1) && gateOfTry(own.at(-1)!, proxy, predicted)
+    if (this.disposed) return false
     if (stopped?.()) return true
     extension.fetch(this, { paperId: id, ...route, tries: own.length, predicted, ...(met ? { gate: met } : {}), ...(proxy ? { proxy } : {}) }, priority === "waiting")
     return true
@@ -2055,6 +2066,7 @@ export class Library {
   // it the Library fills in by itself, at the queue's pace. A paper whose newest try met a sign-in, a
   // check or a missing permission falls under the wait restoreWaits put up for it, by its try's gate.
   async handToExtension() {
+    await this.waitsUp
     const extension = this.services.extension
     if (!extension?.connected()) return
     const waiting: { id: string; doi: string; at: number }[] = []
@@ -2081,14 +2093,23 @@ export class Library {
   // connects: a paper whose newest try stopped where only the user gets through, at the gate it met.
   // The papers that were with the extension when owlit last ran say so again from then on, not what
   // owlit's own routes found, until the extension asks and they are handed over (handToExtension).
-  async restoreWaits() {
+  // Every hand-over waits for this: one that went first would write the queues down without the papers
+  // only pdf-work.json knows of. The caller starts it in the same step that opens the workspace, so
+  // nothing comes in between.
+  restoreWaits() {
+    const putUp = this.putUpWaits()
+    this.waitsUp = putUp.catch(() => undefined)
+    return putUp
+  }
+
+  private async putUpWaits() {
     const extension = this.services.extension
     if (!extension) return
+    // In the extension's queues when owlit last ran on this machine
+    const queuedBefore = await extension.queuedBefore(this)
     const proxy = (await this.services.settings()).proxy
     const known: KnownWait[] = []
     const pending: KnownPending[] = []
-    // In the extension's queues when owlit last ran on this machine
-    const queuedBefore = await extension.queuedBefore(this)
     for (const id of await this.ids()) {
       if (await hasPdfFile(this.root, id)) continue
       const acquisition = await this.acquisitions.read(id)
@@ -2113,7 +2134,9 @@ export class Library {
       // The library's sign-in page for the proxy's own sign-in, as ExtensionWork.settle opens: one found
       // by a redirect has no page of its own, and the DOI's link would lead past the proxy
       const signIn = kind === "sign-in" && gate.startsWith("proxy:") && proxy ? proxySignIn(proxy) : undefined
-      known.push({ paperId: id, kind, gate, url: signIn ?? reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
+      // A hop's address lost the request it carried: the paper's own link walks the reader there again
+      const page = isSsoHop(reason.url, proxy) ? extensionRoute(doi, proxy).url : reason.url
+      known.push({ paperId: id, kind, gate, url: signIn ?? page ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
     }
     await extension.restore(this, known, proxy, pending)
   }

@@ -408,6 +408,9 @@ export class ExtensionServer {
     const host = z.string().trim().min(1).max(253)
     // A gate key, as core made it (pdf-keys.ts)
     const wait = z.string().regex(/^(pub|site|proxy):\S{1,300}$/)
+    // A SAML or ?url= address can run past what is worth keeping: the answer it came with still counts,
+    // and refused it would leave the paper in flight until STALLED_MS
+    const kept = (url: string | undefined) => (url && url.length <= 4096 ? url : undefined)
     const ended = z.object({
       ended: z.enum(WORK_ENDINGS),
       host,
@@ -415,9 +418,8 @@ export class ExtensionServer {
       // Only a web page: the url may be opened in a browser later, and `open` would run a file: or app link
       url: z
         .string()
-        .max(4096)
         .optional()
-        .transform((url) => (url && /^https?:\/\//i.test(url) ? url : undefined)),
+        .transform((url) => (url && /^https?:\/\//i.test(url) ? kept(url) : undefined)),
     })
     return [
       {
@@ -504,8 +506,8 @@ export class ExtensionServer {
       {
         method: "GET",
         path: is("work"),
-        handle: async ({ closed, pairing }) => {
-          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
+        handle: async ({ closed, pairing, query }) => {
+          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id, query.get("worker") ?? undefined)
           return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going(), endings: [...WORK_ENDINGS] } satisfies WorkAnswer }
         },
       },
@@ -516,8 +518,9 @@ export class ExtensionServer {
           const id = parts[1]
           const asked = parseWorkItemId(id)
           const library = this.library()
-          const paper = asked && this.work.current(library, id) ? await library.get(asked.paperId) : undefined
-          return { body: { wanted: !!paper && !paper.pdf } satisfies WorkWanted }
+          const paper = asked ? await library.get(asked.paperId) : undefined
+          const lacksPdf = !!paper && !paper.pdf
+          return { body: { wanted: lacksPdf && !!this.work.current(library, id), lacksPdf } satisfies WorkWanted }
         },
       },
       {
@@ -534,7 +537,7 @@ export class ExtensionServer {
         path: is("work", "blocked"),
         handle: async ({ raw }) => {
           // Only a web page, as a fetch's ending: the window opens it in a browser
-          const url = z.string().max(4096).regex(/^https?:\/\//i)
+          const url = z.string().regex(/^https?:\/\//i).transform(kept)
           const body = z.union([z.object({ wait, url }), z.object({ host, url })]).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
           return { body: { blocked: "wait" in body.data ? this.work.blockedAt(body.data.wait as WaitId, body.data.url) : this.work.blocked(body.data.host, body.data.url) } }
@@ -603,7 +606,7 @@ export class ExtensionServer {
                 const word = whyNotPlaced(failure.status)
                 const gate = this.work.gateFor(id, { host: at })
                 const triedAt = Date.now()
-                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+                if (!this.work.isStopped(id)) await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
                 this.work.settle(id, word, { triedAt })
               }
               throw error
@@ -615,7 +618,8 @@ export class ExtensionServer {
           const { ended: word, host: at, title, url } = body.data
           const gate = this.work.gateFor(id, { url, host: at })
           const triedAt = Date.now()
-          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
+          // The user's Stop stands as the paper's newest word
+          if (!this.work.isStopped(id)) await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
           this.work.settle(id, word, { url, host: at, triedAt })
           return { body: { noted: true } }
         },

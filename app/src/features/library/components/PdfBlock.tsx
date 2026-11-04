@@ -8,7 +8,7 @@ import { JoinDots } from "@/components/status-line"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useExtension, useExtensionWaits, usePdfRun } from "@/features/extension/store"
-import { actOnWait, browserName, dismissRun, doneWords, resumeWait, stillWords, stopRun, waitWords, walkManual } from "@/features/extension/waits"
+import { actOnWait, browserName, dismissRun, doneWords, resumeWait, stillWhy, stillWords, stopRun, waitWords, walkManual } from "@/features/extension/waits"
 import { libraryNameOf } from "@/features/settings/library-name"
 import { useSettings } from "@/features/settings/store"
 import { clock } from "@/lib/time"
@@ -139,8 +139,7 @@ function Row({ row, browser, library, papers }: { row: RowModel; browser: string
     // owlit tried at once after I've verified it and met the same page: said until the user acts again
     if (wait.retried?.again) {
       need = stillWords(wait, library)
-      const again = doneWords(wait.kind) ?? ""
-      why = t`owlit tried again just now and met the same page. Open it, finish there, then press ${again}.`
+      why = stillWhy(wait.kind)
     }
     if (done) {
       const where = wait.opened?.browser ?? browser

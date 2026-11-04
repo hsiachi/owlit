@@ -1092,7 +1092,7 @@ msgstr "Rename chat"
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
 #. an import that broke
-#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
+#. the user stopped getting the paper's PDF (Stop on Get PDFs)
 #. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
@@ -3600,6 +3600,14 @@ msgid "{host} still asks you to verify you're human"
 msgstr "{host} still asks you to verify you're human"
 
 #: app/src/features/extension/waits.ts
+msgid "{host} still blocks your browser"
+msgstr "{host} still blocks your browser"
+
+#: app/src/features/extension/waits.ts
+msgid "owlit still needs your permission for {host}"
+msgstr "owlit still needs your permission for {host}"
+
+#: app/src/features/extension/waits.ts
 msgid "{host} still asks you to sign in"
 msgstr "{host} still asks you to sign in"
 
@@ -3610,6 +3618,14 @@ msgstr "{libraryName} still asks you to sign in"
 #: app/src/features/extension/waits.ts
 msgid "Your library still asks you to sign in"
 msgstr "Your library still asks you to sign in"
+
+#: app/src/features/extension/waits.ts
+msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+msgstr "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+
+#: app/src/features/extension/waits.ts
+msgid "owlit tried again just now and met the same page. It goes on by itself once a page there loads."
+msgstr "owlit tried again just now and met the same page. It goes on by itself once a page there loads."
 
 #: app/src/features/extension/waits.ts
 msgid "Couldn't stop getting the PDFs."
@@ -4496,10 +4512,6 @@ msgid "{n, plural, one {# paper needs you} other {# papers need you}}"
 msgstr "{n, plural, one {# paper needs you} other {# papers need you}}"
 
 #: app/src/features/library/components/PdfBlock.tsx
-msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
-msgstr "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
-
-#: app/src/features/library/components/PdfBlock.tsx
 msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
 msgstr "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
 
@@ -5289,8 +5301,8 @@ msgid "You looked on its page in your browser and skipped it · {date}"
 msgstr "You looked on its page in your browser and skipped it · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "You stopped it while it waited for you at its site · {date}"
-msgstr "You stopped it while it waited for you at its site · {date}"
+msgid "You stopped getting its PDF · {date}"
+msgstr "You stopped getting its PDF · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"

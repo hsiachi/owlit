@@ -10,6 +10,9 @@ describe("pdfWait", () => {
     expect(pdfWait({ pdf: { url: "x" }, pdfState: undefined })).toBeUndefined()
     expect(pdfWait({ pdfState: { state: "finding", tried: [] } })).toBe("finding")
     expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("offline")], reason: tryOf("offline") } })).toBe("offline")
+    // With the extension, a try that reached nothing is the extension's to go on with, not owlit's own look
+    const held = { lane: "pub:sage" as const, gate: "pub:sage" as const, attempt: 2, at: "sagepub.com" }
+    expect(pdfWait({ pdfState: { state: "finding", tried: [tryOf("offline", "extension")], reason: tryOf("offline", "extension"), extension: held } })).toBe("finding")
     expect(pdfWait(noPdf("no-copy"))).toBe("not-found")
     expect(pdfWait(noPdf("not-offered"))).toBe("not-offered")
     // A check or a sign-in that stopped owlit itself, in an older record: no PDF found, waiting on nobody

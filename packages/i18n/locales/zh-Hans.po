@@ -1092,7 +1092,7 @@ msgstr "重命名对话"
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
 #. an import that broke
-#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
+#. the user stopped getting the paper's PDF (Stop on Get PDFs)
 #. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
@@ -3600,6 +3600,14 @@ msgid "{host} still asks you to verify you're human"
 msgstr "{host} 仍要求你完成真人验证"
 
 #: app/src/features/extension/waits.ts
+msgid "{host} still blocks your browser"
+msgstr "{host} 仍在拦截你的浏览器"
+
+#: app/src/features/extension/waits.ts
+msgid "owlit still needs your permission for {host}"
+msgstr "owlit 仍需要你允许访问 {host}"
+
+#: app/src/features/extension/waits.ts
 msgid "{host} still asks you to sign in"
 msgstr "{host} 仍要求你登录"
 
@@ -3610,6 +3618,14 @@ msgstr "{libraryName}仍要求你登录"
 #: app/src/features/extension/waits.ts
 msgid "Your library still asks you to sign in"
 msgstr "你的图书馆仍要求你登录"
+
+#: app/src/features/extension/waits.ts
+msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+msgstr "owlit 刚才又试了一次，还是遇到同一个页面。打开它，在那里完成后，再点“{again}”。"
+
+#: app/src/features/extension/waits.ts
+msgid "owlit tried again just now and met the same page. It goes on by itself once a page there loads."
+msgstr "owlit 刚才又试了一次，还是遇到同一个页面。那里的页面能打开后，它会自己继续。"
 
 #: app/src/features/extension/waits.ts
 msgid "Couldn't stop getting the PDFs."
@@ -4496,10 +4512,6 @@ msgid "{n, plural, one {# paper needs you} other {# papers need you}}"
 msgstr "{n, plural, other {# 篇论文需要你处理}}"
 
 #: app/src/features/library/components/PdfBlock.tsx
-msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
-msgstr "owlit 刚才又试了一次，还是遇到同一个页面。打开它，在那里完成后，再点“{again}”。"
-
-#: app/src/features/library/components/PdfBlock.tsx
 msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
 msgstr "已在{where}中打开。你在那里登录后，owlit 通常会自己发现；没发现的话，在这里告诉它。"
 
@@ -5289,8 +5301,8 @@ msgid "You looked on its page in your browser and skipped it · {date}"
 msgstr "你在浏览器里看过它的页面，跳过了 · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "You stopped it while it waited for you at its site · {date}"
-msgstr "它在网站上等你时，你停止了获取 · {date}"
+msgid "You stopped getting its PDF · {date}"
+msgstr "你停止了获取它的 PDF · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"

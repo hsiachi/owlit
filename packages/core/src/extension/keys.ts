@@ -1,4 +1,4 @@
-import type { GateKey, LaneKey, PdfTry, ProxySettings } from "@owlit/protocol"
+import { SSO_HOP_HOSTS, type GateKey, type LaneKey, type PdfTry, type ProxySettings } from "@owlit/protocol"
 import { publisherOf, PUBLISHERS, REDIRECTORS } from "../library/publisher-table.ts"
 import { hostOf } from "../net/http.ts"
 import { realHost, rewriteHost, siteOf, type ExtensionRoute } from "./route.ts"
@@ -23,6 +23,8 @@ const IDP_SITES = new Set(["openathens.net", "microsoftonline.com", "okta.com", 
 // A school's own sign-in host, by the names they are given (id.tsinghua.edu.cn, idp.uni.edu,
 // wayf.surfnet.nl). Not login. or auth.: publishers name their own sign-in pages so.
 const IDP_HOST = /^(id|idp|sso|cas|wayf|ds|shib|shibboleth)\d*\./
+
+const SSO_HOPS: ReadonlySet<string> = new Set(SSO_HOP_HOSTS)
 
 // A university's registrable domain holds its proxy, its sign-in and many sites that aren't the
 // publisher's: a publisher hosted there (misq.umn.edu) is matched by its own host, not the domain
@@ -68,10 +70,24 @@ function throughProxy(url: URL, proxy: ProxySettings): { url?: URL } | undefined
   return { url: target }
 }
 
+// The address a fetch through this proxy really reached: the same address for one that went past it
+function readBack(at: URL, proxy: ProxySettings | undefined): URL {
+  return (proxy && throughProxy(at, proxy)?.url) || at
+}
+
+// A page on the way through a publisher's sign-in (protocol's SSO_HOP_HOSTS). Its address holds a one-time
+// request, so a wait made there opens the paper's own link instead.
+export function isSsoHop(url: string | undefined, proxy?: ProxySettings): boolean {
+  const at = url ? parse(url) : undefined
+  return !!at && SSO_HOPS.has(readBack(at, proxy).hostname.toLowerCase())
+}
+
 // The gate a page at this address belongs to. proxy: the library's proxy, given when the paper's fetch
 // goes through it, so its pages are read back to the publisher's and a school's sign-in met on the way
 // is the proxy's. predicted: the paper's gate before this page (gateOf of its route), kept where the
-// page can't say (a CDN, doi.org, an identity provider).
+// page can't say (a CDN, doi.org, an identity provider, a hop of a publisher's sign-in). A hop goes before
+// every other reading: its page says nothing of whose paper this is, and read as the proxy's sign-in it
+// would hold the lane's other publishers, with a watch the reader never comes back to.
 export function gateOf(url: string, proxy?: ProxySettings, predicted?: GateKey): GateKey {
   let at = parse(url)
   if (!at) return predicted ?? `site:${url}`
@@ -81,6 +97,7 @@ export function gateOf(url: string, proxy?: ProxySettings, predicted?: GateKey):
     if (real?.url) at = real.url
   }
   const host = at.hostname.toLowerCase()
+  if (SSO_HOPS.has(host) && predicted && !predicted.startsWith("proxy:")) return predicted
   const site = siteOf(host)
   if (REDIRECTORS.has(site)) {
     if (predicted) return predicted

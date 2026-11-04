@@ -2,7 +2,7 @@ import { LEGACY_WORK_ENDINGS, type PaperAnswer, type WorkEnded, type WorkEnding,
 import { inTabItem } from "./from-tab.ts"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
-import { isCheck, isSignInAddress, refreshOf, refusesPdf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+import { isCheck, isSignInAddress, isSsoHopAddress, refreshOf, refusesPdf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
 // Fetching a paper owlit asked for (GET /work), with the user's cookies: its PDF, or one word for what
 // came instead (verdict.ts). Nothing else is fetched, and what goes back to owlit is the PDF, or the word,
@@ -35,6 +35,12 @@ export interface FetchDeps {
   // owlit still waits for this item's answer (GET /work/:id): asked before each fetch made for it in a
   // tab, which may be minutes after it was handed out. undefined: always.
   wanted?: () => Promise<boolean>
+  // The fetch is made inside a tab of the site, as its own page would be. Only then does a PDF's address
+  // keeping the PDF (refusesPdf) settle no-access: a firewall may refuse the extension's own requests
+  // and let tabs through.
+  inside?: boolean
+  // Told when an answer outside a tab looks like that, and is said as unreadable for now
+  refused?: () => void
 }
 
 export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnded
@@ -42,6 +48,16 @@ export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnde
 // redirected: a redirect led to a site the extension may not read; to: where, when the browser told.
 // offline, timeout: at: the address that didn't answer, as near as the browser tells (unreached)
 type Got = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "page"; page: Page } | { kind: "redirected"; to?: string } | { kind: "offline"; at: string } | { kind: "timeout"; at: string }
+
+// A paper as owlit hands it: an owlit of 0.2.x counts no attempt and names no lane or gate
+export type HandedItem = Omit<WorkItem, "attempt" | "lane" | "gate"> & Partial<Pick<WorkItem, "attempt" | "lane" | "gate">>
+
+// The item with its lane and gate, which everything past GET /work takes as given. An owlit of 0.2.x says
+// the same in host and proxied: the proxy's host, else the publisher's registrable domain.
+export function asItem(item: HandedItem): WorkItem {
+  const gate = item.gate ?? item.lane ?? (item.proxied ? (`proxy:${item.host}` as const) : (`site:${siteOf(item.host)}` as const))
+  return { ...item, attempt: item.attempt ?? 1, gate, lane: item.lane ?? gate }
+}
 
 const hostOf = (url: string) => {
   try {
@@ -137,7 +153,7 @@ export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched
   const got = await fetchWith(item, deps)
   if ("pdf" in got || (got.ended !== "check" && got.ended !== "blocked") || !deps.inTab) return got
   const tab = await deps.inTab(got.host)
-  return tab ? fetchWith(inTabItem(item, tab.url), { ...deps, fetch: tab.fetch, inTab: undefined }) : got
+  return tab ? fetchWith(inTabItem(item, tab.url), { ...deps, fetch: tab.fetch, inTab: undefined, inside: true }) : got
 }
 
 async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
@@ -146,10 +162,13 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   // Where a redirect left for a site the extension may not read, and the browser said which: that site,
   // for the user to let the extension read (the publisher's, reached through the proxy or doi.org).
   // Unless it is the school's sign-in, which a signed-out proxy sends every fetch to: a site under the
-  // proxy's own domain (id.tsinghua.edu.cn beside tlink), or an address that says sign in.
+  // proxy's own domain (id.tsinghua.edu.cn beside tlink), or an address that says sign in. A step of a
+  // publisher's sign-in is neither: a tab walks it by itself, so it ends as a check, with no url: the
+  // page to open for it is the paper's, not one step of a walk.
   const unreadable = (got: { to?: string }): WorkEnded | undefined => {
     if (!got.to) return undefined
     const host = hostOf(got.to)
+    if (isSsoHopAddress(got.to)) return { ended: "check", host }
     if (!host || (proxy && siteOf(host) === siteOf(proxy.host)) || isSignInAddress(got.to)) return undefined
     return { ended: "no-permission", host }
   }
@@ -166,7 +185,7 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
     // A check, a block or a sign-in in front of the PDF is in front of the page too
     if (got.kind === "page" && stops(got.page)) return said(got.page)
-    refused = got.kind === "page" && refusesPdf(got.page)
+    refused = got.kind === "page" && refusesPdf(got.page, item.pdfUrl)
     if (got.kind === "redirected") {
       const site = unreadable(got)
       if (site || item.proxied) return site ?? away
@@ -185,11 +204,14 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (pdf.kind === "page" && stops(pdf.page)) return said(pdf.page)
     if (pdf.kind === "redirected") return unreadable(pdf) ?? away
     if (pdf.kind === "timeout") return offlineAt(pdf)
-    refused ||= pdf.kind === "page" && refusesPdf(pdf.page)
+    refused = pdf.kind === "page" && refusesPdf(pdf.page, named)
   }
   const ending = said(page)
-  // The paper's page names a PDF, so alone it says nothing sure; the PDF's own answer does
-  return refused && ending.ended === "unreadable" ? { ...ending, ended: "no-access" } : ending
+  // The paper's page names a PDF, so alone it says nothing sure; the last PDF answer does
+  if (!refused || ending.ended !== "unreadable") return ending
+  if (deps.inside) return { ...ending, ended: "no-access" }
+  deps.refused?.()
+  return ending
 }
 
 // Only the user can get past it

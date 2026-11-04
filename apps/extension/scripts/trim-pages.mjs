@@ -48,7 +48,8 @@ const IPV6 = /(?<![\w:.])(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:
 
 export function scrub(text) {
   return text
-    .replace(/(["'])([A-Za-z_-]+)\1(\s*:\s*)("(?:[^"\\]|\\.)*"|'[^']*'|-?\d+)/g, (all, q, key, colon, value) => (PERSONAL_KEY.test(key) ? `${q}${key}${q}${colon}${/^["']/.test(value) ? `${value[0]}${value[0]}` : "0"}` : all))
+    // A key quoted as in JSON, or bare as in a script's object (accountId: "12")
+    .replace(/(["']?)(?<![\w.-])([A-Za-z_-]+)\1(\s*:\s*)("(?:[^"\\]|\\.)*"|'[^']*'|-?\d+)/g, (all, q, key, colon, value) => (PERSONAL_KEY.test(key) ? `${q}${key}${q}${colon}${/^["']/.test(value) ? `${value[0]}${value[0]}` : "0"}` : all))
     .replace(SESSION_PARAM, "$1x")
     .replace(IPV4, (ip) => (ip.startsWith("192.0.2.") ? ip : "192.0.2.1"))
     .replace(IPV6, (ip) => (/[a-f]/i.test(ip) || ip.includes("::") ? "2001:db8::1" : ip))
@@ -106,7 +107,7 @@ function scriptBody(open, body) {
       const data = JSON.parse(json)
       const kept = Object.fromEntries(IEEE_KEYS.filter((k) => k in data).map((k) => [k, data[k]]))
       // Of the reader, only what says whether they have the paper: the rest names them
-      if (data.userInfo) kept.userInfo = { institute: data.userInfo.institute, individual: data.userInfo.individual }
+      if (data.userInfo) kept.userInfo = { institute: data.userInfo.institute, individual: data.userInfo.individual, member: data.userInfo.member }
       return `xplGlobal.document.metadata=${JSON.stringify(kept)};`
     } catch {
       return body

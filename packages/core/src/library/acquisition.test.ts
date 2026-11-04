@@ -1,6 +1,9 @@
 import type { PdfTry } from "@owlit/protocol"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { forExtension, lookDue, nextLookAt, standing } from "./acquisition.ts"
+import { acquisitionFile, forExtension, lookDue, nextLookAt, readAcquisition, standing } from "./acquisition.ts"
 
 const owlit = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "search", ended, at, ...extra })
 const extension = (ended: PdfTry["ended"], at: number, extra: Partial<PdfTry> = {}): PdfTry => ({ by: "extension", ended, at, ...extra })
@@ -113,5 +116,56 @@ describe("owlit's back-off look", () => {
     expect(forExtension(skipped)).toBeUndefined()
     // The extension tried again (the user asked): its word is the paper's from then on
     expect(standing([...skipped.tried, extension("no-access", 5)]).reason).toMatchObject({ by: "extension", ended: "no-access" })
+  })
+})
+
+describe("a paper the user stopped", () => {
+  const stopped = (...tried: PdfTry[]) => ({ state: standing(tried).state, tried, looks: 1 })
+
+  it("isn't taken by the extension's connect or the daily look, whatever came before", () => {
+    const far = 100 * 24 * 60 * 60 * 1000
+    for (const before of [owlit("no-copy", 1), extension("check", 1), extension("offline", 1)]) {
+      const record = stopped(before, you("stopped", 2))
+      expect(record.state).toBe("no-pdf")
+      expect(forExtension(record)).toBeUndefined()
+      expect(nextLookAt(record)).toBeUndefined()
+      expect(lookDue(record, far)).toBe(false)
+    }
+  })
+
+  it("stays stopped through a look owlit had begun before the Stop", () => {
+    const record = stopped(extension("check", 1), you("stopped", 2), owlit("no-copy", 3))
+    expect(standing(record.tried).reason).toMatchObject({ by: "person", ended: "stopped" })
+    expect(forExtension(record)).toBeUndefined()
+  })
+})
+
+describe("a record written by 0.2.1", () => {
+  // Its tries said owlit and you for what are search and person now
+  async function stored(tried: object[], state: string) {
+    const root = mkdtempSync(path.join(tmpdir(), "owlit-acquisition-"))
+    try {
+      const file = acquisitionFile(root, "p1")
+      mkdirSync(path.dirname(file), { recursive: true })
+      writeFileSync(file, JSON.stringify({ version: 2, state, tried, dropHere: "paper.pdf" }))
+      return (await readAcquisition(root, "p1"))!
+    } finally {
+      rmSync(root, { recursive: true })
+    }
+  }
+
+  it("reads an extension's check owlit found no copy after as waiting for the user, and hands it over", async () => {
+    const record = await stored([{ by: "extension", ended: "check", at: 1, host: "journals.sagepub.com" }, { by: "owlit", ended: "no-copy", at: 2 }], "finding")
+    expect(record.tried.map((t) => t.by)).toEqual(["extension", "search"])
+    expect(standing(record.tried)).toMatchObject({ state: "finding", reason: { by: "extension", ended: "check" } })
+    expect(forExtension(record)).toMatchObject({ ended: "check" })
+  })
+
+  it("hands over a plain no-copy, and reads the person's word as theirs", async () => {
+    const record = await stored([{ by: "owlit", ended: "no-copy", at: 1 }], "no-pdf")
+    expect(forExtension(record)).toMatchObject({ by: "search", ended: "no-copy" })
+    expect(lookDue(record, 2 * 24 * 60 * 60 * 1000)).toBe(true)
+    const skipped = await stored([{ by: "owlit", ended: "no-copy", at: 1 }, { by: "you", ended: "skipped", at: 2 }], "no-pdf")
+    expect(standing(skipped.tried).reason).toMatchObject({ by: "person", ended: "skipped" })
   })
 })

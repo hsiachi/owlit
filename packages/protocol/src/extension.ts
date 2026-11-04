@@ -344,11 +344,14 @@ export interface WorkEnded {
 export type WorkResume = { wait: WaitId } | { host: string }
 
 // GET /work/:id: whether owlit still waits for this work item's answer (the attempt is the one out, and
-// its paper still has no PDF). The extension asks before each fetch it makes for the item in a tab, and
-// before handing over a PDF: the paper may have got its PDF meanwhile (the user opened the page and the
-// extension took it). An owlit that knows no such route answers 404, which counts as still waiting.
+// its paper still has no PDF). The extension asks before each fetch it makes for the item in a tab: the
+// paper may have got its PDF meanwhile (the user opened the page and the extension took it). lacksPdf,
+// asked before handing over a PDF, is the paper's side alone. An owlit that knows no such route answers
+// 404, which counts as still waiting.
 export interface WorkWanted {
   wanted: boolean
+  // Whichever attempt is out: a PDF that comes late is still kept
+  lacksPdf?: boolean
 }
 
 // POST /work/blocked: a page the user opened at a wait for a check or a sign-in shows the site's firewall

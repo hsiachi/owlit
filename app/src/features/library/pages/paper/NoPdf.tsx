@@ -15,7 +15,7 @@ import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
 import { noPdfTitle, pdfGone, pdfWait, unreachable, waitedFor, withExtension, type PdfWait } from "../../lib/pdf-wait"
 import { useBrowserAway, useExtension, usePaperWait } from "@/features/extension/store"
-import { actOnWait, waitWords } from "@/features/extension/waits"
+import { actOnWait, openInBrowser, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
 type CardState = PdfWait | "looking"
@@ -79,7 +79,7 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined, wait:
     case "skipped":
       return t`You looked on its page in your browser and skipped it · ${date}`
     case "stopped":
-      return t`You stopped it while it waited for you at its site · ${date}`
+      return t`You stopped getting its PDF · ${date}`
     case "not-found":
       // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
       if (reason?.ended === "check" || reason?.ended === "sign-in") {
@@ -181,10 +181,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
   const alone = state === "not-found" && !!doi
   const noExtension = alone && !hasExtension
   const askAccess = alone && (!hasExtension || proxyMissing)
-  // The page opens in the person's browser, where owlit can't follow: the card says the next step
+  // The page opens in the browser the extension is in, where the person's access and its PDF button are,
+  // and where owlit can't follow: the card says the next step
   const [opened, setOpened] = useState(false)
   const openPage = () => {
-    window.open(`https://doi.org/${doi}`, "_blank", "noreferrer")
+    void openInBrowser(`https://doi.org/${doi}`)
     setOpened(true)
   }
 

@@ -1,6 +1,6 @@
 import type { ExtensionWait } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { siteWaitItem, siteWaitItems, stillWords, waitWords } from "./waits"
+import { siteWaitItem, siteWaitItems, stillWhy, stillWords, waitWords } from "./waits"
 
 const wait = (kind: ExtensionWait["kind"], askedFor: boolean, papers = 2): ExtensionWait => ({ id: "proxy:tlink.lib.tsinghua.edu.cn", at: "tlink.lib.tsinghua.edu.cn", watch: [], kind, host: "tlink.lib.tsinghua.edu.cn", papers, url: "https://tlink.lib.tsinghua.edu.cn/go", askedFor, proxied: true, since: 0 })
 const publisher = (papers = 1): ExtensionWait => ({ id: "pub:sage", at: "sagepub.com", watch: [], kind: "sign-in", host: "sagepub.com", papers, url: "https://journals.sagepub.com/action/showLogin", askedFor: true, proxied: false, since: 0 })
@@ -41,5 +41,12 @@ describe("sites the extension waits at", () => {
   it("say a check is still there when it came back after I've verified it", () => {
     expect(stillWords({ kind: "check", at: "misq.umn.edu", proxied: false })).toBe("misq.umn.edu still asks you to verify you're human")
     expect(stillWords({ kind: "sign-in", at: "tlink.lib.tsinghua.edu.cn", proxied: true }, "Tsinghua University")).toBe("Tsinghua University still asks you to sign in")
+  })
+
+  it("say what a wait that turned into a block or a permission still needs, with no button to press after it", () => {
+    expect(stillWords({ kind: "blocked", at: "sagepub.com", proxied: false })).toBe("sagepub.com still blocks your browser")
+    expect(stillWords({ kind: "permission", at: "sagepub.com", proxied: false })).toBe("owlit still needs your permission for sagepub.com")
+    expect(stillWhy("check")).toBe("owlit tried again just now and met the same page. Open it, finish there, then press I've verified it.")
+    for (const kind of ["blocked", "permission"] as const) expect(stillWhy(kind)).toBe("owlit tried again just now and met the same page. It goes on by itself once a page there loads.")
   })
 })

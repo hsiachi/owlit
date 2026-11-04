@@ -1,6 +1,6 @@
 import { PROXY_PRESETS, type ProxySettings } from "@owlit/protocol"
 import { describe, expect, it } from "vitest"
-import { allowOf, gateOf, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
+import { allowOf, gateOf, isSsoHop, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
 import { extensionRoute, realHost, siteOf, throughProxy } from "./route.ts"
 
 const TLINK: ProxySettings = PROXY_PRESETS.tsinghua.proxy
@@ -8,6 +8,17 @@ const EZPROXY: ProxySettings = { base: "https://ezproxy.uni.edu", scheme: "host-
 const EZPROXY_LOGIN: ProxySettings = { base: "https://login.ezproxy.uni.edu", scheme: "login-url", path: "/login" }
 
 describe("a page's gate", () => {
+  it("is never a hop of a publisher's sign-in: the paper's predicted gate stands, through the proxy too", () => {
+    for (const url of ["https://login.openathens.net/saml/2/sso/x?SAMLRequest=abc", "https://iam.atypon.com/action/ssostart?redirectUri=x", "https://auth.elsevier.com/ShibAuth/x"]) {
+      expect(gateOf(url, undefined, "pub:sage")).toBe("pub:sage")
+      expect(gateOf(url, TLINK, "pub:sage")).toBe("pub:sage")
+      expect(gateOf(url, EZPROXY, "site:rupress.org")).toBe("site:rupress.org")
+    }
+    expect(gateOf("https://login-openathens-net.ezproxy.uni.edu/saml", EZPROXY, "pub:sage")).toBe("pub:sage")
+    expect(isSsoHop("https://iam.atypon.com/action/ssostart")).toBe(true)
+    expect(isSsoHop("https://journals.sagepub.com/doi/1")).toBe(false)
+  })
+
   it("is one Elsevier gate on all of its hosts, Cell Press's included", () => {
     for (const url of [
       "https://linkinghub.elsevier.com/retrieve/pii/S0747563219302602",
@@ -57,7 +68,7 @@ describe("a page's gate", () => {
     expect(gateOf("https://wayf.surfnet.nl/ds?entityID=x", undefined, "pub:wiley")).toBe("pub:wiley")
     expect(gateOf("https://idp.uni.edu/idp/profile/SAML2/Redirect/SSO", undefined, "pub:tandf")).toBe("pub:tandf")
     // Through the proxy: its sign-in, holding the proxy's whole lane
-    expect(gateOf(openAthens, EZPROXY, "pub:sage")).toBe("proxy:ezproxy.uni.edu")
+    expect(gateOf("https://wayf.surfnet.nl/ds?entityID=x", EZPROXY, "pub:sage")).toBe("proxy:ezproxy.uni.edu")
   })
 })
 

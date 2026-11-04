@@ -8,12 +8,13 @@ import { startI18n } from "../lib/i18n.ts"
 import { type Answers, type CardAction, type CardView, type Connection, type Outcome, type PageState, type PopupState, type Request, type SiteGoing, type SiteWait, type ToPage } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, namesPdf, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
+import { proxyHostOf } from "../lib/from-tab.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, whyNotTaken, type PdfSaid, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING } from "../lib/say.ts"
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough, siteOf } from "../lib/verdict.ts"
-import { report } from "../lib/work.ts"
+import { asItem, report, type Fetched } from "../lib/work.ts"
 import { closeIdleTabs, documentOf, fetchLadder, passedAt, pdfOfTab, redirectedTo, showWorkTab, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
@@ -533,7 +534,6 @@ const looksHere = async (tabId: number, url: string) => /^https?:/.test(url) && 
 // The document of each tab the walk and the waits last looked at (its performance.timeOrigin): a page
 // is looked at once, whether its parse or its load came first
 const lookedAt = new Map<number, number>()
-const PARSED_EVERY_MS = 250
 
 // A page of the user's, looked at for the walk and the waits once its document is parsed. Never once it
 // has loaded: a page whose third-party scripts never answer (blocked on the network) stays loading for
@@ -554,7 +554,7 @@ async function pageReady(tabId: number) {
       return watchForThrough(tabId, tab.url)
     }
     if (Date.now() >= until) return
-    await new Promise((resolve) => setTimeout(resolve, PARSED_EVERY_MS))
+    await new Promise((resolve) => setTimeout(resolve, ASK_TIMES.parsedEveryMs))
   }
 }
 const withoutHash = (url: string) => url.replace(/#.*$/, "")
@@ -584,10 +584,14 @@ const goingKey = "going"
 const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?? []) as NonNullable<WorkAnswer["going"]>
 // Restarts the asking if the worker was stopped meanwhile
 const WORK = "work"
-// After owlit stopped answering mid-ask: a restart of owlit's takes about this long (a test sets it shorter)
-export const ASK_TIMES = { restartRetryMs: 5_000 }
+// A test sets these shorter. restartRetryMs: after owlit stopped answering mid-ask, a restart of owlit's
+// takes about this long. throughEveryMs, parsedEveryMs: how often a tab waiting at a site is looked at
+// again (watchForThrough), and a page on its way (pageReady).
+export const ASK_TIMES = { restartRetryMs: 5_000, throughEveryMs: 3_000, parsedEveryMs: 250 }
 
 let asking: Promise<void> | null = null
+// This run of the worker: owlit takes a new one to have none of the last one's fetches
+const WORKER = crypto.randomUUID()
 // This worker has had a GET /work answer, so the waits in session storage are owlit's now. Before the
 // first, they may be none at all: Chrome empties session storage when it restarts, and owlit holds the
 // first ask while nothing is due, so a site allowed meanwhile (the Allow page, permissions.onAdded)
@@ -605,7 +609,7 @@ function keepAsking() {
       for (;;) {
         const { token } = await local()
         if (!token) return
-        const answer = await ask<WorkAnswer>("/work", { token })
+        const answer = await ask<WorkAnswer>(`/work?worker=${WORKER}`, { token })
         answered = true
         const before = await waits()
         const now = answer.waits.map(asWait)
@@ -619,12 +623,19 @@ function keepAsking() {
           void resumePermitted()
         }
         for (const page of answer.open ?? []) void openPage(page).catch((error) => console.error("[owlit] couldn't open the page owlit asked for", error))
-        for (const item of answer.work) {
+        for (const handed of answer.work) {
+          const item = asItem(handed)
           const wanted = () => stillWanted(item, token)
-          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo, wanted })
-            // A PDF owlit no longer waits for (the paper got one meanwhile) isn't handed over: a word is,
-            // which owlit settles the item by
-            .then(async (result) => report(item, "pdf" in result && !(await wanted()) ? { ended: "offline", host: result.host } : result, { ask, token, endings: answer.endings }))
+          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab: (host) => inTab(host, proxyHostOf(item)), redirectedTo, wanted })
+            // A failure here says nothing of the paper: owlit hears a try that reached nothing and asks
+            // again, where without an answer the paper stays in flight there, holding its lane
+            .catch((error): Fetched => {
+              console.error("[owlit] couldn't fetch for owlit", error)
+              return { ended: "offline", host: item.host }
+            })
+            // A PDF the paper no longer lacks (it got one meanwhile) isn't handed over: a word is, which
+            // owlit settles the item by. One from an attempt owlit asked again for is kept all the same.
+            .then(async (result) => report(item, "pdf" in result && !(await lacksPdf(item, token)) ? { ended: "offline", host: result.host } : result, { ask, token, endings: answer.endings }))
             .catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
@@ -649,6 +660,16 @@ function keepAsking() {
 async function stillWanted(item: WorkItem, token: string): Promise<boolean> {
   try {
     return (await ask<WorkWanted>(`/work/${encodeURIComponent(item.id)}`, { token })).wanted
+  } catch {
+    return true
+  }
+}
+
+// A PDF of this item is still of use to owlit. An owlit that says nothing of it goes by wanted.
+async function lacksPdf(item: WorkItem, token: string): Promise<boolean> {
+  try {
+    const said = await ask<WorkWanted>(`/work/${encodeURIComponent(item.id)}`, { token })
+    return said.lacksPdf ?? said.wanted
   } catch {
     return true
   }
@@ -735,15 +756,16 @@ const htmlOf = documentOf
 
 // A fetch run inside a tab the user has open at this host's site, past its check, and where that tab is
 // (work.ts, FetchDeps.inTab): one at the host itself first, then one at another host of the site (the
-// check met at onlinelibrary.wiley.com, the user's tab on rss.onlinelibrary.wiley.com)
-async function inTab(host: string): Promise<{ fetch: typeof fetch; url: string } | undefined> {
+// check met at onlinelibrary.wiley.com, the user's tab on rss.onlinelibrary.wiley.com). proxyHost: the
+// item's host-rewriting proxy, without which every publisher under it reads as the tab's own site.
+async function inTab(host: string, proxyHost: string | undefined): Promise<{ fetch: typeof fetch; url: string } | undefined> {
   const site = siteOf(host)
   const tabs = await ext.tabs.query({ url: [`https://*.${site}/*`, `https://${site}/*`, `http://*.${site}/*`, `http://${site}/*`] })
   const at = (tab: chrome.tabs.Tab) => (tab.url ? new URL(tab.url).hostname : "")
   for (const tab of [...tabs.filter((t) => at(t) === host), ...tabs.filter((t) => at(t) !== host)]) {
     if (tab.id === undefined) continue
     const seen = await htmlOf(tab.id)
-    if (seen?.parsed && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id), url: seen.url }
+    if (seen?.parsed && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id, { proxyHost }), url: seen.url }
   }
   return undefined
 }
@@ -828,7 +850,6 @@ async function blocked(wait: Waits[number], url: string, tabId: number) {
 // swaps the article in without loading a new page), so the tab is looked at again for a while; a block
 // stays as it is, so it is told once and the looking ends.
 const THROUGH_LOOKS = 20
-const THROUGH_EVERY_MS = 3000
 const watching = new Set<number>()
 
 // Whether a page the tab shows is past what its site waits for: neither a check, a block nor a sign-in
@@ -855,7 +876,7 @@ async function watchForThrough(tabId: number, url: string) {
   watching.add(tabId)
   try {
     for (let look = 0; look < THROUGH_LOOKS; look++) {
-      if (look) await new Promise((resolve) => setTimeout(resolve, THROUGH_EVERY_MS))
+      if (look) await new Promise((resolve) => setTimeout(resolve, ASK_TIMES.throughEveryMs))
       const tab = await ext.tabs.get(tabId).catch(() => undefined)
       // Gone, or gone elsewhere
       if (!tab?.url || !waitAt([wait], new URL(tab.url).hostname)) return

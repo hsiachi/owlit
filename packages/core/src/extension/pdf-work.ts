@@ -184,8 +184,8 @@ export class PdfWorkNotes {
     this.save()
   }
 
-  // The user got through at this gate (they said so, or the extension saw it). A try that met a wait
-  // there earlier says nothing any more: restore puts no wait up from it.
+  // The user got through at this gate (they said so, the extension saw it, or a try got past it). A try
+  // that met a wait there earlier says nothing any more: restore puts no wait up from it.
   resumed(gate: GateKey, at = Date.now()) {
     this.resumes.set(gate, Math.max(at, this.resumes.get(gate) ?? 0))
     this.save()
@@ -240,11 +240,13 @@ export class PdfWorkNotes {
     return this.tally
   }
 
-  // Gates handed SILENT_ZERO_HANDED papers or more in the last FOLLOW_UP_MS that brought no PDF in it;
-  // whether a wait explains it is the caller's to say
+  // Gates handed SILENT_ZERO_HANDED papers or more in the last FOLLOW_UP_MS that brought no PDF in it,
+  // not counting those that stopped where a wait said why, which may have gone since (the user stopped
+  // the papers); whether a wait up now explains the rest is the caller's to say
   quiet(now = Date.now()): GateKey[] {
     const from = now - FOLLOW_UP_MS
-    return [...this.tally].filter(([, t]) => t.recent.filter((r) => r > from).length >= SILENT_ZERO_HANDED && !((t.lastPdfAt ?? 0) > from)).map(([gate]) => gate)
+    const said = ({ endings: e }: GateTally) => (e.check ?? 0) + (e["sign-in"] ?? 0) + (e.blocked ?? 0) + (e["no-permission"] ?? 0)
+    return [...this.tally].filter(([, t]) => t.recent.filter((r) => r > from).length - said(t) >= SILENT_ZERO_HANDED && !((t.lastPdfAt ?? 0) > from)).map(([gate]) => gate)
   }
 
   // ---- The file

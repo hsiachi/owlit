@@ -33,7 +33,7 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
     case "skipped":
       return t({ message: "You found none", comment: "the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)" })
     case "stopped":
-      return t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site" })
+      return t({ message: "Stopped", comment: "the user stopped getting the paper's PDF (Stop on Get PDFs)" })
     case "not-found":
       return t({ message: "No PDF found", comment: "owlit looked for the paper's PDF and found no copy" })
     case "no-access":
@@ -48,13 +48,14 @@ export function pdfWord(w: PdfWait | undefined): string | undefined {
 // the extension, which owlit's own looking (Finding) isn't, with about how long through the library's
 // proxy, which takes one paper at a time for every publisher; Can't reach site while the site its last
 // fetch went to didn't answer, until owlit tries it again; Waiting for Dia while the browser the
-// extension is in (away, useBrowserAway) isn't open
-export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">, away?: string): string | undefined {
+// extension is in (away, useBrowserAway) isn't open. minutes: false leaves the time out, for a heading
+// many papers share.
+export function pdfColumnWord(p: Pick<Paper, "pdf" | "pdfState">, away?: string, { minutes = true } = {}): string | undefined {
   const wait = pdfWait(p)
   const at = p.pdfState?.extension
   if (away && withExtension(p)) return t({ message: `Waiting for ${away}`, comment: "the paper is with the owlit extension in this browser (e.g. Dia), which isn't open" })
   if (unreachable(p) && (wait === "finding" || wait === "offline")) return t({ message: "Can't reach site", comment: "the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself" })
-  const turn = minutesInLine(p)
+  const turn = minutes ? minutesInLine(p) : undefined
   if (wait === "finding" && turn !== undefined) return t({ message: `In line · about ${turn} min`, comment: "a paper waiting its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn" })
   if (wait === "finding" && at && !at.fetching) return t({ message: "Waiting", comment: "a paper in line for the owlit browser extension, which fetches one paper at a time per site" })
   return pdfWord(wait)

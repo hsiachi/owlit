@@ -3,13 +3,14 @@ import { ext } from "../lib/browser.ts"
 import { serial } from "../lib/serial.ts"
 import { inTabItem, proxyHostOf, sameSite } from "../lib/from-tab.ts"
 import { isCheck, isInteractive, isStandIn, isThrough, siteOf } from "../lib/verdict.ts"
-import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
+import { FETCH_MS, fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 
 // How the extension fetches one of owlit's papers, step by step:
 // 1. The background's own fetch, with the user's cookies. Skipped where a tab is past the gate's check
 //    already (the gate's own, or one of the user's), which fetches instead whoever started it; and for a
 //    publisher whose check always turns it away (WorkItem.inTab), when a tab will fetch instead.
-// 2. On a check, and only inside something the user started (WorkItem.userStarted): a tab of the
+// 2. On a check, or a PDF address that kept the PDF from the background (refusesPdf: only a tab settles
+//    that), and only inside something the user started (WorkItem.userStarted): a tab of the
 //    extension's own, one per gate, opened in the background on the paper's page. A managed check
 //    (Cloudflare's "Just a moment") passes by itself in a tab that runs it; the tab is brought to the
 //    front once if it hasn't after a while. Past it, the paper is fetched from inside the tab, as the
@@ -34,6 +35,8 @@ export const TAB_TIMES = {
   // A gate's tab with nothing more to fetch is closed this long after its last paper: longer than core's
   // gap between a lane's papers (PROXY_GAP_MS), so the next one finds it open
   idleMs: 60_000,
+  // One fetch, in a tab or not: work.ts gives up on it after this, and the page's own fetch after the same
+  fetchMs: FETCH_MS,
 }
 
 // The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab.
@@ -53,6 +56,8 @@ export async function documentOf(tabId: number): Promise<TabDocument | undefined
   try {
     const [result] = await ext.scripting.executeScript({
       target: { tabId },
+      // Otherwise it runs once the document is parsed: minutes on a page held by a script in its body
+      injectImmediately: true,
       args: [DOCUMENT_MAX_CHARS],
       func: (max: number) => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, max), parsed: document.readyState !== "loading", origin: performance.timeOrigin }),
     })
@@ -135,11 +140,12 @@ export const tabsLoaded = tabsKept().then((all) => {
   for (const kept of Object.values(all)) workTabIds.add(kept!.tabId)
 })
 
-// The extension's tabs brought to the front, for a check or by the user's Open on a wait: the user's to
-// look at from then on, never closed or loaded with another paper by the extension
+// The extension's tabs brought to the front, for a check, by the user's Open on a wait or by the user's
+// own click: the user's to look at from then on, never closed or loaded with another paper by the
+// extension. One found in front is theirs too: the click may have come before the worker could hear it.
 const SHOWN_KEY = "shownTabs"
 const shownTabs = async () => ((await ext.storage.session.get(SHOWN_KEY))[SHOWN_KEY] ?? []) as number[]
-const isShown = async (tab: WorkTab) => tab.shown || (await shownTabs()).includes(tab.tabId)
+const isShown = async (tab: WorkTab) => tab.shown || (await shownTabs()).includes(tab.tabId) || !!(await ext.tabs.get(tab.tabId).catch(() => undefined))?.active
 const markShown = (tabId: number) => keeping(async () => ext.storage.session.set({ [SHOWN_KEY]: [...new Set([...(await shownTabs()), tabId])] }))
 
 // Gates whose check the background's own fetch met in this browser session: a tab past it is where
@@ -179,8 +185,9 @@ const hostOf = (url: string) => {
 
 // The fetch ladder for one of owlit's papers. deps: the background's own fetching (FetchDeps), whose
 // inTab is a tab the user has open at the site, past its check.
-export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
+export async function fetchLadder(item: WorkItem, background: FetchDeps): Promise<Fetched> {
   await tabsLoaded
+  const deps = { ...background, timeoutMs: TAB_TIMES.fetchMs }
   // A gate whose check turns the background's fetch away, with a tab already past it (the gate's own,
   // kept from its last paper, or one of the user's): the paper is fetched there at once, user-started or
   // not, since no tab is opened for it
@@ -190,16 +197,17 @@ export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetc
       if (got) return got
     }
     const theirs = await usersTab(item, deps)
-    if (theirs) return fetchFor(inTabItem(item, theirs.url), { ...deps, fetch: whileWanted(theirs.fetch, deps), inTab: undefined })
+    if (theirs) return fetchFor(inTabItem(item, theirs.url), insideTab(theirs.fetch, deps))
   }
   // Without a tab of its own to fetch in, a tab-only publisher's paper is fetched as any other: through
   // the library's proxy its first answer may be the proxy's sign-in, and either way the ending names
   // the gate whose wait the paper goes under. A page the extension may not read is never opened in a
   // tab, which it couldn't read either: the background's fetch says so (no-permission).
   const skip = item.inTab && item.userStarted && (await deps.permitted(item.url))
-  const worker = skip ? undefined : await fetchFor(item, deps)
+  let refused = false
+  const worker = skip ? undefined : await fetchFor(item, { ...deps, refused: () => (refused = true) })
   if (worker && "ended" in worker && worker.ended === "check") await noteChecked(item.gate)
-  if (worker && !("ended" in worker && worker.ended === "check")) return worker
+  if (worker && !refused && !("ended" in worker && worker.ended === "check")) return worker
   if (!item.userStarted) return worker!
   // A tab that went away under it (the user closed it), or whose page couldn't be read, says nothing
   // of the paper: the check the background met, when it met one; else offline, which owlit asks for
@@ -237,42 +245,31 @@ async function inGateLine(item: WorkItem, deps: FetchDeps, { open }: { open: boo
 // undefined when the tab went away under it (the user closed it), or none was kept and open is false
 async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boolean }): Promise<Fetched | undefined> {
   const gate = item.gate
-  let tab = await reusable(item)
+  // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there again
+  // is the site's word that this is enough for now
+  const kept = await reusable(item)
+  if (kept) await sleep(Math.max(0, kept.lastAt + TAB_TIMES.gapMs - Date.now()))
+  // Asked after the gap: the user may have taken the tab meanwhile
+  let tab = kept && (await reusable(item))
   const reused = !!tab
+  if (!tab && !open) return undefined
+  // The paper may have its PDF by now (the user opened its page and the extension took it there)
+  if (!(await stillWanted(deps))) return notWanted(item)
   if (tab) {
-    // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
-    // again is the site's word that this is enough for now
-    await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
-    // The paper may have its PDF by now (the user opened its page and the extension took it there)
-    if (!(await stillWanted(deps))) return notWanted(item)
     const before = (await documentOf(tab.tabId))?.origin
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
     await loaded(tab.tabId, before)
   } else {
-    if (!open) return undefined
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
     tab = { tabId: opened.id, shown: false, lastAt: 0 }
     await keepTab(gate, tab)
     await loaded(tab.tabId)
   }
-  const landed = await ext.tabs.get(tab.tabId).catch(() => undefined)
-  if (!landed) {
-    await keepTab(gate, undefined)
-    return undefined
-  }
-  // Landed where the extension may not read (a proxy sends the browser on to a publisher the user
-  // hasn't allowed): that site, to allow. The browser tells a tab's address only on a site the
-  // extension may read, so one it doesn't tell is named by the gate's own site, never by the proxy's.
-  if (!landed.url || !(await deps.permitted(landed.url))) {
-    await letGo(gate, tab)
-    const host = landed.url ? hostOf(landed.url) : item.sites?.[0]
-    return host ? { ended: "no-permission", host } : undefined
-  }
   const passed = await pass(tab, item, deps, { once: reused })
   if (passed && "theirs" in passed) {
     await letGo(gate, tab)
-    return fetchFor(inTabItem(item, passed.theirs.url), { ...deps, fetch: whileWanted(passed.theirs.fetch, deps), inTab: undefined })
+    return fetchFor(inTabItem(item, passed.theirs.url), insideTab(passed.theirs.fetch, deps))
   }
   if (!passed || !("through" in passed)) {
     await letGo(gate, tab)
@@ -283,7 +280,7 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
   // proxy's, and on a society's host of a publisher (rss.onlinelibrary.wiley.com) owlit's PDF address is
   // the publisher's main host, another origin than the tab's
   const here = inTabItem(item, passed.through.url, passed.through)
-  const got = await fetchFor(here, { ...deps, fetch: whileWanted(tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), deps), inTab: undefined })
+  const got = await fetchFor(here, insideTab(tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), deps))
   // The site asks again, or turns the browser away: its own word that this is enough for now
   if ("ended" in got && (got.ended === "check" || got.ended === "blocked" || got.ended === "sign-in")) {
     await letGo(gate, tab)
@@ -316,7 +313,7 @@ async function reusable(item: WorkItem): Promise<WorkTab | undefined> {
 // before it was sent on), or its load ended, or a while. Never until its load alone: a page whose
 // third-party scripts never answer stays loading for minutes with its article there. A page the
 // extension may not read tells nothing of its document, and is waited for by its load.
-function loaded(tabId: number, before?: number): Promise<void> {
+function loaded(tabId: number, before?: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     let over = false
     const done = () => {
@@ -324,6 +321,7 @@ function loaded(tabId: number, before?: number): Promise<void> {
       over = true
       ext.tabs.onUpdated.removeListener(heard)
       ext.tabs.onRemoved.removeListener(gone)
+      signal?.removeEventListener("abort", done)
       clearTimeout(timer)
       resolve()
     }
@@ -336,8 +334,9 @@ function loaded(tabId: number, before?: number): Promise<void> {
     const timer = setTimeout(done, TAB_TIMES.loadMs)
     ext.tabs.onUpdated.addListener(heard)
     ext.tabs.onRemoved.addListener(gone)
+    signal?.addEventListener("abort", done)
     void (async () => {
-      while (!over) {
+      while (!over && !signal?.aborted) {
         const tab = await ext.tabs.get(tabId).catch(() => undefined)
         if (!tab) return done()
         const seen = await documentOf(tabId)
@@ -361,12 +360,27 @@ function loaded(tabId: number, before?: number): Promise<void> {
 // once: a check met again on a tab whose check was passed before is the site's word at once. theirs: a
 // tab of the user's got past the gate's check meanwhile (passedAt), where the paper is fetched instead:
 // a check that only a person passes may stand in this tab for its whole time, the user being elsewhere.
+// A tab on a site the extension may not read may be on a step of a sign-in, which the tab walks by
+// itself, so it is given the same time to leave. Stopped there (a proxy sent the browser on to a
+// publisher the user hasn't allowed), that site is the one to allow. The browser tells a tab's address
+// only on a site the extension may read, so one it doesn't tell is named by the gate's own site, never
+// by the proxy's. A readable tab whose document can't be read is between two pages, and looked at again.
 async function pass(tab: WorkTab, item: WorkItem, deps: FetchDeps, { once = false } = {}): Promise<{ through: { url: string; html: string } } | { theirs: { fetch: typeof fetch; url: string } } | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
-    const seen = await documentOf(tab.tabId)
-    if (!seen) return undefined
+    const now = await ext.tabs.get(tab.tabId).catch(() => undefined)
+    if (!now) return undefined
+    const readable = !!now.url && (await deps.permitted(now.url))
+    const seen = readable ? await documentOf(tab.tabId) : undefined
+    if (!seen) {
+      if (Date.now() < until) {
+        await sleep(TAB_TIMES.lookMs)
+        continue
+      }
+      const host = now.url ? hostOf(now.url) : item.sites?.[0]
+      return !readable && host ? { ended: "no-permission", host } : undefined
+    }
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
     if (seen.parsed && isThrough(page)) return { through: seen }
     if (passedElsewhere.delete(item.gate)) {
@@ -376,7 +390,10 @@ async function pass(tab: WorkTab, item: WorkItem, deps: FetchDeps, { once = fals
     const onItsWay = !seen.parsed || isStandIn(page)
     if (!onItsWay && (once || !isCheck(page) || isInteractive(page))) return said(page)
     if (Date.now() >= until) {
-      if (tab.shown) return said(page)
+      // A parser a script in the page's body holds for minutes: what came of the page is all there is
+      if (!seen.parsed && isThrough(page)) return { through: seen }
+      if (tab.shown || !item.userStarted) return said(page)
+      if (!(await stillWanted(deps))) return notWanted(item)
       tab.shown = true
       // Kept so at once: a worker restarted meanwhile never closes it as idle
       await keepTab(item.gate, { ...tab })
@@ -423,6 +440,9 @@ function whileWanted(fetch: typeof globalThis.fetch, deps: FetchDeps): typeof gl
   }) as typeof globalThis.fetch
 }
 
+// What a fetch from inside a tab goes by
+const insideTab = (fetch: typeof globalThis.fetch, deps: FetchDeps): FetchDeps => ({ ...deps, fetch: whileWanted(fetch, deps), inTab: undefined, inside: true })
+
 // A tab of the extension's at this check, for a wait the user opens there (index.ts openPage): the gate's
 // tab, brought to the front rather than a second one opened. It is the user's from then on. Found by the
 // gate the ladder keeps it for (wait: the wait's id, its gate), whatever the tab shows yet: a tab just
@@ -445,6 +465,11 @@ export async function showWorkTab(host: string, wait?: GateKey): Promise<chrome.
   }
   return undefined
 }
+
+// The user clicked one of the gates' tabs. The extension's own fronting lands here too, already marked.
+ext.tabs.onActivated.addListener(({ tabId }) => {
+  void tabsLoaded.then(() => (workTabIds.has(tabId) ? markShown(tabId) : undefined))
+})
 
 // The user closed one of the gates' tabs
 ext.tabs.onRemoved.addListener((tabId) => {
@@ -469,6 +494,8 @@ ext.tabs.onRemoved.addListener((tabId) => {
 // returns must be plain data.
 export function tabFetch(tabId: number, { navigate = false, proxyHost }: { navigate?: boolean; proxyHost?: string } = {}): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
+    const signal = init?.signal ?? undefined
+    signal?.throwIfAborted()
     let url = String(input)
     const tab = await ext.tabs.get(tabId).catch(() => undefined)
     if (!tab?.url) throw new TypeError("The tab went away")
@@ -476,11 +503,25 @@ export function tabFetch(tabId: number, { navigate = false, proxyHost }: { navig
     const [to, at] = [new URL(url), new URL(tab.url)]
     if (to.origin !== at.origin) {
       if (!sameSite(to.hostname, at.hostname, proxyHost)) return fetch(url, { ...init, credentials: "include", cache })
-      if (navigate) return loadInTab(tabId, url, cache)
+      if (navigate) return untilAborted(loadInTab(tabId, url, cache, signal), signal)
       url = new URL(`${to.pathname}${to.search}`, at.origin).href
     }
-    return mark(tabId, at.origin, () => fetchInTab(tabId, url, init?.redirect ?? "follow", cache))
+    return untilAborted(
+      mark(tabId, at.origin, () => fetchInTab(tabId, url, init?.redirect ?? "follow", cache)),
+      signal,
+    )
   }) as typeof fetch
+}
+
+// What is running in a tab, or its rejection the moment the caller aborts. A signal can't reach into the
+// page, so the work itself ends by its own time (fetchInTab); the gate's line doesn't wait for it.
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return work
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason)
+    signal.addEventListener("abort", abort, { once: true })
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort))
+  })
 }
 
 // Runs an injected fetch in the tab, marked for the webRequest listener as the extension's own
@@ -498,10 +539,12 @@ async function mark<T>(tabId: number, origin: string, run: () => Promise<T>): Pr
 
 // The extension's own tab sent to the address, and what loaded there read as the page itself would: a
 // same-origin fetch of its own address, from the cache the load just filled (a PDF isn't asked twice)
-async function loadInTab(tabId: number, url: string, cache: RequestCache): Promise<Response> {
+async function loadInTab(tabId: number, url: string, cache: RequestCache, signal: AbortSignal | undefined): Promise<Response> {
   const before = (await documentOf(tabId))?.origin
+  signal?.throwIfAborted()
   await ext.tabs.update(tabId, { url }).catch(() => undefined)
-  await loaded(tabId, before)
+  await loaded(tabId, before, signal)
+  signal?.throwIfAborted()
   const now = await ext.tabs.get(tabId).catch(() => undefined)
   if (!now?.url) throw new TypeError("The tab went away")
   return mark(tabId, new URL(now.url).origin, () => fetchInTab(tabId, now.url!, "follow", cache === "no-store" ? "force-cache" : cache))
@@ -525,16 +568,21 @@ export async function pdfOfTab(tabId: number, url: string): Promise<ArrayBuffer 
 async function fetchInTab(tabId: number, url: string, redirect: RequestRedirect, cache: RequestCache): Promise<Response> {
   const [result] = await ext.scripting.executeScript({
     target: { tabId },
-    args: [url, redirect, cache],
-    func: async (url: string, redirect: RequestRedirect, cache: RequestCache) => {
+    injectImmediately: true,
+    args: [url, redirect, cache, TAB_TIMES.fetchMs],
+    func: async (url: string, redirect: RequestRedirect, cache: RequestCache, timeoutMs: number) => {
+      const stop = new AbortController()
+      const timer = setTimeout(() => stop.abort(), timeoutMs)
       try {
-        const response = await fetch(url, { credentials: "include", cache, redirect })
+        const response = await fetch(url, { credentials: "include", cache, redirect, signal: stop.signal })
         const bytes = new Uint8Array(await response.arrayBuffer())
         let binary = ""
         for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
         return { status: response.status, url: response.url, type: response.type, contentType: response.headers.get("content-type") ?? "", body: btoa(binary) }
       } catch (error) {
         return { error: String(error) }
+      } finally {
+        clearTimeout(timer)
       }
     },
   })

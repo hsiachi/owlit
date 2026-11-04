@@ -1,4 +1,4 @@
-import type { WorkEnding } from "@owlit/protocol"
+import { SSO_HOP_HOSTS, type WorkEnding } from "@owlit/protocol"
 import { describesPaper, pdfLinkIn, siteOf } from "./page.ts"
 
 export { siteOf }
@@ -141,16 +141,19 @@ function offersAccess(html: string) {
 }
 
 // IEEE Xplore draws its "Sign In or Purchase" by script, after the page has been read; its page data
-// says the same: a paper neither free nor open, for a reader with no institution and no subscription
+// says the same: a paper neither free nor open, for a reader with no institution and no subscription.
+// Whether a member has the paper it doesn't say.
 const ieeeKeepsIt = (html: string) =>
-  /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html)
+  /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html) && !/"userInfo":\{[^{}]*"member":true/.test(html)
 
-// What a PDF's address answered with when the site keeps the PDF from this reader: the paper's own page
-// where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the article on it)
-// or sent back to with its offers (JAMA, Science). A reader who has the paper gets the PDF there, whatever
-// offers the paper's page hides, and a viewer's page in the PDF's place offers nothing.
-export function refusesPdf(page: Pick<Page, "status" | "html">) {
-  return isArticle(page.html) && (page.status === 401 || page.status === 403 || offersAccess(page.html))
+// What a PDF's address (asked) answered with when the site keeps the PDF from this reader: the paper's
+// own page where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the
+// article on it) or sent away to it with its offers (JAMA, Science). Offers alone say nothing, a campus
+// reader's paper page carrying them hidden; a reader who has the paper is not sent away.
+export function refusesPdf(page: Pick<Page, "url" | "status" | "html">, asked: string) {
+  if (!isArticle(page.html)) return false
+  if (page.status === 401 || page.status === 403) return true
+  return page.url.replace(/#.*$/, "") !== asked.replace(/#.*$/, "") && offersAccess(page.html)
 }
 
 export function isBlocked(page: Pick<Page, "html">) {
@@ -162,13 +165,23 @@ export function isBlocked(page: Pick<Page, "html">) {
 }
 
 // A step of an institution's sign-in that a browser walks by itself, by script or a form that posts
-// itself, and a fetch stops at: Elsevier's, OpenAthens' and Atypon's own hosts, and the two paths of the
-// Shibboleth and Atypon sign-ins publishers run. Through tlink off campus every publisher is reached so.
-const SSO_HOP_HOST = /^(auth\.elsevier\.com|login\.openathens\.net|iam\.atypon\.com)$/i
-const SSO_HOP_PATH = /\/Shibboleth\.sso\/|\/action\/(ssostart|saml2post)\b/i
+// itself, and a fetch stops at: the hosts publishers' sign-ins pass through, and the paths of the
+// Shibboleth and Atypon sign-ins publishers run. Recorded at Elsevier, through tlink off campus. The
+// two start paths are a hop only with the institution in their address: without it they are where the
+// reader picks one, which nothing walks past.
+export function isSsoHopAddress(url: string) {
+  const at = safeUrl(url)
+  if (!at) return false
+  if ((SSO_HOP_HOSTS as readonly string[]).includes(at.hostname.toLowerCase())) return true
+  if (/\/action\/saml2post\b/i.test(at.pathname)) return true
+  if (/\/action\/ssostart\b/i.test(at.pathname)) return /[?&]idp=/i.test(at.search)
+  return /\/Shibboleth\.sso\/Login\b/i.test(at.pathname) && /[?&]entityID=/i.test(at.search)
+}
+
+// The page at such an address, on its way: not one that stopped to ask the reader for a password, nor
+// the sign-in's own error
 function isSsoHop(url: string | undefined, html: string) {
-  const at = url ? safeUrl(url) : undefined
-  return !!at && !isArticle(html) && (SSO_HOP_HOST.test(at.hostname) || SSO_HOP_PATH.test(at.pathname))
+  return !!url && isSsoHopAddress(url) && !isArticle(html) && !PASSWORD.test(html) && !/\berror\b/i.test(titleOf(html))
 }
 
 export function isCheck(page: Pick<Page, "status" | "html" | "headers"> & { url?: string }) {
@@ -194,12 +207,12 @@ const isWafInterstitial = (html: string) => WAF_INTERSTITIAL.test(html) && !isAr
 const shown = (html: string) => words(html.replace(/<(script|style|noscript)\b[\s\S]*?<\/\1\s*>/gi, " "))
 
 // A tab's document still on its way to the page it stands in for: a challenge that passes by itself and
-// reloads (AWS WAF's), a "Please wait" or "Redirecting" page, a document with nothing in it yet. Nothing
-// it says is the site's word on the paper (ladder.ts keeps looking).
-export function isStandIn(page: Pick<Page, "html">) {
+// reloads (AWS WAF's), a "Please wait" or "Redirecting" page, a step of a sign-in, a document with
+// nothing in it yet. Nothing it says is the site's word on the paper (ladder.ts keeps looking).
+export function isStandIn(page: Pick<Page, "html"> & { url?: string }) {
   // The browser's PDF viewer shows its PDF in an embed, with no text of its own
   if (isArticle(page.html) || /<embed\b[^>]*application\/pdf/i.test(page.html)) return false
-  return isWafInterstitial(page.html) || INTERSTITIAL_TITLE.test(titleOf(page.html)) || !shown(page.html)
+  return isWafInterstitial(page.html) || INTERSTITIAL_TITLE.test(titleOf(page.html)) || isSsoHop(page.url, page.html) || !shown(page.html)
 }
 
 // A check that only a person passes, which no tab passes by waiting: Cloudflare's interactive challenge
@@ -209,7 +222,7 @@ export function isStandIn(page: Pick<Page, "html">) {
 // AWS WAF's CAPTCHA action (a puzzle from captcha.awswaf.com) is one; its challenge action isn't.
 const INTERACTIVE = /\bcType:\s*["']interactive["']|are you a robot\?|captcha-delivery\.com|px-captcha|class=["'][^"']*\b(g-recaptcha|h-captcha)\b|captcha\.awswaf\.com|AwsWafCaptcha/i
 
-export function isInteractive(page: Pick<Page, "status" | "html" | "headers">) {
+export function isInteractive(page: Pick<Page, "status" | "html" | "headers"> & { url?: string }) {
   return isCheck(page) && INTERACTIVE.test(page.html)
 }
 

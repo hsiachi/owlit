@@ -13,6 +13,9 @@ export interface Visit {
   client: Client
   web: FakeWeb
   signal?: AbortSignal
+  // Who in the browser asks: a page in a tab, or the extension's background, which a firewall can tell
+  // apart by the shape of its requests
+  from?: "worker" | "tab"
 }
 
 export type Behaviour = (visit: Visit) => Response | Promise<Response>
@@ -29,6 +32,12 @@ export interface FetchOptions {
 
 const MAX_REDIRECTS = 20
 
+// On a page: where it sends its tab on by script once its load ended (a check that passed in the tab
+// running it, a step of a sign-in), which no fetch follows
+export const SENDS_TO = "x-fake-sends-to"
+// On a page: a tab never ends parsing it, a third-party script in its body not answering
+export const PARSER_HELD = "x-fake-parser-held"
+
 export class FakeWeb {
   // Every request, in order: who asked for what
   readonly log: { client: Client; url: string }[] = []
@@ -39,7 +48,8 @@ export class FakeWeb {
   private readonly downAt = new Set<string>()
   private readonly papers = new Map<string, { title: string }>()
   private readonly dois = new Map<string, { url: string; oa?: string }>()
-  private readonly hung = new Set<{ visit: Visit; answer: () => void }>()
+  private readonly hung = new Set<{ visit: Visit; answer: () => void; counted: boolean }>()
+  private readonly heldNext = new Set<string>()
 
   constructor() {
     this.on("doi.org/api/handles/", ({ url }) => {
@@ -128,9 +138,14 @@ export class FakeWeb {
     this.downAt.delete(host)
   }
 
-  // How many answers hang now
+  // The browser's next request to this host hangs, until release, and then gets its answer
+  holdNext(host: string) {
+    this.heldNext.add(host)
+  }
+
+  // How many answers hang now, those that a fetch can give up on (hang, not stall)
   hanging() {
-    return this.hung.size
+    return [...this.hung].filter((h) => h.counted).length
   }
 
   // The hanging answers come, as their behaviour says
@@ -144,7 +159,7 @@ export class FakeWeb {
   // Waits on a behaviour that hangs (hang below): called by it
   holdUntilReleased(visit: Visit, then: Behaviour): Promise<Response> {
     return new Promise<Response>((resolve, reject) => {
-      const held = { visit, answer: () => void Promise.resolve(then(visit)).then(resolve, reject) }
+      const held = { visit, answer: () => void Promise.resolve(then(visit)).then(resolve, reject), counted: !!visit.signal }
       this.hung.add(held)
       visit.signal?.addEventListener(
         "abort",
@@ -158,18 +173,19 @@ export class FakeWeb {
   }
 
   // One request, one answer, no redirect followed
-  async answer(url: string, client: Client, signal?: AbortSignal): Promise<Response> {
+  async answer(url: string, client: Client, signal?: AbortSignal, from?: Visit["from"]): Promise<Response> {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError")
     const at = new URL(url)
     this.log.push({ client, url })
     if (client === "browser" && this.downAt.has(at.hostname)) throw new TypeError("Failed to fetch")
+    if (client === "browser" && this.heldNext.delete(at.hostname)) return this.holdUntilReleased({ url: at, client, web: this, signal }, () => this.answer(url, client, signal, from))
     const key = `${at.hostname}${at.pathname}${at.search}`
     // The newest route first, so a test can replace what a helper set up
     const routes = [...this.routes].reverse()
     const fn = routes.find((r) => typeof r.match === "function" && r.match(at))
     const best = fn ?? routes.filter((r) => typeof r.match === "string" && key.startsWith(r.match)).sort((a, b) => (b.match as string).length - (a.match as string).length)[0]
     if (!best) return page("Not Found", "<h1>Not Found</h1>", 404)
-    return best.behaviour({ url: at, client, web: this, signal })
+    return best.behaviour({ url: at, client, web: this, signal, ...(from ? { from } : {}) })
   }
 
   // A fetch as this visitor sees the web: redirects followed (or not, with redirect: "manual"), and
@@ -257,6 +273,12 @@ export const hang =
   (visit) =>
     visit.web.holdUntilReleased(visit, then)
 
+// An answer that doesn't come, the fetch's own signal or not: a page that froze, for FakeWeb.release alone
+export const stall =
+  (then: Behaviour): Behaviour =>
+  ({ signal: _ignored, ...visit }) =>
+    visit.web.holdUntilReleased(visit, then)
+
 // Cloudflare's check in front of the address, until the user passes it in their browser (clear)
 export const cloudflareCheck = (): Response =>
   page("Just a moment...", '<div id="challenge-form"></div><script>window._cf_chl_opt={cvId:"3"}</script><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>', 403)
@@ -285,21 +307,34 @@ export const subscribed =
   (visit) =>
     visit.web.anySignIn(visit.client) ? then(visit) : redirectTo(`https://${visit.url.hostname}${loginPath}?redirectUri=${encodeURIComponent(visit.url.pathname)}`)
 
+// A step of an institution's sign-in, as a publisher's page sends the reader through it: a form that posts
+// itself, which a fetch stops at and a tab walks. A tab that loads it comes out at back with the
+// publisher's session (clear on host); walks: false, one whose step never goes on.
+export const ssoStep =
+  (host: string, back: string, { walks = true } = {}): Behaviour =>
+  ({ web, from }) => {
+    if (walks && from === "tab") web.clear(host)
+    const answer = page("Redirecting", `<form method="post" action="${back}"><input type="hidden" name="SAMLResponse" value="x"></form><script>document.forms[0].submit()</script>`)
+    if (walks) answer.headers.set(SENDS_TO, back)
+    return answer
+  }
+
 // A school's sign-in (its identity provider), a password form
 export const institutionSignIn = (): Behaviour => () => page("统一身份认证", '<form action="/do/off/ui/auth/login/check"><input name="i_user"><input type="password" name="i_pass"><button>登录</button></form>')
 
 // ---- Library proxies
 
 // Tsinghua's tlink: /go?url=<target> sends a signed-in reader on to the target and shows anyone else its
-// gateway of sign-in buttons at the same address; /gologin goes to the school's sign-in
-export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "id.tsinghua.edu.cn"): FakeWeb {
+// gateway of sign-in buttons at the same address; /gologin goes to the school's sign-in. offCampus: a
+// /gologin without a callback ends on a page that looks signed in, and /go still asks.
+export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "id.tsinghua.edu.cn", { offCampus = false } = {}): FakeWeb {
   web.on(`${host}/go?`, ({ url, client, web }) => {
     // Not encoded: the target rides as it is after url= (route.ts throughProxy)
     const target = url.search.replace(/^\?url=/, "")
     if (web.isSignedIn(host, client)) return redirectTo(target)
     return page("清华大学图书馆 tlink", `<a href="https://${host}/gologin">校内登录</a><a href="https://${host}/gologin?type=carsi">CARSI</a>`)
   })
-  web.on(`${host}/gologin`, redirect(`https://${idp}/do/off/ui/auth/login/form/abc`))
+  web.on(`${host}/gologin`, ({ url }) => (offCampus && !url.searchParams.has("callback") ? page("清华大学图书馆", "<h1>电子资源</h1><p>欢迎</p>") : redirectTo(`https://${idp}/do/off/ui/auth/login/form/abc`)))
   web.on(`${idp}/`, institutionSignIn())
   return web
 }
@@ -309,11 +344,11 @@ export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "i
 export function ezproxy(web: FakeWeb, host = "ezproxy.example.edu"): FakeWeb {
   web.on(
     (url) => url.hostname.endsWith(`.${host}`),
-    async ({ url, client, web, signal }) => {
+    async ({ url, client, web, signal, from }) => {
       const targetHost = url.hostname.slice(0, -host.length - 1).replace(/-/g, ".")
       const target = `https://${targetHost}${url.pathname}${url.search}`
       if (!web.isSignedIn(host, client)) return redirectTo(`https://${host}/login?url=${target}`)
-      const answer = await web.answer(target, client, signal)
+      const answer = await web.answer(target, client, signal, from)
       const location = answer.headers.get("location")
       if (!location) return answer
       const to = new URL(location, target)

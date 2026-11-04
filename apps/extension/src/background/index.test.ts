@@ -47,7 +47,7 @@ const item = (paperId: string, gate: WorkItem["gate"], url: string, extra: Parti
   ...extra,
 })
 
-const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idleMs: 20 }
+const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idleMs: 20, fetchMs: 30 }
 const PATIENCE = { timeout: 5_000, interval: 5 }
 
 let running: FakeBrowser[] = []
@@ -249,6 +249,286 @@ describe("the fetch ladder", () => {
   })
 })
 
+describe("a step of an institution's sign-in in the gate's kept tab", () => {
+  it("is waited out, not taken for a check met again", async () => {
+    const A2 = "https://dl.acm.org/doi/10.1145/2"
+    const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+    const HOP = "https://iam.atypon.com/action/saml2post"
+    let signedIn = false
+    let looks = 0
+    const acm: Site = ({ url, from }) => {
+      if (from === "worker") return check()
+      if (url.href === A2 && !signedIn) return { status: 302, redirect: HOP }
+      return url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", A2_PDF)
+    }
+    const atypon: Site = ({ look }) => {
+      if (look) looks++
+      return { html: "<title>Signing you in</title><form method=post><input type=hidden name=SAMLResponse></form>" }
+    }
+    const b = await boot({ "dl.acm.org": acm, "iam.atypon.com": atypon })
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { pdfUrl: A2_PDF, userStarted: true })] })
+    // Looked at more often than the wait for its load alone would, and the paper not ended there
+    await vi.waitFor(() => expect(looks).toBeGreaterThan(5), PATIENCE)
+    expect(answered(b, "a2#1")).toEqual([])
+    signedIn = true
+    await b.chrome.tabs.update(tabId, { url: A2 })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(1)
+  })
+})
+
+describe("a step of a sign-in on a site the extension may not read", () => {
+  const SD = "https://www.sciencedirect.com/science/article/pii/S1"
+  const SD_PDF = "https://www.sciencedirect.com/science/article/pii/S1/pdfft"
+  const TLINK_SD = `https://tlink.lib.tsinghua.edu.cn/go?url=${SD}`
+  const HOP = "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID=x"
+  const through = (extra: Partial<WorkItem> = {}) => item("e1", "pub:elsevier", TLINK_SD, { lane: "proxy:tlink.lib.tsinghua.edu.cn", host: "tlink.lib.tsinghua.edu.cn", proxied: true, sites: ["sciencedirect.com"], ...extra })
+  function web() {
+    const state = { signedIn: false, standIn: false }
+    const sites: Record<string, Site> = {
+      "tlink.lib.tsinghua.edu.cn": () => ({ status: 302, redirect: SD }),
+      "www.sciencedirect.com": ({ url, from }) => {
+        if (state.standIn && from === "tab" && !state.signedIn) return { html: "<title>Redirecting</title>" }
+        if (!state.signedIn) return { status: 302, redirect: HOP }
+        return url.pathname.endsWith("/pdfft") ? { pdf: true } : article("Elsevier", SD_PDF)
+      },
+      "auth.elsevier.com": () => ({ html: "<title>Signing you in</title>" }),
+    }
+    return { state, sites }
+  }
+
+  it("is a check for a paper nobody started, never the proxy's sign-in, and opens no tab", async () => {
+    const b = await boot(web().sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    b.owlit.give({ work: [through()] })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0].json).toEqual({ ended: "check", host: "auth.elsevier.com" })
+    expect(b.created).toEqual([])
+  })
+
+  it("is waited out in a tab for a paper the user started, and the paper is fetched where the tab comes to", async () => {
+    const { state, sites } = web()
+    const b = await boot(sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [through({ userStarted: true })] })
+    await vi.waitFor(() => expect([...b.tabs.values()].map((t) => t.url)).toEqual([HOP]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    state.signedIn = true
+    await b.chrome.tabs.update(tabId, { url: SD })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0]).toMatchObject({ pdf: true })
+  })
+
+  it("is waited out too when the tab reaches it from a page it could read", async () => {
+    const { state, sites } = web()
+    state.standIn = true
+    const b = await boot(sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [through({ inTab: true, userStarted: true })] })
+    await vi.waitFor(() => expect([...b.tabs.values()].map((t) => t.url)).toEqual([SD]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    await b.chrome.tabs.update(tabId, { url: HOP })
+    state.signedIn = true
+    await vi.waitFor(() => expect(b.tabs.get(tabId)?.status).toBe("complete"), PATIENCE)
+    await b.chrome.tabs.update(tabId, { url: SD })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0]).toMatchObject({ pdf: true })
+  })
+
+  it("names the publisher to allow when the tab stops there", async () => {
+    const b = await boot(web().sites, undefined, new FakeOwlit(), ["auth.elsevier.com"])
+    b.owlit.give({ work: [through({ userStarted: true })] })
+    await until(b, "e1#1")
+    expect(answered(b, "e1#1")[0].json).toEqual({ ended: "no-permission", host: "sciencedirect.com" })
+    await vi.waitFor(() => expect(b.tabs.size).toBe(0), PATIENCE)
+  })
+})
+
+describe("the gate's tab and what owlit still wants", () => {
+  const A2 = "https://dl.acm.org/doi/10.1145/2"
+  const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+  const waiting: Answer = { html: "<title>Please wait</title><p>Loading</p>" }
+
+  async function keptTab(second: Answer) {
+    const acm: Site = ({ url, from }) => (from === "worker" ? check() : url.href === A2 ? second : url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF))
+    const b = await boot({ "dl.acm.org": acm })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    return b
+  }
+
+  it("is never brought to the front for a paper nobody started, stand-in or not", async () => {
+    const b = await keptTab(waiting)
+    b.owlit.give({ work: [item("a2", "pub:acm", A2)] })
+    await until(b, "a2#1")
+    expect(b.activated).toEqual([])
+  })
+
+  it("isn't opened for a paper owlit no longer waits for", async () => {
+    const b = await boot({ "dl.acm.org": () => check() })
+    b.owlit.unwanted.add("a1#1")
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+    expect(b.created).toEqual([])
+  })
+
+  it("isn't brought to the front for a paper owlit stopped waiting for during its check", async () => {
+    const b = await boot({ "dl.acm.org": () => check() })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { userStarted: true })] })
+    await vi.waitFor(() => expect(b.created).toHaveLength(1), PATIENCE)
+    b.owlit.unwanted.add("a1#1")
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+    expect(b.activated).toEqual([])
+  })
+
+  it("is left alone when the user opens it in the gap before its next paper", async () => {
+    const b = await keptTab(article("ACM", A2_PDF))
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { gapMs: 200 })
+    const [tabId] = [...b.tabs.keys()]
+    // The tab looked at for the next paper, and whether it is in front, are the two looks before the gap
+    let looks = 0
+    const get = b.chrome.tabs.get
+    b.chrome.tabs.get = ((id: number) => (id === tabId && looks++, get(id))) as never
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { pdfUrl: A2_PDF, userStarted: true })] })
+    await vi.waitFor(() => expect(looks).toBeGreaterThanOrEqual(2), PATIENCE)
+    b.activate(tabId)
+    await until(b, "a2#1")
+    expect(b.tabs.get(tabId)?.url).toBe(ACM)
+  })
+})
+
+describe("a kept tab the user took over", () => {
+  const A2 = "https://dl.acm.org/doi/10.1145/2"
+  const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+  // A paper fetched in the gate's tab, kept for as long as the test wants
+  async function kept() {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    const ladder = await import("./ladder.ts")
+    Object.assign(ladder.TAB_TIMES, { idleMs: 600_000 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    return { b, ladder, tabId }
+  }
+  const idleNow = async (ladder: typeof import("./ladder.ts")) => {
+    Object.assign(ladder.TAB_TIMES, { idleMs: 0 })
+    await ladder.closeIdleTabs()
+  }
+
+  it("is theirs from the click: never closed as idle, only forgotten", async () => {
+    const { b, ladder, tabId } = await kept()
+    b.activate(tabId)
+    await vi.waitFor(() => expect(b.kept.session.shownTabs).toEqual([tabId]), PATIENCE)
+    await idleNow(ladder)
+    expect(b.removed).toEqual([])
+    expect(b.kept.session.workTabs).toEqual({})
+  })
+
+  it("is theirs when found in front, though the click was never heard", async () => {
+    const { b, ladder, tabId } = await kept()
+    b.tabs.get(tabId)!.active = true
+    await idleNow(ladder)
+    expect(b.removed).toEqual([])
+  })
+
+  it("is never loaded with the gate's next paper, which is fetched from inside it as from any tab of theirs", async () => {
+    const { b, tabId } = await kept()
+    b.activate(tabId)
+    await vi.waitFor(() => expect(b.kept.session.shownTabs).toEqual([tabId]), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { pdfUrl: A2_PDF, userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.tabs.get(tabId)?.url).toBe(ACM)
+  })
+
+  it("isn't closed when the site turns the gate's next paper away while they are in it", async () => {
+    let b: Awaited<ReturnType<typeof boot>> | undefined
+    const acm: Site = ({ url, from, look, tab }) => {
+      if (from === "worker") return check()
+      if (url.pathname.endsWith("/2")) {
+        if (look && tab) b!.activate(tab.id)
+        return check(true)
+      }
+      return url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)
+    }
+    b = await boot({ "dl.acm.org": acm })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0].json).toMatchObject({ ended: "check" })
+    expect(b.removed).toEqual([])
+  })
+})
+
+describe("a fetch in a tab that never answers", () => {
+  const hanging = (url: URL): Answer => (url.pathname.includes("/pdf/") ? { hangs: true } : article("ACM", ACM_PDF))
+
+  it("gives up in its time: owlit hears offline, the page's fetch ends, and the gate's next paper goes on", async () => {
+    const acm = guarded(hanging, { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toMatchObject({ ended: "offline", host: "dl.acm.org" })
+    await vi.waitFor(() => expect(b.aborted).toEqual([ACM_PDF]), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a2#1")
+  })
+
+  it("rejects at once when its caller aborts, while the page's fetch keeps its own time", async () => {
+    const b = await boot({ "dl.acm.org": ({ url }) => hanging(url) })
+    const { tabFetch, TAB_TIMES } = await import("./ladder.ts")
+    Object.assign(TAB_TIMES, { fetchMs: 600_000 })
+    const tab = await b.openTab(ACM)
+    const stop = new AbortController()
+    const going = tabFetch(tab.id)(ACM_PDF, { signal: stop.signal })
+    await vi.waitFor(() => expect(b.hung).toEqual([ACM_PDF]), PATIENCE)
+    stop.abort()
+    await expect(going).rejects.toThrow()
+    await expect(tabFetch(tab.id)(ACM_PDF, { signal: stop.signal })).rejects.toThrow()
+    expect(b.hung).toEqual([ACM_PDF])
+  })
+
+  it("stops waiting for a load in the tab when its caller aborts", async () => {
+    const b = await boot({ "dl.acm.org": () => article("ACM", ACM_PDF), "pdf.acm.org": () => ({ pdf: true, stalls: true }) })
+    const { tabFetch, TAB_TIMES } = await import("./ladder.ts")
+    Object.assign(TAB_TIMES, { loadMs: 600_000 })
+    const tab = await b.openTab(ACM)
+    const stop = new AbortController()
+    const going = tabFetch(tab.id, { navigate: true })("https://pdf.acm.org/1.pdf", { signal: stop.signal })
+    await vi.waitFor(() => expect(b.tabs.get(tab.id)?.url).toBe("https://pdf.acm.org/1.pdf"), PATIENCE)
+    stop.abort()
+    await expect(going).rejects.toThrow()
+    // Nothing is read from what loaded after the abort
+    expect(b.fetches.filter((f) => f.from === "tab" && f.url === "https://pdf.acm.org/1.pdf")).toEqual([])
+  })
+})
+
+describe("a fetch that fails in the extension itself", () => {
+  it("still answers owlit, as a try that reached nothing", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const b = await boot({ "dl.acm.org": () => check() })
+    b.chrome.tabs.create = (async () => {
+      throw new Error("Tabs cannot be edited right now")
+    }) as never
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+    error.mockRestore()
+  })
+})
+
 describe("a paper's addresses on another host than the tab past the check", () => {
   // Wiley: owlit's PDF address is on onlinelibrary.wiley.com; its journals' pages are on a society's
   // host of it (rss.onlinelibrary.wiley.com), where the article's address sends the browser and where
@@ -317,6 +597,50 @@ describe("a paper's addresses on another host than the tab past the check", () =
     await b.openTab(PDF_AT)
     await vi.waitFor(() => expect(b.owlit.asked.filter((a) => a.method === "PUT" && a.pdf)).toHaveLength(1), PATIENCE)
     expect(b.fetches.filter((f) => f.url === PDF_AT).map((f) => f.from)).toEqual(["tab"])
+  })
+})
+
+describe("a host-rewriting proxy, whose names for every publisher share its domain", () => {
+  it("never asks one publisher's name for another's paper in a tab of the user's", async () => {
+    const EZ = "ezproxy.lib.example.edu"
+    const WILEY = `https://onlinelibrary-wiley-com.${EZ}/doi/10.1111/1`
+    const nature: Site = () => ({ html: "<title>Nature</title><meta name='citation_title' content='Nature'>" })
+    const b = await boot({ [`onlinelibrary-wiley-com.${EZ}`]: () => check(), [`www-nature-com.${EZ}`]: nature })
+    await b.openTab(`https://www-nature-com.${EZ}/articles/1`)
+    b.owlit.give({ work: [item("w1", "pub:wiley", WILEY, { lane: `proxy:${EZ}`, host: EZ, proxied: true })] })
+    await until(b, "w1#1")
+    expect(answered(b, "w1#1")[0].json).toMatchObject({ ended: "check", host: `onlinelibrary-wiley-com.${EZ}` })
+    expect(b.fetches.filter((f) => f.url.includes("nature") && f.url.includes("/doi/"))).toEqual([])
+  })
+})
+
+describe("a PDF address that turns the extension's own fetch away", () => {
+  const SAGE = "https://journals.sagepub.com/doi/1"
+  const SAGE_PDF = "https://journals.sagepub.com/doi/pdf/1"
+  const page = article("Sage", SAGE_PDF)
+  const sage = (inTab: Answer): Site => ({ url, from }) => (!url.pathname.includes("/pdf/") ? page : from === "worker" ? { ...page, status: 403 } : inTab)
+
+  it("goes on to the tab for a paper the user started, where a firewall may let the page through", async () => {
+    const b = await boot({ "journals.sagepub.com": sage({ pdf: true }) })
+    b.owlit.give({ work: [item("s1", "pub:sage", SAGE, { pdfUrl: SAGE_PDF, userStarted: true })] })
+    await until(b, "s1#1")
+    expect(answered(b, "s1#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(1)
+  })
+
+  it("is settled as no access by the same answer inside the tab", async () => {
+    const b = await boot({ "journals.sagepub.com": sage({ ...page, status: 403 }) })
+    b.owlit.give({ work: [item("s1", "pub:sage", SAGE, { pdfUrl: SAGE_PDF, userStarted: true })], endings: ["unreadable", "no-access"] })
+    await until(b, "s1#1")
+    expect(answered(b, "s1#1")[0].json).toMatchObject({ ended: "no-access" })
+  })
+
+  it("ends unreadable for a paper nobody started, with no tab opened", async () => {
+    const b = await boot({ "journals.sagepub.com": sage({ pdf: true }) })
+    b.owlit.give({ work: [item("s1", "pub:sage", SAGE, { pdfUrl: SAGE_PDF })], endings: ["unreadable", "no-access"] })
+    await until(b, "s1#1")
+    expect(answered(b, "s1#1")[0].json).toMatchObject({ ended: "unreadable" })
+    expect(b.created).toEqual([])
   })
 })
 
@@ -659,6 +983,16 @@ describe("an owlit of 0.2.x", () => {
     b.owlit.give({ work: [{ id: "7f3c", paperId: "p1", url: PSYCNET, host: "apa.org", proxied: false } as unknown as WorkItem] })
     await until(b, "7f3c")
     expect(answered(b, "7f3c").map((a) => a.json.ended)).toEqual(["no-copy"])
+  })
+
+  it("hears from a tab of the user's a paper through the proxy, its item naming no lane or gate", async () => {
+    const TLINK_ACM = `https://tlink.lib.tsinghua.edu.cn/go?url=${ACM}`
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "tlink.lib.tsinghua.edu.cn": () => ({ status: 302, redirect: ACM }), "dl.acm.org": acm.site }, undefined, old())
+    await b.openTab("https://dl.acm.org/doi/10.1145/9")
+    b.owlit.give({ work: [{ id: "9a1b", paperId: "p2", url: TLINK_ACM, host: "tlink.lib.tsinghua.edu.cn", proxied: true } as unknown as WorkItem] })
+    await until(b, "9a1b")
+    expect(answered(b, "9a1b")[0]).toMatchObject({ pdf: true })
   })
 
   it("is told the host of the wait the user got through at, and keeps its other waits", async () => {

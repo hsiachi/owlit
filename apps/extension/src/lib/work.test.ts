@@ -1,7 +1,7 @@
 import type { WorkItem } from "@owlit/protocol"
 import { describe, expect, it, vi } from "vitest"
 import { OwlitError } from "./owlit.ts"
-import { doWork, fetchFor, report, type FetchDeps } from "./work.ts"
+import { asItem, doWork, fetchFor, report, type FetchDeps } from "./work.ts"
 
 const PDF = new TextEncoder().encode("%PDF-1.7\n...")
 const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "doi-10.1177-1#1", paperId: "doi-10.1177-1", attempt: 1, url: "https://journals.sagepub.com/doi/10.1177/1", lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, ...extra })
@@ -159,19 +159,41 @@ describe("fetching a paper for owlit", () => {
     const pdfAt = "https://journals.sagepub.com/doi/pdf/10.1177/1"
     // Wiley's and ASCE's: refused, with the article on the refusal
     const refused = web({ [at]: { body: article() }, [pdfAt]: { body: article(), status: 403 } })
-    expect(await fetchFor(item(), refused.deps)).toMatchObject({ ended: "no-access", title: "A Paper" })
+    expect(await fetchFor(item(), { ...refused.deps, inside: true })).toMatchObject({ ended: "no-access", title: "A Paper" })
     // Science's and JAMA's: sent back to the paper's page, with its offers
     const sentBack = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: article("<a>Check Access</a>"), endsAt: at } })
-    expect(await fetchFor(item(), sentBack.deps)).toMatchObject({ ended: "no-access" })
+    expect(await fetchFor(item(), { ...sentBack.deps, inside: true })).toMatchObject({ ended: "no-access" })
     // The same known from the PDF address owlit gave
     const given = web({ [at]: { body: article() }, [pdfAt]: { body: article(), status: 403 } })
-    expect(await fetchFor(item({ pdfUrl: pdfAt }), given.deps)).toMatchObject({ ended: "no-access" })
+    expect(await fetchFor(item({ pdfUrl: pdfAt }), { ...given.deps, inside: true })).toMatchObject({ ended: "no-access" })
     // A viewer's page where the PDF should be offers nothing: the user can get it there by hand
     const viewer = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: '<title>A Paper</title><div id="viewer"></div>' } })
-    expect(await fetchFor(item(), viewer.deps)).toMatchObject({ ended: "unreadable" })
+    expect(await fetchFor(item(), { ...viewer.deps, inside: true })).toMatchObject({ ended: "unreadable" })
     // A site's error in the PDF's place says nothing of the reader's access
     const broken = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: "<title>Server error</title>", status: 500 } })
-    expect(await fetchFor(item(), broken.deps)).toMatchObject({ ended: "unreadable" })
+    expect(await fetchFor(item(), { ...broken.deps, inside: true })).toMatchObject({ ended: "unreadable" })
+    // Offers on a page answered at the PDF's own address, as a campus reader's: nobody was sent away
+    const stayed = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: article("<a>Check Access</a>") } })
+    expect(await fetchFor(item(), { ...stayed.deps, inside: true })).toMatchObject({ ended: "unreadable" })
+  })
+
+  it("goes by the last PDF answer: an earlier refusal doesn't stand for it", async () => {
+    const at = "https://journals.sagepub.com/doi/10.1177/1"
+    const given = "https://journals.sagepub.com/doi/pdf/10.1177/1"
+    const named = "https://journals.sagepub.com/doi/epdf/10.1177/1"
+    const page = `<title>A Paper</title><meta name="citation_title" content="A Paper"><meta name="citation_pdf_url" content="${named}">`
+    const { deps } = web({ [at]: { body: page }, [given]: { body: page, status: 403 }, [named]: { body: '<title>A Paper</title><div id="viewer"></div>' } })
+    expect(await fetchFor(item({ pdfUrl: given }), { ...deps, inside: true })).toMatchObject({ ended: "unreadable" })
+  })
+
+  it("settles no access only from inside a tab: the extension's own fetch is told apart", async () => {
+    const at = "https://journals.sagepub.com/doi/10.1177/1"
+    const pdfAt = "https://journals.sagepub.com/doi/pdf/10.1177/1"
+    const page = `<title>A Paper</title><meta name="citation_title" content="A Paper"><a href="/doi/pdf/10.1177/1">PDF</a>`
+    const { deps } = web({ [at]: { body: page }, [pdfAt]: { body: page, status: 403 } })
+    const refused = vi.fn()
+    expect(await fetchFor(item(), { ...deps, refused })).toMatchObject({ ended: "unreadable", title: "A Paper" })
+    expect(refused).toHaveBeenCalledOnce()
   })
 
   it("names the site a redirect reached when the extension may not read it", async () => {
@@ -216,6 +238,23 @@ describe("fetching a paper for owlit", () => {
     // Without a proxy, such a redirect is unreadable, as one the browser didn't place
     const direct = web({ "https://journals.sagepub.com/doi/10.1177/1": { awayTo: "https://sso.sagepub.com/login?next=x" } }, (url) => !url.includes("sso."))
     expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "unreadable", host: "sagepub.com" })
+  })
+
+  it("says check where a redirect reaches a step of a publisher's sign-in on a site it may not read", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.sciencedirect.com/science/article/pii/S1"
+    const article = "https://www.sciencedirect.com/science/article/pii/S1"
+    const hop = "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID=https%3A%2F%2Fidp.tsinghua.edu.cn"
+    const reads = (url: string) => !url.includes("elsevier.com")
+    const tlink = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", lane: "proxy:tlink.lib.tsinghua.edu.cn", proxied: true })
+    // No word of the proxy's sign-in, which would hold every paper through it
+    const walked = web({ [entry]: { awayTo: article }, [article]: { awayTo: hop } }, reads)
+    expect(await fetchFor(tlink, walked.deps)).toEqual({ ended: "check", host: "auth.elsevier.com" })
+    // From the PDF's address too, and without a proxy
+    const pdf = "https://www.sciencedirect.com/science/article/pii/S1/pdfft"
+    expect(await fetchFor(item({ url: article, pdfUrl: pdf, host: "sciencedirect.com" }), web({ [pdf]: { awayTo: hop } }, reads).deps)).toEqual({ ended: "check", host: "auth.elsevier.com" })
+    // A sign-in that isn't one of those steps is the proxy's, as before
+    const school = web({ [entry]: { awayTo: "https://login.microsoftonline.com/common/saml2" } }, (url) => !url.includes("microsoftonline"))
+    expect(await fetchFor(tlink, school.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
   })
 
   it("follows a page's meta refresh, and says it couldn't read a page that is none of the paper's", async () => {
@@ -273,5 +312,18 @@ describe("fetching a paper for owlit", () => {
     })
     await report(item(), unreadable, { ask: refusing as never, token: "t", endings: ["unreadable"] })
     expect(refusing.mock.calls.map(([, init]) => init.json?.ended)).toEqual(["unreadable", "no-copy"])
+  })
+})
+
+describe("an item from an owlit of 0.2.x, with no lane or gate", () => {
+  const old = (host: string, proxied: boolean) => ({ id: "7f3c", paperId: "p1", url: "https://example.org/1", host, proxied })
+
+  it("is paced and stopped by what its host and proxied say", () => {
+    expect(asItem(old("tlink.lib.tsinghua.edu.cn", true))).toMatchObject({ lane: "proxy:tlink.lib.tsinghua.edu.cn", gate: "proxy:tlink.lib.tsinghua.edu.cn" })
+    expect(asItem(old("apa.org", false))).toMatchObject({ lane: "site:apa.org", gate: "site:apa.org" })
+  })
+
+  it("leaves what an owlit does name", () => {
+    expect(asItem(item({ lane: "proxy:tlink.lib.tsinghua.edu.cn", gate: "pub:sage" }))).toMatchObject({ lane: "proxy:tlink.lib.tsinghua.edu.cn", gate: "pub:sage" })
   })
 })
