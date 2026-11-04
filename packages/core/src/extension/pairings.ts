@@ -12,7 +12,7 @@ export const QUESTION_MS = 2 * 60_000
 // worker whose fetch takes longer than that to answer.
 export const HOLD_MS = 20_000
 // A pairing's last request is written to settings.json at most this often
-const SEEN_EVERY_MS = 60_000
+export const SEEN_EVERY_MS = 60_000
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex")
 
@@ -47,7 +47,7 @@ export class Pairings {
     this.questionMs = options.questionMs ?? QUESTION_MS
   }
 
-  async view(serving: boolean, portTaken: boolean): Promise<Omit<ExtensionView, "waits">> {
+  async view(serving: boolean, portTaken: boolean): Promise<Omit<ExtensionView, "connected" | "waits" | "going" | "runs">> {
     const paired = await this.paired()
     const asking = [...this.questions.values()].filter((q) => !q.answer && !q.expired).map(({ id, browser, origin, at }) => clean({ id, browser, origin, at }))
     return { serving, portTaken, paired: paired.map(({ id, browser, origin, pairedAt, lastSeenAt }): ExtensionPairing => clean({ id, browser, origin, pairedAt, lastSeenAt })), asking }

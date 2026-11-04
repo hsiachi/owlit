@@ -1,10 +1,10 @@
 import type { WorkItem } from "@owlit/protocol"
 import { describe, expect, it, vi } from "vitest"
 import { OwlitError } from "./owlit.ts"
-import { doWork, fetchFor, type FetchDeps } from "./work.ts"
+import { doWork, fetchFor, report, type FetchDeps } from "./work.ts"
 
 const PDF = new TextEncoder().encode("%PDF-1.7\n...")
-const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "w1", paperId: "doi-10.1177-1", url: "https://journals.sagepub.com/doi/10.1177/1", host: "sagepub.com", proxied: false, ...extra })
+const item = (extra: Partial<WorkItem> = {}): WorkItem => ({ id: "doi-10.1177-1#1", paperId: "doi-10.1177-1", attempt: 1, url: "https://journals.sagepub.com/doi/10.1177/1", lane: "pub:sage", gate: "pub:sage", host: "sagepub.com", proxied: false, ...extra })
 
 // A web of addresses: each answers with a body, a status and where its redirects ended
 // "away": a redirect to a site the extension may not read, which a followed fetch rejects; awayTo: the
@@ -16,6 +16,8 @@ function web(answers: Record<string, Answer>, permitted: (url: string) => boolea
   const fetch = (async (url: string, init?: RequestInit) => {
     asked.push(url)
     expect(init?.credentials).toBe("include")
+    // The browser's cache keeps a check's page after the user passed it
+    expect(init?.cache).toBe("no-store")
     const answer = answers[url] ?? { body: "<title>Not Found</title>", status: 404 }
     if (answer === "down") throw new TypeError("Failed to fetch")
     if (answer === "away" || "awayTo" in answer) {
@@ -61,7 +63,7 @@ describe("fetching a paper for owlit", () => {
     const inside = web({ "https://dl.acm.org/doi/pdf/10.1145/1": { body: PDF } })
     const hosts: string[] = []
     const acm = item({ url: "https://dl.acm.org/doi/10.1145/1", pdfUrl: "https://dl.acm.org/doi/pdf/10.1145/1", host: "acm.org" })
-    const got = await fetchFor(acm, { ...deps, inTab: async (host) => (hosts.push(host), inside.deps.fetch) })
+    const got = await fetchFor(acm, { ...deps, inTab: async (host) => (hosts.push(host), { fetch: inside.deps.fetch, url: "https://dl.acm.org/doi/10.1145/2" }) })
     expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
     expect(hosts).toEqual(["dl.acm.org"])
     // No such tab: the check stands
@@ -112,15 +114,37 @@ describe("fetching a paper for owlit", () => {
     expect(asked).toEqual(["https://journals.sagepub.com/doi/pdf/10.1177/1"])
   })
 
-  it("says sign-in through the proxy, and no copy elsewhere, where a redirect leads to a site it may not read", async () => {
+  it("names where nothing answered: the publisher the proxy sent the browser on to, or the proxy itself", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
+    const through = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", lane: "proxy:tlink.lib.tsinghua.edu.cn", proxied: true })
+    // The proxy answers and sends the browser on; the publisher's host doesn't resolve (DNS)
+    const sageDown = web({ [entry]: { awayTo: "https://journals.sagepub.com/doi/10.1177/1" }, "https://journals.sagepub.com/doi/10.1177/1": "down" })
+    expect(await fetchFor(through, sageDown.deps)).toEqual({ ended: "offline", host: "journals.sagepub.com" })
+    expect(await fetchFor(through, web({ [entry]: "down" }).deps)).toEqual({ ended: "offline", host: "tlink.lib.tsinghua.edu.cn" })
+    // Too slow, after the proxy sent the browser on: the publisher's, as the browser saw the redirect
+    const redirects = new Map<string, string>()
+    const hangs = {
+      fetch: ((url: string, init: RequestInit) => {
+        if (url === entry) redirects.set(entry, "https://journals.sagepub.com/doi/10.1177/1")
+        return new Promise<never>((_, reject) => init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))))
+      }) as unknown as typeof fetch,
+      permitted: async () => true,
+      redirectedTo: (url: string) => redirects.get(url),
+      timeoutMs: 5,
+    }
+    expect(await fetchFor(through, hangs)).toEqual({ ended: "offline", host: "journals.sagepub.com" })
+  })
+
+  it("says sign-in through the proxy, and unreadable elsewhere, where a redirect leads to a site it may not read", async () => {
     // Signed out at the proxy: it sends the fetch on to the school's sign-in
     const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://journals.sagepub.com/doi/10.1177/1"
     const proxied = await fetchFor(item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", proxied: true }), web({ [entry]: "away" }).deps)
     expect(proxied).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
-    // Without a proxy, the redirect's target is unknown: no copy there, never a site to allow, since the
-    // site it asked is one the extension already reads (allowing it again would change nothing)
+    // Without a proxy, the redirect's target is unknown: whether there is a copy is too, and it is never
+    // a site to allow, since the site it asked is one the extension already reads (allowing it again
+    // would change nothing)
     const { deps, asked } = web({ "https://journals.sagepub.com/doi/10.1177/1": "away" })
-    expect(await fetchFor(item(), deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
+    expect(await fetchFor(item(), deps)).toEqual({ ended: "unreadable", host: "sagepub.com" })
     expect(asked).toEqual(["https://journals.sagepub.com/doi/10.1177/1", "https://journals.sagepub.com/doi/10.1177/1"])
     // The PDF's own address leading away: the page is tried, and its word stands
     const pdfAway = web({ "https://journals.sagepub.com/doi/pdf/10.1177/1": "away", "https://journals.sagepub.com/doi/10.1177/1": { body: "<title>Get access</title>" } })
@@ -168,21 +192,65 @@ describe("fetching a paper for owlit", () => {
     // Elsewhere, at an address that says sign in
     const sso = web({ [entry]: { awayTo: "https://login.microsoftonline.com/common/saml2?RelayState=x" } }, (url) => !url.includes("microsoftonline"))
     expect(await fetchFor(tlink, sso.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
-    // Without a proxy, such a redirect is no copy, as one the browser didn't place
+    // Without a proxy, such a redirect is unreadable, as one the browser didn't place
     const direct = web({ "https://journals.sagepub.com/doi/10.1177/1": { awayTo: "https://sso.sagepub.com/login?next=x" } }, (url) => !url.includes("sso."))
-    expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "no-copy", host: "sagepub.com" })
+    expect(await fetchFor(item(), direct.deps)).toEqual({ ended: "unreadable", host: "sagepub.com" })
+  })
+
+  it("follows a page's meta refresh, and says it couldn't read a page that is none of the paper's", async () => {
+    // Elsevier's linkinghub sends the browser on by a refresh and a script; the refresh's address
+    // redirects on to ScienceDirect's article, which names its PDF
+    const hub = "https://linkinghub.elsevier.com/retrieve/pii/S0957417412003879"
+    const next = "https://linkinghub.elsevier.com/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879&key=ae79"
+    const refresh = `<html><head><meta HTTP-EQUIV="REFRESH" content="2; url='/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879&amp;key=ae79'"/><title>Redirecting</title></head><body onload="autoRedirectToURL();"></body></html>`
+    const article = `<title>A context-aware reminder system</title><meta name="citation_title" content="A context-aware reminder system"><meta name="citation_pdf_url" content="https://www.sciencedirect.com/science/article/pii/S0957417412003879/pdfft">`
+    const elsevier = item({ url: hub, host: "elsevier.com" })
+    const { deps, asked } = web({
+      [hub]: { body: refresh },
+      [next]: { body: article, endsAt: "https://www.sciencedirect.com/science/article/pii/S0957417412003879" },
+      "https://www.sciencedirect.com/science/article/pii/S0957417412003879/pdfft": { body: PDF },
+    })
+    const got = await fetchFor(elsevier, deps)
+    expect("pdf" in got && new Uint8Array(got.pdf)).toEqual(PDF)
+    expect(asked.slice(0, 2)).toEqual([hub, next])
+    // The refresh leading where the extension may not read: that site, to allow
+    const away = web({ [hub]: { body: refresh } }, (url) => url === hub)
+    expect(await fetchFor(elsevier, away.deps)).toEqual({ ended: "no-permission", host: "linkinghub.elsevier.com" })
+    // A page that keeps refreshing is given up on, as one it couldn't read
+    const loop = web({ [hub]: { body: refresh }, [next]: { body: '<meta http-equiv="refresh" content="0; url=/retrieve/pii/S0957417412003879"><title>Redirecting</title>' } })
+    expect(await fetchFor(elsevier, loop.deps)).toMatchObject({ ended: "unreadable", title: "Redirecting" })
+    // APA PsycNet's shell: no PDF named, no copy said
+    const psycnet = "https://psycnet.apa.org/doiLanding?doi=10.1037/0022-3514.54.4.569"
+    const shell = web({ [psycnet]: { body: "<html><head><title>APA PsycNet</title></head><body><app-root></app-root><script src='main.js'></script></body></html>" } })
+    expect(await fetchFor(item({ url: psycnet, host: "apa.org" }), shell.deps)).toEqual({ ended: "unreadable", host: "psycnet.apa.org", title: "APA PsycNet", url: psycnet })
   })
 
   it("hands the PDF or the word to owlit, and lets go of an answer owlit no longer waits for", async () => {
     const ask = vi.fn(async () => ({}))
     const pdfWeb = web({ "https://journals.sagepub.com/doi/10.1177/1": { body: PDF } })
     await doWork(item(), { ...pdfWeb.deps, ask: ask as never, token: "t" })
-    expect(ask).toHaveBeenLastCalledWith("/work/w1?host=journals.sagepub.com", expect.objectContaining({ method: "POST", token: "t", pdf: expect.any(ArrayBuffer) }))
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231?host=journals.sagepub.com", expect.objectContaining({ method: "POST", token: "t", pdf: expect.any(ArrayBuffer) }))
     await doWork(item(), { ...web({}, () => false).deps, ask: ask as never, token: "t" })
-    expect(ask).toHaveBeenLastCalledWith("/work/w1", { token: "t", json: { ended: "no-permission", host: "sagepub.com" } })
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231", { token: "t", json: { ended: "no-permission", host: "sagepub.com" } })
     const gone = vi.fn(async () => {
       throw new OwlitError(404, { reason: "not-found" })
     })
     await expect(doWork(item(), { ...web({}).deps, ask: gone as never, token: "t" })).resolves.toMatchObject({ ended: "not-there" })
+  })
+
+  it("tells an owlit only the endings it takes, and one that refuses a word anyway the word every owlit knows", async () => {
+    const unreadable = { ended: "unreadable" as const, host: "psycnet.apa.org" }
+    const ask = vi.fn(async () => ({}))
+    await report(item(), unreadable, { ask: ask as never, token: "t", endings: ["no-copy", "unreadable"] })
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231", { token: "t", json: unreadable })
+    // One that names none takes the words of 0.2.x
+    await report(item(), unreadable, { ask: ask as never, token: "t" })
+    expect(ask).toHaveBeenLastCalledWith("/work/doi-10.1177-1%231", { token: "t", json: { ...unreadable, ended: "no-copy" } })
+    const refusing = vi.fn(async (_route: string, init: { json?: { ended: string } }) => {
+      if (init.json?.ended !== "no-copy") throw new OwlitError(400, { reason: "bad-request" })
+      return {}
+    })
+    await report(item(), unreadable, { ask: refusing as never, token: "t", endings: ["unreadable"] })
+    expect(refusing.mock.calls.map(([, init]) => init.json?.ended)).toEqual(["unreadable", "no-copy"])
   })
 })

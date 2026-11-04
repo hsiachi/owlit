@@ -2,14 +2,16 @@
 // the user allowed, the ones asking now, and whether this owlit has the port. Settings › Papers ›
 // Browser extension and the pairing question (PairDialog) read it.
 
-import type { ExtensionView, ExtensionWait } from "@owlit/protocol"
+import type { ExtensionView, ExtensionWait, Paper } from "@owlit/protocol"
 import { t } from "@lingui/core/macro"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { bridge, onNotify, rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { waitsOnYou } from "@/features/library/lib/pdf-wait"
-import { waitWords } from "./waits"
+import { libraryNameOf } from "@/features/settings/library-name"
+import { useSettings } from "@/features/settings/store"
+import { browserName, waitWords } from "./wait-words"
 
 interface ExtensionState {
   view: ExtensionView | null
@@ -20,6 +22,19 @@ export const useExtension = create<ExtensionState>(() => ({ view: null }))
 // The sites where the extension waits for the user (waits.ts says them)
 const NO_WAITS: ExtensionWait[] = []
 export const useExtensionWaits = () => useExtension(useShallow((s) => s.view?.waits ?? NO_WAITS))
+
+// The wait a paper is under, by the id core gives the paper (PdfState.extension.wait)
+export const usePaperWait = (paper: Pick<Paper, "pdfState">) => {
+  const id = paper.pdfState?.extension?.wait
+  return useExtension((s) => (id ? s.view?.waits.find((w) => w.id === id) : undefined))
+}
+
+// The browser the extension lives in (browserName), while no extension in it asks owlit for work: the
+// papers with the extension wait for it to open. undefined while one is connected, or before owlit says.
+export const useBrowserAway = () => useExtension((s) => (s.view && !s.view.connected && s.view.paired.length ? browserName(s.view.paired) : undefined))
+
+// Get PDFs as the block atop the Library shows it: the newest run not put away
+export const usePdfRun = () => useExtension((s) => s.view?.runs[0])
 
 export async function answerPairing(id: string, allow: boolean) {
   const view = useExtension.getState().view
@@ -53,13 +68,14 @@ function receive(view: ExtensionView) {
   const now = new Set<string>()
   for (const wait of view.waits) {
     if (!waitsOnYou(wait)) continue
-    const key = `${wait.kind}:${wait.host}`
+    // A wait that turns from a check into a block asks something new of the user
+    const key = `${wait.id}:${wait.kind}`
     now.add(key)
     if (toldWaits.has(key)) continue
     toldWaits.add(key)
     if (!document.hasFocus()) {
-      const { what, papers } = waitWords(wait)
-      bridge?.notify({ title: what, body: papers })
+      const { what, why } = waitWords(wait, wait.papers, libraryNameOf(useSettings.getState().view?.library.proxy))
+      bridge?.notify({ title: what, body: why })
     }
   }
   for (const key of toldWaits) if (!now.has(key)) toldWaits.delete(key)

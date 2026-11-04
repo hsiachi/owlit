@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { OwlitError, Unreachable } from "./owlit.ts"
-import { contentTypeOf, pdfTabWrite, refusedByOwlit, savesOnArrival, showsPdf, takePdf, takesPdfTab, type TakeDeps } from "./pdf-tab.ts"
+import { contentTypeOf, idsForPdf, pdfSaidOn, pdfTabWrite, refusedByOwlit, savesOnArrival, showsPdf, takePdf, takesPdfTab, whyNotTaken, type TakeDeps } from "./pdf-tab.ts"
 
 const on = { connected: true, takePdfs: true, permitted: true }
 const pdf = { url: "https://dl.acm.org/doi/pdf/10.1145/3626772.3657891", contentType: "application/pdf" }
@@ -136,5 +136,44 @@ describe("savesOnArrival", () => {
     expect(savesOnArrival({ ...all, takePdfs: false })).toBe(false)
     expect(savesOnArrival({ ...all, permitted: false })).toBe(false)
     expect(savesOnArrival({ ...all, answered: true })).toBe(false)
+  })
+})
+
+describe("whyNotTaken", () => {
+  it("names what keeps a Library paper's PDF from owlit, the setting first", () => {
+    expect(whyNotTaken({ takePdfs: false, permitted: true })).toBe("off")
+    expect(whyNotTaken({ takePdfs: false, permitted: false })).toBe("off")
+    expect(whyNotTaken({ takePdfs: true, permitted: false })).toBe("permission")
+    expect(whyNotTaken({ takePdfs: true, permitted: true })).toBeUndefined()
+  })
+})
+
+describe("idsForPdf", () => {
+  const oupPdf = "https://academic.oup.com/abm/article-pdf/53/6/573/kay067.pdf"
+  const oupArticle = { url: "https://academic.oup.com/abm/article/53/6/573/5134993", paper: { doi: "10.1093/abm/kay067" } }
+
+  it("reads the paper off the PDF's own address first", () => {
+    expect(idsForPdf(pdf.url, [oupArticle])).toEqual({ doi: "10.1145/3626772.3657891" })
+    expect(idsForPdf("https://arxiv.org/pdf/1706.03762v7", [])).toEqual({ arxiv: "1706.03762" })
+  })
+
+  it("takes the paper of the page it was opened from, at the same site", () => {
+    expect(idsForPdf(oupPdf, [undefined, oupArticle])).toEqual({ doi: "10.1093/abm/kay067" })
+    expect(idsForPdf(oupPdf, [{ url: "https://academic.oup.com/abm/issue/53/6" }, oupArticle])).toEqual({ doi: "10.1093/abm/kay067" })
+  })
+
+  it("names no paper for a PDF opened from another site, or from nothing", () => {
+    expect(idsForPdf(oupPdf, [{ url: "https://journals.sagepub.com/doi/10.1177/1", paper: { doi: "10.1177/1" } }])).toEqual({})
+    expect(idsForPdf(oupPdf, [])).toEqual({})
+  })
+})
+
+describe("pdfSaidOn", () => {
+  const kept = { url: pdf.url, outcome: { kind: "not-saved" as const, why: "off" as const, paperId: "p1" } }
+
+  it("is what was said about the PDF the tab still shows", () => {
+    expect(pdfSaidOn(`${pdf.url}#page=2`, kept)).toEqual(kept.outcome)
+    expect(pdfSaidOn("https://dl.acm.org/doi/10.1145/3626772.3657891", kept)).toBeUndefined()
+    expect(pdfSaidOn(pdf.url, undefined)).toBeUndefined()
   })
 })

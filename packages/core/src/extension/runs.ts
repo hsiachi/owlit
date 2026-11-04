@@ -1,0 +1,133 @@
+import { pdfWait, type Paper, type PdfRunView, type PdfTry, type WaitId } from "@owlit/protocol"
+
+// Get PDFs (library.fetchPdfs) as core keeps it: which papers went, when, and how far their hand-over
+// to the extension got. Kept in memory per workspace (Library), never as running numbers: what the
+// window shows (PdfRunView) is counted from the papers each time (classify), so it follows core's word
+// for each paper and can't drift from it.
+
+export interface PdfRun {
+  id: string
+  started: number
+  // The papers that went, in order; a second Get PDFs while this one goes on adds to them
+  ids: string[]
+  // Handed to the extension's queue (each is looked up first, one by one), and those that weren't
+  // because no extension was connected by their turn
+  handed: Set<string>
+  away: Set<string>
+  // Hand-overs still at work on its papers (fetchPdfs looks each up first): while one is, a paper under
+  // a wait now may be in line in a moment, so the run hasn't ended
+  handing?: number
+  stoppedAt?: number
+  endedAt?: number
+  // Papers held back by a host that didn't answer once the run had ended, by that host: owlit's
+  // retries of them, as they come, are theirs and not the run going on again (runView)
+  retrying?: Map<string, { at: string; until: number }>
+  dismissedAt?: number
+}
+
+// Where one of a run's papers stands
+export type RunPlace =
+  | { kind: "saved" | "byYou" | "none" | "skipped" | "stopped" | "getting" | "going" | "closed" | "away" }
+  // trying: its wait's one try, part of something the user started, is still to come (connected only)
+  | { kind: "wait"; wait: WaitId; trying?: true }
+  | { kind: "manual"; host?: string }
+  // In line, held back while the host that didn't answer its last fetch is backed off from
+  | { kind: "unreachable"; at: string; until: number }
+
+export interface RunPaper {
+  paper: Pick<Paper, "pdf" | "pdfState">
+  // Who placed its PDF, when it has one (the record's "pdf" try)
+  placedBy?: PdfTry["by"]
+}
+
+// connected: an extension is asking for work now; without one, what is in line doesn't move
+export function classify(id: string, { paper, placedBy }: RunPaper, run: Pick<PdfRun, "started" | "handed" | "away" | "stoppedAt">, connected: boolean): RunPlace {
+  if (paper.pdf) return { kind: placedBy === "person" ? "byYou" : "saved" }
+  const s = paper.pdfState
+  const ext = s?.extension
+  if (ext?.wait) return { kind: "wait", wait: ext.wait, ...(ext.trying && connected ? { trying: true as const } : {}) }
+  if (ext && !connected) return { kind: "closed" }
+  if (ext?.fetching) return { kind: "getting" }
+  if (ext?.unreachable) return { kind: "unreachable", ...ext.unreachable }
+  if (ext) return { kind: "going" }
+  // The extension's try, or the user's on the walk through the downloads by hand (Skip) or Stop. One
+  // from before the run says nothing of it: the extension hasn't had the paper since.
+  if (s?.tried.some((t) => t.by !== "search" && t.at >= run.started)) {
+    const wait = pdfWait(paper)
+    if (wait === "manual") return { kind: "manual", host: s.reason?.host?.replace(/^www\./, "") }
+    if (wait === "skipped" || wait === "stopped") return { kind: wait }
+    // Not ended: back with owlit's own look, or waiting for the browser again (the user got through at
+    // a wait with no extension connected)
+    if (wait && wait !== "finding" && wait !== "offline") return { kind: "none" }
+  }
+  if (run.stoppedAt !== undefined) return { kind: "stopped" }
+  // Handed over, and since in no queue, not out for a try, under no wait, with no try of the run's: it
+  // left the extension without an answer (the user got through with no extension to go on, a queue
+  // dropped it), and nothing moves it until it is asked for again
+  if (run.away.has(id) || run.handed.has(id)) return { kind: "away" }
+  // Being looked up before its hand-over
+  return { kind: connected ? "going" : "away" }
+}
+
+// The run as the window shows it, from its papers (undefined: gone from the library) as they are now
+export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, connected: boolean, now = Date.now()): PdfRunView {
+  const view: PdfRunView = { id: run.id, started: run.started, ids: [], total: 0, saved: 0, byYou: 0, waits: [], manual: { ids: [], sites: [] }, none: 0, skipped: 0, stopped: 0, getting: 0, going: 0, closed: 0, unreachable: [], away: 0, running: false }
+  const waits = new Map<WaitId, { wait: WaitId; papers: number; ids: string[] }>()
+  const unreachable = new Map<string, PdfRunView["unreachable"][number]>()
+  const sites = new Map<string, number>()
+  let trying = false
+  for (const id of run.ids) {
+    const paper = papers.get(id)
+    if (!paper) continue
+    view.ids.push(id)
+    view.total++
+    const place = classify(id, paper, run, connected)
+    // Held back by a host while nothing else of the run went on (run.retrying), then in line again as the
+    // back-off ends, then fetched: owlit's retry, shown in that host's row as trying again, and the run
+    // stays its summary, since owlit retries such a paper by itself for as long as it takes. A retry
+    // that leads anywhere else (its PDF, a check) makes it the run's like any other paper, so papers that
+    // go on after the user got through at a wait still bring the run back.
+    const back = run.retrying?.get(id)
+    if (back && place.kind === "unreachable") run.retrying?.set(id, { at: place.at, until: place.until })
+    else if (back && place.kind !== "getting" && place.kind !== "going") run.retrying?.delete(id)
+    if (back && (place.kind === "getting" || place.kind === "going")) {
+      const row = unreachable.get(back.at) ?? { at: back.at, until: back.until, papers: 0, ids: [] }
+      row.papers++
+      row.ids.push(id)
+      row.trying = true
+      unreachable.set(back.at, row)
+    } else if (place.kind === "wait") {
+      trying ||= !!place.trying
+      const row = waits.get(place.wait) ?? { wait: place.wait, papers: 0, ids: [] }
+      row.papers++
+      row.ids.push(id)
+      waits.set(place.wait, row)
+    } else if (place.kind === "unreachable") {
+      const row = unreachable.get(place.at) ?? { at: place.at, until: place.until, papers: 0, ids: [] }
+      row.papers++
+      row.ids.push(id)
+      row.until = Math.max(row.until, place.until)
+      unreachable.set(place.at, row)
+    } else if (place.kind === "manual") {
+      view.manual.ids.push(id)
+      if (place.host) sites.set(place.host, (sites.get(place.host) ?? 0) + 1)
+    } else view[place.kind]++
+  }
+  view.waits = [...waits.values()].sort((a, b) => b.papers - a.papers)
+  view.unreachable = [...unreachable.values()].sort((a, b) => b.papers - a.papers)
+  view.manual.sites = [...sites].map(([host, papers]) => ({ host, papers })).sort((a, b) => b.papers - a.papers)
+  // Papers under a wait whose try the user started is still to come go on to it (through the proxy one
+  // paper at a time, a gap apart): still going. Papers held by a back-off from a host that didn't answer
+  // are not: owlit tries them again by itself for as long as it takes (minutes apart, then a quarter of
+  // an hour), and a run that waited on them would say "Getting" with Stop for as long. The run ends with
+  // their row, and a retry that gets through brings the PDF all the same.
+  view.running = view.getting + view.going > 0 || (run.handing ?? 0) > 0 || trying
+  // Written once, the first time nothing is going. A run that goes on again after (the user got through
+  // at a wait, and its papers went on) shows none while it does.
+  if (!view.running && run.endedAt === undefined) run.endedAt = now
+  // Held back while nothing of the run goes on: from here their retries are owlit's own
+  if (!view.running) for (const row of view.unreachable) for (const id of row.ids) (run.retrying ??= new Map()).set(id, { at: row.at, until: row.until })
+  if (run.stoppedAt !== undefined) view.stoppedAt = run.stoppedAt
+  if (run.endedAt !== undefined && !view.running) view.endedAt = run.endedAt
+  return view
+}

@@ -1,5 +1,5 @@
 import { t } from "@lingui/core/macro"
-import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type OpenAnswer, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type StoredPairing, type WorkAnswer } from "@owlit/protocol"
+import { EXTENSION_PORT, OWLIT_ID_HEADER, OWLIT_NAME_HEADER, RpcErrorCode, WORK_ENDINGS, type ExtensionOpened, type ExtensionStatus, type ExtensionView, type ExtensionWait, type GateKey, type GoingOn, type OpenAnswer, type OpenPage, type OwlitIdentity, type PairAnswer, type PairStarted, type Paper, type PaperAnswer, type PaperFound, type StoredPairing, type WaitGoing, type WaitId, type WalkAnswer, type WorkAnswer, type WorkEnding, type WorkWanted } from "@owlit/protocol"
 import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { z } from "zod"
@@ -9,10 +9,13 @@ import { PDF_MAX_BYTES } from "../library/pdf.ts"
 import type { SettingsStore } from "../settings/store.ts"
 import type { BrowserApp } from "./browser-app.ts"
 import { asHttpFailure, HttpFailure, readJson, readToFile, removeQuietly, send } from "./http.ts"
-import { HOLD_MS, Pairings } from "./pairings.ts"
+import { HOLD_MS, Pairings, SEEN_EVERY_MS } from "./pairings.ts"
 import { addBody, addPaper, findPaper, shown, startsAsPdf } from "./papers.ts"
 import { clean } from "../util.ts"
-import { ExtensionWork, type WorkOptions } from "./work.ts"
+import { ManualWalk } from "./walk.ts"
+import { withoutQuery } from "./keys.ts"
+import type { Going } from "./pdf-work.ts"
+import { ExtensionWork, parseWorkItemId, RETURNING_MS, type WorkOptions } from "./work.ts"
 
 // owlit's browser extension reaches core here: plain HTTP on 127.0.0.1, one fixed port per machine (the
 // way Zotero's connector reaches Zotero). A browser asks only for what an extension may: every request
@@ -63,8 +66,15 @@ export interface ExtensionServerOptions {
   retryMs?: number
   questionMs?: number
   holdMs?: number
+  // OPEN_HEARD_MS (tests: shorter)
+  openHeardMs?: number
   work?: WorkOptions
 }
+
+// Open handed to an extension on its way back after owlit started (ExtensionWork RETURNING_MS) waits
+// this long for its ask; then owlit opens the page itself, as with no extension connected. The extension
+// asks again 5 s after owlit stopped answering, a few seconds more for owlit to have started.
+export const OPEN_HEARD_MS = 5_000
 
 interface Request {
   method: string
@@ -92,8 +102,12 @@ export class ExtensionServer {
   readonly pairings: Pairings
   // The papers handed to the extension to fetch
   readonly work: ExtensionWork
+  // The papers the user downloads by hand, one tab at a time
+  readonly walk = new ManualWalk()
   private readonly host: ExtensionHost
-  private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs">> & { port: number }
+  private readonly options: Required<Pick<ExtensionServerOptions, "retryMs" | "holdMs" | "openHeardMs">> & { port: number }
+  // Opens handed to a returning extension, waiting for its ask
+  private readonly unheard = new Set<ReturnType<typeof setTimeout>>()
   private server: Server | null = null
   private portTaken = false
   private retry: ReturnType<typeof setTimeout> | undefined
@@ -105,13 +119,14 @@ export class ExtensionServer {
 
   constructor(host: ExtensionHost, options: ExtensionServerOptions = {}) {
     this.host = host
-    this.options = { port: options.port ?? EXTENSION_PORT, retryMs: options.retryMs ?? RETRY_MS, holdMs: options.holdMs ?? HOLD_MS }
+    this.options = { port: options.port ?? EXTENSION_PORT, retryMs: options.retryMs ?? RETRY_MS, holdMs: options.holdMs ?? HOLD_MS, openHeardMs: options.openHeardMs ?? OPEN_HEARD_MS }
     this.pairings = new Pairings(host.settings, () => void this.announce(), { questionMs: options.questionMs })
     this.work = new ExtensionWork(
       {
         papers: (library, ids) => void library.pdfChanged(ids).catch((error) => console.error("[core] couldn't tell the window about papers with the extension", error)),
         waits: () => void this.announce(),
         connected: (library) => void library.handToExtension().catch((error) => console.error("[core] couldn't hand papers to the extension", error)),
+        paired: async () => ((await this.host.settings.get()).extension?.paired ?? []).length > 0,
       },
       options.work,
     )
@@ -124,8 +139,27 @@ export class ExtensionServer {
     return address && typeof address === "object" ? address.port : undefined
   }
 
+  // The waits' papers going on and the runs are counted from the papers of the open workspace, every time
   async view(): Promise<ExtensionView> {
-    return { ...(await this.pairings.view(!!this.server, this.portTaken)), waits: this.work.waits() }
+    const library = this.host.workspace()?.library
+    const waits = await Promise.all(
+      this.work.waits().map(async (wait) => {
+        const going = this.work.followUpOf(wait.id)?.going
+        return going ? { ...wait, going: await this.counted(going, wait.id) } : wait
+      }),
+    )
+    return { ...(await this.pairings.view(!!this.server, this.portTaken)), connected: this.work.connected(), waits, going: await this.going(), runs: library ? await library.pdfRunViews() : [] }
+  }
+
+  // The waits the user got through, with their papers going on, counted from the open workspace's papers
+  private async going(): Promise<GoingOn[]> {
+    return Promise.all(this.work.goneWaits().map(async (f) => ({ wait: f.gate, kind: f.kind, at: f.host, watch: f.watch ?? [f.host], proxied: f.proxied, since: f.since, going: await this.counted(f.going!, f.gate) })))
+  }
+
+  // A line of papers going on, counted from the open workspace's papers
+  private async counted(going: Going, gate: GateKey): Promise<WaitGoing> {
+    const library = this.host.workspace()?.library
+    return { at: going.at, ids: going.ids, ...(library ? await library.goingCounts(going, gate) : { saved: 0, ended: 0 }) }
   }
 
   // The id the user's extensions pair with: made once, kept in settings.json
@@ -146,24 +180,78 @@ export class ExtensionServer {
   // A waiting line's button (extension.open): the extension opens the page in its own browser, where the
   // user's access is. With none connected, owlit opens a sign-in or a check itself, in the browser of the
   // pairing that met it; being allowed to read a site can only be asked from inside the browser.
-  async open(kind: ExtensionWait["kind"], host: string): Promise<ExtensionOpened> {
-    const wait = this.work.waits().find((w) => w.kind === kind && w.host === host)
+  async open(id: WaitId): Promise<ExtensionOpened> {
+    const wait = this.work.waits().find((w) => w.id === id)
     if (!wait) return { by: "none" }
     const paired = (await this.host.settings.get()).extension?.paired ?? []
-    const pairingOf = (id: string | undefined) => paired.find((p) => p.id === id)
-    const to = this.work.open(kind, host)
+    const pairingOf = (pairing: string | undefined) => paired.find((p) => p.id === pairing)
+    const returning = this.work.connectedPairings().length ? undefined : this.returning(paired)
+    const to = this.work.open(id, returning)
     if (to) {
       // The extension's tab and window focus stay inside the browser: macOS keeps owlit in front unless
       // owlit itself hands the front over
       const pairing = pairingOf(to)
+      this.work.opened(id, pairing?.browser)
+      if (to === returning) this.openUnlessHeard(to, wait, pairing)
       await this.host.showBrowser?.(clean({ app: pairing?.app, name: pairing?.browser })).catch(() => undefined)
       return { by: "extension", browser: pairing?.browser }
     }
-    if (kind === "permission" || !this.host.openInBrowser) return { by: "none" }
+    if (wait.kind === "permission" || !this.host.openInBrowser) return { by: "none" }
     // The browser that met it, else the one seen last
-    const pairing = pairingOf(this.work.pausedBy(host)) ?? [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]
+    const pairing = pairingOf(this.work.pausedBy(id)) ?? seenLast(paired)
     await this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser }))
+    this.work.opened(id, pairing?.browser)
     return { by: "browser", browser: pairing?.browser }
+  }
+
+  // A page handed to an extension on its way back: if it hasn't collected it within openHeardMs, the
+  // click isn't left with no answer: the page is taken back (so a later ask doesn't open it a second
+  // time) and owlit opens it in that pairing's browser, as with no extension connected
+  private openUnlessHeard(by: string, wait: ExtensionWait, pairing: StoredPairing | undefined) {
+    const timer = setTimeout(() => {
+      this.unheard.delete(timer)
+      const page = (o: OpenPage) => o.kind === wait.kind && "host" in o && o.host === wait.at
+      if (!this.work.withdrawOpen(by, page) || !this.host.openInBrowser) return
+      void this.host.openInBrowser(wait.url, clean({ app: pairing?.app, name: pairing?.browser })).catch((error) => console.error("[core] couldn't open the page in the browser", error))
+    }, this.options.openHeardMs)
+    timer.unref?.()
+    this.unheard.add(timer)
+  }
+
+  // The pairing whose extension was asking for work just before owlit started, and will again within
+  // half a minute: owlit restarted under it (an update, a quit and open). Its last request is written
+  // down at most every SEEN_EVERY_MS.
+  private returning(paired: StoredPairing[]): string | undefined {
+    const last = seenLast(paired)
+    return last?.lastSeenAt !== undefined && this.work.startedAt - last.lastSeenAt < RETURNING_MS + SEEN_EVERY_MS ? last.id : undefined
+  }
+
+  // A page for the user to act on by hand (a paper whose PDF they download there), in the browser the
+  // extension was paired in, the one seen last: their access is there, and so is the extension that saves
+  // the PDF they open
+  async openPage(url: string): Promise<ExtensionOpened> {
+    if (!this.host.openInBrowser) return { by: "none" }
+    const paired = (await this.host.settings.get()).extension?.paired ?? []
+    const pairing = seenLast(paired)
+    await this.host.openInBrowser(url, clean({ app: pairing?.app, name: pairing?.browser }))
+    return { by: "browser", browser: pairing?.browser }
+  }
+
+  // The manual row's Open in <browser>: a walk through its papers, the first one's page opened by the
+  // extension asking for work now, in a tab of its own, and that browser brought to the front. none: no
+  // extension is connected, which the window then stands in for by opening the first page itself, or
+  // none of the papers is left to download.
+  async startWalk(ids: string[]): Promise<ExtensionOpened> {
+    const library = this.host.workspace()?.library
+    const by = this.work.connectedPairings()[0]
+    if (!library || !by) return { by: "none" }
+    const step = await this.walk.start(library, ids)
+    if (!step) return { by: "none" }
+    this.work.openFor(by, { kind: "walk", step })
+    const pairing = (await this.host.settings.get()).extension?.paired.find((p) => p.id === by)
+    // As for a waiting site's page (open): macOS keeps owlit in front unless owlit hands the front over
+    await this.host.showBrowser?.(clean({ app: pairing?.app, name: pairing?.browser })).catch(() => undefined)
+    return { by: "extension", browser: pairing?.browser }
   }
 
   async start() {
@@ -174,8 +262,10 @@ export class ExtensionServer {
   async close() {
     this.stopped = true
     clearTimeout(this.retry)
+    for (const timer of this.unheard) clearTimeout(timer)
     this.pairings.dispose()
     this.work.dispose()
+    await this.work.flush().catch((error) => console.error("[core] couldn't keep how getting PDFs went", error))
     const server = this.server
     this.server = null
     if (!server) return
@@ -211,8 +301,24 @@ export class ExtensionServer {
     void this.announce()
   }
 
+  // One view at a time, and one more after it when something changed meanwhile: the view reads every
+  // paper of the runs, and a resume or a run's hand-over changes many papers in a row
+  private announcing = false
+  private again = false
   private async announce() {
-    this.host.changed(await this.view())
+    if (this.announcing) {
+      this.again = true
+      return
+    }
+    this.announcing = true
+    try {
+      do {
+        this.again = false
+        this.host.changed(await this.view())
+      } while (this.again)
+    } finally {
+      this.announcing = false
+    }
   }
 
   private async receive(raw: IncomingMessage, response: ServerResponse) {
@@ -300,8 +406,10 @@ export class ExtensionServer {
     const is = (...want: (string | null)[]) => (parts: string[]) => parts.length === want.length && want.every((w, i) => w === null || w === parts[i])
     const pair = z.object({ browser: z.string().trim().min(1).max(60), extensionVersion: z.string().max(40).optional() })
     const host = z.string().trim().min(1).max(253)
+    // A gate key, as core made it (pdf-keys.ts)
+    const wait = z.string().regex(/^(pub|site|proxy):\S{1,300}$/)
     const ended = z.object({
-      ended: z.enum(["no-copy", "no-access", "not-offered", "not-there", "check", "blocked", "sign-in", "offline", "no-permission"]),
+      ended: z.enum(WORK_ENDINGS),
       host,
       title: z.string().max(500).optional(),
       // Only a web page: the url may be opened in a browser later, and `open` would run a file: or app link
@@ -347,8 +455,10 @@ export class ExtensionServer {
         path: is("papers"),
         handle: async ({ query }) => {
           const page = { doi: query.get("doi") ?? undefined, arxiv: query.get("arxiv") ?? undefined, url: query.get("url") ?? undefined, title: query.get("title") ?? undefined }
-          const paper = await findPaper(this.library(), page)
-          return { body: { paper: paper ? shown(paper) : null } }
+          const library = this.library()
+          const paper = await findPaper(library, page)
+          const getting = paper && this.work.holding(library, paper.id) ? this.work.queued(library) : undefined
+          return { body: { paper: paper ? shown(paper) : null, ...(getting ? { getting } : {}) } satisfies PaperFound }
         },
       },
       {
@@ -396,16 +506,27 @@ export class ExtensionServer {
         path: is("work"),
         handle: async ({ closed, pairing }) => {
           const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
-          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id) } satisfies WorkAnswer }
+          return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going(), endings: [...WORK_ENDINGS] } satisfies WorkAnswer }
+        },
+      },
+      {
+        method: "GET",
+        path: (parts) => is("work", null)(parts) && parts[1] !== "resume" && parts[1] !== "blocked",
+        handle: async ({ parts }) => {
+          const id = parts[1]
+          const asked = parseWorkItemId(id)
+          const library = this.library()
+          const paper = asked && this.work.current(library, id) ? await library.get(asked.paperId) : undefined
+          return { body: { wanted: !!paper && !paper.pdf } satisfies WorkWanted }
         },
       },
       {
         method: "POST",
         path: is("work", "resume"),
         handle: async ({ raw }) => {
-          const body = z.object({ host }).safeParse(await readJson(raw))
+          const body = z.union([z.object({ wait }), z.object({ host })]).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
-          return { body: { resumed: this.work.resume(body.data.host) } }
+          return { body: { resumed: "wait" in body.data ? this.work.resumeAt(body.data.wait as WaitId) : this.work.resume(body.data.host) } }
         },
       },
       {
@@ -413,24 +534,46 @@ export class ExtensionServer {
         path: is("work", "blocked"),
         handle: async ({ raw }) => {
           // Only a web page, as a fetch's ending: the window opens it in a browser
-          const body = z.object({ host, url: z.string().max(4096).regex(/^https?:\/\//i) }).safeParse(await readJson(raw))
+          const url = z.string().max(4096).regex(/^https?:\/\//i)
+          const body = z.union([z.object({ wait, url }), z.object({ host, url })]).safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
-          return { body: { blocked: this.work.blocked(body.data.host, body.data.url) } }
+          return { body: { blocked: "wait" in body.data ? this.work.blockedAt(body.data.wait as WaitId, body.data.url) : this.work.blocked(body.data.host, body.data.url) } }
         },
       },
-      // How a fetch ended: the PDF itself, or a word for what came instead
+      // The walk through the manual downloads: where it stands, asked as each of its pages loads and once
+      // a PDF was saved there, and on from a paper (Next paper, Skip)
+      {
+        method: "GET",
+        path: is("walk"),
+        handle: async () => ({ body: { step: await this.walk.step(this.library()) } satisfies WalkAnswer }),
+      },
+      {
+        method: "POST",
+        path: is("walk", "next"),
+        handle: async ({ raw }) => {
+          const body = z.object({ paperId: z.string().trim().min(1).max(300), skip: z.boolean().optional() }).safeParse(await readJson(raw))
+          if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          return { body: { step: await this.walk.next(this.library(), body.data.paperId, !!body.data.skip) } satisfies WalkAnswer }
+        },
+      },
+      // How a fetch ended: the PDF itself, or a word for what came instead. Matched by the paper and the
+      // attempt its id names (ExtensionWork's work item ids): a PDF of any attempt is the paper's while it
+      // has none (a fetch asked for again after a sleep or a restart can still bring it, and a second
+      // copy finds the first in place); a word only of the attempt in flight, since an older one's word
+      // says nothing about where the paper stands now.
       {
         method: "POST",
         path: is("work", null),
         handle: async ({ raw, parts, query }) => {
           const id = parts[1]
-          const found = this.work.paperOf(id)
-          if (!found) {
+          const asked = parseWorkItemId(id)
+          if (!asked) {
             raw.resume()
             throw new HttpFailure(404, "not-found", t`owlit isn't waiting for that.`)
           }
-          const { library, paper } = found
-          const before = await library.get(paper.paperId)
+          const library = this.library()
+          const current = this.work.current(library, id)
+          const before = await library.get(asked.paperId)
           // Gone from the Library, or given its PDF another way meanwhile: nothing more to fetch
           if (!before || before.pdf) {
             raw.resume()
@@ -439,29 +582,41 @@ export class ExtensionServer {
             throw new HttpFailure(409, "has-pdf", t`This paper has its PDF already.`, { paper: shown(before) })
           }
           if (/^application\/pdf\b/i.test(raw.headers["content-type"] ?? "")) {
-            const at = query.get("host")?.trim() || paper.host
+            const at = query.get("host")?.trim() || current?.host
             try {
               return await this.withPdf(raw, async (file) => {
-                // Another paper's PDF (a publisher's page can link the wrong one): no copy there
-                if ((await library.isPdfOf(paper.paperId, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
-                const placed = await this.attachIfMissing(library, paper.paperId, file, `extension:${at}`)
-                this.work.settle(id, undefined)
+                // Another paper's PDF (a publisher's page can link the wrong one)
+                if ((await library.isPdfOf(before.id, file)) === "no") throw new HttpFailure(422, "not-this-paper", t`This isn't the paper's PDF.`)
+                const placed = await this.attachIfMissing(library, before.id, file, at ? `extension:${at}` : "extension")
+                this.work.settle(id, "pdf")
                 return { body: { paper: shown(placed) } satisfies PaperAnswer }
               })
             } catch (error) {
-              // A body owlit couldn't take (not a PDF to owlit, too large, another paper's, a failure
-              // placing it) is no copy there. The item is settled whatever failed: the extension doesn't
-              // answer again, and an item left in flight holds back every other paper of its site.
-              await library.noteExtensionTry(paper.paperId, { by: "extension", ended: "no-copy", at: Date.now(), host: at }).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
-              this.work.settle(id, "no-copy")
+              const failure = asHttpFailure(error)
+              if (failure.status === 409) {
+                this.work.settle(id, undefined)
+                throw error
+              }
+              // The item is settled whatever failed, when it is the one in flight: the extension doesn't
+              // answer again, and an item left in flight holds back every other paper of its site
+              if (current) {
+                const word = whyNotPlaced(failure.status)
+                const gate = this.work.gateFor(id, { host: at })
+                const triedAt = Date.now()
+                await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, gate })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
+                this.work.settle(id, word, { triedAt })
+              }
               throw error
             }
           }
           const body = ended.safeParse(await readJson(raw))
           if (!body.success) throw new HttpFailure(400, "bad-request", t`owlit couldn't read what the extension sent.`)
+          if (!current) return { body: { ignored: true } }
           const { ended: word, host: at, title, url } = body.data
-          await library.noteExtensionTry(paper.paperId, clean({ by: "extension" as const, ended: word, at: Date.now(), host: at, title: title?.trim() || undefined }))
-          this.work.settle(id, word, { url, host: at })
+          const gate = this.work.gateFor(id, { url, host: at })
+          const triedAt = Date.now()
+          await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
+          this.work.settle(id, word, { url, host: at, triedAt })
           return { body: { noted: true } }
         },
       },
@@ -508,3 +663,12 @@ export class ExtensionServer {
     }
   }
 }
+
+// Why a PDF the extension brought wasn't placed, as its try's ending. What the extension sent (too
+// large, not a PDF, another paper's) is unreadable: the user can still get the file by hand. A failure of
+// owlit's own (the disk, a bug) is offline: nothing was learnt about the paper, so it is asked for again
+// after the site's back-off.
+const whyNotPlaced = (status: number): WorkEnding => (status === 413 || status === 415 || status === 422 ? "unreadable" : "offline")
+
+// The pairing whose extension was heard from last
+const seenLast = (paired: StoredPairing[]) => [...paired].sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]

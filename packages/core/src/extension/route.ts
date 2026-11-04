@@ -1,4 +1,5 @@
 import { PROXY_PRESETS, type ProxySettings } from "@owlit/protocol"
+import { getDomain } from "tldts"
 import { hostOf } from "../net/http.ts"
 import { fill, publisherOf, PUBLISHERS, type Publisher } from "../library/publisher-table.ts"
 
@@ -66,19 +67,27 @@ function rowFor(doi: string, site: string | undefined) {
   return ROWS.find((r) => r.name === name)
 }
 
-// A host's registrable domain, without the public suffix list: the last two labels, or three under a
-// country's second level (ac.uk, edu.cn, com.au)
+// A host's registrable domain, by the public suffix list (tsinghua.edu.cn, example.co.jp); the host
+// itself where it has none (localhost, an address). apps/extension's lib/verdict.ts has the same: change
+// them together.
 export function siteOf(host: string) {
-  const labels = host.toLowerCase().split(".").filter(Boolean)
-  const country = labels.length >= 3 && labels.at(-1)!.length === 2 && /^(ac|co|com|edu|gov|net|org)$/.test(labels.at(-2)!)
-  return labels.slice(country ? -3 : -2).join(".")
+  const bare = host.toLowerCase().replace(/\.$/, "")
+  return getDomain(bare) ?? bare
 }
+
+// A host as a host-rewriting proxy (EZproxy) names it: each "-" of the host's own written "--", then each
+// "." written "-", in front of the proxy's host (www.thieme-connect.de → www-thieme--connect-de.<proxy>).
+// keys.ts reads it back (realHost): change them together.
+export const rewriteHost = (host: string, proxyHost: string) => `${host.replace(/-/g, "--").replace(/\./g, "-")}.${proxyHost}`
+
+// The host a rewritten name hides: rewriteHost's inverse
+export const realHost = (hidden: string) => hidden.replace(/--|-/g, (run) => (run === "--" ? "-" : "."))
 
 export function throughProxy(target: string, proxy: ProxySettings) {
   const base = proxy.base.replace(/\/+$/, "")
   if (proxy.scheme === "host-rewrite") {
     const url = new URL(target)
-    url.hostname = `${url.hostname.replace(/\./g, "-")}.${hostOf(base)}`
+    url.hostname = rewriteHost(url.hostname, hostOf(base))
     return url.toString()
   }
   // Not encoded: tlink and EZproxy take the target as it is

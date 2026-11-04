@@ -63,4 +63,22 @@ describe("papers without a PDF", () => {
       ["Finding", ["looking", "offline"]],
     ])
   })
+
+  it("names the groups of papers with the extension as their rows do", () => {
+    const at = (id: string, extension: NonNullable<PdfState["extension"]>) => paper(id, { pdfState: { state: "finding", tried: [], extension } })
+    const papers = [
+      at("queued", { lane: "pub:sage" as const, gate: "pub:sage" as const, attempt: 1, at: "sagepub.com" }),
+      at("check", { lane: "pub:oup" as const, gate: "pub:oup" as const, attempt: 1, wait: "pub:oup" as const, kind: "check" as const, at: "academic.oup.com" }),
+      at("proxied", { lane: "proxy:tlink.lib.tsinghua.edu.cn" as const, gate: "pub:misq" as const, attempt: 1, at: "tlink.lib.tsinghua.edu.cn" }),
+      paper("looking", { pdfState: { state: "finding", tried: [] } }),
+      paper("manual", noPdf([tryOf("unreadable", "extension")])),
+    ]
+    const groups = groupPapers(papers, { key: "addedAt", desc: true }, false, Date.now(), undefined, true)
+    expect(groups.map((g) => [g.label, g.papers.map((p) => p.id)])).toEqual([
+      ["Needs manual download", ["manual"]],
+      ["Needs verification", ["check"]],
+      ["Waiting", ["queued", "proxied"]],
+      ["Finding", ["looking"]],
+    ])
+  })
 })

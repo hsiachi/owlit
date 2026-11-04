@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { idsInUrl, listingOf, namesPdf, paperOfPage } from "./page.ts"
+import { describesPaper, idsInUrl, listingOf, namesPdf, paperOfPage, pdfLinkIn } from "./page.ts"
 
 // A publisher's article page, as ACM's Digital Library writes its head (abridged)
 const publisher = `<head>
@@ -147,5 +147,32 @@ describe("namesPdf", () => {
     expect(namesPdf("https://example.org/files/paper.pdf?download=1")).toBe(true)
     expect(namesPdf("https://example.org/articles/pdf-tools")).toBe(false)
     expect(namesPdf("not an address")).toBe(false)
+  })
+})
+
+describe("pdfLinkIn", () => {
+  it("finds the page's own link to its PDF", () => {
+    expect(pdfLinkIn('<a href="/fulltext/2020-1.pdf">PDF</a>', "https://psycnet.apa.org/fulltext/2020-1.html")).toBe("https://psycnet.apa.org/fulltext/2020-1.pdf")
+    expect(pdfLinkIn('<a href="/2076-3417/9/5/909/pdf">Download PDF <i>PDF</i></a>', "https://www.mdpi.com/2076-3417/9/5/909")).toBe("https://www.mdpi.com/2076-3417/9/5/909/pdf")
+    // A supplement's PDF, and one on another site, aren't the paper's
+    expect(pdfLinkIn('<a href="/cms/attachment/mmc1.pdf">PDF (6.16 MB)</a>', "https://www.cell.com/cell/fulltext/1")).toBeUndefined()
+    expect(pdfLinkIn('<a href="https://arxiv.org/pdf/1.pdf">PDF</a>', "https://www.cell.com/cell/fulltext/1")).toBeUndefined()
+  })
+
+  it("reads Atypon's PDF addresses, and its viewers as the PDF beside them", () => {
+    const doi = '<meta name="dc.Identifier" scheme="doi" content="10.1126/science.aaa8415">'
+    const science = `${doi}<a href="/doi/reader/10.1126/science.aaa8415"></a><a href="/doi/pdf/10.1126/science.aaa8415?download=true">Download PDF</a>`
+    expect(pdfLinkIn(science, "https://www.science.org/doi/10.1126/science.aaa8415")).toBe("https://www.science.org/doi/pdf/10.1126/science.aaa8415?download=true")
+    expect(pdfLinkIn('<a href="/doi/reader/10.1177/1">View PDF/EPUB</a>', "https://journals.sagepub.com/doi/10.1177/1")).toBe("https://journals.sagepub.com/doi/pdf/10.1177/1")
+    // A reference's PDF on the same site is another paper's
+    expect(pdfLinkIn('<a href="/doi/pdf/10.1145/9">PDF</a>', "https://dl.acm.org/doi/10.1145/1")).toBeUndefined()
+  })
+})
+
+describe("describesPaper", () => {
+  it("knows a paper's page by its JSON-LD or IEEE Xplore's metadata", () => {
+    expect(describesPaper('<script type="application/ld+json">{"@type":"ScholarlyArticle","headline":"A Paper"}</script>')).toBe(true)
+    expect(describesPaper('<script>xplGlobal.document.metadata={"title":"A Paper"};</script>')).toBe(true)
+    expect(describesPaper('<script type="application/ld+json">{"@type":"WebSite","name":"JSTOR"}</script>')).toBe(false)
   })
 })

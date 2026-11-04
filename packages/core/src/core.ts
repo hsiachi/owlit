@@ -118,6 +118,9 @@ export interface CoreOptions {
   changelog?: string
 }
 
+// pnpm dev and pnpm try say in the log when a publisher quietly gives no PDFs (ExtensionWork)
+const withSilentZeros = (options: ExtensionServerOptions, dev: boolean): ExtensionServerOptions => ({ ...options, work: { warnSilentZeros: dev, ...options.work } })
+
 // The backend as one object. It speaks only JSON-RPC: handle() takes a request, onNotify() hears
 // notifications. Constructing it touches nothing outside; start() is when it begins to talk.
 
@@ -225,7 +228,7 @@ export class Core {
             },
             browserApp: options.host?.browserApp,
           },
-          options.extension === true ? {} : options.extension,
+          withSilentZeros(options.extension === true ? {} : options.extension, (options.build?.channel ?? "dev") === "dev"),
         )
       : null
     this.fs = new AgentFs({
@@ -511,6 +514,8 @@ export class Core {
         const me = await this.personAt(WINDOW).catch(() => undefined)
         if (me) await next.seen.get(me, [])
       }
+      // Its waits for the user are up before its tasks or any extension hand papers over
+      if (opened) await next.library.restoreWaits().catch((error) => console.error("[core] couldn't put up the waits the papers' records say", error))
       // Its tasks start once it is the open workspace
       if (opened) await next.tasks.start()
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))

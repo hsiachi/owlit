@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react"
 import { FoldButton } from "@/components/fold"
 import { ReadingRing } from "@/components/marks"
 import { Button } from "@/components/ui/button"
-import { useExtensionWaits } from "@/features/extension/store"
+import { useBrowserAway, usePaperWait } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 import { citationsSource, citationsText } from "@/features/library/lib/format"
 import { stripLatex } from "@/features/library/lib/latex"
@@ -98,9 +98,9 @@ function Byline({ facts, paper }: { facts: PaperCardFacts; paper: Paper | undefi
 function PdfLine({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
   const [looking, setLooking] = useState(false)
-  const waits = useExtensionWaits()
   const wait = pdfWait(paper) ?? "finding"
-  const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
+  const siteWait = usePaperWait(paper)
+  const away = useBrowserAway()
   const lookAgain = async () => {
     setLooking(true)
     try {
@@ -115,7 +115,7 @@ function PdfLine({ paper }: { paper: Paper }) {
   const action =
     WAITS.has(wait) && siteWait ? (
       <Button variant="text" size="inline" onClick={() => void actOnWait(siteWait)}>
-        {waitWords(siteWait).action}
+        {waitWords(siteWait, siteWait.papers).action}
       </Button>
     ) : ENDED.has(wait) ? (
       <Button variant="text" size="inline" disabled={looking} onClick={() => void lookAgain()}>
@@ -124,14 +124,14 @@ function PdfLine({ paper }: { paper: Paper }) {
     ) : null
   return (
     <>
-      {looking ? t`Finding a PDF…` : noPdfTitle(paper)}
+      {looking ? t`Finding a PDF…` : noPdfTitle(paper, siteWait, away)}
       {action && !looking && <span className="ml-1.5">{action}</span>}
     </>
   )
 }
 
 const WAITS: ReadonlySet<PdfWait> = new Set(["for-sign-in", "for-check", "blocked", "for-permission"])
-const ENDED: ReadonlySet<PdfWait> = new Set(["not-found", "no-access", "not-offered", "not-there"])
+const ENDED: ReadonlySet<PdfWait> = new Set(["stopped", "not-found", "no-access", "not-offered", "not-there"])
 
 // The abstract in its first three lines, with Show more only when it runs longer
 function Abstract({ text }: { text: string }) {

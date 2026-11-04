@@ -1,6 +1,6 @@
 import { t } from "@lingui/core/macro"
 import { useRef, useState } from "react"
-import { isTaskFinished, type Paper, type PdfTry } from "@owlit/protocol"
+import { isTaskFinished, type ExtensionWait, type Paper, type PdfTry } from "@owlit/protocol"
 import { toast } from "sonner"
 import { DropCard } from "@/components/empty-place"
 import { PdfFileInput } from "@/components/file-drop"
@@ -13,8 +13,8 @@ import { joinAnd } from "@/lib/words"
 import { openSettings, useSettings } from "@/features/settings/store"
 import { tasksFor, useTasksStore } from "@/features/tasks/store"
 import { libraryClient, useLibraryStore } from "../../store"
-import { noPdfTitle, pdfGone, pdfWait, waitedFor, type PdfWait } from "../../lib/pdf-wait"
-import { useExtension, useExtensionWaits } from "@/features/extension/store"
+import { noPdfTitle, pdfGone, pdfWait, unreachable, waitedFor, withExtension, type PdfWait } from "../../lib/pdf-wait"
+import { useBrowserAway, useExtension, usePaperWait } from "@/features/extension/store"
 import { actOnWait, waitWords } from "@/features/extension/waits"
 
 // What the card shows: where the paper stands (lib/pdf-wait.ts), or owlit looking for it now
@@ -27,19 +27,27 @@ const LOOKING = new Set(["paper.pdf"])
 const hostName = (reason: PdfTry | undefined) => reason?.host?.replace(/^www\./, "") ?? ""
 
 // The card's why line, from the try that says where the paper stands; its title is the state's one name
-// as noPdfTitle says it, the paper card's too
-function detailOf(state: CardState, paper: Paper, now: string | undefined): string {
+// as noPdfTitle says it, the paper card's too. wait: the one it is under (usePaperWait); away: the
+// extension's browser while it isn't open (useBrowserAway).
+function detailOf(state: CardState, paper: Paper, now: string | undefined, wait: ExtensionWait | undefined, away: string | undefined): string {
   const s = paper.pdfState
   const reason = s?.reason
   const host = hostName(reason)
   const date = reason ? shortDate(reason.at) : ""
   const tried = triedSentence(s?.tried ?? [])
+  if (away && !now && withExtension(paper)) return t`owlit gets it through the owlit extension in ${away}. Open ${away} and it goes on by itself.`
+  // The extension has it in line, held back by a site that didn't answer it
+  const off = unreachable(paper)
+  if (off && !now && (state === "finding" || state === "offline")) {
+    const { at } = off
+    return t`${at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through.`
+  }
   switch (state) {
     case "looking":
     case "finding": {
       // The extension has it: owlit's routes are done, and the publisher is tried through the user's
       // browser, now or once its turn at the site comes
-      const site = s?.extension?.host
+      const site = s?.extension?.at
       if (!now && site && s?.extension?.fetching) return tried ? t`${tried}; now trying ${site} through your browser.` : t`Now trying ${site} through your browser.`
       if (!now && site) return tried ? t`${tried}; owlit will try ${site} through your browser.` : t`owlit will try ${site} through your browser.`
       if (state === "finding" && pdfGone(paper)) return t`Its file was deleted or moved outside owlit. If you have it, drop it here.`
@@ -49,19 +57,29 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
     case "for-check":
     case "blocked":
     case "for-permission": {
-      // Its own try's host and date when it met the wait itself, else it is one of the papers in line behind
-      const site = s?.extension?.host ?? host
+      // The title names the wait and its site already: the line says since when, when its own try met it,
+      // and what getting through does
+      const site = wait?.at ?? s?.extension?.at ?? host
       const own = waitedFor(reason) ? reason : undefined
-      const at = own ? hostName(own) : site
-      if (state === "for-sign-in" && s?.extension?.proxied) return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in to your library covers every paper waiting for it.`
-      if (state === "for-sign-in") return own ? t`${at} wants a sign-in · ${date}` : t`One sign-in there covers every paper waiting at ${site}.`
-      if (state === "for-check") return own ? t`${at} asked for a check · ${date}` : t`One check passed there covers every paper waiting at ${site}.`
+      let next: string
+      if (state === "for-sign-in" && wait?.proxied) next = t`One sign-in to your library covers every paper waiting for it.`
+      else if (state === "for-sign-in") next = t`One sign-in there covers every paper waiting at ${site}.`
+      else if (state === "for-check") next = t`Verifying once there covers every paper waiting at ${site}.`
       // The block is by the browser's network, mostly: another one (or a VPN turned off) gets past it
-      if (state === "blocked") return own ? t`${at} turned your browser away · ${date}. Another network usually gets past it.` : t`Once ${site} lets your browser in, owlit goes on with every paper waiting there.`
-      return own ? t`The owlit extension may not read ${site} yet · ${date}` : t`Once it may, owlit goes on with every paper waiting there.`
+      else if (state === "blocked") next = t`Another network usually gets past it; owlit goes on once a page there loads.`
+      else next = t`Once you allow it, owlit goes on with every paper waiting there.`
+      return own ? t`Since ${date}. ${next}` : next
     }
     case "offline":
       return t`owlit couldn't reach any source of PDFs when it looked. It looks again within the hour.`
+    case "manual":
+      return host
+        ? t`owlit couldn't open ${host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF.`
+        : t`owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF.`
+    case "skipped":
+      return t`You looked on its page in your browser and skipped it · ${date}`
+    case "stopped":
+      return t`You stopped it while it waited for you at its site · ${date}`
     case "not-found":
       // A check or a sign-in that stopped owlit itself, in an older record: why, as that try saw it
       if (reason?.ended === "check" || reason?.ended === "sign-in") {
@@ -82,7 +100,7 @@ function detailOf(state: CardState, paper: Paper, now: string | undefined): stri
 }
 
 // What owlit does next on its own, for a card that waits on nobody
-const NO_PDF: ReadonlySet<CardState> = new Set(["not-found", "no-access", "not-offered", "not-there"])
+const NO_PDF: ReadonlySet<CardState> = new Set(["skipped", "stopped", "not-found", "no-access", "not-offered", "not-there"])
 
 export function NoPdf({ paper }: { paper: Paper }) {
   const updatePaper = useLibraryStore((s) => s.updatePaper)
@@ -127,8 +145,8 @@ export function NoPdf({ paper }: { paper: Paper }) {
   }
 
   // The line for the site the extension waits at, with its one thing to do
-  const waits = useExtensionWaits()
-  const siteWait = waits.find((w) => w.host === paper.pdfState?.extension?.host)
+  const siteWait = usePaperWait(paper)
+  const away = useBrowserAway()
 
   const proxyMissing = useSettings((s) => !!s.view && !s.view.library.proxy)
   // A browser whose extension may connect; until owlit says, as if there were one, so the offer below
@@ -138,10 +156,11 @@ export function NoPdf({ paper }: { paper: Paper }) {
 
   const wait = pdfWait(paper) ?? "finding"
   const state: CardState = looking ? "looking" : wait
-  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper)
-  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note))
+  const title = state === "looking" ? t`Finding a PDF…` : noPdfTitle(paper, siteWait, away)
+  const detail = detailOf(state, paper, task?.progress?.note && routeName(task.progress.note), siteWait, away)
   const lost = state === "finding" && pdfGone(paper)
-  const working = (state === "looking" || state === "finding") && !lost
+  // Nothing spins while the paper only waits for a site that didn't answer, or for the browser to open
+  const working = (state === "looking" || (state === "finding" && !unreachable(paper) && !(away && withExtension(paper)))) && !lost
   const nextLook = paper.pdfState?.nextLook
   const nextDate = nextLook ? shortDate(nextLook) : ""
   const chooseFile = (
@@ -185,7 +204,7 @@ export function NoPdf({ paper }: { paper: Paper }) {
             <>
               {siteWait ? (
                 <Button size="sm" onClick={() => void actOnWait(siteWait)}>
-                  {waitWords(siteWait).action}
+                  {waitWords(siteWait, siteWait.papers).action}
                 </Button>
               ) : (
                 // No line for it (owlit restarted since): looking again hands it to the extension again
@@ -200,8 +219,9 @@ export function NoPdf({ paper }: { paper: Paper }) {
             </>
           ) : state === "looking" || state === "finding" ? (
             chooseFile
-          ) : noExtension ? (
-            // No extension to try with the person's access: the page and the file come first
+          ) : noExtension || (state === "manual" && doi) ? (
+            // No extension to try with the person's access, or one that couldn't open the page: the page
+            // and the file come first, since owlit's own look would end the same way
             <>
               <Button size="sm" onClick={openPage}>
                 {t({ message: "Open the page", comment: "button: opens the paper's page at its publisher in the user's browser" })}
@@ -217,7 +237,8 @@ export function NoPdf({ paper }: { paper: Paper }) {
           )
         }
       >
-        {opened && <p className="max-w-72 text-sm text-foreground">{t`Download it there, then drop it here.`}</p>}
+        {/* A manual download's card says already that the extension saves what is downloaded there */}
+        {opened && state !== "manual" && <p className="max-w-72 text-sm text-foreground">{t`Download it there, then drop it here.`}</p>}
         {NO_PDF.has(state) && (
           <p className="max-w-72 text-sm text-muted-foreground">{nextLook ? t`owlit looks again on ${nextDate}` : t`owlit won't look again`}</p>
         )}

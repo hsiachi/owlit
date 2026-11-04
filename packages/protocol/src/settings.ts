@@ -67,7 +67,7 @@ export type ProxyPreset = keyof typeof PROXY_PRESETS
 // library runs, but they can copy a link from it:
 // - login-url: the target rides in ?url= (EZproxy's /login?url=…, Tsinghua's /go?url=…)
 // - host-rewrite: the publisher's host with dots turned to hyphens, in front of the proxy's host
-//   (dl-acm-org.ezproxy.example.edu)
+//   (dl-acm-org.ezproxy.example.edu), and a hyphen of the host's own doubled (www-thieme--connect-de.…)
 export function proxyFromLink(link: string): ProxySettings | null {
   // Parsed by hand: this package runs where URL may not exist
   const match = /^(https?):\/\/([^/?#\s]+)([^?#\s]*)(\?[^#\s]*)?/i.exec(link.trim())
@@ -80,7 +80,7 @@ export function proxyFromLink(link: string): ProxySettings | null {
   }
   const [host, port] = authority.toLowerCase().split(":")
   const [first, ...rest] = host.split(".")
-  if (rest.length >= 2 && /^[a-z0-9]+(-[a-z0-9]+)*-(com|org|net|edu|gov|io|info|[a-z]{2})$/.test(first)) {
+  if (rest.length >= 2 && /^[a-z0-9]+(--?[a-z0-9]+)*-(com|org|net|edu|gov|io|info|[a-z]{2})$/.test(first)) {
     return { base: `${scheme.toLowerCase()}://${rest.join(".")}${port ? `:${port}` : ""}`, scheme: "host-rewrite" }
   }
   return null

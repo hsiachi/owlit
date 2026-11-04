@@ -1,14 +1,16 @@
 import { t } from "@lingui/core/macro"
+import { Check } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { OwlitLockup } from "@/components/owlit-lockup"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
+import { WaitingDot } from "@/components/marks"
 import { ext } from "../lib/browser.ts"
 import { clickPlan, pdfAddress } from "../lib/click.ts"
 import { originsOf, send, type Connection, type Outcome, type PageState, type PopupState } from "../lib/messages.ts"
 import { askForKnownSites, askForOrigins } from "../lib/permissions.ts"
-import { cardOf } from "../lib/say.ts"
+import { cardOf, gettingLine, siteLine } from "../lib/say.ts"
 
 // The popup, where the page can't say it: the browser opens it on the toolbar button when the click
 // needs a decision (connecting, a workspace) or when the page takes no card (the browser's own pages, a
@@ -82,10 +84,18 @@ export function Popup() {
 
   // owlit's papers waiting at a site the extension may not read: the permission is asked for from this
   // click, as the browser requires, and owlit goes on there once it is given
-  const allow = async (host: string) => {
-    if ((await askForOrigins(ext.permissions, originsOf(host))) !== "granted") return
+  const allow = async (host: string, sites: string[]) => {
+    if ((await askForOrigins(ext.permissions, sites.flatMap(originsOf))) !== "granted") return
     await send({ kind: "allowed", host })
     if (tabId !== null) void refresh(tabId)
+  }
+
+  // "Take PDFs I open" on, from a PDF it would have taken: this one is taken too. The work is asked for
+  // at once, not after the setting is stored, since it may ask for the PDF's site, which only this click can.
+  const turnOn = (page: PageState) => {
+    setState((s) => s && { ...s, takePdfs: true })
+    void send({ kind: "takePdfs", on: true })
+    void act(page)
   }
 
   // Every publisher site owlit knows, in one question; per site after that
@@ -102,13 +112,13 @@ export function Popup() {
         <OwlitLockup className="h-4.5 w-auto text-foreground" />
       </header>
       {state ? (
-        <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(page) => void act(page)} />
+        <Body state={state} busy={busy} outcome={outcome} onConnect={() => void connect()} onAct={(page) => void act(page)} onTurnOn={(page) => turnOn(page)} />
       ) : broken ? (
         <Muted>{brokenText()}</Muted>
       ) : (
         <Spinner className="text-muted-foreground" />
       )}
-      {connected && (state.wait || state.going) && <Waiting state={state} />}
+      {connected && <Waiting state={state} />}
       {/* Asking for the sites means nothing before the browser is connected */}
       {connected && !state.knownSites && (
         <section className="flex flex-col items-start gap-2 border-t pt-3">
@@ -120,10 +130,10 @@ export function Popup() {
         </section>
       )}
       {connected &&
-        state.needs.map(({ host, papers }) => (
+        state.needs.map(({ host, papers, allow: sites }) => (
           <section key={host} className="flex items-center justify-between gap-3 border-t pt-3">
-            <p className="min-w-0 text-detail">{cardOf({ kind: "wait", wait: { kind: "permission", host, papers } }).text}</p>
-            <Button size="sm" variant="outline" onClick={() => void allow(host)}>
+            <p className="min-w-0 text-detail">{cardOf({ kind: "wait", wait: { kind: "permission", host, papers, proxied: false } }).text}</p>
+            <Button size="sm" variant="outline" onClick={() => void allow(host, sites)}>
               {t({ message: "Allow", comment: "button: let the owlit extension read this site, for the papers waiting there" })}
             </Button>
           </section>
@@ -144,7 +154,7 @@ export function Popup() {
   )
 }
 
-function Body({ state, busy, outcome, onConnect, onAct }: { state: PopupState; busy: boolean; outcome: Outcome | null; onConnect: () => void; onAct: (page: PageState) => void }) {
+function Body({ state, busy, outcome, onConnect, onAct, onTurnOn }: { state: PopupState; busy: boolean; outcome: Outcome | null; onConnect: () => void; onAct: (page: PageState) => void; onTurnOn: (page: PageState) => void }) {
   const { connection, page } = state
   if (connection.state !== "connected") return <NotConnected connection={connection} onConnect={onConnect} />
   if (connection.workspace === null)
@@ -158,7 +168,7 @@ function Body({ state, busy, outcome, onConnect, onAct }: { state: PopupState; b
       </section>
     )
   if (!page) return <Muted>{t`owlit can't read the browser's own pages. Open a paper's page and press the button there.`}</Muted>
-  return <PagePaper state={state} page={page} busy={busy} outcome={outcome} onAct={onAct} />
+  return <PagePaper state={state} page={page} busy={busy} outcome={outcome} onAct={onAct} onTurnOn={() => onTurnOn(page)} />
 }
 
 function NotConnected({ connection, onConnect }: { connection: Exclude<Connection, { state: "connected" }>; onConnect: () => void }) {
@@ -203,65 +213,96 @@ function NotConnected({ connection, onConnect }: { connection: Exclude<Connectio
 }
 
 // The page's paper as the app's paper row shows one: its title on two lines at most, then who, where and
-// when, then whether the Library has it
-function PagePaper({ state, page, busy, outcome, onAct }: { state: PopupState; page: PageState; busy: boolean; outcome: Outcome | null; onAct: (page: PageState) => void }) {
+// when, then where it stands: what the click came to, what became of the PDF this tab shows, or what the
+// page's paper still needs
+function PagePaper({ state, page, busy, outcome, onAct, onTurnOn }: { state: PopupState; page: PageState; busy: boolean; outcome: Outcome | null; onAct: (page: PageState) => void; onTurnOn: () => void }) {
   const plan = clickPlan({ connection: state.connection, page })
-  const title = page.inLibrary?.title ?? page.paper?.title
+  // What the click just did, else what became of this tab's PDF, else what the page alone says
+  const shown = outcome ?? state.pdfTab ?? (plan.do === "say" ? plan.outcome : undefined)
+  // A PDF tab's word names its paper itself (taken), or is about the PDF rather than the paper
+  const aboutPdf = shown?.kind === "taken" || shown?.kind === "not-saved" || (!outcome && !!state.pdfTab)
+  const title = aboutPdf ? undefined : (page.inLibrary?.title ?? page.paper?.title)
   const byline = [authorsOf(page.paper?.authors ?? []), page.paper?.venue, page.paper?.year].filter(Boolean).join(" · ")
-  const where = page.inLibrary ? (page.inLibrary.hasPdf ? t`In your Library` : t`In your Library, without its PDF`) : undefined
+  const needsPdf = !!page.inLibrary && !page.inLibrary.hasPdf
   const label = plan.do === "add" ? t`Add to owlit` : plan.do === "save" ? t`Save PDF to owlit` : plan.do === "take" ? t`Give this PDF to owlit` : undefined
+  // A word with its own fix (Allow, Turn on) takes the button's place; so does what was just done, unless
+  // there is still something to do
+  const ownFix = shown?.kind === "not-saved"
+  // A PDF owlit found to be another paper's would be refused the same way again
+  const refused = shown?.kind === "not-this-paper" || (shown?.kind === "added" && shown.pdf === "not-this-paper")
+  const button = label && !ownFix && !refused && (!outcome || outcome.kind === "failed" || outcome.kind === "needs-site")
   return (
     <section className="flex flex-col items-start gap-2">
       {title && (
         <div className="flex min-w-0 flex-col gap-0.5 self-stretch">
           <p className="line-clamp-2 font-medium text-balance">{title}</p>
           {byline && <p className="truncate text-detail text-muted-foreground">{byline}</p>}
-          {where && <p className="text-detail text-muted-foreground">{where}</p>}
         </div>
       )}
-      {/* What was just done takes the button's place; the button stays while there is still something to do */}
-      {/* Allow on what was just done (added, its PDF's site not readable yet) asks for the site from this
-          click and does the work again, which then gets the PDF */}
-      {outcome ? <Said outcome={outcome} onAllow={() => onAct(page)} busy={busy} /> : plan.do === "say" && <Said outcome={plan.outcome} />}
-      {label && (!outcome || outcome.kind === "failed" || outcome.kind === "needs-site") && (
+      {/* Allow on what was just done (added, its PDF's site not readable yet) or on a PDF that couldn't be
+          saved asks for the site from this click and does the work again, which then gets the PDF */}
+      {shown ? <Said outcome={shown} onAllow={() => onAct(page)} onTurnOn={onTurnOn} busy={busy} /> : needsPdf && <NeedsPdf />}
+      {button && (
         <Button disabled={busy} onClick={() => onAct(page)}>
           {busy && <Spinner wait={false} />}
           {label}
         </Button>
       )}
+      {needsPdf && !aboutPdf && state.getting && <p className="text-detail text-muted-foreground">{gettingLine(state.getting.papers, state.getting.wait)}</p>}
     </section>
+  )
+}
+
+// A Library paper's page that names its PDF, which the button saves
+function NeedsPdf() {
+  return (
+    <p role="status" className="flex items-center gap-2">
+      <WaitingDot />
+      {cardOf({ kind: "none-named", paperId: "" }).text}
+    </p>
   )
 }
 
 // The first two authors, else the first and "et al."
 const authorsOf = (authors: string[]) => (authors.length > 2 ? t`${authors[0]} et al.` : authors.join(", "))
 
-// What this tab's site waits for, or owlit going on there once the person got through
+// What this tab's site waits for, or owlit going on there once the person got through (siteLine)
 function Waiting({ state }: { state: PopupState }) {
-  if (state.going) {
-    const { done, total } = state.going
-    return <p className="border-t pt-3 text-detail text-muted-foreground">{t({ message: `Going on · ${done} of ${total}`, comment: "popup: owlit fetches the papers that waited at this site; how many came so far" })}</p>
-  }
-  const { text, detail } = cardOf({ kind: "wait", wait: state.wait! })
+  const line = siteLine(state)
+  if (!line) return null
+  if (state.going) return <p className="border-t pt-3 text-detail text-muted-foreground">{line.text}</p>
   return (
     <section className="flex flex-col gap-0.5 border-t pt-3">
-      <p className="text-detail">{text}</p>
-      {detail && <Muted>{detail}</Muted>}
+      <p className="text-detail">{line.text}</p>
+      {line.detail && <Muted>{line.detail}</Muted>}
     </section>
   )
 }
 
-function Said({ outcome, onAllow, busy }: { outcome: Outcome; onAllow?: () => void; busy?: boolean }) {
+function Said({ outcome, onAllow, onTurnOn, busy }: { outcome: Outcome; onAllow?: () => void; onTurnOn?: () => void; busy?: boolean }) {
   const { text, detail, action } = cardOf(outcome)
   const paperId = action?.do.kind === "open-paper" ? action.do.paperId : undefined
   // needs-site has the page's own button, which asks for the site
   const allow = action?.do.kind === "allow" && outcome.kind !== "needs-site" && onAllow
+  const turnOn = action?.do.kind === "take-pdfs" && onTurnOn
+  // The PDF in owlit is owlit's green tick; a paper that still needs its PDF, the waiting dot
+  const saved = outcome.kind === "saved" || outcome.kind === "taken" || (outcome.kind === "added" && outcome.pdf === "saved")
   return (
     <div role="status" className="flex flex-col items-start gap-2">
       <div className="flex flex-col gap-0.5">
-        <p>{text}</p>
+        <p className="flex items-center gap-2">
+          {saved && <Check aria-hidden className="size-4 shrink-0 text-owlit" />}
+          {outcome.kind === "none-named" && <WaitingDot />}
+          {text}
+        </p>
         {detail && <Muted>{detail}</Muted>}
       </div>
+      {turnOn && (
+        <Button size="sm" variant="outline" disabled={busy} onClick={turnOn}>
+          {busy && <Spinner wait={false} />}
+          {action.label}
+        </Button>
+      )}
       {paperId && (
         <Button size="sm" variant="outline" onClick={() => void send({ kind: "open", paperId })}>
           {t`Open in owlit`}

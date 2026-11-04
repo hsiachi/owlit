@@ -113,6 +113,7 @@ msgstr "什么也没找到。"
 #. button: open a paper to read
 #. button: open a paper to read
 #. button: open a paper to read
+#. button: opens the site's page with its 'verify you are human' check in the user's browser
 #. menu: open a paper to read
 #. palette footer, beside the Enter key: opens the selected row
 #. the owlit card in a web page: shows the paper in owlit
@@ -125,6 +126,7 @@ msgstr "什么也没找到。"
 #: app/src/app/waiting-on-you.ts
 #: app/src/features/docs/save-as-doc.ts
 #: app/src/features/docs/share/store.ts
+#: app/src/features/extension/wait-words.ts
 #: app/src/features/library/actions.ts
 #: app/src/features/library/components/AddCandidate.tsx
 #: app/src/features/library/components/PaperMenu.tsx
@@ -145,6 +147,7 @@ msgid "Navigate"
 msgstr "选择"
 
 #. palette footer, beside the Esc key: closes the palette
+#. the owlit card in a web page: its close button, for screen readers
 #. the owlit card in a web page: its close button, for screen readers
 #. verb: close the Owlit panel
 #. verb: close the find field
@@ -1089,15 +1092,21 @@ msgstr "重命名对话"
 #. a helper agent's status: it stopped before it was done
 #. a step the answer stopped in the middle of
 #. an import that broke
+#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
+#. the user stopped getting the paper's PDF (Stop on Get PDFs) while it waited for them at its site
 #: app/src/features/chat/components/ChatListPanel.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/chat/components/messages/parts.tsx
 #: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
 msgid "Stopped"
 msgstr "已停止"
 
 #. a chat's status: waiting on the user
+#. a paper in line for the owlit browser extension, which fetches one paper at a time per site
 #: app/src/features/chat/components/ChatListPanel.tsx
+#: app/src/features/library/lib/pdf-wait.ts
 msgid "Waiting"
 msgstr "等待中"
 
@@ -1145,7 +1154,7 @@ msgstr "出错"
 #. the owlit card in a web page: let the owlit extension read this site
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/extension/PairDialog.tsx
-#: app/src/features/extension/waits.ts
+#: app/src/features/extension/wait-words.ts
 #: apps/extension/src/allow/Allow.tsx
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
@@ -1254,12 +1263,10 @@ msgstr "下一个问题"
 #. choice between showing the digest or the PDF
 #. verb: scroll to the helper agents' block and open it
 #. verb: show the Library, where the papers wait
-#. verb: show these papers in the Library
 #. verb: unfold the card with Owlit's question
 #: app/src/features/chat/components/WaitingDock.tsx
 #: app/src/features/chat/components/messages/agents.tsx
 #: app/src/features/extension/waits.ts
-#: app/src/features/library/components/ExtensionWaitLines.tsx
 #: app/src/features/library/pages/PaperPage.tsx
 #: app/src/features/library/pages/paper/PaperBeside.tsx
 msgid "Show"
@@ -1282,8 +1289,10 @@ msgstr "也可以在下方输入你自己的回答"
 msgid "Type your answer below"
 msgstr "在下方输入你的回答"
 
+#. the owlit card in a web page: the user found no PDF for this paper on its page; owlit notes it and goes on
 #. verb: skip the agent's question
 #: app/src/features/chat/components/WaitingDock.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Skip"
 msgstr "跳过"
 
@@ -1365,7 +1374,6 @@ msgid "Adding…"
 msgstr "正在添加…"
 
 #: app/src/features/chat/components/composer/AttachmentList.tsx
-#: apps/extension/src/popup/Popup.tsx
 msgid "In your Library"
 msgstr "已在你的文献库中"
 
@@ -1422,6 +1430,7 @@ msgstr "附加文件"
 msgid "Add from {place}"
 msgstr "从{place}添加"
 
+#. button: stop getting PDFs through the browser; the papers still in line are left
 #. stop Owlit answering a reply on its comment
 #. stop Owlit writing a paper's digest
 #. stop Owlit's work on a thread
@@ -1430,6 +1439,7 @@ msgstr "从{place}添加"
 #: app/src/features/chat/components/composer/Composer.tsx
 #: app/src/features/chat/components/messages/MessageItem.tsx
 #: app/src/features/docs/comments/CommentCard.tsx
+#: app/src/features/library/components/PdfBlock.tsx
 #: app/src/features/library/pages/paper/Digest.tsx
 #: app/src/features/threads/pages/ThreadPage.tsx
 msgid "Stop"
@@ -3468,55 +3478,110 @@ msgstr "它可以把你在 {0} 中打开的论文添加到文献库，并把它�
 msgid "Open owlit to allow it or not."
 msgstr "打开 owlit 决定是否允许。"
 
-#: app/src/features/extension/waits.ts
-msgid "Sign in to your library"
-msgstr "登录你的图书馆"
+#. in: Need you to sign in to your library
+#. in: Need you to sign in to your library
+#. in: Need you to sign in to your library
+#: app/src/features/extension/wait-words.ts
+#: apps/extension/src/lib/say.ts
+msgid "your library"
+msgstr "你的图书馆"
 
-#: app/src/features/extension/waits.ts
-msgid "Sign in at {host}"
-msgstr "在 {host} 登录"
+#: app/src/features/extension/wait-words.ts
+msgid "{n, plural, one {Needs you to sign in to {library}} other {Need you to sign in to {library}}}"
+msgstr "{n, plural, other {需要你登录{library}}}"
 
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# paper waits for it} other {# papers wait for it}}"
-msgstr "{n, plural, other {# 篇论文在等}}"
+#: app/src/features/extension/wait-words.ts
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs you to sign in to {library}} other {# papers need you to sign in to {library}}}"
+msgstr "{n, plural, other {# 篇论文需要你登录{library}}}"
+
+#: app/src/features/extension/wait-words.ts
+msgid "These papers come through your library's proxy, {host}. owlit goes on by itself once you're signed in."
+msgstr "这些论文经由你图书馆的代理 {host} 获取。你登录后，owlit 会自己继续。"
 
 #. an agent's sign-in, which opens the browser
 #. button: opens the sign-in page (the library's, or the site's) in the user's browser
-#: app/src/features/extension/waits.ts
+#. button: opens the sign-in page (the library's, or the site's) in the user's browser
+#: app/src/features/extension/wait-words.ts
 #: app/src/features/settings/sections/BrowserSignIn.tsx
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "Sign in"
 msgstr "登录"
 
-#: app/src/features/extension/waits.ts
-msgid "Pass a check at {host}"
-msgstr "在 {host} 完成验证"
+#: app/src/features/extension/wait-words.ts
+msgid "{n, plural, one {Needs you to sign in at {host}} other {Need you to sign in at {host}}}"
+msgstr "{n, plural, other {需要你在 {host} 登录}}"
 
-#: app/src/features/extension/waits.ts
-msgid "{n, plural, one {# paper} other {# papers}}"
-msgstr "{n, plural, other {# 篇论文}}"
+#: app/src/features/extension/wait-words.ts
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs you to sign in at {host}} other {# papers need you to sign in at {host}}}"
+msgstr "{n, plural, other {# 篇论文需要你在 {host} 登录}}"
 
-#. button: opens the site's page with the check in the user's browser
-#: app/src/features/extension/waits.ts
-msgid "Open it"
-msgstr "打开"
+#: app/src/features/extension/wait-words.ts
+msgid "{host} wants you signed in before it gives the PDFs. owlit goes on by itself once you're signed in."
+msgstr "{host} 要你登录后才给 PDF。你登录后，owlit 会自己继续。"
 
-#: app/src/features/extension/waits.ts
+#: app/src/features/extension/wait-words.ts
+msgid "{n, plural, one {Needs you to verify you're human on {host}} other {Need you to verify you're human on {host}}}"
+msgstr "{n, plural, other {需要你在 {host} 完成真人验证}}"
+
+#: app/src/features/extension/wait-words.ts
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs you to verify you're human on {host}} other {# papers need you to verify you're human on {host}}}"
+msgstr "{n, plural, other {# 篇论文需要你在 {host} 完成真人验证}}"
+
+#: app/src/features/extension/wait-words.ts
+msgid "Open the page and verify there. owlit usually notices by itself; if it doesn't, press I've verified it."
+msgstr "打开页面，在那里完成验证。owlit 通常会自己发现；没发现的话，点“我已验证”。"
+
+#: app/src/features/extension/wait-words.ts
+#: apps/extension/src/lib/say.ts
 msgid "{host} blocks your browser"
 msgstr "{host} 拦截了你的浏览器"
 
+#: app/src/features/extension/wait-words.ts
+msgid "{n, plural, one {{host} blocks your browser · # paper} other {{host} blocks your browser · # papers}}"
+msgstr "{n, plural, other {{host} 拦截了你的浏览器 · # 篇论文}}"
+
+#: app/src/features/extension/wait-words.ts
+msgid "The site's firewall turned your browser away. Another network usually gets past it; owlit goes on once a page there loads."
+msgstr "网站的防火墙拦下了你的浏览器。换个网络通常就能过去；那里的页面能打开后，owlit 会继续。"
+
 #. button: opens the site's page in the user's browser, to see whether it still blocks them
-#: app/src/features/extension/waits.ts
+#: app/src/features/extension/wait-words.ts
 #: app/src/features/onboarding/AgentSetup.tsx
 #: app/src/features/settings/sections/AgentsSection.tsx
 #: apps/share-web/src/App.tsx
 msgid "Try again"
 msgstr "重试"
 
+#: app/src/features/extension/wait-words.ts
+msgid "{n, plural, one {Needs your permission for {host}} other {Need your permission for {host}}}"
+msgstr "{n, plural, other {需要你允许访问 {host}}}"
+
+#: app/src/features/extension/wait-words.ts
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# paper needs your permission for {host}} other {# papers need your permission for {host}}}"
+msgstr "{n, plural, other {# 篇论文需要你允许访问 {host}}}"
+
+#: app/src/features/extension/wait-words.ts
+msgid "The owlit extension asks before it reads a site. Allow it on {host} once; owlit goes on by itself."
+msgstr "owlit 扩展读取一个网站前会先征得你的同意。在 {host} 允许一次，owlit 会自己继续。"
+
+#. in: Getting PDFs for 3 papers using your browser…, Open in your browser
+#: app/src/features/extension/wait-words.ts
+msgid "your browser"
+msgstr "你的浏览器"
+
+#. button: the user signed in in their browser; owlit tries the site again now
 #: app/src/features/extension/waits.ts
-#: apps/extension/src/allow/Allow.tsx
-msgid "Let the owlit extension read {host}"
-msgstr "允许 owlit 扩展读取 {host}"
+msgid "I've signed in"
+msgstr "我已登录"
+
+#. button: the user passed the site's 'verify you are human' check; owlit tries the site again now
+#: app/src/features/extension/waits.ts
+msgid "I've verified it"
+msgstr "我已验证"
 
 #: app/src/features/extension/waits.ts
 msgid "Press owlit's button in your browser's toolbar, then Allow."
@@ -3525,6 +3590,30 @@ msgstr "点浏览器工具栏里的 owlit 按钮，再点“允许”。"
 #: app/src/features/extension/waits.ts
 msgid "The extension asks to read {host} for the papers waiting there."
 msgstr "扩展需要读取 {host}，才能取回在那里等着的论文。"
+
+#: app/src/features/extension/waits.ts
+msgid "Couldn't tell owlit to go on."
+msgstr "没能让 owlit 继续。"
+
+#: app/src/features/extension/waits.ts
+msgid "{host} still asks you to verify you're human"
+msgstr "{host} 仍要求你完成真人验证"
+
+#: app/src/features/extension/waits.ts
+msgid "{host} still asks you to sign in"
+msgstr "{host} 仍要求你登录"
+
+#: app/src/features/extension/waits.ts
+msgid "{libraryName} still asks you to sign in"
+msgstr "{libraryName}仍要求你登录"
+
+#: app/src/features/extension/waits.ts
+msgid "Your library still asks you to sign in"
+msgstr "你的图书馆仍要求你登录"
+
+#: app/src/features/extension/waits.ts
+msgid "Couldn't stop getting the PDFs."
+msgstr "没能停止获取 PDF。"
 
 #: app/src/features/home/HomePage.tsx
 #: app/src/features/welcome/WelcomePage.tsx
@@ -3883,105 +3972,46 @@ msgstr "年份"
 msgid "Venue"
 msgstr "发表处"
 
-#. in: Opened in your browser
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "your browser"
-msgstr "你的浏览器"
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Sign in there; owlit goes on by itself."
-msgstr "已在{browser}中打开。在那里登录，owlit 会自己继续。"
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Pass the check there; owlit goes on by itself."
-msgstr "已在{browser}中打开。在那里完成验证，owlit 会自己继续。"
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Still blocked? Try another network; owlit goes on by itself."
-msgstr "已在{browser}中打开。还被拦截的话，换个网络试试，owlit 会自己继续。"
-
-#. browser: Chrome, Arc, or 'your browser'
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Opened in {browser}. Allow the extension there; owlit goes on by itself."
-msgstr "已在{browser}中打开。在那里允许扩展，owlit 会自己继续。"
-
-#. button: opens the sign-in or check page in the user's browser once more
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Open again"
-msgstr "再次打开"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{total, plural, one {Getting # PDF through your browser} other {Getting # PDFs through your browser}}"
-msgstr "{total, plural, other {正在通过你的浏览器拿 # 篇 PDF}}"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{total, plural, one {Getting # PDF from {host}} other {Getting # PDFs from {host}}}"
-msgstr "{total, plural, other {正在从 {host} 获取 # 篇 PDF}}"
-
-#. how many PDFs have come so far
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{got} so far"
-msgstr "已到 {got} 篇"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "Through your browser"
-msgstr "通过你的浏览器"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "From {host}"
-msgstr "来自 {host}"
-
-#. verb: put a stopped import away
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-#: app/src/features/library/components/ImportBanner.tsx
-msgid "Dismiss"
-msgstr "忽略"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{got, plural, one {# PDF came through your browser} other {# PDFs came through your browser}}"
-msgstr "{got, plural, other {通过你的浏览器拿到 # 篇 PDF}}"
-
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{got, plural, one {# PDF came from {host}} other {# PDFs came from {host}}}"
-msgstr "{got, plural, other {从 {host} 拿到 # 篇 PDF}}"
-
-#. placeholder {0}: without.length
-#: app/src/features/library/components/ExtensionWaitLines.tsx
-msgid "{0, plural, one {# without} other {# without}}"
-msgstr "{0, plural, other {# 篇没有}}"
-
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "The owlit extension isn't connected."
 msgstr "owlit 扩展没有连接。"
 
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "Open the browser it is in, then try again."
 msgstr "打开装有它的浏览器，再试一次。"
 
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "Set it up in your browser from Settings › Papers, then try again."
 msgstr "先在「设置 › 论文」里把它装进你的浏览器，再试一次。"
 
-#: app/src/features/library/components/GetAllLine.tsx
+#: app/src/features/library/components/GetPdfsLine.tsx
 msgid "Couldn't hand the papers to the extension."
 msgstr "没能把论文交给扩展。"
 
-#. button: every paper without a PDF goes to the browser extension, with the user's library access
-#: app/src/features/library/components/GetAllLine.tsx
-msgid "Get them all with my access"
-msgstr "用我的权限全部获取"
+#. button: every paper without a PDF goes to the browser extension, which gets them with the user's library access
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "Get PDFs"
+msgstr "获取 PDF"
 
-#. placeholder {0}: withDoi.length
-#: app/src/features/library/components/GetAllLine.tsx
-msgid "{0, plural, one {# paper your browser can try} other {# papers your browser can try}}"
-msgstr "{0, plural, other {# 篇可以由你的浏览器试试}}"
+#. placeholder {0}: offered.length
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{0, plural, one {Get the PDF for # paper using {browser}} other {Get PDFs for # papers using {browser}}}"
+msgstr "{0, plural, other {用{browser}获取 # 篇论文的 PDF}}"
 
-#: app/src/features/library/components/GetAllLine.tsx
-msgid "{without, plural, one {# without a DOI} other {# without a DOI}}"
-msgstr "{without, plural, other {# 篇没有 DOI}}"
+#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
+#. button: opens a paper's page in the browser the owlit extension is in, e.g. Open in Dia
+#: app/src/features/library/components/GetPdfsLine.tsx
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Open in {browser}"
+msgstr "在{browser}中打开"
+
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{manualCount, plural, one {# paper needs a manual download} other {# papers need a manual download}}"
+msgstr "{manualCount, plural, other {# 篇论文需要手动下载}}"
+
+#: app/src/features/library/components/GetPdfsLine.tsx
+msgid "{noDoi, plural, one {# paper without a DOI wasn't included · drag its PDF onto it} other {# papers without a DOI weren't included · drag their PDFs onto them}}"
+msgstr "{noDoi, plural, other {# 篇没有 DOI 的论文没有包括在内 · 把它们的 PDF 拖到论文上}}"
 
 #: app/src/features/library/components/HighlightsList.tsx
 msgid "Copy all as Markdown"
@@ -4043,6 +4073,12 @@ msgstr "来自 {name}"
 #: app/src/features/library/components/ImportBanner.tsx
 msgid "from the {name} folder"
 msgstr "来自文件夹 {name}"
+
+#. verb: put a stopped import away
+#: app/src/features/library/components/ImportBanner.tsx
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Dismiss"
+msgstr "忽略"
 
 #: app/src/features/library/components/ImportBanner.tsx
 msgctxt "carry on with a stopped import"
@@ -4429,6 +4465,134 @@ msgstr "{0, plural, other {移除 # 篇论文}}"
 msgid "Continue"
 msgstr "继续阅读"
 
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{total, plural, one {Getting a PDF for # paper using {browser}…} other {Getting PDFs for # papers using {browser}…}}"
+msgstr "{total, plural, other {正在用{browser}获取 # 篇论文的 PDF…}}"
+
+#. PDFs saved so far, of the papers in the batch
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{saved} of {total} saved"
+msgstr "已保存 {saved}/{total}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{things, plural, one {# thing needs you} other {# things need you}}"
+msgstr "{things, plural, other {# 件事需要你处理}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{total, plural, one {Saved the PDF} other {Saved all # PDFs}}"
+msgstr "{total, plural, other {# 篇 PDF 全部已保存}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Saved {saved} of {total} PDFs"
+msgstr "已保存 {total} 篇中的 {saved} 篇 PDF"
+
+#. after: Saved 0 of 34 PDFs
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "the rest need you"
+msgstr "其余的需要你处理"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {# paper needs you} other {# papers need you}}"
+msgstr "{n, plural, other {# 篇论文需要你处理}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit tried again just now and met the same page. Open it, finish there, then press {again}."
+msgstr "owlit 刚才又试了一次，还是遇到同一个页面。打开它，在那里完成后，再点“{again}”。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Opened in {where}. Once you've signed in there, owlit usually notices by itself; if it doesn't, tell it here."
+msgstr "已在{where}中打开。你在那里登录后，owlit 通常会自己发现；没发现的话，在这里告诉它。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Opened in {where}. Once you've verified there, owlit usually notices by itself; if it doesn't, tell it here."
+msgstr "已在{where}中打开。你在那里完成验证后，owlit 通常会自己发现；没发现的话，在这里告诉它。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {Needs you to download it} other {Need you to download them}}"
+msgstr "{n, plural, other {需要你手动下载}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit couldn't open these sites' pages: {sites}. Open each one and click its PDF button; owlit saves it."
+msgstr "owlit 打不开这些网站的页面：{sites}。逐个打开，点页面上的 PDF 按钮，owlit 会保存下来。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "owlit couldn't open these sites' pages. Open each one and click its PDF button; owlit saves it."
+msgstr "owlit 打不开这些网站的页面。逐个打开，点页面上的 PDF 按钮，owlit 会保存下来。"
+
+#. papers of Get PDFs in line at the owlit extension in the browser (e.g. Dia), which isn't open
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Waiting for {browser} to open"
+msgstr "等待打开 {browser}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} isn't connected. Open {browser} and these go on by themselves."
+msgstr "{browser} 里的 owlit 扩展没有连上。打开 {browser}，这些论文会自己继续。"
+
+#. papers of Get PDFs the owlit extension in the browser (e.g. Dia) never got, because it wasn't connected
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Didn't reach {browser}"
+msgstr "没送到 {browser}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} wasn't connected when their turn came. Open {browser}, then press Get PDFs again."
+msgstr "轮到这些论文时，{browser} 里的 owlit 扩展没有连上。打开 {browser}，再按一次“获取 PDF”。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {Has no PDF owlit can get} other {Have no PDF owlit can get}}"
+msgstr "{n, plural, other {owlit 拿不到 PDF}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Their publishers have no PDF of them, or your library doesn't give you access. If you have one, drag it onto the paper."
+msgstr "出版方没有它们的 PDF，或者你的图书馆没有访问权限。如果你手上有，把它拖到论文上。"
+
+#. papers the user looked for on the publisher's page and found no PDF (Skip in the browser)
+#. the user looked at the publisher's page in their browser and found no PDF there (they pressed Skip)
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found none"
+msgstr "你没找到 PDF"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "You looked on their pages in your browser and found no PDF. If you find one later, drag it onto the paper."
+msgstr "你在浏览器里看过它们的页面，没有找到 PDF。之后找到的话，把它拖到论文上。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
+msgstr "它们在网站那边等你时，你停止了获取。在论文上按“再找一次”会重新试一次。"
+
+#. owlit is trying again, by itself, a site that didn't answer the user's browser earlier
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Trying {at} again…"
+msgstr "正在重试 {at}…"
+
+#. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
+#. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
+#: app/src/features/library/components/PdfBlock.tsx
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Can't reach {at} right now · trying again at {time}"
+msgstr "暂时连不上 {at} · {time} 再试"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{at} didn't answer your browser. owlit tries these again by itself, and goes on with the other sites meanwhile; on another network (or a VPN) it may get through."
+msgstr "{at} 没有响应你的浏览器。owlit 会自己再试，其间先继续处理其他网站的论文；换个网络（或开 VPN）也许能连上。"
+
+#. papers whose PDF the owlit extension is fetching in the user's browser right now
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Getting…"
+msgstr "正在获取…"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "The owlit extension in {browser} is fetching these now."
+msgstr "{browser} 里的 owlit 扩展正在获取这些论文。"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "{n, plural, one {Waiting its turn} other {Waiting their turn}}"
+msgstr "{n, plural, other {排队中}}"
+
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "One paper at a time per site, so no publisher sees a burst of downloads"
+msgstr "每个网站一次只取一篇，免得出版方看到集中下载"
+
 #: app/src/features/library/components/RecentlyRemoved.tsx
 msgid "A paper removed recently"
 msgstr "最近移除的一篇论文"
@@ -4600,6 +4764,31 @@ msgstr "粉色"
 msgid "Finding"
 msgstr "查找中"
 
+#. the PDF waits for the user to sign in (to their library, or at the publisher) in their browser
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs sign-in"
+msgstr "需登录"
+
+#. the PDF waits for the user to pass the site's 'verify you are human' check in their browser
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs verification"
+msgstr "需验证"
+
+#. the PDF waits for the user to allow the owlit browser extension on the publisher's site
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs permission"
+msgstr "需授权"
+
+#. the publisher's site turned the user's browser away
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Blocked"
+msgstr "被拦截"
+
+#. owlit couldn't open the publisher's page in the user's browser; the user downloads the PDF there by hand
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs manual download"
+msgstr "需手动下载"
+
 #. owlit looked for the paper's PDF and found no copy
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No PDF found"
@@ -4615,6 +4804,31 @@ msgstr "无权限"
 msgid "No PDF there"
 msgstr "出版方无 PDF"
 
+#. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for {away}"
+msgstr "等待 {away}"
+
+#. the publisher's site (or the library's proxy) didn't answer the user's browser; owlit tries it again later by itself
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Can't reach site"
+msgstr "连不上网站"
+
+#. a paper waiting its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "In line · about {turn} min"
+msgstr "排队中 · 约 {turn} 分钟"
+
+#. the paper is with the owlit extension in this browser (e.g. Dia), which isn't open
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Waiting for {away} to open"
+msgstr "等待打开 {away}"
+
+#. the paper waits its turn at the library's proxy, which the owlit browser extension goes through one paper at a time; turn: minutes until its turn
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "In line through your library · about {turn} min"
+msgstr "在图书馆的代理排队 · 约 {turn} 分钟"
+
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "The PDF is gone"
 msgstr "PDF 不见了"
@@ -4624,20 +4838,20 @@ msgid "Waiting for the network"
 msgstr "等待网络"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for your library sign-in"
-msgstr "等你登录图书馆"
+msgid "Needs you to sign in to your library"
+msgstr "需要你登录图书馆"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for a sign-in at {site}"
-msgstr "等你在 {site} 登录"
+msgid "Needs you to sign in at {site}"
+msgstr "需要你在 {site} 登录"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for a check at {site}"
-msgstr "等你完成 {site} 的验证"
+msgid "Needs you to verify you're human on {site}"
+msgstr "需要你在 {site} 完成真人验证"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for a check"
-msgstr "等你完成验证"
+msgid "Needs you to verify you're human"
+msgstr "需要你完成真人验证"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "{site} blocks your browser"
@@ -4648,12 +4862,24 @@ msgid "The publisher's site blocks your browser"
 msgstr "出版方网站拦截了你的浏览器"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for the extension to be allowed on {site}"
-msgstr "等你允许扩展读取 {site}"
+msgid "Needs your permission for {site}"
+msgstr "需要你允许访问 {site}"
 
 #: app/src/features/library/lib/pdf-wait.ts
-msgid "Waits for the extension to be allowed"
-msgstr "等你允许扩展读取"
+msgid "Needs your permission for the publisher's site"
+msgstr "需要你允许访问出版方网站"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "Needs you to download it"
+msgstr "需要你手动下载"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You found no PDF on its page"
+msgstr "你在它的页面上没找到 PDF"
+
+#: app/src/features/library/lib/pdf-wait.ts
+msgid "You stopped getting its PDF"
+msgstr "你停止了获取它的 PDF"
 
 #: app/src/features/library/lib/pdf-wait.ts
 msgid "No access through your library"
@@ -4812,7 +5038,9 @@ msgstr "{position} / {total}"
 msgid "Previous paper"
 msgstr "上一篇论文"
 
+#. the owlit card in a web page: goes on to the next paper to download manually, noting nothing about this one
 #: app/src/features/library/pages/PaperPage.tsx
+#: apps/extension/src/lib/say.ts
 msgid "Next paper"
 msgstr "下一篇论文"
 
@@ -4977,6 +5205,14 @@ msgid "Page {number}"
 msgstr "第 {number} 页"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit gets it through the owlit extension in {away}. Open {away} and it goes on by itself."
+msgstr "owlit 通过 {away} 里的 owlit 扩展获取它。打开 {away}，它会自己继续。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "{at} didn't answer your browser. owlit tries again by itself; on another network (or a VPN) it may get through."
+msgstr "{at} 没有响应你的浏览器。owlit 会自己再试；换个网络（或开 VPN）也许能连上。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{tried}; now trying {site} through your browser."
 msgstr "{tried}；正在经你的浏览器尝试 {site}。"
 
@@ -5013,10 +5249,6 @@ msgid "If you already have it, drop it here."
 msgstr "如果你已经有了，拖到这里即可。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} wants a sign-in · {date}"
-msgstr "{at} 要求登录 · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "One sign-in to your library covers every paper waiting for it."
 msgstr "登录一次图书馆，所有在等的论文都会继续获取。"
 
@@ -5025,32 +5257,40 @@ msgid "One sign-in there covers every paper waiting at {site}."
 msgstr "在那里登录一次，{site} 上所有在等的论文都会继续获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} asked for a check · {date}"
-msgstr "{at} 要求验证 · {date}"
+msgid "Verifying once there covers every paper waiting at {site}."
+msgstr "在那里验证一次，{site} 上所有在等的论文都会继续获取。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "One check passed there covers every paper waiting at {site}."
-msgstr "在那里通过一次验证，{site} 上所有在等的论文都会继续获取。"
+msgid "Another network usually gets past it; owlit goes on once a page there loads."
+msgstr "换个网络通常就能过去；那里的页面能打开后，owlit 会继续。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "{at} turned your browser away · {date}. Another network usually gets past it."
-msgstr "{at} 拦截了你的浏览器 · {date}。换个网络通常就能进去。"
+msgid "Once you allow it, owlit goes on with every paper waiting there."
+msgstr "你允许后，owlit 会继续获取那里所有在等的论文。"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Once {site} lets your browser in, owlit goes on with every paper waiting there."
-msgstr "等 {site} 放行你的浏览器，那里所有在等的论文都会继续获取。"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "The owlit extension may not read {site} yet · {date}"
-msgstr "owlit 扩展还不能读取 {site} · {date}"
-
-#: app/src/features/library/pages/paper/NoPdf.tsx
-msgid "Once it may, owlit goes on with every paper waiting there."
-msgstr "允许后，owlit 会继续获取那里所有在等的论文。"
+msgid "Since {date}. {next}"
+msgstr "自 {date} 起。{next}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "owlit couldn't reach any source of PDFs when it looked. It looks again within the hour."
 msgstr "owlit 查找时连不上任何 PDF 来源，一小时内会再找一次。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open {host}'s page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit 打不开 {host} 的页面。在浏览器里打开它，点页面上的 PDF 按钮，owlit 会保存这份 PDF。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "owlit couldn't open the publisher's page. Open it in your browser and click its PDF button; owlit saves the PDF."
+msgstr "owlit 打不开出版商的页面。在浏览器里打开它，点页面上的 PDF 按钮，owlit 会保存这份 PDF。"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "You looked on its page in your browser and skipped it · {date}"
+msgstr "你在浏览器里看过它的页面，跳过了 · {date}"
+
+#: app/src/features/library/pages/paper/NoPdf.tsx
+msgid "You stopped it while it waited for you at its site · {date}"
+msgstr "它在网站上等你时，你停止了获取 · {date}"
 
 #: app/src/features/library/pages/paper/NoPdf.tsx
 msgid "{host} wanted a sign-in · {date}"
@@ -5552,6 +5792,10 @@ msgstr "关于{sectionLabel}"
 msgid "Couldn't check it just now."
 msgstr "暂时无法检查。"
 
+#: app/src/features/settings/library-name.ts
+msgid "Tsinghua University"
+msgstr "清华大学"
+
 #: app/src/features/settings/parts.tsx
 msgid "{service} accepted it"
 msgstr "{service} 已接受"
@@ -6037,10 +6281,6 @@ msgstr "记住我在 owlit 中的操作"
 #: app/src/features/settings/sections/OwlitSection.tsx
 msgid "What you read, write and ask on this Mac is noted in the workspace's .owlit/journal.jsonl, so Owlit can follow your work. This file goes wherever the folder goes. Off: nothing is noted, and papers you finish stay as you left them."
 msgstr "你在这台 Mac 上读、写和问的内容会记在工作区的 .owlit/journal.jsonl 里，让 Owlit 能跟上你的工作。这个文件随文件夹走。关闭后：什么都不记录，读完的论文也会保持你离开时的状态。"
-
-#: app/src/features/settings/sections/ProxyGroup.tsx
-msgid "Tsinghua University"
-msgstr "清华大学"
 
 #: app/src/features/settings/sections/ProxyGroup.tsx
 msgid "{host} · rewrites addresses"
@@ -7161,6 +7401,10 @@ msgid "Your browser didn't ask. Allow {host} for owlit in the browser's extensio
 msgstr "浏览器没有弹出询问。请在浏览器的扩展设置里允许 owlit 读取 {host}。"
 
 #: apps/extension/src/allow/Allow.tsx
+msgid "Let the owlit extension read {host}"
+msgstr "允许 owlit 扩展读取 {host}"
+
+#: apps/extension/src/allow/Allow.tsx
 msgid "The paper's PDF is there. The extension fetches it with your access, and reads only what owlit asks for."
 msgstr "这篇论文的 PDF 在那里。扩展会用你的访问权限取来，只读取 owlit 要的内容。"
 
@@ -7181,6 +7425,11 @@ msgstr "我打开文献库中论文的 PDF 时自动收下"
 msgid "Something went wrong in the owlit extension."
 msgstr "owlit 扩展出了点问题。"
 
+#: apps/extension/src/lib/say.ts
+msgid "Couldn't save this PDF"
+msgstr "这个 PDF 没能存下"
+
+#. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
 #. the owlit card or popup: bring the owlit app to the front
 #: apps/extension/src/lib/say.ts
@@ -7213,8 +7462,8 @@ msgid "The PDF on this page is another paper's. owlit keeps looking."
 msgstr "这个页面上的 PDF 是别的论文的，owlit 会继续找。"
 
 #: apps/extension/src/lib/say.ts
-msgid "Let owlit read {host} to get its PDF with your access."
-msgstr "允许 owlit 读取 {host}，才能用你的访问权限取到 PDF。"
+msgid "owlit doesn't have permission for {host} yet. Allow it, and owlit saves the PDF."
+msgstr "owlit 还没有 {host} 的权限。允许后，owlit 就会存下 PDF。"
 
 #: apps/extension/src/lib/say.ts
 msgid "PDF saved to owlit"
@@ -7233,13 +7482,12 @@ msgid "In your Library, with its PDF"
 msgstr "已在你的文献库中，PDF 也在"
 
 #: apps/extension/src/lib/say.ts
-#: apps/extension/src/popup/Popup.tsx
-msgid "In your Library, without its PDF"
-msgstr "已在你的文献库中，还没有 PDF"
+msgid "owlit needs this PDF"
+msgstr "owlit 需要这篇论文的 PDF"
 
 #: apps/extension/src/lib/say.ts
-msgid "This page names none. owlit keeps looking."
-msgstr "这个页面上没有 PDF，owlit 会继续找。"
+msgid "Click the PDF button on this page. owlit saves the PDF when it opens."
+msgstr "点这个页面上的 PDF 按钮，PDF 打开时 owlit 会存下它。"
 
 #: apps/extension/src/lib/say.ts
 msgid "{listing} lists papers"
@@ -7262,12 +7510,25 @@ msgid "Add the paper from its page."
 msgstr "请在论文的页面上添加它。"
 
 #: apps/extension/src/lib/say.ts
-msgid "Let owlit read {host}"
-msgstr "允许 owlit 读取 {host}"
+msgid "owlit needs your permission for {host}"
+msgstr "owlit 需要你允许访问 {host}"
 
 #: apps/extension/src/lib/say.ts
-msgid "It gets the PDF there with your access."
-msgstr "它会用你的访问权限在那里取 PDF。"
+msgid "Allow it, and owlit gets the PDF there with your access."
+msgstr "允许后，owlit 会用你的访问权限从那里取到 PDF。"
+
+#: apps/extension/src/lib/say.ts
+msgid "Saving PDFs you open is turned off."
+msgstr "已关闭自动收下你打开的 PDF。"
+
+#. button: turns on taking the PDFs the user opens for papers in their Library
+#: apps/extension/src/lib/say.ts
+msgid "Turn on"
+msgstr "打开"
+
+#: apps/extension/src/lib/say.ts
+msgid "owlit doesn't have permission for {host} yet. Allow it, and owlit saves this PDF."
+msgstr "owlit 还没有 {host} 的权限。允许后，owlit 就会存下这个 PDF。"
 
 #: apps/extension/src/lib/say.ts
 #: apps/extension/src/popup/Popup.tsx
@@ -7321,28 +7582,16 @@ msgid "Press owlit's button to try again."
 msgstr "按 owlit 按钮再试一次。"
 
 #: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for owlit to read {host}} other {# papers wait for owlit to read {host}}}"
-msgstr "{papers, plural, other {# 篇论文在等 owlit 读取 {host}}}"
+msgid "{n, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
+msgstr "{n, plural, other {换个网络通常就能进去，然后 owlit 会继续获取这 # 篇论文。}}"
 
 #: apps/extension/src/lib/say.ts
-msgid "{host} blocks this browser"
-msgstr "{host} 拦截了这个浏览器"
+msgid "Verify on this page; owlit goes on by itself once you have."
+msgstr "在这个页面上完成验证，owlit 会自己接着取。"
 
 #: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {Another network usually gets past it; owlit goes on with # paper then.} other {Another network usually gets past it; owlit goes on with # papers then.}}"
-msgstr "{papers, plural, other {换个网络通常就能进去，然后 owlit 会继续获取这 # 篇论文。}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for you to pass the check here} other {# papers wait for you to pass the check here}}"
-msgstr "{papers, plural, other {# 篇论文在等你通过这里的验证}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "{papers, plural, one {# paper waits for your sign-in here} other {# papers wait for your sign-in here}}"
-msgstr "{papers, plural, other {# 篇论文在等你在这里登录}}"
-
-#: apps/extension/src/lib/say.ts
-msgid "Going on once you're through."
-msgstr "你通过后就继续。"
+msgid "owlit goes on by itself once you're signed in."
+msgstr "你登录后，owlit 会自己接着取。"
 
 #: apps/extension/src/lib/say.ts
 msgid "You're through"
@@ -7351,6 +7600,61 @@ msgstr "已通过"
 #: apps/extension/src/lib/say.ts
 msgid "{papers, plural, one {owlit goes on with # paper.} other {owlit goes on with # papers.}}"
 msgstr "{papers, plural, other {owlit 接着取 # 篇论文。}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{total, plural, one {Done: saved the PDF} other {Done: saved all # PDFs}}"
+msgstr "{total, plural, one {完成：PDF 已保存} other {完成：# 篇 PDF 全部已保存}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "Done: saved {saved} of {total}"
+msgstr "完成：已保存 {total} 篇中的 {saved} 篇"
+
+#: apps/extension/src/lib/say.ts
+msgid "One paper to download manually"
+msgstr "有一篇论文需要手动下载"
+
+#: apps/extension/src/lib/say.ts
+msgid "Paper {n} of {total} to download manually"
+msgstr "手动下载：第 {n} 篇，共 {total} 篇"
+
+#: apps/extension/src/lib/say.ts
+msgid "Click the PDF button on this page; owlit saves it. No PDF here? Skip it."
+msgstr "点击本页的 PDF 按钮，owlit 会保存它。这里没有 PDF？跳过即可。"
+
+#. the owlit card in a web page: ends the walk through the papers to download manually, on its last paper
+#: apps/extension/src/lib/say.ts
+msgid "Finish"
+msgstr "完成"
+
+#. the owlit card in a web page: how many of the papers to download manually have their PDF so far
+#: apps/extension/src/lib/say.ts
+msgid "{saved} saved"
+msgstr "已保存 {saved} 篇"
+
+#. popup: owlit fetches the papers that waited at this site; how many came so far
+#: apps/extension/src/lib/say.ts
+msgid "Going on · {done} of {total}"
+msgstr "继续中 · {done}/{total}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{papers, plural, one {The one paper owlit is getting} other {One of the # papers owlit is getting}}"
+msgstr "{papers, plural, other {owlit 正在获取的 # 篇论文之一}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to sign in at {host}} other {# still need you to sign in at {host}}}"
+msgstr "{n, plural, other {# 篇还需要你在 {host} 登录}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to sign in to {library}} other {# still need you to sign in to {library}}}"
+msgstr "{n, plural, other {# 篇还需要你登录{library}}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs you to verify you're human on {host}} other {# still need you to verify you're human on {host}}}"
+msgstr "{n, plural, other {# 篇还需要你在 {host} 完成真人验证}}"
+
+#: apps/extension/src/lib/say.ts
+msgid "{n, plural, one {# still needs your permission for {host}} other {# still need your permission for {host}}}"
+msgstr "{n, plural, other {# 篇还需要你允许访问 {host}}}"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "owlit needs to read {site} to get the PDF with your access."
@@ -7416,11 +7720,6 @@ msgstr "把这个 PDF 交给 owlit"
 #: apps/share-web/src/App.tsx
 msgid "{0} et al."
 msgstr "{0} 等"
-
-#. popup: owlit fetches the papers that waited at this site; how many came so far
-#: apps/extension/src/popup/Popup.tsx
-msgid "Going on · {done} of {total}"
-msgstr "继续中 · {done}/{total}"
 
 #: apps/extension/src/popup/Popup.tsx
 msgid "Open in owlit"
@@ -8087,6 +8386,10 @@ msgstr "owlit 无法判断那是哪篇论文。"
 #: packages/core/src/library/library.ts
 msgid "Another paper in your library already has that id."
 msgstr "文献库中已有另一篇论文使用这个 ID。"
+
+#: packages/core/src/library/library.ts
+msgid "That Get PDFs is over."
+msgstr "这次获取 PDF 已经结束了。"
 
 #: packages/core/src/library/library.ts
 msgid "owlit can't look for PDFs here."

@@ -14,7 +14,8 @@ import type { ClaudeNote, MemoryKind, MemoryLine } from "./memory.ts"
 import type { DocShare, SharePermission, ShareComment } from "./share.ts"
 import type { ProxyPreset, SecretName, SettingsCheck, SettingsCheckTarget, SettingsPatch, SettingsView } from "./settings.ts"
 import type { UpdateCheck, UpdatesView } from "./updates.ts"
-import type { ExtensionOpened, ExtensionView, ExtensionWait } from "./extension.ts"
+import type { ExtensionOpened, ExtensionView } from "./extension.ts"
+import type { WaitId } from "./pdf-keys.ts"
 
 // The one way to talk to core: JSON-RPC 2.0 requests with responses, and notifications from core to
 // its clients. The transport (Electron IPC for the window, a Unix socket for agents and the owlit
@@ -79,8 +80,20 @@ export interface Methods {
   "extension.forget": { params: { id: string }; result: ExtensionView }
   // A waiting line's one thing to do: the extension opens the sign-in, the check or its Allow page in its
   // own browser; with no extension connected, owlit opens a sign-in or a check in the browser it was
-  // paired in
-  "extension.open": { params: { kind: ExtensionWait["kind"]; host: string }; result: ExtensionOpened }
+  // paired in. Core notes it as the wait's opened.
+  "extension.open": { params: { wait: WaitId }; result: ExtensionOpened }
+  // The user says they got through at a site that waits on them (I've signed in, I've verified it): owlit
+  // tries it at once, as when the extension sees them through, and notes it as the wait's retried. false
+  // when that wait is no longer up.
+  "extension.resume": { params: { wait: WaitId }; result: { resumed: boolean } }
+  // Puts away the line of a wait the user got through (ExtensionView.going, ExtensionWait.going)
+  "extension.dismissGoing": { params: { wait: WaitId }; result: null }
+  // A publisher's page opened in the browser the extension was paired in, the one with the user's access
+  // (a paper to download by hand); none when owlit can't open pages there
+  "extension.openPage": { params: { url: string }; result: ExtensionOpened }
+  // A walk through these papers to download by hand, one tab at a time, in the browser of the extension
+  // asking for work now (WalkStep); replaces one going on. none when no extension is connected.
+  "extension.walk": { params: { ids: string[] }; result: ExtensionOpened }
   // Owlit updating itself (core updates/): where it stands, a check now, the switch for checking by
   // itself, and the window having shown "Updated to"
   "updates.get": { params: void; result: UpdatesView }
@@ -493,8 +506,14 @@ export interface Methods {
   // paper comes back with pdf, or with pdfState saying what was tried.
   "library.fetchPdf": { params: { id: string }; result: Paper }
   // Get them all: every one of these papers without its PDF goes to the extension in the user's browser,
-  // asked for; which went, which have no DOI to go by, or that no extension is connected
-  "library.fetchPdfs": { params: { ids: string[] }; result: { queued: string[]; noDoi: string[]; noExtension?: true } }
+  // asked for; which went, which have no DOI to go by, or that no extension is connected. run: the Get
+  // PDFs they went in (ExtensionView.runs), a new one or the one going on, when any went.
+  "library.fetchPdfs": { params: { ids: string[] }; result: { queued: string[]; noDoi: string[]; noExtension?: true; run?: string } }
+  // Stop on Get PDFs: its papers leave the extension's queue, the ones not handed over yet never are;
+  // their records stay as they were, and one being fetched now still has its answer noted
+  "pdfRuns.stop": { params: { run: string }; result: null }
+  // Puts away a Get PDFs that ended, or was stopped
+  "pdfRuns.dismiss": { params: { run: string }; result: null }
   // A PDF file the user has (path from window.owlit.pathForFile), copied in as the paper's file
   "library.attachPdf": { params: { id: string; path: string }; result: Paper }
   // An empty note removes note.md

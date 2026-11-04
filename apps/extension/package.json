@@ -18,7 +18,8 @@
     "@owlit/protocol": "workspace:*",
     "lucide-react": "^1.53.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "tldts": "^7.4.19"
   },
   "devDependencies": {
     "@lingui/vite-plugin": "6.9.1",

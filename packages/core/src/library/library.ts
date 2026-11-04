@@ -2,6 +2,8 @@ import { t } from "@lingui/core/macro"
 import {
   DEFAULT_NOTE_LANGUAGE,
   RpcErrorCode,
+  type GateKey,
+  type ProxySettings,
   type DigestSource,
   type ThreadPaper,
   type FoundPaper,
@@ -30,13 +32,15 @@ import {
   type TaskPriority,
 } from "@owlit/protocol"
 import { watch, type FSWatcher } from "node:fs"
-import { createHash } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { HttpError, hostOf, type Http } from "../net/http.ts"
-import { extensionRoute, type ExtensionRoute } from "../extension/route.ts"
-import type { KnownPause } from "../extension/work.ts"
+import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
+import { movedOn, type KnownPending, type KnownWait } from "../extension/work.ts"
+import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
+import { gateOf, gateOfTry } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -125,19 +129,38 @@ export interface LibraryServices {
 // A paper for the extension to fetch, and where
 export interface ExtensionPaper extends ExtensionRoute {
   paperId: string
+  // The extension's tries its record holds, which numbers the next one (ExtensionWork's work item ids)
+  tries?: number
+  // The gate its route predicts, and the one its newest extension try met (keys.ts); worked out from
+  // the route when absent
+  predicted?: GateKey
+  gate?: GateKey
+  // The library's proxy, when the paper goes through it
+  proxy?: ProxySettings
 }
 
 export interface ExtensionFetcher {
   // An extension is asking for work: papers the plain routes miss go to it; without one they have no
   // PDF until it connects (Library.handToExtension)
   connected(): boolean
-  // askedFor: the user waits on this paper (Look again, Get them all). paused: its record says its site
-  // waits for the user, which the queue takes over without a try first
-  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean, paused?: KnownPause): void
-  // Where the paper stands with the extension, while it has it
+  // An extension is paired, connected now or not: a paper for it goes to its queue while its browser is
+  // closed, and is handed over once it connects
+  paired?(): Promise<boolean>
+  // askedFor: the user waits on this paper (Look again, Get them all)
+  fetch(library: Library, paper: ExtensionPaper, askedFor: boolean): void
+  // The waits the workspace's papers' records say they met, as it opens, and the papers it would hand
+  // over once the extension asks
+  restore(library: Library, known: KnownWait[], proxy: ProxySettings | undefined, pending?: KnownPending[]): Promise<void>
+  // The papers that were in its queues for this library when owlit last ran on this machine
+  queuedBefore(library: Library): Promise<ReadonlySet<string>>
+  // Where the paper stands with the extension, while it has it or a wait holds it from its record
   holding(library: Library, id: string): PdfState["extension"] | undefined
+  // The paper is in one of the extension's queues (not only held from its record)
+  inQueue(library: Library, id: string): boolean
   // The paper no longer wants fetching: it has its PDF, or it left the library
   drop(library: Library, id: string): void
+  // Papers of a Get PDFs changed, or the run did: the window hears the runs again
+  runsChanged(library: Library): void
 }
 
 const notFound = (id: string) => new RpcFailure(RpcErrorCode.NotFound, t`That paper is not in the library.`, { id })
@@ -202,6 +225,11 @@ export class Library {
   private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
+  // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
+  private readonly batchStopped = new Set<string>()
+  // The workspace's Get PDFs: the one going on, else the last, until put away; in memory only
+  // (extension/runs.ts)
+  private pdfRuns: PdfRun[] = []
   // Every paper's cite key by id, and the keys in use: what a new key is checked against (cite-key.ts)
   private citeKeyOf = new Map<string, string>()
   private keysTaken = new Set<string>()
@@ -678,7 +706,7 @@ export class Library {
   // site paused for a sign-in is tried once more. Which went, and which have no DOI to go by; nothing
   // when no extension is connected. The queueing goes on after the answer: each paper's page is looked
   // up first, and the window follows the papers themselves.
-  async fetchPdfs(ids: string[]): Promise<{ queued: string[]; noDoi: string[]; noExtension?: true }> {
+  async fetchPdfs(ids: string[]): Promise<{ queued: string[]; noDoi: string[]; noExtension?: true; run?: string }> {
     if (!this.services.extension?.connected()) return { queued: [], noDoi: [], noExtension: true }
     const queued: string[] = []
     const noDoi: string[] = []
@@ -692,12 +720,117 @@ export class Library {
         toQueue.push({ id, doi: record.ids.doi })
       }
     }
+    for (const id of queued) this.batchStopped.delete(id)
+    if (!queued.length) return { queued, noDoi }
+    const run = await this.runFor(queued)
     void (async () => {
-      for (const { id, doi } of toQueue) {
-        if (!(await this.toExtension(id, doi, "waiting"))) return
+      for (const [i, { id, doi }] of toQueue.entries()) {
+        // Stopped while the papers before it were being looked up, or while its own page was
+        let stopped = this.batchStopped.delete(id)
+        if (stopped) continue
+        if (!(await this.toExtension(id, doi, "waiting", undefined, () => (stopped = this.batchStopped.delete(id))))) {
+          // The extension went: the rest stay out until the user asks again, and the run says so rather
+          // than going on for ever
+          for (const rest of toQueue.slice(i)) if (!run.handed.has(rest.id)) run.away.add(rest.id)
+          break
+        }
+        if (stopped) continue
+        run.handed.add(id)
+        run.away.delete(id)
       }
-    })().catch((error) => console.error("[core] couldn't hand papers to the extension", error))
-    return { queued, noDoi }
+    })()
+      .catch((error) => console.error("[core] couldn't hand papers to the extension", error))
+      .finally(() => {
+        run.handing!--
+        this.services.extension?.runsChanged(this)
+      })
+    return { queued, noDoi, run: run.id }
+  }
+
+  // The run these papers go in, its hand-over begun: the one going on, which keeps its start, or a new one
+  private async runFor(ids: string[]): Promise<PdfRun> {
+    await this.pdfRunViews()
+    let run = this.pdfRuns.findLast((r) => r.endedAt === undefined && r.stoppedAt === undefined && r.dismissedAt === undefined)
+    if (!run) {
+      run = { id: randomUUID(), started: Date.now(), ids: [], handed: new Set(), away: new Set() }
+      // The window shows the newest run only: the ones that ended go, so they aren't counted again from
+      // their papers every time the runs are shown
+      this.pdfRuns = [run]
+    }
+    run.ids = [...new Set([...run.ids, ...ids])]
+    // Asked for again: in line once more, whatever the last hand-over met
+    for (const id of ids) run.away.delete(id)
+    // Its hand-over starts now (fetchPdfs), before the window counts the run
+    run.handing = (run.handing ?? 0) + 1
+    this.services.extension?.runsChanged(this)
+    return run
+  }
+
+  // Stop on a run: its papers leave the extension's queue, and the ones not handed over yet never are
+  async stopRun(id: string) {
+    const run = this.pdfRuns.find((r) => r.id === id)
+    if (!run) throw new RpcFailure(RpcErrorCode.NotFound, t`That Get PDFs is over.`, { id })
+    run.stoppedAt ??= Date.now()
+    await this.stopPapers(run.ids)
+  }
+
+  // A run the window puts away: it is no longer shown
+  dismissRun(id: string) {
+    const run = this.pdfRuns.find((r) => r.id === id)
+    if (!run) return
+    run.dismissedAt = Date.now()
+    this.pdfRuns = this.pdfRuns.filter((r) => r.dismissedAt === undefined)
+    this.services.extension?.runsChanged(this)
+  }
+
+  // The runs not put away, the newest first, counted from their papers now
+  async pdfRunViews() {
+    const connected = !!this.services.extension?.connected()
+    const views = []
+    for (const run of [...this.pdfRuns].reverse()) {
+      const papers = new Map<string, RunPaper | undefined>()
+      for (const id of run.ids) papers.set(id, await this.runPaper(id))
+      views.push(runView(run, papers, connected))
+    }
+    return views
+  }
+
+  private async runPaper(id: string): Promise<RunPaper | undefined> {
+    const paper = await this.get(id)
+    if (!paper) return undefined
+    if (!paper.pdf) return { paper }
+    const placed = (await this.acquisitions.read(id))?.tried.findLast((t) => t.ended === "pdf")
+    return { paper, ...(placed ? { placedBy: placed.by } : {}) }
+  }
+
+  // The papers that went on after the user got through at a wait (ExtensionWait.going): how many came
+  // back with their PDF, and how many ended either way, since at (or since it went on, from). A paper
+  // still with the extension, or not tried since, is still going; one that left the line at gate for
+  // another wait (movedOn) has ended there.
+  async goingCounts(going: { at: number; ids: string[]; from?: Record<string, number> }, gate?: GateKey): Promise<{ saved: number; ended: number }> {
+    let saved = 0
+    let ended = 0
+    for (const id of going.ids) {
+      const paper = await this.get(id)
+      const since = going.from?.[id] ?? going.at
+      const held = paper?.pdfState?.extension
+      if (paper?.pdf) saved++
+      if (!paper || paper.pdf || (gate && movedOn(gate, held)) || (!held && paper.pdfState?.tried.some((t) => t.by !== "search" && t.at >= since))) ended++
+    }
+    return { saved, ended }
+  }
+
+  // A stopped run's papers leave the extension's queue, and the ones not handed over yet never are. Their
+  // records stay as they were; one being fetched now still has its answer noted.
+  private async stopPapers(ids: string[]) {
+    for (const id of ids) {
+      const held = this.services.extension?.holding(this, id)
+      // Its record would say it waits for the user at a wait that is going: the user stopped it instead
+      if (held?.wait) await this.acquisitions.noteTried(id, { by: "person", ended: "stopped", at: Date.now() })
+      if (held) this.services.extension!.drop(this, id)
+      else this.batchStopped.add(id)
+    }
+    await this.announce(ids)
   }
 
   // Looks for the paper's PDF now (the user asked) and waits; the paper as it then is
@@ -1285,6 +1418,7 @@ export class Library {
     await removeFigures(this.root, id)
     await this.acquisitions.notePlaced(id, { by: route.startsWith("extension") ? "extension" : "person", route, sha256: sha }, { held: true })
     this.services.extension?.drop(this, id)
+    this.touchRuns([id])
     this.pdfHashes?.set(sha, id)
     this.queueText(id, priority)
   }
@@ -1700,12 +1834,14 @@ export class Library {
           if (!tried.length) tried.push({ by: "search", ended: "no-copy", at: Date.now() })
           // The publisher may still give it to the user's browser, through the extension: their cookies,
           // their library's access. Not on owlit's own account once the publisher said no (to the
-          // extension, or to the user's browser): only the user asking looks again there.
+          // extension, or to the user's browser), nor once the extension couldn't open its page, which it
+          // would fail to open again the same way, nor once the user found none there: only the user
+          // asking looks again there.
           const before = await this.acquisitions.read(id)
           const told = before && standing(before.tried).reason?.ended
-          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there"
+          const saidNo = told === "no-access" || told === "not-offered" || told === "not-there" || told === "unreadable" || told === "skipped"
           if (!(await this.acquisitions.noteTried(id, tried, { signal: ctx.signal, look: true }))) return
-          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal)
+          if (record.ids.doi && (ctx.task.priority !== "background" || !saidNo)) await this.toExtension(id, record.ids.doi, ctx.task.priority, ctx.signal, undefined, { closed: true })
           await this.announce([id])
         },
       }),
@@ -1892,13 +2028,23 @@ export class Library {
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
-  // set); false when no extension is asking for work. paused: what its record says its site waits for.
-  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, paused?: KnownPause) {
+  // set); false when no extension is asking for work. stopped: asked once its page is looked up, right
+  // before it is queued: true leaves it out. closed: queued too while the paired browser is closed, where
+  // it waits for it (the window says so) and goes once it connects; a paper owlit's own look missed
+  // otherwise reads "No PDF found" with nothing about the browser, until the browser asks
+  private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean, { closed = false } = {}) {
     const extension = this.services.extension
-    if (!extension?.connected()) return false
+    if (!extension) return false
+    if (!extension.connected() && !(closed && (await extension.paired?.()))) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
-    const route = extensionRoute(doi, (await this.services.settings()).proxy, registered)
-    extension.fetch(this, { paperId: id, ...route }, priority === "waiting", paused)
+    const libraryProxy = (await this.services.settings()).proxy
+    const route = extensionRoute(doi, libraryProxy, registered)
+    const proxy = route.proxied ? libraryProxy : undefined
+    const predicted = gateOf(route.url, proxy)
+    const own = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension") ?? []
+    const met = own.at(-1) && gateOfTry(own.at(-1)!, proxy, predicted)
+    if (stopped?.()) return true
+    extension.fetch(this, { paperId: id, ...route, tries: own.length, predicted, ...(met ? { gate: met } : {}), ...(proxy ? { proxy } : {}) }, priority === "waiting")
     return true
   }
 
@@ -1907,26 +2053,69 @@ export class Library {
   // this a restart would strand the papers waiting at a site for the user's sign-in, and papers whose
   // plain routes missed while no extension was connected would wait for their next back-off look; with
   // it the Library fills in by itself, at the queue's pace. A paper whose newest try met a sign-in, a
-  // check or a missing permission brings that pause with it, so the site's line is up at once and the
-  // extension doesn't try the site again just to learn what the record says.
+  // check or a missing permission falls under the wait restoreWaits put up for it, by its try's gate.
   async handToExtension() {
     const extension = this.services.extension
     if (!extension?.connected()) return
-    const waiting: { id: string; doi: string; at: number; paused?: KnownPause }[] = []
+    const waiting: { id: string; doi: string; at: number }[] = []
     for (const id of await this.ids()) {
-      if (extension.holding(this, id) || (await hasPdfFile(this.root, id))) continue
+      // Held from its record alone (restoreWaits) isn't in a queue yet
+      if (extension.inQueue(this, id) || (await hasPdfFile(this.root, id))) continue
       const acquisition = await this.acquisitions.read(id)
       const reason = acquisition && forExtension(acquisition)
-      const doi = reason && (await readRecord(this.root, id))?.ids.doi
+      // Or one that was with the extension before owlit restarted, which a batch handed over before any
+      // try of it was noted (restoreWaits)
+      const held = !reason && !!extension.holding(this, id)
+      const doi = (reason || held) && (await readRecord(this.root, id))?.ids.doi
       if (!doi) continue
-      const kind = waitsForUser(reason) ? waitedFor(reason) : undefined
-      waiting.push({ id, doi, at: reason.at, ...(kind ? { paused: { kind } } : {}) })
+      waiting.push({ id, doi, at: reason?.at ?? 0 })
     }
     waiting.sort((a, b) => a.at - b.at)
-    // One at a time, so each site's queue keeps this order
-    for (const { id, doi, paused } of waiting) {
-      if (!(await this.toExtension(id, doi, "background", undefined, paused))) return
+    // One at a time, so each lane's queue keeps this order
+    for (const { id, doi } of waiting) {
+      if (!(await this.toExtension(id, doi, "background"))) return
     }
+  }
+
+  // The waits the papers' records say they met, put up as the workspace opens, before any extension
+  // connects: a paper whose newest try stopped where only the user gets through, at the gate it met.
+  // The papers that were with the extension when owlit last ran say so again from then on, not what
+  // owlit's own routes found, until the extension asks and they are handed over (handToExtension).
+  async restoreWaits() {
+    const extension = this.services.extension
+    if (!extension) return
+    const proxy = (await this.services.settings()).proxy
+    const known: KnownWait[] = []
+    const pending: KnownPending[] = []
+    // In the extension's queues when owlit last ran on this machine
+    const queuedBefore = await extension.queuedBefore(this)
+    for (const id of await this.ids()) {
+      if (await hasPdfFile(this.root, id)) continue
+      const acquisition = await this.acquisitions.read(id)
+      const reason = acquisition && forExtension(acquisition)
+      const kind = reason && waitsForUser(reason) ? waitedFor(reason) : undefined
+      const own = acquisition?.tried.filter((t) => t.by === "extension") ?? []
+      // Not waiting for the user: with the browser, waiting for it to ask, when it was in the
+      // extension's queue or its newest try there reached nothing (the gate it reached nothing at)
+      if (!kind || !reason) {
+        const reached = reason?.by === "extension" ? reason : undefined
+        if (!reached && !queuedBefore.has(id)) continue
+        const gate = reached && gateOfTry(reached, proxy)
+        pending.push({ paperId: id, tries: own.length, ...(gate ? { gate } : {}), ...(reached?.host ? { host: reached.host } : {}) })
+        continue
+      }
+      const doi = (await readRecord(this.root, id))?.ids.doi
+      if (!doi) continue
+      // Through the proxy when one is set: the try's host alone doesn't say, and its pages read back
+      // the same either way
+      const gate = gateOfTry(reason, proxy, gateOf(`https://doi.org/${doi}`))
+      if (!gate) continue
+      // The library's sign-in page for the proxy's own sign-in, as ExtensionWork.settle opens: one found
+      // by a redirect has no page of its own, and the DOI's link would lead past the proxy
+      const signIn = kind === "sign-in" && gate.startsWith("proxy:") && proxy ? proxySignIn(proxy) : undefined
+      known.push({ paperId: id, kind, gate, url: signIn ?? reason.url ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
+    }
+    await extension.restore(this, known, proxy, pending)
   }
 
   // A try the extension made, noted without telling the window: its queue says when the paper's
@@ -1935,9 +2124,21 @@ export class Library {
     return this.acquisitions.noteTried(id, tried)
   }
 
+  // The user looked at the paper's page in their browser and found no PDF there (Skip, walking through the
+  // manual downloads): their try, which stands as the paper's reason, so neither the Library nor owlit's
+  // daily look offers it again (nextLookAt)
+  async noteSkipped(id: string) {
+    if (await this.acquisitions.noteTried(id, { by: "person", ended: "skipped", at: Date.now() })) await this.announce([id])
+  }
+
   // The window hears these papers again: their standing with the extension changed
   pdfChanged(ids: string[]) {
     return this.announce(ids)
+  }
+
+  // A run shown has one of these papers: it is counted again
+  private touchRuns(ids: string[]) {
+    if (this.pdfRuns.some((run) => ids.some((id) => run.ids.includes(id)))) this.services.extension?.runsChanged(this)
   }
 
   // Queues a step for a paper when there is a scheduler that can run its kind; otherwise the step is skipped
@@ -1968,6 +2169,7 @@ export class Library {
       else removed.push(id)
     }
     if (papers.length || removed.length) this.onChange({ papers, removed })
+    this.touchRuns(ids)
   }
 
   private async settle() {

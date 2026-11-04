@@ -1,6 +1,7 @@
 import type { ActorId } from "./changes.ts"
 import type { PaperView } from "./activity.ts"
 import type { ExtensionWait } from "./extension.ts"
+import type { GateKey, LaneKey, WaitId } from "./pdf-keys.ts"
 
 // Library domain types. A paper is one record: facts about it plus the user's judgement
 // (star, status, tags). Highlights and notes are separate records keyed by paper.
@@ -40,7 +41,12 @@ export interface PaperPdf {
 // blocked: the site's firewall turned the browser away (by its network, mostly).
 // offline: nothing could be reached. no-permission: the browser extension may not read the site until
 // the user allows it there (an optional host permission, asked for from the extension's own button).
-export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission"
+// unreadable: the browser extension couldn't open the publisher's page (see WorkEnding). skipped: the
+// person looked at the publisher's page in their browser, walked through the manual downloads, and
+// found no PDF there (by "person").
+// stopped: the person stopped getting it (Stop on Get PDFs) while the extension waited for them at its
+// site, so nothing waits for them there any more.
+export type PdfEnded = "pdf" | "no-copy" | "no-access" | "not-offered" | "not-there" | "check" | "blocked" | "sign-in" | "offline" | "no-permission" | "unreadable" | "skipped" | "stopped"
 
 // One try, by the route it took: owlit's own search for a copy, the person (a file they dropped or chose)
 // or the browser extension.
@@ -53,6 +59,11 @@ export interface PdfTry {
   host?: string
   route?: string
   title?: string
+  // The extension's try: the gate it met (pdf-keys.ts), and the page it ended on without its query or
+  // fragment, since those hold challenge tokens and proxy session ids, and the record sits in a folder
+  // that may be synced
+  gate?: GateKey
+  url?: string
 }
 
 export interface PdfState {
@@ -66,10 +77,32 @@ export interface PdfState {
   reason?: PdfTry
   // When owlit's back-off look runs next; absent when it won't
   nextLook?: number
-  // The browser extension has the paper: waiting its turn at this site, being fetched now (fetching), or
-  // held while the site waits for the user (waits: a sign-in, a check, a way past its block, the
-  // extension being allowed there). Kept in memory only, with the extension's queue.
-  extension?: { host: string; fetching?: boolean; waits?: ExtensionWait["kind"]; proxied?: boolean }
+  // The browser extension has the paper: waiting its turn, being fetched now (fetching), or held under a
+  // wait for the user (a sign-in, a check, a way past a site's block, the extension being allowed there).
+  // Kept in memory only, with the extension's queue. lane, gate: its keys (pdf-keys.ts); attempt: the
+  // extension's try it is on or will make next; wait: the wait it is under (ExtensionWait.id), with that
+  // wait's kind copied in for readers without the waits list (pdfWait, the agent's words); at: where it
+  // is, as said: under a wait, the wait's at; else the site its fetch goes to. Out for its wait's one
+  // try, it is both fetching and under the wait (trying).
+  extension?: {
+    lane: LaneKey
+    gate: GateKey
+    attempt: number
+    fetching?: boolean
+    wait?: WaitId
+    kind?: ExtensionWait["kind"]
+    at: string
+    // In line, but its last fetch reached nothing, so it waits until then. at: the host that didn't
+    // answer (the publisher's, or the library proxy's when nothing through it can go)
+    unreachable?: { at: string; until: number }
+    // In line through the library's proxy, which takes one paper at a time: when its turn comes, as near
+    // as core can tell from the papers ahead of it and the proxy's pace
+    turnAt?: number
+    // Under its wait, whose one try is due as part of something the user started (Get PDFs, Look again):
+    // the extension goes on to fetch it, in a tab of its own past a check, so it is still going until
+    // that try ends
+    trying?: true
+  }
 }
 
 export interface Paper {

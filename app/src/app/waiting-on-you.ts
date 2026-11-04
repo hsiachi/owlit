@@ -14,6 +14,7 @@ import { importOrigin } from "@/features/library/components/ImportBanner"
 import type { Chat, Connector, ExtensionWait, ImportSummary } from "@owlit/protocol"
 import { useAskingImports } from "@/features/library/imports"
 import { openSettings, useSettings } from "@/features/settings/store"
+import { libraryNameOf } from "@/features/settings/library-name"
 import { useExtensionWaits } from "@/features/extension/store"
 import { siteWaitItems } from "@/features/extension/waits"
 
@@ -49,6 +50,8 @@ export interface WaitingSources {
   background?: string
   imports: ImportSummary[]
   siteWaits: ExtensionWait[]
+  // The library behind the proxy, by name, for a sign-in there (libraryNameOf)
+  library?: string
   // A reply Owlit finished while the user wasn't looking at its chat
   finished: boolean
   now?: number
@@ -76,17 +79,18 @@ export function useWaitingOnYou(): WaitingItem[] {
   const background = useSettings((s) => s.view?.backgroundAgent)
   const imports = useAskingImports()
   const siteWaits = useExtensionWaits()
+  const library = useSettings((s) => libraryNameOf(s.view?.library.proxy))
 
   return useMemo(
-    () => waitingItems({ chats, streaming, connectors, selected, background, imports, siteWaits, finished }, navigate),
-    [chats, streaming, finished, connectors, selected, background, imports, siteWaits, navigate],
+    () => waitingItems({ chats, streaming, connectors, selected, background, imports, siteWaits, library, finished }, navigate),
+    [chats, streaming, finished, connectors, selected, background, imports, siteWaits, library, navigate],
   )
 }
 
 // The list itself: each row the thing and the way to its fix. Nothing in it needs clearing: a row is
 // there while the work it blocks is, and leaves when that moves.
 export function waitingItems(src: WaitingSources, navigate: (to: string) => unknown): WaitingItem[] {
-  const { streaming, connectors, selected, background, imports, siteWaits, finished, now = Date.now() } = src
+  const { streaming, connectors, selected, background, imports, siteWaits, library, finished, now = Date.now() } = src
   const out: WaitingItem[] = []
   for (const chat of src.chats) {
     const wait = chatWait(chat, !!streaming[chat.id], now)
@@ -147,7 +151,7 @@ export function waitingItems(src: WaitingSources, navigate: (to: string) => unkn
     })
   }
   // PDFs: only the sites the extension waits at, once the user asked for one of their papers
-  out.push(...siteWaitItems(siteWaits, () => navigate("/library")))
+  out.push(...siteWaitItems(siteWaits, () => navigate("/library"), library))
   if (finished) out.push({ key: "chat:finished", place: "/chat", tone: "owlit", icon: KIND_ICON.chat, what: t`Owlit finished since you last looked`, open: { label: t({ message: "Open", comment: "verb: open the chat that waits" }), run: () => navigate("/chat") } })
   return out
 }

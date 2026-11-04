@@ -43,6 +43,28 @@ const untilAborted = (signal: AbortSignal) =>
   new Promise<void>((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)))
 
 describe("Scheduler", () => {
+  it("lets a running task see the priority a request that joined it raised", async () => {
+    const started = deferred()
+    const go = deferred()
+    const seen: string[] = []
+    const look = defineTask("fake.look", {
+      lane: "network",
+      async run(ctx) {
+        seen.push(ctx.task.priority)
+        started.resolve()
+        await go.promise
+        seen.push(ctx.task.priority)
+      },
+    })
+    const { scheduler } = await newScheduler([look])
+    const background = scheduler.enqueue("fake.look", "paper-1", "background")
+    await started.promise
+    const joined = scheduler.run("fake.look", "paper-1", "waiting")
+    go.resolve()
+    expect((await joined).id).toBe(background.id)
+    expect(seen).toEqual(["background", "waiting"])
+  })
+
   it("runs at most three network tasks at once", async () => {
     let running = 0
     let most = 0

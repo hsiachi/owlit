@@ -9,12 +9,10 @@ import { RpcError } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
 import { useFoldWhile } from "../form-state"
 import { Group, IconAction, List, Note, Picker, Row } from "../parts"
+import { proxyPresetName } from "../library-name"
 import { setProxy, signInToProxy, useSettings } from "../store"
 
 type Choice = "none" | ProxyPreset | "other"
-
-// PROXY_PRESETS names are English, for agents and logs; the picker shows them in the reader's language
-const presetName = (id: ProxyPreset): string => ({ tsinghua: t`Tsinghua University` })[id]
 
 const hostOf = (base: string) => base.replace(/^https?:\/\//, "").replace(/\/.*$/, "")
 const describe = (proxy: ProxySettings) => {
@@ -32,7 +30,7 @@ export function ProxyGroup() {
 
   const options: { value: Choice; label: string }[] = [
     { value: "none", label: t({ message: "None", comment: "no library proxy" }) },
-    ...(Object.keys(PROXY_PRESETS) as ProxyPreset[]).map((id) => ({ value: id, label: presetName(id) })),
+    ...(Object.keys(PROXY_PRESETS) as ProxyPreset[]).map((id) => ({ value: id, label: proxyPresetName(id) })),
     { value: "other", label: t`Another library…` },
   ]
   const pick = (next: Choice) => {

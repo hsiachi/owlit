@@ -11,9 +11,14 @@ import type { Paper, PdfEnded, PdfTry } from "./library.ts"
 //   ExtensionView.waits, covers every such paper)
 // - blocked: still finding, the same way; the site's firewall turned the user's browser away, and a page
 //   there that loads (from another network, or once the block lifts) lets owlit go on
+// - manual: no PDF; the extension couldn't open the publisher's page, so the user downloads it there
+//   by hand (the extension saves a PDF they open)
+// - skipped: no PDF; the user looked at the publisher's page and found none (Skip on the extension's
+//   walk through the manual downloads). Their word stands: nothing offers or looks for it again on its own
+// - stopped: no PDF; the user stopped getting it (Stop on Get PDFs) while it waited for them at its site
 // - not-found, no-access, not-offered, not-there: no PDF, for that reason. A check or a sign-in that
 //   stopped owlit itself (only older records have one) is not-found: it waits on nobody
-export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "blocked" | "for-permission" | "not-found" | "no-access" | "not-offered" | "not-there"
+export type PdfWait = "finding" | "offline" | "for-sign-in" | "for-check" | "blocked" | "for-permission" | "manual" | "skipped" | "stopped" | "not-found" | "no-access" | "not-offered" | "not-there"
 
 const BY_ENDED: Record<PdfEnded, PdfWait> = {
   "no-copy": "not-found",
@@ -27,6 +32,9 @@ const BY_ENDED: Record<PdfEnded, PdfWait> = {
   pdf: "not-found",
   offline: "offline",
   "no-permission": "for-permission",
+  unreadable: "manual",
+  skipped: "skipped",
+  stopped: "stopped",
 }
 
 const BY_WAIT: Record<ExtensionWait["kind"], PdfWait> = { "sign-in": "for-sign-in", check: "for-check", blocked: "blocked", permission: "for-permission" }
@@ -39,9 +47,10 @@ export function pdfWait(p: Pick<Paper, "pdf" | "pdfState">): PdfWait | undefined
   if (p.pdf) return undefined
   const s = p.pdfState
   if (!s || s.state === "finding") {
-    // The extension's queue says where it is now (fetching again once the user got through); its last
-    // try says so after a restart, before the queue has it again
-    const waits = s?.extension ? s.extension.waits : waitedFor(s?.reason)
+    // Only a wait that is up says the paper waits on the user (core puts the waits a workspace's records
+    // say up as it opens): a try that met one says nothing once the user got through, and the paper then
+    // waits for the browser like any other
+    const waits = s?.extension?.wait ? s.extension.kind : undefined
     if (waits) return BY_WAIT[waits]
     return s?.reason?.ended === "offline" ? "offline" : "finding"
   }

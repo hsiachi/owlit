@@ -313,6 +313,9 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.3.0(react@19.3.0)
+      tldts:
+        specifier: ^7.4.19
+        version: 7.4.19
     devDependencies:
       '@lingui/vite-plugin':
         specifier: 6.9.1
@@ -526,6 +529,9 @@ importers:
       diff:
         specifier: 8.0.4
         version: 8.0.4
+      tldts:
+        specifier: 7.4.19
+        version: 7.4.19
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -629,6 +635,33 @@ importers:
       '@types/node':
         specifier: ^24.13.3
         version: 24.19.1
+      oxlint:
+        specifier: ^1.81.0
+        version: 1.87.0
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vitest:
+        specifier: 5.0.2
+        version: 5.0.2(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+
+  packages/pdf-bench:
+    devDependencies:
+      '@lingui/vite-plugin':
+        specifier: 6.9.1
+        version: 6.9.1(@babel/core@7.29.7)(@lingui/babel-plugin-lingui-macro@6.9.1(@babel/core@7.29.7))(esbuild@0.28.2)(rolldown@1.2.13)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0))
+      '@owlit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@types/chrome':
+        specifier: 0.3.5
+        version: 0.3.5
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.19.1
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       oxlint:
         specifier: ^1.81.0
         version: 1.87.0
@@ -2899,6 +2932,7 @@ packages:
   '@smithy/core@3.35.2':
     resolution: {integrity: sha512-ejTukBuP/Pg3t9N8Ux+0zKsXeHWm7p6W3HbXFOyltKasSxZwCFmvTut7kBdZSCF3m9y1bXXyVu6p2xuMFcsTyQ==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -4096,6 +4130,10 @@ packages:
 
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
+
+  fast-check@4.10.2:
+    resolution: {integrity: sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==}
+    engines: {node: '>=12.17.0'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -5512,6 +5550,9 @@ packages:
   pump@3.0.4:
     resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
 
+  pure-rand@8.4.2:
+    resolution: {integrity: sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng==}
+
   pvtsutils@1.3.6:
     resolution: {integrity: sha512-PLgQXQ6H2FWCaeRak8vvk1GW462lMxB5s3Jm673N82zI4vqtVUPuZdffdZbPDFRoU8kAhItWFtPCWiPpp4/EDg==}
 
@@ -5991,6 +6032,13 @@ packages:
   tinypool@2.2.0:
     resolution: {integrity: sha512-jBrmx4lYmaC9k/mgPbylxs7kBUxHtD8256up+HjLaDFfXScKJQyil+SWXSvhAtT7XHo+yTVlpB81PGmHP8oLSQ==}
     engines: {node: ^20.0.0 || >=22.0.0}
+
+  tldts-core@7.4.20:
+    resolution: {integrity: sha512-C630TWXZCZmLq0F2bW4QqwnaaxCQ/svpAqvJwnC4JvgEM5ohhBnGsEzTLSOXcN+xjz+kEaHS5uoWIw2klnqd0A==}
+
+  tldts@7.4.19:
+    resolution: {integrity: sha512-48dH6aSpQnpbzDUc4vIQZ1VjB8tkK+e8c1yx05/SZK+rkssgjEOlxDd/yU8/a4vGYQ9vRgJr9dwMq9TJ0b3X2Q==}
+    hasBin: true
 
   tmp-promise@3.0.3:
     resolution: {integrity: sha512-RwM7MoPojPxsOBYnyd2hy0bxtIlVrihNs9pj5SUvY8Zz1sQcQG2tG1hSr8PDxfgEB8RNKDhqbIlroIarSNDNsQ==}
@@ -10078,6 +10126,10 @@ snapshots:
 
   extend@3.0.2: {}
 
+  fast-check@4.10.2:
+    dependencies:
+      pure-rand: 8.4.2
+
   fast-deep-equal@3.1.3: {}
 
   fast-equals@5.4.3: {}
@@ -11621,6 +11673,8 @@ snapshots:
       end-of-stream: 1.4.5
       once: 1.4.0
 
+  pure-rand@8.4.2: {}
+
   pvtsutils@1.3.6:
     dependencies:
       tslib: 2.8.1
@@ -12272,6 +12326,12 @@ snapshots:
       picomatch: 4.0.7
 
   tinypool@2.2.0: {}
+
+  tldts-core@7.4.20: {}
+
+  tldts@7.4.19:
+    dependencies:
+      tldts-core: 7.4.20
 
   tmp-promise@3.0.3:
     dependencies:
