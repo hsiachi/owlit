@@ -56,6 +56,9 @@ export const STALLED_MS = 30 * 60_000
 // dozens of silent tries into a paper's record and told the user nothing. After it the wait is for
 // the user to get through (resume), or to ask for one of its papers (fetch with askedFor).
 export const PAUSED_RETRY_MS = 15 * 60_000
+// A resume the extension posts again for the same wait within this long comes from another look at the
+// same page (seenThrough), which come within a second or two of each other
+export const RESUME_AGAIN_MS = 10_000
 // After a fetch reached nothing (the network dropped, a publisher's host doesn't resolve, the proxy's
 // minute-limit page), what didn't answer waits this long before its next, longer each time in a row: the
 // paper keeps its place, since nothing was learnt about it, and a limit that counts every request isn't
@@ -205,6 +208,8 @@ export class ExtensionWork implements ExtensionFetcher {
   private readonly goingNews = new Set<string>()
   // Fires once the extension has gone CONNECTED_MS without asking: the window hears it went
   private awayTimer: ReturnType<typeof setTimeout> | undefined
+  // The last resume the extension posted per gate, for the wait (by since) it was for (seenThrough)
+  private readonly seenResumed = new Map<GateKey, { since: number; at: number }>()
   // Fire as each back-off ends (by lane, and gate for a publisher's): its papers are said again
   private readonly backOffTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -619,13 +624,27 @@ export class ExtensionWork implements ExtensionFetcher {
   // POST /work/resume: the user got through at this host. Every wait it names (its at, or a host it
   // watches) goes, its papers on at once, the asked for first.
   resume(host: string): boolean {
-    return this.goOn([...this.waitsAt.values()].filter((w) => names(w, host)))
+    return this.seenThrough([...this.waitsAt.values()].filter((w) => names(w, host)))
   }
 
   // POST /work/resume { wait }: the extension saw the user get through at this wait
   resumeAt(id: WaitId): boolean {
     const wait = this.waitsAt.get(id)
-    return wait ? this.goOn([wait]) : false
+    return wait ? this.seenThrough([wait]) : false
+  }
+
+  // One page is seen past its wait by more than one look in the extension, each posting a resume. A
+  // paper that went on can meet the gate again within moments, bringing the same wait (gate and since)
+  // back, and a second resume then would hand that paper out a second time: one already heard for that
+  // wait lately is taken as said.
+  private seenThrough(waits: Wait[]): boolean {
+    const now = Date.now()
+    const fresh = waits.filter((w) => {
+      const last = this.seenResumed.get(w.gate)
+      return !(last && last.since === w.since && now - last.at < RESUME_AGAIN_MS)
+    })
+    for (const w of fresh) this.seenResumed.set(w.gate, { since: w.since, at: now })
+    return fresh.length ? this.goOn(fresh) : waits.length > 0
   }
 
   // The user said they got through at this wait (I've signed in, I've verified it): it goes as resume
@@ -797,7 +816,7 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // The same for the extension, which watches those sites for the user getting through
   waitsForExtension(): WorkAnswer["waits"] {
-    return this.waits().map(({ id, kind, at, host, watch, papers, proxied }) => ({ id, kind, at, host, watch, papers, proxied, allow: allowOf(id, at) }))
+    return this.waits().map(({ id, kind, at, host, watch, papers, proxied, since }) => ({ id, kind, at, host, watch, papers, proxied, since, allow: allowOf(id, at) }))
   }
 
   dispose() {

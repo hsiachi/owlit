@@ -547,6 +547,30 @@ describe("waits", () => {
     expect(b.owlit.posted("/work/resume")).toHaveLength(1)
   })
 
+  it("tells owlit once per page, though owlit stopped listing the wait and the same wait came back", async () => {
+    const wait = { ...science, since: 500 }
+    const b = await boot(sites)
+    b.owlit.give({ waits: [wait] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([wait]), PATIENCE)
+    const tab = await b.openTab("https://www.science.org/doi/1")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toHaveLength(1), PATIENCE)
+    // owlit went on, then its paper met the check again at once: the same wait, listed again
+    b.owlit.give({ waits: [] })
+    b.owlit.give({ waits: [wait] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([wait]), PATIENCE)
+    // The page's content script reports it, past the check
+    const html = article("Science", "https://www.science.org/doi/pdf/1").html
+    const report = () => new Promise((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit({ kind: "page", url: tab.url, html }, { id: "fake", tab: { id: tab.id } }, resolve))
+    await report()
+    expect(b.owlit.posted("/work/resume")).toHaveLength(1)
+    // A wait that began later at the same gate is another one
+    const later = { ...wait, since: 900 }
+    b.owlit.give({ waits: [later] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([later]), PATIENCE)
+    await report()
+    expect(b.owlit.posted("/work/resume")).toHaveLength(2)
+  })
+
   it("still knows its waits after the worker restarts", async () => {
     const first = await boot(sites)
     first.owlit.give({ waits: [science] })

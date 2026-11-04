@@ -282,8 +282,9 @@ export interface WorkItem {
 
 // A wait as the extension needs it: where to watch for the user getting through (watch), and, for a
 // site it may not read, the sites to ask the browser for (allow: the gate's hosts and the hosts its PDFs
-// come from, as registrable domains)
-export type WorkWait = Pick<ExtensionWait, "id" | "kind" | "at" | "host" | "watch" | "papers" | "proxied"> & { allow: string[] }
+// come from, as registrable domains). since: with id, which wait it is (one that went and came back at the
+// same gate keeps its since); absent from an owlit that sends none.
+export type WorkWait = Pick<ExtensionWait, "id" | "kind" | "at" | "host" | "watch" | "papers" | "proxied"> & Partial<Pick<ExtensionWait, "since">> & { allow: string[] }
 
 // GET /work, held open a while: the papers due now (none when the hold ran out), and the sites paused
 // for the user, so the extension knows where to watch for them getting through

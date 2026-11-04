@@ -395,7 +395,7 @@ describe("the extension's port", () => {
       const paper = await paperIn(call)
       expect(paper.pdfState).toMatchObject({ state: "finding", reason: { by: "extension", ended: "sign-in" }, extension: { wait: "pub:sage", kind: "sign-in", at: "journals.sagepub.com" } })
       // The extension knows where to watch for the user getting through
-      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, allow: ["sagepub.com"] }], open: [], going: [], endings: [...WORK_ENDINGS] })
+      expect((await request("/work", { token })).body).toEqual({ work: [], waits: [{ id: "pub:sage", kind: "sign-in", at: "journals.sagepub.com", host: "journals.sagepub.com", watch: ["sagepub.com"], papers: 1, proxied: false, since: expect.any(Number), allow: ["sagepub.com"] }], open: [], going: [], endings: [...WORK_ENDINGS] })
       // The line's Sign in: the extension that met it opens the page, in its own browser
       expect(await call("extension.open", { wait: "pub:sage" })).toEqual({ by: "extension", browser: "Chrome" })
       expect((await request("/work", { token })).body.open).toEqual([{ kind: "sign-in", host: "journals.sagepub.com", url: "https://journals.sagepub.com/action/showLogin", wait: "pub:sage" }])

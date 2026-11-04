@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ExtensionPaper, Library } from "../library/library.ts"
-import { CONNECTED_MS, ExtensionWork, GAP_MS, movedOn, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, STALLED_MS } from "./work.ts"
+import { CONNECTED_MS, ExtensionWork, GAP_MS, movedOn, parseWorkItemId, PAUSED_RETRY_MS, PROXY_GAP_MS, RESUME_AGAIN_MS, STALLED_MS } from "./work.ts"
 
 const library = {} as Library
 const TLINK = "tlink.lib.tsinghua.edu.cn"
@@ -866,6 +866,28 @@ describe("the extension's queue", () => {
     work.settle(c.id, "check", { triedAt: 9_000 })
     work.resume("tandfonline.com")
     expect(work.goneWaits()).toMatchObject([{ since: 9_000, going: { ids: ["c", "d"] } }])
+  })
+
+  it("hands a paper out once when the extension posts the same resume twice, though its wait came back in between", async () => {
+    const { work, take } = setup()
+    work.fetch(library, paper("a", "dl.acm.org"), false)
+    const [a] = await take()
+    work.settle(a.id, "check", { triedAt: 500 })
+    expect(work.resumeAt("pub:acm")).toBe(true)
+    const [again] = await take()
+    expect(again).toMatchObject({ paperId: "a", attempt: 2 })
+    // Its try meets the check at once: the same wait (same since) is up again
+    work.settle(again.id, "check", { triedAt: 600 })
+    expect(work.waits()).toMatchObject([{ id: "pub:acm", since: 500 }])
+    // The page's other look posts again: heard, and nothing handed out
+    expect(work.resumeAt("pub:acm")).toBe(true)
+    expect(work.resume("dl.acm.org")).toBe(true)
+    expect(work.waits()).toMatchObject([{ id: "pub:acm" }])
+    expect(await take()).toEqual([])
+    // A later page past it is the user again
+    vi.advanceTimersByTime(RESUME_AGAIN_MS)
+    expect(work.resumeAt("pub:acm")).toBe(true)
+    expect(await take()).toMatchObject([{ paperId: "a", attempt: 3 }])
   })
 
   it("follows a wait by its id, and knows the same wait when it comes back after the user got through", async () => {
