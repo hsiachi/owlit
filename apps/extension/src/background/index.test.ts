@@ -249,6 +249,73 @@ describe("the fetch ladder", () => {
   })
 })
 
+describe("a kept tab the user took over", () => {
+  const A2 = "https://dl.acm.org/doi/10.1145/2"
+  const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+  // A paper fetched in the gate's tab, kept for as long as the test wants
+  async function kept() {
+    const acm = guarded((url) => (url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)), { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    const ladder = await import("./ladder.ts")
+    Object.assign(ladder.TAB_TIMES, { idleMs: 600_000 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    return { b, ladder, tabId }
+  }
+  const idleNow = async (ladder: typeof import("./ladder.ts")) => {
+    Object.assign(ladder.TAB_TIMES, { idleMs: 0 })
+    await ladder.closeIdleTabs()
+  }
+
+  it("is theirs from the click: never closed as idle, only forgotten", async () => {
+    const { b, ladder, tabId } = await kept()
+    b.activate(tabId)
+    await vi.waitFor(() => expect(b.kept.session.shownTabs).toEqual([tabId]), PATIENCE)
+    await idleNow(ladder)
+    expect(b.removed).toEqual([])
+    expect(b.kept.session.workTabs).toEqual({})
+  })
+
+  it("is theirs when found in front, though the click was never heard", async () => {
+    const { b, ladder, tabId } = await kept()
+    b.tabs.get(tabId)!.active = true
+    await idleNow(ladder)
+    expect(b.removed).toEqual([])
+  })
+
+  it("is never loaded with the gate's next paper, which is fetched from inside it as from any tab of theirs", async () => {
+    const { b, tabId } = await kept()
+    b.activate(tabId)
+    await vi.waitFor(() => expect(b.kept.session.shownTabs).toEqual([tabId]), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { pdfUrl: A2_PDF, userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.tabs.get(tabId)?.url).toBe(ACM)
+  })
+
+  it("isn't closed when the site turns the gate's next paper away while they are in it", async () => {
+    let b: FakeBrowser | undefined
+    const acm: Site = ({ url, from, look, tab }) => {
+      if (from === "worker") return check()
+      if (url.pathname.endsWith("/2")) {
+        if (look && tab) b!.activate(tab.id)
+        return check(true)
+      }
+      return url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF)
+    }
+    b = await boot({ "dl.acm.org": acm })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { userStarted: true })] })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0].json).toMatchObject({ ended: "check" })
+    expect(b.removed).toEqual([])
+  })
+})
+
 describe("a fetch in a tab that never answers", () => {
   const hanging = (url: URL): Answer => (url.pathname.includes("/pdf/") ? { hangs: true } : article("ACM", ACM_PDF))
 

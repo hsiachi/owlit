@@ -176,6 +176,8 @@ export interface FakeBrowser {
   removed: number[]
   // The user opens a page in a tab of their own, and it is read
   openTab(url: string): Promise<FakeTab>
+  // The user clicks a tab
+  activate(id: number): void
   // The worker's fetch, as the background's global fetch
   fetch: typeof fetch
 }
@@ -206,6 +208,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
   const removed: number[] = []
   const onUpdated = event()
   const onRemoved = event()
+  const onActivated = event()
   const onBeforeRedirect = event()
   const onHeadersReceived = event()
 
@@ -324,6 +327,12 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     return [{ result: await run(...args) }]
   }
 
+  const front = (tab: FakeTab) => {
+    for (const other of tabs.values()) other.active = false
+    tab.active = true
+    onActivated.emit({ tabId: tab.id, windowId: tab.windowId })
+  }
+
   const tabApi = {
     create: async ({ url, active = true, openerTabId }: { url: string; active?: boolean; openerTabId?: number }) => {
       const tab: FakeTab = { id: nextTab++, url, active, status: "loading", readyState: "loading", timeOrigin: 0, windowId: 1, openerTabId }
@@ -343,7 +352,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
       const tab = tabs.get(id)
       if (!tab) throw new Error(`No tab with id: ${id}`)
       if (change.active) {
-        tab.active = true
+        front(tab)
         activated.push(id)
       }
       if (change.url) load(tab, change.url)
@@ -359,7 +368,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     },
     onUpdated,
     onRemoved,
-    onActivated: event(),
+    onActivated,
   }
 
   const alarms = new Map<string, unknown>()
@@ -404,6 +413,7 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     created,
     activated,
     removed,
+    activate: (id: number) => front(tabs.get(id)!),
     fetch: workerFetch,
     kept: { local: local.data, session: session.data },
     openTab: async (url: string) => {

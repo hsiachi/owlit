@@ -137,11 +137,12 @@ export const tabsLoaded = tabsKept().then((all) => {
   for (const kept of Object.values(all)) workTabIds.add(kept!.tabId)
 })
 
-// The extension's tabs brought to the front, for a check or by the user's Open on a wait: the user's to
-// look at from then on, never closed or loaded with another paper by the extension
+// The extension's tabs brought to the front, for a check, by the user's Open on a wait or by the user's
+// own click: the user's to look at from then on, never closed or loaded with another paper by the
+// extension. One found in front is theirs too: the click may have come before the worker could hear it.
 const SHOWN_KEY = "shownTabs"
 const shownTabs = async () => ((await ext.storage.session.get(SHOWN_KEY))[SHOWN_KEY] ?? []) as number[]
-const isShown = async (tab: WorkTab) => tab.shown || (await shownTabs()).includes(tab.tabId)
+const isShown = async (tab: WorkTab) => tab.shown || (await shownTabs()).includes(tab.tabId) || !!(await ext.tabs.get(tab.tabId).catch(() => undefined))?.active
 const markShown = (tabId: number) => keeping(async () => ext.storage.session.set({ [SHOWN_KEY]: [...new Set([...(await shownTabs()), tabId])] }))
 
 // Gates whose check the background's own fetch met in this browser session: a tab past it is where
@@ -450,6 +451,11 @@ export async function showWorkTab(host: string, wait?: GateKey): Promise<chrome.
   }
   return undefined
 }
+
+// The user clicked one of the gates' tabs. The extension's own fronting lands here too, already marked.
+ext.tabs.onActivated.addListener(({ tabId }) => {
+  void tabsLoaded.then(() => (workTabIds.has(tabId) ? markShown(tabId) : undefined))
+})
 
 // The user closed one of the gates' tabs
 ext.tabs.onRemoved.addListener((tabId) => {
