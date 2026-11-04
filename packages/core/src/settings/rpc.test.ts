@@ -154,7 +154,7 @@ describe("settings", () => {
     await call("settings.setProxy", { preset: "tsinghua" })
     expect(await call("settings.proxySignIn")).toBeNull()
     // tlink's own sign-in page: a bare /go is a 500 there
-    expect(opened).toEqual(["https://tlink.lib.tsinghua.edu.cn/gologin"])
+    expect(opened).toEqual(["https://tlink.lib.tsinghua.edu.cn/gologin?callback=aHR0cHM6Ly90bGluay5saWIudHNpbmdodWEuZWR1LmNuL2Ricy1uYXZpZ2F0aW9u"])
   })
 
   it("tells a refused key from a service that couldn't be asked", async () => {

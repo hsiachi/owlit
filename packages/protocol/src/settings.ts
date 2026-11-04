@@ -57,8 +57,10 @@ export type SettingsCheckTarget = SecretName | "mineruServer"
 
 // Libraries owlit knows how to reach. Others are set up from a link opened through them. signIn is the
 // library's own sign-in page where its proxy path alone isn't one: tlink answers a bare /go with a 500.
+// Its callback (the base64 of its home page) is what makes the sign-in count: a /gologin without one ends
+// on a page that looks signed in, and every /go still asks a reader off campus to sign in.
 export const PROXY_PRESETS = {
-  tsinghua: { name: "Tsinghua University", signIn: "https://tlink.lib.tsinghua.edu.cn/gologin", proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go", preset: "tsinghua" } },
+  tsinghua: { name: "Tsinghua University", signIn: "https://tlink.lib.tsinghua.edu.cn/gologin?callback=aHR0cHM6Ly90bGluay5saWIudHNpbmdodWEuZWR1LmNuL2Ricy1uYXZpZ2F0aW9u", proxy: { base: "https://tlink.lib.tsinghua.edu.cn", scheme: "login-url", path: "/go", preset: "tsinghua" } },
 } as const satisfies Record<string, { name: string; signIn?: string; proxy: ProxySettings }>
 
 export type ProxyPreset = keyof typeof PROXY_PRESETS

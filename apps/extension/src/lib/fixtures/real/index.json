@@ -1295,5 +1295,18 @@
     "really": "IEEE Xplore off campus, no access to this closed paper: \"Sign In or Purchase\"",
     "verdict": "no-access",
     "isThrough": true
+  },
+  {
+    "name": "elsevier-sso-hop.worker",
+    "from": "worker",
+    "url": "https://auth.elsevier.com/ShibAuth/institutionLogin?entityID=https%3A%2F%2Fidp.tsinghua.edu.cn%2Fopenathens",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html"
+    },
+    "title": "",
+    "really": "Elsevier's step of a sign-in through the library, which a script sends on to OpenAthens",
+    "verdict": "check",
+    "isThrough": false
   }
 ]
