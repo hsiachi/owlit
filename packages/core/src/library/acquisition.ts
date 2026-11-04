@@ -120,10 +120,13 @@ export function lookDue(acquisition: Pick<Acquisition, "state" | "tried" | "look
 
 export const acquisitionFile = (root: string, id: string) => path.join(paperDir(root, id), "acquisition.json")
 
+// Who made a try, by the names 0.2.1 wrote: every rule here goes by the names of today
+const BY_THEN: Record<string, PdfTry["by"]> = { owlit: "search", you: "person" }
+
 // The paper's record, or undefined before owlit looked
 export const readAcquisition = (root: string, id: string) =>
   readJson<Acquisition>(acquisitionFile(root, id)).then(
-    (raw) => (raw && typeof raw === "object" && raw.version === 2 && Array.isArray(raw.tried) ? raw : undefined),
+    (raw) => (raw && typeof raw === "object" && raw.version === 2 && Array.isArray(raw.tried) ? { ...raw, tried: raw.tried.map((t) => ({ ...t, by: BY_THEN[t.by] ?? t.by })) } : undefined),
     () => undefined,
   )
 
