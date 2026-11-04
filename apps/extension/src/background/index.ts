@@ -630,9 +630,9 @@ function keepAsking() {
               console.error("[owlit] couldn't fetch for owlit", error)
               return { ended: "offline", host: item.host }
             })
-            // A PDF owlit no longer waits for (the paper got one meanwhile) isn't handed over: a word is,
-            // which owlit settles the item by
-            .then(async (result) => report(item, "pdf" in result && !(await wanted()) ? { ended: "offline", host: result.host } : result, { ask, token, endings: answer.endings }))
+            // A PDF the paper no longer lacks (it got one meanwhile) isn't handed over: a word is, which
+            // owlit settles the item by. One from an attempt owlit asked again for is kept all the same.
+            .then(async (result) => report(item, "pdf" in result && !(await lacksPdf(item, token)) ? { ended: "offline", host: result.host } : result, { ask, token, endings: answer.endings }))
             .catch((error) => console.error("[owlit] couldn't fetch for owlit", error))
         }
       }
@@ -657,6 +657,16 @@ function keepAsking() {
 async function stillWanted(item: WorkItem, token: string): Promise<boolean> {
   try {
     return (await ask<WorkWanted>(`/work/${encodeURIComponent(item.id)}`, { token })).wanted
+  } catch {
+    return true
+  }
+}
+
+// A PDF of this item is still of use to owlit. An owlit that says nothing of it goes by wanted.
+async function lacksPdf(item: WorkItem, token: string): Promise<boolean> {
+  try {
+    const said = await ask<WorkWanted>(`/work/${encodeURIComponent(item.id)}`, { token })
+    return said.lacksPdf ?? said.wanted
   } catch {
     return true
   }

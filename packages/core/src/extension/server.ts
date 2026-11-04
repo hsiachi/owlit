@@ -518,8 +518,9 @@ export class ExtensionServer {
           const id = parts[1]
           const asked = parseWorkItemId(id)
           const library = this.library()
-          const paper = asked && this.work.current(library, id) ? await library.get(asked.paperId) : undefined
-          return { body: { wanted: !!paper && !paper.pdf } satisfies WorkWanted }
+          const paper = asked ? await library.get(asked.paperId) : undefined
+          const lacksPdf = !!paper && !paper.pdf
+          return { body: { wanted: lacksPdf && !!this.work.current(library, id), lacksPdf } satisfies WorkWanted }
         },
       },
       {

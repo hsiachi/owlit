@@ -930,12 +930,12 @@ describe("the extension's port", () => {
       await call("library.fetchPdf", { id })
       const [item] = (await request("/work", { token })).body.work
       const wanted = async (of: string) => (await request(`/work/${encodeURIComponent(of)}`, { token })).body
-      expect(await wanted(item.id)).toEqual({ wanted: true })
-      expect(await wanted(`${id}#7`)).toEqual({ wanted: false })
+      expect(await wanted(item.id)).toEqual({ wanted: true, lacksPdf: true })
+      expect(await wanted(`${id}#7`)).toEqual({ wanted: false, lacksPdf: true })
       // The user opened its PDF in a tab, and the extension took it there
       writeFileSync(path.join(root, "found.pdf"), pdfOf([`https://doi.org/${SAGE}`, title]))
       await call("library.attachPdf", { id, path: path.join(root, "found.pdf") })
-      expect(await wanted(item.id)).toEqual({ wanted: false })
+      expect(await wanted(item.id)).toEqual({ wanted: false, lacksPdf: false })
     })
 
     it("keeps the PDF the user dropped while the extension's was on its way", async () => {
