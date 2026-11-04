@@ -185,7 +185,8 @@ if (from === "--fixtures") {
 
 const before = new Map(existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, "utf8")).map((e) => [e.name, e]) : [])
 const recorded = JSON.parse(readFileSync(path.join(from, "index.json"), "utf8"))
-const index = []
+// Pages recorded before and not again stay as they are
+const index = [...before.values()].filter((e) => !recorded.some((r) => r.file === `${e.name}.html`))
 let differ = 0
 for (const e of recorded) {
   if (!e.file) continue
@@ -219,7 +220,7 @@ for (const e of recorded) {
   writeFileSync(path.join(OUT, `${name}.html`), small)
   index.push(entry)
 }
-writeFileSync(indexPath, JSON.stringify(index, null, 1) + "\n")
+writeFileSync(indexPath, JSON.stringify(index, null, 2) + "\n")
 if (differ) {
   console.error(`${differ} pages read differently once trimmed`)
   process.exit(1)

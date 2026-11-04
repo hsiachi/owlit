@@ -739,7 +739,7 @@
       "host": "tlink.lib.tsinghua.edu.cn",
       "entry": "https://tlink.lib.tsinghua.edu.cn/gologin?lineType="
     },
-    "title": "\u6e05\u534e\u5927\u5b66\u7528\u6237\u7535\u5b50\u8eab\u4efd\u670d\u52a1\u7cfb\u7edf",
+    "title": "清华大学用户电子身份服务系统",
     "really": "id.tsinghua.edu.cn login form (password field)",
     "verdict": "sign-in",
     "isThrough": false
@@ -773,7 +773,7 @@
       "host": "tlink.lib.tsinghua.edu.cn",
       "entry": "https://tlink.lib.tsinghua.edu.cn/"
     },
-    "title": "\u6e05\u534e\u5927\u5b66\u56fe\u4e66\u9986\u667a\u80fd\u8d44\u6e90\u7f51\u5173",
+    "title": "清华大学图书馆智能资源网关",
     "really": "tlink gateway page",
     "verdict": "sign-in",
     "isThrough": false
@@ -790,8 +790,8 @@
       "host": "tlink.lib.tsinghua.edu.cn",
       "entry": "https://tlink.lib.tsinghua.edu.cn/"
     },
-    "title": "\u6e05\u534e\u5927\u5b66\u56fe\u4e66\u9986\u667a\u80fd\u8d44\u6e90\u7f51\u5173",
-    "really": "tlink's gateway page: 'please sign in', \u767b\u5f55\u7edf\u4e00\u8eab\u4efd\u8ba4\u8bc1 button",
+    "title": "清华大学图书馆智能资源网关",
+    "really": "tlink's gateway page: 'please sign in', 登录统一身份认证 button",
     "verdict": "sign-in",
     "isThrough": false
   },
@@ -979,5 +979,321 @@
     "really": "Cloudflare managed challenge (Just a moment...), cType managed",
     "verdict": "check",
     "isThrough": false
+  },
+  {
+    "name": "springer-closed.tab",
+    "from": "tab",
+    "url": "https://link.springer.com/article/10.1007/s11103-015-0330-1",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.1825.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Arabidopsis abscisic acid receptors play an important role in disease resistance | Plant Molecular Biology | Springer Nature Link",
+    "really": "SpringerLink off campus, no access to this closed paper: \"Buy article PDF 39,95 €\", with a price",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "ieee-closed.tab",
+    "from": "tab",
+    "url": "https://ieeexplore.ieee.org/document/8880527",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8",
+      "via": "1.1 7e7f38a56d36a6df20a905fa46aae3b6.cloudfront.net (CloudFront)"
+    },
+    "title": "Optimized Fuzzy Commitment Based Key Agreement Protocol for Wireless Body Area Network | IEEE Journals & Magazine | IEEE Xplore",
+    "really": "IEEE Xplore off campus, no access to this closed paper: \"Sign In or Purchase\"",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "aps-closed.tab",
+    "from": "tab",
+    "url": "https://journals.aps.org/prb/abstract/10.1103/PhysRevB.99.045416",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Nonreciprocal optical links based on time-modulated nanoantenna arrays: Full-duplex communication | Phys. Rev. B",
+    "really": "APS off campus, no access to this closed paper: \"Buy Article »\"",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "degruyter-closed.tab",
+    "from": "tab",
+    "url": "https://www.degruyterbrill.com/document/doi/10.1515/applirev-2017-0017/html",
+    "status": 200,
+    "headers": {
+      "server": "CloudFront",
+      "content-type": "text/html; charset=UTF-8",
+      "via": "1.1 7f3ca3166f303ad5837916b99ebc5436.cloudfront.net (CloudFront)"
+    },
+    "title": "The effect of topic familiarity on the complexity, accura...",
+    "really": "De Gruyter Brill off campus, no access to this closed paper: \"Purchase Article 30,00 €\"",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "duke-closed.tab",
+    "from": "tab",
+    "url": "https://read.dukeupress.edu/hahr/article-abstract/101/1/172/168312/In-Search-of-the-Lost-Decade-Everyday-Rights-in?redirectedFrom=fulltext",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "In Search of the Lost Decade: Everyday Rights in Post-dictatorship Argentina | Hispanic American Historical Review | Duke University Press",
+    "really": "Duke off campus, no access to this closed paper: \"Buy This Digital Article\"",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "acs-closed.tab",
+    "from": "tab",
+    "url": "https://pubs.acs.org/jpccck/article-abstract/119/4/1880/1401192/Behavior-and-Energy-State-of-Photogenerated-Charge?redirectedFrom=fulltext",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Behavior and Energy State of Photogenerated Charge Carriers in Single-Crystalline and Polycrystalline Powder SrTiO3 Studied by Time-Resolved Absorption Spectroscopy in the Visible to Mid-Infrared Region | The Journal of Physical Chemistry C | ACS Publications",
+    "really": "ACS off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "emerald-closed.tab",
+    "from": "tab",
+    "url": "https://www.emerald.com/ijrdm/article-abstract/45/1/71/151787/Private-labels-importance-across-different-store?redirectedFrom=fulltext",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Private labels importance across different store loyalty stages: a multilevel approach | International Journal of Retail & Distribution Management | Emerald Publishing",
+    "really": "Emerald off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "cambridge-closed.tab",
+    "from": "tab",
+    "url": "https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/scaling-laws-for-segregation-forces-in-dense-sheared-granular-flows/5BE7B7A60DE924ACC00D7DC906E98B41",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC",
+      "via": "1.1 varnish (Varnish/6.0)"
+    },
+    "title": "Scaling laws for segregation forces in dense sheared granular flows | Journal of Fluid Mechanics | Cambridge Core",
+    "really": "Cambridge off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "mit-closed.tab",
+    "from": "tab",
+    "url": "https://direct.mit.edu/posc/article-abstract/26/1/97/15400/Conflicting-Conceptions-of-Construction-in-Kant-s?redirectedFrom=fulltext",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Conflicting Conceptions of Construction in Kant’s Philosophy of Geometry | Perspectives on Science | MIT Press",
+    "really": "MIT Press off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "karger-closed.tab",
+    "from": "tab",
+    "url": "https://karger.com/psp/article-abstract/53/5-6/254/285304/Technology-Based-Psychosocial-Interventions-for?redirectedFrom=fulltext",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Technology-Based Psychosocial Interventions for People with Borderline Personality Disorder: A Scoping Review of the Literature | Psychopathology | Karger Publishers",
+    "really": "Karger off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "nature-closed.tab",
+    "from": "tab",
+    "url": "https://www.nature.com/articles/s41477-022-01322-8",
+    "status": 200,
+    "headers": {
+      "server": "Oscar Platform 0.2513.0",
+      "content-type": "text/html; charset=utf-8",
+      "via": "1.1 google, 1.1 varnish, 1.1 google"
+    },
+    "title": "Molecular basis of the plant ROS1-mediated active DNA demethylation | Nature Plants",
+    "really": "Nature off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "wiley-closed.tab",
+    "from": "tab",
+    "url": "https://onlinelibrary.wiley.com/doi/10.1002/pam.22098",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Mandatory Access Prescription Drug Monitoring Programs and Prescription Drug Abuse - Grecu - 2019 - Journal of Policy Analysis and Management - Wiley Online Library",
+    "really": "Wiley off campus, no access to this closed paper: the page names a PDF and offers nothing, so only the PDF's own answer tells",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "science-closed.tab",
+    "from": "tab",
+    "url": "https://www.science.org/doi/10.1126/science.abc0149",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Structural insight into precursor ribosomal RNA processing by ribonuclease MRP | Science",
+    "really": "Science off campus, no access to this closed paper: the page names a PDF, so only the PDF's own answer tells",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "jama-closed.tab",
+    "from": "tab",
+    "url": "https://jamanetwork.com/journals/jama/article-abstract/2475470",
+    "status": 200,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html; charset=utf-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Choosing a Health Insurance Plan: Complexity and Consequences | Health Care Economics, Insurance, Payment | JAMA | JAMA Network",
+    "really": "JAMA off campus, no access to this closed paper: the page names a PDF, so only the PDF's own answer tells",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "siam-ip-blocked.tab",
+    "from": "tab",
+    "url": "https://epubs.siam.org/doi/10.1137/120903853",
+    "status": 403,
+    "headers": {
+      "server": "cloudflare",
+      "content-type": "text/html;charset=UTF-8",
+      "cf-cache-status": "DYNAMIC"
+    },
+    "title": "Blocked | The Society for Industrial and Applied Mathematics",
+    "really": "SIAM's own block of a shared address, under a header with a sign-in form",
+    "verdict": "blocked",
+    "isThrough": false
+  },
+  {
+    "name": "sage-mirror-waf.tab",
+    "from": "tab",
+    "url": "https://sage.cnpereading.com/doi/10.1177/0010414018797954",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html"
+    },
+    "title": "WEB 应用防火墙",
+    "really": "The firewall in front of SAGE's mirror in China",
+    "verdict": "check",
+    "isThrough": false
+  },
+  {
+    "name": "sage-mirror-closed.tab",
+    "from": "tab",
+    "url": "https://sage.cnpereading.com/doi/10.1177/0010414018797954",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8"
+    },
+    "title": "Authoritarian Institutions and Women’s Rights",
+    "really": "SAGE's mirror in China off campus, no access to this closed paper",
+    "verdict": "no-access",
+    "isThrough": true
+  },
+  {
+    "name": "wiley-closed-pdf.worker",
+    "from": "worker",
+    "url": "https://onlinelibrary.wiley.com/doi/pdf/10.1002/pam.22098",
+    "status": 403,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "",
+    "really": "Wiley's PDF address refusing a reader without access: a 403 with the article on it",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "asce-closed-pdf.worker",
+    "from": "worker",
+    "url": "https://ascelibrary.org/doi/pdf/10.1061/%28ASCE%29GT.1943-5606.0001428?download=true",
+    "status": 403,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "",
+    "really": "ASCE's PDF address refusing a reader without access: a 403 with the article on it",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "chicago-closed-pdf.worker",
+    "from": "worker",
+    "url": "https://www.journals.uchicago.edu/doi/pdf/10.1086/702789?download=true",
+    "status": 403,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "",
+    "really": "Chicago's PDF address refusing a reader without access: a 403 with the article on it",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "jama-closed-pdf.worker",
+    "from": "worker",
+    "url": "https://jamanetwork.com/journals/jama/article-abstract/2475470",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8"
+    },
+    "title": "",
+    "really": "JAMA's PDF address sending a reader without access back to the abstract, with its offers",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "science-closed-pdf.worker",
+    "from": "worker",
+    "url": "https://www.science.org/doi/10.1126/science.abc0149",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8"
+    },
+    "title": "",
+    "really": "Science's PDF address sending a reader without access back to the article, with its offers",
+    "verdict": "unreadable",
+    "isThrough": true
   }
 ]

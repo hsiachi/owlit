@@ -2,7 +2,7 @@ import { LEGACY_WORK_ENDINGS, type PaperAnswer, type WorkEnded, type WorkEnding,
 import { inTabItem } from "./from-tab.ts"
 import { OwlitError, type ask as askOwlit } from "./owlit.ts"
 import { paperOfPage, pdfLinkIn } from "./page.ts"
-import { isCheck, isSignInAddress, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+import { isCheck, isSignInAddress, refreshOf, refusesPdf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
 // Fetching a paper owlit asked for (GET /work), with the user's cookies: its PDF, or one word for what
 // came instead (verdict.ts). Nothing else is fetched, and what goes back to owlit is the PDF, or the word,
@@ -159,12 +159,14 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
   // and pauses again on the same redirect.
   const away: WorkEnded = item.proxied ? { ended: "sign-in", host: hostOf(item.url) } : { ended: "unreadable", host: item.host }
   const tried = new Set<string>()
+  let refused = false
   if (item.pdfUrl && (await deps.permitted(item.pdfUrl))) {
     tried.add(item.pdfUrl)
     const got = await follow(item.pdfUrl, deps, proxy)
     if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
     // A check, a block or a sign-in in front of the PDF is in front of the page too
     if (got.kind === "page" && stops(got.page)) return said(got.page)
+    refused = got.kind === "page" && refusesPdf(got.page)
     if (got.kind === "redirected") {
       const site = unreadable(got)
       if (site || item.proxied) return site ?? away
@@ -183,8 +185,11 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (pdf.kind === "page" && stops(pdf.page)) return said(pdf.page)
     if (pdf.kind === "redirected") return unreadable(pdf) ?? away
     if (pdf.kind === "timeout") return offlineAt(pdf)
+    refused ||= pdf.kind === "page" && refusesPdf(pdf.page)
   }
-  return said(page)
+  const ending = said(page)
+  // The paper's page names a PDF, so alone it says nothing sure; the PDF's own answer does
+  return refused && ending.ended === "unreadable" ? { ...ending, ended: "no-access" } : ending
 }
 
 // Only the user can get past it

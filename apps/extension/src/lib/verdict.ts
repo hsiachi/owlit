@@ -34,8 +34,9 @@ export interface Page {
   headers?: { get(name: string): string | null }
 }
 
-// Cloudflare's and the like's interstitials, by their title
-const CHECK_TITLE = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|client challenge|请稍候|正在验证|安全检查/i
+// Cloudflare's and the like's interstitials, by their title. 应用防火墙 is the firewall in front of SAGE's
+// mirror in China (sage.cnpereading.com), which runs a check of its own and sometimes a slider.
+const CHECK_TITLE = /just a moment|attention required|security check|checking your browser|verify you are human|are you a robot|client challenge|请稍候|正在验证|安全检查|应用防火墙/i
 // By the page's own markup: Cloudflare's challenge, DataDome's and PerimeterX's. Cloudflare also puts its
 // bot scripts on ordinary pages, at /cdn-cgi/challenge-platform/scripts/… (ACM's articles) and
 // /cdn-cgi/challenge-platform/h/b/scripts/jsd/… (the page it lets through once its check is passed), so
@@ -59,12 +60,13 @@ const WAF_INTERSTITIAL = /awswaf\.com\/[^"'\s>]*\/challenge\.js|\bgokuProps\b|Aw
 // its own
 const STAND_IN_MAX_CHARS = 400
 // The firewall turning the browser away with nothing to pass, which only another network (or time) gets
-// past: Cloudflare's block page ("Sorry, you have been blocked", its Access denied 10xx errors) and
-// Akamai's Access Denied with its reference number. Read before the check: Cloudflare's block page has
+// past: Cloudflare's block page ("Sorry, you have been blocked", its Access denied 10xx errors), a site's
+// own (SIAM's "Your IP address has been blocked", under a header with a sign-in form) and Akamai's Access
+// Denied with its reference number. Read before the check: Cloudflare's block page has
 // the title its older checks had, "Attention Required!". Its 5xx error pages share the block page's
 // markup (cf-error-details), so only the block's words and codes count.
 const BLOCK_MARKUP = /data-translate=["']?block_headline/i
-const BLOCK_WORDS = /you have been blocked|used cloudflare to restrict access|\berror (1005|1006|1007|1008|1009|1012|1020)\b/i
+const BLOCK_WORDS = /you have been blocked|your ip address has been blocked|used cloudflare to restrict access|\berror (1005|1006|1007|1008|1009|1012|1020)\b/i
 const AKAMAI_BLOCK = /you don't have permission to access .* on this server\.? reference #\d/i
 // A captcha counts as a check only on a page that refused the request: an article page may carry one
 // for its comment form
@@ -82,10 +84,14 @@ const PASSWORD = /<input\b[^>]*\btype\s*=\s*["']?password\b/i
 const PAYWALL = /get access|access options|purchase|buy article|\brent\b|subscribe|institutional access|购买|订阅/i
 // A control's whole words that offer access to this paper: Atypon's "Get Access", Springer's "Buy article
 // PDF", ScienceDirect's "Purchase PDF" and "Access through your institution", SAGE's "View access
-// options". Whole, since a site's header and footer offer the journal ("Subscribe", "Purchase", "Purchase
-// Access to Other Journals") and a sign-in ("Institutional Login") on every page, the paper's included.
+// options", IEEE's "Sign In or Purchase", Duke's "Buy This Digital Article". Whole, since a site's header
+// and footer offer the journal ("Subscribe", "Purchase", "Purchase Access to Other Journals") and a
+// sign-in ("Institutional Login") on every page, the paper's included.
 const ACCESS_OFFER =
-  /^((get|check) (full |instant )?access( now)?|buy (this )?(article|chapter|paper)( pdf)?|buy pdf|purchase (this )?(article|chapter|paper|pdf|access)|purchase pdf|rent( this)?( article| chapter)?|access through your institution|(view )?access options|购买(本文|全文|文章|PDF)?|获取全文)$/i
+  /^((get|check) (full |instant )?access( now)?|buy (this )?(digital )?(article|chapter|paper)( pdf)?|buy pdf|purchase (this )?(article|chapter|paper|pdf|access)|purchase pdf|sign in or purchase|rent( this)?( article| chapter)?|access through your institution|(view )?access options|购买(本文|全文|文章|PDF)?|获取全文)$/i
+// What may follow an offer's words: its price in any of a site's currencies ("Buy article PDF 39,95 €",
+// "Purchase Article $42.00"), an arrow ("Buy Article »")
+const OFFER_TAIL = /\s*(?:(?:[€$£¥]\s*\d[\d.,]*|\d[\d.,]*\s*[€$£¥])|[»›>→])\s*$/
 const MISSING = /\b(404|410)\b|not found|page (doesn't|does not) exist|找不到|不存在/i
 // A page that stands in while its scripts go on somewhere: never the paper's page, whatever its tags
 const INTERSTITIAL_TITLE = /^(please wait|redirecting|loading)\b|^(请稍等|正在跳转|加载中)/i
@@ -128,9 +134,18 @@ function offersAccess(html: string) {
     const said = words(control[2])
       .replace(/\(opens? in (a )?new (window|tab)\)/gi, "")
       .trim()
+      .replace(OFFER_TAIL, "")
     if (ACCESS_OFFER.test(said)) return true
   }
   return false
+}
+
+// What a PDF's address answered with when the site keeps the PDF from this reader: the paper's own page
+// where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the article on it)
+// or sent back to with its offers (JAMA, Science). A reader who has the paper gets the PDF there, whatever
+// offers the paper's page hides, and a viewer's page in the PDF's place offers nothing.
+export function refusesPdf(page: Pick<Page, "status" | "html">) {
+  return isArticle(page.html) && (page.status === 401 || page.status === 403 || offersAccess(page.html))
 }
 
 export function isBlocked(page: Pick<Page, "html">) {
