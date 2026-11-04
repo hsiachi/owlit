@@ -353,8 +353,10 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // A paper for the extension to fetch. One already queued keeps its place, and is marked as asked for
   // when the user asked now; asked for, it goes before the ones that weren't, and the wait it is under is
-  // tried at once, since the user may have got through already.
+  // tried at once, since the user may have got through already. From a library that isn't the one owned
+  // it does nothing: a hand-over that outlived its workspace would otherwise clear the open one's work.
   fetch(library: Library, paper: ExtensionPaper, askedFor: boolean) {
+    if (this.library && library !== this.library) return
     this.own(library)
     const proxy = paper.proxied ? paper.proxy : undefined
     const predicted = paper.predicted ?? gateOf(paper.url, proxy)

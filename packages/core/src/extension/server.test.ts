@@ -629,6 +629,33 @@ describe("the extension's port", () => {
       expect((await request("/work", { token })).body.work).toEqual([])
     })
 
+    it("hands nothing over from a workspace another one replaced, keeping the new one's waits and queue", async () => {
+      const { call, request, token, core, putPaper, server, root } = await connected()
+      const other = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      putPaper(other.id, { title: "Another Paper", ids: { doi: other.doi } })
+      const old = libraryOf(core) as unknown as { services: { settings: () => Promise<unknown> }; pdfRuns: { handing?: number }[] }
+      const settings = old.services.settings.bind(old.services)
+      let release!: () => void
+      const held = new Promise<void>((resolve) => (release = resolve))
+      let looks = 0
+      vi.spyOn(old.services, "settings").mockImplementation(async () => {
+        if (++looks === 2) await held
+        return settings()
+      })
+      await call("library.fetchPdfs", { ids: [id, other.id] })
+      await eventually(async () => expect(looks).toBe(2))
+      const next = path.join(path.dirname(root), "next")
+      mkdirSync(next)
+      await call("workspace.open", { path: next })
+      const handed = vi.spyOn(server.work, "fetch")
+      const owned = libraryOf(core)
+      server.work.fetch(owned, { paperId: "here", url: "https://journals.sagepub.com/doi/here", host: "sagepub.com", proxied: false }, false)
+      release()
+      await eventually(async () => expect(old.pdfRuns[0].handing).toBe(0))
+      expect(handed).toHaveBeenCalledTimes(1)
+      expect((await request("/work", { token })).body.work).toMatchObject([{ paperId: "here" }])
+    })
+
     it("never queues a paper stopped while its page was being looked up", async () => {
       const { call, request, token, core } = await connected()
       const library = libraryOf(core) as unknown as { services: { settings: () => Promise<unknown> }; batchStopped: Set<string> }

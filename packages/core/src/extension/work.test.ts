@@ -31,6 +31,23 @@ afterEach(() => {
 })
 
 describe("the extension's queue", () => {
+  it("leaves another workspace's waits and queue alone when a closed workspace's hand-over comes late", async () => {
+    const { work, never } = setup()
+    const closed = {} as Library
+    const open = {} as Library
+    work.fetch(closed, paper("old", "wiley.com"), false)
+    await work.take(open, 0, never)
+    work.fetch(open, paper("p1", "sagepub.com"), false)
+    work.fetch(open, paper("p2", "sagepub.com"), false)
+    const [p1] = await work.take(open, 0, never)
+    work.settle(p1.id, "check", { url: "https://journals.sagepub.com/doi/p1" })
+    work.fetch(closed, paper("late", "wiley.com"), true)
+    expect(await work.take(open, 0, never)).toEqual([])
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", papers: 2 }])
+    expect(work.holding(open, "p2")).toMatchObject({ wait: "pub:sage" })
+    expect(work.holding(closed, "late")).toBeUndefined()
+  })
+
   it("hands out one paper per site at a time, the next one only after the gap", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), false)

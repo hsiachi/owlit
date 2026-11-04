@@ -225,6 +225,8 @@ export class Library {
   private readonly machineFile = new Serial()
   // Where getting each paper's PDF stands (acquisition.json), written under the same lock
   private readonly acquisitions: Acquisitions
+  // Its workspace closed: hand-overs still going stop at their next paper
+  private disposed = false
   // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
   private readonly batchStopped = new Set<string>()
   // The workspace's Get PDFs: the one going on, else the last, until put away; in memory only
@@ -1636,6 +1638,7 @@ export class Library {
   }
 
   dispose() {
+    this.disposed = true
     clearTimeout(this.timer)
     clearInterval(this.hourly)
     for (const timer of this.noteTimers.values()) clearTimeout(timer)
@@ -2028,13 +2031,13 @@ export class Library {
   }
 
   // The paper to the extension's queue, at the publisher's page (through the library's proxy when one is
-  // set); false when no extension is asking for work. stopped: asked once its page is looked up, right
-  // before it is queued: true leaves it out. closed: queued too while the paired browser is closed, where
+  // set); false when no extension is asking for work, or this library's workspace closed. stopped: asked
+  // once its page is looked up, right before it is queued: true leaves it out. closed: queued too while the paired browser is closed, where
   // it waits for it (the window says so) and goes once it connects; a paper owlit's own look missed
   // otherwise reads "No PDF found" with nothing about the browser, until the browser asks
   private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean, { closed = false } = {}) {
     const extension = this.services.extension
-    if (!extension) return false
+    if (!extension || this.disposed) return false
     if (!extension.connected() && !(closed && (await extension.paired?.()))) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const libraryProxy = (await this.services.settings()).proxy
@@ -2043,6 +2046,7 @@ export class Library {
     const predicted = gateOf(route.url, proxy)
     const own = (await this.acquisitions.read(id))?.tried.filter((t) => t.by === "extension") ?? []
     const met = own.at(-1) && gateOfTry(own.at(-1)!, proxy, predicted)
+    if (this.disposed) return false
     if (stopped?.()) return true
     extension.fetch(this, { paperId: id, ...route, tries: own.length, predicted, ...(met ? { gate: met } : {}), ...(proxy ? { proxy } : {}) }, priority === "waiting")
     return true
