@@ -8,6 +8,7 @@ import { startI18n } from "../lib/i18n.ts"
 import { type Answers, type CardAction, type CardView, type Connection, type Outcome, type PageState, type PopupState, type Request, type SiteGoing, type SiteWait, type ToPage } from "../lib/messages.ts"
 import { ask as askAny, Elsewhere, OwlitError, Unreachable, type AskInit } from "../lib/owlit.ts"
 import { idsInUrl, namesPdf, paperMarkup, paperOfPage, type PagePaper } from "../lib/page.ts"
+import { proxyHostOf } from "../lib/from-tab.ts"
 import { hasKnownSites, mayRead, notYetAllowed } from "../lib/permissions.ts"
 import { idsForPdf, pdfSaidKey, pdfSaidOn, pdfTabKey, pdfTabWrite, savesOnArrival, showsPdf, takePdf, takesPdfTab, whyNotTaken, type PdfSaid, type TakeDeps } from "../lib/pdf-tab.ts"
 import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING } from "../lib/say.ts"
@@ -622,7 +623,7 @@ function keepAsking() {
         for (const handed of answer.work) {
           const item = asItem(handed)
           const wanted = () => stillWanted(item, token)
-          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab, redirectedTo, wanted })
+          void fetchLadder(item, { fetch: (url, init) => fetch(url, init), permitted, inTab: (host) => inTab(host, proxyHostOf(item)), redirectedTo, wanted })
             // A failure here says nothing of the paper: owlit hears a try that reached nothing and asks
             // again, where without an answer the paper stays in flight there, holding its lane
             .catch((error): Fetched => {
@@ -742,15 +743,16 @@ const htmlOf = documentOf
 
 // A fetch run inside a tab the user has open at this host's site, past its check, and where that tab is
 // (work.ts, FetchDeps.inTab): one at the host itself first, then one at another host of the site (the
-// check met at onlinelibrary.wiley.com, the user's tab on rss.onlinelibrary.wiley.com)
-async function inTab(host: string): Promise<{ fetch: typeof fetch; url: string } | undefined> {
+// check met at onlinelibrary.wiley.com, the user's tab on rss.onlinelibrary.wiley.com). proxyHost: the
+// item's host-rewriting proxy, without which every publisher under it reads as the tab's own site.
+async function inTab(host: string, proxyHost: string | undefined): Promise<{ fetch: typeof fetch; url: string } | undefined> {
   const site = siteOf(host)
   const tabs = await ext.tabs.query({ url: [`https://*.${site}/*`, `https://${site}/*`, `http://*.${site}/*`, `http://${site}/*`] })
   const at = (tab: chrome.tabs.Tab) => (tab.url ? new URL(tab.url).hostname : "")
   for (const tab of [...tabs.filter((t) => at(t) === host), ...tabs.filter((t) => at(t) !== host)]) {
     if (tab.id === undefined) continue
     const seen = await htmlOf(tab.id)
-    if (seen?.parsed && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id), url: seen.url }
+    if (seen?.parsed && isThrough({ url: seen.url, status: 0, html: seen.html })) return { fetch: tabFetch(tab.id, { proxyHost }), url: seen.url }
   }
   return undefined
 }

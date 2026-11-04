@@ -600,6 +600,20 @@ describe("a paper's addresses on another host than the tab past the check", () =
   })
 })
 
+describe("a host-rewriting proxy, whose names for every publisher share its domain", () => {
+  it("never asks one publisher's name for another's paper in a tab of the user's", async () => {
+    const EZ = "ezproxy.lib.example.edu"
+    const WILEY = `https://onlinelibrary-wiley-com.${EZ}/doi/10.1111/1`
+    const nature: Site = () => ({ html: "<title>Nature</title><meta name='citation_title' content='Nature'>" })
+    const b = await boot({ [`onlinelibrary-wiley-com.${EZ}`]: () => check(), [`www-nature-com.${EZ}`]: nature })
+    await b.openTab(`https://www-nature-com.${EZ}/articles/1`)
+    b.owlit.give({ work: [item("w1", "pub:wiley", WILEY, { lane: `proxy:${EZ}`, host: EZ, proxied: true })] })
+    await until(b, "w1#1")
+    expect(answered(b, "w1#1")[0].json).toMatchObject({ ended: "check", host: `onlinelibrary-wiley-com.${EZ}` })
+    expect(b.fetches.filter((f) => f.url.includes("nature") && f.url.includes("/doi/"))).toEqual([])
+  })
+})
+
 describe("a check that passes by itself in the tab", () => {
   const WAF_PAGE = readFileSync(path.join(import.meta.dirname, "../lib/fixtures/real/ieee-waf-challenge.tab.html"), "utf8")
   const IEEE = "https://ieeexplore.ieee.org/document/8440847"
