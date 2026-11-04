@@ -472,6 +472,7 @@ export class ExtensionWork implements ExtensionFetcher {
     const ask = this.asks.get(by ?? "") ?? { open: 0, at: 0, dropped: false }
     this.reissue(ask.worker && worker && ask.worker !== worker ? (by ?? "") : undefined)
     ask.worker = worker ?? ask.worker
+    const run = ask.worker
     ask.open++
     this.asks.set(by ?? "", ask)
     this.polledAt = Date.now()
@@ -500,7 +501,8 @@ export class ExtensionWork implements ExtensionFetcher {
         if (by) this.polled.set(by, this.polledAt)
         ask.open--
         ask.at = this.polledAt
-        ask.dropped = closed.aborted
+        // The last run's ask, closing after this run's began, says nothing of this run's fetches
+        ask.dropped = closed.aborted && ask.worker === run
         this.watchAway()
         // Out for a fetch now: the window hears each, so the block counts it as being fetched rather
         // than in line
@@ -608,12 +610,15 @@ export class ExtensionWork implements ExtensionFetcher {
       // The page the user had opened was for what it waited for before
       if (before && before.kind !== pause) follow.opened = undefined
       this.notes.changed()
+      const left = was && was !== before ? this.papersUnder(was) : []
       if (was && was !== before) {
         was.tryAt = undefined
-        // Its last paper moved on: left up, it would catch the next paper of its gate with no try to come
-        if (!this.count(was)) this.lift(was)
+        // The lane's own wait: the try got past it, so it holds no one, and left up it would keep this
+        // paper from the wait it just met (waitOver). Its last paper moved on: left up, it would catch
+        // the next paper of its gate with no try to come.
+        if (was.gate === lane.key || !left.length) this.lift(was)
       }
-      this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...(was ? this.papersUnder(was) : [])])])
+      this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...left])])
       this.waitsChanged()
     } else {
       lane.offline = undefined
