@@ -534,7 +534,6 @@ const looksHere = async (tabId: number, url: string) => /^https?:/.test(url) && 
 // The document of each tab the walk and the waits last looked at (its performance.timeOrigin): a page
 // is looked at once, whether its parse or its load came first
 const lookedAt = new Map<number, number>()
-const PARSED_EVERY_MS = 250
 
 // A page of the user's, looked at for the walk and the waits once its document is parsed. Never once it
 // has loaded: a page whose third-party scripts never answer (blocked on the network) stays loading for
@@ -555,7 +554,7 @@ async function pageReady(tabId: number) {
       return watchForThrough(tabId, tab.url)
     }
     if (Date.now() >= until) return
-    await new Promise((resolve) => setTimeout(resolve, PARSED_EVERY_MS))
+    await new Promise((resolve) => setTimeout(resolve, ASK_TIMES.parsedEveryMs))
   }
 }
 const withoutHash = (url: string) => url.replace(/#.*$/, "")
@@ -585,8 +584,10 @@ const goingKey = "going"
 const going = async () => ((await ext.storage.session.get(goingKey))[goingKey] ?? []) as NonNullable<WorkAnswer["going"]>
 // Restarts the asking if the worker was stopped meanwhile
 const WORK = "work"
-// After owlit stopped answering mid-ask: a restart of owlit's takes about this long (a test sets it shorter)
-export const ASK_TIMES = { restartRetryMs: 5_000 }
+// A test sets these shorter. restartRetryMs: after owlit stopped answering mid-ask, a restart of owlit's
+// takes about this long. throughEveryMs, parsedEveryMs: how often a tab waiting at a site is looked at
+// again (watchForThrough), and a page on its way (pageReady).
+export const ASK_TIMES = { restartRetryMs: 5_000, throughEveryMs: 3_000, parsedEveryMs: 250 }
 
 let asking: Promise<void> | null = null
 // This worker has had a GET /work answer, so the waits in session storage are owlit's now. Before the
@@ -847,7 +848,6 @@ async function blocked(wait: Waits[number], url: string, tabId: number) {
 // swaps the article in without loading a new page), so the tab is looked at again for a while; a block
 // stays as it is, so it is told once and the looking ends.
 const THROUGH_LOOKS = 20
-const THROUGH_EVERY_MS = 3000
 const watching = new Set<number>()
 
 // Whether a page the tab shows is past what its site waits for: neither a check, a block nor a sign-in
@@ -874,7 +874,7 @@ async function watchForThrough(tabId: number, url: string) {
   watching.add(tabId)
   try {
     for (let look = 0; look < THROUGH_LOOKS; look++) {
-      if (look) await new Promise((resolve) => setTimeout(resolve, THROUGH_EVERY_MS))
+      if (look) await new Promise((resolve) => setTimeout(resolve, ASK_TIMES.throughEveryMs))
       const tab = await ext.tabs.get(tabId).catch(() => undefined)
       // Gone, or gone elsewhere
       if (!tab?.url || !waitAt([wait], new URL(tab.url).hostname)) return

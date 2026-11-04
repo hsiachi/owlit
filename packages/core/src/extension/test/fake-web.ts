@@ -13,6 +13,9 @@ export interface Visit {
   client: Client
   web: FakeWeb
   signal?: AbortSignal
+  // Who in the browser asks: a page in a tab, or the extension's background, which a firewall can tell
+  // apart by the shape of its requests
+  from?: "worker" | "tab"
 }
 
 export type Behaviour = (visit: Visit) => Response | Promise<Response>
@@ -28,6 +31,9 @@ export interface FetchOptions {
 }
 
 const MAX_REDIRECTS = 20
+
+// On a page: it loads again by itself once its load ended, as a check that passed in the tab running it
+export const RELOADS = "x-fake-reloads"
 
 export class FakeWeb {
   // Every request, in order: who asked for what
@@ -158,7 +164,7 @@ export class FakeWeb {
   }
 
   // One request, one answer, no redirect followed
-  async answer(url: string, client: Client, signal?: AbortSignal): Promise<Response> {
+  async answer(url: string, client: Client, signal?: AbortSignal, from?: Visit["from"]): Promise<Response> {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError")
     const at = new URL(url)
     this.log.push({ client, url })
@@ -169,7 +175,7 @@ export class FakeWeb {
     const fn = routes.find((r) => typeof r.match === "function" && r.match(at))
     const best = fn ?? routes.filter((r) => typeof r.match === "string" && key.startsWith(r.match)).sort((a, b) => (b.match as string).length - (a.match as string).length)[0]
     if (!best) return page("Not Found", "<h1>Not Found</h1>", 404)
-    return best.behaviour({ url: at, client, web: this, signal })
+    return best.behaviour({ url: at, client, web: this, signal, ...(from ? { from } : {}) })
   }
 
   // A fetch as this visitor sees the web: redirects followed (or not, with redirect: "manual"), and
@@ -309,11 +315,11 @@ export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "i
 export function ezproxy(web: FakeWeb, host = "ezproxy.example.edu"): FakeWeb {
   web.on(
     (url) => url.hostname.endsWith(`.${host}`),
-    async ({ url, client, web, signal }) => {
+    async ({ url, client, web, signal, from }) => {
       const targetHost = url.hostname.slice(0, -host.length - 1).replace(/-/g, ".")
       const target = `https://${targetHost}${url.pathname}${url.search}`
       if (!web.isSignedIn(host, client)) return redirectTo(`https://${host}/login?url=${target}`)
-      const answer = await web.answer(target, client, signal)
+      const answer = await web.answer(target, client, signal, from)
       const location = answer.headers.get("location")
       if (!location) return answer
       const to = new URL(location, target)
