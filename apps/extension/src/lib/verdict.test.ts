@@ -194,3 +194,18 @@ describe("IEEE Xplore's page data", () => {
     expect(verdict(page(`"isOpenAccess":true,"isFreeDocument":false,"userInfo":{"institute":false,"member":false,"individual":false}`))).toBe("unreadable")
   })
 })
+
+describe("an institution's sign-in on its way through", () => {
+  const hop = (url: string) => verdict({ url, status: 200, html: "<title>OpenAthens</title><form method=post><input type=hidden name=SAMLRequest></form>" })
+
+  it("is a page for a tab to walk, not a sign-in to ask for", () => {
+    expect(hop("https://login.openathens.net/saml/2/sso/tsinghua.edu.cn/o/1/c/oafed")).toBe("check")
+    expect(hop("https://iam.atypon.com/action/saml2post")).toBe("check")
+    expect(hop("https://pubs.acs.org/Shibboleth.sso/Login?entityID=x")).toBe("check")
+  })
+
+  it("is over at the paper's own page, whatever its address", () => {
+    const article = '<title>A Paper</title><meta name="citation_title" content="A Paper"><meta name="citation_doi" content="10.1/1">'
+    expect(verdict({ url: "https://www.science.org/action/ssostart?redirectUri=x", status: 200, html: article })).toBe("unreadable")
+  })
+})

@@ -161,7 +161,17 @@ export function isBlocked(page: Pick<Page, "html">) {
   return BLOCK_WORDS.test(text) || AKAMAI_BLOCK.test(text)
 }
 
-export function isCheck(page: Pick<Page, "status" | "html" | "headers">) {
+// A step of an institution's sign-in that a browser walks by itself, by script or a form that posts
+// itself, and a fetch stops at: Elsevier's, OpenAthens' and Atypon's own hosts, and the two paths of the
+// Shibboleth and Atypon sign-ins publishers run. Through tlink off campus every publisher is reached so.
+const SSO_HOP_HOST = /^(auth\.elsevier\.com|login\.openathens\.net|iam\.atypon\.com)$/i
+const SSO_HOP_PATH = /\/Shibboleth\.sso\/|\/action\/(ssostart|saml2post)\b/i
+function isSsoHop(url: string | undefined, html: string) {
+  const at = url ? safeUrl(url) : undefined
+  return !!at && !isArticle(html) && (SSO_HOP_HOST.test(at.hostname) || SSO_HOP_PATH.test(at.pathname))
+}
+
+export function isCheck(page: Pick<Page, "status" | "html" | "headers"> & { url?: string }) {
   const refused = page.status === 403 || page.status === 429 || page.status === 503
   const title = titleOf(page.html)
   return (
@@ -172,7 +182,8 @@ export function isCheck(page: Pick<Page, "status" | "html" | "headers">) {
     (CHECK_MARKUP.test(page.html) && !isArticle(page.html)) ||
     (refused && CAPTCHA_MARKUP.test(page.html)) ||
     ((refused || page.status === 202 || page.status === 405) && WAF_MARKUP.test(page.html)) ||
-    isWafInterstitial(page.html)
+    isWafInterstitial(page.html) ||
+    isSsoHop(page.url, page.html)
   )
 }
 

@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> <HTML> <HEAD> <META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"> <META name="GENERATOR" content="IBM WebSphere Studio">
+<script type="text/javascript">
+ window.pageData = {
+ page: {
+ productName : "id",
+ businessUnit : "ELS:RP:ST", 
+ environment : "prod" , 
+ name : "SHIB:IDP_LOGIN_REDIRECT", 
+ },
+ visitor : {
+ entityId : "https%3A%2F%2Fidp.tsinghua.edu.cn%2Fopenathens", 
+ appProduct : "sciencedirect.com",
+ origin : "NON_IDPLUS",
+ accountName: "null",
+ accountId: "null",
+ accountNumber: "null",
+ orgType: "null",
+ elsCustId: "null"
+ },
+ form : {
+ step : "start",
+ type :"shibidplogin",
+ errorType :""
+ }
+ };
+
+
+</script>
+<script type="text/JavaScript">
+	function submitForm() {
+ document.instDataForm.submit();
+	}
+	</script>
+</HEAD> <body> <form method="post" action="https://auth.elsevier.com/SHIRE/Login?SAMLDS=1&entityID=https%3A%2F%2Fidp.tsinghua.edu.cn%2Fopenathens" name="instDataForm"> <noscript> &nbsp; JavaScript required JavaScript is disabled on your b<input type="submit" /> </noscript> </form>
+<script type="text/javascript">
+	pageDataTracker.trackPageLoad();
+
+window.addEventListener("load", function(event) {
+ window.pageData.page.loadTime = getPageLoadTime();
+ });
+ 
+	function getPageLoadTime() {
+	var returnValue = '';
+	if (typeof(performance) !== 'undefined' && typeof(performance.timing) == 'object') {
+ var timing = performance.timing;
+ var startTime = timing.redirectStart || timing.fetchStart || timing.requestStart;
+ var endTime = timing.domContentLoadedEventEnd || timing.domInteractive || timing.domComplete || timing.loadEventComplete;
+ if (startTime && endTime && startTime < endTime) returnValue = endTime - startTime;
+	}
+	return returnValue.toString();
+}
+ 
+</script>
+</body> </HTML>

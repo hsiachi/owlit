@@ -553,7 +553,7 @@ describe("the extension's port", () => {
       expect(item).toMatchObject({ proxied: true, host: "tlink.lib.tsinghua.edu.cn" })
       // Signed out at the proxy, found by the redirect to the school's sign-in: no page of its own
       await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" } })
-      const signIn = "https://tlink.lib.tsinghua.edu.cn/gologin"
+      const signIn = "https://tlink.lib.tsinghua.edu.cn/gologin?callback=aHR0cHM6Ly90bGluay5saWIudHNpbmdodWEuZWR1LmNuL2Ricy1uYXZpZ2F0aW9u"
       expect((await call("extension.get")).waits).toMatchObject([{ id: "proxy:tlink.lib.tsinghua.edu.cn", kind: "sign-in", url: signIn }])
       await core.dispose()
       const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })

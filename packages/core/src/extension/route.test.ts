@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { extensionRoute, siteOf, throughProxy } from "./route.ts"
+import { PROXY_PRESETS } from "@owlit/protocol"
 
 describe("where the extension goes for a paper", () => {
   it("sends the extension to the publisher's page and PDF, through the proxy where it is set", () => {
@@ -18,7 +19,7 @@ describe("where the extension goes for a paper", () => {
       signIn: "https://tlink.lib.tsinghua.edu.cn/go",
     })
     // The preset's sign-in page, for settings saved before it existed too
-    expect(extensionRoute("10.1177/0956797620904990", { ...tlink, preset: "tsinghua" }).signIn).toBe("https://tlink.lib.tsinghua.edu.cn/gologin")
+    expect(extensionRoute("10.1177/0956797620904990", { ...tlink, preset: "tsinghua" }).signIn).toBe(PROXY_PRESETS.tsinghua.signIn)
     // Open to all: never through the proxy
     expect(extensionRoute("10.1145/3613904.3642549", tlink)).toMatchObject({ url: "https://dl.acm.org/doi/10.1145/3613904.3642549", host: "acm.org", proxied: false })
     // A publisher owlit has no row for: where the DOI is registered, not doi.org
