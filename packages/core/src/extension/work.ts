@@ -1179,13 +1179,13 @@ function answerGate(item: Queued, page: { url?: string; host?: string }): GateKe
 
 // Where the user acts on a wait, as shown (ExtensionWait.at): the proxy's host for its own gate; the
 // whole site to allow for a permission (one Allow covers doi.apa.org and psycnet.apa.org); the page's
-// host when the page is the gate's own; else the gate's own name, so an identity provider or a CDN the
-// page was on is never shown
+// host when the page is the gate's own; else the gate's own name, so an identity provider, a CDN or a
+// step of a publisher's sign-in the page was on is never shown
 function atOf(gate: GateKey, kind: ExtensionWait["kind"], pageHost: string | undefined): string {
   if (gate.startsWith("proxy:")) return gate.slice("proxy:".length)
   const host = pageHost?.toLowerCase()
   if (host && kind === "permission") return siteOf(host)
-  if (host && gateOf(`https://${host}/`) === gate) return host.replace(/^www\./, "")
+  if (host && !isSsoHop(`https://${host}/`) && gateOf(`https://${host}/`) === gate) return host.replace(/^www\./, "")
   return gate.startsWith("site:") ? gate.slice("site:".length) : (watchOf(gate, gate)[0] ?? gate.slice("pub:".length))
 }
 
