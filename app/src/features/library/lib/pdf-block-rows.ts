@@ -1,4 +1,5 @@
 import type { ExtensionWait, Paper, PdfRunView } from "@owlit/protocol"
+import { pdfWait } from "./pdf-wait"
 
 // The rows of the Library's PDF block while a Get PDFs is up (PdfBlock), as counts: what the block says,
 // apart from its words. Every paper of the run is in exactly one row, so the rows and the saved add up to
@@ -16,7 +17,8 @@ export type RowModel =
 // a site that didn't answer, those being fetched now and those waiting their turn. A wait the run counts
 // that the waits list doesn't have yet (the two come by one notification, but a paper can be read
 // between) has no row until it does.
-// outside: the other waits, each with its papers that aren't the run's. A paper of the run under a wait
+// outside: every wait with papers that aren't the run's, shared with the run or not, so the two add up to
+// what Home counts for it. A paper of the run under a wait
 // is the run's to count, where core put it (PdfRunView.waits, or getting while the papers lag a moment).
 export function blockRows(run: PdfRunView, waits: ExtensionWait[], papers: Record<string, Pick<Paper, "pdfState"> | undefined>): { rows: RowModel[]; outside: RowModel[] } {
   const rows: RowModel[] = []
@@ -30,9 +32,13 @@ export function blockRows(run: PdfRunView, waits: ExtensionWait[], papers: Recor
   for (const kind of ["getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
   const ofRun = (wait: ExtensionWait) => run.ids.filter((id) => papers[id]?.pdfState?.extension?.wait === wait.id).length
   const outside = waits
-    .filter((w) => !run.waits.some((r) => r.wait === w.id))
     .map((wait): RowModel => ({ kind: "wait", wait, papers: wait.papers - ofRun(wait) }))
     .filter((row) => row.papers > 0)
     .sort((a, b) => b.papers - a.papers)
   return { rows, outside }
 }
+
+// The papers to download by hand that the run's own row doesn't have: the ones from before it keep their
+// way into the walk through them while it goes on
+export const handDownloads = <P extends Pick<Paper, "id" | "pdf" | "pdfState">>(papers: P[], run: Pick<PdfRunView, "manual"> | null | undefined) =>
+  papers.filter((p) => pdfWait(p) === "manual" && !run?.manual.ids.includes(p.id))

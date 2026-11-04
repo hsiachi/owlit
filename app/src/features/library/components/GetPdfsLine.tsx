@@ -7,6 +7,7 @@ import { useExtension, usePdfRun } from "@/features/extension/store"
 import { browserName, walkManual } from "@/features/extension/waits"
 import { rpc } from "@/lib/rpc"
 import { toastError } from "@/lib/toast"
+import { handDownloads } from "../lib/pdf-block-rows"
 import { pdfWait } from "../lib/pdf-wait"
 
 // Atop the No PDF list: one action for the whole list. Every paper with a DOI that the extension in the
@@ -27,7 +28,7 @@ export function GetPdfsLine({ papers }: { papers: Paper[] }) {
   const unreached = (p: Paper) => pdfWait(p) === "finding" || pdfWait(p) === "offline"
   const offered = lacking.filter((p) => p.ids.doi && (!inRun.has(p.id) || unreached(p)) && !p.pdfState?.extension && pdfWait(p) !== "manual" && pdfWait(p) !== "skipped")
   const noDoi = lacking.filter((p) => !p.ids.doi).length
-  const manual = lacking.filter((p) => pdfWait(p) === "manual")
+  const manual = handDownloads(lacking, run)
   const manualDoi = manual.map((p) => p.ids.doi).find(Boolean)
   const manualCount = manual.length
   const browser = browserName(paired)
@@ -57,9 +58,9 @@ export function GetPdfsLine({ papers }: { papers: Paper[] }) {
           <span className="truncate">{plural(offered.length, { one: `Get the PDF for # paper using ${browser}`, other: `Get PDFs for # papers using ${browser}` })}</span>
         </StatusLine>
       )}
-      {/* Without a run (the block's manual row gone with it), the papers to download by hand keep their
-          way into the walk through them */}
-      {!run?.total && manual.length > 0 && manualDoi && (
+      {/* The papers to download by hand that the block's manual row doesn't have keep their way into the
+          walk through them */}
+      {manual.length > 0 && manualDoi && (
         <StatusLine
           actions={
             <Button variant="text" size="inline" onClick={() => void walkManual(manual.map((p) => p.id), `https://doi.org/${manualDoi}`)}>
