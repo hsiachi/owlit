@@ -195,6 +195,20 @@ describe("IEEE Xplore's page data", () => {
   })
 })
 
+describe("IEEE Xplore's page data", () => {
+  const data = (userInfo: string) => `<title>A Paper</title><meta name="citation_title" content="A Paper"><script>xplGlobal.document.metadata={"isOpenAccess":false,"isFreeDocument":false,"userInfo":${userInfo}};</script>`
+  const at = (html: string) => verdict({ url: "https://ieeexplore.ieee.org/document/1", status: 200, html })
+
+  it("keeps the paper from a reader with no institution and no subscription", () => {
+    expect(at(data('{"institute":false,"individual":false}'))).toBe("no-access")
+    expect(at(data('{"institute":false,"individual":false,"member":false}'))).toBe("no-access")
+  })
+
+  it("says nothing sure of a member, whose membership may carry the paper", () => {
+    expect(at(data('{"institute":false,"individual":false,"member":true}'))).toBe("unreadable")
+  })
+})
+
 describe("an institution's sign-in on its way through", () => {
   const hop = (url: string) => verdict({ url, status: 200, html: "<title>OpenAthens</title><form method=post><input type=hidden name=SAMLRequest></form>" })
 

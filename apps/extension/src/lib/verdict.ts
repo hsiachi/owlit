@@ -141,9 +141,10 @@ function offersAccess(html: string) {
 }
 
 // IEEE Xplore draws its "Sign In or Purchase" by script, after the page has been read; its page data
-// says the same: a paper neither free nor open, for a reader with no institution and no subscription
+// says the same: a paper neither free nor open, for a reader with no institution and no subscription.
+// A member's society subscriptions don't show in it, so a member's access can't be told.
 const ieeeKeepsIt = (html: string) =>
-  /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html)
+  /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html) && !/"userInfo":\{[^{}]*"member":true/.test(html)
 
 // What a PDF's address (asked) answered with when the site keeps the PDF from this reader: the paper's
 // own page where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the
