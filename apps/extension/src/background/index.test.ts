@@ -452,7 +452,7 @@ describe("a kept tab the user took over", () => {
   })
 
   it("isn't closed when the site turns the gate's next paper away while they are in it", async () => {
-    let b: FakeBrowser | undefined
+    let b: Awaited<ReturnType<typeof boot>> | undefined
     const acm: Site = ({ url, from, look, tab }) => {
       if (from === "worker") return check()
       if (url.pathname.endsWith("/2")) {
