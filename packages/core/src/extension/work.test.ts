@@ -31,6 +31,20 @@ afterEach(() => {
 })
 
 describe("the extension's queue", () => {
+  it("keeps a check at a sign-in hop under the paper's publisher, holding only that publisher's papers in the proxy's lane", async () => {
+    const { work, take } = setup()
+    work.fetch(library, { ...tlinkPaper("s1", "10.1177/1"), predicted: "pub:sage" }, true)
+    work.fetch(library, { ...tlinkPaper("w1", "10.1002/1"), predicted: "pub:wiley" }, false)
+    const [s1] = await take()
+    expect(work.gateFor(s1.id, { url: "https://login.openathens.net/saml?x=1" })).toBe("pub:sage")
+    work.settle(s1.id, "check", { url: "https://login.openathens.net/saml?x=1", host: "login.openathens.net" })
+    expect(work.waits()).toMatchObject([{ id: "pub:sage", kind: "check", at: "sagepub.com", url: tlinkPaper("s1", "10.1177/1").url, papers: 1 }])
+    expect(work.waits()[0].watch).toContain("sagepub.com")
+    expect(work.holding(library, "w1")).not.toHaveProperty("wait")
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["w1"])
+  })
+
   it("leaves another workspace's waits and queue alone when a closed workspace's hand-over comes late", async () => {
     const { work, never } = setup()
     const closed = {} as Library

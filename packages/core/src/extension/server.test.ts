@@ -545,6 +545,23 @@ describe("the extension's port", () => {
       expect(opened).toHaveLength(1)
     })
 
+    it("brings a check at a sign-in hop back after a restart as it was, under the paper's publisher", async () => {
+      const { call, request, token, core, userDataDir, root } = await connected()
+      await call("settings.setProxy", { preset: "tsinghua" })
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "check", host: "login.openathens.net", url: "https://login.openathens.net/saml/2/sso?SAMLRequest=abc" } })
+      const [wait] = (await call("extension.get")).waits
+      expect(wait).toMatchObject({ id: "pub:sage", kind: "check", url: item.url })
+      expect(wait.url).not.toContain("openathens")
+      await core.dispose()
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20 } })
+      cleanups.push(() => again.dispose())
+      await again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+      const view: any = await again.handle({ jsonrpc: "2.0", id: 2, method: "extension.get" })
+      expect(view.result.waits).toMatchObject([{ id: wait.id, kind: wait.kind, at: wait.at, watch: wait.watch, url: wait.url }])
+    })
+
     it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
       const { call, request, token, core, userDataDir, root } = await connected()
       await call("settings.setProxy", { preset: "tsinghua" })

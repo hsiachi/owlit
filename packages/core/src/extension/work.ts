@@ -1,7 +1,7 @@
 import type { ExtensionWait, GateKey, LaneKey, OpenPage, PdfState, ProxySettings, WaitId, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
 import { hostOf } from "../net/http.ts"
-import { allowOf, gateOf, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
+import { allowOf, gateOf, isSsoHop, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
 import { FOLLOW_UP_MS, PdfWorkNotes, type FollowUp, type QueuedNote } from "./pdf-work.ts"
 import { siteOf } from "./route.ts"
 
@@ -584,10 +584,10 @@ export class ExtensionWork implements ExtensionFetcher {
       sortQueue(lane)
       const pageHost = page.url ? hostOf(page.url) : page.host
       const at = atOf(item.gate, pause, pageHost)
-      // The library's sign-in page for the proxy's own sign-in; the publisher's page for one met there
-      const url = (pause === "sign-in" && item.gate.startsWith("proxy:") && item.paper.signIn) || page.url || item.paper.url
-      const before = this.waitsAt.get(item.gate)
       const proxy = item.paper.proxied ? item.paper.proxy : undefined
+      // The library's sign-in page for the proxy's own sign-in; the publisher's page for one met there
+      const url = (pause === "sign-in" && item.gate.startsWith("proxy:") && item.paper.signIn) || (isSsoHop(page.url, proxy) ? undefined : page.url) || item.paper.url
+      const before = this.waitsAt.get(item.gate)
       // A paper that went on when the user got through met the same gate again: that wait is back
       const back = before ? undefined : this.notes.goingWith(item.gate, item.paper.paperId)
       const since = before?.since ?? back?.since ?? page.triedAt ?? now
