@@ -161,6 +161,13 @@ const inLine = (gate: GateKey) => {
   return chain
 }
 
+// Gates a tab of the user's got past (index.ts resume) while the gate's own tab, opened for a paper,
+// still stood at the check: that tab stops waiting, and the paper is fetched in the user's (pass)
+const passedElsewhere = new Set<GateKey>()
+export function passedAt(gate: GateKey) {
+  if (running.has(gate)) passedElsewhere.add(gate)
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const hostOf = (url: string) => {
   try {
@@ -220,6 +227,7 @@ async function inGateLine(item: WorkItem, deps: FetchDeps, { open }: { open: boo
       return await inOwnTab(item, deps, { open })
     } finally {
       running.delete(item.gate)
+      passedElsewhere.delete(item.gate)
       setTimeout(() => void closeIdleTabs(), TAB_TIMES.idleMs + 1)
     }
   })
@@ -261,7 +269,11 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
     const host = landed.url ? hostOf(landed.url) : item.sites?.[0]
     return host ? { ended: "no-permission", host } : undefined
   }
-  const passed = await pass(tab, item, { once: reused })
+  const passed = await pass(tab, item, deps, { once: reused })
+  if (passed && "theirs" in passed) {
+    await letGo(gate, tab)
+    return fetchFor(inTabItem(item, passed.theirs.url), { ...deps, fetch: whileWanted(passed.theirs.fetch, deps), inTab: undefined })
+  }
   if (!passed || !("through" in passed)) {
     await letGo(gate, tab)
     return passed
@@ -346,8 +358,10 @@ function loaded(tabId: number, before?: number): Promise<void> {
 // challenge, which reloads into the paper's page, a "Please wait"), says nothing yet and is looked at
 // again in the same time. Judged by the document alone, never by whether the tab is still loading: a
 // page whose third-party scripts never answer stays loading for minutes with its article there.
-// once: a check met again on a tab whose check was passed before is the site's word at once.
-async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promise<{ through: { url: string; html: string } } | Fetched | undefined> {
+// once: a check met again on a tab whose check was passed before is the site's word at once. theirs: a
+// tab of the user's got past the gate's check meanwhile (passedAt), where the paper is fetched instead:
+// a check that only a person passes may stand in this tab for its whole time, the user being elsewhere.
+async function pass(tab: WorkTab, item: WorkItem, deps: FetchDeps, { once = false } = {}): Promise<{ through: { url: string; html: string } } | { theirs: { fetch: typeof fetch; url: string } } | Fetched | undefined> {
   const proxy = item.proxied ? { host: hostOf(item.url), entry: item.url } : undefined
   let until = Date.now() + TAB_TIMES.hiddenMs
   for (;;) {
@@ -355,6 +369,10 @@ async function pass(tab: WorkTab, item: WorkItem, { once = false } = {}): Promis
     if (!seen) return undefined
     const page = { url: seen.url, status: 0, html: seen.html, proxy }
     if (seen.parsed && isThrough(page)) return { through: seen }
+    if (passedElsewhere.delete(item.gate)) {
+      const theirs = await usersTab(item, deps)
+      if (theirs) return { theirs }
+    }
     const onItsWay = !seen.parsed || isStandIn(page)
     if (!onItsWay && (once || !isCheck(page) || isInteractive(page))) return said(page)
     if (Date.now() >= until) {

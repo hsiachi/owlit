@@ -447,6 +447,25 @@ describe("a tab already past the gate's check", () => {
   })
 })
 
+describe("a tab of the user's past the gate's check while the gate's own tab stands at it", () => {
+  it("stops the gate's tab waiting, and fetches its paper in the user's tab at once", async () => {
+    // The run's hidden tab never gets past; the user's tab, in front, does
+    const acm: Site = ({ url, from, tab }) => (from === "worker" || (from === "tab" && !tab?.active) ? check() : url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF))
+    const b = await boot({ "dl.acm.org": acm })
+    // Without the user's tab the check would be given this long hidden
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    const wait: WorkWait = { id: "pub:acm", kind: "check", at: "dl.acm.org", host: "dl.acm.org", watch: ["dl.acm.org"], papers: 2, proxied: false, allow: ["acm.org"], since: 1 }
+    b.owlit.give({ waits: [wait], work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await vi.waitFor(() => expect(b.created).toHaveLength(1), PATIENCE)
+    await b.openTab("https://dl.acm.org/doi/10.1145/9")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toHaveLength(1), PATIENCE)
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0]).toMatchObject({ pdf: true })
+    // The gate's tab, never brought to the front, is closed
+    await vi.waitFor(() => expect(b.removed).toHaveLength(1), PATIENCE)
+  })
+})
+
 describe("a PDF the user opens at a waiting site", () => {
   it("is taken before owlit goes on at the wait, so its paper isn't fetched again", async () => {
     const RSS = "rss.onlinelibrary.wiley.com"

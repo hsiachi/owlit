@@ -14,7 +14,7 @@ import { badgeOf, cardOf, savedPaper, sayIn, TAKEN, WAITING, walkCard, WORKING }
 import { serial } from "../lib/serial.ts"
 import { isBlocked, isThrough, siteOf } from "../lib/verdict.ts"
 import { report } from "../lib/work.ts"
-import { closeIdleTabs, documentOf, fetchLadder, pdfOfTab, redirectedTo, showWorkTab, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
+import { closeIdleTabs, documentOf, fetchLadder, passedAt, pdfOfTab, redirectedTo, showWorkTab, TAB_TIMES, tabFetch, workTabIds } from "./ladder.ts"
 
 // The extension's background (Chrome's service worker, Firefox's event page): the one place that talks to
 // owlit and fetches with the user's cookies. The toolbar button has no popup of its own: its click does the
@@ -804,6 +804,8 @@ async function resume(wait: Waits[number], tabId?: number) {
     resumed.get(tab)?.told.delete(waitKey(wait))
     throw error
   }
+  // A Get PDFs' tab at this gate still standing at its check stops waiting: the papers come through this one
+  if (wait.id && tabId !== undefined && !workTabIds.has(tabId)) passedAt(wait.id)
   await ext.storage.session.set({ [waitsKey]: (await waits()).filter((w) => !sameWait(w, wait)) })
   if (tabId !== undefined) await drawCard(tabId, cardOf({ kind: "through", host: wait.at, papers: wait.papers }))
 }
