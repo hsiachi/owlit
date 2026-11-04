@@ -614,6 +614,36 @@ describe("a host-rewriting proxy, whose names for every publisher share its doma
   })
 })
 
+describe("a PDF address that turns the extension's own fetch away", () => {
+  const SAGE = "https://journals.sagepub.com/doi/1"
+  const SAGE_PDF = "https://journals.sagepub.com/doi/pdf/1"
+  const page = article("Sage", SAGE_PDF)
+  const sage = (inTab: Answer): Site => ({ url, from }) => (!url.pathname.includes("/pdf/") ? page : from === "worker" ? { ...page, status: 403 } : inTab)
+
+  it("goes on to the tab for a paper the user started, where a firewall may let the page through", async () => {
+    const b = await boot({ "journals.sagepub.com": sage({ pdf: true }) })
+    b.owlit.give({ work: [item("s1", "pub:sage", SAGE, { pdfUrl: SAGE_PDF, userStarted: true })] })
+    await until(b, "s1#1")
+    expect(answered(b, "s1#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(1)
+  })
+
+  it("is settled as no access by the same answer inside the tab", async () => {
+    const b = await boot({ "journals.sagepub.com": sage({ ...page, status: 403 }) })
+    b.owlit.give({ work: [item("s1", "pub:sage", SAGE, { pdfUrl: SAGE_PDF, userStarted: true })], endings: ["unreadable", "no-access"] })
+    await until(b, "s1#1")
+    expect(answered(b, "s1#1")[0].json).toMatchObject({ ended: "no-access" })
+  })
+
+  it("ends unreadable for a paper nobody started, with no tab opened", async () => {
+    const b = await boot({ "journals.sagepub.com": sage({ pdf: true }) })
+    b.owlit.give({ work: [item("s1", "pub:sage", SAGE, { pdfUrl: SAGE_PDF })], endings: ["unreadable", "no-access"] })
+    await until(b, "s1#1")
+    expect(answered(b, "s1#1")[0].json).toMatchObject({ ended: "unreadable" })
+    expect(b.created).toEqual([])
+  })
+})
+
 describe("a check that passes by itself in the tab", () => {
   const WAF_PAGE = readFileSync(path.join(import.meta.dirname, "../lib/fixtures/real/ieee-waf-challenge.tab.html"), "utf8")
   const IEEE = "https://ieeexplore.ieee.org/document/8440847"

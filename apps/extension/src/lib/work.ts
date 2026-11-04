@@ -35,6 +35,12 @@ export interface FetchDeps {
   // owlit still waits for this item's answer (GET /work/:id): asked before each fetch made for it in a
   // tab, which may be minutes after it was handed out. undefined: always.
   wanted?: () => Promise<boolean>
+  // The fetch is made inside a tab of the site, as its own page would be. Only then does a PDF's address
+  // keeping the PDF (refusesPdf) settle no-access: a firewall may refuse the extension's own requests
+  // and let tabs through.
+  inside?: boolean
+  // Told when an answer outside a tab looks like that, and is said as unreadable for now
+  refused?: () => void
 }
 
 export type Fetched = { pdf: ArrayBuffer; host: string; url: string } | WorkEnded
@@ -147,7 +153,7 @@ export async function fetchFor(item: WorkItem, deps: FetchDeps): Promise<Fetched
   const got = await fetchWith(item, deps)
   if ("pdf" in got || (got.ended !== "check" && got.ended !== "blocked") || !deps.inTab) return got
   const tab = await deps.inTab(got.host)
-  return tab ? fetchWith(inTabItem(item, tab.url), { ...deps, fetch: tab.fetch, inTab: undefined }) : got
+  return tab ? fetchWith(inTabItem(item, tab.url), { ...deps, fetch: tab.fetch, inTab: undefined, inside: true }) : got
 }
 
 async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
@@ -179,7 +185,7 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (got.kind === "pdf") return { pdf: got.bytes, host: hostOf(got.url), url: got.url }
     // A check, a block or a sign-in in front of the PDF is in front of the page too
     if (got.kind === "page" && stops(got.page)) return said(got.page)
-    refused = got.kind === "page" && refusesPdf(got.page)
+    refused = got.kind === "page" && refusesPdf(got.page, item.pdfUrl)
     if (got.kind === "redirected") {
       const site = unreadable(got)
       if (site || item.proxied) return site ?? away
@@ -198,11 +204,14 @@ async function fetchWith(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
     if (pdf.kind === "page" && stops(pdf.page)) return said(pdf.page)
     if (pdf.kind === "redirected") return unreadable(pdf) ?? away
     if (pdf.kind === "timeout") return offlineAt(pdf)
-    refused ||= pdf.kind === "page" && refusesPdf(pdf.page)
+    refused = pdf.kind === "page" && refusesPdf(pdf.page, named)
   }
   const ending = said(page)
-  // The paper's page names a PDF, so alone it says nothing sure; the PDF's own answer does
-  return refused && ending.ended === "unreadable" ? { ...ending, ended: "no-access" } : ending
+  // The paper's page names a PDF, so alone it says nothing sure; the last PDF answer does
+  if (!refused || ending.ended !== "unreadable") return ending
+  if (deps.inside) return { ...ending, ended: "no-access" }
+  deps.refused?.()
+  return ending
 }
 
 // Only the user can get past it

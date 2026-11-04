@@ -101,7 +101,7 @@ export class FakeOwlit {
     this.legacy = legacy
   }
 
-  give(answer: { work?: unknown[]; waits?: unknown[]; open?: unknown[]; going?: unknown[] }) {
+  give(answer: { work?: unknown[]; waits?: unknown[]; open?: unknown[]; going?: unknown[]; endings?: WorkEnding[] }) {
     const full = { work: [], waits: [], open: [], going: [], ...answer }
     if (this.holding) {
       const hold = this.holding

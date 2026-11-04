@@ -47,7 +47,20 @@ describe("recorded PDF addresses keeping the PDF from a reader", () => {
   const refusals = recorded.filter((page) => page.name.endsWith("-closed-pdf.worker"))
   it.each(refusals.map((page) => [page.name, page] as const))("%s", (_, page) => {
     const html = readFileSync(path.join(folder, `${page.name}.html`), "utf8")
-    expect(refusesPdf({ status: page.status, html }), page.really).toBe(true)
+    // A 200 counts only when the PDF's address sent the reader away: these are at the paper's page
+    const asked = page.status === 200 ? `${page.url}/pdf` : page.url
+    expect(refusesPdf({ url: page.url, status: page.status, html }, asked), page.really).toBe(true)
+  })
+})
+
+// A campus reader's paper page, answered at the address asked: headers and footers offer access to
+// readers who have the paper, so nothing here keeps the PDF from them
+describe("recorded pages of readers with the paper, at the address asked", () => {
+  const campus = recorded.filter((page) => ["sage-article.tab", "oup-article.tab", "science-article.tab"].includes(page.name))
+  it("are three", () => expect(campus).toHaveLength(3))
+  it.each(campus.map((page) => [page.name, page] as const))("%s", (_, page) => {
+    const html = readFileSync(path.join(folder, `${page.name}.html`), "utf8")
+    expect(refusesPdf({ url: page.url, status: 200, html }, page.url), page.really).toBe(false)
   })
 })
 

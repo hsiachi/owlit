@@ -159,19 +159,41 @@ describe("fetching a paper for owlit", () => {
     const pdfAt = "https://journals.sagepub.com/doi/pdf/10.1177/1"
     // Wiley's and ASCE's: refused, with the article on the refusal
     const refused = web({ [at]: { body: article() }, [pdfAt]: { body: article(), status: 403 } })
-    expect(await fetchFor(item(), refused.deps)).toMatchObject({ ended: "no-access", title: "A Paper" })
+    expect(await fetchFor(item(), { ...refused.deps, inside: true })).toMatchObject({ ended: "no-access", title: "A Paper" })
     // Science's and JAMA's: sent back to the paper's page, with its offers
     const sentBack = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: article("<a>Check Access</a>"), endsAt: at } })
-    expect(await fetchFor(item(), sentBack.deps)).toMatchObject({ ended: "no-access" })
+    expect(await fetchFor(item(), { ...sentBack.deps, inside: true })).toMatchObject({ ended: "no-access" })
     // The same known from the PDF address owlit gave
     const given = web({ [at]: { body: article() }, [pdfAt]: { body: article(), status: 403 } })
-    expect(await fetchFor(item({ pdfUrl: pdfAt }), given.deps)).toMatchObject({ ended: "no-access" })
+    expect(await fetchFor(item({ pdfUrl: pdfAt }), { ...given.deps, inside: true })).toMatchObject({ ended: "no-access" })
     // A viewer's page where the PDF should be offers nothing: the user can get it there by hand
     const viewer = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: '<title>A Paper</title><div id="viewer"></div>' } })
-    expect(await fetchFor(item(), viewer.deps)).toMatchObject({ ended: "unreadable" })
+    expect(await fetchFor(item(), { ...viewer.deps, inside: true })).toMatchObject({ ended: "unreadable" })
     // A site's error in the PDF's place says nothing of the reader's access
     const broken = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: "<title>Server error</title>", status: 500 } })
-    expect(await fetchFor(item(), broken.deps)).toMatchObject({ ended: "unreadable" })
+    expect(await fetchFor(item(), { ...broken.deps, inside: true })).toMatchObject({ ended: "unreadable" })
+    // Offers on a page answered at the PDF's own address, as a campus reader's: nobody was sent away
+    const stayed = web({ [at]: { body: article("<a>Check Access</a>") }, [pdfAt]: { body: article("<a>Check Access</a>") } })
+    expect(await fetchFor(item(), { ...stayed.deps, inside: true })).toMatchObject({ ended: "unreadable" })
+  })
+
+  it("goes by the last PDF answer: an earlier refusal doesn't stand for it", async () => {
+    const at = "https://journals.sagepub.com/doi/10.1177/1"
+    const given = "https://journals.sagepub.com/doi/pdf/10.1177/1"
+    const named = "https://journals.sagepub.com/doi/epdf/10.1177/1"
+    const page = `<title>A Paper</title><meta name="citation_title" content="A Paper"><meta name="citation_pdf_url" content="${named}">`
+    const { deps } = web({ [at]: { body: page }, [given]: { body: page, status: 403 }, [named]: { body: '<title>A Paper</title><div id="viewer"></div>' } })
+    expect(await fetchFor(item({ pdfUrl: given }), { ...deps, inside: true })).toMatchObject({ ended: "unreadable" })
+  })
+
+  it("settles no access only from inside a tab: the extension's own fetch is told apart", async () => {
+    const at = "https://journals.sagepub.com/doi/10.1177/1"
+    const pdfAt = "https://journals.sagepub.com/doi/pdf/10.1177/1"
+    const page = `<title>A Paper</title><meta name="citation_title" content="A Paper"><a href="/doi/pdf/10.1177/1">PDF</a>`
+    const { deps } = web({ [at]: { body: page }, [pdfAt]: { body: page, status: 403 } })
+    const refused = vi.fn()
+    expect(await fetchFor(item(), { ...deps, refused })).toMatchObject({ ended: "unreadable", title: "A Paper" })
+    expect(refused).toHaveBeenCalledOnce()
   })
 
   it("names the site a redirect reached when the extension may not read it", async () => {

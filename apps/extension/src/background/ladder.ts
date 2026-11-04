@@ -9,7 +9,8 @@ import { FETCH_MS, fetchFor, said, type Fetched, type FetchDeps } from "../lib/w
 // 1. The background's own fetch, with the user's cookies. Skipped where a tab is past the gate's check
 //    already (the gate's own, or one of the user's), which fetches instead whoever started it; and for a
 //    publisher whose check always turns it away (WorkItem.inTab), when a tab will fetch instead.
-// 2. On a check, and only inside something the user started (WorkItem.userStarted): a tab of the
+// 2. On a check, or a PDF address that kept the PDF from the background (refusesPdf: only a tab settles
+//    that), and only inside something the user started (WorkItem.userStarted): a tab of the
 //    extension's own, one per gate, opened in the background on the paper's page. A managed check
 //    (Cloudflare's "Just a moment") passes by itself in a tab that runs it; the tab is brought to the
 //    front once if it hasn't after a while. Past it, the paper is fetched from inside the tab, as the
@@ -194,16 +195,17 @@ export async function fetchLadder(item: WorkItem, background: FetchDeps): Promis
       if (got) return got
     }
     const theirs = await usersTab(item, deps)
-    if (theirs) return fetchFor(inTabItem(item, theirs.url), { ...deps, fetch: whileWanted(theirs.fetch, deps), inTab: undefined })
+    if (theirs) return fetchFor(inTabItem(item, theirs.url), insideTab(theirs.fetch, deps))
   }
   // Without a tab of its own to fetch in, a tab-only publisher's paper is fetched as any other: through
   // the library's proxy its first answer may be the proxy's sign-in, and either way the ending names
   // the gate whose wait the paper goes under. A page the extension may not read is never opened in a
   // tab, which it couldn't read either: the background's fetch says so (no-permission).
   const skip = item.inTab && item.userStarted && (await deps.permitted(item.url))
-  const worker = skip ? undefined : await fetchFor(item, deps)
+  let refused = false
+  const worker = skip ? undefined : await fetchFor(item, { ...deps, refused: () => (refused = true) })
   if (worker && "ended" in worker && worker.ended === "check") await noteChecked(item.gate)
-  if (worker && !("ended" in worker && worker.ended === "check")) return worker
+  if (worker && !refused && !("ended" in worker && worker.ended === "check")) return worker
   if (!item.userStarted) return worker!
   // A tab that went away under it (the user closed it), or whose page couldn't be read, says nothing
   // of the paper: the check the background met, when it met one; else offline, which owlit asks for
@@ -265,7 +267,7 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
   const passed = await pass(tab, item, deps, { once: reused })
   if (passed && "theirs" in passed) {
     await letGo(gate, tab)
-    return fetchFor(inTabItem(item, passed.theirs.url), { ...deps, fetch: whileWanted(passed.theirs.fetch, deps), inTab: undefined })
+    return fetchFor(inTabItem(item, passed.theirs.url), insideTab(passed.theirs.fetch, deps))
   }
   if (!passed || !("through" in passed)) {
     await letGo(gate, tab)
@@ -276,7 +278,7 @@ async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boole
   // proxy's, and on a society's host of a publisher (rss.onlinelibrary.wiley.com) owlit's PDF address is
   // the publisher's main host, another origin than the tab's
   const here = inTabItem(item, passed.through.url, passed.through)
-  const got = await fetchFor(here, { ...deps, fetch: whileWanted(tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), deps), inTab: undefined })
+  const got = await fetchFor(here, insideTab(tabFetch(tab.tabId, { navigate: true, proxyHost: proxyHostOf(item) }), deps))
   // The site asks again, or turns the browser away: its own word that this is enough for now
   if ("ended" in got && (got.ended === "check" || got.ended === "blocked" || got.ended === "sign-in")) {
     await letGo(gate, tab)
@@ -433,6 +435,9 @@ function whileWanted(fetch: typeof globalThis.fetch, deps: FetchDeps): typeof gl
     return fetch(input, init)
   }) as typeof globalThis.fetch
 }
+
+// What a fetch from inside a tab goes by
+const insideTab = (fetch: typeof globalThis.fetch, deps: FetchDeps): FetchDeps => ({ ...deps, fetch: whileWanted(fetch, deps), inTab: undefined, inside: true })
 
 // A tab of the extension's at this check, for a wait the user opens there (index.ts openPage): the gate's
 // tab, brought to the front rather than a second one opened. It is the user's from then on. Found by the

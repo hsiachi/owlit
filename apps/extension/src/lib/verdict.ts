@@ -145,12 +145,15 @@ function offersAccess(html: string) {
 const ieeeKeepsIt = (html: string) =>
   /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html)
 
-// What a PDF's address answered with when the site keeps the PDF from this reader: the paper's own page
-// where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the article on it)
-// or sent back to with its offers (JAMA, Science). A reader who has the paper gets the PDF there, whatever
-// offers the paper's page hides, and a viewer's page in the PDF's place offers nothing.
-export function refusesPdf(page: Pick<Page, "status" | "html">) {
-  return isArticle(page.html) && (page.status === 401 || page.status === 403 || offersAccess(page.html))
+// What a PDF's address (asked) answered with when the site keeps the PDF from this reader: the paper's
+// own page where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the
+// article on it) or sent away to it with its offers (JAMA, Science). Offers alone say nothing: a campus
+// reader's paper page carries them hidden, and a viewer's page at the PDF's address is such a page. A
+// reader who has the paper is not sent away.
+export function refusesPdf(page: Pick<Page, "url" | "status" | "html">, asked: string) {
+  if (!isArticle(page.html)) return false
+  if (page.status === 401 || page.status === 403) return true
+  return page.url.replace(/#.*$/, "") !== asked.replace(/#.*$/, "") && offersAccess(page.html)
 }
 
 export function isBlocked(page: Pick<Page, "html">) {
