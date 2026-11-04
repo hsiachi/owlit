@@ -37,7 +37,7 @@ describe("recorded checks only a person passes", () => {
   const checks = recorded.filter((page) => page.verdict === "check")
   it.each(checks.map((page) => [page.name, page] as const))("%s", (_, page) => {
     const html = readFileSync(path.join(folder, `${page.name}.html`), "utf8")
-    const seen = page.from === "worker" ? { status: page.status, html, headers: new Headers(page.headers) } : { status: 0, html }
+    const seen = page.from === "worker" ? { url: page.url, status: page.status, html, headers: new Headers(page.headers) } : { url: page.url, status: 0, html }
     expect(isInteractive(seen), page.really).toBe(/sciencedirect|interactive/i.test(page.name + page.really))
   })
 })

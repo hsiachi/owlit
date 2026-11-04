@@ -249,6 +249,40 @@ describe("the fetch ladder", () => {
   })
 })
 
+describe("a step of an institution's sign-in in the gate's kept tab", () => {
+  it("is waited out, not taken for a check met again", async () => {
+    const A2 = "https://dl.acm.org/doi/10.1145/2"
+    const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+    const HOP = "https://iam.atypon.com/action/saml2post"
+    let signedIn = false
+    let looks = 0
+    const acm: Site = ({ url, from }) => {
+      if (from === "worker") return check()
+      if (url.href === A2 && !signedIn) return { status: 302, redirect: HOP }
+      return url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", A2_PDF)
+    }
+    const atypon: Site = ({ look }) => {
+      if (look) looks++
+      return { html: "<title>Signing you in</title><form method=post><input type=hidden name=SAMLResponse></form>" }
+    }
+    const b = await boot({ "dl.acm.org": acm, "iam.atypon.com": atypon })
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { hiddenMs: 600_000 })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    const [tabId] = [...b.tabs.keys()]
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { pdfUrl: A2_PDF, userStarted: true })] })
+    // Looked at more often than the wait for its load alone would, and the paper not ended there
+    await vi.waitFor(() => expect(looks).toBeGreaterThan(5), PATIENCE)
+    expect(answered(b, "a2#1")).toEqual([])
+    signedIn = true
+    await b.chrome.tabs.update(tabId, { url: A2 })
+    await until(b, "a2#1")
+    expect(answered(b, "a2#1")[0]).toMatchObject({ pdf: true })
+    expect(b.created).toHaveLength(1)
+  })
+})
+
 describe("a kept tab the user took over", () => {
   const A2 = "https://dl.acm.org/doi/10.1145/2"
   const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"

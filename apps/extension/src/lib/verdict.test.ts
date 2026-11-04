@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isThrough, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
+import { isCheck, isSsoHopAddress, isStandIn, isThrough, refreshOf, siteOf, titleOf, verdict, type Page } from "./verdict.ts"
 
 // Trimmed from real publishers' pages, as the extension met them
 const LINKINGHUB = `<html><head><meta HTTP-EQUIV="REFRESH" content="2; url='/retrieve/articleSelectSinglePerm?Redirect=https%3A%2F%2Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS0957417412003879%3Fvia%253Dihub&amp;key=ae79'"/>
@@ -202,6 +202,42 @@ describe("an institution's sign-in on its way through", () => {
     expect(hop("https://login.openathens.net/saml/2/sso/tsinghua.edu.cn/o/1/c/oafed")).toBe("check")
     expect(hop("https://iam.atypon.com/action/saml2post")).toBe("check")
     expect(hop("https://pubs.acs.org/Shibboleth.sso/Login?entityID=x")).toBe("check")
+  })
+
+  it("is the two paths only where they carry the institution", () => {
+    expect(hop("https://www.science.org/action/ssostart?idp=https%3A%2F%2Fidp.example.edu%2Fshibboleth&redirectUri=x")).toBe("check")
+    expect(hop("https://pubs.acs.org/action/saml2post")).toBe("check")
+    // Choosing an institution: the reader's to do, nothing walks on by itself
+    const choosing = { url: "https://www.science.org/action/ssostart?redirectUri=x", status: 200, html: "<title>Find your institution</title><form><input name=search></form>" }
+    expect(verdict(choosing)).toBe("unreadable")
+    expect(isCheck(choosing)).toBe(false)
+    expect(isCheck({ ...choosing, url: "https://pubs.acs.org/Shibboleth.sso/Login?target=x" })).toBe(false)
+    expect(isCheck({ ...choosing, url: "https://pubs.acs.org/Shibboleth.sso/SAML2/POST" })).toBe(false)
+  })
+
+  it("is never a page that asks for a password, even at a host of the sign-ins", () => {
+    const form = { url: "https://login.openathens.net/auth/tsinghua.edu.cn/o/1", status: 200, html: '<title>Sign in</title><form><input type="password" name="password"></form>' }
+    expect(isCheck(form)).toBe(false)
+    expect(verdict(form)).toBe("sign-in")
+  })
+
+  it("is never the sign-in's error page", () => {
+    const error = { url: "https://pubs.acs.org/Shibboleth.sso/Login?entityID=x", status: 500, html: "<title>Shibboleth Error</title><p>opensaml::FatalProfileException</p>" }
+    expect(isCheck(error)).toBe(false)
+  })
+
+  it("is known by its address alone, for a site the extension may not read", () => {
+    expect(isSsoHopAddress("https://auth.elsevier.com/ShibAuth/institutionLogin?entityID=x")).toBe(true)
+    expect(isSsoHopAddress("https://AUTH.elsevier.com/x")).toBe(true)
+    expect(isSsoHopAddress("https://www.science.org/action/ssostart?redirectUri=x")).toBe(false)
+    expect(isSsoHopAddress("https://id.tsinghua.edu.cn/do/off/ui/auth/login/form/x")).toBe(false)
+  })
+
+  it("stands in while the tab walks on", () => {
+    const html = "<title>OpenAthens</title><form method=post><input type=hidden name=SAMLRequest></form>"
+    expect(isStandIn({ url: "https://login.openathens.net/saml/2/sso/x", html })).toBe(true)
+    expect(isStandIn({ url: "https://www.science.org/doi/1", html })).toBe(false)
+    expect(isStandIn({ html })).toBe(false)
   })
 
   it("is over at the paper's own page, whatever its address", () => {
