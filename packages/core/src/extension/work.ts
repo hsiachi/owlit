@@ -494,6 +494,9 @@ export class ExtensionWork implements ExtensionFetcher {
         ask.at = this.polledAt
         ask.dropped = closed.aborted
         this.watchAway()
+        // Out for a fetch now: the window hears each, so the block counts it as being fetched rather
+        // than in line
+        if (due.length && this.library) this.host.papers(this.library, due.map((w) => w.paperId))
         return due
       }
       await new Promise<void>((resolve) => {

@@ -49,6 +49,17 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
   })
 
+  it("tells the window of each paper as it goes out for a fetch, so it reads as being fetched", async () => {
+    const { work, take, heard } = setup()
+    work.fetch(library, paper("a1", "dl.acm.org"), true)
+    work.fetch(library, paper("b1", "wiley.com"), true)
+    expect(work.holding(library, "a1")).not.toHaveProperty("fetching")
+    heard.length = 0
+    expect((await take()).map((w) => w.paperId)).toEqual(["a1", "b1"])
+    expect(heard.flat().sort()).toEqual(["a1", "b1"])
+    expect(work.holding(library, "a1")).toMatchObject({ fetching: true })
+  })
+
   it("marks a fetch the user started, and a tab-only publisher's, and no other", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "sagepub.com"), true)
