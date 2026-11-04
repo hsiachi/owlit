@@ -33,7 +33,7 @@ const CHECK_SCRIPT = /cf_chl_opt|challenge-platform|awswaf|AwsWafIntegration|_se
 // A reference's links (to Scholar, PubMed, a publisher's linkout), hundreds on an article: the
 // verdict reads only a page's links to its own PDF and its offers
 const REFERENCE_LINK = /<a\b[^>]*\bhref\s*=\s*["']?(?:https?:\/\/(?:scholar\.google\.[a-z.]+|pubmed\.ncbi\.nlm\.nih\.gov|www\.ncbi\.nlm\.nih\.gov|europepmc\.org|www\.scopus\.com|[^"'\s>]*webofscience|[^"'\s>]*crossref\.org)|\/servlet\/linkout|\/action\/getFTRLinkout|mailto:)[^>]*>([\s\S]*?)<\/a>/gi
-const IEEE_KEYS = ["title", "formulaStrippedArticleTitle", "authors", "doi", "publicationYear", "publicationTitle"]
+const IEEE_KEYS = ["title", "formulaStrippedArticleTitle", "authors", "doi", "publicationYear", "publicationTitle", "isOpenAccess", "isFreeDocument"]
 
 // A page's data naming the reader: their address, their account, user, department or session. The
 // value goes, the key stays, so the page's shape is what the verdict reads either way.
@@ -104,7 +104,10 @@ function scriptBody(open, body) {
     const json = objectAt(body, body.indexOf("{", at))
     try {
       const data = JSON.parse(json)
-      return `xplGlobal.document.metadata=${JSON.stringify(Object.fromEntries(IEEE_KEYS.filter((k) => k in data).map((k) => [k, data[k]])))};`
+      const kept = Object.fromEntries(IEEE_KEYS.filter((k) => k in data).map((k) => [k, data[k]]))
+      // Of the reader, only what says whether they have the paper: the rest names them
+      if (data.userInfo) kept.userInfo = { institute: data.userInfo.institute, individual: data.userInfo.individual }
+      return `xplGlobal.document.metadata=${JSON.stringify(kept)};`
     } catch {
       return body
     }

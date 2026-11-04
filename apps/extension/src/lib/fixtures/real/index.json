@@ -152,20 +152,6 @@
     "isThrough": false
   },
   {
-    "name": "ieee-article.tab",
-    "from": "tab",
-    "url": "https://ieeexplore.ieee.org/document/726791",
-    "status": 200,
-    "headers": {
-      "content-type": "text/html;charset=UTF-8",
-      "via": "1.1 bef25f3267667422edea78ea1419d7fc.cloudfront.net (CloudFront)"
-    },
-    "title": "<!----><!---->",
-    "really": "IEEE Xplore article page with access (title is '<!----><!---->' Angular comments; metadata in xplGlobal)",
-    "verdict": "unreadable",
-    "isThrough": true
-  },
-  {
     "name": "ieee-article.worker",
     "from": "worker",
     "url": "https://ieeexplore.ieee.org/document/726791",
@@ -996,20 +982,6 @@
     "isThrough": true
   },
   {
-    "name": "ieee-closed.tab",
-    "from": "tab",
-    "url": "https://ieeexplore.ieee.org/document/8880527",
-    "status": 200,
-    "headers": {
-      "content-type": "text/html;charset=UTF-8",
-      "via": "1.1 7e7f38a56d36a6df20a905fa46aae3b6.cloudfront.net (CloudFront)"
-    },
-    "title": "Optimized Fuzzy Commitment Based Key Agreement Protocol for Wireless Body Area Network | IEEE Journals & Magazine | IEEE Xplore",
-    "really": "IEEE Xplore off campus, no access to this closed paper: \"Sign In or Purchase\"",
-    "verdict": "no-access",
-    "isThrough": true
-  },
-  {
     "name": "aps-closed.tab",
     "from": "tab",
     "url": "https://journals.aps.org/prb/abstract/10.1103/PhysRevB.99.045416",
@@ -1294,6 +1266,34 @@
     "title": "",
     "really": "Science's PDF address sending a reader without access back to the article, with its offers",
     "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "ieee-article.tab",
+    "from": "tab",
+    "url": "https://ieeexplore.ieee.org/document/726791",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8",
+      "via": "1.1 bef25f3267667422edea78ea1419d7fc.cloudfront.net (CloudFront)"
+    },
+    "title": "<!----><!---->",
+    "really": "IEEE Xplore article page with access (title is '<!----><!---->' Angular comments; metadata in xplGlobal)",
+    "verdict": "unreadable",
+    "isThrough": true
+  },
+  {
+    "name": "ieee-closed.tab",
+    "from": "tab",
+    "url": "https://ieeexplore.ieee.org/document/8880527",
+    "status": 200,
+    "headers": {
+      "content-type": "text/html;charset=UTF-8",
+      "via": "1.1 7e7f38a56d36a6df20a905fa46aae3b6.cloudfront.net (CloudFront)"
+    },
+    "title": "Optimized Fuzzy Commitment Based Key Agreement Protocol for Wireless Body Area Network | IEEE Journals & Magazine | IEEE Xplore",
+    "really": "IEEE Xplore off campus, no access to this closed paper: \"Sign In or Purchase\"",
+    "verdict": "no-access",
     "isThrough": true
   }
 ]

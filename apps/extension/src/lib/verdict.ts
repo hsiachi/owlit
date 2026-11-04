@@ -140,6 +140,11 @@ function offersAccess(html: string) {
   return false
 }
 
+// IEEE Xplore draws its "Sign In or Purchase" by script, after the page has been read; its page data
+// says the same: a paper neither free nor open, for a reader with no institution and no subscription
+const ieeeKeepsIt = (html: string) =>
+  /"isOpenAccess":false/.test(html) && /"isFreeDocument":false/.test(html) && /"userInfo":\{[^{}]*"institute":false[^{}]*"individual":false/.test(html)
+
 // What a PDF's address answered with when the site keeps the PDF from this reader: the paper's own page
 // where the PDF should be, refused (Wiley, ASCE, Chicago, World Scientific: a 403 with the article on it)
 // or sent back to with its offers (JAMA, Science). A reader who has the paper gets the PDF there, whatever
@@ -250,7 +255,7 @@ export function verdict(page: Page): WorkEnding {
   // site's, or hidden until a reader without it comes (SAGE's "Purchase access", Science's "Access
   // through your institution")
   const pdfLink = pdfLinkIn(page.html, page.url)
-  if (!pdfLink && offersAccess(page.html)) return "no-access"
+  if (!pdfLink && (offersAccess(page.html) || ieeeKeepsIt(page.html))) return "no-access"
   // The paper's own page, and no PDF came of it: whether it names one (a viewer, a link that needs the
   // page's scripts) or none, the user can get it there by hand, and nothing on it says the site has none
   return "unreadable"

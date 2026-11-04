@@ -180,3 +180,17 @@ describe("what a page that came instead of a PDF says", () => {
     expect(siteOf("id.tsinghua.edu.cn")).toBe("tsinghua.edu.cn")
   })
 })
+
+describe("IEEE Xplore's page data", () => {
+  const page = (data: string) => ({ url: "https://ieeexplore.ieee.org/document/1", status: 0, html: `<title>A Paper</title><script>xplGlobal.document.metadata={"title":"A Paper",${data}};</script>` })
+  const closed = `"isOpenAccess":false,"isFreeDocument":false`
+
+  it("says no access for a reader with no institution or subscription", () => {
+    expect(verdict(page(`${closed},"userInfo":{"institute":false,"member":false,"individual":false,"guest":true}`))).toBe("no-access")
+  })
+
+  it("says nothing sure for one through an institution, or for a free paper", () => {
+    expect(verdict(page(`${closed},"userInfo":{"institute":true,"member":false,"individual":false}`))).toBe("unreadable")
+    expect(verdict(page(`"isOpenAccess":true,"isFreeDocument":false,"userInfo":{"institute":false,"member":false,"individual":false}`))).toBe("unreadable")
+  })
+})
