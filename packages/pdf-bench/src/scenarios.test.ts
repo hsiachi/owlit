@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cloudflareCheck, FakeWeb, hang, landing, notFound, page, pdf, tlink, ezproxy } from "../../core/src/extension/test/fake-web.ts"
+import { cloudflareCheck, FakeWeb, hang, landing, notFound, page, pdf, stall, tlink, ezproxy } from "../../core/src/extension/test/fake-web.ts"
 import { startBench, type Bench, type BenchSetup, type Row, type Screen } from "./adapter.ts"
 import { batchCountErrors, checkInvariants } from "./invariants.ts"
-import { atypon, elsevier, inBrowser, openAccess, psycnet } from "./sites.ts"
+import { atypon, behindSso, elsevier, inBrowser, openAccess, psycnet, refusesWorker } from "./sites.ts"
 
 // One test per real-world story of getting PDFs, each saying what the user would see: the Library's PDF
 // block (its rows and counts), a paper's words, the waits. The bench's invariants run after every step.
@@ -320,6 +320,121 @@ describe("a paper the site keeps from this reader", () => {
   })
 })
 
+describe("a firewall that tells the extension from a page", () => {
+  it("a PDF's address that turns the background away is fetched in a tab, and the paper comes", async () => {
+    const web = new FakeWeb()
+    const p = { doi: "10.1111/0000406", title: "A Paper Only A Page Of The Site Gets" }
+    refusesWorker(web, "onlinelibrary.wiley.com", p.doi, p.title)
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    const screen = await b.findPdf(id)
+    expect(screen.papers[id].hasPdf).toBe(true)
+    expect(web.log.filter((v) => v.url.includes("/doi/pdf/")).length).toBeGreaterThan(1)
+  })
+})
+
+describe("a stalled publisher", () => {
+  const stalled = { doi: "10.1145/0000701", title: "A Paper Whose PDF Never Answers In Its Tab" }
+  const after = { doi: "10.1177/0000702", title: "A Paper Behind It In The Proxy's Line" }
+
+  it("a fetch in a tab that nothing answers gives up, and the line behind it goes on", async () => {
+    const web = tlink(new FakeWeb())
+    web.signIn(TLINK)
+    // The tab's fetch of the PDF never ends, whatever the page's own abort does
+    refusesWorker(web, "dl.acm.org", stalled.doi, stalled.title)
+    web.on(`dl.acm.org/doi/pdf/${stalled.doi}`, (visit) => (visit.from === "tab" ? stall(pdf(stalled.doi))(visit) : page(stalled.title, `<h1>${stalled.title}</h1>`, 403, `<meta name="citation_title" content="${stalled.title}">`)))
+    atypon(web, "journals.sagepub.com", after.doi, after.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" }, times: { fetchMs: 25 } })
+    const id = b.addPaper(stalled.doi, stalled.title)
+    const next = b.addPaper(after.doi, after.title)
+    const screen = await b.getPdfs()
+    expect(screen.papers[next].hasPdf).toBe(true)
+    expect(screen.papers[id].hasPdf).toBe(false)
+    expect(screen.papers[id].word).toBe("Can't reach site")
+  })
+})
+
+describe("a publisher's sign-in hop, off campus", () => {
+  const els = { doi: "10.1016/j.chb.2024.108100", title: "A Paper Behind Elsevier's Institution Sign In" }
+  const sage = { doi: "10.1177/0956797677", title: "A Paper Behind OpenAthens" }
+  const science2 = { doi: "10.1126/science.abc4001", title: "A Paper Behind A Shibboleth Hop" }
+  const direct = { doi: "10.2196/44099", title: "A JMIR Paper That Needs No Sign In" }
+  const AUTH = "auth.elsevier.com/ShibAuth/institutionLogin?entityID=https%3A%2F%2Fidp.tsinghua.edu.cn"
+  const ATHENS = "login.openathens.net/saml/2/sso/tsinghua.edu.cn/o/1/c/oafed"
+
+  const campus = () => {
+    const web = tlink(new FakeWeb())
+    web.signIn(TLINK)
+    return web
+  }
+
+  it("walks each hop in a tab, whichever kind it is, and the PDFs come", async () => {
+    const web = campus()
+    behindSso(web, "www.sciencedirect.com", els.doi, els.title, AUTH)
+    behindSso(web, "journals.sagepub.com", sage.doi, sage.title, ATHENS)
+    behindSso(web, "www.science.org", science2.doi, science2.title, "www.science.org/Shibboleth.sso/Login?entityID=https%3A%2F%2Fidp.tsinghua.edu.cn")
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const ids = [els, sage, science2].map((p) => b.addPaper(p.doi, p.title))
+    const screen = await b.getPdfs()
+    expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true, true])
+    expect(screen.waits).toEqual([])
+  })
+
+  it("a hop that doesn't go on waits under the paper's publisher, not the proxy, and opens the paper's own link", async () => {
+    const web = campus()
+    behindSso(web, "journals.sagepub.com", sage.doi, sage.title, ATHENS, { walks: false })
+    atypon(web, "www.jmir.org", direct.doi, direct.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const id = b.addPaper(sage.doi, sage.title)
+    const other = b.addPaper(direct.doi, direct.title)
+    const screen = await b.getPdfs()
+    expect(screen.waits).toMatchObject([{ id: "pub:sage", kind: "check", papers: 1 }])
+    expect(screen.waits[0].url).toContain(`${TLINK}/go?url=`)
+    expect(screen.papers[id].heldAt).toBe("pub:sage")
+    // The publisher's hold is its own: the proxy's other papers aren't under it
+    expect(screen.papers[other].hasPdf).toBe(true)
+  })
+
+  it("on a site the extension may not read: a tab still walks it", async () => {
+    const web = campus()
+    behindSso(web, "www.sciencedirect.com", els.doi, els.title, AUTH)
+    const b = await start(web, { proxy: { preset: "tsinghua" }, denied: ["elsevier.com"] })
+    const id = b.addPaper(els.doi, els.title)
+    const screen = await b.getPdfs()
+    expect(screen.papers[id].hasPdf).toBe(true)
+    expect(screen.waits).toEqual([])
+  })
+
+  it("on a site the extension may not read, where the hop never goes on: the wait is the publisher's, not the proxy's", async () => {
+    const web = campus()
+    behindSso(web, "www.sciencedirect.com", els.doi, els.title, AUTH, { walks: false })
+    atypon(web, "www.jmir.org", direct.doi, direct.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" }, denied: ["elsevier.com"] })
+    const id = b.addPaper(els.doi, els.title)
+    const other = b.addPaper(direct.doi, direct.title)
+    const screen = await b.getPdfs()
+    expect(screen.papers[id].heldAt).toBe("pub:elsevier")
+    expect(screen.papers[other].hasPdf).toBe(true)
+  })
+
+  it("tlink's /gologin without a callback looks signed in and /go still asks: the wait says so, and the real sign-in ends it", async () => {
+    const web = tlink(new FakeWeb(), TLINK, "id.tsinghua.edu.cn", { offCampus: true })
+    const p = science(40)
+    atypon(web, "www.science.org", p.doi, p.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    const id = b.addPaper(p.doi, p.title)
+    expect(rowsOf(await b.getPdfs())).toEqual([["sign-in", 1, TLINK]])
+    await b.openPage(`https://${TLINK}/gologin`)
+    let screen = await b.pressDone(TLINK)
+    expect(screen.waits).toMatchObject([{ kind: "sign-in", host: TLINK, papers: 1 }])
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, title: "Needs you to sign in to your library" })
+    await b.clickWait("sign-in", TLINK)
+    screen = await b.signIn(TLINK)
+    if (screen.waits.length) screen = await b.pressDone(TLINK)
+    expect(screen.papers[id].hasPdf).toBe(true)
+  })
+})
+
 describe("a batch of papers (Get PDFs)", () => {
   // Ten papers as a real library has them: three the browser gets at once, two behind a check, two only
   // scripts read, one the publisher hasn't got, one paywalled, one at a site not yet allowed
@@ -400,6 +515,123 @@ describe("a batch of papers (Get PDFs)", () => {
     await b.clickWait("check", "science.org")
     screen = await b.passCheck("www.science.org")
     expect(Object.values(screen.papers).every((p) => p.hasPdf)).toBe(true)
+  })
+})
+
+describe("Stop", () => {
+  it("while a fetch is held: whatever comes back, the paper stays stopped and no wait comes up", async () => {
+    const web = new FakeWeb()
+    const p = science(50)
+    atypon(web, "www.science.org", p.doi, p.title)
+    web.on(`www.science.org/doi/pdf/${p.doi}`, (visit) => (visit.client === "browser" ? hang(() => cloudflareCheck())(visit) : page("Access denied", "", 403)))
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    await b.getPdfs()
+    expect(web.hanging()).toBe(1)
+    let screen = await b.stop()
+    web.release()
+    screen = await b.step("the held answer comes")
+    expect(screen.waits).toEqual([])
+    expect(screen.block).toBeNull()
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, state: "stopped" })
+    screen = await b.restartCore()
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, state: "stopped" })
+    expect(b.fetched()).toEqual([id])
+  })
+
+  it("while a fetch is held, and the worker restarts: the stopped paper isn't handed out again", async () => {
+    const web = new FakeWeb()
+    const p = science(51)
+    atypon(web, "www.science.org", p.doi, p.title)
+    web.on(`www.science.org/doi/pdf/${p.doi}`, (visit) => (visit.client === "browser" ? hang(pdf(p.doi))(visit) : page("Access denied", "", 403)))
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    await b.getPdfs()
+    await b.stop()
+    const screen = await b.restartWorker()
+    expect(screen.papers[id]).toMatchObject({ hasPdf: false, state: "stopped" })
+    expect(b.fetched()).toEqual([id])
+  })
+})
+
+describe("a gate's kept tab", () => {
+  const papers = [1, 2].map((n) => ({ doi: `10.1145/000080${n}`, title: `A Paper Only A Tab Of The Site Gets ${n}` }))
+
+  it("clicked by the user between two papers: it is theirs, not loaded with the next paper nor closed", async () => {
+    const web = new FakeWeb()
+    for (const p of papers) refusesWorker(web, "dl.acm.org", p.doi, p.title)
+    const b = await start(web, { times: { idleMs: 60_000 } })
+    const first = b.addPaper(papers[0].doi, papers[0].title)
+    let screen = await b.findPdf(first)
+    expect(screen.papers[first].hasPdf).toBe(true)
+    expect(screen.browser.tabs).toEqual([`https://dl.acm.org/doi/${papers[0].doi}`])
+    await b.clickTab("dl.acm.org")
+    const second = b.addPaper(papers[1].doi, papers[1].title)
+    screen = await b.findPdf(second)
+    expect(screen.papers[second].hasPdf).toBe(true)
+    // Theirs stayed on the first paper's page; the second was fetched in a tab of the extension's
+    expect(screen.browser.tabs).toContain(`https://dl.acm.org/doi/${papers[0].doi}`)
+    // Long after, the extension's own is closed as idle, and theirs isn't
+    screen = await b.sleep(2 * 60_000)
+    expect(screen.browser.tabs).toEqual([`https://dl.acm.org/doi/${papers[0].doi}`])
+  })
+})
+
+describe("the worker", () => {
+  it("restarted mid-fetch: the fetch is lost with it, the paper goes out again and comes", async () => {
+    const web = new FakeWeb()
+    const p = { doi: "10.1177/0956797691", title: "A Paper Fetched Across A Worker Restart" }
+    atypon(web, "journals.sagepub.com", p.doi, p.title)
+    let visits = 0
+    web.on(`journals.sagepub.com/doi/pdf/${p.doi}`, inBrowser((visit) => (visits++ === 0 ? hang(pdf(p.doi))(visit) : pdf(p.doi)(visit))))
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    await b.findPdf(id)
+    expect(web.hanging()).toBe(1)
+    const screen = await b.restartWorker()
+    expect(web.hanging()).toBe(0)
+    expect(screen.papers[id].hasPdf).toBe(true)
+    expect(b.fetched()).toEqual([id, id])
+  })
+
+  it("restarted at a wait: it still watches the tab, and passing the check there goes on", async () => {
+    const web = new FakeWeb()
+    const p = science(60)
+    atypon(web, "www.science.org", p.doi, p.title, { check: true })
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    await b.findPdf(id)
+    await b.clickWait("check", "science.org")
+    await b.restartWorker()
+    const screen = await b.passCheck("www.science.org")
+    expect(screen.papers[id].hasPdf).toBe(true)
+  })
+})
+
+describe("a workspace switch", () => {
+  it("mid hand-over: the old workspace's papers don't reach the new one's queues, and its wait stays", async () => {
+    const web = new FakeWeb()
+    const here = science(70)
+    atypon(web, "www.science.org", here.doi, here.title, { check: true })
+    const old = { doi: "10.1177/0956797681", title: "A Paper In The Workspace Left Behind" }
+    atypon(web, "journals.sagepub.com", old.doi, old.title)
+    const b = await start(web)
+    await b.openWorkspace("other")
+    const there = b.addPaper(here.doi, here.title)
+    await b.findPdf(there)
+    await b.openWorkspace("main")
+    const id = b.addPaper(old.doi, old.title)
+    // Core looks the paper's DOI up before it hands it over, and that answer is slow
+    web.on((url) => url.hostname === "doi.org" && decodeURIComponent(url.pathname) === `/api/handles/${old.doi}`, (visit) => hang(() => new Response(JSON.stringify({ values: [{ type: "URL", data: { value: `https://journals.sagepub.com/doi/${old.doi}` } }] }), { headers: { "content-type": "application/json" } }))(visit))
+    await b.call("library.fetchPdfs", { ids: [id] })
+    await vi.waitFor(() => expect(web.hanging()).toBe(1))
+    let screen = await b.openWorkspace("other")
+    expect(screen.waits).toMatchObject([{ kind: "check", host: "science.org", papers: 1 }])
+    web.release()
+    screen = await b.step("the old workspace's look comes back")
+    expect(screen.waits).toMatchObject([{ kind: "check", host: "science.org", papers: 1 }])
+    expect(screen.papers[there].heldAt).toBe("pub:science")
+    expect(b.fetched()).not.toContain(id)
   })
 })
 

@@ -1,4 +1,4 @@
-import { checked, firewalled, landing, metaRefresh, page, pdf, publisherLogin, shell, subscribed, type Behaviour, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
+import { checked, firewalled, landing, metaRefresh, page, pdf, publisherLogin, redirectTo, shell, ssoStep, subscribed, type Behaviour, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
 
 // Publishers as the scenarios meet them on the fake web, at the addresses owlit's publisher table
 // (packages/core/src/library/publisher-table.ts) sends the extension to
@@ -57,4 +57,27 @@ export function openAccess(web: FakeWeb, doi: string, title: string) {
   const copy = `https://repository.example.org/bitstream/${encodeURIComponent(doi)}.pdf`
   web.paper(doi, title, { url: `https://journals.sagepub.com/doi/${doi}`, oa: copy })
   web.on(`repository.example.org/bitstream/${encodeURIComponent(doi)}.pdf`, pdf(doi))
+}
+
+// A publisher that takes an off-campus reader through an institution's sign-in: the paper's page and PDF
+// send anyone without its session to hop (auth.elsevier.com, login.openathens.net, its own ssostart or
+// Shibboleth.sso), which a tab walks and comes out of on the paper's page with the session. walks: false,
+// a hop that never goes on.
+export function behindSso(web: FakeWeb, host: string, doi: string, title: string, hop: string, { walks = true } = {}) {
+  const at = `https://${host}/doi/${doi}`
+  const session = (then: Behaviour): Behaviour => (visit) => (visit.web.isCleared(host, visit.client) ? then(visit) : redirectTo(`https://${hop}`))
+  web.paper(doi, title, { url: at })
+  web.on(`${host}/doi/pdf/${doi}`, session(pdf(doi)))
+  web.on(`${host}/doi/${doi}`, session(landing(doi, title, `https://${host}/doi/pdf/${doi}`)))
+  web.on(hop, ssoStep(host, at, { walks }))
+}
+
+// A publisher whose firewall refuses the extension's own requests by their shape: the PDF's address
+// answers 403 with the article on it, and only a page of the site gets the PDF
+export function refusesWorker(web: FakeWeb, host: string, doi: string, title: string) {
+  const at = `https://${host}/doi/${doi}`
+  const article = (status: number) => () => page(title, `<h1>${title}</h1><a href="/doi/pdf/${doi}">PDF</a>`, status, `<meta name="citation_title" content="${title}"><meta name="citation_doi" content="${doi}">`)
+  web.paper(doi, title, { url: at })
+  web.on(`${host}/doi/pdf/${doi}`, (visit) => (visit.from === "tab" ? pdf(doi)(visit) : article(403)()))
+  web.on(`${host}/doi/${doi}`, inBrowser(article(200)))
 }

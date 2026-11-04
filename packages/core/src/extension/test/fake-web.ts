@@ -32,8 +32,9 @@ export interface FetchOptions {
 
 const MAX_REDIRECTS = 20
 
-// On a page: it loads again by itself once its load ended, as a check that passed in the tab running it
-export const RELOADS = "x-fake-reloads"
+// On a page: where it sends its tab on by script once its load ended (a check that passed in the tab
+// running it, a step of a sign-in), which no fetch follows
+export const SENDS_TO = "x-fake-sends-to"
 
 export class FakeWeb {
   // Every request, in order: who asked for what
@@ -263,6 +264,12 @@ export const hang =
   (visit) =>
     visit.web.holdUntilReleased(visit, then)
 
+// An answer that doesn't come, the fetch's own signal or not: a page that froze, for FakeWeb.release alone
+export const stall =
+  (then: Behaviour): Behaviour =>
+  ({ signal: _signal, ...visit }) =>
+    visit.web.holdUntilReleased(visit, then)
+
 // Cloudflare's check in front of the address, until the user passes it in their browser (clear)
 export const cloudflareCheck = (): Response =>
   page("Just a moment...", '<div id="challenge-form"></div><script>window._cf_chl_opt={cvId:"3"}</script><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>', 403)
@@ -291,21 +298,34 @@ export const subscribed =
   (visit) =>
     visit.web.anySignIn(visit.client) ? then(visit) : redirectTo(`https://${visit.url.hostname}${loginPath}?redirectUri=${encodeURIComponent(visit.url.pathname)}`)
 
+// A step of an institution's sign-in, as a publisher's page sends the reader through it: a form that posts
+// itself, which a fetch stops at and a tab walks. A tab that loads it comes out at back with the
+// publisher's session (clear on host); walks: false, one whose step never goes on.
+export const ssoStep =
+  (host: string, back: string, { walks = true } = {}): Behaviour =>
+  ({ web, from }) => {
+    if (walks && from === "tab") web.clear(host)
+    const answer = page("Redirecting", `<form method="post" action="${back}"><input type="hidden" name="SAMLResponse" value="x"></form><script>document.forms[0].submit()</script>`)
+    if (walks) answer.headers.set(SENDS_TO, back)
+    return answer
+  }
+
 // A school's sign-in (its identity provider), a password form
 export const institutionSignIn = (): Behaviour => () => page("统一身份认证", '<form action="/do/off/ui/auth/login/check"><input name="i_user"><input type="password" name="i_pass"><button>登录</button></form>')
 
 // ---- Library proxies
 
 // Tsinghua's tlink: /go?url=<target> sends a signed-in reader on to the target and shows anyone else its
-// gateway of sign-in buttons at the same address; /gologin goes to the school's sign-in
-export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "id.tsinghua.edu.cn"): FakeWeb {
+// gateway of sign-in buttons at the same address; /gologin goes to the school's sign-in. offCampus: a
+// /gologin without a callback ends on a page that looks signed in, and /go still asks.
+export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "id.tsinghua.edu.cn", { offCampus = false } = {}): FakeWeb {
   web.on(`${host}/go?`, ({ url, client, web }) => {
     // Not encoded: the target rides as it is after url= (route.ts throughProxy)
     const target = url.search.replace(/^\?url=/, "")
     if (web.isSignedIn(host, client)) return redirectTo(target)
     return page("清华大学图书馆 tlink", `<a href="https://${host}/gologin">校内登录</a><a href="https://${host}/gologin?type=carsi">CARSI</a>`)
   })
-  web.on(`${host}/gologin`, redirect(`https://${idp}/do/off/ui/auth/login/form/abc`))
+  web.on(`${host}/gologin`, ({ url }) => (offCampus && !url.searchParams.has("callback") ? page("清华大学图书馆", "<h1>电子资源</h1><p>欢迎</p>") : redirectTo(`https://${idp}/do/off/ui/auth/login/form/abc`)))
   web.on(`${idp}/`, institutionSignIn())
   return web
 }

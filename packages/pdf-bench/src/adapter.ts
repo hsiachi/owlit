@@ -6,7 +6,7 @@ import { vi } from "vitest"
 import { Core } from "../../core/src/core.ts"
 import type { ExtensionServer } from "../../core/src/extension/server.ts"
 import { CONNECTED_MS, ExtensionWork } from "../../core/src/extension/work.ts"
-import { RELOADS, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
+import { SENDS_TO, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
 import { Library } from "../../core/src/library/library.ts"
 import { refreshOf, siteOf } from "../../../apps/extension/src/lib/verdict.ts"
 import { fakeBrowser, type FakeBrowser, type Web } from "../../../apps/extension/src/test/fake-chrome.ts"
@@ -100,6 +100,8 @@ export interface WaitView {
   // The whole sentence, as Home and a notification say it
   what: string
   askedFor: boolean
+  // The page its button opens (ExtensionWait.url)
+  url: string
 }
 
 export interface Screen {
@@ -123,8 +125,8 @@ export interface BenchSetup {
   proxy?: { preset: "tsinghua" } | { link: string }
   // Sites (registrable domains) the extension may not read until the user allows them
   denied?: string[]
-  // The extension gives up on a fetch after this, at the bench's pace (TAB_TIMES.fetchMs)
-  fetchMs?: number
+  // The ladder's times where a story needs its own (fetchMs: when the extension gives up on a fetch)
+  times?: { fetchMs?: number; idleMs?: number }
   // Run after every step a scenario takes, on what the user then sees
   check?: (screen: Screen, step: string) => void
 }
@@ -162,7 +164,7 @@ export class Bench {
     this.setup = setup
     this.base = realpathSync(mkdtempSync(path.join(tmpdir(), "owlit-bench-")))
     this.userDataDir = path.join(this.base, "userData")
-    this.ext = new Extension(web, () => this.server?.port, new Set(setup.denied ?? []), setup.fetchMs)
+    this.ext = new Extension(web, () => this.server?.port, new Set(setup.denied ?? []), setup.times ?? {})
     const real = Date.now.bind(Date)
     vi.spyOn(Date, "now").mockImplementation(() => real() + this.offset)
     const fetch = ExtensionWork.prototype.fetch
@@ -347,6 +349,24 @@ export class Bench {
     return this.step(`allow ${site}`)
   }
 
+  // The user opens a page in a tab of their own
+  async openPage(url: string) {
+    await this.ext.openPage(url)
+    return this.step(`open ${url}`)
+  }
+
+  // The user clicks the tab showing a page at this host
+  async clickTab(host: string) {
+    this.ext.clickTab(host)
+    return this.step(`click the tab at ${host}`)
+  }
+
+  // Chrome stops the extension's worker and starts it again: what it had out is lost
+  async restartWorker() {
+    await this.ext.restart()
+    return this.step("the worker restarts")
+  }
+
   // A PDF dragged onto the paper
   async dropPdf(id: string, doi: string) {
     const file = path.join(this.base, `${id}.pdf`)
@@ -496,7 +516,7 @@ const webOf =
     const headers = Object.fromEntries(response.headers)
     if (/^application\/pdf/.test(headers["content-type"] ?? "")) return { pdf: true, bytes }
     const html = new TextDecoder().decode(bytes)
-    const sendsTo = headers[RELOADS] ? url.href : refreshOf({ url: url.href, status: response.status, html })
+    const sendsTo = headers[SENDS_TO] ?? refreshOf({ url: url.href, html })
     return { status: response.status, html, headers, ...(sendsTo ? { sendsTo } : {}) }
   }
 
@@ -512,7 +532,7 @@ class Extension {
   private readonly web: FakeWeb
   private readonly port: () => number | undefined
   private readonly denied: Set<string>
-  private readonly fetchMs: number | undefined
+  private readonly times: BenchSetup["times"]
   private readonly browser: FakeBrowser<{ handle: (route: string, init?: RequestInit) => Promise<Response> }>
   // Items handed over and not answered yet, by id
   private readonly out = new Map<string, number>()
@@ -523,17 +543,17 @@ class Extension {
   private readonly turns = new Set<() => void>()
   private readonly live = new Set<AbortController>()
 
-  constructor(web: FakeWeb, port: () => number | undefined, denied: Set<string>, fetchMs: number | undefined) {
+  constructor(web: FakeWeb, port: () => number | undefined, denied: Set<string>, times: BenchSetup["times"]) {
     this.web = web
     this.port = port
     this.denied = denied
-    this.fetchMs = fetchMs
+    this.times = times
     const deniedAt = (host: string) => this.denied.has(siteOf(host.replace(/^\*\./, "")))
     this.browser = fakeBrowser(webOf(web), undefined, { handle: this.handle }, deniedAt)
   }
 
   private readonly handle = async (route: string, init: RequestInit = {}): Promise<Response> => {
-    const ask = route === "/work" && (init.method ?? "GET") === "GET"
+    const ask = /^\/work(\?|$)/.test(route) && (init.method ?? "GET") === "GET"
     const stop = new AbortController()
     this.live.add(stop)
     const signal = init.signal ? AbortSignal.any([init.signal, stop.signal]) : stop.signal
@@ -613,7 +633,7 @@ class Extension {
     vi.stubGlobal("chrome", worker.chrome)
     vi.stubGlobal("fetch", worker.fetch)
     const ladder = await import("../../../apps/extension/src/background/ladder.ts")
-    Object.assign(ladder.TAB_TIMES, TAB_TIMES, this.fetchMs ? { fetchMs: this.fetchMs } : {})
+    Object.assign(ladder.TAB_TIMES, TAB_TIMES, this.times)
     const background = await import("../../../apps/extension/src/background/index.ts")
     Object.assign(background.ASK_TIMES, ASK_TIMES)
   }
@@ -703,6 +723,15 @@ class Extension {
     await Promise.all([...this.browser.tabs.values()].filter((tab) => !tab.url.startsWith("chrome-extension:")).map((tab) => this.browser.reload(tab.id)))
   }
 
+  async openPage(url: string) {
+    await this.browser.openTab(url)
+  }
+
+  clickTab(host: string) {
+    const tab = [...this.browser.tabs.values()].find((t) => t.url && new URL(t.url).hostname === host)
+    if (tab) this.browser.activate(tab.id)
+  }
+
   // The Allow page's Allow: the site is granted, and the background hears it
   allow(site: string) {
     this.denied.delete(site)
@@ -784,6 +813,6 @@ class Renderer {
         ...(found ? { foundUnder: found.id } : {}),
       }
     }
-    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.at, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor })), papers }
+    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.at, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor, url: w.url })), papers }
   }
 }
