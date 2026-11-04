@@ -618,7 +618,7 @@ export class ExtensionServer {
           const gate = this.work.gateFor(id, { url, host: at })
           const triedAt = Date.now()
           // The user's Stop stands as the paper's newest word
-          if (!this.work.isStopped(id)) await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) }))
+          if (!this.work.isStopped(id)) await library.noteExtensionTry(before.id, clean({ by: "extension" as const, ended: word, at: triedAt, host: at, title: title?.trim() || undefined, gate, url: withoutQuery(url) })).catch((noting) => console.error("[core] couldn't note the extension's try", noting))
           this.work.settle(id, word, { url, host: at, triedAt })
           return { body: { noted: true } }
         },

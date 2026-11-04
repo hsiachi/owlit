@@ -545,6 +545,27 @@ describe("the extension's port", () => {
       expect(opened).toHaveLength(1)
     })
 
+    it("settles a paper whose try couldn't be noted, so it doesn't hold its site", async () => {
+      const { call, request, token, core, server } = await connected()
+      await call("library.fetchPdf", { id })
+      const [item] = (await request("/work", { token })).body.work
+      vi.spyOn(libraryOf(core), "noteExtensionTry").mockRejectedValue(new Error("disk full"))
+      const answer = await request(`/work/${encodeURIComponent(item.id)}`, { token, body: { ended: "no-access", host: "journals.sagepub.com" } })
+      expect(answer.status).toBe(200)
+      expect(server.work.current(libraryOf(core), item.id)).toBeUndefined()
+    })
+
+    it("forgets a paper's old id when it takes on a DOI", async () => {
+      const { call, core, server, putPaper } = await connected()
+      const local = "local-abc"
+      putPaper(local, { title: "A Local Paper", ids: {} })
+      const library = libraryOf(core)
+      await eventually(async () => expect(await library.get(local)).toBeTruthy())
+      server.work.fetch(library, { paperId: local, url: "https://journals.sagepub.com/doi/x", host: "sagepub.com", proxied: false }, false)
+      await call("library.update", { id: local, patch: { ids: { doi: "10.1177/0000009" } } })
+      expect(server.work.holding(library, local)).toBeUndefined()
+    })
+
     it("keeps an answer whose address is too long to keep, without the address", async () => {
       const { call, request, token } = await connected()
       await call("library.fetchPdf", { id })

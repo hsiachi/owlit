@@ -490,6 +490,7 @@ export class Library {
       throw new RpcFailure(RpcErrorCode.Conflict, t`Another paper in your library already has that id.`, { id: other })
     }
     this.scheduler?.cancelSubject(id)
+    this.services.extension?.drop(this, id)
     await mkdir(path.dirname(paperStateDir(this.root, next)), { recursive: true })
     await rename(paperDir(this.root, id), paperDir(this.root, next))
     await rename(paperStateDir(this.root, id), paperStateDir(this.root, next)).catch(ignoreMissing)
