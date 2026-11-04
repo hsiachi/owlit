@@ -349,6 +349,62 @@ describe("a step of a sign-in on a site the extension may not read", () => {
   })
 })
 
+describe("the gate's tab and what owlit still wants", () => {
+  const A2 = "https://dl.acm.org/doi/10.1145/2"
+  const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"
+  const waiting: Answer = { html: "<title>Please wait</title><p>Loading</p>" }
+
+  async function keptTab(second: Answer) {
+    const acm: Site = ({ url, from }) => (from === "worker" ? check() : url.href === A2 ? second : url.pathname.includes("/pdf/") ? { pdf: true } : article("ACM", ACM_PDF))
+    const b = await boot({ "dl.acm.org": acm })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    await vi.waitFor(() => expect(Object.keys(b.kept.session.workTabs as object)).toEqual(["pub:acm"]), PATIENCE)
+    return b
+  }
+
+  it("is never brought to the front for a paper nobody started, stand-in or not", async () => {
+    const b = await keptTab(waiting)
+    b.owlit.give({ work: [item("a2", "pub:acm", A2)] })
+    await until(b, "a2#1")
+    expect(b.activated).toEqual([])
+  })
+
+  it("isn't opened for a paper owlit no longer waits for", async () => {
+    const b = await boot({ "dl.acm.org": () => check() })
+    b.owlit.unwanted.add("a1#1")
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+    expect(b.created).toEqual([])
+  })
+
+  it("isn't brought to the front for a paper owlit stopped waiting for during its check", async () => {
+    const b = await boot({ "dl.acm.org": () => check() })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { userStarted: true })] })
+    await vi.waitFor(() => expect(b.created).toHaveLength(1), PATIENCE)
+    b.owlit.unwanted.add("a1#1")
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toEqual({ ended: "offline", host: "dl.acm.org" })
+    expect(b.activated).toEqual([])
+  })
+
+  it("is left alone when the user opens it in the gap before its next paper", async () => {
+    const b = await keptTab(article("ACM", A2_PDF))
+    Object.assign((await import("./ladder.ts")).TAB_TIMES, { gapMs: 200 })
+    const [tabId] = [...b.tabs.keys()]
+    // The tab looked at for the next paper, and whether it is in front, are the two looks before the gap
+    let looks = 0
+    const get = b.chrome.tabs.get
+    b.chrome.tabs.get = ((id: number) => (id === tabId && looks++, get(id))) as never
+    b.owlit.give({ work: [item("a2", "pub:acm", A2, { pdfUrl: A2_PDF, userStarted: true })] })
+    await vi.waitFor(() => expect(looks).toBeGreaterThanOrEqual(2), PATIENCE)
+    b.activate(tabId)
+    await until(b, "a2#1")
+    expect(b.tabs.get(tabId)?.url).toBe(ACM)
+  })
+})
+
 describe("a kept tab the user took over", () => {
   const A2 = "https://dl.acm.org/doi/10.1145/2"
   const A2_PDF = "https://dl.acm.org/doi/pdf/10.1145/2"

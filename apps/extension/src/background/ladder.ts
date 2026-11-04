@@ -241,19 +241,21 @@ async function inGateLine(item: WorkItem, deps: FetchDeps, { open }: { open: boo
 // undefined when the tab went away under it (the user closed it), or none was kept and open is false
 async function inOwnTab(item: WorkItem, deps: FetchDeps, { open }: { open: boolean }): Promise<Fetched | undefined> {
   const gate = item.gate
-  let tab = await reusable(item)
+  // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there again
+  // is the site's word that this is enough for now
+  const kept = await reusable(item)
+  if (kept) await sleep(Math.max(0, kept.lastAt + TAB_TIMES.gapMs - Date.now()))
+  // Asked after the gap: the user may have taken the tab meanwhile
+  let tab = kept && (await reusable(item))
   const reused = !!tab
+  if (!tab && !open) return undefined
+  // The paper may have its PDF by now (the user opened its page and the extension took it there)
+  if (!(await stillWanted(deps))) return notWanted(item)
   if (tab) {
-    // The gate's next paper, at a reader's pace, its page loaded in the same tab: a check met there
-    // again is the site's word that this is enough for now
-    await sleep(Math.max(0, tab.lastAt + TAB_TIMES.gapMs - Date.now()))
-    // The paper may have its PDF by now (the user opened its page and the extension took it there)
-    if (!(await stillWanted(deps))) return notWanted(item)
     const before = (await documentOf(tab.tabId))?.origin
     await ext.tabs.update(tab.tabId, { url: item.url }).catch(() => undefined)
     await loaded(tab.tabId, before)
   } else {
-    if (!open) return undefined
     const opened = await ext.tabs.create({ url: item.url, active: false })
     if (opened.id === undefined) return undefined
     tab = { tabId: opened.id, shown: false, lastAt: 0 }
@@ -384,7 +386,8 @@ async function pass(tab: WorkTab, item: WorkItem, deps: FetchDeps, { once = fals
     const onItsWay = !seen.parsed || isStandIn(page)
     if (!onItsWay && (once || !isCheck(page) || isInteractive(page))) return said(page)
     if (Date.now() >= until) {
-      if (tab.shown) return said(page)
+      if (tab.shown || !item.userStarted) return said(page)
+      if (!(await stillWanted(deps))) return notWanted(item)
       tab.shown = true
       // Kept so at once: a worker restarted meanwhile never closes it as idle
       await keepTab(item.gate, { ...tab })
