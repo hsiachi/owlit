@@ -11,7 +11,8 @@ import { atypon, behindSso, psycnet, refusesWorker } from "./sites.ts"
 // screen. Then the user does everything still asked of them, and nothing may be left that won't move
 // (livenessErrors), with each paper as the model says. A failing sequence is shrunk by fast-check to the
 // shortest that still breaks one, and printed with the seed to replay it. The suite runs one fixed seed,
-// so it is the same sequences every time; PDF_BENCH_SEED and PDF_BENCH_RUNS explore others.
+// so it is the same sequences every time; PDF_BENCH_SEED, PDF_BENCH_RUNS and PDF_BENCH_EVENTS explore
+// others, and PDF_BENCH_NO_SHRINK stops at the first failure.
 
 const TLINK = "tlink.lib.tsinghua.edu.cn"
 const SAGE = "journals.sagepub.com"

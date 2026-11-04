@@ -416,6 +416,14 @@ describe("a publisher's sign-in hop, off campus", () => {
     expect(screen.papers[other].hasPdf).toBe(true)
   })
 
+  it("a hop on the publisher's own sign-in host: the wait is named by the publisher, never by the hop", async () => {
+    const web = campus()
+    behindSso(web, "www.sciencedirect.com", els.doi, els.title, AUTH, { walks: false })
+    const b = await start(web, { proxy: { preset: "tsinghua" } })
+    b.addPaper(els.doi, els.title)
+    expect((await b.getPdfs()).waits).toMatchObject([{ id: "pub:elsevier", kind: "check", host: "elsevier.com" }])
+  })
+
   it("on a site the extension may not read: a tab still walks it", async () => {
     const web = campus()
     behindSso(web, "www.sciencedirect.com", els.doi, els.title, AUTH)
@@ -435,8 +443,6 @@ describe("a publisher's sign-in hop, off campus", () => {
     const other = b.addPaper(direct.doi, direct.title)
     const screen = await b.getPdfs()
     expect(screen.papers[id].heldAt).toBe("pub:elsevier")
-    // Named by the publisher: the hop's host is one step of its sign-in
-    expect(screen.waits).toMatchObject([{ id: "pub:elsevier", host: "elsevier.com" }])
     expect(screen.papers[other].hasPdf).toBe(true)
   })
 
@@ -756,9 +762,9 @@ describe("owlit and the machine", () => {
     const b = await start(web, { proxy: { preset: "tsinghua" } })
     const id = b.addPaper(checked.doi, checked.title)
     const other = b.addPaper(next.doi, next.title)
-    await b.getPdfs()
-    // Both have tried and met the sign-in
-    await b.pressDone(TLINK)
+    // The other paper's try met the sign-in; handed over again, it is no longer one the user asked for
+    await b.getPdfs([other])
+    await b.restartCore()
     web.signIn(TLINK)
     await b.hold()
     await b.call("library.fetchPdf", { id })
