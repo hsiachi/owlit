@@ -52,7 +52,8 @@ export function pdfWait(p: Pick<Paper, "pdf" | "pdfState">): PdfWait | undefined
     // waits for the browser like any other
     const waits = s?.extension?.wait ? s.extension.kind : undefined
     if (waits) return BY_WAIT[waits]
-    return s?.reason?.ended === "offline" ? "offline" : "finding"
+    // Reached nothing and back in the extension's queue: it goes on from there, whoever's try that was
+    return s?.reason?.ended === "offline" && !s.extension ? "offline" : "finding"
   }
   return BY_ENDED[s.reason?.ended ?? "no-copy"]
 }
