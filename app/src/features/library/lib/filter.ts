@@ -124,7 +124,7 @@ export function groupPapers(
   if (byReason) {
     const groups = new Map<string, { rank: number; papers: Paper[] }>()
     for (const p of papers) {
-      const label = pdfColumnWord(p)
+      const label = pdfColumnWord(p, undefined, { minutes: false })
       if (!label) continue
       // A paper in line (Waiting) goes just before owlit's own looking (Finding)
       const rank = NO_PDF_ORDER.indexOf(pdfWait(p)!) - (label !== pdfWord("finding") && pdfWait(p) === "finding" ? 0.5 : 0)

@@ -64,6 +64,13 @@ describe("papers without a PDF", () => {
     ])
   })
 
+  it("keeps papers in line through the proxy in one group, whatever minutes each has left", () => {
+    const inLine = (id: string, minutes: number) =>
+      paper(id, { pdfState: { state: "finding", tried: [], extension: { lane: "proxy:tlink.lib.tsinghua.edu.cn" as const, gate: "pub:misq" as const, attempt: 1, at: "tlink.lib.tsinghua.edu.cn", turnAt: Date.now() + minutes * 60_000 } } })
+    const groups = groupPapers([inLine("soon", 1), inLine("later", 4), inLine("last", 9)], { key: "addedAt", desc: true }, false, Date.now(), undefined, true)
+    expect(groups.map((g) => [g.label, g.papers.length])).toEqual([["Waiting", 3]])
+  })
+
   it("names the groups of papers with the extension as their rows do", () => {
     const at = (id: string, extension: NonNullable<PdfState["extension"]>) => paper(id, { pdfState: { state: "finding", tried: [], extension } })
     const papers = [
