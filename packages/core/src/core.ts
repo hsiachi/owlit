@@ -508,14 +508,16 @@ export class Core {
       if (this.workspace !== next) await this.serveSocket(next.root)
       const opened = this.workspace !== next
       this.workspace = next
+      // Its waits for the user are up before its tasks or any extension hand papers over: an ask can come
+      // as soon as it is the open workspace, and Library hand-overs wait for this
+      const waitsUp = opened ? next.library.restoreWaits().catch((error) => console.error("[core] couldn't put up the waits the papers' records say", error)) : undefined
       // The opener's seen marks begin as it opens, when they have none yet: what it held before isn't news
       // to them
       if (opened) {
         const me = await this.personAt(WINDOW).catch(() => undefined)
         if (me) await next.seen.get(me, [])
       }
-      // Its waits for the user are up before its tasks or any extension hand papers over
-      if (opened) await next.library.restoreWaits().catch((error) => console.error("[core] couldn't put up the waits the papers' records say", error))
+      await waitsUp
       // Its tasks start once it is the open workspace
       if (opened) await next.tasks.start()
       if (opened) void next.shares.start().catch((error) => console.error("[core] couldn't start following shared docs", error))

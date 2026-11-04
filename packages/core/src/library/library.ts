@@ -229,6 +229,8 @@ export class Library {
   private readonly acquisitions: Acquisitions
   // Its workspace closed: hand-overs still going stop at their next paper
   private disposed = false
+  // Settled once the waits and queues of the papers' records are up (restoreWaits)
+  private waitsUp: Promise<void> = Promise.resolve()
   // Papers of a batch (fetchPdfs) stopped before it handed them to the extension
   private readonly batchStopped = new Set<string>()
   // The workspace's Get PDFs: the one going on, else the last, until put away; in memory only
@@ -2041,6 +2043,7 @@ export class Library {
   private async toExtension(id: string, doi: string, priority: TaskPriority, signal?: AbortSignal, stopped?: () => boolean, { closed = false } = {}) {
     const extension = this.services.extension
     if (!extension || this.disposed) return false
+    await this.waitsUp
     if (!extension.connected() && !(closed && (await extension.paired?.()))) return false
     const registered = await registeredUrl(this.services.http, doi, signal)
     const libraryProxy = (await this.services.settings()).proxy
@@ -2062,6 +2065,7 @@ export class Library {
   // it the Library fills in by itself, at the queue's pace. A paper whose newest try met a sign-in, a
   // check or a missing permission falls under the wait restoreWaits put up for it, by its try's gate.
   async handToExtension() {
+    await this.waitsUp
     const extension = this.services.extension
     if (!extension?.connected()) return
     const waiting: { id: string; doi: string; at: number }[] = []
@@ -2088,14 +2092,23 @@ export class Library {
   // connects: a paper whose newest try stopped where only the user gets through, at the gate it met.
   // The papers that were with the extension when owlit last ran say so again from then on, not what
   // owlit's own routes found, until the extension asks and they are handed over (handToExtension).
-  async restoreWaits() {
+  // Every hand-over waits for this: one that went first would write the queues down without the papers
+  // only pdf-work.json knows of. The caller starts it in the same step that opens the workspace, so
+  // nothing comes in between.
+  restoreWaits() {
+    const putUp = this.putUpWaits()
+    this.waitsUp = putUp.catch(() => undefined)
+    return putUp
+  }
+
+  private async putUpWaits() {
     const extension = this.services.extension
     if (!extension) return
+    // In the extension's queues when owlit last ran on this machine
+    const queuedBefore = await extension.queuedBefore(this)
     const proxy = (await this.services.settings()).proxy
     const known: KnownWait[] = []
     const pending: KnownPending[] = []
-    // In the extension's queues when owlit last ran on this machine
-    const queuedBefore = await extension.queuedBefore(this)
     for (const id of await this.ids()) {
       if (await hasPdfFile(this.root, id)) continue
       const acquisition = await this.acquisitions.read(id)

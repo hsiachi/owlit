@@ -575,6 +575,42 @@ describe("the extension's port", () => {
       expect(view.result.waits).toMatchObject([{ id: wait.id, kind: wait.kind, at: wait.at, watch: wait.watch, url: wait.url }])
     })
 
+    it("loses no queued paper to an ask that comes while the workspace's waits go up", async () => {
+      const { call, token, core, userDataDir, root, putPaper } = await connected()
+      await call("library.fetchPdfs", { ids: [id] })
+      await eventually(async () => expect((await paperIn(call)).pdfState?.extension).toBeTruthy())
+      // Queued with a verdict on record: only pdf-work.json says it goes on, and no look on opening finds it
+      writeFileSync(path.join(root, "library/papers", id, "acquisition.json"), JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "extension", ended: "no-access", at: Date.now() }], dropHere: "paper.pdf" }))
+      // With owlit's own miss on record: the ask hands this one over by itself
+      const missed = { id: "doi-10.1177-0000002", doi: "10.1177/0000002" }
+      putPaper(missed.id, { title: "Another Paper", ids: { doi: missed.doi } })
+      writeFileSync(path.join(root, "library/papers", missed.id, "acquisition.json"), JSON.stringify({ version: 2, state: "no-pdf", tried: [{ by: "search", ended: "no-copy", at: 1 }], dropHere: "paper.pdf" }))
+      await core.dispose()
+      const again = new Core({ userDataDir, host: { fetch: (async () => new Response("", { status: 404 })) as unknown as typeof fetch }, retryBaseMs: 1, extension: { port: 0, holdMs: 20, work: { gapMs: 0 } } })
+      cleanups.push(() => again.dispose())
+      const server = (again as unknown as { extension: ExtensionServer }).extension
+      await server.start()
+      let release!: () => void
+      const held = new Promise<void>((resolve) => (release = resolve))
+      const restore = server.work.restore.bind(server.work)
+      const restoring = vi.spyOn(server.work, "restore").mockImplementation(async (...args) => {
+        await held
+        return restore(...args)
+      })
+      const opening = again.handle({ jsonrpc: "2.0", id: 1, method: "workspace.open", params: { path: root } })
+      await eventually(async () => expect(restoring).toHaveBeenCalled())
+      const handed = vi.spyOn(server.work, "fetch")
+      await globalThis.fetch(`http://127.0.0.1:${server.port}/work`, { headers: { origin: ORIGIN, authorization: `Bearer ${token}` } })
+      // A hand-over that went ahead of the restore shows here; one that waits for it never comes
+      await vi.waitFor(() => expect(handed).toHaveBeenCalled(), { timeout: 300 }).catch(() => undefined)
+      release()
+      await opening
+      await eventually(async () => {
+        const list: any = await again.handle({ jsonrpc: "2.0", id: 2, method: "library.list" })
+        expect(list.result.papers.filter((p: { pdfState?: { extension?: unknown } }) => p.pdfState?.extension).map((p: { id: string }) => p.id).sort()).toEqual([id, missed.id].sort())
+      })
+    })
+
     it("opens the library's sign-in for a proxy sign-in after a restart, as before it", async () => {
       const { call, request, token, core, userDataDir, root } = await connected()
       await call("settings.setProxy", { preset: "tsinghua" })
