@@ -376,8 +376,8 @@ export class Bench {
   // than core counts it connected, the window says the papers with it wait for the browser
   async closeBrowser() {
     if (this.ext.closed) return this.step("the browser stays closed")
+    await this.ext.hold()
     this.ext.quit()
-    await this.asksEnded()
     this.offset += CONNECTED_MS + 1
     return this.step("close the browser")
   }
@@ -406,15 +406,19 @@ export class Bench {
     return this.step(`open ${url}`)
   }
 
-  // The user clicks the tab showing a page at this host
-  async clickTab(host: string) {
+  // The user clicks the tab showing a page at this host, and goes straight on to a page in a new tab
+  async clickTabAndLeave(host: string, url: string) {
     this.ext.clickTab(host)
-    return this.step(`click the tab at ${host}`)
+    await this.ext.openPage(url)
+    return this.step(`click the tab at ${host}, and go on to ${url}`)
   }
 
   // Chrome stops the extension's worker and starts it again: what it had out is lost
   async restartWorker() {
-    if (!this.ext.closed) await this.ext.restart()
+    if (!this.ext.closed) {
+      await this.ext.hold()
+      await this.ext.restart()
+    }
     return this.step("the worker restarts")
   }
 
@@ -519,15 +523,6 @@ export class Bench {
   private lookingUp() {
     const tasks = (this.core as unknown as { workspace?: { tasks: { list(): Task[] } } }).workspace?.tasks.list() ?? []
     return tasks.some((t) => t.kind.startsWith("paper.") && !READS_ONLY.has(t.kind) && (t.state === "queued" || t.state === "running") && !(t.notBefore && t.notBefore > Date.now()))
-  }
-
-  // Core has heard every ask the extension had with it end: the clock can move without an ask's end
-  // counting as a later visit
-  private asksEnded() {
-    const asks = (this.server.work as unknown as { asks: Map<string, { open: number }> }).asks
-    return vi.waitFor(() => {
-      if ([...asks.values()].some((ask) => ask.open > 0)) throw new Error("core still holds an ask")
-    }, PATIENCE)
   }
 
   private lookups() {
@@ -759,7 +754,8 @@ class Extension {
     }, PATIENCE)
   }
 
-  // Nothing more is asked of owlit, and no ask is being held there, until go or askOnce
+  // Nothing more is asked of owlit, and no ask is being held there, until go or askOnce. Before the clock
+  // jumps or the worker stops: an ask cut off on its way still reaches core, and counts as a later visit.
   async hold() {
     this.allowed = 0
     await vi.waitFor(() => {

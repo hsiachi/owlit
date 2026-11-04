@@ -434,6 +434,7 @@ export function fakeBrowser<O extends Owlit = FakeOwlit>(sites: Record<string, S
       const tab: FakeTab = { id: nextTab++, url: "", active, status: "loading", readyState: "loading", timeOrigin: 0, windowId: 1, openerTabId }
       tabs.set(tab.id, tab)
       created.push({ url, active })
+      if (active) front(tab)
       const going = load(tab, url)
       // The answers of a Web take their time, and the tab is the extension's before they come
       if (typeof sites !== "function") await going

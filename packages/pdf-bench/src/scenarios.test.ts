@@ -603,9 +603,8 @@ describe("a gate's kept tab", () => {
     let screen = await b.findPdf(first)
     expect(screen.papers[first].hasPdf).toBe(true)
     expect(screen.browser.tabs).toEqual([`https://dl.acm.org/doi/${papers[0].doi}`])
-    await b.clickTab("dl.acm.org")
-    // And goes on to a tab of their own: the click is what says the first is theirs
-    await b.openPage("https://www.example.org/")
+    // In front only for a moment: the click is what says it is theirs
+    await b.clickTabAndLeave("dl.acm.org", "https://www.example.org/")
     const second = b.addPaper(papers[1].doi, papers[1].title)
     screen = await b.findPdf(second)
     expect(screen.papers[second].hasPdf).toBe(true)
