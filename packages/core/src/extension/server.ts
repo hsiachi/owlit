@@ -506,8 +506,8 @@ export class ExtensionServer {
       {
         method: "GET",
         path: is("work"),
-        handle: async ({ closed, pairing }) => {
-          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id)
+        handle: async ({ closed, pairing, query }) => {
+          const work = await this.work.take(this.host.workspace()?.library ?? null, this.options.holdMs, closed, pairing!.id, query.get("worker") ?? undefined)
           return { body: { work, waits: this.work.waitsForExtension(), open: this.work.takeOpens(pairing!.id), going: await this.going(), endings: [...WORK_ENDINGS] } satisfies WorkAnswer }
         },
       },

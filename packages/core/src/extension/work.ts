@@ -181,8 +181,9 @@ export class ExtensionWork implements ExtensionFetcher {
   // apart) aren't fetched in a burst
   private readonly lastEnded = new Map<LaneKey, number>()
   // Each pairing's GET /work (by its id; "" for a caller that names none): how many are being held now,
-  // when the last ended, and whether the extension closed it while held (its service worker stopped)
-  private readonly asks = new Map<string, { open: number; at: number; dropped: boolean }>()
+  // when the last ended, whether the extension closed it while held (its service worker stopped), and
+  // the run of its worker that asked last
+  private readonly asks = new Map<string, { open: number; at: number; dropped: boolean; worker?: string }>()
   private polledAt = Number.NEGATIVE_INFINITY
   // When owlit started this
   readonly startedAt = Date.now()
@@ -458,7 +459,9 @@ export class ExtensionWork implements ExtensionFetcher {
 
   // GET /work: the papers due now, held for up to holdMs while none is. Each one is in flight until its
   // answer comes (settle), or until an extension asks for work while the one it went to is away.
-  async take(library: Library | null, holdMs: number, closed: AbortSignal, by?: string): Promise<WorkItem[]> {
+  // worker: this run of the extension's worker (a new one has none of the last one's fetches, even if
+  // it stopped between two asks, with none held for the extension to close).
+  async take(library: Library | null, holdMs: number, closed: AbortSignal, by?: string, worker?: string): Promise<WorkItem[]> {
     // Away for longer than counts as connected, or never here for this library: papers the plain routes
     // missed meanwhile went to no queue, and after a restart the queues are empty, so the library fills
     // them before anything is due. Marked connected first, so what the library hands over is queued, not
@@ -466,8 +469,9 @@ export class ExtensionWork implements ExtensionFetcher {
     const wasAway = !this.connected()
     const arrived = wasAway || library !== this.connectedTo
     // Before this ask is counted: the asker's own fetches from before it was away go out again too
-    this.reissue()
     const ask = this.asks.get(by ?? "") ?? { open: 0, at: 0, dropped: false }
+    this.reissue(ask.worker && worker && ask.worker !== worker ? (by ?? "") : undefined)
+    ask.worker = worker ?? ask.worker
     ask.open++
     this.asks.set(by ?? "", ask)
     this.polledAt = Date.now()
@@ -1079,12 +1083,13 @@ export class ExtensionWork implements ExtensionFetcher {
   // extension is away when it hasn't asked for work for CONNECTED_MS, or closed its last ask while it was
   // held, and none of its asks is being held now; while one is, its fetches are going on beside it, so a
   // proxy never has two requests of the user's out at once. A fetch out STALLED_MS goes back whatever.
-  private reissue() {
+  // restarted: the pairing whose worker started anew: its fetches went with the last one.
+  private reissue(restarted?: string) {
     const now = Date.now()
     for (const lane of this.lanes.values()) {
       if (!lane.inFlight) continue
       const ask = this.asks.get(lane.inFlight.by ?? "")
-      const going = ask && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
+      const going = ask && (lane.inFlight.by ?? "") !== restarted && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
       if (going && now - lane.inFlight.at < STALLED_MS) continue
       if (!lane.inFlight.stopped) lane.queue.unshift(lane.inFlight.item)
       lane.inFlight = undefined

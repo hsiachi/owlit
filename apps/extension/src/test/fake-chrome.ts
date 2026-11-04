@@ -155,7 +155,7 @@ export class FakeOwlit {
     if (this.closed) throw new TypeError("Failed to fetch")
     const method = init.method ?? "GET"
     const type = new Headers(init.headers).get("content-type") ?? ""
-    if (route === "/work" && method === "GET") {
+    if (route.split("?")[0] === "/work" && method === "GET") {
       const answer = this.answers.shift() ?? (await new Promise((resolve) => (this.holding = resolve)))
       if (answer === undefined) throw new TypeError("Failed to fetch")
       return json(answer)

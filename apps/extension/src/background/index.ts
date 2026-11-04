@@ -590,6 +590,8 @@ const WORK = "work"
 export const ASK_TIMES = { restartRetryMs: 5_000, throughEveryMs: 3_000, parsedEveryMs: 250 }
 
 let asking: Promise<void> | null = null
+// This run of the worker: owlit takes a new one to have none of the last one's fetches
+const WORKER = crypto.randomUUID()
 // This worker has had a GET /work answer, so the waits in session storage are owlit's now. Before the
 // first, they may be none at all: Chrome empties session storage when it restarts, and owlit holds the
 // first ask while nothing is due, so a site allowed meanwhile (the Allow page, permissions.onAdded)
@@ -607,7 +609,7 @@ function keepAsking() {
       for (;;) {
         const { token } = await local()
         if (!token) return
-        const answer = await ask<WorkAnswer>("/work", { token })
+        const answer = await ask<WorkAnswer>(`/work?worker=${WORKER}`, { token })
         answered = true
         const before = await waits()
         const now = answer.waits.map(asWait)
