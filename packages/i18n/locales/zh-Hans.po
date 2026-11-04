@@ -4560,6 +4560,11 @@ msgstr "你在浏览器里看过它们的页面，没有找到 PDF。之后找�
 msgid "You stopped getting these while they waited for you at their site. Look again on a paper tries it once more."
 msgstr "它们在网站那边等你时，你停止了获取。在论文上按“再找一次”会重新试一次。"
 
+#. owlit is trying again, by itself, a site that didn't answer the user's browser earlier
+#: app/src/features/library/components/PdfBlock.tsx
+msgid "Trying {at} again…"
+msgstr "正在重试 {at}…"
+
 #. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
 #. the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05
 #: app/src/features/library/components/PdfBlock.tsx

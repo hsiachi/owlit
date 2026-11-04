@@ -151,8 +151,9 @@ export interface PdfRunView {
   going: number
   closed: number
   // In line, held back by a host that didn't answer their last fetch (PdfState.extension.unreachable),
-  // by that host; until: when the last of them may go
-  unreachable: { at: string; until: number; papers: number; ids: string[] }[]
+  // by that host; until: when the last of them may go; trying: once the run has ended, owlit's retry of
+  // one of them is going on now (the run stays ended)
+  unreachable: { at: string; until: number; papers: number; ids: string[]; trying?: true }[]
   away: number
   // Something is going
   running: boolean

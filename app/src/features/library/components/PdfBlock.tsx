@@ -193,7 +193,11 @@ function Row({ row, browser, library, papers }: { row: RowModel; browser: string
     muted = true
     const { at } = row
     const time = clock(row.until)
-    need = t({ message: `Can't reach ${at} right now · trying again at ${time}`, comment: "the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05" })
+    // A retry of owlit's own after the run ended: said here, the header staying the run's summary
+    need = row.trying
+      ? t({ message: `Trying ${at} again…`, comment: "owlit is trying again, by itself, a site that didn't answer the user's browser earlier" })
+      : t({ message: `Can't reach ${at} right now · trying again at ${time}`, comment: "the site didn't answer the user's browser; time: when owlit tries it again, e.g. 14:05" })
+    if (row.trying) action = <Spinner className="size-3.5" />
     why = t`${at} didn't answer your browser. owlit tries these again by itself, and goes on with the other sites meanwhile; on another network (or a VPN) it may get through.`
   } else if (row.kind === "getting") {
     muted = true

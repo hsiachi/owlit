@@ -7,7 +7,7 @@ import type { ExtensionWait, Paper, PdfRunView } from "@owlit/protocol"
 export type RowModel =
   | { kind: "wait"; wait: ExtensionWait; papers: number }
   | { kind: "manual"; papers: number; ids: string[]; sites: { host: string; papers: number }[] }
-  | { kind: "unreachable"; at: string; until: number; papers: number }
+  | { kind: "unreachable"; at: string; until: number; papers: number; trying?: true }
   | { kind: "closed" | "away" | "none" | "skipped" | "stopped" | "getting" | "going"; papers: number }
 
 // rows: the run's, in the order the user can do something about them: its waits (the most papers first,
@@ -26,7 +26,7 @@ export function blockRows(run: PdfRunView, waits: ExtensionWait[], papers: Recor
   }
   if (run.manual.ids.length) rows.push({ kind: "manual", papers: run.manual.ids.length, ids: run.manual.ids, sites: run.manual.sites })
   for (const kind of ["closed", "away", "none", "skipped", "stopped"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
-  for (const { at, until, papers: n } of run.unreachable) rows.push({ kind: "unreachable", at, until, papers: n })
+  for (const { at, until, papers: n, trying } of run.unreachable) rows.push({ kind: "unreachable", at, until, papers: n, ...(trying ? { trying } : {}) })
   for (const kind of ["getting", "going"] as const) if (run[kind]) rows.push({ kind, papers: run[kind] })
   const ofRun = (wait: ExtensionWait) => run.ids.filter((id) => papers[id]?.pdfState?.extension?.wait === wait.id).length
   const outside = waits

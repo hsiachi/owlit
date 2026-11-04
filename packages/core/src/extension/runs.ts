@@ -19,6 +19,9 @@ export interface PdfRun {
   handing?: number
   stoppedAt?: number
   endedAt?: number
+  // Papers held back by a host that didn't answer once the run had ended, by that host: owlit's
+  // retries of them, as they come, are theirs and not the run going on again (runView)
+  retrying?: Map<string, { at: string; until: number }>
   dismissedAt?: number
 }
 
@@ -79,7 +82,21 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
     view.ids.push(id)
     view.total++
     const place = classify(id, paper, run, connected)
-    if (place.kind === "wait") {
+    // Held back by a host while nothing else of the run went on (run.retrying), then in line again as the
+    // back-off ends, then fetched: owlit's retry, shown in that host's row as trying again, and the run
+    // stays its summary, since owlit retries such a paper by itself for as long as it takes. A retry
+    // that leads anywhere else (its PDF, a check) makes it the run's like any other paper, so papers that
+    // go on after the user got through at a wait still bring the run back.
+    const back = run.retrying?.get(id)
+    if (back && place.kind === "unreachable") run.retrying?.set(id, { at: place.at, until: place.until })
+    else if (back && place.kind !== "getting" && place.kind !== "going") run.retrying?.delete(id)
+    if (back && (place.kind === "getting" || place.kind === "going")) {
+      const row = unreachable.get(back.at) ?? { at: back.at, until: back.until, papers: 0, ids: [] }
+      row.papers++
+      row.ids.push(id)
+      row.trying = true
+      unreachable.set(back.at, row)
+    } else if (place.kind === "wait") {
       trying ||= !!place.trying
       const row = waits.get(place.wait) ?? { wait: place.wait, papers: 0, ids: [] }
       row.papers++
@@ -108,6 +125,8 @@ export function runView(run: PdfRun, papers: Map<string, RunPaper | undefined>, 
   // Written once, the first time nothing is going. A run that goes on again after (the user got through
   // at a wait, and its papers went on) shows none while it does.
   if (!view.running && run.endedAt === undefined) run.endedAt = now
+  // Held back while nothing of the run goes on: from here their retries are owlit's own
+  if (!view.running) for (const row of view.unreachable) for (const id of row.ids) (run.retrying ??= new Map()).set(id, { at: row.at, until: row.until })
   if (run.stoppedAt !== undefined) view.stoppedAt = run.stoppedAt
   if (run.endedAt !== undefined && !view.running) view.endedAt = run.endedAt
   return view

@@ -92,6 +92,30 @@ describe("a Get PDFs, counted from its papers", () => {
     expect(viewOf({ a: off("journals.sagepub.com", 50) })).toMatchObject({ going: 0, running: false, endedAt: expect.any(Number), unreachable: [{ papers: 1 }] })
   })
 
+  it("stays ended while owlit retries a paper held back by a host that didn't answer, and counts what the retry brings", () => {
+    const off = (until: number): RunPaper => ({ paper: { pdfState: { state: "finding", tried: [], extension: { ...lane, unreachable: { at: "journals.sagepub.com", until } } } } })
+    const r = run(["a", "b", "c"])
+    const view = (papers: Record<string, RunPaper>) => runView(r, new Map(Object.entries(papers)), true)
+    expect(view({ a: saved("extension"), b: saved("extension"), c: off(50) })).toMatchObject({ running: false, endedAt: expect.any(Number) })
+    // The back-off ends: in line, then fetched
+    for (const c of [inLine(), inLine(true)]) {
+      const retry = view({ a: saved("extension"), b: saved("extension"), c })
+      expect(retry).toMatchObject({ running: false, getting: 0, going: 0, endedAt: expect.any(Number), unreachable: [{ at: "journals.sagepub.com", papers: 1, ids: ["c"], trying: true }] })
+    }
+    expect(view({ a: saved("extension"), b: saved("extension"), c: off(90) }).unreachable).toEqual([{ at: "journals.sagepub.com", until: 90, papers: 1, ids: ["c"] }])
+    expect(view({ a: saved("extension"), b: saved("extension"), c: saved("extension") })).toMatchObject({ saved: 3, running: false, unreachable: [] })
+  })
+
+  it("goes on again for a held-back paper whose retry met a wait the user then got through", () => {
+    const off: RunPaper = { paper: { pdfState: { state: "finding", tried: [], extension: { ...lane, unreachable: { at: "x", until: 50 } } } } }
+    const r = run(["a"])
+    const view = (a: RunPaper) => runView(r, new Map([["a", a]]), true)
+    expect(view(off).running).toBe(false)
+    expect(view(held("pub:x")).running).toBe(false)
+    // The user got through: it goes on as the run's
+    expect(view(inLine(true))).toMatchObject({ running: true, getting: 1, unreachable: [] })
+  })
+
   it("counts the paper being fetched apart from those in line", () => {
     expect(viewOf({ a: inLine(true), b: inLine(), c: inLine() })).toMatchObject({ getting: 1, going: 2, running: true })
   })
