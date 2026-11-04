@@ -54,6 +54,8 @@ export interface Answer {
   // A page whose load never ends in a tab (a third-party script that never answers, as on a network that
   // blocks it): its document is parsed, and the tab stays "loading"
   stalls?: boolean
+  // A fetch from a tab that never answers, until its own signal aborts it
+  hangs?: boolean
 }
 // from: who asks; look: the tab's document looked at (executeScript reading it), not a fetch
 export type Site = (request: { url: URL; from: "worker" | "tab"; look?: boolean; tab?: FakeTab }) => Answer | undefined
@@ -165,6 +167,9 @@ export interface FakeBrowser {
   tabs: Map<number, FakeTab>
   // Every fetch made, by whom
   fetches: { url: string; from: "worker" | "tab"; redirect?: string }[]
+  // The fetches in tabs that hung, and those of them the page aborted
+  hung: string[]
+  aborted: string[]
   // Tabs the extension opened, and those made active by it
   created: { url: string; active: boolean }[]
   activated: number[]
@@ -194,6 +199,8 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
   let nextTab = 100
   let documents = 0
   const fetches: FakeBrowser["fetches"] = []
+  const hung: string[] = []
+  const aborted: string[] = []
   const created: FakeBrowser["created"] = []
   const activated: number[] = []
   const removed: number[] = []
@@ -238,6 +245,16 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
         fetches.push({ url: at.href, from: "tab", ...(init.redirect ? { redirect: init.redirect } : {}) })
         if (at.origin !== new URL(tab.url).origin) throw new TypeError("Failed to fetch")
         const answer = answerOf(at, "tab", tab)
+        if (answer.hangs) {
+          hung.push(at.href)
+          const url = at.href
+          return new Promise<never>((_, reject) => {
+            init.signal?.addEventListener("abort", () => {
+              aborted.push(url)
+              reject(new DOMException("The operation was aborted", "AbortError"))
+            })
+          })
+        }
         if (!answer.redirect) return responseOf(answer, at.href)
         const to = new URL(answer.redirect, at)
         onBeforeRedirect.emit({ url: at.href, redirectUrl: to.href, tabId: tab.id, type: "xmlhttprequest", initiator: new URL(tab.url).origin })
@@ -382,6 +399,8 @@ export function fakeBrowser(sites: Record<string, Site>, kept?: { local: Record<
     owlit,
     tabs,
     fetches,
+    hung,
+    aborted,
     created,
     activated,
     removed,

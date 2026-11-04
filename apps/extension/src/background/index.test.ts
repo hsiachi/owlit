@@ -47,7 +47,7 @@ const item = (paperId: string, gate: WorkItem["gate"], url: string, extra: Parti
   ...extra,
 })
 
-const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idleMs: 20 }
+const QUICK = { hiddenMs: 40, shownMs: 40, lookMs: 2, loadMs: 500, gapMs: 5, idleMs: 20, fetchMs: 30 }
 const PATIENCE = { timeout: 5_000, interval: 5 }
 
 let running: FakeBrowser[] = []
@@ -246,6 +246,49 @@ describe("the fetch ladder", () => {
     expect(b.created).toHaveLength(2)
     expect(b.tabs.get(kept)?.url).toBe("https://example.org/")
     expect(b.removed).not.toContain(kept)
+  })
+})
+
+describe("a fetch in a tab that never answers", () => {
+  const hanging = (url: URL): Answer => (url.pathname.includes("/pdf/") ? { hangs: true } : article("ACM", ACM_PDF))
+
+  it("gives up in its time: owlit hears offline, the page's fetch ends, and the gate's next paper goes on", async () => {
+    const acm = guarded(hanging, { passAfter: 1 })
+    const b = await boot({ "dl.acm.org": acm.site })
+    b.owlit.give({ work: [item("a1", "pub:acm", ACM, { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a1#1")
+    expect(answered(b, "a1#1")[0].json).toMatchObject({ ended: "offline", host: "dl.acm.org" })
+    await vi.waitFor(() => expect(b.aborted).toEqual([ACM_PDF]), PATIENCE)
+    b.owlit.give({ work: [item("a2", "pub:acm", "https://dl.acm.org/doi/10.1145/2", { pdfUrl: ACM_PDF, userStarted: true })] })
+    await until(b, "a2#1")
+  })
+
+  it("rejects at once when its caller aborts, while the page's fetch keeps its own time", async () => {
+    const b = await boot({ "dl.acm.org": ({ url }) => hanging(url) })
+    const { tabFetch, TAB_TIMES } = await import("./ladder.ts")
+    Object.assign(TAB_TIMES, { fetchMs: 600_000 })
+    const tab = await b.openTab(ACM)
+    const stop = new AbortController()
+    const going = tabFetch(tab.id)(ACM_PDF, { signal: stop.signal })
+    await vi.waitFor(() => expect(b.hung).toEqual([ACM_PDF]), PATIENCE)
+    stop.abort()
+    await expect(going).rejects.toThrow()
+    await expect(tabFetch(tab.id)(ACM_PDF, { signal: stop.signal })).rejects.toThrow()
+    expect(b.hung).toEqual([ACM_PDF])
+  })
+
+  it("stops waiting for a load in the tab when its caller aborts", async () => {
+    const b = await boot({ "dl.acm.org": () => article("ACM", ACM_PDF), "pdf.acm.org": () => ({ pdf: true, stalls: true }) })
+    const { tabFetch, TAB_TIMES } = await import("./ladder.ts")
+    Object.assign(TAB_TIMES, { loadMs: 600_000 })
+    const tab = await b.openTab(ACM)
+    const stop = new AbortController()
+    const going = tabFetch(tab.id, { navigate: true })("https://pdf.acm.org/1.pdf", { signal: stop.signal })
+    await vi.waitFor(() => expect(b.tabs.get(tab.id)?.url).toBe("https://pdf.acm.org/1.pdf"), PATIENCE)
+    stop.abort()
+    await expect(going).rejects.toThrow()
+    // Nothing is read from what loaded after the abort
+    expect(b.fetches.filter((f) => f.from === "tab" && f.url === "https://pdf.acm.org/1.pdf")).toEqual([])
   })
 })
 

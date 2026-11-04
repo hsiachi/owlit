@@ -3,7 +3,7 @@ import { ext } from "../lib/browser.ts"
 import { serial } from "../lib/serial.ts"
 import { inTabItem, proxyHostOf, sameSite } from "../lib/from-tab.ts"
 import { isCheck, isInteractive, isStandIn, isThrough, siteOf } from "../lib/verdict.ts"
-import { fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
+import { FETCH_MS, fetchFor, said, type Fetched, type FetchDeps } from "../lib/work.ts"
 
 // How the extension fetches one of owlit's papers, step by step:
 // 1. The background's own fetch, with the user's cookies. Skipped where a tab is past the gate's check
@@ -34,6 +34,8 @@ export const TAB_TIMES = {
   // A gate's tab with nothing more to fetch is closed this long after its last paper: longer than core's
   // gap between a lane's papers (PROXY_GAP_MS), so the next one finds it open
   idleMs: 60_000,
+  // One fetch, in a tab or not: work.ts gives up on it after this, and the page's own fetch after the same
+  fetchMs: FETCH_MS,
 }
 
 // The page's HTML, as far as the verdict reads it; undefined when the extension may not read the tab.
@@ -179,8 +181,9 @@ const hostOf = (url: string) => {
 
 // The fetch ladder for one of owlit's papers. deps: the background's own fetching (FetchDeps), whose
 // inTab is a tab the user has open at the site, past its check.
-export async function fetchLadder(item: WorkItem, deps: FetchDeps): Promise<Fetched> {
+export async function fetchLadder(item: WorkItem, background: FetchDeps): Promise<Fetched> {
   await tabsLoaded
+  const deps = { ...background, timeoutMs: TAB_TIMES.fetchMs }
   // A gate whose check turns the background's fetch away, with a tab already past it (the gate's own,
   // kept from its last paper, or one of the user's): the paper is fetched there at once, user-started or
   // not, since no tab is opened for it
@@ -316,7 +319,7 @@ async function reusable(item: WorkItem): Promise<WorkTab | undefined> {
 // before it was sent on), or its load ended, or a while. Never until its load alone: a page whose
 // third-party scripts never answer stays loading for minutes with its article there. A page the
 // extension may not read tells nothing of its document, and is waited for by its load.
-function loaded(tabId: number, before?: number): Promise<void> {
+function loaded(tabId: number, before?: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     let over = false
     const done = () => {
@@ -324,6 +327,7 @@ function loaded(tabId: number, before?: number): Promise<void> {
       over = true
       ext.tabs.onUpdated.removeListener(heard)
       ext.tabs.onRemoved.removeListener(gone)
+      signal?.removeEventListener("abort", done)
       clearTimeout(timer)
       resolve()
     }
@@ -336,8 +340,9 @@ function loaded(tabId: number, before?: number): Promise<void> {
     const timer = setTimeout(done, TAB_TIMES.loadMs)
     ext.tabs.onUpdated.addListener(heard)
     ext.tabs.onRemoved.addListener(gone)
+    signal?.addEventListener("abort", done)
     void (async () => {
-      while (!over) {
+      while (!over && !signal?.aborted) {
         const tab = await ext.tabs.get(tabId).catch(() => undefined)
         if (!tab) return done()
         const seen = await documentOf(tabId)
@@ -469,6 +474,8 @@ ext.tabs.onRemoved.addListener((tabId) => {
 // returns must be plain data.
 export function tabFetch(tabId: number, { navigate = false, proxyHost }: { navigate?: boolean; proxyHost?: string } = {}): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
+    const signal = init?.signal ?? undefined
+    signal?.throwIfAborted()
     let url = String(input)
     const tab = await ext.tabs.get(tabId).catch(() => undefined)
     if (!tab?.url) throw new TypeError("The tab went away")
@@ -476,11 +483,25 @@ export function tabFetch(tabId: number, { navigate = false, proxyHost }: { navig
     const [to, at] = [new URL(url), new URL(tab.url)]
     if (to.origin !== at.origin) {
       if (!sameSite(to.hostname, at.hostname, proxyHost)) return fetch(url, { ...init, credentials: "include", cache })
-      if (navigate) return loadInTab(tabId, url, cache)
+      if (navigate) return untilAborted(loadInTab(tabId, url, cache, signal), signal)
       url = new URL(`${to.pathname}${to.search}`, at.origin).href
     }
-    return mark(tabId, at.origin, () => fetchInTab(tabId, url, init?.redirect ?? "follow", cache))
+    return untilAborted(
+      mark(tabId, at.origin, () => fetchInTab(tabId, url, init?.redirect ?? "follow", cache)),
+      signal,
+    )
   }) as typeof fetch
+}
+
+// What is running in a tab, or its rejection the moment the caller aborts. A signal can't reach into the
+// page, so the work itself ends by its own time (fetchInTab); the gate's line doesn't wait for it.
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return work
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason)
+    signal.addEventListener("abort", abort, { once: true })
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort))
+  })
 }
 
 // Runs an injected fetch in the tab, marked for the webRequest listener as the extension's own
@@ -498,10 +519,12 @@ async function mark<T>(tabId: number, origin: string, run: () => Promise<T>): Pr
 
 // The extension's own tab sent to the address, and what loaded there read as the page itself would: a
 // same-origin fetch of its own address, from the cache the load just filled (a PDF isn't asked twice)
-async function loadInTab(tabId: number, url: string, cache: RequestCache): Promise<Response> {
+async function loadInTab(tabId: number, url: string, cache: RequestCache, signal: AbortSignal | undefined): Promise<Response> {
   const before = (await documentOf(tabId))?.origin
+  signal?.throwIfAborted()
   await ext.tabs.update(tabId, { url }).catch(() => undefined)
-  await loaded(tabId, before)
+  await loaded(tabId, before, signal)
+  signal?.throwIfAborted()
   const now = await ext.tabs.get(tabId).catch(() => undefined)
   if (!now?.url) throw new TypeError("The tab went away")
   return mark(tabId, new URL(now.url).origin, () => fetchInTab(tabId, now.url!, "follow", cache === "no-store" ? "force-cache" : cache))
@@ -525,16 +548,20 @@ export async function pdfOfTab(tabId: number, url: string): Promise<ArrayBuffer 
 async function fetchInTab(tabId: number, url: string, redirect: RequestRedirect, cache: RequestCache): Promise<Response> {
   const [result] = await ext.scripting.executeScript({
     target: { tabId },
-    args: [url, redirect, cache],
-    func: async (url: string, redirect: RequestRedirect, cache: RequestCache) => {
+    args: [url, redirect, cache, TAB_TIMES.fetchMs],
+    func: async (url: string, redirect: RequestRedirect, cache: RequestCache, timeoutMs: number) => {
+      const stop = new AbortController()
+      const timer = setTimeout(() => stop.abort(), timeoutMs)
       try {
-        const response = await fetch(url, { credentials: "include", cache, redirect })
+        const response = await fetch(url, { credentials: "include", cache, redirect, signal: stop.signal })
         const bytes = new Uint8Array(await response.arrayBuffer())
         let binary = ""
         for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
         return { status: response.status, url: response.url, type: response.type, contentType: response.headers.get("content-type") ?? "", body: btoa(binary) }
       } catch (error) {
         return { error: String(error) }
+      } finally {
+        clearTimeout(timer)
       }
     },
   })
