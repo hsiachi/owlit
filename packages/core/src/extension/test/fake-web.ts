@@ -35,6 +35,8 @@ const MAX_REDIRECTS = 20
 // On a page: where it sends its tab on by script once its load ended (a check that passed in the tab
 // running it, a step of a sign-in), which no fetch follows
 export const SENDS_TO = "x-fake-sends-to"
+// On a page: a tab never ends parsing it, a third-party script in its body not answering
+export const PARSER_HELD = "x-fake-parser-held"
 
 export class FakeWeb {
   // Every request, in order: who asked for what

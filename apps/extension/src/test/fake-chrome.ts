@@ -58,6 +58,9 @@ export interface Answer {
   // A page whose load never ends in a tab (a third-party script that never answers, as on a network that
   // blocks it): its document is parsed, and the tab stays "loading"
   stalls?: boolean
+  // A page whose document is never parsed to its end (a script in its body that never answers): the
+  // tab stays "loading", and a script not injected immediately never runs in it
+  parserHeld?: boolean
   // A fetch from a tab that never answers, until its own signal aborts it
   hangs?: boolean
   // The PDF's own bytes, where pdf is set; PDF_BYTES otherwise
@@ -378,7 +381,7 @@ export function fakeBrowser<O extends Owlit = FakeOwlit>(sites: Record<string, S
     const loading = tab.timeOrigin
     onUpdated.emit(tab.id, { status: "loading", url: tab.url }, told(tab))
     setTimeout(() => {
-      if (!tabs.has(tab.id) || tab.timeOrigin !== loading) return
+      if (!tabs.has(tab.id) || tab.timeOrigin !== loading || answer?.parserHeld) return
       tab.readyState = "interactive"
       if (answer?.stalls) return
       tab.readyState = "complete"
@@ -390,9 +393,10 @@ export function fakeBrowser<O extends Owlit = FakeOwlit>(sites: Record<string, S
 
   // executeScript runs the injected function itself, with the tab's page as its location, document and
   // fetch: an injected function can use nothing from where it was written, so this is what it sees
-  const executeScript = async ({ target, func, args = [], files }: { target: { tabId: number }; func?: (...a: any[]) => unknown; args?: unknown[]; files?: string[] }) => {
+  const executeScript = async ({ target, func, args = [], files, injectImmediately }: { target: { tabId: number }; func?: (...a: any[]) => unknown; args?: unknown[]; files?: string[]; injectImmediately?: boolean }) => {
     const tab = tabs.get(target.tabId)
     if (!tab) throw new Error("No tab with id")
+    while (!injectImmediately && tab.readyState === "loading" && tabs.has(tab.id)) await new Promise((resolve) => setTimeout(resolve, 1))
     if (!tab.url || deniedAt(tab.url)) throw new Error("Cannot access contents of the page. Extension manifest must request permission to access the respective host.")
     if (tab.failed) throw new Error("Frame with ID 0 is showing error page")
     if (files || !func) return [{ result: undefined }]

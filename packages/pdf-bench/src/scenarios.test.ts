@@ -352,6 +352,17 @@ describe("a firewall that tells the extension from a page", () => {
     expect(screen.papers[id].hasPdf).toBe(true)
     expect(web.log.filter((v) => v.url.includes("/doi/pdf/")).length).toBeGreaterThan(1)
   })
+
+  it("a page the browser never ends parsing is read as far as it came, and the paper comes", async () => {
+    const web = new FakeWeb()
+    const p = { doi: "10.1111/0000407", title: "A Paper On A Page Held By A Script That Never Answers" }
+    refusesWorker(web, "onlinelibrary.wiley.com", p.doi, p.title, { parserHeld: true })
+    const b = await start(web)
+    const id = b.addPaper(p.doi, p.title)
+    const screen = await b.getPdfs()
+    expect(screen.papers[id].hasPdf).toBe(true)
+    expect(screen.waits).toEqual([])
+  })
 })
 
 describe("a stalled publisher", () => {

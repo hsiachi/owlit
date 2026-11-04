@@ -1,4 +1,4 @@
-import { checked, cloudflareCheck, firewalled, landing, metaRefresh, page, pdf, publisherLogin, redirectTo, shell, ssoStep, subscribed, type Behaviour, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
+import { checked, cloudflareCheck, firewalled, landing, metaRefresh, page, PARSER_HELD, pdf, publisherLogin, redirectTo, shell, ssoStep, subscribed, type Behaviour, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
 
 // Publishers as the scenarios meet them on the fake web, at the addresses owlit's publisher table
 // (packages/core/src/library/publisher-table.ts) sends the extension to
@@ -74,9 +74,13 @@ export function behindSso(web: FakeWeb, host: string, doi: string, title: string
 
 // A publisher whose firewall refuses the extension's own requests by their shape: the PDF's address
 // answers 403 with the article on it, and only a page of the site gets the PDF
-export function refusesWorker(web: FakeWeb, host: string, doi: string, title: string) {
+export function refusesWorker(web: FakeWeb, host: string, doi: string, title: string, { parserHeld = false } = {}) {
   const at = `https://${host}/doi/${doi}`
-  const article = (status: number) => () => page(title, `<h1>${title}</h1><a href="/doi/pdf/${doi}">PDF</a>`, status, `<meta name="citation_title" content="${title}"><meta name="citation_doi" content="${doi}">`)
+  const article = (status: number) => () => {
+    const answer = page(title, `<h1>${title}</h1><a href="/doi/pdf/${doi}">PDF</a>`, status, `<meta name="citation_title" content="${title}"><meta name="citation_doi" content="${doi}">`)
+    if (parserHeld) answer.headers.set(PARSER_HELD, "1")
+    return answer
+  }
   web.paper(doi, title, { url: at })
   web.on(`${host}/doi/pdf/${doi}`, (visit) => (visit.from === "tab" ? pdf(doi)(visit) : article(403)()))
   web.on(`${host}/doi/${doi}`, inBrowser(article(200)))

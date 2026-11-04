@@ -7,7 +7,7 @@ import { Core } from "../../core/src/core.ts"
 import { PdfWorkNotes } from "../../core/src/extension/pdf-work.ts"
 import type { ExtensionServer } from "../../core/src/extension/server.ts"
 import { CONNECTED_MS, ExtensionWork } from "../../core/src/extension/work.ts"
-import { SENDS_TO, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
+import { PARSER_HELD, SENDS_TO, type FakeWeb } from "../../core/src/extension/test/fake-web.ts"
 import { Library } from "../../core/src/library/library.ts"
 import { refreshOf, siteOf } from "../../../apps/extension/src/lib/verdict.ts"
 import { fakeBrowser, type FakeBrowser, type Web } from "../../../apps/extension/src/test/fake-chrome.ts"
@@ -595,7 +595,7 @@ const webOf =
     if (/^application\/pdf/.test(headers["content-type"] ?? "")) return { pdf: true, bytes }
     const html = new TextDecoder().decode(bytes)
     const sendsTo = headers[SENDS_TO] ?? refreshOf({ url: url.href, html })
-    return { status: response.status, html, headers, ...(sendsTo ? { sendsTo } : {}) }
+    return { status: response.status, html, headers, ...(sendsTo ? { sendsTo } : {}), ...(headers[PARSER_HELD] ? { parserHeld: true } : {}) }
   }
 
 // The real background in one fake browser, its every word to core going through handle: which tells the

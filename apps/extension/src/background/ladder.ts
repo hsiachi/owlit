@@ -56,6 +56,8 @@ export async function documentOf(tabId: number): Promise<TabDocument | undefined
   try {
     const [result] = await ext.scripting.executeScript({
       target: { tabId },
+      // Otherwise it runs once the document is parsed: minutes on a page held by a script in its body
+      injectImmediately: true,
       args: [DOCUMENT_MAX_CHARS],
       func: (max: number) => ({ url: location.href, html: document.documentElement.outerHTML.slice(0, max), parsed: document.readyState !== "loading", origin: performance.timeOrigin }),
     })
@@ -388,6 +390,8 @@ async function pass(tab: WorkTab, item: WorkItem, deps: FetchDeps, { once = fals
     const onItsWay = !seen.parsed || isStandIn(page)
     if (!onItsWay && (once || !isCheck(page) || isInteractive(page))) return said(page)
     if (Date.now() >= until) {
+      // A parser a script in the page's body holds for minutes: what came of the page is all there is
+      if (!seen.parsed && isThrough(page)) return { through: seen }
       if (tab.shown || !item.userStarted) return said(page)
       if (!(await stillWanted(deps))) return notWanted(item)
       tab.shown = true
@@ -564,6 +568,7 @@ export async function pdfOfTab(tabId: number, url: string): Promise<ArrayBuffer 
 async function fetchInTab(tabId: number, url: string, redirect: RequestRedirect, cache: RequestCache): Promise<Response> {
   const [result] = await ext.scripting.executeScript({
     target: { tabId },
+    injectImmediately: true,
     args: [url, redirect, cache, TAB_TIMES.fetchMs],
     func: async (url: string, redirect: RequestRedirect, cache: RequestCache, timeoutMs: number) => {
       const stop = new AbortController()
