@@ -604,7 +604,11 @@ export class ExtensionWork implements ExtensionFetcher {
       // The page the user had opened was for what it waited for before
       if (before && before.kind !== pause) follow.opened = undefined
       this.notes.changed()
-      if (was && was !== before) was.tryAt = undefined
+      if (was && was !== before) {
+        was.tryAt = undefined
+        // Its last paper moved on: left up, it would catch the next paper of its gate with no try to come
+        if (!this.count(was)) this.lift(was)
+      }
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...this.papersUnder(wait), ...(was ? this.papersUnder(was) : [])])])
       this.waitsChanged()
     } else {

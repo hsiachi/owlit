@@ -31,6 +31,21 @@ afterEach(() => {
 })
 
 describe("the extension's queue", () => {
+  it("takes down a wait whose last paper moved on to another gate, so it doesn't catch later papers", async () => {
+    const { work, take } = setup()
+    work.fetch(library, { ...tlinkPaper("a1", "10.1177/1"), predicted: "pub:sage" }, true)
+    const [first] = await take()
+    work.settle(first.id, "check", { url: "https://journals.sagepub.com/doi/a1" })
+    vi.advanceTimersByTime(PAUSED_RETRY_MS)
+    const [again] = await take()
+    work.settle(again.id, "check", { url: "https://onlinelibrary.wiley.com/doi/a1" })
+    expect(work.waits()).toMatchObject([{ id: "pub:wiley", papers: 1 }])
+    work.fetch(library, { ...tlinkPaper("a2", "10.1177/2"), predicted: "pub:sage" }, false)
+    expect(work.holding(library, "a2")).not.toHaveProperty("wait")
+    vi.advanceTimersByTime(PROXY_GAP_MS)
+    expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+  })
+
   describe("a paper stopped while it is out for a fetch", () => {
     async function outThenStopped() {
       const s = setup()
