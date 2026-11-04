@@ -1,4 +1,4 @@
-import type { Row, Screen } from "./adapter.ts"
+import type { Row, Screen, WaitView } from "./adapter.ts"
 
 // What must hold on the screen after any step, whatever the story: the same paper counted the same way
 // in the block, the waits list and its own card. Each broken one is a sentence of what the user would
@@ -30,7 +30,6 @@ export function invariantErrors(screen: Screen): string[] {
   }
 
   if (block) {
-    const rows: Row[] = [...block.rows, ...block.outside]
     const seen = new Map<string, string>()
     for (const r of block.rows) {
       for (const id of r.ids ?? []) {
@@ -68,10 +67,16 @@ export function invariantErrors(screen: Screen): string[] {
       const got = block.rows.map(key).sort()
       if (want.join() !== got.join()) errors.push(`the block's rows (${got.join(", ")}) aren't the waits (${want.join(", ")})`)
     }
-    // A site is one row
-    const keys = rows.map(key)
-    if (new Set(keys).size !== keys.length) errors.push(`a site has two rows: ${keys.join(", ")}`)
+    // A site is one row among the batch's, and one among those outside it: a wait the batch shares
+    // with other papers has both (blockRows)
+    for (const part of [block.rows, block.outside]) {
+      const keys = part.map(key)
+      if (new Set(keys).size !== keys.length) errors.push(`a site has two rows: ${keys.join(", ")}`)
+    }
   } else if (waits.length) errors.push(`${waits.length} waits and no block to show them`)
+
+  // Left up with no paper it catches the next paper of its gate, with no one told and no try to come
+  for (const gate of screen.emptyWaits) errors.push(`the wait ${gate} is up with no paper under it`)
 
   // A gate handed papers again and again that gives nothing, and no wait says why: the user sees papers
   // go and come back with nothing, and no one to ask
@@ -95,6 +100,26 @@ export function batchCountErrors({ block, papers }: Pick<Screen, "block" | "pape
     if (r.papers !== theirs) errors.push(`the row ${key(r)} under the batch counts ${r.papers} papers, and ${theirs} of the papers under it aren't the batch's: ${block.total} papers show as ${counted + r.papers - theirs}`)
   }
   return errors
+}
+
+// Once the user has done everything asked of them and the back-offs have run out, nothing is left that
+// only time would never move: no wait to act on, no paper in line or out for a try, no batch still going
+export function livenessErrors(screen: Screen): string[] {
+  const errors: string[] = []
+  for (const w of screen.waits) errors.push(`the wait ${w.id} is still up (${w.papers} papers) after the user did everything it asked`)
+  for (const [id, p] of Object.entries(screen.papers)) if (p.inLine) errors.push(`${id} is still with the extension, and nothing will move it: "${p.title}"`)
+  if (screen.queued) errors.push(`core's queues still hold ${screen.queued} papers, and nothing will move them`)
+  if (screen.block?.running) errors.push("the batch still says it is getting PDFs")
+  return errors
+}
+
+// A wait the extension can see end: its page, once the user got through there, lands on a host it watches.
+// A sign-in may end on a page that still looks like one, and its button says so; a check or a block
+// ending anywhere else is one only a button or owlit's one try would ever end.
+export function watchErrors(wait: Pick<WaitView, "id" | "kind" | "watch">, landedAt: string | undefined): string[] {
+  if (wait.kind !== "check" && wait.kind !== "blocked") return []
+  if (!landedAt) return [`the wait ${wait.id}'s page leads nowhere`]
+  return wait.watch.some((h) => landedAt === h || landedAt.endsWith(`.${h}`)) ? [] : [`the wait ${wait.id}'s page lands at ${landedAt}, and it watches ${wait.watch.join(", ")}`]
 }
 
 export function checkInvariants(screen: Screen, step: string) {

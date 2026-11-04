@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 import type { Screen } from "./adapter.ts"
-import { invariantErrors } from "./invariants.ts"
+import { invariantErrors, livenessErrors, watchErrors } from "./invariants.ts"
 
 // The invariants catch what they are for, on screens made by hand
 
 const browser = { tabs: [], going: [], allowAsked: [] }
-const science = { id: "pub:science", kind: "check", host: "science.org", papers: 1, what: "", askedFor: true, url: "https://www.science.org/" }
+const science = { id: "pub:science", kind: "check", host: "science.org", papers: 1, what: "", askedFor: true, url: "https://www.science.org/", watch: ["science.org"], opened: false }
 
 describe("the bench's invariants", () => {
   it("hold on a screen that agrees with itself", () => {
@@ -14,6 +14,8 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: "pub:science", foundUnder: "pub:science" }, b: { hasPdf: true, title: "" } },
       silent: [],
+      emptyWaits: [],
+      queued: 0,
       inLine: 0,
       browser,
     }
@@ -26,6 +28,8 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: "proxy:tlink.lib.tsinghua.edu.cn" } },
       silent: [],
+      emptyWaits: [],
+      queued: 0,
       inLine: 0,
       browser,
     }
@@ -43,6 +47,8 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: true, title: "", heldAt: "pub:science", foundUnder: "pub:science" } },
       silent: [],
+      emptyWaits: [],
+      queued: 0,
       inLine: 0,
       browser,
     }
@@ -55,6 +61,8 @@ describe("the bench's invariants", () => {
       waits: [science],
       papers: { a: { hasPdf: false, title: "", heldAt: "pub:science", foundUnder: "pub:science" }, b: { hasPdf: true, title: "" } },
       silent: [],
+      emptyWaits: [],
+      queued: 0,
       inLine: 1,
       browser,
     }
@@ -67,9 +75,36 @@ describe("the bench's invariants", () => {
       waits: [],
       papers: { a: { hasPdf: false, title: "" } },
       silent: ["pub:acm"],
+      emptyWaits: [],
+      queued: 0,
       inLine: 0,
       browser,
     }
     expect(invariantErrors(screen)).toEqual(["the batch says it is getting PDFs, and nothing is in line at the extension", "the batch says it is getting PDFs, with nothing in line", "pub:acm was handed papers all day and gave no PDF, with no wait to say why"])
+  })
+
+  it("catch a wait left up with no paper", () => {
+    const screen: Screen = { block: null, waits: [], papers: {}, silent: [], emptyWaits: ["pub:science"], queued: 0, inLine: 0, browser }
+    expect(invariantErrors(screen)).toEqual(["the wait pub:science is up with no paper under it"])
+  })
+
+  it("catch what nothing will move once the user is done", () => {
+    const screen: Screen = {
+      block: { batch: true, total: 1, ids: ["a"], saved: 0, byYou: 0, things: 0, running: true, ended: false, outside: [], rows: [{ kind: "getting", papers: 1 }] },
+      waits: [{ ...science, papers: 2 }],
+      papers: { a: { hasPdf: false, title: "Finding a PDF…", inLine: true } },
+      silent: [],
+      emptyWaits: [],
+      queued: 1,
+      inLine: 1,
+      browser,
+    }
+    expect(livenessErrors(screen)).toEqual(["the wait pub:science is still up (2 papers) after the user did everything it asked", 'a is still with the extension, and nothing will move it: "Finding a PDF…"', "core's queues still hold 1 papers, and nothing will move them", "the batch still says it is getting PDFs"])
+  })
+
+  it("catch a check whose page lands where it doesn't watch, and take a sign-in's word", () => {
+    expect(watchErrors({ id: "pub:elsevier", kind: "check", watch: ["sciencedirect.com"] }, "www.sciencedirect.com")).toEqual([])
+    expect(watchErrors({ id: "proxy:tlink", kind: "check", watch: ["tlink"] }, "www.science.org")).toEqual(["the wait proxy:tlink's page lands at www.science.org, and it watches tlink"])
+    expect(watchErrors({ id: "proxy:tlink", kind: "sign-in", watch: ["tlink"] }, "id.tsinghua.edu.cn")).toEqual([])
   })
 })

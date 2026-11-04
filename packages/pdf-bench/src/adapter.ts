@@ -29,7 +29,7 @@ import { libraryNameOf } from "@/features/settings/library-name"
 // The extension's origin as the fake chrome names it
 const ORIGIN = "chrome-extension://fake"
 // Short holds of GET /work, so a settle sees quickly that nothing more is due
-const HOLD_MS = 10
+const HOLD_MS = 4
 // Answered GET /work rounds with nothing new before the bench counts the system as quiet: a paper handed
 // over by an async step of core's (a restart's hand-over) lands in a later round
 const QUIET_ROUNDS = 3
@@ -39,6 +39,8 @@ const PATIENCE = { timeout: 10_000, interval: 5 }
 // fetchMs is the extension's own unless a setup asks: a story that holds an answer holds it past any such time
 const TAB_TIMES = { hiddenMs: 30, shownMs: 30, lookMs: 2, loadMs: 300, gapMs: 3, idleMs: 15 }
 const ASK_TIMES = { restartRetryMs: 5, throughEveryMs: 4, parsedEveryMs: 2 }
+// Core's work on a PDF it has, which hands nothing to the extension
+const READS_ONLY = new Set(["paper.text", "paper.parse"])
 // Asked for before any test stubs it: the bench's own way to core's port
 const realFetch = globalThis.fetch.bind(globalThis)
 
@@ -84,6 +86,8 @@ export interface PaperView {
   word?: string
   // Its state's one name (pdfWait): for-check, manual, finding…
   state?: string
+  // With the extension and under no wait: in line, or out for a try
+  inLine?: boolean
   // The wait core says the paper is under (PdfState.extension.wait), and the one the window finds for it
   // in the waits list by that id
   heldAt?: string
@@ -100,8 +104,12 @@ export interface WaitView {
   // The whole sentence, as Home and a notification say it
   what: string
   askedFor: boolean
-  // The page its button opens (ExtensionWait.url)
+  // The page its button opens (ExtensionWait.url), and where the extension watches for the user past it
   url: string
+  watch: string[]
+  // Its button says what the user did: the page opened, "I've signed in" pressed and asked again since
+  opened: boolean
+  retried?: boolean
 }
 
 export interface Screen {
@@ -110,6 +118,10 @@ export interface Screen {
   inLine: number
   // Gates core's tally says gave nothing lately, with no wait to say why (ExtensionWork.silentZeros)
   silent: string[]
+  // Waits core has up with no paper under them, which the window never shows
+  emptyWaits: string[]
+  // The papers core's queues hold, those out for a try among them
+  queued: number
   waits: WaitView[]
   papers: Record<string, PaperView>
   // The user's browser: its tabs, the sites the extension's popup says owlit goes on at after the user
@@ -159,6 +171,8 @@ export class Bench {
   private readonly handed: string[] = []
   private readonly busy = new Set<Promise<unknown>>()
   private opening: (() => Promise<unknown>) | undefined
+  // The papers the user's last Find PDF or Get PDFs took
+  asked: string[] = []
 
   constructor(web: FakeWeb, setup: BenchSetup) {
     this.web = web
@@ -223,23 +237,34 @@ export class Bench {
 
   // Find PDF (or Look again) on one paper: owlit's own routes, then the extension
   async findPdf(id: string) {
-    await this.call("library.fetchPdf", { id })
+    await this.findPdfAsked(id)
     return this.step(`find the PDF of ${id}`)
+  }
+
+  async findPdfAsked(id: string) {
+    await this.call("library.fetchPdf", { id })
+    this.asked = [id]
   }
 
   // Get PDFs: the papers the Library offers it for (GetPdfsLine's), handed to the extension in one batch
   async getPdfs(only?: string[]) {
+    await this.getPdfsAsked(only)
+    return this.step(`get PDFs for ${this.asked.length} papers`)
+  }
+
+  // The same, the model told before the bench's checks look (asked)
+  async getPdfsAsked(only?: string[]) {
     await this.ui.refresh(this)
     const offered = Object.values(this.ui.papers).filter((p) => !p.pdf && p.ids.doi && !p.pdfState?.extension && pdfWait(p) !== "manual" && pdfWait(p) !== "skipped")
     const ids = offered.map((p) => p.id).filter((id) => !only || only.includes(id))
     const from = this.handed.length
     const { queued } = await this.call("library.fetchPdfs", { ids })
+    this.asked = queued
     // Core looks each one up before it hands it over
     await vi.waitFor(() => {
       const now = new Set(this.handed.slice(from))
       if (!queued.every((id: string) => now.has(id))) throw new Error("core is still handing the batch to the extension")
     }, PATIENCE)
-    return this.step(`get PDFs for ${queued.length} papers`)
   }
 
   // Get PDFs on these papers whatever they wait for (as library.fetchPdfs takes them from any caller),
@@ -249,6 +274,7 @@ export class Bench {
     await this.ext.hold()
     const from = this.handed.length
     const { queued } = await this.call("library.fetchPdfs", { ids })
+    this.asked = queued
     await vi.waitFor(() => {
       const now = new Set(this.handed.slice(from))
       if (!queued.every((id: string) => now.has(id))) throw new Error("core is still handing the batch to the extension")
@@ -339,6 +365,7 @@ export class Bench {
   // The user quits the browser the extension is in: it asks for no work, and once it hasn't for longer
   // than core counts it connected, the window says the papers with it wait for the browser
   async closeBrowser() {
+    if (this.ext.closed) return this.step("the browser stays closed")
     this.ext.quit()
     await this.asksEnded()
     this.offset += CONNECTED_MS + 1
@@ -347,7 +374,7 @@ export class Bench {
 
   // The browser opens again, and the extension asks for work
   async openBrowser() {
-    await this.ext.open()
+    if (this.ext.closed) await this.ext.open()
     return this.step("open the browser")
   }
 
@@ -377,7 +404,7 @@ export class Bench {
 
   // Chrome stops the extension's worker and starts it again: what it had out is lost
   async restartWorker() {
-    await this.ext.restart()
+    if (!this.ext.closed) await this.ext.restart()
     return this.step("the worker restarts")
   }
 
@@ -447,7 +474,7 @@ export class Bench {
     let quietSince = performance.now()
     for (let round = 0; ; round++) {
       await Promise.all(this.busy)
-      await this.lookups()
+      if (this.lookingUp()) await this.lookups()
       const moved = this.ext.moved() + this.handed.length
       const going = this.busy.size > 0 || this.lookingUp() || this.ext.outstanding() > this.web.hanging()
       if (going || moved !== seen) {
@@ -466,7 +493,7 @@ export class Bench {
   // extension when they end; one due later (a back-off) isn't waited for
   private lookingUp() {
     const tasks = (this.core as unknown as { workspace?: { tasks: { list(): Task[] } } }).workspace?.tasks.list() ?? []
-    return tasks.some((t) => t.kind.startsWith("paper.") && (t.state === "queued" || t.state === "running") && !(t.notBefore && t.notBefore > Date.now()))
+    return tasks.some((t) => t.kind.startsWith("paper.") && !READS_ONLY.has(t.kind) && (t.state === "queued" || t.state === "running") && !(t.notBefore && t.notBefore > Date.now()))
   }
 
   // Core has heard every ask the extension had with it end: the clock can move without an ask's end
@@ -486,7 +513,14 @@ export class Bench {
 
   async screen(): Promise<Screen> {
     await this.ui.refresh(this)
-    return { ...this.ui.draw(), silent: this.server.work.silentZeros(), browser: this.ext.browserView() }
+    const work = this.server.work as unknown as { waitsAt: Map<string, unknown>; count(wait: unknown): number; lanes: Map<string, { inFlight?: unknown; queue: unknown[] }> }
+    const emptyWaits = [...work.waitsAt].filter(([, wait]) => !work.count(wait)).map(([gate]) => gate)
+    const queued = [...work.lanes.values()].reduce((n, lane) => n + lane.queue.length + (lane.inFlight ? 1 : 0), 0)
+    return { ...this.ui.draw(), silent: this.server.work.silentZeros(), emptyWaits, queued, browser: this.ext.browserView() }
+  }
+
+  get browserClosed() {
+    return this.ext.closed
   }
 
   // The papers the extension fetched, in the order it fetched them
@@ -516,6 +550,9 @@ export class Bench {
       retryBaseMs: 1,
       extension: { port: 0, holdMs: HOLD_MS, work: { gapMs: 0, proxyGapMs: 0 } },
     })
+    // Owlit's own pace with the web's real hosts: nothing here asks them
+    const { http } = this.core as unknown as { http: { limit(host: string, limit: { perSecond: number; concurrent: number }): void } }
+    for (const host of ["doi.org", "api.unpaywall.org"]) http.limit(host, { perSecond: 10_000, concurrent: 8 })
     await this.call("workspace.open", { path: this.root() })
     this.server = (this.core as unknown as { extension: ExtensionServer }).extension
     await this.server.start()
@@ -789,7 +826,7 @@ class Renderer {
     this.proxy = (await bench.call("settings.get")).library.proxy
   }
 
-  draw(): Omit<Screen, "browser" | "silent"> {
+  draw(): Omit<Screen, "browser" | "silent" | "emptyWaits" | "queued"> {
     const inLine = Object.values(this.papers).filter((p) => p.pdfState?.extension && !p.pdfState.extension.wait).length
     const waits = this.view?.waits ?? []
     const library = libraryNameOf(this.proxy)
@@ -830,10 +867,11 @@ class Renderer {
         title: p.pdf ? "" : noPdfTitle(p, found, away),
         ...(word ? { word } : {}),
         ...(state ? { state } : {}),
+        ...(ext && !ext.wait ? { inLine: true } : {}),
         ...(ext?.wait ? { heldAt: ext.wait } : {}),
         ...(found ? { foundUnder: found.id } : {}),
       }
     }
-    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.at, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor, url: w.url })), papers }
+    return { block, inLine, waits: waits.map((w: ExtensionWait) => ({ id: w.id, kind: w.kind, host: w.at, papers: w.papers, what: waitWords(w, w.papers, library).what, askedFor: w.askedFor, url: w.url, watch: w.watch, opened: !!w.opened, ...(w.retried ? { retried: w.retried.again } : {}) })), papers }
   }
 }

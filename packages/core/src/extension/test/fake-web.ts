@@ -47,6 +47,7 @@ export class FakeWeb {
   private readonly papers = new Map<string, { title: string }>()
   private readonly dois = new Map<string, { url: string; oa?: string }>()
   private readonly hung = new Set<{ visit: Visit; answer: () => void }>()
+  private readonly heldNext = new Set<string>()
 
   constructor() {
     this.on("doi.org/api/handles/", ({ url }) => {
@@ -135,6 +136,11 @@ export class FakeWeb {
     this.downAt.delete(host)
   }
 
+  // The browser's next request to this host hangs, until release, and then gets its answer
+  holdNext(host: string) {
+    this.heldNext.add(host)
+  }
+
   // How many answers hang now
   hanging() {
     return this.hung.size
@@ -170,6 +176,7 @@ export class FakeWeb {
     const at = new URL(url)
     this.log.push({ client, url })
     if (client === "browser" && this.downAt.has(at.hostname)) throw new TypeError("Failed to fetch")
+    if (client === "browser" && this.heldNext.delete(at.hostname)) return this.holdUntilReleased({ url: at, client, web: this, signal }, () => this.answer(url, client, signal, from))
     const key = `${at.hostname}${at.pathname}${at.search}`
     // The newest route first, so a test can replace what a helper set up
     const routes = [...this.routes].reverse()
