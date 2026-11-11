@@ -7,6 +7,8 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 - A large import no longer gets you stuck behind ACM's "Just a moment..." check. owlit asks a publisher's site for PDFs one at a time, a few seconds apart, instead of hundreds at once; and when a check does come up, the page owlit opens for you is the paper's page, where the check shows, not the PDF's address, which your browser opened as an empty PDF.
 - A paper whose PDF your browser can't fetch (ACM serves some of 150 MB) no longer holds up every other paper of its site with nothing on screen: after its second failed try the site's other papers go first, and after a few it asks you to download it by hand.
 - `owlit import --no-parse` keeps MinerU from reading the imported PDFs however few there are. Below 100 papers the flag was ignored.
+- When ACM lets its pages through but still checks its PDFs, a page of it you have open no longer sends the paper back into the same check again and again. The paper waits under the check until a page there loads again or you press I've verified it.
+- A paper with a DOI no longer gets another paper's PDF from arXiv when a paper service has mixed the two up (OpenAlex had put another CHI paper's preprint on one): the preprint's first pages must show the paper's title.
 
 - Get PDFs recovers better when something goes away mid-way: a PDF that arrives after its paper was asked for again is kept, papers out with the browser extension go out again when its background restarts, and after a restart of owlit a site you already got through no longer asks you again, nor do its papers read "Finding a PDF…".
 - A publisher's page that a blocked third-party script keeps from finishing (BMJ's, from China) no longer holds Get PDFs for minutes.
