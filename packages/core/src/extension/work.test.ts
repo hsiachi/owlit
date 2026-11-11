@@ -289,6 +289,28 @@ describe("the extension's queue", () => {
     expect(work.waits()).toMatchObject([{ kind: "check", url: "https://dl.acm.org/doi/10.1145/a1" }])
   })
 
+  it("gives the user a paper whose fetches went with two restarted workers, and goes on with its site", async () => {
+    const lost: string[] = []
+    const work = new ExtensionWork({ papers: () => {}, waits: () => {}, connected: () => {}, lost: (_, id) => lost.push(id) })
+    const never = new AbortController().signal
+    work.fetch(library, paper("big", "dl.acm.org"), false)
+    work.fetch(library, paper("next", "dl.acm.org"), false)
+    const ask = async (worker: string) => {
+      const items = await work.take(library, 0, never, "p", worker)
+      vi.advanceTimersByTime(GAP_MS)
+      return items.map((w) => w.paperId)
+    }
+    expect(await ask("w1")).toEqual(["big"])
+    // A new worker had nothing of the last one's fetch: handed out again, once
+    expect(await ask("w2")).toEqual([])
+    expect(await ask("w2")).toEqual(["big"])
+    expect(lost).toEqual([])
+    expect(await ask("w3")).toEqual([])
+    expect(await ask("w3")).toEqual(["next"])
+    expect(lost).toEqual(["big"])
+    expect(work.holding(library, "big")).toBeUndefined()
+  })
+
   it("goes on at a site whose page the extension couldn't open, the paper out of the queue", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "apa.org"), false)

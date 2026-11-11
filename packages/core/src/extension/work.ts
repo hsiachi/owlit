@@ -50,6 +50,11 @@ export const RETURNING_MS = CONNECTED_MS
 // extension's slowest answer: three gets of FETCH_MS (60 s) in apps/extension/src/lib/work.ts, then the
 // upload.
 export const STALLED_MS = 30 * 60_000
+// A paper whose fetches went with this many workers that started anew leaves the queue. Chrome stops an
+// extension's worker whose fetch takes over 30 s to start answering, and a PDF too large to pass from a
+// tab to the worker (ACM's 150 MB ones) may not come back either: handed out again each time, one such
+// paper held every other paper of its site.
+export const LOST_LIMIT = 2
 // A wait tries its first paper once more this long after it began: the user
 // may have got through where the extension couldn't tell (signing in can end on a page that still looks
 // like a sign-in, the proxy's own front page). Once only: a try every quarter of an hour for days wrote
@@ -87,6 +92,8 @@ interface Queued {
   // Its gate now (the newest try's, else predicted), and the one its route predicts
   gate: GateKey
   predicted: GateKey
+  // Its fetches in this session that went with an extension worker that started anew, with no answer
+  lost?: number
 }
 
 interface Lane {
@@ -164,6 +171,9 @@ export interface WorkHost {
   connected: (library: Library) => void
   // An extension is paired with this owlit, connected now or not
   paired?: () => Promise<boolean>
+  // A paper whose fetch the extension's worker can't finish (LOST_LIMIT) left the queue: the library
+  // notes it as one for the user to download from its page
+  lost?: (library: Library, paperId: string, at: { gate: GateKey; host: string }) => void
 }
 
 export class ExtensionWork implements ExtensionFetcher {
@@ -1096,7 +1106,8 @@ export class ExtensionWork implements ExtensionFetcher {
   // extension is away when it hasn't asked for work for CONNECTED_MS, or closed its last ask while it was
   // held, and none of its asks is being held now; while one is, its fetches are going on beside it, so a
   // proxy never has two requests of the user's out at once. A fetch out STALLED_MS goes back whatever.
-  // restarted: the pairing whose worker started anew: its fetches went with the last one.
+  // restarted: the pairing whose worker started anew: its fetches went with the last one. A paper lost
+  // that way LOST_LIMIT times goes to the user instead (WorkHost.lost).
   private reissue(restarted?: string) {
     const now = Date.now()
     for (const lane of this.lanes.values()) {
@@ -1104,8 +1115,15 @@ export class ExtensionWork implements ExtensionFetcher {
       const ask = this.asks.get(lane.inFlight.by ?? "")
       const going = ask && (lane.inFlight.by ?? "") !== restarted && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
       if (going && now - lane.inFlight.at < STALLED_MS) continue
-      if (!lane.inFlight.stopped) lane.queue.unshift(lane.inFlight.item)
+      const { item, stopped, by } = lane.inFlight
       lane.inFlight = undefined
+      if (restarted !== undefined && (by ?? "") === restarted) item.lost = (item.lost ?? 0) + 1
+      if ((item.lost ?? 0) >= LOST_LIMIT) {
+        if (!stopped && this.library) {
+          this.host.lost?.(this.library, item.paper.paperId, { gate: item.gate, host: item.paper.host })
+          this.host.papers(this.library, [item.paper.paperId])
+        }
+      } else if (!stopped) lane.queue.unshift(item)
       sortQueue(lane)
       lane.endedAt = now
     }

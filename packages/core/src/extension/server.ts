@@ -127,6 +127,13 @@ export class ExtensionServer {
         waits: () => void this.announce(),
         connected: (library) => void library.handToExtension().catch((error) => console.error("[core] couldn't hand papers to the extension", error)),
         paired: async () => ((await this.host.settings.get()).extension?.paired ?? []).length > 0,
+        // Noted as a page the extension couldn't open: the paper asks for a manual download, and owlit
+        // doesn't hand it to the browser again on its own
+        lost: (library, id, { gate, host }) =>
+          void library
+            .noteExtensionTry(id, { by: "extension", ended: "unreadable", at: Date.now(), host, gate })
+            .then(() => library.pdfChanged([id]))
+            .catch((error) => console.error("[core] couldn't note a paper the extension couldn't fetch", error)),
       },
       options.work,
     )
