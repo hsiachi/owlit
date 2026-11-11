@@ -40,7 +40,7 @@ import { HttpError, hostOf, type Http } from "../net/http.ts"
 import { extensionRoute, proxySignIn, type ExtensionRoute } from "../extension/route.ts"
 import { movedOn, type KnownPending, type KnownWait } from "../extension/work.ts"
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
-import { gateOf, gateOfTry, isSsoHop } from "../extension/keys.ts"
+import { gateOf, gateOfTry, isPdfAddress, isSsoHop } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
 import { PUBLISHERS } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
@@ -2134,8 +2134,10 @@ export class Library {
       // The library's sign-in page for the proxy's own sign-in, as ExtensionWork.settle opens: one found
       // by a redirect has no page of its own, and the DOI's link would lead past the proxy
       const signIn = kind === "sign-in" && gate.startsWith("proxy:") && proxy ? proxySignIn(proxy) : undefined
-      // A hop's address lost the request it carried: the paper's own link walks the reader there again
-      const page = isSsoHop(reason.url, proxy) ? extensionRoute(doi, proxy).url : reason.url
+      // A hop's address lost the request it carried: the paper's own link walks the reader there again.
+      // The PDF's own address may open in the browser's PDF viewer, with no check shown: its page instead.
+      const route = extensionRoute(doi, proxy)
+      const page = isSsoHop(reason.url, proxy) || isPdfAddress(reason.url, route.pdfUrl) ? route.url : reason.url
       known.push({ paperId: id, kind, gate, url: signIn ?? page ?? `https://doi.org/${doi}`, ...(reason.host ? { host: reason.host } : {}), tries: own.length, triedAt: reason.at })
     }
     await extension.restore(this, known, proxy, pending)

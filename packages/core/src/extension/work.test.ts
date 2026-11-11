@@ -280,6 +280,15 @@ describe("the extension's queue", () => {
     expect((await take()).map((w) => w.paperId)).toEqual(["w2"])
   })
 
+  it("opens the paper's page for a check met at its PDF's address", async () => {
+    const { work, take } = setup()
+    const pdfUrl = "https://dl.acm.org/doi/pdf/10.1145/a1"
+    work.fetch(library, { ...paper("a1", "dl.acm.org"), url: "https://dl.acm.org/doi/10.1145/a1", pdfUrl }, false)
+    const [a1] = await take()
+    work.settle(a1.id, "check", { url: pdfUrl })
+    expect(work.waits()).toMatchObject([{ kind: "check", url: "https://dl.acm.org/doi/10.1145/a1" }])
+  })
+
   it("goes on at a site whose page the extension couldn't open, the paper out of the queue", async () => {
     const { work, take } = setup()
     work.fetch(library, paper("a1", "apa.org"), false)

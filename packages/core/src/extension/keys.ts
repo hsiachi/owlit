@@ -82,6 +82,13 @@ export function isSsoHop(url: string | undefined, proxy?: ProxySettings): boolea
   return !!at && SSO_HOPS.has(readBack(at, proxy).hostname.toLowerCase())
 }
 
+// The paper's own PDF address (its route's pdfUrl). A wait made there opens the paper's page instead: a
+// browser may hand that address to its PDF viewer, which shows the user no check to pass.
+export function isPdfAddress(url: string | undefined, pdfUrl: string | undefined): boolean {
+  const [at, pdf] = [url ? parse(url) : undefined, pdfUrl ? parse(pdfUrl) : undefined]
+  return !!at && !!pdf && at.host === pdf.host && at.pathname === pdf.pathname
+}
+
 // The gate a page at this address belongs to. proxy: the library's proxy, given when the paper's fetch
 // goes through it, so its pages are read back to the publisher's and a school's sign-in met on the way
 // is the proxy's. predicted: the paper's gate before this page (gateOf of its route), kept where the
