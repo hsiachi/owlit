@@ -12,7 +12,8 @@ import type { Proposal, ProposalHunk } from "@owlit/protocol"
 // its index. Nothing is kept or accepted: the marks are this visit's, and once the doc has been seen the
 // next visit shows none. Clear marks counts the doc as seen now (options.clear) and drops the marks; the
 // edits stay, and the log's Undo (chat card, Versions) is untouched.
-// A doc Owlit wrote whole has no marks, only a line above it saying so, with Clear marks and Undo: every
+// A doc Owlit wrote whole has no marks, only a line above it saying so, with Undo and a close button that
+// clears it as Clear marks does: every
 // word of it is Owlit's, and a page underlined throughout reads as nothing marked at all.
 
 export const setProposals = StateEffect.define<Proposal[]>()
@@ -201,8 +202,31 @@ class HeadWidget extends WidgetType {
   }
 }
 
-// The line above a doc Owlit wrote: "Owlit wrote this doc · from <chat> · this line clears when you leave
-// the doc", then Clear marks and Undo
+// A lucide icon drawn outside React, for a widget's DOM. Its paths are copied from lucide-react: change
+// them with the icon they name.
+function icon(paths: string[]) {
+  const ns = "http://www.w3.org/2000/svg"
+  const svg = document.createElementNS(ns, "svg")
+  svg.setAttribute("viewBox", "0 0 24 24")
+  svg.setAttribute("fill", "none")
+  svg.setAttribute("stroke", "currentColor")
+  svg.setAttribute("stroke-width", "2")
+  svg.setAttribute("stroke-linecap", "round")
+  svg.setAttribute("stroke-linejoin", "round")
+  svg.setAttribute("aria-hidden", "true")
+  for (const d of paths) {
+    const path = document.createElementNS(ns, "path")
+    path.setAttribute("d", d)
+    svg.append(path)
+  }
+  return svg
+}
+// MessageSquare, a chat's icon everywhere (KIND_ICON.chat), and X
+const CHAT_ICON = ["M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"]
+const X_ICON = ["M18 6 6 18", "m6 6 12 12"]
+
+// The line above a doc Owlit wrote: Owlit's dot, "Owlit wrote this doc", the chat it came from as a chip,
+// then Undo and a close button. Closing is Clear marks: the line is the only mark such a doc has.
 class WholeWidget extends WidgetType {
   readonly proposal: Proposal
   readonly options: ProposalOptions
@@ -220,25 +244,39 @@ class WholeWidget extends WidgetType {
     const bar = document.createElement("div")
     bar.className = "suggest-bar proposal-head proposal-whole"
     bar.contentEditable = "false"
+    const dot = document.createElement("i")
+    dot.className = "proposal-dot"
     const label = document.createElement("span")
-    label.append(t`Owlit wrote this doc`)
+    label.className = "proposal-label"
+    label.textContent = t`Owlit wrote this doc`
+    bar.append(dot, label)
     const { chatId } = this.proposal
     if (chatId) {
       const title = this.options.chatTitle(chatId)
-      const link = document.createElement("button")
-      link.type = "button"
-      link.className = "proposal-chat"
-      link.textContent = title ? t`from “${title}”` : t`from a chat`
-      link.onclick = () => this.options.openChat(chatId)
-      label.append(" · ", link)
+      const chip = document.createElement("button")
+      chip.type = "button"
+      chip.className = "proposal-chat"
+      // The chat's title can be a whole question: the chip cuts it to one line and the tooltip has it all
+      const name = document.createElement("span")
+      name.textContent = title ?? t`a chat`
+      chip.title = title ? t`Open the chat “${title}”` : t`Open the chat`
+      chip.append(icon(CHAT_ICON), name)
+      chip.onclick = () => this.options.openChat(chatId)
+      bar.append(chip)
     }
-    label.append(" · ", t`this line clears when you leave the doc`)
     const undo = document.createElement("button")
     undo.type = "button"
-    undo.className = "suggest-discard"
+    undo.className = "suggest-discard proposal-undo"
     undo.textContent = t({ message: "Undo", comment: "verb: take back the doc Owlit wrote" })
     undo.onclick = () => this.options.undoWhole(this.proposal)
-    bar.append(label, clearButton(this.clear), undo)
+    const close = document.createElement("button")
+    close.type = "button"
+    close.className = "suggest-discard proposal-close"
+    close.ariaLabel = t({ message: "Hide this line", comment: "the line saying Owlit wrote this doc; it also goes when you leave the doc" })
+    close.title = t`Hide this line (it also goes when you leave the doc)`
+    close.append(icon(X_ICON))
+    close.onclick = this.clear
+    bar.append(undo, close)
     return bar
   }
   ignoreEvent() {

@@ -3169,15 +3169,25 @@ msgid "Owlit wrote this doc"
 msgstr ""
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "from “{title}”"
+#: app/src/features/threads/components/About.tsx
+msgid "a chat"
 msgstr ""
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "from a chat"
+msgid "Open the chat “{title}”"
 msgstr ""
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "this line clears when you leave the doc"
+msgid "Open the chat"
+msgstr ""
+
+#. the line saying Owlit wrote this doc; it also goes when you leave the doc
+#: app/src/features/docs/editor/proposals.ts
+msgid "Hide this line"
+msgstr ""
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Hide this line (it also goes when you leave the doc)"
 msgstr ""
 
 #: app/src/features/docs/fs.ts
@@ -6514,10 +6524,6 @@ msgstr ""
 #. placeholder {0}: readDepthSummary(depths)
 #: app/src/features/threads/components/About.tsx
 msgid "Of the {papers} papers: {0}."
-msgstr ""
-
-#: app/src/features/threads/components/About.tsx
-msgid "a chat"
 msgstr ""
 
 #: app/src/features/threads/components/About.tsx

@@ -4,6 +4,7 @@ Each version's section goes, as it is, into the notes sent with its dmg (scripts
 
 ## Unreleased
 
+- The line above a doc Owlit wrote fits on one line: Owlit's dot, the chat it came from as a small chip cut to one line (hover it for the whole question), then Undo and ×, which hides the line. A long question no longer wrapped it across several lines.
 - A large import no longer gets you stuck behind ACM's "Just a moment..." check. owlit asks a publisher's site for PDFs one at a time, a few seconds apart, instead of hundreds at once; and when a check does come up, the page owlit opens for you is the paper's page, where the check shows, not the PDF's address, which your browser opened as an empty PDF.
 - A paper whose PDF your browser can't fetch (ACM serves some of 150 MB) no longer holds up every other paper of its site with nothing on screen: after its second failed try the site's other papers go first, and after a few it asks you to download it by hand.
 - `owlit import --no-parse` keeps MinerU from reading the imported PDFs however few there are. Below 100 papers the flag was ignored.
