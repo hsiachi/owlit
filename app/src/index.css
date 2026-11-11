@@ -608,10 +608,23 @@
    counting line above the first, which the rule joins to the passage under it */
 .proposal-head { margin: 0 0 4px; }
 .proposal-head::before { top: 0; bottom: -4px; }
-/* A doc Owlit wrote whole: the line alone, with no rule, since nothing under it is marked */
+/* A doc Owlit wrote whole: the line alone, with no rule, since nothing under it is marked. Owlit's dot
+   signs it instead; the chat it came from is a context chip, cut to one line so a long question can't
+   wrap the line; only the chip gives way when the column is narrow. */
 .proposal-whole::before { content: none; }
-.suggest-bar .proposal-chat { height: auto; padding: 0; border-radius: 0; color: inherit; }
-.suggest-bar .proposal-chat:hover { color: var(--foreground); text-decoration: underline; }
+/* Without containment the chip's one-line title is the bar's min-content width, and CodeMirror widens the
+   whole content to it, so every line of the doc runs past a narrow column */
+.proposal-whole { contain: inline-size; }
+.suggest-bar .proposal-dot { flex: none; width: 7px; height: 7px; margin: 0 2px 0 1px; border-radius: 9999px; background: var(--owlit-mark); }
+.suggest-bar .proposal-label { flex: none; white-space: nowrap; }
+.suggest-bar .proposal-chat { display: flex; align-items: center; gap: 5px; flex: 0 1 auto; min-width: 3rem; max-width: 22rem; height: 22px; margin-left: 2px; padding: 0 7px; border-radius: var(--radius-md); background: var(--muted); color: var(--muted-foreground); font-size: 12px; }
+.suggest-bar .proposal-chat span { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggest-bar .proposal-chat svg { flex: none; width: 12px; height: 12px; }
+.suggest-bar .proposal-chat:hover { background: var(--accent); color: var(--foreground); }
+.suggest-bar .proposal-undo, .suggest-bar .proposal-close { flex: none; white-space: nowrap; }
+.suggest-bar .proposal-undo { margin-left: auto; }
+.suggest-bar .proposal-close { display: flex; align-items: center; justify-content: center; width: 28px; padding: 0; color: var(--muted-foreground); }
+.suggest-bar .proposal-close svg { width: 14px; height: 14px; }
 /* A passage's Undo takes no room in the line: the widget is an empty inline anchor at the passage's end and
    the button floats from it in the floating material, as the selection menu does, over the words after it
    only while shown. Hidden, it is see-through to the pointer but still reachable by Tab. */

@@ -3169,16 +3169,26 @@ msgid "Owlit wrote this doc"
 msgstr "Owlit wrote this doc"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "from “{title}”"
-msgstr "from “{title}”"
+#: app/src/features/threads/components/About.tsx
+msgid "a chat"
+msgstr "a chat"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "from a chat"
-msgstr "from a chat"
+msgid "Open the chat “{title}”"
+msgstr "Open the chat “{title}”"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "this line clears when you leave the doc"
-msgstr "this line clears when you leave the doc"
+msgid "Open the chat"
+msgstr "Open the chat"
+
+#. the line saying Owlit wrote this doc; it also goes when you leave the doc
+#: app/src/features/docs/editor/proposals.ts
+msgid "Hide this line"
+msgstr "Hide this line"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Hide this line (it also goes when you leave the doc)"
+msgstr "Hide this line (it also goes when you leave the doc)"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -6515,10 +6525,6 @@ msgstr "Then <0>“{later}”</0>, {on}."
 #: app/src/features/threads/components/About.tsx
 msgid "Of the {papers} papers: {0}."
 msgstr "Of the {papers} papers: {0}."
-
-#: app/src/features/threads/components/About.tsx
-msgid "a chat"
-msgstr "a chat"
 
 #: app/src/features/threads/components/About.tsx
 msgid "You asked <0>“{asked}”</0> in <1/>, {when}."

@@ -3169,16 +3169,26 @@ msgid "Owlit wrote this doc"
 msgstr "这篇文档由 Owlit 写成"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "from “{title}”"
-msgstr "来自“{title}”"
+#: app/src/features/threads/components/About.tsx
+msgid "a chat"
+msgstr "一个对话"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "from a chat"
-msgstr "来自一次对话"
+msgid "Open the chat “{title}”"
+msgstr "打开对话“{title}”"
 
 #: app/src/features/docs/editor/proposals.ts
-msgid "this line clears when you leave the doc"
-msgstr "离开文档后此行即消失"
+msgid "Open the chat"
+msgstr "打开这段对话"
+
+#. the line saying Owlit wrote this doc; it also goes when you leave the doc
+#: app/src/features/docs/editor/proposals.ts
+msgid "Hide this line"
+msgstr "隐藏这一行"
+
+#: app/src/features/docs/editor/proposals.ts
+msgid "Hide this line (it also goes when you leave the doc)"
+msgstr "隐藏这一行（离开文档后它也会消失）"
 
 #: app/src/features/docs/fs.ts
 msgid "Edit applied"
@@ -6515,10 +6525,6 @@ msgstr "后来又问<0>“{later}”</0>，{on}。"
 #: app/src/features/threads/components/About.tsx
 msgid "Of the {papers} papers: {0}."
 msgstr "{papers} 篇论文里：{0}。"
-
-#: app/src/features/threads/components/About.tsx
-msgid "a chat"
-msgstr "一个对话"
 
 #: app/src/features/threads/components/About.tsx
 msgid "You asked <0>“{asked}”</0> in <1/>, {when}."
