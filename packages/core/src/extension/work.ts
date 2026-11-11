@@ -1,7 +1,7 @@
 import type { ExtensionWait, GateKey, LaneKey, OpenPage, PdfState, ProxySettings, WaitId, WorkAnswer, WorkEnding, WorkItem } from "@owlit/protocol"
 import type { ExtensionFetcher, ExtensionPaper, Library } from "../library/library.ts"
 import { hostOf } from "../net/http.ts"
-import { allowOf, gateOf, isSsoHop, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
+import { allowOf, gateOf, isPdfAddress, isSsoHop, laneOf, proxyGate, tabOnly, watchOf } from "./keys.ts"
 import { FOLLOW_UP_MS, PdfWorkNotes, type FollowUp, type QueuedNote } from "./pdf-work.ts"
 import { siteOf } from "./route.ts"
 
@@ -50,6 +50,16 @@ export const RETURNING_MS = CONNECTED_MS
 // extension's slowest answer: three gets of FETCH_MS (60 s) in apps/extension/src/lib/work.ts, then the
 // upload.
 export const STALLED_MS = 30 * 60_000
+// A paper whose fetches went with this many workers that started anew leaves the queue. Chrome stops an
+// extension's worker whose fetch takes over 30 s to start answering, and a PDF too large to pass from a
+// tab to the worker (ACM's 150 MB ones) may not come back either: handed out again each time, one such
+// paper held every other paper of its site.
+export const LOST_LIMIT = 2
+// A paper whose fetches reached nothing at its site this many times in a row goes to the user the same
+// way; from its second, it waits behind its site's other papers instead of before them, so a PDF that
+// never comes in time doesn't hold the site's back-off on itself. Through the proxy, where nothing
+// answering is the network's doing, its papers only take turns.
+export const UNANSWERED_LIMIT = 3
 // A wait tries its first paper once more this long after it began: the user
 // may have got through where the extension couldn't tell (signing in can end on a page that still looks
 // like a sign-in, the proxy's own front page). Once only: a try every quarter of an hour for days wrote
@@ -87,6 +97,10 @@ interface Queued {
   // Its gate now (the newest try's, else predicted), and the one its route predicts
   gate: GateKey
   predicted: GateKey
+  // Its fetches in this session that went with an extension worker that started anew, with no answer
+  lost?: number
+  // Its fetches in a row that reached nothing at its own site (UNANSWERED_LIMIT)
+  unanswered?: number
 }
 
 interface Lane {
@@ -164,6 +178,9 @@ export interface WorkHost {
   connected: (library: Library) => void
   // An extension is paired with this owlit, connected now or not
   paired?: () => Promise<boolean>
+  // A paper whose fetch the extension's worker can't finish (LOST_LIMIT) left the queue: the library
+  // notes it as one for the user to download from its page
+  lost?: (library: Library, paperId: string, at: { gate: GateKey; host: string }) => void
 }
 
 export class ExtensionWork implements ExtensionFetcher {
@@ -567,6 +584,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (ended === "offline") {
       // Its try reached nothing: a wait it was under keeps waiting, its one try still to come
       let held = [item.paper.paperId]
+      let atSite = false
       if (was) was.tryAt = now + PAUSED_RETRY_MS
       else {
         const host = (page.url ? hostOf(page.url) : page.host)?.toLowerCase() || item.paper.host
@@ -579,13 +597,19 @@ export class ExtensionWork implements ExtensionFetcher {
           this.sayWhenBackOffEnds(lane, undefined, lane.offline.until)
           held = all(lane).map((q) => q.paper.paperId)
         } else {
+          atSite = true
           const off = back(lane.gatesOffline.get(item.gate))
           lane.gatesOffline.set(item.gate, off)
           this.sayWhenBackOffEnds(lane, item.gate, off.until)
           held = all(lane).filter((q) => q.gate === item.gate).map((q) => q.paper.paperId)
         }
       }
-      lane.queue.unshift(item)
+      item.unanswered = (item.unanswered ?? 0) + 1
+      if (atSite && item.unanswered >= UNANSWERED_LIMIT) {
+        held = held.filter((id) => id !== item.paper.paperId)
+        this.host.lost?.(this.library, item.paper.paperId, { gate: item.gate, host: item.paper.host })
+      } else if (item.unanswered > 1) lane.queue.push(item)
+      else lane.queue.unshift(item)
       sortQueue(lane)
       // Every paper the back-off holds says its new time to try again, not only the one that met it
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...held])])
@@ -593,6 +617,7 @@ export class ExtensionWork implements ExtensionFetcher {
       lane.offline = undefined
       lane.gatesOffline.delete(item.gate)
       item.gate = answerGate(item, page)
+      item.unanswered = 0
       this.notes.ended(item.gate, ended as WorkEnding)
       lane.queue.unshift(item)
       sortQueue(lane)
@@ -600,7 +625,7 @@ export class ExtensionWork implements ExtensionFetcher {
       const at = atOf(item.gate, pause, pageHost)
       const proxy = item.paper.proxied ? item.paper.proxy : undefined
       // The library's sign-in page for the proxy's own sign-in; the publisher's page for one met there
-      const url = (pause === "sign-in" && item.gate.startsWith("proxy:") && item.paper.signIn) || (isSsoHop(page.url, proxy) ? undefined : page.url) || item.paper.url
+      const url = (pause === "sign-in" && item.gate.startsWith("proxy:") && item.paper.signIn) || (isSsoHop(page.url, proxy) || isPdfAddress(page.url, item.paper.pdfUrl) ? undefined : page.url) || item.paper.url
       const before = this.waitsAt.get(item.gate)
       // A paper that went on when the user got through met the same gate again: that wait is back
       const back = before ? undefined : this.notes.goingWith(item.gate, item.paper.paperId)
@@ -1096,7 +1121,8 @@ export class ExtensionWork implements ExtensionFetcher {
   // extension is away when it hasn't asked for work for CONNECTED_MS, or closed its last ask while it was
   // held, and none of its asks is being held now; while one is, its fetches are going on beside it, so a
   // proxy never has two requests of the user's out at once. A fetch out STALLED_MS goes back whatever.
-  // restarted: the pairing whose worker started anew: its fetches went with the last one.
+  // restarted: the pairing whose worker started anew: its fetches went with the last one. A paper lost
+  // that way LOST_LIMIT times goes to the user instead (WorkHost.lost).
   private reissue(restarted?: string) {
     const now = Date.now()
     for (const lane of this.lanes.values()) {
@@ -1104,8 +1130,15 @@ export class ExtensionWork implements ExtensionFetcher {
       const ask = this.asks.get(lane.inFlight.by ?? "")
       const going = ask && (lane.inFlight.by ?? "") !== restarted && (ask.open > 0 || (!ask.dropped && now - ask.at < CONNECTED_MS))
       if (going && now - lane.inFlight.at < STALLED_MS) continue
-      if (!lane.inFlight.stopped) lane.queue.unshift(lane.inFlight.item)
+      const { item, stopped, by } = lane.inFlight
       lane.inFlight = undefined
+      if (restarted !== undefined && (by ?? "") === restarted) item.lost = (item.lost ?? 0) + 1
+      if ((item.lost ?? 0) >= LOST_LIMIT) {
+        if (!stopped && this.library) {
+          this.host.lost?.(this.library, item.paper.paperId, { gate: item.gate, host: item.paper.host })
+          this.host.papers(this.library, [item.paper.paperId])
+        }
+      } else if (!stopped) lane.queue.unshift(item)
       sortQueue(lane)
       lane.endedAt = now
     }

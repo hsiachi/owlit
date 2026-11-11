@@ -413,6 +413,13 @@ export class Bench {
     return this.step(`click the tab at ${host}, and go on to ${url}`)
   }
 
+  // The user opens the extension's popup on the tab at this host; Dia keeps it open in a window of its
+  // own, which asks the background for its state again
+  async openPopup(host: string) {
+    await this.ext.popup(host)
+    return this.step(`open the popup at ${host}`)
+  }
+
   // Chrome stops the extension's worker and starts it again: what it had out is lost
   async restartWorker() {
     if (!this.ext.closed) {
@@ -815,6 +822,17 @@ class Extension {
 
   async openPage(url: string) {
     await this.browser.openTab(url)
+  }
+
+  // The popup asks the running worker what to show on the tab at this host, after the page's content
+  // script told it of the page (the fake browser runs no content script; Chrome runs it once per page)
+  async popup(host: string) {
+    const tab = [...this.browser.tabs.values()].find((t) => t.url && new URL(t.url).hostname === host)
+    if (!tab) return
+    const messages = (globalThis as unknown as { chrome: typeof chrome }).chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }
+    const send = (message: unknown, sender: unknown) => new Promise((resolve) => messages.emit(message, sender, resolve))
+    await send({ kind: "page", url: tab.url, html: tab.document?.html ?? "" }, { id: "fake", tab: { id: tab.id } })
+    await send({ kind: "state", tabId: tab.id }, { id: "fake" })
   }
 
   clickTab(host: string) {

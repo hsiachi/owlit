@@ -906,12 +906,25 @@ describe("waits", () => {
     const report = () => new Promise((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit({ kind: "page", url: tab.url, html }, { id: "fake", tab: { id: tab.id } }, resolve))
     await report()
     expect(b.owlit.posted("/work/resume")).toHaveLength(1)
-    // A wait that began later at the same gate is another one
+  })
+
+  it("lets a gate's papers on once from a page: the gate met again goes on from a page loaded since", async () => {
+    const wait = { ...science, since: 500 }
+    const b = await boot(sites)
+    b.owlit.give({ waits: [wait] })
+    await vi.waitFor(() => expect(b.kept.session.waits).toEqual([wait]), PATIENCE)
+    const tab = await b.openTab("https://www.science.org/doi/1")
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toHaveLength(1), PATIENCE)
+    // The paper that went on met the gate again: a later wait there, and the page still looks past it
     const later = { ...wait, since: 900 }
     b.owlit.give({ waits: [later] })
     await vi.waitFor(() => expect(b.kept.session.waits).toEqual([later]), PATIENCE)
-    await report()
-    expect(b.owlit.posted("/work/resume")).toHaveLength(2)
+    const html = article("Science", "https://www.science.org/doi/pdf/1").html
+    await new Promise((resolve) => (b.chrome.runtime.onMessage as unknown as { emit: (...a: unknown[]) => void }).emit({ kind: "page", url: tab.url, html }, { id: "fake", tab: { id: tab.id } }, resolve))
+    expect(b.owlit.posted("/work/resume")).toHaveLength(1)
+    // The page loaded again: the user may have got through there
+    await b.reload(tab.id)
+    await vi.waitFor(() => expect(b.owlit.posted("/work/resume")).toHaveLength(2), PATIENCE)
   })
 
   it("still knows its waits after the worker restarts", async () => {

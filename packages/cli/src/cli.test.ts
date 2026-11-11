@@ -108,6 +108,12 @@ describe("owlit", () => {
     expect(await owlit(["import", "endnote", "refs.enl"])).toMatchObject({ code: 2, err: /^owlit import takes zotero, bibtex or folder/ })
   })
 
+  it("keeps MinerU off a small import with --no-parse, where owlit doesn't ask", async () => {
+    const { root, owlit } = await setup()
+    writeFileSync(path.join(root, "refs.bib"), "@article{v, title = {Attention Is All You Need}, eprint = {1706.03762}, archivePrefix = {arXiv}}\n")
+    expect(JSON.parse((await owlit(["import", "bibtex", "refs.bib", "--no-parse", "--json"])).out)).toMatchObject({ added: ["arxiv-1706.03762"], parse: false })
+  })
+
   it("explains a wrong command", async () => {
     const { owlit } = await setup()
     expect(await owlit(["fetch"])).toMatchObject({ code: 2, err: "There is no command fetch.\nRun owlit --help for the commands.\n" })

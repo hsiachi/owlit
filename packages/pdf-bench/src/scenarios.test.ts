@@ -910,3 +910,35 @@ describe("owlit and the machine", () => {
     expect(screen.waits).toEqual([])
   })
 })
+
+describe("a site that checks only its PDFs", () => {
+  // ACM, once it holds back a network's downloads: its pages load, and its PDFs answer with a check in
+  // the user's tab as well
+  const doi = "10.1145/0000901"
+  const title = "A Paper Whose PDF Stays Behind A Check"
+
+  it("lets the paper on once from the page the user opened, and the check it meets again waits for them", async () => {
+    const web = new FakeWeb()
+    web.paper(doi, title, { url: `https://dl.acm.org/doi/${doi}` })
+    web.on(`dl.acm.org/doi/pdf/${doi}`, () => cloudflareCheck())
+    web.on(`dl.acm.org/doi/${doi}`, inBrowser(landing(doi, title, `https://dl.acm.org/doi/pdf/${doi}`)))
+    const b = await start(web)
+    const id = b.addPaper(doi, title)
+    let screen = await b.findPdf(id)
+    expect(screen.waits).toMatchObject([{ kind: "check" }])
+    const at = screen.waits[0].host
+    // The paper's page they open is past the check: the paper goes on there, into the check again
+    screen = await b.clickWait("check", at)
+    const tries = b.fetched().length
+    expect(screen.waits).toMatchObject([{ kind: "check" }])
+    // The same page isn't told again: not by the popup Dia keeps open on it, not once the worker
+    // restarted and forgot what it looked at
+    await b.openPopup(at)
+    await b.restartWorker()
+    await b.sleep(60_000)
+    screen = await b.openPopup(at)
+    expect(b.fetched()).toHaveLength(tries)
+    expect(screen.waits).toMatchObject([{ kind: "check" }])
+    expect(screen.papers[id].hasPdf).toBe(false)
+  })
+})

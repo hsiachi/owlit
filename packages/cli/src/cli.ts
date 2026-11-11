@@ -204,7 +204,15 @@ async function commands(command: string, args: string[], owlit: OwlitClient, { f
       if (!["zotero", "bibtex", "folder"].includes(source) || !from || args.length > 2) {
         throw new Usage("owlit import takes zotero, bibtex or folder, then the path.")
       }
-      const started = await owlit.rpc.library.import({ source: source as ImportSource, path: path.resolve(io.cwd, from), ...(flags.tags ? { collectionsAsTags: true } : {}) })
+      // --parse / --no-parse go with the import itself: owlit asks only past ASK_BEFORE_PARSING new papers,
+      // and a smaller import would otherwise have MinerU read every PDF
+      const parse = flags.parse ? true : flags["no-parse"] ? false : undefined
+      const started = await owlit.rpc.library.import({
+        source: source as ImportSource,
+        path: path.resolve(io.cwd, from),
+        ...(flags.tags ? { collectionsAsTags: true } : {}),
+        ...(parse !== undefined ? { parse } : {}),
+      })
       let shown = ""
       let task: Task | undefined
       for (;;) {
