@@ -561,7 +561,7 @@ const withoutHash = (url: string) => url.replace(/#.*$/, "")
 
 ext.tabs.onRemoved.addListener((tabId) => {
   lookedAt.delete(tabId)
-  resumed.delete(String(tabId))
+  void forgetResumed(String(tabId))
   void session(() => ext.storage.session.remove([pageKey(tabId), pdfTabKey(tabId), saidKey(tabId), pdfSaidKey(tabId)]))
   // The walk's tab closed: the walk is put away here; owlit keeps where it stood until another one starts
   void (async () => {
@@ -793,23 +793,42 @@ async function lookAgainAtTabs(all: Waits) {
   }
 }
 
-// What the user got through at was told owlit once: per wait (its gate and since: the same wait, back
-// after a paper that went on met it again, is still the one told) and document (a tab's page, or none for
-// a site allowed). A page is seen past its wait by more than one look at once (its own load, its content
+// What the user got through at was told owlit once, per document (a tab's page, or none for a site
+// allowed). A page is seen past its wait by more than one look at once (its own load, its content
 // script's report, the popup, the look at the open tabs once owlit's answer changes), and each would tell
-// owlit again, even after owlit's answer stopped listing the wait. A tab's are kept until its document is
-// gone: another one in the tab, or the tab closed.
-const resumed = new Map<string, { doc: string; told: Set<string> }>()
-const waitKey = (wait: Waits[number]) => `${wait.id ?? wait.host} ${wait.since ?? ""}`
+// owlit again, even after owlit's answer stopped listing the wait. A page tells it once per gate, whatever
+// wait is up there: when the gate comes back (a paper that went on met it again), the page that let it on
+// is no sign the user got through again. ACM serves its pages and holds back only its PDFs, and its page
+// would let the paper on into the same check again and again; a page loaded since, or the user's I've
+// verified, goes on then. Without a tab, per wait (gate and since): a site asked for again is allowed
+// again. Kept in session storage, since a restarted worker would tell owlit again from the same page; a
+// tab's go with its document: another one in the tab, or the tab closed.
+const resumedKey = "resumed"
+type Resumed = Record<string, { doc: string; told: string[] }>
+const waitKey = (wait: Waits[number], tab: string) => (tab ? (wait.id ?? wait.host) : `${wait.id ?? wait.host} ${wait.since ?? ""}`)
+const resumedNow = async () => ((await ext.storage.session.get(resumedKey))[resumedKey] ?? {}) as Resumed
 // True the first time this wait is told for this document
-function firstResume(wait: Waits[number], tab: string, doc: string): boolean {
-  const kept = resumed.get(tab)
-  const at = kept?.doc === doc ? kept : { doc, told: new Set<string>() }
-  resumed.set(tab, at)
-  if (at.told.has(waitKey(wait))) return false
-  at.told.add(waitKey(wait))
-  return true
-}
+const firstResume = (wait: Waits[number], tab: string, doc: string) =>
+  session(async () => {
+    const all = await resumedNow()
+    const told = all[tab]?.doc === doc ? all[tab].told : []
+    if (told.includes(waitKey(wait, tab))) return false
+    await ext.storage.session.set({ [resumedKey]: { ...all, [tab]: { doc, told: [...told, waitKey(wait, tab)] } } })
+    return true
+  })
+const untold = (wait: Waits[number], tab: string) =>
+  session(async () => {
+    const all = await resumedNow()
+    if (!all[tab]) return
+    await ext.storage.session.set({ [resumedKey]: { ...all, [tab]: { ...all[tab], told: all[tab].told.filter((k) => k !== waitKey(wait, tab)) } } })
+  })
+const forgetResumed = (tab: string) =>
+  session(async () => {
+    const all = await resumedNow()
+    if (!all[tab]) return
+    delete all[tab]
+    await ext.storage.session.set({ [resumedKey]: all })
+  })
 
 // The user got through at this wait: owlit goes on there, and the card in the tab says so
 async function resume(wait: Waits[number], tabId?: number) {
@@ -817,13 +836,13 @@ async function resume(wait: Waits[number], tabId?: number) {
   if (!token) return
   const doc = tabId === undefined ? "" : String((await htmlOf(tabId))?.origin ?? (await ext.tabs.get(tabId).catch(() => undefined))?.url ?? tabId)
   const tab = String(tabId ?? "")
-  if (!firstResume(wait, tab, doc)) return
+  if (!(await firstResume(wait, tab, doc))) return
   // An owlit whose waits carry no id is told the host, which it matches through the waits' watch
   try {
     await ask("/work/resume", { token, json: (wait.id ? { wait: wait.id } : { host: wait.host }) satisfies WorkResume })
   } catch (error) {
     // Not heard: told again at the next look
-    resumed.get(tab)?.told.delete(waitKey(wait))
+    await untold(wait, tab)
     throw error
   }
   // A Get PDFs' tab at this gate still standing at its check stops waiting: the papers come through this one
