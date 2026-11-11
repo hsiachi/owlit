@@ -55,6 +55,11 @@ export const STALLED_MS = 30 * 60_000
 // tab to the worker (ACM's 150 MB ones) may not come back either: handed out again each time, one such
 // paper held every other paper of its site.
 export const LOST_LIMIT = 2
+// A paper whose fetches reached nothing at its site this many times in a row goes to the user the same
+// way; from its second, it waits behind its site's other papers instead of before them, so a PDF that
+// never comes in time doesn't hold the site's back-off on itself. Through the proxy, where nothing
+// answering is the network's doing, its papers only take turns.
+export const UNANSWERED_LIMIT = 3
 // A wait tries its first paper once more this long after it began: the user
 // may have got through where the extension couldn't tell (signing in can end on a page that still looks
 // like a sign-in, the proxy's own front page). Once only: a try every quarter of an hour for days wrote
@@ -94,6 +99,8 @@ interface Queued {
   predicted: GateKey
   // Its fetches in this session that went with an extension worker that started anew, with no answer
   lost?: number
+  // Its fetches in a row that reached nothing at its own site (UNANSWERED_LIMIT)
+  unanswered?: number
 }
 
 interface Lane {
@@ -577,6 +584,7 @@ export class ExtensionWork implements ExtensionFetcher {
     if (ended === "offline") {
       // Its try reached nothing: a wait it was under keeps waiting, its one try still to come
       let held = [item.paper.paperId]
+      let atSite = false
       if (was) was.tryAt = now + PAUSED_RETRY_MS
       else {
         const host = (page.url ? hostOf(page.url) : page.host)?.toLowerCase() || item.paper.host
@@ -589,13 +597,19 @@ export class ExtensionWork implements ExtensionFetcher {
           this.sayWhenBackOffEnds(lane, undefined, lane.offline.until)
           held = all(lane).map((q) => q.paper.paperId)
         } else {
+          atSite = true
           const off = back(lane.gatesOffline.get(item.gate))
           lane.gatesOffline.set(item.gate, off)
           this.sayWhenBackOffEnds(lane, item.gate, off.until)
           held = all(lane).filter((q) => q.gate === item.gate).map((q) => q.paper.paperId)
         }
       }
-      lane.queue.unshift(item)
+      item.unanswered = (item.unanswered ?? 0) + 1
+      if (atSite && item.unanswered >= UNANSWERED_LIMIT) {
+        held = held.filter((id) => id !== item.paper.paperId)
+        this.host.lost?.(this.library, item.paper.paperId, { gate: item.gate, host: item.paper.host })
+      } else if (item.unanswered > 1) lane.queue.push(item)
+      else lane.queue.unshift(item)
       sortQueue(lane)
       // Every paper the back-off holds says its new time to try again, not only the one that met it
       this.host.papers(this.library, [...new Set([item.paper.paperId, ...held])])
@@ -603,6 +617,7 @@ export class ExtensionWork implements ExtensionFetcher {
       lane.offline = undefined
       lane.gatesOffline.delete(item.gate)
       item.gate = answerGate(item, page)
+      item.unanswered = 0
       this.notes.ended(item.gate, ended as WorkEnding)
       lane.queue.unshift(item)
       sortQueue(lane)

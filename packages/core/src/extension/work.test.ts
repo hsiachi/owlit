@@ -347,8 +347,7 @@ describe("the extension's queue", () => {
 
   it("backs off at a site that reached nothing, keeping its papers, and goes on once it answers", async () => {
     const { work, take } = setup()
-    work.fetch(library, paper("a1", "sagepub.com"), false)
-    work.fetch(library, paper("a2", "sagepub.com"), false)
+    for (const id of ["a1", "a2", "a3"]) work.fetch(library, paper(id, "sagepub.com"), false)
     const [first] = await take()
     work.settle(first.id, "offline")
     // Still queued, first in line
@@ -358,21 +357,42 @@ describe("the extension's queue", () => {
     vi.advanceTimersByTime(1)
     const [second] = await take()
     expect(second.paperId).toBe("a1")
-    // Offline again: a longer wait
+    // Offline again: a longer wait, and a1 waits behind the site's other papers
     work.settle(second.id, "offline")
     vi.advanceTimersByTime(5 * 60_000 - 1)
     expect(await take()).toEqual([])
     vi.advanceTimersByTime(1)
     const [third] = await take()
-    expect(third.paperId).toBe("a1")
+    expect(third.paperId).toBe("a2")
     // An answer: the next goes after the plain gap, and a later offline starts the back-off over
     work.settle(third.id, "no-copy")
     vi.advanceTimersByTime(GAP_MS)
     const [fourth] = await take()
-    expect(fourth.paperId).toBe("a2")
+    expect(fourth.paperId).toBe("a3")
     work.settle(fourth.id, "offline")
     vi.advanceTimersByTime(2 * 60_000)
-    expect((await take()).map((w) => w.paperId)).toEqual(["a2"])
+    expect((await take()).map((w) => w.paperId)).toEqual(["a3"])
+  })
+
+  it("gives the user a paper that reached nothing at its site three times in a row, and goes on with the site", async () => {
+    const lost: string[] = []
+    const work = new ExtensionWork({ papers: () => {}, waits: () => {}, connected: () => {}, lost: (_, id) => lost.push(id) })
+    const never = new AbortController().signal
+    for (const id of ["big", "a"]) work.fetch(library, paper(id, "dl.acm.org"), false)
+    // Hands out what is due past the gap and any back-off, and answers it
+    const next = async (answer: "offline" | "no-copy") => {
+      vi.advanceTimersByTime(15 * 60_000)
+      const [item] = await work.take(library, 0, never)
+      work.settle(item.id, answer)
+      return item.paperId
+    }
+    expect(await next("offline")).toBe("big")
+    expect(await next("offline")).toBe("big")
+    expect(await next("no-copy")).toBe("a")
+    expect(lost).toEqual([])
+    expect(await next("offline")).toBe("big")
+    expect(lost).toEqual(["big"])
+    expect(work.holding(library, "big")).toBeUndefined()
   })
 
   it("tells the window when a back-off begins and ends, so no paper says a time to try again that has passed", async () => {
