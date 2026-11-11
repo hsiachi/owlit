@@ -42,7 +42,7 @@ import { movedOn, type KnownPending, type KnownWait } from "../extension/work.ts
 import { runView, type PdfRun, type RunPaper } from "../extension/runs.ts"
 import { gateOf, gateOfTry, isPdfAddress, isSsoHop } from "../extension/keys.ts"
 import { isThisPaper, lookAtPdf, sameTitle, surelyOf } from "./pdf-identity.ts"
-import { PUBLISHERS } from "./publisher-table.ts"
+import { limitPublishers } from "./publisher-table.ts"
 import { RpcFailure } from "../rpc/index.ts"
 import { defineTask, TaskFailure, type Scheduler, type TaskDefinition } from "../tasks/index.ts"
 import { appendJsonl, ATOMIC_TEMP, exists, ignoreMissing, readJson, readJsonl, writeFileAtomic, writeJsonAtomic } from "../fs-util.ts"
@@ -249,7 +249,7 @@ export class Library {
     this.dataDir = dataDir
     this.services = services
     this.acquisitions = new Acquisitions(root, this.serial)
-    for (const { api } of PUBLISHERS) if (api) services.http.limit(api.host, api.limit)
+    limitPublishers(services.http)
     this.index = new PaperIndex(root)
     this.imports = new Imports(dataDir, {
       find: async (ids) => (Object.keys(ids).length ? this.index.find(ids) : undefined),

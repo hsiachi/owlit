@@ -3,7 +3,7 @@ import { readPdf } from "./text/extract.ts"
 
 // What owlit knows about each publisher, in one place: the DOIs that are its, its sites, where a PDF can
 // be had without a browser, where the extension goes, and its own API when it has one. The plain routes
-// (pdf.ts), the extension's routes and gates (extension/route.ts, keys.ts), the API limits (library.ts), the key check in
+// (pdf.ts), the extension's routes and gates (extension/route.ts, keys.ts), the rates owlit asks at (limitPublishers), the key check in
 // Settings (settings/rpc.ts) and the extension's site permissions (apps/extension) all read it.
 
 // The keys of publishers' own APIs, which hand subscribed papers to the university's network without a
@@ -168,6 +168,19 @@ export const OTHER_HOSTS = ["doi.org", "www.cambridge.org", "www.jstor.org", "ww
 // Sites that only send a link on to the publisher's own site: what happens after the redirect is the
 // publisher's doing, so they never stand for the publisher
 export const REDIRECTORS = new Set(["doi.org", "handle.net"])
+
+// owlit's own requests to a publisher's site, one at a time and a few seconds apart: a large import
+// would otherwise send hundreds at once, and a site's firewall that sees a burst puts a check in front
+// of the user's browser too
+export const PUBLISHER_SITE_LIMIT = { perSecond: 1 / 3, concurrent: 1 }
+
+// The rates owlit asks publishers at: their APIs by each one's own limit, their sites at a reader's pace
+export function limitPublishers(http: { limit: (host: string, limit: { perSecond: number; concurrent: number }) => void }) {
+  for (const { hosts, api } of PUBLISHERS) {
+    for (const host of hosts ?? []) http.limit(host, PUBLISHER_SITE_LIMIT)
+    if (api) http.limit(api.host, api.limit)
+  }
+}
 
 // The publisher of a DOI, by its longest matching prefix
 export function publisherOf(doi: string) {

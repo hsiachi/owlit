@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { hostOf } from "../net/http.ts"
 import { extensionRoute, siteOf } from "../extension/route.ts"
 import { routesFor, type Route } from "./pdf.ts"
-import { publisherOf, PUBLISHERS, type PublisherKeys } from "./publisher-table.ts"
+import { limitPublishers, PUBLISHER_SITE_LIMIT, publisherOf, PUBLISHERS, type PublisherKeys } from "./publisher-table.ts"
 
 const record = (doi: string): PaperRecord => ({ version: 1, id: "x", ids: { doi }, title: "T", authors: [], fields: {}, pdfUrls: [] })
 
@@ -56,5 +56,15 @@ describe("the publisher table", () => {
         }
       }
     }
+  })
+})
+
+describe("limitPublishers", () => {
+  it("holds owlit's own requests to a publisher's site to one at a time, and its API to the API's limit", () => {
+    const set = new Map<string, { perSecond: number; concurrent: number }>()
+    limitPublishers({ limit: (host, limit) => set.set(host, limit) })
+    expect(set.get("dl.acm.org")).toEqual(PUBLISHER_SITE_LIMIT)
+    expect(PUBLISHER_SITE_LIMIT.concurrent).toBe(1)
+    expect(set.get("api.wiley.com")).toEqual({ perSecond: 0.1, concurrent: 1 })
   })
 })
