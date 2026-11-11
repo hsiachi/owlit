@@ -55,8 +55,11 @@ export async function* routesFor(
     return true
   }
   const { doi, arxiv } = record.ids
+  // A DOI's arXiv id is a service's link between two works (OpenAlex's arXiv location, Semantic Scholar's
+  // ArXiv id), and a service can merge another paper's preprint into the work: its PDF must be the paper
+  const preprintChecked = doi ? { checkTitle: true } : {}
   if (arxiv) {
-    const route: Route = { kind: "arxiv", name: "arxiv", url: `https://arxiv.org/pdf/${arxiv}` }
+    const route: Route = { kind: "arxiv", name: "arxiv", url: `https://arxiv.org/pdf/${arxiv}`, ...preprintChecked }
     if (fresh(route)) yield route
   }
   // Before the services' links: for ACL's 10.3115 DOIs those point at the ACM, which only lists them
@@ -66,7 +69,8 @@ export async function* routesFor(
     if (fresh(route)) yield route
   }
   for (const url of record.pdfUrls ?? []) {
-    const route: Route = { kind: url.includes("arxiv.org/") ? "arxiv" : "upstream", name: url.includes("arxiv.org/") ? "arxiv" : "open-access", url }
+    const preprint = url.includes("arxiv.org/")
+    const route: Route = preprint ? { kind: "arxiv", name: "arxiv", url, ...preprintChecked } : { kind: "upstream", name: "open-access", url }
     if (fresh(route)) yield route
   }
   if (!doi) return

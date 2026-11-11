@@ -361,6 +361,35 @@ describe("a repository's page instead of its PDF", () => {
   })
 })
 
+describe("a DOI's arXiv id", () => {
+  const title = "Answering students' questions in large classrooms as the lecture goes"
+  const paper = { id: "doi-10.9999-merged", title, authors: [], ids: { doi: "10.9999/merged", arxiv: "2511.01248" } }
+  const pdfOf = (text: string) => () => new Response(makePdf([[{ x: 72, y: 72, size: 12, text }]]))
+
+  it("is another paper's preprint when a service merged the two: its PDF is turned away and the next route's kept", async () => {
+    const { root, call } = await setup(
+      serving({
+        "arxiv.org/pdf/2511.01248": pdfOf("Customizing informational video watching for viewers with ADHD arXiv:2511.01248v1"),
+        "api.unpaywall.org": () => Response.json({ oa_locations: [{ url_for_pdf: "https://repo.example.org/merged.pdf", host_type: "repository" }] }),
+        "repo.example.org/merged.pdf": pdfOf(title),
+      }),
+      { contactEmail: "me@example.org" },
+    )
+    await call("library.add", { paper })
+    expect((await call("library.fetchPdf", { id: paper.id })).pdf).toBeDefined()
+    const acquisition = JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))
+    // arXiv comes first: kept from the repository, the preprint was turned away
+    expect(acquisition).toMatchObject({ state: "have-it", route: "unpaywall/repository" })
+  })
+
+  it("is kept once the preprint's pages are the paper", async () => {
+    const { root, call } = await setup(serving({ "arxiv.org/pdf/2511.01248": pdfOf(`${title} arXiv:2511.01248v1`) }))
+    await call("library.add", { paper })
+    expect((await call("library.fetchPdf", { id: paper.id })).pdf).toBeDefined()
+    expect(JSON.parse(readFileSync(path.join(root, "library/papers", paper.id, "acquisition.json"), "utf8"))).toMatchObject({ route: "arxiv" })
+  })
+})
+
 describe("looking again for a paper without a PDF", () => {
   const day = 24 * 60 * 60 * 1000
   const noPdf = (at: number, looks?: number) => ({ state: "no-pdf" as const, tried: [{ by: "search" as const, ended: "no-copy" as const, at }], looks })
