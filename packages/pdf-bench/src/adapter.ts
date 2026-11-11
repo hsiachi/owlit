@@ -505,7 +505,7 @@ export class Bench {
       await Promise.all(this.busy)
       if (this.lookingUp()) await this.lookups()
       const moved = this.ext.moved() + this.handed.length
-      const going = this.busy.size > 0 || this.lookingUp() || this.ext.outstanding() > this.web.hanging()
+      const going = this.busy.size > 0 || this.lookingUp() || this.ext.outstanding() > this.web.hanging() || this.ext.inFlight()
       if (going || moved !== seen) {
         seen = moved
         asksThen = this.ext.asks
@@ -616,6 +616,9 @@ class Extension {
   private readonly out = new Map<string, number>()
   private said = 0
   private asking = 0
+  // The extension's other words to core still on their way (a PDF handed over, a resume): counted only
+  // once answered (said), so a slow answer is no quiet
+  private telling = 0
   // GET /work may still be asked this many times; a held ask waits for its turn
   private allowed = Number.POSITIVE_INFINITY
   private readonly turns = new Set<() => void>()
@@ -638,6 +641,7 @@ class Extension {
     try {
       if (ask) await this.turn(signal)
       if (ask) this.asking++
+      else this.telling++
       try {
         const response = await realFetch(`http://127.0.0.1:${this.port()}${route}`, { ...init, signal })
         const body = await response.arrayBuffer()
@@ -645,6 +649,7 @@ class Extension {
         return new Response(body.byteLength ? body : null, { status: response.status, headers: response.headers })
       } finally {
         if (ask) this.asking--
+        else this.telling--
         if (!ask) this.said++
         const answered = /^\/work\/([^/?]+)/.exec(route)
         if (answered && init.method === "POST") this.back(decodeURIComponent(answered[1]))
@@ -779,13 +784,19 @@ class Extension {
     }, PATIENCE)
   }
 
+  // A look at a tab's page still waiting for its document, whose finding (past a wait, a PDF) is told
+  // only once it is read, or a word to core not answered yet
+  inFlight() {
+    return this.browser.reads.waiting > 0 || this.telling > 0
+  }
+
   outstanding() {
     return [...this.out.values()].reduce((n, count) => n + count, 0)
   }
 
   // A count that grows as anything happens between the browser, core and the web
   moved() {
-    return this.said + this.web.log.length + this.browser.created.length + this.browser.removed.length + this.browser.activated.length
+    return this.said + this.web.log.length + this.browser.created.length + this.browser.removed.length + this.browser.activated.length + this.browser.reads.began
   }
 
   // The worker's alarm

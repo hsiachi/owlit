@@ -213,6 +213,9 @@ export interface FakeBrowser<O extends Owlit = FakeOwlit> {
   aborted: string[]
   // Tabs the extension opened, and those made active by it
   created: { url: string; active: boolean }[]
+  // The background's looks at tabs' pages (executeScript): how many began, and how many are still
+  // waiting for their document, which nothing else shows happening
+  reads: { began: number; waiting: number }
   activated: number[]
   removed: number[]
   // The user opens a page in a tab of their own, and it is read
@@ -267,6 +270,7 @@ export function fakeBrowser<O extends Owlit = FakeOwlit>(sites: Record<string, S
   const hung: string[] = []
   const aborted: string[] = []
   const created: FakeBrowser["created"] = []
+  const reads: FakeBrowser["reads"] = { began: 0, waiting: 0 }
   const activated: number[] = []
   const removed: number[] = []
   const onUpdated = heard()
@@ -396,7 +400,10 @@ export function fakeBrowser<O extends Owlit = FakeOwlit>(sites: Record<string, S
   const executeScript = async ({ target, func, args = [], files, injectImmediately }: { target: { tabId: number }; func?: (...a: any[]) => unknown; args?: unknown[]; files?: string[]; injectImmediately?: boolean }) => {
     const tab = tabs.get(target.tabId)
     if (!tab) throw new Error("No tab with id")
+    reads.began++
+    reads.waiting++
     while (!injectImmediately && tab.readyState === "loading" && tabs.has(tab.id)) await new Promise((resolve) => setTimeout(resolve, 1))
+    reads.waiting--
     if (!tab.url || deniedAt(tab.url)) throw new Error("Cannot access contents of the page. Extension manifest must request permission to access the respective host.")
     if (tab.failed) throw new Error("Frame with ID 0 is showing error page")
     if (files || !func) return [{ result: undefined }]
@@ -553,6 +560,7 @@ export function fakeBrowser<O extends Owlit = FakeOwlit>(sites: Record<string, S
     hung,
     aborted,
     created,
+    reads,
     activated,
     removed,
     activate: (id: number) => front(tabs.get(id)!),
