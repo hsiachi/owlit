@@ -257,6 +257,23 @@ describe("fetching a paper for owlit", () => {
     expect(await fetchFor(tlink, school.deps)).toEqual({ ended: "sign-in", host: "tlink.lib.tsinghua.edu.cn" })
   })
 
+  it("reads a signed-in proxy's hand-off to OpenAthens' redirector as a step a tab walks, not as the proxy's sign-in", async () => {
+    // tlink signed in sends Springer's papers through go.openathens.net, whose name says sign in
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://link.springer.com/chapter/10.1007/978-3-642-21726-5_11"
+    const redirector = "https://go.openathens.net/redirector/tsinghua.edu.cn?url=https%3A%2F%2Flink.springer.com%2Fchapter%2F10.1007%2F978-3-642-21726-5_11"
+    const tlink = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", lane: "proxy:tlink.lib.tsinghua.edu.cn", proxied: true })
+    const { deps } = web({ [entry]: { awayTo: redirector } }, (url) => !url.includes("openathens.net"))
+    expect(await fetchFor(tlink, deps)).toEqual({ ended: "check", host: "go.openathens.net" })
+  })
+
+  it("asks to read the site another proxy rewrites a publisher's page at, whatever its path says", async () => {
+    const entry = "https://tlink.lib.tsinghua.edu.cn/go?url=https://www.sciencedirect.com/science/article/pii/S1"
+    const rewritten = "https://libproxy.qh.yitlink.com:8444/https/443/com/sciencedirect/www/yitlink/science/article/pii/S1?sso=login"
+    const tlink = item({ url: entry, host: "tlink.lib.tsinghua.edu.cn", lane: "proxy:tlink.lib.tsinghua.edu.cn", proxied: true })
+    const { deps } = web({ [entry]: { awayTo: rewritten } }, (url) => !url.includes("yitlink.com"))
+    expect(await fetchFor(tlink, deps)).toEqual({ ended: "no-permission", host: "libproxy.qh.yitlink.com" })
+  })
+
   it("follows a page's meta refresh, and says it couldn't read a page that is none of the paper's", async () => {
     // Elsevier's linkinghub sends the browser on by a refresh and a script; the refresh's address
     // redirects on to ScienceDirect's article, which names its PDF

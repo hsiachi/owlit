@@ -217,6 +217,20 @@ describe("the library's proxy", () => {
     expect(screen.block).toMatchObject({ total: 3, saved: 3, running: false, rows: [] })
   })
 
+  it("tlink signed out, OpenAthens not allowed: once signed in, the hand-off through OpenAthens is walked in a tab, not asked to sign in again", async () => {
+    const web = tlink(new FakeWeb())
+    const papers = [science(31), science(32)]
+    for (const p of papers) atypon(web, "www.science.org", p.doi, p.title, { subscription: true })
+    const b = await start(web, { proxy: { preset: "tsinghua" }, denied: ["openathens.net"] })
+    const ids = papers.map((p) => b.addPaper(p.doi, p.title))
+    expect(rowsOf(await b.getPdfs())).toEqual([["sign-in", 2, TLINK]])
+    await b.clickWait("sign-in", TLINK)
+    let screen = await b.signIn(TLINK)
+    if (screen.waits.length) screen = await b.pressDone(TLINK)
+    expect(screen.waits).toEqual([])
+    expect(ids.map((id) => screen.papers[id].hasPdf)).toEqual([true, true])
+  })
+
   it("tlink signed out, then a publisher's check: the line going on after the sign-in ends once its papers wait at the check", async () => {
     const web = tlink(new FakeWeb())
     const papers = [science(23), science(24)]

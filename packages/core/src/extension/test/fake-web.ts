@@ -324,16 +324,21 @@ export const institutionSignIn = (): Behaviour => () => page("统一身份认证
 
 // ---- Library proxies
 
-// Tsinghua's tlink: /go?url=<target> sends a signed-in reader on to the target and shows anyone else its
-// gateway of sign-in buttons at the same address; /gologin goes to the school's sign-in. offCampus: a
-// /gologin without a callback ends on a page that looks signed in, and /go still asks.
+// Tsinghua's tlink: /go?url=<target> sends a signed-in reader on to the target through OpenAthens'
+// redirector (go.openathens.net), which signs them in at the publisher and sends them on to its own
+// host; anyone else gets its gateway of sign-in buttons at the same address. /gologin goes to the
+// school's sign-in. offCampus: a /gologin without a callback ends on a page that looks signed in, and
+// /go still asks.
 export function tlink(web: FakeWeb, host = "tlink.lib.tsinghua.edu.cn", idp = "id.tsinghua.edu.cn", { offCampus = false } = {}): FakeWeb {
   web.on(`${host}/go?`, ({ url, client, web }) => {
     // Not encoded: the target rides as it is after url= (route.ts throughProxy)
     const target = url.search.replace(/^\?url=/, "")
-    if (web.isSignedIn(host, client)) return redirectTo(target)
+    if (web.isSignedIn(host, client)) return redirectTo(`https://go.openathens.net/redirector/tsinghua.edu.cn?url=${encodeURIComponent(target)}`)
     return page("清华大学图书馆 tlink", `<a href="https://${host}/gologin">校内登录</a><a href="https://${host}/gologin?type=carsi">CARSI</a>`)
   })
+  web.on("go.openathens.net/redirector/tsinghua.edu.cn", ({ url, client, web }) =>
+    web.isSignedIn(host, client) ? redirectTo(url.searchParams.get("url") ?? "") : redirectTo(`https://${idp}/do/off/ui/auth/login/form/abc`),
+  )
   web.on(`${host}/gologin`, ({ url }) => (offCampus && !url.searchParams.has("callback") ? page("清华大学图书馆", "<h1>电子资源</h1><p>欢迎</p>") : redirectTo(`https://${idp}/do/off/ui/auth/login/form/abc`)))
   web.on(`${idp}/`, institutionSignIn())
   return web
