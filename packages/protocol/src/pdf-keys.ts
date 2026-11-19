@@ -14,5 +14,7 @@ export type WaitId = GateKey
 
 // Hosts a publisher's single sign-on passes through on its way to the reader's library or back: Elsevier's,
 // OpenAthens' and Atypon's. A page ended at one is a step of that publisher's sign-in, never a gate of its
-// own or the proxy's.
-export const SSO_HOP_HOSTS = ["auth.elsevier.com", "login.openathens.net", "iam.atypon.com"] as const
+// own or the proxy's. go.openathens.net is OpenAthens' link redirector: a library proxy signed in sends
+// its reader there on to the publisher (tlink, for Springer and BMJ), so its name, which says
+// "openathens", is no sign-in of the proxy's.
+export const SSO_HOP_HOSTS = ["auth.elsevier.com", "login.openathens.net", "go.openathens.net", "iam.atypon.com"] as const

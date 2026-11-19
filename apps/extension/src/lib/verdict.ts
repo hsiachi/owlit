@@ -242,6 +242,15 @@ export function isSignInAddress(url: string) {
   return !!at && signIn(`${at.hostname}${pathOf(at)}`)
 }
 
+// A proxy's rewrite of some publisher's page (/https/443/com/sciencedirect/…, or
+// www-sciencedirect-com.proxy.example.edu): a page through the library, whatever its path says
+const rewrites = (at: URL) => /^\/https?\/\d+\//.test(at.pathname) || /-(com|org|net|edu|gov)\./.test(at.hostname)
+
+export function isRewrittenAddress(url: string) {
+  const at = safeUrl(url)
+  return !!at && rewrites(at)
+}
+
 export function verdict(page: Page): WorkEnding {
   const at = safeUrl(page.url)
   if (!at) return "unreadable"
@@ -254,10 +263,7 @@ export function verdict(page: Page): WorkEnding {
   if ((page.proxy && LIMIT.test(at.pathname)) || LIMIT_TITLE.test(title) || page.status === 429) return "offline"
   const path = pathOf(at)
   const article = isArticle(page.html)
-  // A proxy's rewrite of some publisher's page (/https/443/com/sciencedirect/…, or
-  // www-sciencedirect-com.proxy.example.edu): an article page through the library, whatever its path says
-  const rewritten = /^\/https?\/\d+\//.test(at.pathname) || /-(com|org|net|edu|gov)\./.test(at.hostname)
-  if (page.proxy && !rewritten && siteOf(at.hostname) === siteOf(page.proxy.host)) {
+  if (page.proxy && !rewrites(at) && siteOf(at.hostname) === siteOf(page.proxy.host)) {
     const entry = page.proxy.entry ? safeUrl(page.proxy.entry) : undefined
     const onEntry = !!entry && entry.hostname === at.hostname && entry.pathname === at.pathname
     if (at.hostname === page.proxy.host && (onEntry || PROXY_SIGN_IN.test(at.pathname) || at.pathname === "/")) return "sign-in"
